@@ -46,3 +46,6 @@ Thumbs.db
 tmp/
 temp/
 *.tmp
+
+# design docs
+docs/
