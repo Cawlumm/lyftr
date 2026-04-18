@@ -2,30 +2,172 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── CSS Variables (theme tokens) ─────────────────────
+   Light = :root defaults. Dark = .dark overrides.
+   Everything in the app inherits from these — both modes
+   are fully supported everywhere with no carve-outs.
+──────────────────────────────────────────────────────── */
+:root {
+  --surface-base:    #f8fafc;
+  --surface-raised:  #ffffff;
+  --surface-overlay: #f1f5f9;
+  --surface-border:  #e2e8f0;
+  --surface-muted:   #f1f5f9;
+
+  --tx-primary:   #0f172a;
+  --tx-secondary: #475569;
+  --tx-muted:     #94a3b8;
+  --tx-inverse:   #ffffff;
+
+  color-scheme: light;
+}
+
+.dark {
+  --surface-base:    #070d1a;
+  --surface-raised:  #0d1629;
+  --surface-overlay: #111e35;
+  --surface-border:  #1c2f50;
+  --surface-muted:   #162240;
+
+  --tx-primary:   #f1f5f9;
+  --tx-secondary: #94a3b8;
+  --tx-muted:     #475569;
+  --tx-inverse:   #0f172a;
+
+  color-scheme: dark;
+}
+
+/* ─── Base ─────────────────────────────────────────── */
 @layer base {
+  * { @apply border-surface-border; }
+
   body {
-    @apply bg-slate-50 text-slate-900;
+    @apply bg-surface-base text-tx-primary font-sans antialiased transition-colors duration-150;
   }
 }
 
+/* ─── Components ────────────────────────────────────── */
 @layer components {
+
+  /* Cards */
+  .card             { @apply bg-surface-raised border border-surface-border rounded-xl; }
+  .card-interactive { @apply card hover:border-tx-muted transition-colors duration-150 cursor-pointer; }
+  .card-glass       { @apply bg-surface-raised backdrop-blur-xl border border-surface-border rounded-xl; }
+
+  /* Buttons */
   .btn {
-    @apply px-4 py-2 rounded-lg font-medium transition-colors;
+    @apply inline-flex items-center justify-center gap-2 font-semibold rounded-lg
+           transition-all duration-150 focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2
+           focus-visible:ring-offset-surface-base
+           disabled:opacity-40 disabled:cursor-not-allowed select-none;
   }
+  .btn-sm  { @apply btn text-xs  px-3   py-1.5 gap-1.5; }
+  .btn-md  { @apply btn text-sm  px-4   py-2.5; }
+  .btn-lg  { @apply btn text-sm  px-5   py-3; }
 
-  .btn-primary {
-    @apply btn bg-primary text-white hover:bg-blue-700;
-  }
+  .btn-primary   { @apply bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm; }
+  .btn-secondary { @apply bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary hover:border-tx-muted; }
+  .btn-ghost     { @apply text-tx-muted hover:text-tx-primary hover:bg-surface-muted; }
+  .btn-danger    { @apply bg-error-500/10 border border-error-500/20 text-error-400 hover:bg-error-500/20; }
+  .btn-icon      { @apply btn p-2.5 rounded-lg; }
+  .btn-icon-sm   { @apply btn p-2   rounded-md; }
 
-  .btn-secondary {
-    @apply btn bg-slate-200 text-slate-900 hover:bg-slate-300;
-  }
-
-  .card {
-    @apply bg-white rounded-lg shadow p-4 border border-slate-200;
-  }
-
+  /* Inputs */
   .input {
-    @apply w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply w-full px-3.5 py-2.5 bg-surface-overlay border border-surface-border rounded-lg
+           text-tx-primary placeholder-tx-muted text-sm
+           focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500
+           transition-colors duration-150;
   }
+  .input-group     { @apply space-y-1.5; }
+  .input-help      { @apply text-xs text-tx-muted mt-1; }
+
+  .label {
+    @apply flex items-center gap-1.5 text-xs font-medium text-tx-secondary tracking-wide uppercase;
+  }
+
+  /* Progress */
+  .progress-track { @apply h-1 bg-surface-overlay rounded-full overflow-hidden; }
+  .progress-bar   { @apply h-full rounded-full transition-all duration-500 ease-out; }
+
+  /* Stat */
+  .stat-value { @apply font-display font-bold text-tx-primary tabular-nums leading-none; }
+  .stat-label { @apply text-xs font-medium text-tx-muted uppercase tracking-wider; }
+
+  /* Alerts */
+  .alert         { @apply flex gap-3 items-start rounded-lg p-3.5 text-sm border; }
+  .alert-error   { @apply alert bg-error-500/10   border-error-500/20   text-error-400; }
+  .alert-success { @apply alert bg-success-500/10 border-success-500/20 text-success-400; }
+  .alert-info    { @apply alert bg-brand-500/10   border-brand-500/20   text-brand-400; }
+  .alert-warning { @apply alert bg-warning-500/10 border-warning-500/20 text-warning-400; }
+
+  /* Nav */
+  .nav-item {
+    @apply flex flex-col items-center gap-1 px-4 py-3 text-tx-muted
+           transition-colors duration-150 relative text-xs font-medium;
+  }
+  .nav-item.active { @apply text-brand-500; }
+  .nav-item.active::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-px bg-brand-500;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center text-center py-16 px-6;
+  }
+
+  /* Section header */
+  .section-header {
+    @apply flex items-center justify-between mb-4;
+  }
+  .section-title {
+    @apply text-sm font-semibold text-tx-primary;
+  }
+
+  /* Divider */
+  .divider { @apply border-t border-surface-border; }
+
+  /* Badge */
+  .badge     { @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium; }
+  .badge-dim { @apply badge bg-surface-muted border border-surface-border text-tx-muted; }
+  .badge-brand { @apply badge bg-brand-500/10 border border-brand-500/20 text-brand-400; }
+
+  /* Tooltip target */
+  .help-icon { @apply text-tx-muted hover:text-tx-secondary transition-colors cursor-help; }
+
+  /* Row item */
+  .list-row {
+    @apply flex items-center justify-between px-3 py-3 rounded-lg
+           hover:bg-surface-muted transition-colors duration-150 cursor-pointer group;
+  }
+
+  /* Kbd */
+  .kbd {
+    @apply inline-flex items-center px-1.5 py-0.5 rounded text-xs font-mono
+           bg-surface-overlay border border-surface-border text-tx-muted;
+  }
+}
+
+/* ─── Utilities ─────────────────────────────────────── */
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, #00b8d9 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-slide-up { animation: slide-up 0.2s ease-out both; }
+  .animate-fade-in  { animation: fade-in 0.15s ease-out both; }
 }
