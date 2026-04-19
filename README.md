@@ -23,6 +23,8 @@
 
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome.
 
+> **First official beta release coming soon** — stay tuned.
+
 ---
 
 ## Features
