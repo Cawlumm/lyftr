@@ -97,4 +97,36 @@ CREATE TABLE IF NOT EXISTS food_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_food_logs_user ON food_logs(user_id, logged_at DESC);
+
+CREATE TABLE IF NOT EXISTS active_sessions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  data       TEXT    NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS programs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT    NOT NULL,
+  notes      TEXT    NOT NULL DEFAULT '',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_programs_user ON programs(user_id);
+
+CREATE TABLE IF NOT EXISTS program_exercises (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  program_id  INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+  order_index INTEGER NOT NULL DEFAULT 0,
+  notes       TEXT    NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS program_sets (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  program_exercise_id INTEGER NOT NULL REFERENCES program_exercises(id) ON DELETE CASCADE,
+  set_number          INTEGER NOT NULL DEFAULT 1,
+  target_reps         INTEGER NOT NULL DEFAULT 0,
+  target_weight       REAL    NOT NULL DEFAULT 0
+);
 `

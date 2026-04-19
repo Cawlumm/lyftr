@@ -1,18 +1,23 @@
 import { useState, useEffect } from 'react'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import {
-  TrendingDown, TrendingUp, Dumbbell, Utensils, Flame, Target, Plus, Activity,
-  Trophy, Scale, Apple, Timer, BarChart3, Beef, Zap, Award, ArrowRight,
-  CheckCircle2, AlertCircle,
+  Dumbbell, Utensils, Flame, Plus,
+  Apple, Beef, Zap, ArrowRight,
+  CheckCircle2, AlertCircle, Play, Timer,
 } from 'lucide-react'
-import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
+import StartWorkoutModal from '../components/StartWorkoutModal'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
+import { useWorkoutSession } from '../stores/workoutSession'
+import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 
 const TODAY = new Date()
 
 export default function Dashboard() {
+  const navigate = useNavigate()
+  const { session } = useWorkoutSession()
+  const [showStartModal, setShowStartModal] = useState(false)
   const [stats, setStats] = useState<{
     weight?: types.WeightLog | null
     weightStats?: types.WeightStats
@@ -36,7 +41,7 @@ export default function Dashboard() {
           })),
           weightAPI.stats().catch(() => ({ latest: 0, starting: 0, total_entries: 0 })),
           userAPI.getSettings().catch(() => ({
-            user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
+            user_id: 0, weight_unit: 'lbs' as const, calorie_target: 2000,
             protein_target: 150, carb_target: 250, fat_target: 65
           })),
         ])
@@ -92,10 +97,32 @@ export default function Dashboard() {
             Your progress today
           </h1>
         </div>
-        <button className="btn-primary btn-sm">
-          <Plus className="w-3.5 h-3.5" /> Log
+        <button
+          onClick={() => session ? navigate('/workout/active') : setShowStartModal(true)}
+          className="btn-primary btn-sm"
+        >
+          <Play className="w-3.5 h-3.5" /> {session ? 'Resume' : 'Start Workout'}
         </button>
       </div>
+
+      {/* ── Active session banner ──────────────────── */}
+      {session && (
+        <Link
+          to="/workout/active"
+          className="flex items-center justify-between p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl hover:bg-amber-500/15 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+              <Timer className="w-4 h-4 text-amber-400 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-300">Workout in progress</p>
+              <p className="text-xs text-amber-400/70">{session.name} — tap to resume</p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-amber-400" />
+        </Link>
+      )}
 
       {/* ── Top stat cards ─────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
@@ -247,6 +274,7 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      <StartWorkoutModal isOpen={showStartModal} onClose={() => setShowStartModal(false)} />
     </div>
   )
 }

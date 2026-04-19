@@ -33,7 +33,12 @@ func ListExercises(c *gin.Context) {
 		args = append(args, eq)
 	}
 
-	query += " ORDER BY name LIMIT 100"
+	limit := 100
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 2000 {
+		limit = l
+	}
+	query += " ORDER BY name LIMIT ?"
+	args = append(args, limit)
 
 	rows, err := db.DB.Query(query, args...)
 	if err != nil {

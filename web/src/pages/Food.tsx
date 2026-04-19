@@ -29,7 +29,7 @@ export default function Food() {
             total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, workout_count: 0
           })),
           userAPI.getSettings().catch(() => ({
-            user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
+            user_id: 0, weight_unit: 'lbs' as const, calorie_target: 2000,
             protein_target: 150, carb_target: 250, fat_target: 65
           })),
         ])

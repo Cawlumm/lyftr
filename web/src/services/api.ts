@@ -65,13 +65,48 @@ export const workoutAPI = {
     api.get<{ data: types.Workout[] }>('/workouts', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.Workout }>(`/workouts/${id}`).then(res => unwrap(res)),
   create: (data: any) => api.post<{ data: types.Workout }>('/workouts', data).then(res => unwrap(res)),
+  update: (id: number, data: any) => api.put<{ data: types.Workout }>(`/workouts/${id}`, data).then(res => unwrap(res)),
   delete: (id: number) => api.delete(`/workouts/${id}`),
 }
 
+let _exerciseCache: types.Exercise[] | null = null
+let _exerciseCachePromise: Promise<types.Exercise[]> | null = null
+
 export const exerciseAPI = {
-  list:   (params?: { q?: string; muscle_group?: string; category?: string; equipment?: string }) =>
-    api.get<{ data: types.Exercise[] }>('/exercises', { params }).then(res => unwrap(res)),
-  get:    (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(res => unwrap(res)),
+  list: (params?: { q?: string; muscle_group?: string; category?: string; equipment?: string }) => {
+    if (params?.q || params?.muscle_group || params?.category || params?.equipment) {
+      return api.get<{ data: types.Exercise[] }>('/exercises', { params }).then(res => unwrap(res))
+    }
+    if (_exerciseCache) return Promise.resolve(_exerciseCache)
+    if (_exerciseCachePromise) return _exerciseCachePromise
+    _exerciseCachePromise = api.get<{ data: types.Exercise[] }>('/exercises', { params: { limit: 1000 } })
+      .then(res => {
+        _exerciseCache = unwrap(res)
+        _exerciseCachePromise = null
+        return _exerciseCache
+      })
+    return _exerciseCachePromise
+  },
+  get: (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(res => unwrap(res)),
+  clearCache: () => { _exerciseCache = null; _exerciseCachePromise = null },
+}
+
+export const activeSessionAPI = {
+  get: () => api.get<{ data: { data: string; updated_at: string } | null }>('/active-session').then(res => {
+    const payload = res.data.data
+    if (!payload) return null
+    try { return JSON.parse(payload.data) } catch { return null }
+  }),
+  save: (session: any) => api.put('/active-session', { data: JSON.stringify(session) }),
+  clear: () => api.delete('/active-session'),
+}
+
+export const programAPI = {
+  list:   () => api.get<{ data: types.Program[] }>('/programs').then(res => unwrap(res)),
+  get:    (id: number) => api.get<{ data: types.Program }>(`/programs/${id}`).then(res => unwrap(res)),
+  create: (data: any) => api.post<{ data: types.Program }>('/programs', data).then(res => unwrap(res)),
+  update: (id: number, data: any) => api.put<{ data: types.Program }>(`/programs/${id}`, data).then(res => unwrap(res)),
+  delete: (id: number) => api.delete(`/programs/${id}`),
 }
 
 export const weightAPI = {

@@ -21,13 +21,13 @@ func Connect() {
 	}
 
 	var err error
-	DB, err = sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_foreign_keys=on")
+	DB, err = sql.Open("sqlite", dbPath+"?_journal_mode=DELETE&_foreign_keys=on&_busy_timeout=5000")
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
 
-	DB.SetMaxOpenConns(1) // SQLite is single-writer
-	DB.SetMaxIdleConns(1)
+	DB.SetMaxOpenConns(10)
+	DB.SetMaxIdleConns(5)
 
 	if err = DB.Ping(); err != nil {
 		log.Fatalf("failed to ping database: %v", err)

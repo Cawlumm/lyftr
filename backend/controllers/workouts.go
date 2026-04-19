@@ -38,6 +38,7 @@ func ListWorkouts(c *gin.Context) {
 	for rows.Next() {
 		var w models.Workout
 		rows.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt)
+		w.Exercises = loadWorkoutExercises(w.ID)
 		workouts = append(workouts, w)
 	}
 	utils.OK(c, workouts)
@@ -85,7 +86,14 @@ func CreateWorkout(c *gin.Context) {
 		req.StartedAt = time.Now()
 	}
 
-	res, err := db.DB.Exec(
+	tx, err := db.DB.Begin()
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(
 		`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Notes, req.Duration, req.StartedAt,
 	)
@@ -96,21 +104,33 @@ func CreateWorkout(c *gin.Context) {
 	wid, _ := res.LastInsertId()
 
 	for i, ex := range req.Exercises {
-		exRes, err := db.DB.Exec(
+		exRes, err := tx.Exec(
 			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
 			wid, ex.ExerciseID, i, ex.Notes,
 		)
 		if err != nil {
-			continue
+			tx.Rollback()
+			utils.InternalError(c)
+			return
 		}
 		weid, _ := exRes.LastInsertId()
 		for j, s := range ex.Sets {
-			db.DB.Exec(
+			_, err := tx.Exec(
 				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup)
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
 			)
+			if err != nil {
+				tx.Rollback()
+				utils.InternalError(c)
+				return
+			}
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		utils.InternalError(c)
+		return
 	}
 
 	var w models.Workout
@@ -119,6 +139,97 @@ func CreateWorkout(c *gin.Context) {
 	).Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt)
 	w.Exercises = loadWorkoutExercises(wid)
 	utils.Created(c, w)
+}
+
+func UpdateWorkout(c *gin.Context) {
+	uid := middleware.UserID(c)
+	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "invalid workout id")
+		return
+	}
+
+	var req models.CreateWorkoutRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	var existing models.Workout
+	err = db.DB.QueryRow(
+		`SELECT id, user_id FROM workouts WHERE id = ? AND user_id = ?`, wid, uid,
+	).Scan(&existing.ID, &existing.UserID)
+	if err == sql.ErrNoRows {
+		utils.NotFound(c, "workout not found")
+		return
+	}
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(
+		`UPDATE workouts SET name = ?, notes = ?, duration = ?, started_at = ? WHERE id = ?`,
+		req.Name, req.Notes, req.Duration, req.StartedAt, wid,
+	)
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+
+	_, err = tx.Exec(`DELETE FROM workout_exercises WHERE workout_id = ?`, wid)
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+
+	for i, ex := range req.Exercises {
+		exRes, err := tx.Exec(
+			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
+			wid, ex.ExerciseID, i, ex.Notes,
+		)
+		if err != nil {
+			tx.Rollback()
+			utils.InternalError(c)
+			return
+		}
+		weid, _ := exRes.LastInsertId()
+		for j, s := range ex.Sets {
+			_, err := tx.Exec(
+				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
+			)
+			if err != nil {
+				tx.Rollback()
+				utils.InternalError(c)
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		utils.InternalError(c)
+		return
+	}
+
+	var w models.Workout
+	db.DB.QueryRow(
+		`SELECT id, user_id, name, notes, duration, started_at, created_at FROM workouts WHERE id = ?`, wid,
+	).Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt)
+	w.Exercises = loadWorkoutExercises(wid)
+	utils.OK(c, w)
 }
 
 func DeleteWorkout(c *gin.Context) {

@@ -9,11 +9,15 @@ import (
 )
 
 func Setup(r *gin.Engine) {
+	corsOrigins := []string{config.C.CORSOrigin}
+	if config.C.Env == "development" {
+		corsOrigins = []string{"*"}
+	}
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{config.C.CORSOrigin},
+		AllowOrigins:     corsOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: true,
+		AllowCredentials: config.C.Env != "development",
 	}))
 
 	r.GET("/health", func(c *gin.Context) {
@@ -44,6 +48,7 @@ func Setup(r *gin.Engine) {
 		protected.GET("workouts", controllers.ListWorkouts)
 		protected.POST("workouts", controllers.CreateWorkout)
 		protected.GET("workouts/:id", controllers.GetWorkout)
+		protected.PUT("workouts/:id", controllers.UpdateWorkout)
 		protected.DELETE("workouts/:id", controllers.DeleteWorkout)
 
 		// Weight
@@ -61,6 +66,18 @@ func Setup(r *gin.Engine) {
 		// Exercises (read-only for users)
 		protected.GET("exercises", controllers.ListExercises)
 		protected.GET("exercises/:id", controllers.GetExercise)
+
+		// Active session
+		protected.GET("active-session", controllers.GetActiveSession)
+		protected.PUT("active-session", controllers.UpsertActiveSession)
+		protected.DELETE("active-session", controllers.DeleteActiveSession)
+
+		// Programs
+		protected.GET("programs", controllers.ListPrograms)
+		protected.POST("programs", controllers.CreateProgram)
+		protected.GET("programs/:id", controllers.GetProgram)
+		protected.PUT("programs/:id", controllers.UpdateProgram)
+		protected.DELETE("programs/:id", controllers.DeleteProgram)
 
 		// Admin
 		protected.POST("admin/sync-exercises", controllers.SyncExercises)

@@ -163,6 +163,51 @@ type UpdateSettingsRequest struct {
 	FatTarget     int    `json:"fat_target" validate:"omitempty,gte=0"`
 }
 
+type Program struct {
+	ID        int64             `json:"id"`
+	UserID    int64             `json:"user_id,omitempty"`
+	Name      string            `json:"name"`
+	Notes     string            `json:"notes"`
+	CreatedAt time.Time         `json:"created_at"`
+	Exercises []ProgramExercise `json:"exercises"`
+}
+
+type ProgramExercise struct {
+	ID         int64        `json:"id,omitempty"`
+	ProgramID  int64        `json:"program_id,omitempty"`
+	ExerciseID int64        `json:"exercise_id"`
+	OrderIndex int          `json:"order_index,omitempty"`
+	Notes      string       `json:"notes"`
+	Exercise   Exercise     `json:"exercise"`
+	Sets       []ProgramSet `json:"sets"`
+}
+
+type ProgramSet struct {
+	ID                int64   `json:"id,omitempty"`
+	ProgramExerciseID int64   `json:"program_exercise_id,omitempty"`
+	SetNumber         int     `json:"set_number"`
+	TargetReps        int     `json:"target_reps"`
+	TargetWeight      float64 `json:"target_weight"`
+}
+
+type CreateProgramRequest struct {
+	Name      string                    `json:"name" validate:"required"`
+	Notes     string                    `json:"notes"`
+	Exercises []CreateProgramExerciseReq `json:"exercises"`
+}
+
+type CreateProgramExerciseReq struct {
+	ExerciseID int64                `json:"exercise_id" validate:"required"`
+	Notes      string               `json:"notes"`
+	Sets       []CreateProgramSetReq `json:"sets"`
+}
+
+type CreateProgramSetReq struct {
+	SetNumber    int     `json:"set_number"`
+	TargetReps   int     `json:"target_reps"`
+	TargetWeight float64 `json:"target_weight"`
+}
+
 type DailyStats struct {
 	Date          string  `json:"date"`
 	TotalCalories float64 `json:"total_calories"`

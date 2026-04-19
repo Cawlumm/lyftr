@@ -30,7 +30,7 @@ type freeExerciseItem struct {
 	Images           []string `json:"images"`
 }
 
-// Exercises seeds on first run if the table is empty.
+// Exercises seeds on first run if the table is empty (async to avoid blocking startup).
 func Exercises(db *sql.DB) {
 	var count int
 	db.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&count)
@@ -39,9 +39,14 @@ func Exercises(db *sql.DB) {
 		return
 	}
 
-	log.Println("seed: fetching exercises from free-exercise-db...")
+	log.Println("seed: exercises table empty - syncing from free-exercise-db in background...")
+	go fetchAndStoreAsync(db)
+}
+
+func fetchAndStoreAsync(db *sql.DB) {
 	if err := fetchAndStore(db); err != nil {
 		log.Printf("seed: exercise sync failed: %v", err)
+		return
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 func main() {
 	config.Load()
 	db.Connect()
+	seed.DemoUser(db.DB)
 	seed.Exercises(db.DB)
 
 	if config.C.Env == "production" {

@@ -1,8 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { useAuthStore } from './stores/auth'
+import { useWorkoutSession } from './stores/workoutSession'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
 import Workouts from './pages/Workouts'
+import Programs from './pages/Programs'
+import ActiveWorkout from './pages/ActiveWorkout'
 import Food from './pages/Food'
 import Weight from './pages/Weight'
 import Settings from './pages/Settings'
@@ -11,6 +15,11 @@ import Register from './pages/Register'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
+  const { restoreFromServer } = useWorkoutSession()
+
+  useEffect(() => {
+    if (isAuthenticated) restoreFromServer()
+  }, [isAuthenticated])
 
   return (
     <BrowserRouter>
@@ -24,6 +33,8 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/workouts" element={<Workouts />} />
+            <Route path="/programs" element={<Programs />} />
+            <Route path="/workout/active" element={<ActiveWorkout />} />
             <Route path="/food" element={<Food />} />
             <Route path="/weight" element={<Weight />} />
             <Route path="/settings" element={<Settings />} />

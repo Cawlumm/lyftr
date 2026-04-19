@@ -98,6 +98,54 @@ export interface WeightStats {
   total_entries: number
 }
 
+export interface ProgramSet {
+  id?: number
+  set_number: number
+  target_reps: number
+  target_weight: number
+}
+
+export interface ProgramExercise {
+  id?: number
+  exercise_id: number
+  order_index?: number
+  notes?: string
+  exercise: Exercise
+  sets: ProgramSet[]
+}
+
+export interface Program {
+  id: number
+  name: string
+  notes?: string
+  created_at: string
+  exercises: ProgramExercise[]
+}
+
+export interface ActiveSessionSet {
+  set_number: number
+  target_reps: number
+  target_weight: number
+  actual_reps: number
+  actual_weight: number
+  completed: boolean
+}
+
+export interface ActiveSessionExercise {
+  exercise_id: number
+  exercise: Exercise
+  notes: string
+  sets: ActiveSessionSet[]
+}
+
+export interface ActiveSession {
+  program_id?: number
+  name: string
+  started_at: string
+  exercises: ActiveSessionExercise[]
+  device_id?: string
+}
+
 export interface AuthResponse {
   token: string
   refresh_token: string
