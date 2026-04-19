@@ -1,32 +1,13 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { BookOpen, Plus, ChevronDown, Dumbbell, Target, Edit2, Trash2, AlertCircle, Search, Play } from 'lucide-react'
+import { BookOpen, Plus, ChevronDown, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
-import AddProgramModal from '../components/AddProgramModal'
-import EditProgramModal from '../components/EditProgramModal'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import * as types from '../types'
 
-const MUSCLE_COLORS: Record<string, string> = {
-  chest: 'bg-red-500/15 text-red-400',
-  back: 'bg-blue-500/15 text-blue-400',
-  shoulders: 'bg-orange-500/15 text-orange-400',
-  biceps: 'bg-purple-500/15 text-purple-400',
-  triceps: 'bg-pink-500/15 text-pink-400',
-  quadriceps: 'bg-green-500/15 text-green-400',
-  hamstrings: 'bg-teal-500/15 text-teal-400',
-  glutes: 'bg-yellow-500/15 text-yellow-400',
-  calves: 'bg-lime-500/15 text-lime-400',
-  abdominals: 'bg-amber-500/15 text-amber-400',
-  forearms: 'bg-cyan-500/15 text-cyan-400',
-  traps: 'bg-indigo-500/15 text-indigo-400',
-  lats: 'bg-sky-500/15 text-sky-400',
-}
-function muscleColor(m: string) {
-  return MUSCLE_COLORS[m?.toLowerCase()] || 'bg-surface-muted text-tx-muted'
-}
+import { muscleColor } from '../utils/exerciseUtils'
 
 function ProgramCard({
   program,
@@ -43,7 +24,7 @@ function ProgramCard({
 
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (session) { navigate('/workout/active'); return }
+    if (session) { navigate('/workout/start'); return }
     const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
       exercise_id: ex.exercise_id,
       exercise: ex.exercise,
@@ -114,43 +95,50 @@ function ProgramCard({
     <div className="card overflow-hidden">
       <div className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors group">
         <button className="flex-1 flex items-center gap-3 min-w-0" onClick={() => setOpen(o => !o)}>
-          <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-            <BookOpen className="w-4 h-4 text-brand-500" strokeWidth={2} />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-tx-primary">{program.name}</p>
-            <p className="text-xs text-tx-muted">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
+          {program.exercises?.[0]?.exercise?.image_url ? (
+            <img
+              src={program.exercises[0].exercise.image_url}
+              alt=""
+              className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <BookOpen className="w-5 h-5 text-brand-500" strokeWidth={2} />
+            </div>
+          )}
+          <div className="text-left min-w-0">
+            <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+              <span className="text-xs text-tx-muted">{format(new Date(program.created_at), 'MMM d, yyyy')}</span>
+              <span className="text-tx-muted/40 text-xs">·</span>
+              <span className="text-xs text-tx-muted">{program.exercises?.length || 0} exercises</span>
+              <span className="text-tx-muted/40 text-xs">·</span>
+              <span className="text-xs text-tx-muted">{totalSets} sets</span>
+            </div>
           </div>
         </button>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="hidden sm:flex items-center gap-4 text-xs text-tx-muted">
-            <span className="flex items-center gap-1">
-              <Dumbbell className="w-3.5 h-3.5" /> {program.exercises?.length || 0} exercises
-            </span>
-            <span className="flex items-center gap-1">
-              <Target className="w-3.5 h-3.5" /> {totalSets} sets
-            </span>
-          </div>
+        <div className="flex items-center gap-1">
           <button
             onClick={handleStart}
-            className="p-2 bg-brand-500/10 hover:bg-brand-500/20 rounded-lg transition-colors border border-brand-500/20"
+            className="w-11 h-11 flex items-center justify-center bg-brand-500/10 hover:bg-brand-500/20 rounded-xl transition-colors border border-brand-500/20 flex-shrink-0"
             title="Start workout from this program"
           >
             <Play className="w-4 h-4 text-brand-500" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); onEdit(program.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
           >
             <Trash2 className="w-4 h-4 text-error-400" />
           </button>
-          <ChevronDown className={`w-4 h-4 text-tx-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`w-4 h-4 text-tx-muted transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
 
@@ -164,35 +152,58 @@ function ProgramCard({
             {program.exercises?.map((ex) => {
               const maxTarget = ex.sets?.length > 0 ? Math.max(...ex.sets.map(s => s.target_weight || 0)) : 0
               return (
-                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Dumbbell className="w-3.5 h-3.5 text-brand-500" />
+                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl overflow-hidden">
+                  {/* Exercise header */}
+                  <div className="flex items-center gap-3 px-3 pt-3 pb-2">
+                    {ex.exercise.image_url ? (
+                      <img
+                        src={ex.exercise.image_url}
+                        alt=""
+                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-muted"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                        <Dumbbell className="w-4 h-4 text-brand-500" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-tx-primary leading-tight">{ex.exercise.name}</p>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mt-1 ${muscleColor(ex.exercise.muscle_group)}`}>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-tx-primary leading-tight truncate">{ex.exercise.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                           {ex.exercise.muscle_group}
                         </span>
+                        <span className="text-xs text-tx-muted">{ex.sets?.length || 0} sets</span>
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="text-xs text-tx-muted">Target</p>
-                      <p className="text-sm font-bold text-brand-400 tabular-nums">{maxTarget > 0 ? `${maxTarget} lbs` : '—'}</p>
-                    </div>
+                    {maxTarget > 0 && (
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs text-tx-muted leading-tight">target</p>
+                        <p className="text-sm font-bold text-brand-400 tabular-nums">{maxTarget} lb</p>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {ex.sets?.map((set, i) => (
-                      <div key={i} className="flex items-center gap-1 bg-surface-raised px-2 py-1 rounded-lg border border-surface-border">
-                        <span className="text-xs text-tx-muted font-medium">#{set.set_number}</span>
-                        <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                          {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${set.target_weight}` : '0'}<span className="text-tx-muted font-normal">lb</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  {/* Set chips — target reps × weight, heaviest highlighted */}
+                  {ex.sets?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-2 border-t border-surface-border/50 mt-2">
+                      {ex.sets.map((set, i) => {
+                        const isBest = set.target_weight === maxTarget && maxTarget > 0
+                        return (
+                          <div
+                            key={i}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
+                              isBest
+                                ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
+                                : 'bg-surface-raised text-tx-secondary'
+                            }`}
+                          >
+                            {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${set.target_weight} lb` : 'BW'}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -204,13 +215,11 @@ function ProgramCard({
 }
 
 export default function Programs() {
+  const navigate = useNavigate()
   const [programs, setPrograms] = useState<types.Program[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
 
   const loadPrograms = async () => {
     try {
@@ -245,7 +254,7 @@ export default function Programs() {
           <h1 className="font-display font-bold text-2xl text-tx-primary">Programs</h1>
           <p className="text-tx-muted text-sm mt-0.5">Reusable workout templates</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary btn-md">
+        <button onClick={() => navigate('/programs/new')} className="btn-primary btn-md">
           <Plus className="w-4 h-4" /> New Program
         </button>
       </div>
@@ -291,20 +300,13 @@ export default function Programs() {
             <ProgramCard
               key={p.id}
               program={p}
-              onEdit={(id) => { setEditingId(id); setShowEditModal(true) }}
+              onEdit={(id) => navigate(`/programs/${id}/edit`)}
               onDelete={(id) => setPrograms(prev => prev.filter(x => x.id !== id))}
             />
           ))
         )}
       </div>
 
-      <AddProgramModal isOpen={showAddModal} onClose={() => setShowAddModal(false)} onSuccess={loadPrograms} />
-      <EditProgramModal
-        isOpen={showEditModal}
-        onClose={() => { setShowEditModal(false); setEditingId(null) }}
-        onSuccess={loadPrograms}
-        programId={editingId || 0}
-      />
     </div>
   )
 }

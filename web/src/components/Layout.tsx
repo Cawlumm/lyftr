@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Home, Dumbbell, Apple, Scale, Settings, BookOpen,
+  Home, Dumbbell, Apple, Scale, BookOpen,
   LogOut, Moon, Sun, User, ChevronDown,
   Shield, Timer, ChevronRight,
 } from 'lucide-react'
@@ -16,7 +16,6 @@ const NAV = [
   { path: '/programs',  label: 'Programs', icon: BookOpen },
   { path: '/food',      label: 'Food',     icon: Apple },
   { path: '/weight',    label: 'Weight',   icon: Scale },
-  { path: '/settings',  label: 'Settings', icon: Settings },
 ]
 
 function formatElapsed(seconds: number) {
@@ -173,7 +172,7 @@ export default function Layout() {
       <div className="sticky bottom-0 z-50">
         <ActiveSessionBar />
         <nav className="border-t border-surface-border bg-surface-base/95 backdrop-blur-sm">
-          <div className="max-w-6xl mx-auto px-5 flex">
+          <div className="max-w-6xl mx-auto flex">
             {NAV.map(({ path, label, icon: Icon }) => {
               const active = pathname === path
               return (

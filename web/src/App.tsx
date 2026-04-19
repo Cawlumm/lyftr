@@ -7,6 +7,13 @@ import Dashboard from './pages/Dashboard'
 import Workouts from './pages/Workouts'
 import Programs from './pages/Programs'
 import ActiveWorkout from './pages/ActiveWorkout'
+import StartWorkout from './pages/StartWorkout'
+import WorkoutExercisePicker from './pages/WorkoutExercisePicker'
+import ExerciseDetail from './pages/ExerciseDetail'
+import AddProgram from './pages/AddProgram'
+import EditProgram from './pages/EditProgram'
+import AddWorkout from './pages/AddWorkout'
+import EditWorkout from './pages/EditWorkout'
 import Food from './pages/Food'
 import Weight from './pages/Weight'
 import Settings from './pages/Settings'
@@ -33,8 +40,15 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             <Route path="/workouts" element={<Workouts />} />
+            <Route path="/workouts/new" element={<AddWorkout />} />
+            <Route path="/workouts/:id/edit" element={<EditWorkout />} />
             <Route path="/programs" element={<Programs />} />
+            <Route path="/programs/new" element={<AddProgram />} />
+            <Route path="/programs/:id/edit" element={<EditProgram />} />
+            <Route path="/workout/start" element={<StartWorkout />} />
             <Route path="/workout/active" element={<ActiveWorkout />} />
+            <Route path="/workout/active/add-exercise" element={<WorkoutExercisePicker />} />
+            <Route path="/workout/active/exercise/:exerciseId" element={<ExerciseDetail />} />
             <Route path="/food" element={<Food />} />
             <Route path="/weight" element={<Weight />} />
             <Route path="/settings" element={<Settings />} />

@@ -1,36 +1,21 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Dumbbell, Plus, ChevronDown, BarChart2, Clock, Search, AlertCircle, Edit2, Trash2, Flame, Target, TrendingUp } from 'lucide-react'
+import { Dumbbell, Plus, ChevronDown, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
-import AddWorkoutModal from '../components/AddWorkoutModal'
-import EditWorkoutModal from '../components/EditWorkoutModal'
 import { workoutAPI } from '../services/api'
 import * as types from '../types'
-
-const MUSCLE_COLORS: Record<string, string> = {
-  chest: 'bg-red-500/15 text-red-400',
-  back: 'bg-blue-500/15 text-blue-400',
-  shoulders: 'bg-orange-500/15 text-orange-400',
-  biceps: 'bg-purple-500/15 text-purple-400',
-  triceps: 'bg-pink-500/15 text-pink-400',
-  quadriceps: 'bg-green-500/15 text-green-400',
-  hamstrings: 'bg-teal-500/15 text-teal-400',
-  glutes: 'bg-yellow-500/15 text-yellow-400',
-  calves: 'bg-lime-500/15 text-lime-400',
-  abdominals: 'bg-amber-500/15 text-amber-400',
-  forearms: 'bg-cyan-500/15 text-cyan-400',
-  traps: 'bg-indigo-500/15 text-indigo-400',
-  lats: 'bg-sky-500/15 text-sky-400',
-}
-function muscleColor(m: string) {
-  return MUSCLE_COLORS[m?.toLowerCase()] || 'bg-surface-muted text-tx-muted'
-}
+import { muscleColor } from '../utils/exerciseUtils'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const durationMin = Math.round(workout.duration / 60)
+  const totalVolume = Math.round(
+    workout.exercises?.reduce((total, e) =>
+      total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0), 0) || 0
+  )
 
   const handleDelete = async () => {
     setDeleting(true)
@@ -84,33 +69,50 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           className="flex-1 flex items-center gap-3 min-w-0"
           onClick={() => setOpen(o => !o)}
         >
-          <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-            <Dumbbell className="w-4 h-4 text-brand-500" strokeWidth={2} />
-          </div>
-          <div className="text-left">
-            <p className="text-sm font-semibold text-tx-primary">{workout.name}</p>
-            <p className="text-xs text-tx-muted">{format(new Date(workout.started_at), 'MMM d, yyyy')}</p>
+          {workout.exercises?.[0]?.exercise?.image_url ? (
+            <img
+              src={workout.exercises[0].exercise.image_url}
+              alt=""
+              className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+            />
+          ) : (
+            <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <Dumbbell className="w-5 h-5 text-brand-500" strokeWidth={2} />
+            </div>
+          )}
+          <div className="text-left min-w-0">
+            <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
+            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
+              <span className="text-xs text-tx-muted">{format(new Date(workout.started_at), 'MMM d, yyyy')}</span>
+              <span className="text-tx-muted/40 text-xs">·</span>
+              <span className="flex items-center gap-1 text-xs text-tx-muted">
+                <Clock className="w-3 h-3" />{durationMin} min
+              </span>
+              <span className="text-tx-muted/40 text-xs">·</span>
+              <span className="text-xs text-tx-muted">{workout.exercises?.length || 0} exercises</span>
+              {totalVolume > 0 && (
+                <>
+                  <span className="text-tx-muted/40 text-xs">·</span>
+                  <span className="flex items-center gap-1 text-xs text-tx-muted">
+                    <TrendingUp className="w-3 h-3" />{totalVolume.toLocaleString()} lbs
+                  </span>
+                </>
+              )}
+            </div>
           </div>
         </button>
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="hidden sm:flex items-center gap-4 text-xs text-tx-muted">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {durationMin} min
-            </span>
-            <span className="flex items-center gap-1">
-              <BarChart2 className="w-3.5 h-3.5" /> {workout.exercises?.length || 0} exercises
-            </span>
-          </div>
+        <div className="flex items-center gap-1">
           <button
             onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
             title="Edit workout"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
             title="Delete workout"
           >
             <Trash2 className="w-4 h-4 text-error-400" />
@@ -121,83 +123,66 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 
       {open && (
         <div className="border-t border-surface-border animate-slide-up">
-          {/* Workout stats bar */}
-          <div className="grid grid-cols-3 divide-x divide-surface-border border-b border-surface-border">
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <Flame className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-tx-muted">Exercises</p>
-                <p className="text-sm font-semibold text-tx-primary tabular-nums">{workout.exercises?.length || 0}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <Target className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-tx-muted">Total sets</p>
-                <p className="text-sm font-semibold text-tx-primary tabular-nums">
-                  {workout.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <TrendingUp className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-              <div>
-                <p className="text-xs text-tx-muted">Volume</p>
-                <p className="text-sm font-semibold text-tx-primary tabular-nums">
-                  {Math.round(workout.exercises?.reduce((total, e) =>
-                    total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0), 0) || 0
-                  ).toLocaleString()} lbs
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Exercise cards */}
           <div className="p-3 space-y-2">
             {workout.exercises?.map((ex) => {
               const maxWeight = ex.sets?.length > 0
                 ? Math.max(...ex.sets.map(s => s.weight || 0))
                 : 0
-              const totalVol = ex.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0
+              const exVol = ex.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0
 
               return (
-                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl p-3">
+                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl overflow-hidden">
                   {/* Exercise header */}
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Dumbbell className="w-3.5 h-3.5 text-brand-500" />
+                  <div className="flex items-center gap-3 px-3 pt-3 pb-2">
+                    {ex.exercise.image_url ? (
+                      <img
+                        src={ex.exercise.image_url}
+                        alt=""
+                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-muted"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                        <Dumbbell className="w-4 h-4 text-brand-500" />
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-tx-primary leading-tight">{ex.exercise.name}</p>
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium mt-1 ${muscleColor(ex.exercise.muscle_group)}`}>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-tx-primary leading-tight truncate">{ex.exercise.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                           {ex.exercise.muscle_group}
                         </span>
+                        <span className="text-xs text-tx-muted">{ex.sets?.length || 0} sets</span>
+                        {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} lbs</span>}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-2">
-                      <p className="text-xs text-tx-muted">Best</p>
-                      <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight > 0 ? `${maxWeight} lbs` : '—'}</p>
-                    </div>
-                  </div>
-
-                  {/* Sets inline */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {ex.sets?.map((set, i) => (
-                      <div key={i} className="flex items-center gap-1 bg-surface-raised px-2 py-1 rounded-lg border border-surface-border">
-                        <span className="text-xs text-tx-muted font-medium">#{set.set_number}</span>
-                        <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                          {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${set.weight}` : '0'}<span className="text-tx-muted font-normal">lb</span>
-                        </span>
+                    {maxWeight > 0 && (
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-xs text-tx-muted leading-tight">best</p>
+                        <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} lb</p>
                       </div>
-                    ))}
+                    )}
                   </div>
 
-                  {/* Volume */}
-                  {totalVol > 0 && (
-                    <p className="text-xs text-tx-muted mt-2">
-                      Volume: <span className="font-medium text-tx-secondary">{totalVol.toLocaleString()} lbs</span>
-                    </p>
+                  {/* Sets — inline chips, best highlighted */}
+                  {ex.sets?.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-2 border-t border-surface-border/50 mt-2">
+                      {ex.sets.map((set, i) => {
+                        const isBest = set.weight === maxWeight && maxWeight > 0
+                        return (
+                          <div
+                            key={i}
+                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
+                              isBest
+                                ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
+                                : 'bg-surface-raised text-tx-secondary'
+                            }`}
+                          >
+                            {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${set.weight} lb` : 'BW'}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )
@@ -210,13 +195,11 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 }
 
 export default function Workouts() {
+  const navigate = useNavigate()
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingWorkoutId, setEditingWorkoutId] = useState<number | null>(null)
 
   const loadWorkouts = async () => {
     try {
@@ -258,7 +241,7 @@ export default function Workouts() {
           <h1 className="font-display font-bold text-2xl text-tx-primary">Workouts</h1>
           <p className="text-tx-muted text-sm mt-0.5">Track and review your training sessions</p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn-primary btn-md">
+        <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-md">
           <Plus className="w-4 h-4" /> Log Workout
         </button>
       </div>
@@ -305,29 +288,12 @@ export default function Workouts() {
           </div>
         ) : (
           filtered.map(w => <WorkoutCard key={w.id} workout={w}
-            onEdit={(id) => { setEditingWorkoutId(id); setShowEditModal(true) }}
+            onEdit={(id) => navigate(`/workouts/${id}/edit`)}
             onDelete={(id) => setWorkouts(prev => prev.filter(x => x.id !== id))}
           />)
         )}
       </div>
 
-      {/* Add workout modal */}
-      <AddWorkoutModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        onSuccess={() => loadWorkouts()}
-      />
-
-      {/* Edit workout modal */}
-      <EditWorkoutModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setEditingWorkoutId(null)
-        }}
-        onSuccess={() => loadWorkouts()}
-        workoutId={editingWorkoutId || 0}
-      />
     </div>
   )
 }

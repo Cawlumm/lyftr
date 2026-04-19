@@ -16,6 +16,7 @@
     "date-fns": "^3.0.0",
     "lucide-react": "^1.8.0",
     "react": "^18.2.0",
+    "react-body-highlighter": "^2.0.5",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0",
     "recharts": "^2.10.3",

@@ -2,8 +2,8 @@
 export default function BarbellSVG() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
-      {/* Bent bar (under load) */}
-      <path d="M4 16 Q20 25 36 16" fill="none" stroke="#f1f5f9" strokeWidth="2.6" strokeLinecap="round" />
+      {/* Bent bar (under load) — currentColor so it adapts to light/dark */}
+      <path d="M4 16 Q20 25 36 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
 
       {/* Collar dots */}
       <circle cx="10.2" cy="18.8" r="1" fill="#475569" />

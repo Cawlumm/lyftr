@@ -6,7 +6,6 @@ import {
   CheckCircle2, AlertCircle, Play, Timer,
 } from 'lucide-react'
 import Loading from '../components/Loading'
-import StartWorkoutModal from '../components/StartWorkoutModal'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useNavigate, Link } from 'react-router-dom'
@@ -17,7 +16,6 @@ const TODAY = new Date()
 export default function Dashboard() {
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
-  const [showStartModal, setShowStartModal] = useState(false)
   const [stats, setStats] = useState<{
     weight?: types.WeightLog | null
     weightStats?: types.WeightStats
@@ -98,7 +96,7 @@ export default function Dashboard() {
           </h1>
         </div>
         <button
-          onClick={() => session ? navigate('/workout/active') : setShowStartModal(true)}
+          onClick={() => navigate(session ? '/workout/active' : '/workout/start')}
           className="btn-primary btn-sm"
         >
           <Play className="w-3.5 h-3.5" /> {session ? 'Resume' : 'Start Workout'}
@@ -274,7 +272,6 @@ export default function Dashboard() {
           </div>
         )}
       </div>
-      <StartWorkoutModal isOpen={showStartModal} onClose={() => setShowStartModal(false)} />
     </div>
   )
 }

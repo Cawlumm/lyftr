@@ -4,6 +4,7 @@ import { activeSessionAPI } from '../services/api'
 
 const SESSION_KEY = 'lyftr_active_session'
 const DEVICE_KEY = 'lyftr_device_id'
+const CANCEL_KEY = 'lyftr_session_cancelled'
 
 function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_KEY)
@@ -21,6 +22,7 @@ interface WorkoutSessionStore {
   updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
   completeSet: (exIdx: number, setIdx: number) => void
   addSet: (exIdx: number) => void
+  removeSet: (exIdx: number, setIdx: number) => void
   addExercise: (ex: types.ActiveSessionExercise) => void
   removeExercise: (exIdx: number) => void
   buildPayload: () => any
@@ -64,6 +66,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   syncing: false,
 
   startSession: (name, exercises, programId) => {
+    localStorage.removeItem(CANCEL_KEY)
     const session: types.ActiveSession = {
       name,
       started_at: new Date().toISOString(),
@@ -130,6 +133,22 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     scheduleSync(updated)
   },
 
+  removeSet: (exIdx, setIdx) => {
+    const session = get().session
+    if (!session) return
+    const exercises = session.exercises.map((ex, i) => {
+      if (i !== exIdx) return ex
+      const newSets = ex.sets
+        .filter((_, j) => j !== setIdx)
+        .map((s, j) => ({ ...s, set_number: j + 1 }))
+      return { ...ex, sets: newSets }
+    })
+    const updated = { ...session, exercises }
+    saveLocal(updated)
+    set({ session: updated })
+    scheduleSync(updated)
+  },
+
   addExercise: (ex) => {
     const session = get().session
     if (!session) return
@@ -172,14 +191,20 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   cancelSession: () => {
     if (syncTimer) { clearTimeout(syncTimer); syncTimer = null }
     saveLocal(null)
+    localStorage.setItem(CANCEL_KEY, '1')
     set({ session: null })
     activeSessionAPI.clear().catch(() => {})
   },
 
   restoreFromServer: async () => {
-    // Only restore from server if this device has no local session (crash recovery)
     const local = loadLocal()
     if (local) return
+    // User explicitly cancelled — don't restore, retry the server clear
+    if (localStorage.getItem(CANCEL_KEY)) {
+      localStorage.removeItem(CANCEL_KEY)
+      activeSessionAPI.clear().catch(() => {})
+      return
+    }
     try {
       const serverSession = await activeSessionAPI.get()
       if (serverSession && serverSession.device_id === getDeviceId()) {
