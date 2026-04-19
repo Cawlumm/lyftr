@@ -47,5 +47,6 @@ tmp/
 temp/
 *.tmp
 
-# design docs
-docs/
+# design docs (keep screenshots for README)
+docs/*.md
+docs/*.txt

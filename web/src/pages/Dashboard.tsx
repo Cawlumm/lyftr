@@ -1,69 +1,155 @@
 import { useState, useEffect } from 'react'
-import { format } from 'date-fns'
+import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
-  Dumbbell, Utensils, Flame, Plus,
-  Apple, Beef, Zap, ArrowRight,
-  CheckCircle2, AlertCircle, Play, Timer,
+  Dumbbell, Flame, ArrowRight, Beef,
+  AlertCircle, Play, Timer, TrendingUp, Scale, Activity,
 } from 'lucide-react'
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  LineChart, Line, PieChart, Pie, Legend,
+} from 'recharts'
 import Loading from '../components/Loading'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useAuthStore } from '../stores/auth'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
+import { muscleColor } from '../utils/exerciseUtils'
 
 const TODAY = new Date()
+
+function greeting() {
+  const h = TODAY.getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+const calcVolume = (w: types.Workout) =>
+  w.exercises.reduce((s, ex) => s + ex.sets.reduce((ss, set) => ss + set.reps * set.weight, 0), 0)
+
+const DEFAULT_FOOD: types.DailyStats = {
+  date: format(TODAY, 'yyyy-MM-dd'),
+  total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, workout_count: 0,
+}
+const DEFAULT_SETTINGS: types.UserSettings = {
+  user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
+  protein_target: 150, carb_target: 250, fat_target: 65,
+}
+
+// Hex colors for recharts (can't use Tailwind classes)
+const MUSCLE_HEX: Record<string, string> = {
+  chest:       '#f87171',
+  back:        '#60a5fa',
+  shoulders:   '#818cf8',
+  biceps:      '#f472b6',
+  triceps:     '#a78bfa',
+  legs:        '#34d399',
+  quadriceps:  '#34d399',
+  hamstrings:  '#6ee7b7',
+  glutes:      '#86efac',
+  calves:      '#4ade80',
+  core:        '#fbbf24',
+  abs:         '#fbbf24',
+  forearms:    '#fb923c',
+  traps:       '#94a3b8',
+  lats:        '#38bdf8',
+  'full body': '#e879f9',
+}
+const muscleHex = (m: string) => MUSCLE_HEX[m?.toLowerCase()] ?? '#6366f1'
+
+const MUSCLE_ROAST: Record<string, string> = {
+  chest:       'All chest, no legs. Classic bro.',
+  back:        'Built like a refrigerator. Respect.',
+  shoulders:   "Can't fit through doorways. Good.",
+  biceps:      'Mirror selfies loading…',
+  triceps:     'Horseshoe gang. Handshakes must be terrifying.',
+  legs:        "Actually training legs. You're a unicorn.",
+  quadriceps:  "Quads for days. Jeans don't stand a chance.",
+  hamstrings:  'Posterior chain warrior. Deadlift god incoming.',
+  glutes:      'Glute guy/gal. We respect the commitment.',
+  calves:      'Calf king/queen. The rarest of all lifters.',
+  core:        'Beach season ready 365 days a year.',
+  abs:         'Six pack incoming. Or already here. Either way.',
+  forearms:    'Popeye called. He wants his arms back.',
+  traps:       'No neck, no problem.',
+  lats:        'Walking around like a cobra. Wings deployed.',
+  'full body': 'A true all-rounder. Or you just did burpees.',
+}
+const muscleRoast = (m: string) => MUSCLE_ROAST[m?.toLowerCase()] ?? 'Mysterious training patterns. We respect it.'
+
+function MuscleSparkline({ values, color, isTop }: { values: number[], color: string, isTop: boolean }) {
+  if (values.length < 2) return <div className="w-14 h-6 flex-shrink-0" />
+  const max = Math.max(...values)
+  const min = Math.min(...values)
+  const range = max - min || 1
+  const W = 56, H = 24
+  const pts = values.map((v, i) => [
+    (i / (values.length - 1)) * W,
+    H - 4 - ((v - min) / range) * (H - 8),
+  ])
+  const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')
+  // Filled area path
+  const area = `${d} L${W},${H} L0,${H} Z`
+  return (
+    <svg width={W} height={H} className="flex-shrink-0 overflow-visible">
+      {isTop && (
+        <path d={area} fill={color} fillOpacity={0.12} />
+      )}
+      <path d={d} fill="none" stroke={color} strokeWidth={isTop ? 2 : 1.5}
+        strokeLinecap="round" strokeLinejoin="round"
+        strokeOpacity={isTop ? 1 : 0.6}
+      />
+      {/* End dot */}
+      <circle
+        cx={pts[pts.length - 1][0]}
+        cy={pts[pts.length - 1][1]}
+        r={isTop ? 2.5 : 1.5}
+        fill={color}
+        fillOpacity={isTop ? 1 : 0.7}
+      />
+    </svg>
+  )
+}
+
+const TOOLTIP_STYLE = {
+  background: 'var(--color-surface-raised, #1e1e2e)',
+  border: '1px solid var(--color-surface-border, #2d2d3a)',
+  borderRadius: 8,
+  fontSize: 11,
+  color: 'var(--color-tx-primary, #f1f5f9)',
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
-  const [stats, setStats] = useState<{
-    weight?: types.WeightLog | null
-    weightStats?: types.WeightStats
-    food?: types.DailyStats
-    workouts: types.Workout[]
-    settings?: types.UserSettings
-  }>({
-    workouts: [],
-  })
+  const { user } = useAuthStore()
+
+  const [workouts, setWorkouts] = useState<types.Workout[]>([])
+  const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
+  const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
+  const [settings, setSettings] = useState<types.UserSettings>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [workouts, foodStats, weightStats, settings] = await Promise.all([
-          workoutAPI.list({ limit: 10 }),
-          foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => ({
-            date: format(TODAY, 'yyyy-MM-dd'),
-            total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, workout_count: 0
-          })),
-          weightAPI.stats().catch(() => ({ latest: 0, starting: 0, total_entries: 0 })),
-          userAPI.getSettings().catch(() => ({
-            user_id: 0, weight_unit: 'lbs' as const, calorie_target: 2000,
-            protein_target: 150, carb_target: 250, fat_target: 65
-          })),
-        ])
-
-        setStats({
-          workouts: workouts || [],
-          food: foodStats,
-          weightStats,
-          settings,
-          weight: workouts?.[0] ? null : null, // Placeholder
-        })
-      } catch (err: any) {
-        setError(err.message || 'Failed to load dashboard')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
+    Promise.all([
+      workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
+      foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
+      weightAPI.list({ limit: 14 }).catch(() => []),
+      userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
+    ])
+      .then(([ws, fs, wl, s]) => {
+        setWorkouts(ws || [])
+        setFood(fs || DEFAULT_FOOD)
+        setWeightLogs(wl || [])
+        setSettings(s || DEFAULT_SETTINGS)
+      })
+      .catch(err => setError(err.message || 'Failed to load'))
+      .finally(() => setLoading(false))
   }, [])
 
-  if (loading) {
-    return <Loading />
-  }
+  if (loading) return <Loading />
 
   if (error) {
     return (
@@ -74,32 +160,103 @@ export default function Dashboard() {
     )
   }
 
-  const lastWorkout = stats.workouts[0]
-  const foodData = stats.food
-  const settings = stats.settings!
-  const calBurned = (foodData?.total_calories || 0) - settings.calorie_target
-  const proteinPct = Math.min(100, ((foodData?.total_protein || 0) / settings.protein_target) * 100)
-  const carbsPct = Math.min(100, ((foodData?.total_carbs || 0) / settings.carb_target) * 100)
-  const fatPct = Math.min(100, ((foodData?.total_fat || 0) / settings.fat_target) * 100)
-  const calPct = Math.min(100, ((foodData?.total_calories || 0) / settings.calorie_target) * 100)
+  // ── Derived data ────────────────────────────────
+  const weekStart = startOfWeek(TODAY, { weekStartsOn: 1 })
+  const weekWorkouts = workouts.filter(w => new Date(w.started_at) >= weekStart)
+  const lastWorkout = workouts[0] ?? null
+
+  // Volume chart: last 7 workouts oldest→newest
+  const chartData = workouts.slice(0, 7).reverse().map(w => ({
+    date: format(new Date(w.started_at), 'M/d'),
+    volume: Math.round(calcVolume(w)),
+    name: w.name,
+  }))
+
+  // Current week dots
+  const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(TODAY, { weekStartsOn: 1 }) })
+
+  // Heatmap: 12 weeks, Mon–Sun columns
+  const heatmapStart = startOfWeek(subWeeks(TODAY, 11), { weekStartsOn: 1 })
+  const heatmapEnd   = endOfWeek(TODAY, { weekStartsOn: 1 })
+  const heatmapDays  = eachDayOfInterval({ start: heatmapStart, end: heatmapEnd })
+  // map dateString → count
+  const workoutDayMap = new Map<string, number>()
+  workouts.forEach(w => {
+    const k = format(new Date(w.started_at), 'yyyy-MM-dd')
+    workoutDayMap.set(k, (workoutDayMap.get(k) || 0) + 1)
+  })
+  // chunk into weeks
+  const heatmapWeeks: Date[][] = []
+  for (let i = 0; i < heatmapDays.length; i += 7) {
+    heatmapWeeks.push(heatmapDays.slice(i, i + 7))
+  }
+  // month labels: show month name on first week that starts in that month
+  const monthLabels: (string | null)[] = heatmapWeeks.map((week, i) => {
+    const m = format(week[0], 'MMM')
+    if (i === 0) return m
+    const prev = format(heatmapWeeks[i - 1][0], 'MMM')
+    return m !== prev ? m : null
+  })
+
+  // Muscle group donut: sets per muscle across all fetched workouts
+  const muscleMap = new Map<string, number>()
+  workouts.forEach(w => {
+    w.exercises.forEach(ex => {
+      const mg = ex.exercise.muscle_group || 'other'
+      muscleMap.set(mg, (muscleMap.get(mg) || 0) + ex.sets.length)
+    })
+  })
+  const muscleData = Array.from(muscleMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8) // top 8 groups
+    .map(([name, value]) => ({ name, value }))
+  const totalMuscSets = muscleData.reduce((s, d) => s + d.value, 0)
+
+  // Sparklines: sets per muscle per workout (last 10, oldest→newest)
+  const sparklineWorkouts = workouts.slice(0, 10).reverse()
+  const muscleSparklines = new Map<string, number[]>()
+  muscleData.forEach(({ name }) => {
+    muscleSparklines.set(name, sparklineWorkouts.map(w =>
+      w.exercises
+        .filter(ex => ex.exercise.muscle_group === name)
+        .reduce((s, ex) => s + ex.sets.length, 0)
+    ))
+  })
+  const topMuscle = muscleData[0]?.name ?? null
+
+  // Nutrition %
+  const calPct   = Math.min(100, (food.total_calories / settings.calorie_target) * 100) || 0
+  const protPct  = Math.min(100, (food.total_protein  / settings.protein_target)  * 100) || 0
+  const carbsPct = Math.min(100, (food.total_carbs    / settings.carb_target)     * 100) || 0
+  const fatPct   = Math.min(100, (food.total_fat      / settings.fat_target)      * 100) || 0
+
+  // Weight sparkline
+  const sparkData = [...weightLogs].reverse().map(l => ({
+    date: format(new Date(l.logged_at), 'M/d'),
+    weight: l.weight,
+  }))
+
+  const username = user?.email?.split('@')[0] ?? 'there'
 
   return (
     <div className="space-y-4 animate-slide-up">
+
       {/* ── Header ─────────────────────────────────── */}
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="text-tx-muted text-xs font-medium uppercase tracking-wider">
+      <div className="flex justify-between items-start gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
-          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5">
-            Your progress today
+          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 truncate">
+            {greeting()}, {username}
           </h1>
         </div>
         <button
-          onClick={() => navigate(session ? '/workout/active' : '/workout/start')}
-          className="btn-primary btn-sm"
+          onClick={() => navigate('/workout/start')}
+          className="btn-primary btn-sm flex-shrink-0"
         >
-          <Play className="w-3.5 h-3.5" /> {session ? 'Resume' : 'Start Workout'}
+          <Play className="w-3.5 h-3.5" />
+          {session ? 'Resume' : 'Start'}
         </button>
       </div>
 
@@ -118,160 +275,424 @@ export default function Dashboard() {
               <p className="text-xs text-amber-400/70">{session.name} — tap to resume</p>
             </div>
           </div>
-          <ArrowRight className="w-4 h-4 text-amber-400" />
+          <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
         </Link>
       )}
 
-      {/* ── Top stat cards ─────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-        {/* Calories */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="stat-label">Calories</span>
-            <Flame className="w-3.5 h-3.5 text-tx-muted" />
+      {/* ── KPI strip ──────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-2">
+        <div className="card p-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Week</span>
+            <Dumbbell className="w-3 h-3 text-tx-muted" />
           </div>
-          <div className="flex items-end gap-1">
-            <span className="stat-value text-2xl">{Math.round(foodData?.total_calories || 0)}</span>
-            <span className="text-tx-muted text-xs mb-0.5">/ {settings.calorie_target}</span>
+          <p className="text-xl font-bold text-tx-primary leading-none">{weekWorkouts.length}</p>
+          <p className="text-[10px] text-tx-muted">sessions</p>
+        </div>
+
+        <div className="card p-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Cals</span>
+            <Flame className="w-3 h-3 text-tx-muted" />
           </div>
-          <div className="progress-track mt-2">
+          <p className="text-xl font-bold text-tx-primary leading-none">
+            {Math.round(food.total_calories)}
+          </p>
+          <div className="progress-track">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
           </div>
         </div>
 
-        {/* Protein */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="stat-label">Protein</span>
-            <Beef className="w-3.5 h-3.5 text-tx-muted" />
+        <div className="card p-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Protein</span>
+            <Beef className="w-3 h-3 text-tx-muted" />
           </div>
-          <div className="flex items-end gap-1">
-            <span className="stat-value text-2xl">{Math.round(foodData?.total_protein || 0)}</span>
-            <span className="text-tx-muted text-xs mb-0.5">g</span>
-          </div>
-          <div className="progress-track mt-2">
-            <div className="progress-bar" style={{ width: `${proteinPct}%`, background: '#f59e0b' }} />
-          </div>
-        </div>
-
-        {/* Workouts */}
-        <div className="card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="stat-label">This Week</span>
-            <Dumbbell className="w-3.5 h-3.5 text-tx-muted" />
-          </div>
-          <div className="flex items-end gap-1">
-            <span className="stat-value text-2xl">{stats.workouts.length}</span>
-            <span className="text-tx-muted text-xs mb-0.5">sessions</span>
+          <p className="text-xl font-bold text-tx-primary leading-none">
+            {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+          </p>
+          <div className="progress-track">
+            <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
           </div>
         </div>
       </div>
 
-      {/* ── Middle row ─────────────────────────────── */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Today's nutrition */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title">Today's Nutrition</h2>
-            <button className="btn-ghost btn-sm">
-              <Utensils className="w-3.5 h-3.5" /> Log
-            </button>
+      {/* ── Volume trend chart ─────────────────────── */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-brand-500" />
+            <h2 className="section-title">Volume Trend</h2>
           </div>
-
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-blue-500/10 border border-blue-500/30">
-                <Beef className="w-3.5 h-3.5 text-blue-400" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-tx-secondary">Protein</span>
-                  <span className="text-xs font-semibold text-tx-primary">
-                    {Math.round(foodData?.total_protein || 0)}g / {settings.protein_target}g
-                  </span>
-                </div>
-                <div className="progress-track">
-                  <div className="progress-bar" style={{ width: `${proteinPct}%`, background: '#3b82f6' }} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-amber-500/10 border border-amber-500/30">
-                <Apple className="w-3.5 h-3.5 text-amber-400" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-tx-secondary">Carbs</span>
-                  <span className="text-xs font-semibold text-tx-primary">
-                    {Math.round(foodData?.total_carbs || 0)}g / {settings.carb_target}g
-                  </span>
-                </div>
-                <div className="progress-track">
-                  <div className="progress-bar" style={{ width: `${carbsPct}%`, background: '#f59e0b' }} />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-purple-500/10 border border-purple-500/30">
-                <Zap className="w-3.5 h-3.5 text-purple-400" />
-              </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-xs text-tx-secondary">Fat</span>
-                  <span className="text-xs font-semibold text-tx-primary">
-                    {Math.round(foodData?.total_fat || 0)}g / {settings.fat_target}g
-                  </span>
-                </div>
-                <div className="progress-track">
-                  <div className="progress-bar" style={{ width: `${fatPct}%`, background: '#8b5cf6' }} />
-                </div>
-              </div>
-            </div>
-          </div>
+          <span className="text-xs text-tx-muted">
+            {chartData.length > 0 ? `last ${chartData.length} workouts` : ''}
+          </span>
         </div>
 
-        {/* Last workout */}
-        {lastWorkout ? (
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="section-title">{lastWorkout.name}</h2>
-              <span className="badge-dim">{format(lastWorkout.started_at, 'MMM d')}</span>
+        {chartData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 gap-2">
+            <Dumbbell className="w-6 h-6 text-tx-muted opacity-40" />
+            <p className="text-xs text-tx-muted">Log workouts to see trends</p>
+          </div>
+        ) : (
+          <>
+            <div className="w-full min-w-0">
+            <ResponsiveContainer width="100%" height={110}>
+              <BarChart data={chartData} barSize={18} barCategoryGap="30%">
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: 'var(--color-tx-muted, #9ca3af)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis hide />
+                <Tooltip
+                  contentStyle={TOOLTIP_STYLE}
+                  formatter={(v: number) => [`${v.toLocaleString()} lbs`, 'Volume']}
+                  labelFormatter={(label: string) => chartData.find(d => d.date === label)?.name || label}
+                  cursor={{ fill: 'rgba(99,102,241,0.08)', radius: 4 }}
+                />
+                <Bar dataKey="volume" radius={[4, 4, 0, 0]}>
+                  {chartData.map((_, i) => (
+                    <Cell key={i} fill="#6366f1" fillOpacity={i === chartData.length - 1 ? 1 : 0.25} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
             </div>
 
-            <div className="space-y-0 divide-y divide-surface-border">
-              {lastWorkout.exercises?.slice(0, 5).map((ex) => (
-                <div key={ex.id} className="flex items-center justify-between py-2.5">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-tx-muted flex-shrink-0" />
-                    <span className="text-sm text-tx-secondary">{ex.exercise.name}</span>
+            {/* Current week day dots */}
+            <div className="flex items-center justify-between mt-3 px-1">
+              {weekDays.map((day, i) => {
+                const hasWorkout = workouts.some(w => isSameDay(new Date(w.started_at), day))
+                const isToday = isSameDay(day, TODAY)
+                const isFuture = day > TODAY
+                return (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span className={`text-[9px] font-medium ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>
+                      {format(day, 'EEEEE')}
+                    </span>
+                    <div className={`w-2 h-2 rounded-full transition-colors ${
+                      hasWorkout   ? 'bg-brand-500' :
+                      isToday      ? 'bg-brand-500/30 ring-1 ring-brand-500/50' :
+                      isFuture     ? 'bg-surface-border/30' :
+                                     'bg-surface-border'
+                    }`} />
                   </div>
-                  <span className="text-xs text-tx-muted">
-                    {ex.sets.length} sets
-                  </span>
+                )
+              })}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* ── Frequency heatmap ──────────────────────── */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-brand-500" />
+            <h2 className="section-title">Consistency</h2>
+          </div>
+          <span className="text-xs text-tx-muted">12 weeks</span>
+        </div>
+
+        {workouts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 gap-2">
+            <p className="text-xs text-tx-muted">Start working out to build your streak</p>
+          </div>
+        ) : (
+          <>
+            {/* CSS grid: 1 auto col (day labels) + N 1fr cols (weeks) */}
+            <div
+              className="w-full"
+              style={{ display: 'grid', gridTemplateColumns: `1.25rem repeat(${heatmapWeeks.length}, 1fr)`, gap: '2px' }}
+            >
+              {/* Row 0: spacer + month labels */}
+              <div />
+              {heatmapWeeks.map((_, i) => (
+                <div key={i} className="text-[9px] text-tx-muted font-medium truncate leading-none pb-0.5">
+                  {monthLabels[i] ?? ''}
                 </div>
+              ))}
+
+              {/* Rows 1–7: day label + cells */}
+              {(['M', '', 'W', '', 'F', '', 'S'] as const).map((lbl, dayIdx) => (
+                [
+                  <div key={`lbl-${dayIdx}`} className="text-[9px] text-tx-muted/60 font-medium flex items-center leading-none">
+                    {lbl}
+                  </div>,
+                  ...heatmapWeeks.map((week, wi) => {
+                    const day    = week[dayIdx]
+                    const k      = format(day, 'yyyy-MM-dd')
+                    const count  = workoutDayMap.get(k) || 0
+                    const future = day > TODAY
+                    return (
+                      <div
+                        key={`${wi}-${dayIdx}`}
+                        title={`${format(day, 'MMM d')}${count > 0 ? ` · ${count} workout${count > 1 ? 's' : ''}` : ''}`}
+                        className={`h-3 rounded-[2px] transition-colors ${
+                          future      ? 'bg-surface-muted/20' :
+                          count === 0 ? 'bg-surface-muted/50' :
+                          count === 1 ? 'bg-brand-500/50' :
+                                        'bg-brand-500'
+                        }`}
+                      />
+                    )
+                  }),
+                ]
               ))}
             </div>
 
-            <div className="mt-4 pt-3 border-t border-surface-border flex justify-between items-center">
-              <span className="text-xs text-tx-muted">
-                Duration: <span className="font-semibold">{lastWorkout.duration}s</span>
-              </span>
-              <a href="/workouts" className="flex items-center gap-1 text-xs font-medium text-brand-500 hover:text-brand-400">
-                Full log <ArrowRight className="w-3 h-3" />
-              </a>
+            {/* Legend */}
+            <div className="flex items-center gap-1.5 mt-2 justify-end">
+              <span className="text-[9px] text-tx-muted">Less</span>
+              {['bg-surface-muted/50', 'bg-brand-500/30', 'bg-brand-500/60', 'bg-brand-500'].map((cls, i) => (
+                <div key={i} className={`w-3 h-3 rounded-[3px] ${cls}`} />
+              ))}
+              <span className="text-[9px] text-tx-muted">More</span>
             </div>
-          </div>
-        ) : (
-          <div className="card p-5 flex items-center justify-center min-h-48">
-            <div className="text-center">
-              <Dumbbell className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-50" />
-              <p className="text-sm text-tx-muted">No workouts logged yet</p>
-            </div>
-          </div>
+          </>
         )}
       </div>
+
+      {/* ── Last workout + Nutrition ───────────────── */}
+      <div className="grid lg:grid-cols-2 gap-4 min-w-0">
+
+        {lastWorkout ? (() => {
+          const totalSets = lastWorkout.exercises.reduce((s, ex) => s + ex.sets.length, 0)
+          const totalVolume = Math.round(calcVolume(lastWorkout))
+          const mins = Math.round(lastWorkout.duration / 60)
+          return (
+            <div className="card p-4 overflow-hidden min-w-0">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
+                  <p className="text-xs text-tx-muted mt-0.5">
+                    {format(new Date(lastWorkout.started_at), 'MMM d')}
+                    {mins > 0 && ` · ${mins} min`}
+                    {totalSets > 0 && ` · ${totalSets} sets`}
+                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} lbs`}
+                  </p>
+                </div>
+                <Link to="/workouts" className="flex items-center gap-0.5 text-xs text-brand-400 hover:text-brand-300 flex-shrink-0 transition-colors">
+                  All <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="divide-y divide-surface-border/60">
+                {lastWorkout.exercises.slice(0, 4).map((ex) => {
+                  const best = ex.sets.length > 0
+                    ? ex.sets.reduce((b, s) => s.weight > b.weight ? s : b, ex.sets[0])
+                    : null
+                  return (
+                    <div key={ex.id} className="flex items-center gap-2.5 py-2.5">
+                      {ex.exercise.image_url ? (
+                        <img
+                          src={ex.exercise.image_url}
+                          alt=""
+                          loading="lazy"
+                          className="w-8 h-8 rounded-lg object-cover flex-shrink-0 bg-surface-muted"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                          <Dumbbell className="w-3.5 h-3.5 text-brand-500" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-tx-secondary truncate">{ex.exercise.name}</p>
+                        <span className={`text-[10px] px-1 py-0.5 rounded ${muscleColor(ex.exercise.muscle_group)}`}>
+                          {ex.exercise.muscle_group}
+                        </span>
+                      </div>
+                      {best && (
+                        <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
+                          {ex.sets.length}×{best.weight > 0 ? ` ${best.weight}lb` : ' BW'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              {lastWorkout.exercises.length > 4 && (
+                <p className="text-xs text-tx-muted text-center pt-2">
+                  +{lastWorkout.exercises.length - 4} more exercises
+                </p>
+              )}
+            </div>
+          )
+        })() : (
+          <div className="card p-4 flex flex-col items-center justify-center min-h-36 gap-2">
+            <Dumbbell className="w-7 h-7 text-tx-muted opacity-40" />
+            <p className="text-sm text-tx-muted">No workouts logged yet</p>
+            <button
+              onClick={() => navigate('/workout/start')}
+              className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
+            >
+              Start your first workout →
+            </button>
+          </div>
+        )}
+
+        {/* Nutrition */}
+        <div className="card p-4 overflow-hidden min-w-0">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-title">Today's Nutrition</h2>
+            <Link to="/food" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex-shrink-0">
+              Log →
+            </Link>
+          </div>
+
+          {/* Calorie total */}
+          <div className="flex items-baseline gap-1.5 mb-3">
+            <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
+              {Math.round(food.total_calories)}
+            </span>
+            <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
+            <div className="flex-1" />
+            <span className="text-xs text-tx-muted tabular-nums">{Math.round(calPct)}%</span>
+          </div>
+          <div className="progress-track mb-4">
+            <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
+          </div>
+
+          {/* Macros */}
+          <div className="space-y-2.5">
+            {[
+              { label: 'Protein', val: food.total_protein, target: settings.protein_target, pct: protPct,  color: '#3b82f6' },
+              { label: 'Carbs',   val: food.total_carbs,   target: settings.carb_target,    pct: carbsPct, color: '#f59e0b' },
+              { label: 'Fat',     val: food.total_fat,     target: settings.fat_target,     pct: fatPct,   color: '#8b5cf6' },
+            ].map(m => (
+              <div key={m.label}>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-xs text-tx-muted">{m.label}</span>
+                  <span className="text-xs font-semibold text-tx-primary tabular-nums">
+                    {Math.round(m.val)}g
+                    <span className="text-tx-muted font-normal"> / {m.target}g</span>
+                  </span>
+                </div>
+                <div className="progress-track">
+                  <div className="progress-bar" style={{ width: `${m.pct}%`, background: m.color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Muscle group balance ────────────────────── */}
+      {muscleData.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Dumbbell className="w-4 h-4 text-brand-500" />
+              <h2 className="section-title">Muscle Balance</h2>
+            </div>
+            <span className="text-xs text-tx-muted">{workouts.length} workouts</span>
+          </div>
+
+          {topMuscle && (
+            <p className="text-xs text-tx-muted mb-3 italic">
+              {muscleRoast(topMuscle)}
+            </p>
+          )}
+
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            {/* Donut */}
+            <div className="flex-shrink-0 flex items-center justify-center">
+              <ResponsiveContainer width={160} height={160}>
+                <PieChart>
+                  <Pie
+                    data={muscleData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={44}
+                    outerRadius={68}
+                    dataKey="value"
+                    strokeWidth={0}
+                    paddingAngle={2}
+                  >
+                    {muscleData.map((entry, i) => (
+                      <Cell key={i} fill={muscleHex(entry.name)} fillOpacity={0.85} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={TOOLTIP_STYLE}
+                    formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
+                      `${v} sets (${Math.round((v / totalMuscSets) * 100)}%)`,
+                      props.payload?.name ?? '',
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legend — muscle name + sparkline + set count */}
+            <div className="flex-1 w-full min-w-0 space-y-2">
+              {muscleData.map((d) => {
+                const pct    = Math.round((d.value / totalMuscSets) * 100)
+                const isTop  = d.name === topMuscle
+                const values = muscleSparklines.get(d.name) ?? []
+                const color  = muscleHex(d.name)
+                return (
+                  <div key={d.name}>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
+                      <span className={`text-xs capitalize flex-1 min-w-0 truncate ${isTop ? 'font-semibold text-tx-primary' : 'text-tx-secondary'}`}>
+                        {d.name}
+                        {isTop && <span className="ml-1 text-[9px] font-normal text-tx-muted uppercase tracking-wide">top</span>}
+                      </span>
+                      <MuscleSparkline values={values} color={color} isTop={isTop} />
+                      <span className="text-xs text-tx-muted tabular-nums w-16 text-right flex-shrink-0">
+                        {d.value} · {pct}%
+                      </span>
+                    </div>
+                    <div className="progress-track">
+                      <div className="progress-bar transition-all" style={{ width: `${pct}%`, background: color, opacity: isTop ? 1 : 0.6 }} />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Weight sparkline ───────────────────────── */}
+      {weightLogs.length >= 2 && (
+        <div className="card p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Scale className="w-4 h-4 text-brand-500" />
+              <h2 className="section-title">Weight</h2>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-tx-primary">{weightLogs[0].weight} lbs</p>
+              {(() => {
+                const delta = weightLogs[0].weight - weightLogs[weightLogs.length - 1].weight
+                return (
+                  <p className={`text-xs ${delta <= 0 ? 'text-brand-400' : 'text-tx-muted'}`}>
+                    {delta <= 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} lbs
+                  </p>
+                )
+              })()}
+            </div>
+          </div>
+          <div className="w-full min-w-0">
+          <ResponsiveContainer width="100%" height={56}>
+            <LineChart data={sparkData}>
+              <Line dataKey="weight" dot={false} stroke="#6366f1" strokeWidth={2} type="monotone" />
+              <Tooltip
+                contentStyle={TOOLTIP_STYLE}
+                formatter={(v: number) => [`${v} lbs`, 'Weight']}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

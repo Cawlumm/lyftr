@@ -164,7 +164,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl mx-auto w-full px-5 py-7 animate-fade-in">
+      <main className="flex-1 max-w-6xl mx-auto w-full min-w-0 overflow-x-hidden px-5 py-7 animate-fade-in">
         <Outlet />
       </main>
 
