@@ -1,41 +1,14 @@
-import { useState } from 'react'
-import { Dumbbell, Plus, ChevronRight, BarChart2, Clock, Weight, Search, Filter, Info } from 'lucide-react'
-import { HelpTip, Tooltip } from '../components/Tooltip'
+import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
+import { Dumbbell, Plus, ChevronRight, BarChart2, Clock, Weight, Search, AlertCircle } from 'lucide-react'
+import { HelpTip } from '../components/Tooltip'
+import Loading from '../components/Loading'
+import { workoutAPI } from '../services/api'
+import * as types from '../types'
 
-const MOCK_WORKOUTS = [
-  {
-    id: 1, date: 'Today', name: 'Push Day',
-    exercises: [
-      { name: 'Bench Press',          sets: 4, reps: 8,  weight: 275 },
-      { name: 'Incline Dumbbell',     sets: 3, reps: 10, weight: 85  },
-      { name: 'Cable Fly',            sets: 3, reps: 12, weight: 40  },
-      { name: 'Overhead Press',       sets: 4, reps: 8,  weight: 155 },
-      { name: 'Tricep Pushdown',      sets: 3, reps: 12, weight: 60  },
-    ],
-    duration: '58 min', volume: 32450,
-  },
-  {
-    id: 2, date: 'Yesterday', name: 'Cardio',
-    exercises: [
-      { name: 'Treadmill Run', sets: 1, reps: 1, weight: 0 },
-    ],
-    duration: '45 min', volume: 0,
-  },
-  {
-    id: 3, date: 'Apr 16', name: 'Pull Day',
-    exercises: [
-      { name: 'Barbell Row',     sets: 4, reps: 8,  weight: 225 },
-      { name: 'Lat Pulldown',    sets: 3, reps: 10, weight: 140 },
-      { name: 'Seated Cable Row',sets: 3, reps: 12, weight: 120 },
-      { name: 'Face Pull',       sets: 3, reps: 15, weight: 50  },
-      { name: 'Barbell Curl',    sets: 3, reps: 10, weight: 95  },
-    ],
-    duration: '62 min', volume: 28100,
-  },
-]
-
-function WorkoutCard({ workout }: { workout: typeof MOCK_WORKOUTS[0] }) {
+function WorkoutCard({ workout }: { workout: types.Workout }) {
   const [open, setOpen] = useState(false)
+  const durationMin = Math.round(workout.duration / 60)
 
   return (
     <div className="card overflow-hidden">
@@ -49,21 +22,16 @@ function WorkoutCard({ workout }: { workout: typeof MOCK_WORKOUTS[0] }) {
           </div>
           <div className="text-left">
             <p className="text-sm font-semibold text-tx-primary">{workout.name}</p>
-            <p className="text-xs text-tx-muted">{workout.date}</p>
+            <p className="text-xs text-tx-muted">{format(new Date(workout.started_at), 'MMM d, yyyy')}</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-4 text-xs text-tx-muted">
             <span className="flex items-center gap-1">
-              <Clock className="w-3.5 h-3.5" /> {workout.duration}
+              <Clock className="w-3.5 h-3.5" /> {durationMin} min
             </span>
-            {workout.volume > 0 && (
-              <span className="flex items-center gap-1">
-                <Weight className="w-3.5 h-3.5" /> {workout.volume.toLocaleString()} lbs
-              </span>
-            )}
             <span className="flex items-center gap-1">
-              <BarChart2 className="w-3.5 h-3.5" /> {workout.exercises.length} exercises
+              <BarChart2 className="w-3.5 h-3.5" /> {workout.exercises?.length || 0} exercises
             </span>
           </div>
           <ChevronRight className={`w-4 h-4 text-tx-muted transition-transform duration-200 ${open ? 'rotate-90' : ''}`} />
@@ -75,22 +43,24 @@ function WorkoutCard({ workout }: { workout: typeof MOCK_WORKOUTS[0] }) {
           <div className="px-4 py-2">
             <div className="grid grid-cols-4 text-xs text-tx-muted uppercase tracking-wider py-2 border-b border-surface-border">
               <span className="col-span-2">Exercise</span>
-              <span className="text-right">Sets × Reps</span>
-              <span className="text-right">Weight</span>
+              <span className="text-right">Sets</span>
+              <span className="text-right">Avg Weight</span>
             </div>
-            {workout.exercises.map((ex, i) => (
-              <div key={i} className="grid grid-cols-4 text-sm py-2.5 border-b border-surface-border last:border-0">
-                <span className="col-span-2 text-tx-primary font-medium">{ex.name}</span>
-                <span className="text-right text-tx-secondary tabular-nums">{ex.sets} × {ex.reps}</span>
-                <span className="text-right text-tx-muted tabular-nums">
-                  {ex.weight > 0 ? `${ex.weight} lbs` : '—'}
-                </span>
-              </div>
-            ))}
+            {workout.exercises?.map((ex) => {
+              const avgWeight = ex.sets?.length > 0
+                ? (ex.sets.reduce((sum, s) => sum + (s.weight || 0), 0) / ex.sets.length).toFixed(0)
+                : '—'
+              return (
+                <div key={ex.id} className="grid grid-cols-4 text-sm py-2.5 border-b border-surface-border last:border-0">
+                  <span className="col-span-2 text-tx-primary font-medium">{ex.exercise.name}</span>
+                  <span className="text-right text-tx-secondary tabular-nums">{ex.sets?.length || 0}</span>
+                  <span className="text-right text-tx-muted tabular-nums">{avgWeight} lbs</span>
+                </div>
+              )
+            })}
           </div>
           <div className="flex justify-end gap-2 px-4 py-3 bg-surface-muted">
-            <button className="btn-ghost btn-sm">Duplicate</button>
-            <button className="btn-secondary btn-sm">Edit</button>
+            <button className="btn-ghost btn-sm">Details</button>
           </div>
         </div>
       )}
@@ -99,17 +69,44 @@ function WorkoutCard({ workout }: { workout: typeof MOCK_WORKOUTS[0] }) {
 }
 
 export default function Workouts() {
+  const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const filtered = MOCK_WORKOUTS.filter(w =>
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await workoutAPI.list({ limit: 50 })
+        setWorkouts(data || [])
+      } catch (err: any) {
+        setError(err.message || 'Failed to load workouts')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  const filtered = workouts.filter(w =>
     w.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  const weekVolume = MOCK_WORKOUTS.reduce((sum, w) => sum + w.volume, 0)
+  if (loading) {
+    return <Loading />
+  }
+
+  if (error) {
+    return (
+      <div className="alert-error">
+        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+        <span>{error}</span>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">
-
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
@@ -121,17 +118,16 @@ export default function Workouts() {
         </button>
       </div>
 
-      {/* This week summary */}
+      {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Sessions',    value: '3',                          unit: 'this week',  icon: Dumbbell,  tip: 'Total workouts logged this week' },
-          { label: 'Total Volume',value: weekVolume.toLocaleString(),  unit: 'lbs lifted', icon: Weight,    tip: 'Sum of sets × reps × weight across all exercises' },
-          { label: 'Avg Duration',value: '55',                         unit: 'min / session', icon: Clock, tip: 'Average workout duration this week' },
+          { label: 'Total', value: workouts.length.toString(), unit: 'workouts', icon: Dumbbell },
+          { label: 'This Month', value: workouts.filter(w => new Date(w.started_at).getMonth() === new Date().getMonth()).length.toString(), unit: 'sessions', icon: Clock },
+          { label: 'Avg Duration', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min', icon: Clock },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">
               <span className="stat-label">{s.label}</span>
-              <HelpTip content={s.tip} />
             </div>
             <div className="flex items-end gap-1.5">
               <span className="stat-value text-xl">{s.value}</span>
@@ -160,7 +156,7 @@ export default function Workouts() {
               <Dumbbell className="w-6 h-6 text-tx-muted" />
             </div>
             <p className="text-sm font-medium text-tx-primary mb-1">No workouts found</p>
-            <p className="text-xs text-tx-muted">Try a different search or log a new workout.</p>
+            <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Log a workout to get started'}</p>
           </div>
         ) : (
           filtered.map(w => <WorkoutCard key={w.id} workout={w} />)

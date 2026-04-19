@@ -7,19 +7,16 @@ interface AuthStore {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
-
-  login: (email: string, password: string) => Promise<void>
-  register: (email: string, password: string, passwordConfirm: string) => Promise<void>
-  logout: () => Promise<void>
-  setUser: (user: types.User | null) => void
+  login:     (email: string, password: string) => Promise<void>
+  register:  (email: string, password: string) => Promise<void>
+  logout:    () => void
   clearError: () => void
 }
 
 export const useAuthStore = create<AuthStore>((set) => {
-  // Hydrate from localStorage on init
-  const token = localStorage.getItem('access_token')
+  const token   = localStorage.getItem('access_token')
   const userStr = localStorage.getItem('user')
-  const user = userStr ? JSON.parse(userStr) : null
+  const user    = userStr ? JSON.parse(userStr) : null
 
   return {
     user,
@@ -27,53 +24,39 @@ export const useAuthStore = create<AuthStore>((set) => {
     isLoading: false,
     error: null,
 
-    login: async (email: string, password: string) => {
+    login: async (email, password) => {
       set({ isLoading: true, error: null })
       try {
-        const response = await authAPI.login({ email, password })
-        localStorage.setItem('access_token', response.data.access_token)
-        localStorage.setItem('refresh_token', response.data.refresh_token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        set({ user: response.data.user, isAuthenticated: true, isLoading: false })
-      } catch (error: any) {
-        const message = error.response?.data?.error || 'Login failed'
-        set({ error: message, isLoading: false })
-        throw error
+        const data = await authAPI.login({ email, password })
+        localStorage.setItem('access_token', data.token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        set({ user: data.user, isAuthenticated: true, isLoading: false })
+      } catch (err: any) {
+        set({ error: err.response?.data?.error || 'Login failed', isLoading: false })
+        throw err
       }
     },
 
-    register: async (email: string, password: string, passwordConfirm: string) => {
+    register: async (email, password) => {
       set({ isLoading: true, error: null })
       try {
-        const response = await authAPI.register({ email, password, password_confirm: passwordConfirm })
-        localStorage.setItem('access_token', response.data.access_token)
-        localStorage.setItem('refresh_token', response.data.refresh_token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
-        set({ user: response.data.user, isAuthenticated: true, isLoading: false })
-      } catch (error: any) {
-        const message = error.response?.data?.error || 'Registration failed'
-        set({ error: message, isLoading: false })
-        throw error
+        const data = await authAPI.register({ email, password })
+        localStorage.setItem('access_token', data.token)
+        localStorage.setItem('refresh_token', data.refresh_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        set({ user: data.user, isAuthenticated: true, isLoading: false })
+      } catch (err: any) {
+        set({ error: err.response?.data?.error || 'Registration failed', isLoading: false })
+        throw err
       }
     },
 
-    logout: async () => {
-      try {
-        await authAPI.logout()
-      } catch {
-        // Continue logout even if API call fails
-      }
+    logout: () => {
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('user')
       set({ user: null, isAuthenticated: false, error: null })
-    },
-
-    setUser: (user) => {
-      set({ user })
-      if (user) {
-        localStorage.setItem('user', JSON.stringify(user))
-      }
     },
 
     clearError: () => set({ error: null }),

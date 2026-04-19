@@ -2,66 +2,104 @@ export interface User {
   id: number
   email: string
   created_at: string
+  updated_at?: string
 }
 
-export interface Workout {
-  id: number
-  date: string
-  exercises: WorkoutExercise[]
-  created_at: string
-}
-
-export interface WorkoutExercise {
-  id: number
-  exercise_id: number
-  name: string
-  sets: Set[]
-  notes?: string
-}
-
-export interface Set {
-  reps: number
-  weight: number
+export interface UserSettings {
+  user_id: number
+  weight_unit: 'lbs' | 'kg'
+  calorie_target: number
+  protein_target: number
+  carb_target: number
+  fat_target: number
 }
 
 export interface Exercise {
   id: number
   name: string
-  category: 'push' | 'pull' | 'legs' | 'cardio' | 'other'
-  equipment?: string
-  muscle_groups: string[]
+  muscle_group: string
+  secondary_muscles: string[]
+  category: string
+  equipment: string
+  description: string
+  image_url?: string
+  video_url?: string
+}
+
+export interface Set {
+  id?: number
+  set_number: number
+  reps: number
+  weight: number
+  duration?: number
+  distance?: number
+  rpe?: number
+  is_warmup?: boolean
+}
+
+export interface WorkoutExercise {
+  id?: number
+  workout_id?: number
+  exercise_id: number
+  order_index?: number
+  notes?: string
+  exercise: Exercise
+  sets: Set[]
+}
+
+export interface Workout {
+  id: number
+  user_id?: number
+  name: string
+  notes?: string
+  duration: number
+  started_at: string
+  created_at: string
+  exercises: WorkoutExercise[]
+}
+
+export interface WeightLog {
+  id: number
+  user_id?: number
+  weight: number
+  notes?: string
+  logged_at: string
+  created_at?: string
 }
 
 export interface FoodLog {
   id: number
-  date: string
-  food_name: string
+  user_id?: number
+  name: string
+  meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks'
   calories: number
   protein: number
   carbs: number
   fat: number
-  quantity: number
-  unit: string
-}
-
-export interface Weight {
-  id: number
-  date: string
-  value: number
+  servings: number
+  serving_size?: string
+  barcode?: string
+  logged_at: string
+  created_at?: string
 }
 
 export interface DailyStats {
   date: string
-  weight?: number
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  workouts: number
+  total_calories: number
+  total_protein: number
+  total_carbs: number
+  total_fat: number
+  workout_count: number
+}
+
+export interface WeightStats {
+  latest: number
+  starting: number
+  total_entries: number
 }
 
 export interface AuthResponse {
-  access_token: string
+  token: string
   refresh_token: string
   user: User
 }
@@ -74,5 +112,4 @@ export interface LoginRequest {
 export interface RegisterRequest {
   email: string
   password: string
-  password_confirm: string
 }

@@ -20,7 +20,7 @@ export default function Register() {
     if (password.length < 8)          { setError('Password must be at least 8 characters'); return }
     setLoading(true)
     try {
-      await register(email, password, passwordConfirm)
+      await register(email, password)
       navigate('/')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Registration failed.')

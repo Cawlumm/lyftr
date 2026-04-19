@@ -26,16 +26,16 @@ export default function Login() {
     }
   }
 
-  const handleDemoLogin = () => {
+  const handleDemoLogin = async () => {
     setLoading(true)
-    setTimeout(() => {
-      const demoUser = { id: 1, email: 'demo@lyftr.local', created_at: new Date().toISOString() }
-      localStorage.setItem('access_token', 'demo-token')
-      localStorage.setItem('refresh_token', 'demo-refresh')
-      localStorage.setItem('user', JSON.stringify(demoUser))
-      useAuthStore.setState({ user: demoUser, isAuthenticated: true, isLoading: false })
+    try {
+      await login('demo@lyftr.local', 'password123')
       navigate('/')
-    }, 400)
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Demo login failed')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
