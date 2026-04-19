@@ -2,6 +2,10 @@
 
 **Self-hosted fitness tracker. Your data, your server.**
 
+> **Early beta** — actively being built. Expect rough edges and frequent updates. Feedback and bug reports welcome.
+
+> **iOS app in the works** — a native Swift app is planned. Web first while I get the core experience right.
+
 <p align="center">
   <img src="docs/screenshots/dashboard-mobile.png" width="220" alt="Dashboard" />
   <img src="docs/screenshots/workouts-mobile.png" width="220" alt="Workouts" />
