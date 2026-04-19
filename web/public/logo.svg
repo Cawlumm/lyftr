@@ -1,0 +1,46 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="128" height="128" rx="24" fill="#00b8d9"/>
+
+  <!-- Left upright -->
+  <rect x="16" y="20" width="3" height="54" rx="1" fill="#1c2f50"/>
+  <rect x="10" y="36" width="8" height="2" rx="1" fill="#1c2f50"/>
+  <rect x="10" y="56" width="8" height="2" rx="1" fill="#1c2f50"/>
+
+  <!-- Right upright -->
+  <rect x="109" y="20" width="3" height="54" rx="1" fill="#1c2f50"/>
+  <rect x="110" y="36" width="8" height="2" rx="1" fill="#1c2f50"/>
+  <rect x="110" y="56" width="8" height="2" rx="1" fill="#1c2f50"/>
+
+  <!-- Bar -->
+  <rect x="22" y="56" width="84" height="4" rx="2" fill="url(#barGradient)" filter="url(#glow)"/>
+
+  <!-- Left plates -->
+  <rect x="4" y="40" width="8" height="20" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+  <rect x="10" y="32" width="7" height="28" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+  <rect x="16" y="24" width="6" height="36" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+
+  <!-- Right plates -->
+  <rect x="116" y="40" width="8" height="20" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+  <rect x="111" y="32" width="7" height="28" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+  <rect x="106" y="24" width="6" height="36" rx="2" fill="#0d1629" stroke="#00b8d9" stroke-width="1"/>
+
+  <!-- Collars -->
+  <rect x="18" y="58" width="3" height="14" rx="1" fill="#00b8d9"/>
+  <rect x="107" y="58" width="3" height="14" rx="1" fill="#00b8d9"/>
+
+  <defs>
+    <linearGradient id="barGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stopColor="#38d8fb"/>
+      <stop offset="60%" stopColor="#00b8d9"/>
+      <stop offset="100%" stopColor="#007a96"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
