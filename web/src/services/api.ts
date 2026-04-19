@@ -1,7 +1,12 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
 
-const API_BASE = (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000/api/v1'
+const getAPIBase = () => {
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000'
+  return `${serverUrl}/api/v1`
+}
+
+const API_BASE = (import.meta.env.VITE_API_URL as string) || getAPIBase()
 
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE,
