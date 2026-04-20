@@ -12,13 +12,25 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-mobile.png" width="210" alt="Dashboard" />
-  <img src="docs/screenshots/workouts-mobile.png" width="210" alt="Workouts" />
-  <img src="docs/screenshots/programs-mobile.png" width="210" alt="Programs" />
+  <img src="docs/screenshots/dashboard-mobile.png" width="160" alt="Dashboard" />
+  <img src="docs/screenshots/workouts-mobile.png" width="160" alt="Workouts" />
+  <img src="docs/screenshots/workout-detail-mobile.png" width="160" alt="Workout Detail" />
+  <img src="docs/screenshots/programs-mobile.png" width="160" alt="Programs" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/program-detail-mobile.png" width="160" alt="Program Detail" />
+  <img src="docs/screenshots/exercise-detail-mobile.png" width="160" alt="Exercise Detail" />
+  <img src="docs/screenshots/active-workout-mobile.png" width="160" alt="Active Workout" />
+  <img src="docs/screenshots/settings-mobile.png" width="160" alt="Settings" />
 </p>
 
 <p align="center">
   <img src="docs/screenshots/dashboard-desktop.png" width="700" alt="Dashboard desktop" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/workout-detail-desktop.png" width="700" alt="Workout Detail desktop" />
 </p>
 
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
