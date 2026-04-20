@@ -97,18 +97,9 @@ On first startup, Lyftr automatically seeds 800+ exercises from [free-exercise-d
 
 The seed runs async so the server is immediately available. Exercises appear in the UI within a few seconds.
 
-**Re-seed / reset exercises** (requires an account):
+**Re-sync exercises:**
 
-```bash
-# Check seeding status
-curl -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/seed-status
-
-# Force re-sync (upserts — does not wipe)
-curl -X POST -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/sync-exercises
-
-# Wipe and re-seed from scratch
-curl -X POST -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/reset-exercises
-```
+Go to **Settings → Exercise Library** — shows current exercise count and an in-progress indicator while seeding. Hit **Re-sync** to pull the latest exercises from the source (safe upsert, existing workout data is untouched).
 
 ---
 
