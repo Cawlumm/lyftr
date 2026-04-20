@@ -81,5 +81,7 @@ func Setup(r *gin.Engine) {
 
 		// Admin
 		protected.POST("admin/sync-exercises", controllers.SyncExercises)
+		protected.GET("admin/seed-status", controllers.ExerciseSeedStatus)
+		protected.POST("admin/reset-exercises", controllers.ResetExercises)
 	}
 }

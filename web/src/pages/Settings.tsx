@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
-import { userAPI } from '../services/api'
+import { userAPI, exerciseAPI } from '../services/api'
 import * as types from '../types'
 import { HelpTip } from '../components/Tooltip'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
+  Dumbbell, RefreshCw,
 } from 'lucide-react'
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -42,6 +43,10 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
+  const [seedStatus, setSeedStatus] = useState<{ count: number; in_progress: boolean } | null>(null)
+  const [seedAction, setSeedAction] = useState<'sync' | null>(null)
+  const [seedMsg, setSeedMsg] = useState<string | null>(null)
+
   const [formData, setFormData] = useState({
     weight_unit: 'lbs' as 'lbs' | 'kg',
     calorie_target: 2000,
@@ -49,6 +54,14 @@ export default function Settings() {
     carb_target: 250,
     fat_target: 65,
   })
+
+  const loadSeedStatus = useCallback(async () => {
+    try {
+      const s = await exerciseAPI.seedStatus()
+      setSeedStatus(s)
+      return s
+    } catch {}
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -69,7 +82,33 @@ export default function Settings() {
       }
     }
     load()
-  }, [])
+    loadSeedStatus()
+  }, [loadSeedStatus])
+
+  // Poll while seeding in progress
+  useEffect(() => {
+    if (!seedStatus?.in_progress) return
+    const id = setInterval(async () => {
+      const s = await loadSeedStatus()
+      if (s && !s.in_progress) clearInterval(id)
+    }, 2000)
+    return () => clearInterval(id)
+  }, [seedStatus?.in_progress, loadSeedStatus])
+
+  const handleSync = async () => {
+    setSeedAction('sync')
+    setSeedMsg(null)
+    try {
+      const res = await exerciseAPI.sync()
+      setSeedMsg(`Synced ${res.total.toLocaleString()} exercises`)
+      loadSeedStatus()
+    } catch (err: any) {
+      setSeedMsg(err.message || 'Sync failed')
+    } finally {
+      setSeedAction(null)
+    }
+  }
+
 
   const handleSave = async () => {
     setSaving(true)
@@ -235,6 +274,45 @@ export default function Settings() {
         <SettingRow label="Version" description="lyftr backend version">
           <span className="text-xs text-tx-muted font-mono">v0.1.0</span>
         </SettingRow>
+      </Section>
+
+      {/* Exercise Library */}
+      <Section title="Exercise Library">
+        <SettingRow
+          label="Exercise database"
+          description="800+ exercises seeded automatically on first run"
+        >
+          <div className="flex items-center gap-2">
+            {seedStatus?.in_progress ? (
+              <span className="flex items-center gap-1.5 text-xs text-brand-400">
+                <Loader className="w-3.5 h-3.5 animate-spin" /> Seeding...
+              </span>
+            ) : (
+              <span className="text-sm font-mono text-tx-muted">
+                {seedStatus ? seedStatus.count.toLocaleString() : '—'} exercises
+              </span>
+            )}
+          </div>
+        </SettingRow>
+
+        {seedMsg && (
+          <div className="py-2 px-1">
+            <p className="text-xs text-tx-muted">{seedMsg}</p>
+          </div>
+        )}
+
+        <div className="py-3">
+          <button
+            onClick={handleSync}
+            disabled={!!seedAction || seedStatus?.in_progress}
+            className="btn-secondary btn-sm"
+          >
+            {seedAction === 'sync'
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
+              : <><RefreshCw className="w-3.5 h-3.5" /> Re-sync</>
+            }
+          </button>
+        </div>
       </Section>
 
       {/* Danger Zone */}

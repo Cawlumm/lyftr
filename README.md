@@ -21,9 +21,9 @@
   <img src="docs/screenshots/dashboard-desktop.png" width="700" alt="Dashboard desktop" />
 </p>
 
-> **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome.
+> **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
 
-> **First official beta release coming soon** — stay tuned.
+> **First official beta release coming soon** — stay tuned. Unlike your scheduled rest day, this one won't keep getting pushed back.
 
 ---
 
@@ -43,6 +43,8 @@
 ---
 
 ## Quick Start
+
+> Yes, it runs in Docker. No, you don't need to know Go. No, there's no cloud subscription. You're welcome.
 
 ```bash
 git clone https://github.com/Cawlumm/lyftr.git
@@ -72,9 +74,35 @@ All variables live in `.env` at the project root.
 
 ---
 
+## Exercise Library
+
+On first startup, Lyftr automatically seeds 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db) in the background. No API key. No setup required. It just works.
+
+```
+[startup] exercises table empty — fetching from free-exercise-db...
+[startup] seed: synced 868 exercises
+```
+
+The seed runs async so the server is immediately available. Exercises appear in the UI within a few seconds.
+
+**Re-seed / reset exercises** (requires an account):
+
+```bash
+# Check seeding status
+curl -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/seed-status
+
+# Force re-sync (upserts — does not wipe)
+curl -X POST -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/sync-exercises
+
+# Wipe and re-seed from scratch
+curl -X POST -H "Authorization: Bearer <token>" http://localhost/api/v1/admin/reset-exercises
+```
+
+---
+
 ## Data & Backups
 
-All workout data is stored in `./data/lyftr.db` (SQLite). Back this up regularly.
+All workout data is stored in `./data/lyftr.db` (SQLite). Back this up regularly. It's one file. You have no excuse.
 
 ```bash
 # Backup
@@ -87,6 +115,8 @@ docker compose pull && docker compose up -d
 ---
 
 ## Running on a VPS
+
+> Because paying $15/month for a fitness app subscription is money better spent on protein powder.
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-plugin
@@ -145,7 +175,7 @@ See `backend/config/config.go` for all supported environment variables.
 
 ## Contributing
 
-Bug reports, feature requests, and pull requests are all welcome. Open an issue to start a discussion before submitting large changes.
+Bug reports, feature requests, and pull requests are all welcome. Open an issue before submitting large changes — unlike leg day, communication should not be skipped.
 
 ---
 

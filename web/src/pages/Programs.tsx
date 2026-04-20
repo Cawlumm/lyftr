@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { BookOpen, Plus, ChevronDown, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play } from 'lucide-react'
+import { BookOpen, Plus, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import { programAPI } from '../services/api'
@@ -20,7 +20,6 @@ function ProgramCard({
 }) {
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
-  const [open, setOpen] = useState(false)
 
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -92,9 +91,12 @@ function ProgramCard({
   const totalSets = program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0
 
   return (
-    <div className="card overflow-hidden">
-      <div className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors group">
-        <button className="flex-1 flex items-center gap-3 min-w-0" onClick={() => setOpen(o => !o)}>
+    <div className="card overflow-hidden group active:scale-[0.99] transition-transform">
+      <div className="flex items-center p-4 gap-3">
+        <button
+          className="flex-1 flex items-center gap-3 min-w-0 text-left"
+          onClick={() => navigate(`/programs/${program.id}`)}
+        >
           {program.exercises?.[0]?.exercise?.image_url ? (
             <img
               src={program.exercises[0].exercise.image_url}
@@ -107,7 +109,7 @@ function ProgramCard({
               <BookOpen className="w-5 h-5 text-brand-500" strokeWidth={2} />
             </div>
           )}
-          <div className="text-left min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
               <span className="text-xs text-tx-muted">{format(new Date(program.created_at), 'MMM d, yyyy')}</span>
@@ -117,99 +119,24 @@ function ProgramCard({
               <span className="text-xs text-tx-muted">{totalSets} sets</span>
             </div>
           </div>
+          <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
         </button>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleStart}
-            className="w-11 h-11 flex items-center justify-center bg-brand-500/10 hover:bg-brand-500/20 rounded-xl transition-colors border border-brand-500/20 flex-shrink-0"
-            title="Start workout from this program"
-          >
+
+        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <button onClick={handleStart}
+            className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title="Start workout">
             <Play className="w-4 h-4 text-brand-500" />
           </button>
-          <button
-            onClick={e => { e.stopPropagation(); onEdit(program.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-          >
+          <button onClick={e => { e.stopPropagation(); onEdit(program.id) }}
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
-          <button
-            onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-          >
+          <button onClick={e => { e.stopPropagation(); setConfirming(true) }}
+            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors">
             <Trash2 className="w-4 h-4 text-error-400" />
           </button>
-          <ChevronDown className={`w-4 h-4 text-tx-muted transition-transform duration-200 flex-shrink-0 ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
-
-      {open && (
-        <div className="border-t border-surface-border animate-slide-up">
-          {program.notes && (
-            <p className="px-4 py-2.5 text-xs text-tx-muted border-b border-surface-border">{program.notes}</p>
-          )}
-
-          <div className="p-3 space-y-2">
-            {program.exercises?.map((ex) => {
-              const maxTarget = ex.sets?.length > 0 ? Math.max(...ex.sets.map(s => s.target_weight || 0)) : 0
-              return (
-                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl overflow-hidden">
-                  {/* Exercise header */}
-                  <div className="flex items-center gap-3 px-3 pt-3 pb-2">
-                    {ex.exercise.image_url ? (
-                      <img
-                        src={ex.exercise.image_url}
-                        alt=""
-                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-muted"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-                        <Dumbbell className="w-4 h-4 text-brand-500" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-tx-primary leading-tight truncate">{ex.exercise.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
-                          {ex.exercise.muscle_group}
-                        </span>
-                        <span className="text-xs text-tx-muted">{ex.sets?.length || 0} sets</span>
-                      </div>
-                    </div>
-                    {maxTarget > 0 && (
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs text-tx-muted leading-tight">target</p>
-                        <p className="text-sm font-bold text-brand-400 tabular-nums">{maxTarget} lb</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Set chips — target reps × weight, heaviest highlighted */}
-                  {ex.sets?.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-2 border-t border-surface-border/50 mt-2">
-                      {ex.sets.map((set, i) => {
-                        const isBest = set.target_weight === maxTarget && maxTarget > 0
-                        return (
-                          <div
-                            key={i}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
-                              isBest
-                                ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
-                                : 'bg-surface-raised text-tx-secondary'
-                            }`}
-                          >
-                            {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${set.target_weight} lb` : 'BW'}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

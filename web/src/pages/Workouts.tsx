@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Dumbbell, Plus, ChevronDown, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp } from 'lucide-react'
+import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import { workoutAPI } from '../services/api'
@@ -8,7 +8,7 @@ import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
-  const [open, setOpen] = useState(false)
+  const navigate = useNavigate()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const durationMin = Math.round(workout.duration / 60)
@@ -42,17 +42,12 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setConfirming(false)}
-              className="px-3 py-1.5 text-xs bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium"
-            >
+            <button onClick={() => setConfirming(false)}
+              className="px-3 py-1.5 text-xs bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium">
               Cancel
             </button>
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="px-3 py-1.5 text-xs bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex items-center gap-1"
-            >
+            <button onClick={handleDelete} disabled={deleting}
+              className="px-3 py-1.5 text-xs bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex items-center gap-1">
               <Trash2 className="w-3 h-3" />
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
@@ -63,11 +58,12 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
   }
 
   return (
-    <div className="card overflow-hidden">
-      <div className="flex items-center justify-between p-4 hover:bg-surface-muted transition-colors group">
+    <div className="card overflow-hidden group active:scale-[0.99] transition-transform">
+      <div className="flex items-center p-4 gap-3">
+        {/* Thumbnail — tappable, navigates to detail */}
         <button
-          className="flex-1 flex items-center gap-3 min-w-0"
-          onClick={() => setOpen(o => !o)}
+          onClick={() => navigate(`/workouts/${workout.id}`)}
+          className="flex-1 flex items-center gap-3 min-w-0 text-left"
         >
           {workout.exercises?.[0]?.exercise?.image_url ? (
             <img
@@ -81,14 +77,18 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
               <Dumbbell className="w-5 h-5 text-brand-500" strokeWidth={2} />
             </div>
           )}
-          <div className="text-left min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
             <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
               <span className="text-xs text-tx-muted">{format(new Date(workout.started_at), 'MMM d, yyyy')}</span>
-              <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="flex items-center gap-1 text-xs text-tx-muted">
-                <Clock className="w-3 h-3" />{durationMin} min
-              </span>
+              {durationMin > 0 && (
+                <>
+                  <span className="text-tx-muted/40 text-xs">·</span>
+                  <span className="flex items-center gap-1 text-xs text-tx-muted">
+                    <Clock className="w-3 h-3" />{durationMin} min
+                  </span>
+                </>
+              )}
               <span className="text-tx-muted/40 text-xs">·</span>
               <span className="text-xs text-tx-muted">{workout.exercises?.length || 0} exercises</span>
               {totalVolume > 0 && (
@@ -101,95 +101,25 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
               )}
             </div>
           </div>
+          <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
         </button>
-        <div className="flex items-center gap-1">
+
+        {/* Action buttons — always visible on mobile, hover on desktop */}
+        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <button
             onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-            title="Edit workout"
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
             onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors sm:opacity-0 sm:group-hover:opacity-100"
-            title="Delete workout"
+            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
           >
             <Trash2 className="w-4 h-4 text-error-400" />
           </button>
-          <ChevronDown className={`w-4 h-4 text-tx-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </div>
       </div>
-
-      {open && (
-        <div className="border-t border-surface-border animate-slide-up">
-          <div className="p-3 space-y-2">
-            {workout.exercises?.map((ex) => {
-              const maxWeight = ex.sets?.length > 0
-                ? Math.max(...ex.sets.map(s => s.weight || 0))
-                : 0
-              const exVol = ex.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0
-
-              return (
-                <div key={ex.id} className="bg-surface-muted/30 border border-surface-border rounded-xl overflow-hidden">
-                  {/* Exercise header */}
-                  <div className="flex items-center gap-3 px-3 pt-3 pb-2">
-                    {ex.exercise.image_url ? (
-                      <img
-                        src={ex.exercise.image_url}
-                        alt=""
-                        className="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-muted"
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-                        <Dumbbell className="w-4 h-4 text-brand-500" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-tx-primary leading-tight truncate">{ex.exercise.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
-                          {ex.exercise.muscle_group}
-                        </span>
-                        <span className="text-xs text-tx-muted">{ex.sets?.length || 0} sets</span>
-                        {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} lbs</span>}
-                      </div>
-                    </div>
-                    {maxWeight > 0 && (
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs text-tx-muted leading-tight">best</p>
-                        <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} lb</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Sets — inline chips, best highlighted */}
-                  {ex.sets?.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 px-3 pb-3 pt-2 border-t border-surface-border/50 mt-2">
-                      {ex.sets.map((set, i) => {
-                        const isBest = set.weight === maxWeight && maxWeight > 0
-                        return (
-                          <div
-                            key={i}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
-                              isBest
-                                ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
-                                : 'bg-surface-raised text-tx-secondary'
-                            }`}
-                          >
-                            {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${set.weight} lb` : 'BW'}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -197,6 +127,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 export default function Workouts() {
   const navigate = useNavigate()
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
+
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

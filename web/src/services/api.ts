@@ -89,6 +89,8 @@ export const exerciseAPI = {
   },
   get: (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(res => unwrap(res)),
   clearCache: () => { _exerciseCache = null; _exerciseCachePromise = null },
+  seedStatus: () => api.get<{ data: { count: number; in_progress: boolean } }>('/admin/seed-status').then(res => unwrap(res)),
+  sync: () => api.post<{ data: { synced: boolean; total: number } }>('/admin/sync-exercises').then(res => unwrap(res)),
 }
 
 export const activeSessionAPI = {

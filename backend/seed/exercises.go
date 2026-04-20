@@ -8,13 +8,16 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
 const (
-	exerciseDBURL  = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
-	imageBaseURL   = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises"
+	exerciseDBURL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json"
+	imageBaseURL  = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises"
 )
+
+var seeding atomic.Bool
 
 type freeExerciseItem struct {
 	ID               string   `json:"id"`
@@ -28,6 +31,18 @@ type freeExerciseItem struct {
 	Instructions     []string `json:"instructions"`
 	Category         string   `json:"category"`
 	Images           []string `json:"images"`
+}
+
+// SeedStatus returns current exercise count and whether a seed is running.
+type SeedStatus struct {
+	Count     int  `json:"count"`
+	InProgress bool `json:"in_progress"`
+}
+
+func GetSeedStatus(db *sql.DB) SeedStatus {
+	var count int
+	db.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&count)
+	return SeedStatus{Count: count, InProgress: seeding.Load()}
 }
 
 // Exercises seeds on first run if the table is empty (async to avoid blocking startup).
@@ -55,7 +70,23 @@ func SyncExercises(db *sql.DB) error {
 	return fetchAndStore(db)
 }
 
+// WipeAndReseed deletes all exercises then re-fetches from source.
+func WipeAndReseed(db *sql.DB) error {
+	if seeding.Load() {
+		return fmt.Errorf("seed already in progress")
+	}
+	if _, err := db.Exec(`DELETE FROM exercises`); err != nil {
+		return fmt.Errorf("wipe failed: %w", err)
+	}
+	log.Println("seed: exercises wiped, starting re-seed...")
+	go fetchAndStoreAsync(db)
+	return nil
+}
+
 func fetchAndStore(db *sql.DB) error {
+	seeding.Store(true)
+	defer seeding.Store(false)
+
 	items, err := fetchAll()
 	if err != nil {
 		return err

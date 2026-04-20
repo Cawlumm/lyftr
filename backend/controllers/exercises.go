@@ -85,6 +85,20 @@ func SyncExercises(c *gin.Context) {
 	utils.OK(c, gin.H{"synced": true, "total": count})
 }
 
+// ExerciseSeedStatus returns exercise count and whether seeding is running.
+func ExerciseSeedStatus(c *gin.Context) {
+	utils.OK(c, seed.GetSeedStatus(db.DB))
+}
+
+// ResetExercises wipes the exercises table and triggers a fresh seed in background.
+func ResetExercises(c *gin.Context) {
+	if err := seed.WipeAndReseed(db.DB); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	utils.OK(c, gin.H{"reset": true, "message": "exercises wiped, re-seeding in background"})
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }

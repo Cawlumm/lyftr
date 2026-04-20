@@ -26,7 +26,7 @@ function greeting() {
 }
 
 const calcVolume = (w: types.Workout) =>
-  w.exercises.reduce((s, ex) => s + ex.sets.reduce((ss, set) => ss + set.reps * set.weight, 0), 0)
+  (w.exercises ?? []).reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0)
 
 const DEFAULT_FOOD: types.DailyStats = {
   date: format(TODAY, 'yyyy-MM-dd'),
@@ -201,9 +201,9 @@ export default function Dashboard() {
   // Muscle group donut: sets per muscle across all fetched workouts
   const muscleMap = new Map<string, number>()
   workouts.forEach(w => {
-    w.exercises.forEach(ex => {
-      const mg = ex.exercise.muscle_group || 'other'
-      muscleMap.set(mg, (muscleMap.get(mg) || 0) + ex.sets.length)
+    (w.exercises ?? []).forEach(ex => {
+      const mg = ex.exercise?.muscle_group || 'other'
+      muscleMap.set(mg, (muscleMap.get(mg) || 0) + (ex.sets ?? []).length)
     })
   })
   const muscleData = Array.from(muscleMap.entries())
@@ -217,9 +217,9 @@ export default function Dashboard() {
   const muscleSparklines = new Map<string, number[]>()
   muscleData.forEach(({ name }) => {
     muscleSparklines.set(name, sparklineWorkouts.map(w =>
-      w.exercises
-        .filter(ex => ex.exercise.muscle_group === name)
-        .reduce((s, ex) => s + ex.sets.length, 0)
+      (w.exercises ?? [])
+        .filter(ex => ex.exercise?.muscle_group === name)
+        .reduce((s, ex) => s + (ex.sets ?? []).length, 0)
     ))
   })
   const topMuscle = muscleData[0]?.name ?? null
@@ -459,11 +459,13 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-2 gap-4 min-w-0">
 
         {lastWorkout ? (() => {
-          const totalSets = lastWorkout.exercises.reduce((s, ex) => s + ex.sets.length, 0)
+          const exs = lastWorkout.exercises ?? []
+          const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
           const totalVolume = Math.round(calcVolume(lastWorkout))
           const mins = Math.round(lastWorkout.duration / 60)
           return (
-            <div className="card p-4 overflow-hidden min-w-0">
+            <div className="card p-4 overflow-hidden min-w-0 cursor-pointer active:scale-[0.99] transition-transform"
+              onClick={() => navigate(`/workouts/${lastWorkout.id}`)}>
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
@@ -480,9 +482,10 @@ export default function Dashboard() {
               </div>
 
               <div className="divide-y divide-surface-border/60">
-                {lastWorkout.exercises.slice(0, 4).map((ex) => {
-                  const best = ex.sets.length > 0
-                    ? ex.sets.reduce((b, s) => s.weight > b.weight ? s : b, ex.sets[0])
+                {exs.slice(0, 4).map((ex) => {
+                  const sets = ex.sets ?? []
+                  const best = sets.length > 0
+                    ? sets.reduce((b, s) => s.weight > b.weight ? s : b, sets[0])
                     : null
                   return (
                     <div key={ex.id} className="flex items-center gap-2.5 py-2.5">
@@ -507,7 +510,7 @@ export default function Dashboard() {
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {ex.sets.length}×{best.weight > 0 ? ` ${best.weight}lb` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${best.weight}lb` : ' BW'}
                         </span>
                       )}
                     </div>
@@ -515,9 +518,9 @@ export default function Dashboard() {
                 })}
               </div>
 
-              {lastWorkout.exercises.length > 4 && (
+              {exs.length > 4 && (
                 <p className="text-xs text-tx-muted text-center pt-2">
-                  +{lastWorkout.exercises.length - 4} more exercises
+                  +{exs.length - 4} more exercises
                 </p>
               )}
             </div>
