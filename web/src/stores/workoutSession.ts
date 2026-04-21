@@ -1,34 +1,7 @@
 import { create } from 'zustand'
 import * as types from '../types'
-import { activeSessionAPI } from '../services/api'
 
 const SESSION_KEY = 'lyftr_active_session'
-const DEVICE_KEY = 'lyftr_device_id'
-const CANCEL_KEY = 'lyftr_session_cancelled'
-
-function getDeviceId(): string {
-  let id = localStorage.getItem(DEVICE_KEY)
-  if (!id) {
-    id = crypto.randomUUID()
-    localStorage.setItem(DEVICE_KEY, id)
-  }
-  return id
-}
-
-interface WorkoutSessionStore {
-  session: types.ActiveSession | null
-  syncing: boolean
-  startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number) => void
-  updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
-  completeSet: (exIdx: number, setIdx: number) => void
-  addSet: (exIdx: number) => void
-  removeSet: (exIdx: number, setIdx: number) => void
-  addExercise: (ex: types.ActiveSessionExercise) => void
-  removeExercise: (exIdx: number) => void
-  buildPayload: () => any
-  cancelSession: () => void
-  restoreFromServer: () => Promise<void>
-}
 
 function saveLocal(session: types.ActiveSession | null) {
   if (session) {
@@ -47,36 +20,31 @@ function loadLocal(): types.ActiveSession | null {
   }
 }
 
-// Debounced backend sync — 2s after last change
-let syncTimer: ReturnType<typeof setTimeout> | null = null
-function scheduleSync(session: types.ActiveSession) {
-  if (syncTimer) clearTimeout(syncTimer)
-  syncTimer = setTimeout(() => {
-    activeSessionAPI.save(session).catch(() => {})
-  }, 2000)
-}
-
-function flushSync(session: types.ActiveSession) {
-  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null }
-  return activeSessionAPI.save(session)
+interface WorkoutSessionStore {
+  session: types.ActiveSession | null
+  startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number) => void
+  updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
+  completeSet: (exIdx: number, setIdx: number) => void
+  addSet: (exIdx: number) => void
+  removeSet: (exIdx: number, setIdx: number) => void
+  addExercise: (ex: types.ActiveSessionExercise) => void
+  removeExercise: (exIdx: number) => void
+  buildPayload: () => any
+  cancelSession: () => void
 }
 
 export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   session: loadLocal(),
-  syncing: false,
 
   startSession: (name, exercises, programId) => {
-    localStorage.removeItem(CANCEL_KEY)
     const session: types.ActiveSession = {
       name,
       started_at: new Date().toISOString(),
       exercises,
       program_id: programId,
-      device_id: getDeviceId(),
     }
     saveLocal(session)
     set({ session })
-    flushSync(session).catch(() => {})
   },
 
   updateSet: (exIdx, setIdx, field, val) => {
@@ -91,7 +59,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })
-    scheduleSync(updated)
   },
 
   completeSet: (exIdx, setIdx) => {
@@ -106,7 +73,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })
-    flushSync(updated).catch(() => {})
   },
 
   addSet: (exIdx) => {
@@ -130,7 +96,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })
-    scheduleSync(updated)
   },
 
   removeSet: (exIdx, setIdx) => {
@@ -146,7 +111,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })
-    scheduleSync(updated)
   },
 
   addExercise: (ex) => {
@@ -155,7 +119,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises: [...session.exercises, ex] }
     saveLocal(updated)
     set({ session: updated })
-    scheduleSync(updated)
   },
 
   removeExercise: (exIdx) => {
@@ -164,7 +127,6 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const updated = { ...session, exercises: session.exercises.filter((_, i) => i !== exIdx) }
     saveLocal(updated)
     set({ session: updated })
-    scheduleSync(updated)
   },
 
   buildPayload: () => {
@@ -189,34 +151,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   },
 
   cancelSession: () => {
-    if (syncTimer) { clearTimeout(syncTimer); syncTimer = null }
     saveLocal(null)
-    localStorage.setItem(CANCEL_KEY, '1')
     set({ session: null })
-    activeSessionAPI.clear().catch(() => {})
-  },
-
-  restoreFromServer: async () => {
-    const local = loadLocal()
-    if (local) return
-    // User explicitly cancelled — don't restore, retry the server clear
-    if (localStorage.getItem(CANCEL_KEY)) {
-      try {
-        await activeSessionAPI.clear()
-        localStorage.removeItem(CANCEL_KEY)
-      } catch {
-        // Keep CANCEL_KEY so next restore retries the clear
-      }
-      return
-    }
-    try {
-      const serverSession = await activeSessionAPI.get()
-      if (serverSession && serverSession.device_id === getDeviceId()) {
-        saveLocal(serverSession)
-        set({ session: serverSession })
-      }
-    } catch {
-      // offline or unauthenticated — nothing to restore
-    }
   },
 }))

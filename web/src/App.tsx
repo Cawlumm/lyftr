@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAuthStore } from './stores/auth'
-import { useWorkoutSession } from './stores/workoutSession'
 import { useSettingsStore } from './stores/settings'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -25,12 +24,10 @@ import Register from './pages/Register'
 
 function App() {
   const { isAuthenticated } = useAuthStore()
-  const { restoreFromServer } = useWorkoutSession()
   const { fetch: fetchSettings, reset: resetSettings } = useSettingsStore()
 
   useEffect(() => {
     if (isAuthenticated) {
-      restoreFromServer()
       fetchSettings()
     } else {
       resetSettings()

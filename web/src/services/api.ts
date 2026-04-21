@@ -93,15 +93,6 @@ export const exerciseAPI = {
   sync: () => api.post<{ data: { synced: boolean; total: number } }>('/admin/sync-exercises').then(res => unwrap(res)),
 }
 
-export const activeSessionAPI = {
-  get: () => api.get<{ data: { data: string; updated_at: string } | null }>('/active-session').then(res => {
-    const payload = res.data.data
-    if (!payload) return null
-    try { return JSON.parse(payload.data) } catch { return null }
-  }),
-  save: (session: any) => api.put('/active-session', { data: JSON.stringify(session) }),
-  clear: () => api.delete('/active-session'),
-}
 
 export const programAPI = {
   list:   () => api.get<{ data: types.Program[] }>('/programs').then(res => unwrap(res)),
