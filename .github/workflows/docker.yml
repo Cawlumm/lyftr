@@ -34,7 +34,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: cawlumm/lyftr-backend
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-backend
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
@@ -62,7 +62,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: cawlumm/lyftr-frontend
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-frontend
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}

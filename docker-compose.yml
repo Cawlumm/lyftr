@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    image: cawlumm/lyftr-backend:latest
+    image: cwlumm/lyftr-backend:latest
     build: ./backend
     restart: unless-stopped
     volumes:
@@ -23,7 +23,7 @@ services:
       retries: 3
 
   frontend:
-    image: cawlumm/lyftr-frontend:latest
+    image: cwlumm/lyftr-frontend:latest
     build: ./web
     restart: unless-stopped
     ports:
