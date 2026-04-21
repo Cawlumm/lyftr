@@ -12,6 +12,7 @@ import Loading from '../components/Loading'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -124,13 +125,15 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
   const { user } = useAuthStore()
+  const { settings: storedSettings } = useSettingsStore()
 
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
-  const [settings, setSettings] = useState<types.UserSettings>(DEFAULT_SETTINGS)
+  const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
     Promise.all([
@@ -247,7 +250,7 @@ export default function Dashboard() {
           <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
-          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 truncate">
+          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5">
             {greeting()}, {username}
           </h1>
         </div>
@@ -348,7 +351,7 @@ export default function Dashboard() {
                 <YAxis hide />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v.toLocaleString()} lbs`, 'Volume']}
+                  formatter={(v: number) => [`${v.toLocaleString()} ${wUnit}`, 'Volume']}
                   labelFormatter={(label: string) => chartData.find(d => d.date === label)?.name || label}
                   cursor={{ fill: 'rgba(99,102,241,0.08)', radius: 4 }}
                 />
@@ -362,21 +365,21 @@ export default function Dashboard() {
             </div>
 
             {/* Current week day dots */}
-            <div className="flex items-center justify-between mt-3 px-1">
+            <div className="flex items-center justify-between mt-4 px-1">
               {weekDays.map((day, i) => {
                 const hasWorkout = workouts.some(w => isSameDay(new Date(w.started_at), day))
                 const isToday = isSameDay(day, TODAY)
                 const isFuture = day > TODAY
                 return (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <span className={`text-[9px] font-medium ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>
+                  <div key={i} className="flex flex-col items-center gap-1.5">
+                    <span className={`text-[10px] font-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>
                       {format(day, 'EEEEE')}
                     </span>
-                    <div className={`w-2 h-2 rounded-full transition-colors ${
-                      hasWorkout   ? 'bg-brand-500' :
-                      isToday      ? 'bg-brand-500/30 ring-1 ring-brand-500/50' :
-                      isFuture     ? 'bg-surface-border/30' :
-                                     'bg-surface-border'
+                    <div className={`w-3 h-3 rounded-full transition-all ${
+                      hasWorkout   ? 'bg-brand-500 shadow-sm shadow-brand-500/50' :
+                      isToday      ? 'bg-transparent ring-2 ring-brand-500/60' :
+                      isFuture     ? 'bg-surface-border/20' :
+                                     'bg-surface-border/60'
                     }`} />
                   </div>
                 )
@@ -410,7 +413,7 @@ export default function Dashboard() {
               {/* Row 0: spacer + month labels */}
               <div />
               {heatmapWeeks.map((_, i) => (
-                <div key={i} className="text-[9px] text-tx-muted font-medium truncate leading-none pb-0.5">
+                <div key={i} className="text-[9px] text-tx-muted font-medium overflow-visible whitespace-nowrap leading-none pb-0.5">
                   {monthLabels[i] ?? ''}
                 </div>
               ))}
@@ -473,7 +476,7 @@ export default function Dashboard() {
                     {format(new Date(lastWorkout.started_at), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
-                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} lbs`}
+                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
                   </p>
                 </div>
                 <Link to="/workouts" className="flex items-center gap-0.5 text-xs text-brand-400 hover:text-brand-300 flex-shrink-0 transition-colors">
@@ -510,7 +513,7 @@ export default function Dashboard() {
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {sets.length}×{best.weight > 0 ? ` ${best.weight}lb` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${best.weight}${wUnit}` : ' BW'}
                         </span>
                       )}
                     </div>
@@ -585,8 +588,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Muscle group balance ────────────────────── */}
-      {muscleData.length > 0 && (
-        <div className="card p-4">
+      <div className="card p-4">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Dumbbell className="w-4 h-4 text-brand-500" />
@@ -595,12 +597,20 @@ export default function Dashboard() {
             <span className="text-xs text-tx-muted">{workouts.length} workouts</span>
           </div>
 
-          {topMuscle && (
+          {topMuscle ? (
             <p className="text-xs text-tx-muted mb-3 italic">
               {muscleRoast(topMuscle)}
             </p>
+          ) : (
+            <p className="text-xs text-tx-muted mb-3">Log workouts to see which muscles you train most.</p>
           )}
 
+          {muscleData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-6 gap-2">
+              <Dumbbell className="w-6 h-6 text-tx-muted opacity-30" />
+              <p className="text-xs text-tx-muted">No workout data yet</p>
+            </div>
+          ) : (
           <div className="flex flex-col sm:flex-row items-center gap-4">
             {/* Donut */}
             <div className="flex-shrink-0 flex items-center justify-center">
@@ -659,8 +669,8 @@ export default function Dashboard() {
               })}
             </div>
           </div>
-        </div>
-      )}
+          )}
+      </div>
 
       {/* ── Weight sparkline ───────────────────────── */}
       {weightLogs.length >= 2 && (
@@ -671,12 +681,12 @@ export default function Dashboard() {
               <h2 className="section-title">Weight</h2>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold text-tx-primary">{weightLogs[0].weight} lbs</p>
+              <p className="text-sm font-bold text-tx-primary">{weightLogs[0].weight} {wUnit}</p>
               {(() => {
                 const delta = weightLogs[0].weight - weightLogs[weightLogs.length - 1].weight
                 return (
                   <p className={`text-xs ${delta <= 0 ? 'text-brand-400' : 'text-tx-muted'}`}>
-                    {delta <= 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} lbs
+                    {delta <= 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} {wUnit}
                   </p>
                 )
               })()}
@@ -688,7 +698,7 @@ export default function Dashboard() {
               <Line dataKey="weight" dot={false} stroke="#6366f1" strokeWidth={2} type="monotone" />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
-                formatter={(v: number) => [`${v} lbs`, 'Weight']}
+                formatter={(v: number) => [`${v} ${wUnit}`, 'Weight']}
               />
             </LineChart>
           </ResponsiveContainer>

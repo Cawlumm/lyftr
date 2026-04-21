@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { BookOpen, Plus, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play, ChevronRight } from 'lucide-react'
+import { BookOpen, Plus, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import { programAPI } from '../services/api'
@@ -20,6 +21,19 @@ function ProgramCard({
 }) {
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const inMenu = menuRef.current?.contains(e.target as Node)
+      const inPortal = portalRef.current?.contains(e.target as Node)
+      if (!inMenu && !inPortal) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -91,7 +105,7 @@ function ProgramCard({
   const totalSets = program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0
 
   return (
-    <div className="card overflow-hidden group active:scale-[0.99] transition-transform">
+    <div className="card group active:scale-[0.99] transition-transform">
       <div className="flex items-center p-4 gap-3">
         <button
           className="flex-1 flex items-center gap-3 min-w-0 text-left"
@@ -111,30 +125,98 @@ function ProgramCard({
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
-            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-              <span className="text-xs text-tx-muted">{format(new Date(program.created_at), 'MMM d, yyyy')}</span>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
+            <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
+              <span className="text-xs text-tx-muted whitespace-nowrap">{program.exercises?.length || 0} exercises</span>
               <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="text-xs text-tx-muted">{program.exercises?.length || 0} exercises</span>
-              <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="text-xs text-tx-muted">{totalSets} sets</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{totalSets} sets</span>
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
         </button>
 
-        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <button onClick={handleStart}
-            className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title="Start workout">
-            <Play className="w-4 h-4 text-brand-500" />
+        {/* Mobile: kebab | Desktop: hover icons */}
+        <div className="relative flex-shrink-0" ref={menuRef}>
+          {/* Mobile kebab trigger */}
+          <button
+            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o) }}
+            className={`sm:hidden p-2 rounded-lg transition-colors ${menuOpen ? 'bg-surface-muted' : 'hover:bg-surface-muted'}`}
+            aria-label="Options"
+          >
+            <MoreVertical className="w-4 h-4 text-tx-muted" />
           </button>
-          <button onClick={e => { e.stopPropagation(); onEdit(program.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
-            <Edit2 className="w-4 h-4 text-brand-500" />
-          </button>
-          <button onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors">
-            <Trash2 className="w-4 h-4 text-error-400" />
-          </button>
+
+          {/* Centered modal dropdown — portal to escape transform stacking context */}
+          {menuOpen && createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+                onClick={e => { e.stopPropagation(); setMenuOpen(false) }}
+              />
+              <div ref={portalRef} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-surface-overlay border border-surface-border/60 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-4 pt-4 pb-3">
+                  <p className="text-[10px] font-semibold text-tx-muted uppercase tracking-wider text-center">Program</p>
+                  <p className="text-sm font-semibold text-tx-primary text-center mt-0.5 truncate">{program.name}</p>
+                </div>
+                <div className="border-t border-surface-border/40 py-1.5">
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); handleStart(e) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-tx-primary hover:bg-surface-muted/60 active:bg-surface-muted transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
+                      <Play className="w-4 h-4 text-brand-500" />
+                    </div>
+                    Start Workout
+                  </button>
+                  <div className="mx-4 border-t border-surface-border/30" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onEdit(program.id) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-tx-primary hover:bg-surface-muted/60 active:bg-surface-muted transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
+                      <Edit2 className="w-4 h-4 text-brand-500" />
+                    </div>
+                    Edit Program
+                  </button>
+                  <div className="mx-4 border-t border-surface-border/30" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); setConfirming(true) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-error-400 hover:bg-error-500/10 active:bg-error-500/15 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-error-500/10 flex items-center justify-center flex-shrink-0">
+                      <Trash2 className="w-4 h-4 text-error-400" />
+                    </div>
+                    Delete Program
+                  </button>
+                </div>
+                <div className="border-t border-surface-border/40 p-3">
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false) }}
+                    className="w-full py-2.5 text-sm font-semibold text-tx-muted bg-surface-muted/60 hover:bg-surface-muted rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </>,
+            document.body
+          )}
+
+          {/* Desktop hover icons */}
+          <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={handleStart}
+              className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title="Start workout">
+              <Play className="w-4 h-4 text-brand-500" />
+            </button>
+            <button onClick={e => { e.stopPropagation(); onEdit(program.id) }}
+              className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
+              <Edit2 className="w-4 h-4 text-brand-500" />
+            </button>
+            <button aria-label="Delete" onClick={e => { e.stopPropagation(); setConfirming(true) }}
+              className="p-2 hover:bg-error-500/10 rounded-lg transition-colors">
+              <Trash2 className="w-4 h-4 text-error-400" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

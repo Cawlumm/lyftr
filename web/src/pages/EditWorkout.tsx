@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge } from 'lucide-react'
 import { workoutAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -15,12 +16,15 @@ interface WorkoutFormData {
 export default function EditWorkout() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, exercises: [] })
+  const [originalStartedAt, setOriginalStartedAt] = useState('')
 
   useEffect(() => {
     const workoutId = Number(id)
@@ -30,10 +34,11 @@ export default function EditWorkout() {
         const map: Record<number, types.Exercise> = {}
         ;(workout.exercises || []).forEach(ex => { map[ex.exercise_id] = ex.exercise })
         setPickerExercises(map)
+        setOriginalStartedAt(workout.started_at || new Date().toISOString())
         setFormData({
           name: workout.name,
           notes: workout.notes || '',
-          duration: workout.duration,
+          duration: Math.round(workout.duration / 60),
           exercises: (workout.exercises || []).map(ex => ({
             exercise_id: ex.exercise_id,
             notes: ex.notes || '',
@@ -84,7 +89,7 @@ export default function EditWorkout() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await workoutAPI.update(Number(id), { ...formData, started_at: new Date().toISOString() })
+      await workoutAPI.update(Number(id), { ...formData, duration: formData.duration * 60, started_at: originalStartedAt || new Date().toISOString() })
       navigate('/workouts')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update workout')
@@ -158,7 +163,7 @@ export default function EditWorkout() {
           <div className="grid grid-cols-3 gap-2 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg">
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{formData.exercises.length}</div><div className="text-xs text-tx-muted">Exercises</div></div>
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{totalSets}</div><div className="text-xs text-tx-muted">Sets</div></div>
-            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total lbs</div></div>
+            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
           </div>
         )}
 
@@ -220,7 +225,7 @@ export default function EditWorkout() {
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
                           <div className="relative">
                             <input type="number" inputMode="decimal" value={set.weight || ''} onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)} placeholder="225" className="input text-sm w-full pr-7" min="0" step="0.5" />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">lbs</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
                           </div>
                         </div>
                         <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">

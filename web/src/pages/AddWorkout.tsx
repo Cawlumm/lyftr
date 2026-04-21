@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen } from 'lucide-react'
+import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen, CalendarDays } from 'lucide-react'
 import { workoutAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import * as types from '../types'
@@ -10,17 +11,20 @@ interface WorkoutFormData {
   name: string
   notes: string
   duration: number
+  date: string
   exercises: { exercise_id: number; notes: string; sets: { set_number: number; reps: number; weight: number }[] }[]
 }
 
 export default function AddWorkout() {
   const navigate = useNavigate()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [showProgramPicker, setShowProgramPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
-  const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, exercises: [] })
+  const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, date: new Date().toISOString().slice(0, 10), exercises: [] })
 
   const loadFromProgram = (program: types.Program) => {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }
@@ -73,7 +77,7 @@ export default function AddWorkout() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await workoutAPI.create({ ...formData, started_at: new Date().toISOString() })
+      await workoutAPI.create({ ...formData, duration: formData.duration * 60, started_at: new Date(formData.date).toISOString() })
       navigate('/workouts')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create workout')
@@ -117,6 +121,14 @@ export default function AddWorkout() {
 
         <div>
           <div className="flex items-center gap-2 mb-2">
+            <CalendarDays className="w-4 h-4 text-brand-500" />
+            <label className="label">Date</label>
+          </div>
+          <input type="date" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} className="input" max={new Date().toISOString().slice(0, 10)} />
+        </div>
+
+        <div>
+          <div className="flex items-center gap-2 mb-2">
             <Clock className="w-4 h-4 text-brand-500" />
             <label className="label">Duration (minutes)</label>
           </div>
@@ -140,7 +152,7 @@ export default function AddWorkout() {
           <div className="grid grid-cols-3 gap-2 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg">
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{formData.exercises.length}</div><div className="text-xs text-tx-muted">Exercises</div></div>
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{totalSets}</div><div className="text-xs text-tx-muted">Sets</div></div>
-            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total lbs</div></div>
+            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
           </div>
         )}
 
@@ -210,7 +222,7 @@ export default function AddWorkout() {
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
                           <div className="relative">
                             <input type="number" inputMode="decimal" value={set.weight || ''} onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)} placeholder="225" className="input text-sm w-full pr-7" min="0" step="0.5" />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">lbs</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
                           </div>
                         </div>
                         <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">

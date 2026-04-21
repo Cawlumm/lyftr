@@ -4,6 +4,7 @@ import { format, subDays } from 'date-fns'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
 import { weightAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -15,6 +16,8 @@ const getPeriodDays = (p: Period) => {
 }
 
 export default function Weight() {
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [period, setPeriod] = useState<Period>('30d')
   const [newWeight, setNewWeight] = useState('')
   const [logs, setLogs] = useState<types.WeightLog[]>([])
@@ -97,32 +100,41 @@ export default function Weight() {
           <p className="text-tx-muted text-sm mt-0.5">Track your body weight over time</p>
         </div>
         <span className="badge-brand">
-          <Calendar className="w-3 h-3" /> lbs
+          <Calendar className="w-3 h-3" /> {wUnit}
         </span>
       </div>
 
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="stat-label mb-2">Current Weight</p>
-            <div className="flex items-end gap-2">
-              <span className="stat-value text-5xl">{current.toFixed(1)}</span>
-              <span className="text-tx-muted text-lg mb-1">lbs</span>
+        {logs.length === 0 ? (
+          <div className="text-center py-2">
+            <p className="stat-label mb-1">Current Weight</p>
+            <p className="text-tx-muted text-sm">No logs yet — log your first weight below</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="stat-label mb-2">Current Weight</p>
+                <div className="flex items-end gap-2">
+                  <span className="stat-value text-5xl">{current.toFixed(1)}</span>
+                  <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
+                </div>
+              </div>
+              <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ${
+                change < 0
+                  ? 'bg-success-500/10 border border-success-500/20 text-success-400'
+                  : 'bg-error-500/10 border border-error-500/20 text-error-400'
+              }`}>
+                {change < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                {Math.abs(change).toFixed(1)} {wUnit}
+              </div>
             </div>
-          </div>
-          <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg ${
-            change < 0
-              ? 'bg-success-500/10 border border-success-500/20 text-success-400'
-              : 'bg-error-500/10 border border-error-500/20 text-error-400'
-          }`}>
-            {change < 0 ? <TrendingDown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
-            {Math.abs(change).toFixed(1)} lbs
-          </div>
-        </div>
-        <p className="text-xs text-tx-muted mt-3">
-          {Math.abs(change).toFixed(1)} lbs {change < 0 ? 'lost' : 'gained'} over {period}
-        </p>
+            <p className="text-xs text-tx-muted mt-3">
+              {Math.abs(change).toFixed(1)} {wUnit} {change < 0 ? 'lost' : 'gained'} over {period}
+            </p>
+          </>
+        )}
       </div>
 
       {/* Stats row */}
@@ -138,7 +150,7 @@ export default function Weight() {
               <HelpTip content={s.tip} />
             </div>
             <span className="stat-value text-xl">{s.value.toFixed(1)}</span>
-            <span className="text-xs text-tx-muted ml-1">lbs</span>
+            <span className="text-xs text-tx-muted ml-1">{wUnit}</span>
           </div>
         ))}
       </div>
@@ -165,28 +177,34 @@ export default function Weight() {
         </div>
 
         {/* Mini chart */}
-        <div className="flex items-end gap-1 h-24 mb-1">
-          {filtered.slice().reverse().map((entry, i) => {
-            const pct = max > min ? ((entry.weight - min) / (max - min)) * 100 : 50
-            const height = 20 + pct * 0.8
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
-                <div
-                  className="w-full bg-brand-500/20 border border-brand-500/30 rounded-sm transition-all group-hover:bg-brand-500/40"
-                  style={{ height: `${height}%` }}
-                />
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-overlay border border-surface-border rounded px-1.5 py-0.5 text-xs text-tx-primary whitespace-nowrap z-10">
-                  {entry.weight.toFixed(1)} lbs
-                </div>
-              </div>
-            )
-          })}
-        </div>
-        {filtered.length > 0 && (
-          <div className="flex justify-between text-xs text-tx-muted mt-1">
-            <span>{format(new Date(filtered[filtered.length - 1].logged_at), 'MMM d')}</span>
-            <span>{format(new Date(filtered[0].logged_at), 'MMM d')}</span>
+        {filtered.length === 0 ? (
+          <div className="flex items-center justify-center h-24 text-tx-muted text-sm">
+            No data for this period
           </div>
+        ) : (
+          <>
+            <div className="flex items-end gap-1 h-24 mb-1">
+              {filtered.slice().reverse().map((entry, i) => {
+                const pct = max > min ? ((entry.weight - min) / (max - min)) * 100 : 50
+                const height = 20 + pct * 0.8
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                    <div
+                      className="w-full bg-brand-500/20 border border-brand-500/30 rounded-sm transition-all group-hover:bg-brand-500/40"
+                      style={{ height: `${height}%` }}
+                    />
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-overlay border border-surface-border rounded px-1.5 py-0.5 text-xs text-tx-primary whitespace-nowrap z-10">
+                      {entry.weight.toFixed(1)} {wUnit}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex justify-between text-xs text-tx-muted mt-1">
+              <span>{format(new Date(filtered[filtered.length - 1].logged_at), 'MMM d')}</span>
+              <span>{format(new Date(filtered[0].logged_at), 'MMM d')}</span>
+            </div>
+          </>
         )}
       </div>
 
@@ -203,7 +221,7 @@ export default function Weight() {
               step="0.1"
               className="input pr-10"
             />
-            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-tx-muted">lbs</span>
+            <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-tx-muted">{wUnit}</span>
           </div>
           <button
             onClick={handleLog}
@@ -236,7 +254,7 @@ export default function Weight() {
                         {delta < 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)}
                       </span>
                     )}
-                    <span className="text-sm font-semibold text-tx-primary">{entry.weight.toFixed(1)} lbs</span>
+                    <span className="text-sm font-semibold text-tx-primary">{entry.weight.toFixed(1)} {wUnit}</span>
                   </div>
                 </div>
               )

@@ -1,16 +1,33 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, ChevronRight } from 'lucide-react'
+import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import { workoutAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const inMenu = menuRef.current?.contains(e.target as Node)
+      const inPortal = portalRef.current?.contains(e.target as Node)
+      if (!inMenu && !inPortal) setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
   const durationMin = Math.round(workout.duration / 60)
   const totalVolume = Math.round(
     workout.exercises?.reduce((total, e) =>
@@ -58,7 +75,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
   }
 
   return (
-    <div className="card overflow-hidden group active:scale-[0.99] transition-transform">
+    <div className="card group active:scale-[0.99] transition-transform">
       <div className="flex items-center p-4 gap-3">
         {/* Thumbnail — tappable, navigates to detail */}
         <button
@@ -79,23 +96,20 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
-            <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-0.5">
-              <span className="text-xs text-tx-muted">{format(new Date(workout.started_at), 'MMM d, yyyy')}</span>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(workout.started_at), 'MMM d, yyyy')}</p>
+            <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
               {durationMin > 0 && (
-                <>
-                  <span className="text-tx-muted/40 text-xs">·</span>
-                  <span className="flex items-center gap-1 text-xs text-tx-muted">
-                    <Clock className="w-3 h-3" />{durationMin} min
-                  </span>
-                </>
+                <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">
+                  <Clock className="w-3 h-3 flex-shrink-0" />{durationMin} min
+                </span>
               )}
-              <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="text-xs text-tx-muted">{workout.exercises?.length || 0} exercises</span>
+              {durationMin > 0 && <span className="text-tx-muted/40 text-xs">·</span>}
+              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercises</span>
               {totalVolume > 0 && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
-                  <span className="flex items-center gap-1 text-xs text-tx-muted">
-                    <TrendingUp className="w-3 h-3" />{totalVolume.toLocaleString()} lbs
+                  <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">
+                    <TrendingUp className="w-3 h-3 flex-shrink-0" />{totalVolume.toLocaleString()} {wUnit}
                   </span>
                 </>
               )}
@@ -104,20 +118,79 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
         </button>
 
-        {/* Action buttons — always visible on mobile, hover on desktop */}
-        <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+        {/* Mobile: kebab menu | Desktop: hover icons */}
+        <div className="relative flex-shrink-0" ref={menuRef}>
+          {/* Mobile kebab trigger */}
           <button
-            onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
-            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
+            onClick={e => { e.stopPropagation(); setMenuOpen(o => !o) }}
+            className={`sm:hidden p-2 rounded-lg transition-colors ${menuOpen ? 'bg-surface-muted' : 'hover:bg-surface-muted'}`}
+            aria-label="Options"
           >
-            <Edit2 className="w-4 h-4 text-brand-500" />
+            <MoreVertical className="w-4 h-4 text-tx-muted" />
           </button>
-          <button
-            onClick={e => { e.stopPropagation(); setConfirming(true) }}
-            className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
-          >
-            <Trash2 className="w-4 h-4 text-error-400" />
-          </button>
+
+          {/* Centered modal dropdown — portal to escape transform stacking context */}
+          {menuOpen && createPortal(
+            <>
+              <div
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+                onClick={e => { e.stopPropagation(); setMenuOpen(false) }}
+              />
+              <div ref={portalRef} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-surface-overlay border border-surface-border/60 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                <div className="px-4 pt-4 pb-3">
+                  <p className="text-[10px] font-semibold text-tx-muted uppercase tracking-wider text-center">Workout</p>
+                  <p className="text-sm font-semibold text-tx-primary text-center mt-0.5 truncate">{workout.name}</p>
+                </div>
+                <div className="border-t border-surface-border/40 py-1.5">
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); onEdit(workout.id) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-tx-primary hover:bg-surface-muted/60 active:bg-surface-muted transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
+                      <Edit2 className="w-4 h-4 text-brand-500" />
+                    </div>
+                    Edit Workout
+                  </button>
+                  <div className="mx-4 border-t border-surface-border/30" />
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false); setConfirming(true) }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-error-400 hover:bg-error-500/10 active:bg-error-500/15 transition-colors"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-error-500/10 flex items-center justify-center flex-shrink-0">
+                      <Trash2 className="w-4 h-4 text-error-400" />
+                    </div>
+                    Delete Workout
+                  </button>
+                </div>
+                <div className="border-t border-surface-border/40 p-3">
+                  <button
+                    onClick={e => { e.stopPropagation(); setMenuOpen(false) }}
+                    className="w-full py-2.5 text-sm font-semibold text-tx-muted bg-surface-muted/60 hover:bg-surface-muted rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </>,
+            document.body
+          )}
+
+          {/* Desktop hover icons */}
+          <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
+              className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
+            >
+              <Edit2 className="w-4 h-4 text-brand-500" />
+            </button>
+            <button
+              aria-label="Delete"
+              onClick={e => { e.stopPropagation(); setConfirming(true) }}
+              className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4 text-error-400" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -180,17 +253,17 @@ export default function Workouts() {
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: workouts.length.toString(), unit: 'workouts', icon: Dumbbell },
-          { label: 'This Month', value: workouts.filter(w => new Date(w.started_at).getMonth() === new Date().getMonth()).length.toString(), unit: 'sessions', icon: Clock },
-          { label: 'Avg Duration', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min', icon: Clock },
+          { label: 'Total', value: workouts.length.toString(), unit: 'logged' },
+          { label: 'This Month', value: workouts.filter(w => new Date(w.started_at).getMonth() === new Date().getMonth()).length.toString(), unit: 'sessions' },
+          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">
-              <span className="stat-label">{s.label}</span>
+              <span className="stat-label truncate">{s.label}</span>
             </div>
-            <div className="flex items-end gap-1.5">
+            <div className="flex items-end gap-1 min-w-0">
               <span className="stat-value text-xl">{s.value}</span>
-              <span className="text-xs text-tx-muted mb-0.5">{s.unit}</span>
+              <span className="text-xs text-tx-muted mb-0.5 truncate">{s.unit}</span>
             </div>
           </div>
         ))}
