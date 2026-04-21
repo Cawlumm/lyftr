@@ -16,6 +16,7 @@ jobs:
         with:
           go-version: '1.26'
           cache-dependency-path: backend/go.sum
+      - run: cd backend && go mod download
       - run: cd backend && go test ./controllers/ -timeout 30s
 
   build-backend:
