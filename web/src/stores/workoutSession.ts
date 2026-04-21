@@ -201,8 +201,12 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     if (local) return
     // User explicitly cancelled — don't restore, retry the server clear
     if (localStorage.getItem(CANCEL_KEY)) {
-      localStorage.removeItem(CANCEL_KEY)
-      activeSessionAPI.clear().catch(() => {})
+      try {
+        await activeSessionAPI.clear()
+        localStorage.removeItem(CANCEL_KEY)
+      } catch {
+        // Keep CANCEL_KEY so next restore retries the clear
+      }
       return
     }
     try {

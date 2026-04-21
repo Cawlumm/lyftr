@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import ExercisePicker from './ExercisePicker'
 import * as types from '../types'
 
@@ -22,6 +23,9 @@ interface Props {
 }
 
 export default function AddProgramModal({ isOpen, onClose, onSuccess }: Props) {
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
+  const handleClose = () => { setError(''); onClose() }
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -103,7 +107,7 @@ export default function AddProgramModal({ isOpen, onClose, onSuccess }: Props) {
             <h2 className="font-display font-bold text-xl text-tx-primary">New Program</h2>
             <p className="text-xs text-tx-muted mt-1">{formData.exercises.length} exercises • {totalSets} sets</p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
+          <button onClick={handleClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-tx-muted" />
           </button>
         </div>
@@ -265,7 +269,7 @@ export default function AddProgramModal({ isOpen, onClose, onSuccess }: Props) {
                                 min="0"
                                 step="0.5"
                               />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">lbs</span>
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
                             </div>
                           </div>
                           <button
@@ -296,7 +300,7 @@ export default function AddProgramModal({ isOpen, onClose, onSuccess }: Props) {
           <div className="flex gap-3 sticky bottom-0 bg-surface-base pt-4 border-t border-surface-border -mx-5 px-5 pb-5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 px-4 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium"
             >
               Cancel

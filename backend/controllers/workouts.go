@@ -16,7 +16,7 @@ func ListWorkouts(c *gin.Context) {
 	uid := middleware.UserID(c)
 	limit := 20
 	offset := 0
-	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 {
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 100 {
 		limit = l
 	}
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
@@ -101,7 +101,11 @@ func CreateWorkout(c *gin.Context) {
 		utils.InternalError(c)
 		return
 	}
-	wid, _ := res.LastInsertId()
+	wid, err := res.LastInsertId()
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
 
 	for i, ex := range req.Exercises {
 		exRes, err := tx.Exec(
@@ -109,11 +113,14 @@ func CreateWorkout(c *gin.Context) {
 			wid, ex.ExerciseID, i, ex.Notes,
 		)
 		if err != nil {
-			tx.Rollback()
 			utils.InternalError(c)
 			return
 		}
-		weid, _ := exRes.LastInsertId()
+		weid, err := exRes.LastInsertId()
+		if err != nil {
+			utils.InternalError(c)
+			return
+		}
 		for j, s := range ex.Sets {
 			_, err := tx.Exec(
 				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup)
@@ -121,7 +128,6 @@ func CreateWorkout(c *gin.Context) {
 				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
 			)
 			if err != nil {
-				tx.Rollback()
 				utils.InternalError(c)
 				return
 			}
@@ -200,11 +206,14 @@ func UpdateWorkout(c *gin.Context) {
 			wid, ex.ExerciseID, i, ex.Notes,
 		)
 		if err != nil {
-			tx.Rollback()
 			utils.InternalError(c)
 			return
 		}
-		weid, _ := exRes.LastInsertId()
+		weid, err := exRes.LastInsertId()
+		if err != nil {
+			utils.InternalError(c)
+			return
+		}
 		for j, s := range ex.Sets {
 			_, err := tx.Exec(
 				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup)
@@ -212,7 +221,6 @@ func UpdateWorkout(c *gin.Context) {
 				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
 			)
 			if err != nil {
-				tx.Rollback()
 				utils.InternalError(c)
 				return
 			}

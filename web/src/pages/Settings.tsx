@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../stores/auth'
+import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
-import { userAPI, exerciseAPI } from '../services/api'
+import { exerciseAPI } from '../services/api'
 import * as types from '../types'
 import { HelpTip } from '../components/Tooltip'
 import {
@@ -37,8 +38,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function Settings() {
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
-  const [settings, setSettings] = useState<types.UserSettings | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { settings: storedSettings, update: updateSettings, fetch: fetchSettings } = useSettingsStore()
+  const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -48,11 +49,11 @@ export default function Settings() {
   const [seedMsg, setSeedMsg] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
-    weight_unit: 'lbs' as 'lbs' | 'kg',
-    calorie_target: 2000,
-    protein_target: 150,
-    carb_target: 250,
-    fat_target: 65,
+    weight_unit: storedSettings.weight_unit,
+    calorie_target: storedSettings.calorie_target,
+    protein_target: storedSettings.protein_target,
+    carb_target: storedSettings.carb_target,
+    fat_target: storedSettings.fat_target,
   })
 
   const loadSeedStatus = useCallback(async () => {
@@ -66,14 +67,14 @@ export default function Settings() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await userAPI.getSettings()
-        setSettings(data)
+        await fetchSettings()
+        const s = useSettingsStore.getState().settings
         setFormData({
-          weight_unit: data.weight_unit,
-          calorie_target: data.calorie_target,
-          protein_target: data.protein_target,
-          carb_target: data.carb_target,
-          fat_target: data.fat_target,
+          weight_unit: s.weight_unit,
+          calorie_target: s.calorie_target,
+          protein_target: s.protein_target,
+          carb_target: s.carb_target,
+          fat_target: s.fat_target,
         })
       } catch (err: any) {
         setError(err.message || 'Failed to load settings')
@@ -110,12 +111,19 @@ export default function Settings() {
   }
 
 
+  const handleUnitChange = async (unit: 'lbs' | 'kg') => {
+    setFormData(prev => ({ ...prev, weight_unit: unit }))
+    try {
+      await updateSettings({ ...formData, weight_unit: unit })
+    } catch {}
+  }
+
   const handleSave = async () => {
     setSaving(true)
     setError(null)
     setSuccess(false)
     try {
-      await userAPI.updateSettings(formData)
+      await updateSettings(formData)
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
@@ -181,15 +189,15 @@ export default function Settings() {
 
       {/* Goals & Units */}
       <Section title="Goals & Units">
-        <SettingRow label="Weight unit" description="Displayed across the entire app">
+        <SettingRow label="Weight unit" description="Changes apply immediately across the app">
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
             {(['lbs', 'kg'] as const).map(unit => (
               <button
                 key={unit}
-                onClick={() => setFormData({ ...formData, weight_unit: unit })}
+                onClick={() => handleUnitChange(unit)}
                 className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                   formData.weight_unit === unit
-                    ? 'bg-surface-raised border border-surface-border text-tx-primary'
+                    ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-sm'
                     : 'text-tx-muted hover:text-tx-primary'
                 }`}
               >
@@ -249,13 +257,14 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <div className="py-3 flex justify-end">
+        <div className="py-3 flex items-center justify-between">
+          <p className="text-xs text-tx-muted">Save calorie and macro targets</p>
           <button
             onClick={handleSave}
             disabled={saving}
             className="btn-primary btn-sm"
           >
-            <Check className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save'}
+            <Check className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save targets'}
           </button>
         </div>
       </Section>

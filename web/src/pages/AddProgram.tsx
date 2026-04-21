@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -17,6 +18,8 @@ interface ProgramFormData {
 
 export default function AddProgram() {
   const navigate = useNavigate()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -224,7 +227,7 @@ export default function AddProgram() {
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Weight</label>
                           <div className="relative">
                             <input type="number" inputMode="decimal" value={set.target_weight || ''} onChange={e => updateSet(exIdx, setIdx, 'target_weight', e.target.value)} placeholder="135" className="input text-sm w-full pr-7" min="0" step="0.5" />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">lbs</span>
+                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
                           </div>
                         </div>
                         <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">

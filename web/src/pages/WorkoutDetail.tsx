@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
-function SetChip({ set, isBest }: { set: types.Set; isBest: boolean }) {
+function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
   return (
     <div className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
       isBest
         ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
         : 'bg-surface-raised text-tx-secondary'
     }`}>
-      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${set.weight} lb` : 'BW'}
+      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${set.weight} ${unit}` : 'BW'}
     </div>
   )
 }
@@ -23,6 +25,8 @@ function SetChip({ set, isBest }: { set: types.Set; isBest: boolean }) {
 export default function WorkoutDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -107,21 +111,25 @@ export default function WorkoutDetail() {
         </div>
       </div>
 
-      {/* Delete confirm */}
-      {confirming && (
-        <div className="card p-4 border-error-500/30 bg-error-500/5">
-          <p className="text-sm font-semibold text-tx-primary mb-1">Delete "{workout.name}"?</p>
-          <p className="text-xs text-tx-muted mb-3">This cannot be undone.</p>
-          <div className="flex gap-2">
-            <button onClick={handleDelete} disabled={deleting}
-              className="btn-danger btn-sm flex-1">
-              {deleting ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Deleting…</> : 'Yes, delete'}
-            </button>
-            <button onClick={() => setConfirming(false)} className="btn-secondary btn-sm flex-1">
-              Cancel
-            </button>
+      {/* Delete confirm — bottom sheet */}
+      {confirming && createPortal(
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
+            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
+            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Workout?</h3>
+            <p className="text-sm text-tx-muted mb-5">"{workout.name}" will be permanently deleted.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirming(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" />
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Header */}
@@ -170,7 +178,7 @@ export default function WorkoutDetail() {
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">
               {totalVolume > 0 ? `${totalVolume.toLocaleString()}` : '—'}
-              {totalVolume > 0 && <span className="text-xs font-normal text-tx-muted ml-0.5">lb</span>}
+              {totalVolume > 0 && <span className="text-xs font-normal text-tx-muted ml-0.5">{wUnit}</span>}
             </p>
           </div>
         </div>
@@ -215,13 +223,13 @@ export default function WorkoutDetail() {
                       </span>
                     )}
                     <span className="text-xs text-tx-muted">{sets.length} sets</span>
-                    {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} lb</span>}
+                    {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} {wUnit}</span>}
                   </div>
                 </div>
                 {maxWeight > 0 && (
                   <div className="text-right flex-shrink-0 mr-1">
                     <p className="text-[10px] text-tx-muted uppercase tracking-wide">best</p>
-                    <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} lb</p>
+                    <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} {wUnit}</p>
                   </div>
                 )}
                 <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -231,7 +239,7 @@ export default function WorkoutDetail() {
                 <div className="flex flex-wrap gap-1.5 px-4 pb-4 pt-0 border-t border-surface-border/50">
                   <div className="w-full pt-3" />
                   {sets.map((set, i) => (
-                    <SetChip key={i} set={set} isBest={set.weight === maxWeight && maxWeight > 0} />
+                    <SetChip key={i} set={set} isBest={set.weight === maxWeight && maxWeight > 0} unit={wUnit} />
                   ))}
                 </div>
               )}

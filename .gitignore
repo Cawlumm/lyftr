@@ -50,3 +50,6 @@ temp/
 # design docs (keep screenshots for README)
 docs/*.md
 docs/*.txt
+
+# Local Claude context
+CLAUDE.md

@@ -6,6 +6,7 @@ import {
   AlertCircle, ChevronRight, ChevronLeft, Info,
 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import { workoutAPI } from '../services/api'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -22,6 +23,8 @@ export default function ActiveWorkout() {
   const navigate = useNavigate()
   const { session, updateSet, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession } =
     useWorkoutSession()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
 
   const [elapsed, setElapsed] = useState(0)
   const [confirmCancel, setConfirmCancel] = useState(false)
@@ -310,7 +313,7 @@ export default function ActiveWorkout() {
                             disabled={set.completed}
                             step="0.5"
                           />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">lb</span>
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{wUnit}</span>
                         </div>
 
                         {/* Complete toggle */}

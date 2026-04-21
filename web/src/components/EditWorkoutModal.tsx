@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge } from 'lucide-react'
 import { workoutAPI, exerciseAPI } from '../services/api'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import ExercisePicker from './ExercisePicker'
 import * as types from '../types'
 
@@ -28,11 +29,16 @@ interface Props {
 }
 
 export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId }: Props) {
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [initialLoading, setInitialLoading] = useState(false)
+  const [originalStartedAt, setOriginalStartedAt] = useState('')
+
+  const handleClose = () => { setError(''); onClose() }
 
   const [formData, setFormData] = useState<WorkoutFormData>({
     name: '',
@@ -56,6 +62,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
       })
       setPickerExercises(exerciseMap)
 
+      setOriginalStartedAt(workout.started_at || new Date().toISOString())
       setFormData({
         name: workout.name,
         notes: workout.notes || '',
@@ -143,7 +150,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
         notes: formData.notes,
         duration: formData.duration,
         exercises: formData.exercises,
-        started_at: new Date().toISOString(),
+        started_at: originalStartedAt || new Date().toISOString(),
       })
       onSuccess()
       onClose()
@@ -166,7 +173,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
         <div className="bg-surface-base border border-surface-border rounded-2xl w-full max-h-[90vh] sm:max-w-2xl overflow-y-auto">
           <div className="sticky top-0 border-b border-surface-border bg-surface-base px-5 py-4 flex items-center justify-between">
             <h2 className="font-display font-bold text-xl text-tx-primary">Edit Workout</h2>
-            <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
+            <button onClick={handleClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
               <X className="w-5 h-5 text-tx-muted" />
             </button>
           </div>
@@ -189,7 +196,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
             <h2 className="font-display font-bold text-xl text-tx-primary">Edit Workout</h2>
             <p className="text-xs text-tx-muted mt-1">{formData.exercises.length} exercises • {totalSets} sets</p>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
+          <button onClick={handleClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-tx-muted" />
           </button>
         </div>
@@ -281,7 +288,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
                   <Gauge className="w-3.5 h-3.5 text-brand-500" />
                 </div>
                 <div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div>
-                <div className="text-xs text-tx-muted">Total lbs</div>
+                <div className="text-xs text-tx-muted">Total {wUnit}</div>
               </div>
             </div>
           )}
@@ -400,7 +407,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
                                 step="0.5"
                               />
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">
-                                lbs
+                                {wUnit}
                               </span>
                             </div>
                           </div>
@@ -437,7 +444,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
           <div className="flex gap-3 sticky bottom-0 bg-surface-base pt-4 border-t border-surface-border -mx-5 px-5 pb-5">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="flex-1 px-4 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium"
             >
               Cancel

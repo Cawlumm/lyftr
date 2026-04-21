@@ -86,7 +86,11 @@ func CreateProgram(c *gin.Context) {
 		utils.InternalError(c)
 		return
 	}
-	pid, _ := res.LastInsertId()
+	pid, err := res.LastInsertId()
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
 
 	for i, ex := range req.Exercises {
 		exRes, err := tx.Exec(
@@ -97,7 +101,11 @@ func CreateProgram(c *gin.Context) {
 			utils.InternalError(c)
 			return
 		}
-		peid, _ := exRes.LastInsertId()
+		peid, err := exRes.LastInsertId()
+		if err != nil {
+			utils.InternalError(c)
+			return
+		}
 		for j, s := range ex.Sets {
 			sn := s.SetNumber
 			if sn == 0 {
@@ -186,7 +194,11 @@ func UpdateProgram(c *gin.Context) {
 			utils.InternalError(c)
 			return
 		}
-		peid, _ := exRes.LastInsertId()
+		peid, err := exRes.LastInsertId()
+		if err != nil {
+			utils.InternalError(c)
+			return
+		}
 		for j, s := range ex.Sets {
 			sn := s.SetNumber
 			if sn == 0 {
