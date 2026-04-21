@@ -5,7 +5,6 @@
 
 # Dependencies
 node_modules/
-go.sum
 
 # Build artifacts
 dist/
