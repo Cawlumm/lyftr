@@ -10,7 +10,7 @@ export default function Logo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const s = sizeMap[size];
 
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-3.5">
       {/* Barbell */}
       <div style={{ transform: `scale(${s.scale})`, transformOrigin: 'left center' }} className="flex-shrink-0 text-slate-800 dark:text-slate-100">
         <BarbellSVG />

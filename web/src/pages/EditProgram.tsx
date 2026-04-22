@@ -28,6 +28,8 @@ export default function EditProgram() {
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', exercises: [] })
 
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
+
   useEffect(() => {
     const programId = Number(id)
     if (!programId) { navigate('/programs'); return }

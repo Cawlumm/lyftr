@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Home, Dumbbell, Apple, Scale, BookOpen,
-  LogOut, Moon, Sun, User, ChevronDown,
+  LogOut, Moon, Sun, User,
   Shield, Timer, ChevronRight,
 } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
@@ -79,68 +79,62 @@ function UserMenu() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const initials = user?.email ? user.email.slice(0, 2).toUpperCase() : 'U'
+  const username = user?.email?.split('@')[0] ?? 'U'
+  const initial = username[0].toUpperCase()
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-surface-muted/60 active:bg-surface-muted transition-colors group"
+        className={`w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+          open
+            ? 'ring-2 ring-brand-500 ring-offset-2 ring-offset-surface-base'
+            : 'hover:ring-2 hover:ring-surface-border hover:ring-offset-2 hover:ring-offset-surface-base'
+        }`}
+        aria-label="User menu"
       >
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center flex-shrink-0 ring-1 ring-brand-400/30">
-          <span className="text-xs font-bold text-white leading-none">{initials}</span>
+        <div className="w-9 h-9 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0891b2, #00b8d9)' }}>
+          <span className="text-sm font-bold text-white leading-none">{initial}</span>
         </div>
-        <span className="hidden sm:block text-sm font-medium text-tx-secondary max-w-[100px] truncate">
-          {user?.email?.split('@')[0]}
-        </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-tx-muted group-hover:text-tx-secondary transition-all duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-64 bg-surface-overlay border border-surface-border rounded-2xl shadow-dropdown z-50 animate-slide-up overflow-hidden">
-          <div className="px-4 py-4 border-b border-surface-border/50 bg-surface-raised/40">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-violet-500 flex items-center justify-center flex-shrink-0 ring-2 ring-brand-400/30">
-                <span className="text-sm font-bold text-white">{initials}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-tx-primary truncate">{user?.email?.split('@')[0]}</p>
-                <p className="text-xs text-tx-muted truncate mt-0.5">{user?.email}</p>
-              </div>
-            </div>
+        <div className="absolute right-0 top-full mt-2 w-56 bg-surface-overlay border border-surface-border/60 rounded-2xl shadow-dropdown z-50 animate-slide-up overflow-hidden">
+          {/* User info */}
+          <div className="px-4 py-3 border-b border-surface-border/40">
+            <p className="text-sm font-semibold text-tx-primary truncate">{username}</p>
+            <p className="text-xs text-tx-muted truncate">{user?.email}</p>
           </div>
 
-          <div className="py-2">
+          {/* Actions */}
+          <div className="py-1.5">
             <Link
               to="/settings"
               onClick={() => setOpen(false)}
               className="flex items-center gap-3 px-4 py-2.5 text-sm text-tx-secondary hover:text-tx-primary hover:bg-surface-muted/50 transition-colors"
             >
-              <User className="w-4 h-4 text-tx-muted" />
-              <span>Profile & Settings</span>
+              <User className="w-4 h-4 text-tx-muted flex-shrink-0" />
+              Settings
             </Link>
             <button
               onClick={toggleTheme}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-tx-secondary hover:text-tx-primary hover:bg-surface-muted/50 transition-colors"
             >
               {theme === 'dark'
-                ? <><Sun className="w-4 h-4 text-tx-muted" /><span>Switch to Light</span></>
-                : <><Moon className="w-4 h-4 text-tx-muted" /><span>Switch to Dark</span></>
+                ? <><Sun className="w-4 h-4 text-tx-muted flex-shrink-0" />Light mode</>
+                : <><Moon className="w-4 h-4 text-tx-muted flex-shrink-0" />Dark mode</>
               }
             </button>
           </div>
 
-          <div className="border-t border-surface-border/50 py-2">
-            <div className="flex items-center gap-2 px-4 py-2">
-              <Shield className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-              <span className="text-xs text-tx-muted">Self-hosted · localhost:3000</span>
-            </div>
+          {/* Sign out */}
+          <div className="border-t border-surface-border/40 py-1.5">
             <button
               onClick={() => { logout(); setOpen(false) }}
               className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-error-400 hover:bg-error-500/10 transition-colors"
             >
-              <LogOut className="w-4 h-4" />
-              <span>Sign out</span>
+              <LogOut className="w-4 h-4 flex-shrink-0" />
+              Sign out
             </button>
           </div>
         </div>
@@ -156,7 +150,7 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col bg-surface-base">
       <header className="sticky top-0 z-50 border-b border-surface-border bg-surface-base/95 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-5 h-14 flex justify-between items-center">
-          <Logo size="md" />
+          <Link to="/"><Logo size="md" /></Link>
           <UserMenu />
         </div>
       </header>

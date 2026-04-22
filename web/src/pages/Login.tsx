@@ -185,14 +185,8 @@ export default function Login() {
 
             {/* Password */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="mb-2">
                 <label htmlFor="password" className="label">Password</label>
-                <button
-                  type="button"
-                  className="text-xs text-brand-400 font-medium hover:text-brand-300 transition-colors"
-                >
-                  Forgot?
-                </button>
               </div>
               <input
                 id="password"
@@ -231,16 +225,18 @@ export default function Login() {
               <div className="flex-1 h-px bg-surface-border" />
             </div>
 
-            {/* Demo button */}
-            <button
-              type="button"
-              onClick={handleDemoLogin}
-              disabled={isLoading}
-              className="btn-secondary btn-lg w-full flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 text-warning-400" />
-              Try demo account
-            </button>
+            {/* Demo button — dev only */}
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                onClick={handleDemoLogin}
+                disabled={isLoading}
+                className="btn-secondary btn-lg w-full flex items-center justify-center gap-2"
+              >
+                <Zap className="w-4 h-4 text-warning-400" />
+                Try demo account
+              </button>
+            )}
           </form>
 
           {/* Sign up link */}

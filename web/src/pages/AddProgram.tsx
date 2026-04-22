@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
@@ -25,6 +25,8 @@ export default function AddProgram() {
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', exercises: [] })
+
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
   const addExercise = (exercise: types.Exercise) => {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))

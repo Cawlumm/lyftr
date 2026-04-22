@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen, CalendarDays } from 'lucide-react'
 import { workoutAPI } from '../services/api'
@@ -25,6 +25,8 @@ export default function AddWorkout() {
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, date: new Date().toISOString().slice(0, 10), exercises: [] })
+
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
   const loadFromProgram = (program: types.Program) => {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }

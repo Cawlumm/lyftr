@@ -26,6 +26,8 @@ export default function EditWorkout() {
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
 
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
+
   useEffect(() => {
     const workoutId = Number(id)
     if (!workoutId) { navigate('/workouts'); return }
