@@ -25,6 +25,7 @@ interface WorkoutSessionStore {
   startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number) => void
   updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
   completeSet: (exIdx: number, setIdx: number) => void
+  updateExerciseNotes: (exIdx: number, notes: string) => void
   addSet: (exIdx: number) => void
   removeSet: (exIdx: number, setIdx: number) => void
   addExercise: (ex: types.ActiveSessionExercise) => void
@@ -70,6 +71,15 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
         sets: ex.sets.map((s, j) => j === setIdx ? { ...s, completed: !s.completed } : s),
       }
     )
+    const updated = { ...session, exercises }
+    saveLocal(updated)
+    set({ session: updated })
+  },
+
+  updateExerciseNotes: (exIdx, notes) => {
+    const session = get().session
+    if (!session) return
+    const exercises = session.exercises.map((ex, i) => i !== exIdx ? ex : { ...ex, notes })
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })

@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Dumbbell } from 'lucide-react'
+import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
+import { format } from 'date-fns'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useSettingsStore, weightShort } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import * as types from '../types'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
@@ -29,7 +32,11 @@ export default function ExerciseDetail() {
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
   const { isDark } = useTheme()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
   const [exercise, setExercise] = useState<types.Exercise | null>(null)
+  const [pr, setPR] = useState<types.PersonalRecord | null>(null)
+  const [history, setHistory] = useState<types.ExerciseHistoryPoint[]>([])
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -37,17 +44,22 @@ export default function ExerciseDetail() {
     const id = Number(exerciseId)
     if (!id) { navigate(-1); return }
 
-    // Find in session first (no API call needed)
     const fromSession = session?.exercises.find(e => e.exercise_id === id)?.exercise
-    if (fromSession) {
-      setExercise(fromSession)
-      setLoading(false)
-      return
-    }
 
-    // Fall back to API
-    exerciseAPI.get(id)
-      .then(ex => setExercise(ex))
+    const exercisePromise = fromSession
+      ? Promise.resolve(fromSession)
+      : exerciseAPI.get(id)
+
+    Promise.all([
+      exercisePromise,
+      exerciseAPI.getPRs(id).catch(() => null),
+      exerciseAPI.getHistory(id, 15).catch(() => []),
+    ])
+      .then(([ex, prData, histData]) => {
+        setExercise(ex)
+        setPR(prData)
+        setHistory(histData || [])
+      })
       .catch(() => navigate(-1))
       .finally(() => setLoading(false))
   }, [exerciseId])
@@ -165,6 +177,66 @@ export default function ExerciseDetail() {
           </div>
         </div>
       )}
+
+      {/* Personal Record */}
+      {pr && pr.weight > 0 && (
+        <div className="card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="w-4 h-4 text-warning-400" />
+            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Your Best</p>
+          </div>
+          <div className="flex items-end gap-2">
+            <span className="text-2xl font-bold text-tx-primary tabular-nums">{pr.weight}</span>
+            <span className="text-sm text-tx-muted mb-0.5">{wUnit} × {pr.reps} reps</span>
+          </div>
+          <p className="text-xs text-tx-muted mt-1">
+            Est. 1RM: {Math.round(pr.estimated_1rm)} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
+          </p>
+        </div>
+      )}
+
+      {/* History chart */}
+      {history.length >= 2 && (() => {
+        const chartData = [...history].reverse().map(h => ({
+          date: format(new Date(h.date), 'M/d'),
+          weight: Math.round(h.max_weight * 10) / 10,
+        }))
+        return (
+          <div className="card p-4">
+            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">
+              Weight Progression
+            </p>
+            <ResponsiveContainer width="100%" height={110}>
+              <LineChart data={chartData}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
+                <YAxis hide domain={['auto', 'auto']} />
+                <Tooltip
+                  contentStyle={{
+                    background: 'var(--color-surface-raised)',
+                    border: '1px solid var(--color-surface-border)',
+                    borderRadius: 8,
+                    fontSize: 11,
+                  }}
+                  formatter={(v: number) => [`${v} ${wUnit}`, 'Max weight']}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="weight"
+                  stroke="#0891b2"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#0891b2' }}
+                  activeDot={{ r: 4 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )
+      })()}
 
       {/* Instructions */}
       {descLines.length > 0 && (

@@ -152,6 +152,21 @@ export interface AuthResponse {
   user: User
 }
 
+export interface PersonalRecord {
+  weight: number
+  reps: number
+  estimated_1rm: number
+  date: string
+  workout_id: number
+}
+
+export interface ExerciseHistoryPoint {
+  date: string
+  max_weight: number
+  total_volume: number
+  sets_count: number
+}
+
 export interface LoginRequest {
   email: string
   password: string

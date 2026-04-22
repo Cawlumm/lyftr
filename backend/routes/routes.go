@@ -66,6 +66,8 @@ func Setup(r *gin.Engine) {
 		// Exercises (read-only for users)
 		protected.GET("exercises", controllers.ListExercises)
 		protected.GET("exercises/:id", controllers.GetExercise)
+		protected.GET("exercises/:id/prs", controllers.GetExercisePRs)
+		protected.GET("exercises/:id/history", controllers.GetExerciseHistory)
 
 		// Active session
 		protected.GET("active-session", controllers.GetActiveSession)

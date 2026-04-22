@@ -11,6 +11,41 @@ import { workoutAPI } from '../services/api'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
+function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(notes)
+
+  const commit = () => { onSave(exIdx, val); setEditing(false) }
+
+  if (editing) {
+    return (
+      <div className="px-4 pb-2">
+        <input
+          autoFocus
+          type="text"
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setVal(notes); setEditing(false) } }}
+          placeholder="Add a note…"
+          className="input text-sm w-full"
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="px-4 pb-2">
+      <button
+        onClick={() => { setVal(notes); setEditing(true) }}
+        className="text-xs text-tx-muted hover:text-tx-secondary transition-colors"
+      >
+        {notes ? <span className="italic">{notes}</span> : <span className="opacity-50">+ Add note</span>}
+      </button>
+    </div>
+  )
+}
+
 function formatElapsed(seconds: number) {
   const h = Math.floor(seconds / 3600)
   const m = Math.floor((seconds % 3600) / 60)
@@ -21,7 +56,7 @@ function formatElapsed(seconds: number) {
 
 export default function ActiveWorkout() {
   const navigate = useNavigate()
-  const { session, updateSet, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession } =
+  const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession } =
     useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
@@ -258,6 +293,9 @@ export default function ActiveWorkout() {
                     </button>
                   )}
                 </div>
+
+                {/* Notes */}
+                <ExerciseNotes exIdx={exIdx} notes={ex.notes} onSave={updateExerciseNotes} />
 
                 {/* Sets */}
                 <div className="px-3 pb-3 space-y-2">
