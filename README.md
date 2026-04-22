@@ -7,7 +7,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/status-early%20beta-orange" alt="Early Beta" />
-  <img src="https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready" />
+  <a href="https://hub.docker.com/r/cwlumm/lyftr-backend"><img src="https://img.shields.io/docker/pulls/cwlumm/lyftr-backend?label=docker%20pulls&logo=docker&logoColor=white&color=2496ED" alt="Docker Pulls" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS Planned" />
 </p>
 
@@ -56,12 +56,11 @@
 
 ## Quick Start
 
-> Yes, it runs in Docker. No, you don't need to know Go. No, there's no cloud subscription. You're welcome.
+> No clone. No build. No Go install required. Just Docker.
 
 ```bash
-git clone https://github.com/Cawlumm/lyftr.git
-cd lyftr
-cp .env.example .env
+curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 ```
 
 Edit `.env` and set a strong `JWT_SECRET` (32+ characters), then:
@@ -124,9 +123,9 @@ docker compose pull && docker compose up -d
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-plugin
 
-git clone https://github.com/Cawlumm/lyftr.git
-cd lyftr
-cp .env.example .env
+mkdir lyftr && cd lyftr
+curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 nano .env   # set JWT_SECRET and CORS_ORIGIN
 
 docker compose up -d
