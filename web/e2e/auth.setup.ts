@@ -11,7 +11,7 @@ setup('authenticate', async ({ page }) => {
   await page.getByPlaceholder('you@example.com').fill(TEST_EMAIL)
   await page.locator('input[type="password"]').fill(TEST_PASSWORD)
   await page.getByRole('button', { name: /sign in|log in/i }).click()
-  await page.waitForURL('/')
+  await page.waitForURL(url => new URL(url).pathname === '/')
   await expect(page.locator('h1, h2').first()).toBeVisible()
   await page.context().storageState({ path: authFile })
 })

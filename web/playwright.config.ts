@@ -9,9 +9,9 @@ function dockerBaseURL(): string {
     const env = readFileSync(resolve(__dirname, '../.env'), 'utf8')
     const match = env.match(/^PORT=(\d+)/m)
     const port = match?.[1] ?? '80'
-    return `http://localhost:${port}`
+    return port === '80' ? 'http://localhost' : `http://localhost:${port}`
   } catch {
-    return 'http://localhost:80'
+    return 'http://localhost'
   }
 }
 
