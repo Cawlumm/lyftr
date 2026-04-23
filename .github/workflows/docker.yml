@@ -45,14 +45,14 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/package-lock.json') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd web && npx playwright install chromium
+        run: cd web && npx playwright install chromium webkit
 
       - name: Install Playwright system dependencies
-        run: cd web && npx playwright install-deps chromium
+        run: cd web && npx playwright install-deps chromium webkit
 
       - name: Wait for demo user to be seeded
         run: |
