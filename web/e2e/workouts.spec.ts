@@ -88,6 +88,7 @@ test.describe('Workouts', () => {
   })
 
   test('delete workout shows confirm dialog', async ({ page }) => {
+    await expect(page.getByText(SEED_WORKOUT_NAME)).toBeVisible({ timeout: 5000 })
     // On mobile the delete button is behind a kebab (⋯) menu — open it first if present
     const optionsBtn = page.getByRole('button', { name: /options/i }).first()
     if (await optionsBtn.isVisible()) {
