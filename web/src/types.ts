@@ -12,6 +12,7 @@ export interface UserSettings {
   protein_target: number
   carb_target: number
   fat_target: number
+  workout_layout?: 'list' | 'gym'
 }
 
 export interface Exercise {

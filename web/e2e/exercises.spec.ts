@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test'
-
-const API = 'http://localhost:3000/api/v1'
+import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
 
 let authToken: string
 let exerciseId: number
 let workoutId: number
+let workoutId2: number
 
 test.describe('Exercise Detail', () => {
   test.beforeAll(async ({ request }) => {
     const res = await request.post(`${API}/auth/login`, {
-      data: { email: 'demo@lyftr.local', password: 'password123' }
+      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
     })
     authToken = (await res.json()).data.token
 
@@ -20,32 +20,35 @@ test.describe('Exercise Detail', () => {
     const exBody = await exRes.json()
     exerciseId = exBody.data[0].id
 
-    // Seed a workout with that exercise so PR/history data exists
-    const w = await request.post(`${API}/workouts`, {
+    // Seed two workouts on different days so history.length >= 2 (chart requires 2+ points)
+    const yesterday = new Date(Date.now() - 86400000).toISOString()
+    const w1 = await request.post(`${API}/workouts`, {
       headers: { Authorization: `Bearer ${authToken}` },
       data: {
-        name: 'E2E Exercise History Seed',
+        name: 'E2E Exercise History Seed 1',
         duration: 1800,
-        started_at: new Date().toISOString(),
-        exercises: [{
-          exercise_id: exerciseId,
-          notes: '',
-          sets: [
-            { set_number: 1, reps: 5, weight: 100 },
-            { set_number: 2, reps: 5, weight: 100 },
-          ]
-        }]
+        started_at: yesterday,
+        exercises: [{ exercise_id: exerciseId, notes: '', sets: [{ set_number: 1, reps: 5, weight: 100 }] }]
       }
     })
-    workoutId = (await w.json()).data.id
+    workoutId = (await w1.json()).data.id
+
+    const w2 = await request.post(`${API}/workouts`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      data: {
+        name: 'E2E Exercise History Seed 2',
+        duration: 1800,
+        started_at: new Date().toISOString(),
+        exercises: [{ exercise_id: exerciseId, notes: '', sets: [{ set_number: 1, reps: 5, weight: 110 }] }]
+      }
+    })
+    workoutId2 = (await w2.json()).data.id
   })
 
   test.afterAll(async ({ request }) => {
-    if (workoutId) {
-      await request.delete(`${API}/workouts/${workoutId}`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      })
-    }
+    const headers = { Authorization: `Bearer ${authToken}` }
+    if (workoutId) await request.delete(`${API}/workouts/${workoutId}`, { headers })
+    if (workoutId2) await request.delete(`${API}/workouts/${workoutId2}`, { headers })
   })
 
   test('exercise detail page loads', async ({ page }) => {

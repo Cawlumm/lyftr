@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-const API = 'http://localhost:3000/api/v1'
+import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
 const E2E_PROGRAM_NAME = 'Test Program E2E'
 const SEED_PROGRAM_NAME = 'Seeded Test Program'
 
@@ -10,7 +9,7 @@ let authToken: string
 test.describe('Programs', () => {
   test.beforeAll(async ({ request }) => {
     const res = await request.post(`${API}/auth/login`, {
-      data: { email: 'demo@lyftr.local', password: 'password123' }
+      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
     })
     const body = await res.json()
     authToken = body.data.token
@@ -103,15 +102,18 @@ test.describe('Programs', () => {
   })
 
   test('delete program shows confirm and cancels', async ({ page }) => {
+    // Wait for programs to load before checking for buttons
+    await expect(page.getByText(SEED_PROGRAM_NAME)).toBeVisible({ timeout: 5000 })
+
     // On mobile the delete button is behind a kebab (⋯) menu — open it first if present
     const optionsBtn = page.getByRole('button', { name: /options/i }).first()
     if (await optionsBtn.isVisible()) {
       await optionsBtn.click()
-      await page.waitForTimeout(300)
+      await expect(page.getByRole('button', { name: /delete program/i })).toBeVisible({ timeout: 3000 })
       await page.getByRole('button', { name: /delete program/i }).first().click()
     } else {
-      const deleteButtons = page.getByRole('button', { name: /delete/i })
-      await expect(deleteButtons.first()).toBeVisible()
+      const deleteButtons = page.getByRole('button', { name: /^delete$/i })
+      await expect(deleteButtons.first()).toBeVisible({ timeout: 3000 })
       await deleteButtons.first().click()
     }
     await expect(page.getByText(/this cannot be undone/i)).toBeVisible({ timeout: 5000 })

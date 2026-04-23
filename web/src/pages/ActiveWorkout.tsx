@@ -56,7 +56,7 @@ function formatElapsed(seconds: number) {
 
 export default function ActiveWorkout() {
   const navigate = useNavigate()
-  const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession } =
+  const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession, openGym } =
     useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
@@ -69,6 +69,11 @@ export default function ActiveWorkout() {
   const [activeExIdx, setActiveExIdx] = useState(0)
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
+
+  // Open gym mode overlay immediately when landing on this route
+  useEffect(() => {
+    if (settings.workout_layout === 'gym' && session) openGym()
+  }, [])
 
   // Workout elapsed timer
   useEffect(() => {
@@ -212,6 +217,7 @@ export default function ActiveWorkout() {
       )}
 
       {/* ── Exercise list ───────────────────────────────────── */}
+      <>
       <div className="space-y-3">
         {session.exercises.length === 0 ? (
           <div className="empty-state py-16">
@@ -453,6 +459,7 @@ export default function ActiveWorkout() {
           Cancel Workout
         </button>
       </div>
+      </>
 
       {/* ── Finish confirm ─────────────────────────────────── */}
       {confirmFinish && createPortal(

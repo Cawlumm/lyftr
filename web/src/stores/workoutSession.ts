@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import * as types from '../types'
 
 const SESSION_KEY = 'lyftr_active_session'
+const GYM_UI_KEY = 'lyftr_gym_ui'
 
 function saveLocal(session: types.ActiveSession | null) {
   if (session) {
@@ -20,8 +21,29 @@ function loadLocal(): types.ActiveSession | null {
   }
 }
 
+type GymPhase = 'overview' | 'exercise-info' | 'exercise'
+
+type GymUiState = { phase: GymPhase; exIdx: number; setIdx: number }
+
+function saveGymUi(s: GymUiState) {
+  localStorage.setItem(GYM_UI_KEY, JSON.stringify(s))
+}
+
+function loadGymUi(): GymUiState {
+  try {
+    const raw = localStorage.getItem(GYM_UI_KEY)
+    return raw ? JSON.parse(raw) : { phase: 'overview', exIdx: 0, setIdx: 0 }
+  } catch {
+    return { phase: 'overview', exIdx: 0, setIdx: 0 }
+  }
+}
+
 interface WorkoutSessionStore {
   session: types.ActiveSession | null
+  gymOpen: boolean
+  gymPhase: GymPhase
+  gymExIdx: number
+  gymSetIdx: number
   startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number) => void
   updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
   completeSet: (exIdx: number, setIdx: number) => void
@@ -32,10 +54,26 @@ interface WorkoutSessionStore {
   removeExercise: (exIdx: number) => void
   buildPayload: () => any
   cancelSession: () => void
+  openGym: () => void
+  minimizeGym: () => void
+  setGymState: (phase: GymPhase, exIdx: number, setIdx: number) => void
 }
+
+const _savedGymUi = loadGymUi()
 
 export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   session: loadLocal(),
+  gymOpen: false,
+  gymPhase: _savedGymUi.phase,
+  gymExIdx: _savedGymUi.exIdx,
+  gymSetIdx: _savedGymUi.setIdx,
+
+  openGym: () => set({ gymOpen: true }),
+  minimizeGym: () => set({ gymOpen: false }),
+  setGymState: (gymPhase, gymExIdx, gymSetIdx) => {
+    saveGymUi({ phase: gymPhase, exIdx: gymExIdx, setIdx: gymSetIdx })
+    set({ gymPhase, gymExIdx, gymSetIdx })
+  },
 
   startSession: (name, exercises, programId) => {
     const session: types.ActiveSession = {
@@ -162,6 +200,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
 
   cancelSession: () => {
     saveLocal(null)
-    set({ session: null })
+    localStorage.removeItem(GYM_UI_KEY)
+    set({ session: null, gymOpen: false, gymPhase: 'overview', gymExIdx: 0, gymSetIdx: 0 })
   },
 }))

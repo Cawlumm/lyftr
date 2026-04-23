@@ -19,8 +19,48 @@ jobs:
       - run: cd backend && go mod download
       - run: cd backend && go test ./controllers/ -timeout 30s
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env
+        run: |
+          echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
+          echo "PORT=80" >> .env
+
+      - name: Build and start stack
+        run: docker compose up -d --build --wait
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - run: cd web && npm ci
+
+      - run: cd web && npx playwright install chromium --with-deps
+
+      - name: Wait for demo user to be seeded
+        run: |
+          timeout 90 bash -c 'until curl -sf -X POST http://localhost/api/v1/auth/login \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"demo@lyftr.local\",\"password\":\"password123\"}" \
+            | grep -q "token"; do sleep 3; done'
+
+      - name: Run E2E tests
+        run: cd web && npm run test:e2e:docker
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7
+
   build-backend:
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,7 +88,7 @@ jobs:
           cache-to: type=gha,mode=max
 
   build-frontend:
-    needs: test
+    needs: [test, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

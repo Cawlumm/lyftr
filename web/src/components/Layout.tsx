@@ -8,6 +8,8 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useSettingsStore, weightShort } from '../stores/settings'
+import GymModeWorkout from '../pages/GymModeWorkout'
 import Logo from './Logo'
 
 const NAV = [
@@ -27,7 +29,8 @@ function formatElapsed(seconds: number) {
 }
 
 function ActiveSessionBar() {
-  const { session } = useWorkoutSession()
+  const { session, gymOpen, openGym } = useWorkoutSession()
+  const { settings } = useSettingsStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [elapsed, setElapsed] = useState(0)
@@ -41,15 +44,26 @@ function ActiveSessionBar() {
     return () => clearInterval(id)
   }, [session])
 
-  if (!session || pathname === '/workout/active') return null
+  if (!session) return null
+  // Hide pill when gym mode overlay is open or when on active workout page in list mode
+  if (gymOpen && settings.workout_layout === 'gym') return null
+  if (pathname === '/workout/active' && settings.workout_layout !== 'gym') return null
 
   const completedSets = session.exercises.reduce((s, ex) => s + ex.sets.filter(set => set.completed).length, 0)
   const totalSets = session.exercises.reduce((s, ex) => s + ex.sets.length, 0)
 
+  const handleClick = () => {
+    if (settings.workout_layout === 'gym') {
+      openGym()
+    } else {
+      navigate('/workout/active')
+    }
+  }
+
   return (
     <div className="absolute bottom-full left-0 right-0 flex justify-center pb-3 pointer-events-none">
       <button
-        onClick={() => navigate('/workout/active')}
+        onClick={handleClick}
         className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 active:scale-95 shadow-lg shadow-brand-500/40 rounded-full transition-all"
       >
         <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
@@ -145,6 +159,9 @@ function UserMenu() {
 
 export default function Layout() {
   const { pathname } = useLocation()
+  const { session, gymOpen } = useWorkoutSession()
+  const { settings } = useSettingsStore()
+  const wUnit = weightShort(settings.weight_unit)
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-base">
@@ -158,6 +175,11 @@ export default function Layout() {
       <main className="flex-1 max-w-6xl mx-auto w-full min-w-0 overflow-x-hidden px-5 py-7 animate-fade-in">
         <Outlet />
       </main>
+
+      {/* Gym mode overlay — rendered at root so it persists across routes */}
+      {session && settings.workout_layout === 'gym' && gymOpen && (
+        <GymModeWorkout wUnit={wUnit} />
+      )}
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">

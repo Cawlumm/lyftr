@@ -38,7 +38,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function Settings() {
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
-  const { settings: storedSettings, update: updateSettings, fetch: fetchSettings } = useSettingsStore()
+  const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout } = useSettingsStore()
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -184,6 +184,27 @@ export default function Settings() {
               : <><Sun className="w-3.5 h-3.5" /> Light</>
             }
           </button>
+        </SettingRow>
+      </Section>
+
+      {/* Workout */}
+      <Section title="Workout">
+        <SettingRow label="Active workout layout" description="How exercises are shown during a workout">
+          <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
+            {(['list', 'gym'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setWorkoutLayout(mode)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  storedSettings.workout_layout === mode
+                    ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-sm'
+                    : 'text-tx-muted hover:text-tx-primary'
+                }`}
+              >
+                {mode === 'list' ? 'List' : 'Gym Mode'}
+              </button>
+            ))}
+          </div>
         </SettingRow>
       </Section>
 
