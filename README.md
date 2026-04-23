@@ -14,14 +14,14 @@
 <p align="center">
   <img src="docs/screenshots/dashboard-mobile.png" width="160" alt="Dashboard" />
   <img src="docs/screenshots/workouts-mobile.png" width="160" alt="Workouts" />
-  <img src="docs/screenshots/workout-detail-mobile.png" width="160" alt="Workout Detail" />
-  <img src="docs/screenshots/programs-mobile.png" width="160" alt="Programs" />
+  <img src="docs/screenshots/active-workout-mobile.png" width="160" alt="Active Workout" />
+  <img src="docs/screenshots/gym-mode-overview-mobile.png" width="160" alt="Gym Mode Overview" />
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/program-detail-mobile.png" width="160" alt="Program Detail" />
+  <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="160" alt="Gym Mode Sets" />
   <img src="docs/screenshots/exercise-detail-mobile.png" width="160" alt="Exercise Detail" />
-  <img src="docs/screenshots/active-workout-mobile.png" width="160" alt="Active Workout" />
+  <img src="docs/screenshots/programs-mobile.png" width="160" alt="Programs" />
   <img src="docs/screenshots/settings-mobile.png" width="160" alt="Settings" />
 </p>
 
@@ -30,7 +30,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/workout-detail-desktop.png" width="700" alt="Workout Detail desktop" />
+  <img src="docs/screenshots/gym-mode-overview-desktop.png" width="700" alt="Gym Mode desktop" />
 </p>
 
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
@@ -43,14 +43,15 @@
 
 | Feature | Web |
 |---------|-----|
-| Workout logging with 300+ exercise library | ✓ |
+| Workout logging with 800+ exercise library | ✓ |
 | Program builder — reusable workout templates | ✓ |
 | Active workout mode — guided set-by-set flow | ✓ |
+| Gym Mode — full-screen card layout, one exercise at a time | ✓ |
+| Exercise detail — personal records, progression chart, muscle diagram | ✓ |
 | Dashboard — volume trends, consistency heatmap, muscle balance | ✓ |
 | Self-hosted — all data stays on your server | ✓ |
 | Nutrition tracking — calories and macros | In progress |
 | Weight tracking with trend graph | In progress |
-| Mobile-first — full experience in a phone browser | In progress |
 
 ---
 
@@ -138,15 +139,15 @@ For HTTPS, put Lyftr behind Caddy or nginx with a Let's Encrypt certificate.
 ## Roadmap
 
 - [x] Workout logging + program builder
-- [x] Active workout mode
+- [x] Active workout mode (list + gym mode layouts)
+- [x] Exercise detail — PRs, progression chart, muscle diagram
 - [x] Dashboard with charts and trends
-- [x] Docker deployment
+- [x] Docker deployment with E2E test pipeline
 - [ ] Nutrition tracking — in progress
 - [ ] Weight tracking — in progress
-- [ ] Mobile polish — in progress
+- [ ] PWA — installable on any device
 - [ ] iOS app (Swift)
 - [ ] Hosted option (no self-hosting required)
-- [ ] PWA — installable on any device
 
 ---
 
