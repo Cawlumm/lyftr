@@ -130,6 +130,7 @@ export default function Dashboard() {
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
+  const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
   const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -140,12 +141,14 @@ export default function Dashboard() {
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       weightAPI.list({ limit: 14 }).catch(() => []),
+      weightAPI.stats().catch(() => null),
       userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
     ])
-      .then(([ws, fs, wl, s]) => {
+      .then(([ws, fs, wl, wst, s]) => {
         setWorkouts(ws || [])
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
+        setWeightStats(wst)
         setSettings(s || DEFAULT_SETTINGS)
       })
       .catch(err => setError(err.message || 'Failed to load'))
@@ -674,19 +677,25 @@ export default function Dashboard() {
 
       {/* ── Weight sparkline ───────────────────────── */}
       {weightLogs.length >= 2 && (
-        <div className="card p-4">
+        <Link
+          to="/weight"
+          className="card p-4 block hover:bg-surface-muted/30 transition-colors"
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Scale className="w-4 h-4 text-brand-500" />
               <h2 className="section-title">Weight</h2>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold text-tx-primary">{weightLogs[0].weight} {wUnit}</p>
+              <p className="text-sm font-bold text-tx-primary tabular-nums">{weightLogs[0].weight.toFixed(1)} {wUnit}</p>
               {(() => {
-                const delta = weightLogs[0].weight - weightLogs[weightLogs.length - 1].weight
+                const delta = weightStats?.change_7d ?? 0
+                if (delta === 0) {
+                  return <p className="text-xs text-tx-muted">7d · no change</p>
+                }
                 return (
-                  <p className={`text-xs ${delta <= 0 ? 'text-brand-400' : 'text-tx-muted'}`}>
-                    {delta <= 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} {wUnit}
+                  <p className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
+                    7d · {delta < 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} {wUnit}
                   </p>
                 )
               })()}
@@ -703,7 +712,7 @@ export default function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
           </div>
-        </div>
+        </Link>
       )}
 
     </div>

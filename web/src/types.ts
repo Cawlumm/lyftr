@@ -96,7 +96,12 @@ export interface DailyStats {
 export interface WeightStats {
   latest: number
   starting: number
+  min: number
+  max: number
+  avg: number
   total_entries: number
+  change_7d: number
+  change_30d: number
 }
 
 export interface ProgramSet {
