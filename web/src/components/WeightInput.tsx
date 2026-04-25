@@ -49,7 +49,7 @@ export default function WeightInput({
           enterKeyHint="done"
           value={value}
           onChange={e => onChange(e.target.value)}
-          step="0.1"
+          step={step}
           min="0"
           autoFocus={autoFocus}
           className={`input ${inputSize} pr-12 text-center w-full tabular-nums`}

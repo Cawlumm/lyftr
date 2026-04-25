@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { X, Scale, AlertCircle, Save } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort } from '../stores/settings'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
+import { useEscapeKey } from '../hooks/useEscapeKey'
+import { isPositiveNumber } from '../utils/numberUtils'
 import * as types from '../types'
 
 interface Props {
@@ -38,9 +41,12 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
 
   const handleClose = () => { setError(''); onClose() }
 
+  useBodyScrollLock(isOpen && !!log)
+  useEscapeKey(isOpen && !!log, handleClose)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!log) return
+    if (!log || saving) return
     const w = parseFloat(weight)
     if (!Number.isFinite(w) || w <= 0) {
       setError('Enter a valid weight')
@@ -66,12 +72,21 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
   if (!isOpen || !log) return null
 
   return createPortal((
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-surface-base border border-surface-border rounded-2xl w-full max-h-[90vh] sm:max-w-md overflow-y-auto">
+    <div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      onClick={handleClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ewm-title"
+        className="bg-surface-base border border-surface-border rounded-2xl w-full max-h-[90vh] sm:max-w-md overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="sticky top-0 border-b border-surface-border bg-surface-base px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Scale className="w-4 h-4 text-brand-500" />
-            <h2 className="font-display font-bold text-xl text-tx-primary">Edit Weight</h2>
+            <h2 id="ewm-title" className="font-display font-bold text-xl text-tx-primary">Edit Weight</h2>
           </div>
           <button onClick={handleClose} className="p-1 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-tx-muted" />
@@ -80,7 +95,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {error && (
-            <div className="alert-error">
+            <div className="alert-error" role="alert" aria-live="polite">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -135,7 +150,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={!isPositiveNumber(weight) || saving}
               className="btn-primary btn-md"
             >
               <Save className="w-4 h-4" />

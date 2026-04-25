@@ -23,16 +23,29 @@ func ListWeightLogs(c *gin.Context) {
 	      FROM weight_logs WHERE user_id = ?`
 	args := []any{uid}
 
+	// Date params are calendar days in the user's local timezone. We don't know
+	// the client's UTC offset, so for bare YYYY-MM-DD we widen the window by
+	// ±12h to cover any plausible client TZ. Callers that want exact bounds can
+	// pass a full RFC3339 timestamp instead.
 	if from := c.Query("from"); from != "" {
-		if t, err := time.Parse("2006-01-02", from); err == nil {
+		if t, exact, ok := parseDayOrTime(from); ok {
+			lo := t
+			if !exact {
+				lo = t.Add(-12 * time.Hour)
+			}
 			q += ` AND logged_at >= ?`
-			args = append(args, t)
+			args = append(args, lo)
 		}
 	}
 	if to := c.Query("to"); to != "" {
-		if t, err := time.Parse("2006-01-02", to); err == nil {
+		if t, exact, ok := parseDayOrTime(to); ok {
+			hi := t
+			if !exact {
+				// 24h of the day itself + 12h padding for west-of-UTC clocks.
+				hi = t.Add(36 * time.Hour)
+			}
 			q += ` AND logged_at < ?`
-			args = append(args, t.Add(24*time.Hour))
+			args = append(args, hi)
 		}
 	}
 	q += ` ORDER BY logged_at DESC LIMIT ?`
@@ -181,6 +194,19 @@ func GetWeightStats(c *gin.Context) {
 		"change_7d":     change7,
 		"change_30d":    change30,
 	})
+}
+
+// parseDayOrTime accepts either a full RFC3339 timestamp or a bare YYYY-MM-DD.
+// Returns the parsed time, whether the input was an exact timestamp (so callers
+// know not to widen the window), and parse success.
+func parseDayOrTime(s string) (t time.Time, exact bool, ok bool) {
+	if v, err := time.Parse(time.RFC3339, s); err == nil {
+		return v, true, true
+	}
+	if v, err := time.Parse("2006-01-02", s); err == nil {
+		return v, false, true
+	}
+	return time.Time{}, false, false
 }
 
 // changeOver returns latest weight minus the earliest weight within the last

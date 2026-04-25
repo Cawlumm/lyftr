@@ -5,6 +5,8 @@ import { HelpTip } from '../components/Tooltip'
 import EditWeightModal from '../components/EditWeightModal'
 import Loading from '../components/Loading'
 import WeightInput from '../components/WeightInput'
+import { useInfiniteList } from '../hooks/useInfiniteList'
+import { isPositiveNumber } from '../utils/numberUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
@@ -164,6 +166,8 @@ export default function Weight() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const { visibleCount, sentinelRef, hasMore } = useInfiniteList({ total: logs.length })
+
   const prefillDoneRef = useRef(false)
 
   const refresh = async () => {
@@ -205,6 +209,7 @@ export default function Weight() {
 
   const handleLog = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (logging) return
     const w = parseFloat(newWeight)
     if (!Number.isFinite(w) || w <= 0) {
       setError('Enter a valid weight')
@@ -250,6 +255,7 @@ export default function Weight() {
   }
 
   const handleDelete = async (id: number) => {
+    if (deleting) return
     setDeleting(true)
     try {
       await weightAPI.delete(id)
@@ -273,14 +279,23 @@ export default function Weight() {
     )
   }
 
-  // Period change is computed from filtered window so the hero card matches the selector.
+  // Period stats are computed from the in-memory `filtered` window so the hero
+  // card matches the period selector. For the "All" period we prefer the
+  // server-computed stats — they don't truncate at the fetch limit (365 rows).
   const periodValues = filtered.map(l => l.weight)
+  const useServerAggregate = period === 'All' && stats != null
   const current = periodValues[0] ?? stats?.latest ?? 0
   const oldest = periodValues[periodValues.length - 1] ?? stats?.starting ?? 0
   const change = +(current - oldest).toFixed(1)
-  const avg = periodValues.length > 0 ? +(periodValues.reduce((a, b) => a + b, 0) / periodValues.length).toFixed(1) : 0
-  const min = periodValues.length > 0 ? Math.min(...periodValues) : 0
-  const max = periodValues.length > 0 ? Math.max(...periodValues) : 0
+  const avg = useServerAggregate
+    ? +(stats!.avg ?? 0).toFixed(1)
+    : (periodValues.length > 0 ? +(periodValues.reduce((a, b) => a + b, 0) / periodValues.length).toFixed(1) : 0)
+  const min = useServerAggregate
+    ? +(stats!.min ?? 0).toFixed(1)
+    : (periodValues.length > 0 ? Math.min(...periodValues) : 0)
+  const max = useServerAggregate
+    ? +(stats!.max ?? 0).toFixed(1)
+    : (periodValues.length > 0 ? Math.max(...periodValues) : 0)
 
   const trendIcon = change === 0 ? Minus : change < 0 ? TrendingDown : TrendingUp
   const TrendIcon = trendIcon
@@ -306,7 +321,7 @@ export default function Weight() {
       </div>
 
       {error && (
-        <div className="alert-error">
+        <div className="alert-error" role="alert" aria-live="polite">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -363,7 +378,7 @@ export default function Weight() {
             </p>
             <button
               type="submit"
-              disabled={!newWeight || logging}
+              disabled={!isPositiveNumber(newWeight) || logging}
               className="btn-primary btn-md flex-shrink-0"
             >
               <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log'}
@@ -473,7 +488,7 @@ export default function Weight() {
         <div className="card p-5">
           <h2 className="section-title mb-4">History</h2>
           <div className="divide-y divide-surface-border">
-            {logs.slice(0, 30).map((entry, i) => {
+            {logs.slice(0, visibleCount).map((entry, i) => {
               const next = logs[i + 1]
               const delta = next ? entry.weight - next.weight : 0
               if (confirmDeleteId === entry.id) {
@@ -541,6 +556,11 @@ export default function Weight() {
               )
             })}
           </div>
+          {hasMore && (
+            <div ref={sentinelRef} className="flex justify-center py-4">
+              <span className="text-xs text-tx-muted">Loading more…</span>
+            </div>
+          )}
         </div>
       )}
 

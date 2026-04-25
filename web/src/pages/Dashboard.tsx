@@ -756,7 +756,11 @@ export default function Dashboard() {
         lastValue={weightLogs[0]?.weight ?? null}
         onClose={() => setSheetOpen(false)}
         onSuccess={(log) => {
-          setWeightLogs(prev => [log, ...prev])
+          setWeightLogs(prev =>
+            [log, ...prev].sort(
+              (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+            )
+          )
           weightAPI.stats().then(setWeightStats).catch(() => {})
         }}
       />

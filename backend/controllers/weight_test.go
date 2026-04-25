@@ -91,6 +91,56 @@ func TestListWeightLogs_dateRange(t *testing.T) {
 	}
 }
 
+// Regression: a YYYY-MM-DD `to` should include entries logged late on that
+// day for users in west-of-UTC timezones. Their `${date}T12:00:00` local
+// stored as UTC ends up several hours after UTC midnight, which a naive
+// "parse as UTC + 24h" would have excluded.
+func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	// Simulate a user in UTC-7 logging "2026-04-25 noon local" — stored as
+	// 2026-04-25T19:00:00Z. A naive parser interpreting `to=2026-04-25` as
+	// UTC midnight + 24h would treat the cutoff as 2026-04-25T00:00:00Z
+	// and miss this entry.
+	loggedAt := time.Date(2026, 4, 25, 19, 0, 0, 0, time.UTC)
+	insertWeightLog(t, uid, 175.0, loggedAt)
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight?from=2026-04-25&to=2026-04-25", nil)
+	ListWeightLogs(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 entry across TZ-padded day, got %d", len(data))
+	}
+}
+
+// Regression: an RFC3339 timestamp must be honored exactly without any TZ
+// padding. Callers that pass precise bounds expect exclusive control.
+func TestListWeightLogs_dateRangeExactRFC3339(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	insertWeightLog(t, uid, 175.0, time.Date(2026, 4, 25, 10, 0, 0, 0, time.UTC))
+	insertWeightLog(t, uid, 176.0, time.Date(2026, 4, 25, 14, 0, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet,
+		"/api/v1/weight?from=2026-04-25T12:00:00Z&to=2026-04-25T15:00:00Z", nil)
+	ListWeightLogs(c)
+
+	resp := decodeResponse(t, w)
+	data := resp["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 entry within exact window, got %d", len(data))
+	}
+	first := data[0].(map[string]any)
+	if first["weight"].(float64) != 176.0 {
+		t.Errorf("expected the 14:00 entry, got %v", first["weight"])
+	}
+}
+
 func TestLogWeight_success(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

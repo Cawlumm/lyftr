@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom'
 import { X, Scale, Save, AlertCircle, Calendar, FileText } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort } from '../stores/settings'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
+import { useEscapeKey } from '../hooks/useEscapeKey'
+import { isPositiveNumber } from '../utils/numberUtils'
 import WeightInput from './WeightInput'
 import * as types from '../types'
 
@@ -39,12 +42,16 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
     setError('')
   }, [isOpen, lastValue])
 
-  if (!isOpen) return null
-
   const handleClose = () => { setError(''); onClose() }
+
+  useBodyScrollLock(isOpen)
+  useEscapeKey(isOpen, handleClose)
+
+  if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (saving) return
     const w = parseFloat(value)
     if (!Number.isFinite(w) || w <= 0) {
       setError('Enter a valid weight')
@@ -72,6 +79,9 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
       onClick={handleClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qws-title"
         className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto animate-slide-up"
         onClick={e => e.stopPropagation()}
       >
@@ -84,7 +94,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
             <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
               <Scale className="w-4 h-4 text-brand-500" />
             </div>
-            <h2 className="font-display font-bold text-lg text-tx-primary">Log Weight</h2>
+            <h2 id="qws-title" className="font-display font-bold text-lg text-tx-primary">Log Weight</h2>
           </div>
           <button onClick={handleClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-tx-muted" />
@@ -93,7 +103,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {error && (
-            <div className="alert-error">
+            <div className="alert-error" role="alert" aria-live="polite">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
             </div>
@@ -147,7 +157,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
 
           <button
             type="submit"
-            disabled={!value || saving}
+            disabled={!isPositiveNumber(value) || saving}
             className="btn-primary btn-lg w-full"
           >
             <Save className="w-4 h-4" />
