@@ -80,7 +80,10 @@ func LogWeight(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
+		// .UTC() so the serialized response doesn't depend on the server's
+		// timezone setting (the instant is the same either way; this keeps the
+		// wire format consistent across deployments).
+		req.LoggedAt = time.Now().UTC()
 	}
 
 	res, err := db.DB.Exec(
@@ -120,7 +123,10 @@ func UpdateWeightLog(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
+		// .UTC() so the serialized response doesn't depend on the server's
+		// timezone setting (the instant is the same either way; this keeps the
+		// wire format consistent across deployments).
+		req.LoggedAt = time.Now().UTC()
 	}
 
 	res, err := db.DB.Exec(
@@ -212,7 +218,7 @@ func parseDayOrTime(s string) (t time.Time, exact bool, ok bool) {
 // changeOver returns latest weight minus the earliest weight within the last
 // `days` days. Returns 0 when there are fewer than two entries in the window.
 func changeOver(uid int64, days int) float64 {
-	cutoff := time.Now().AddDate(0, 0, -days)
+	cutoff := time.Now().UTC().AddDate(0, 0, -days)
 	var latest, earliest sql.NullFloat64
 	db.DB.QueryRow(
 		`SELECT

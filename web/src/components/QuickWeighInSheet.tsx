@@ -6,6 +6,7 @@ import { useSettingsStore, weightShort } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { isPositiveNumber } from '../utils/numberUtils'
+import { todayStr, dayToIsoNoon } from '../utils/dateUtils'
 import WeightInput from './WeightInput'
 import * as types from '../types'
 
@@ -14,12 +15,6 @@ interface Props {
   lastValue: number | null
   onClose: () => void
   onSuccess: (log: types.WeightLog) => void
-}
-
-const todayStr = () => {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSuccess }: Props) {
@@ -63,7 +58,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, onClose, onSucces
       const log = await weightAPI.log({
         weight: w,
         notes: notes.trim(),
-        logged_at: new Date(`${date}T12:00:00`).toISOString(),
+        logged_at: dayToIsoNoon(date),
       })
       onSuccess(log)
       onClose()

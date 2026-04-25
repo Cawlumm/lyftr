@@ -6,6 +6,7 @@ import { useSettingsStore, weightShort } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { isPositiveNumber } from '../utils/numberUtils'
+import { dayToIsoNoon, isoToDayInput, todayStr } from '../utils/dateUtils'
 import * as types from '../types'
 
 interface Props {
@@ -13,12 +14,6 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
   log: types.WeightLog | null
-}
-
-const toDateInput = (iso: string) => {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Props) {
@@ -34,7 +29,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
   useEffect(() => {
     if (!isOpen || !log) return
     setWeight(String(log.weight))
-    setLoggedAt(toDateInput(log.logged_at))
+    setLoggedAt(isoToDayInput(log.logged_at))
     setNotes(log.notes ?? '')
     setError('')
   }, [isOpen, log])
@@ -58,7 +53,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
       await weightAPI.update(log.id, {
         weight: w,
         notes: notes.trim(),
-        logged_at: new Date(`${loggedAt}T12:00:00`).toISOString(),
+        logged_at: dayToIsoNoon(loggedAt),
       })
       onSuccess()
       onClose()
@@ -124,7 +119,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
               value={loggedAt}
               onChange={e => setLoggedAt(e.target.value)}
               className="input mt-1"
-              max={toDateInput(new Date().toISOString())}
+              max={todayStr()}
             />
           </div>
 

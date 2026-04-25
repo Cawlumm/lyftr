@@ -7,6 +7,7 @@ import Loading from '../components/Loading'
 import WeightInput from '../components/WeightInput'
 import { useInfiniteList } from '../hooks/useInfiniteList'
 import { isPositiveNumber } from '../utils/numberUtils'
+import { todayStr, dayToIsoNoon } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
@@ -15,12 +16,6 @@ const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]
 
 const PERIOD_DAYS: Record<Period, number | null> = { '7d': 7, '30d': 30, '90d': 90, 'All': null }
-
-const todayStr = () => {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
 
 // Simple n-point trailing moving average. Returns null where the window can't fill.
 const movingAverage = (values: number[], window: number): (number | null)[] => {
@@ -219,7 +214,7 @@ export default function Weight() {
     setError(null)
 
     const tempId = -Date.now()
-    const loggedAtIso = new Date(`${newDate}T12:00:00`).toISOString()
+    const loggedAtIso = dayToIsoNoon(newDate)
     const trimmedNotes = newNotes.trim()
     const optimistic: types.WeightLog = {
       id: tempId,
