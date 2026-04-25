@@ -54,6 +54,7 @@ func Setup(r *gin.Engine) {
 		// Weight
 		protected.GET("weight", controllers.ListWeightLogs)
 		protected.POST("weight", controllers.LogWeight)
+		protected.PATCH("weight/:id", controllers.UpdateWeightLog)
 		protected.DELETE("weight/:id", controllers.DeleteWeightLog)
 		protected.GET("weight/stats", controllers.GetWeightStats)
 
