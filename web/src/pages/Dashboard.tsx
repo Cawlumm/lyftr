@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef,
-  AlertCircle, Play, Timer, TrendingUp, Scale, Activity,
+  AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
   LineChart, Line, PieChart, Pie, Legend,
 } from 'recharts'
 import Loading from '../components/Loading'
+import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
@@ -134,6 +135,7 @@ export default function Dashboard() {
   const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
@@ -675,45 +677,89 @@ export default function Dashboard() {
           )}
       </div>
 
-      {/* ── Weight sparkline ───────────────────────── */}
-      {weightLogs.length >= 2 && (
-        <Link
-          to="/weight"
-          className="card p-4 block hover:bg-surface-muted/30 transition-colors"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Scale className="w-4 h-4 text-brand-500" />
-              <h2 className="section-title">Weight</h2>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-bold text-tx-primary tabular-nums">{weightLogs[0].weight.toFixed(1)} {wUnit}</p>
-              {(() => {
-                const delta = weightStats?.change_7d ?? 0
-                if (delta === 0) {
-                  return <p className="text-xs text-tx-muted">7d · no change</p>
-                }
-                return (
-                  <p className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
-                    7d · {delta < 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} {wUnit}
-                  </p>
-                )
-              })()}
-            </div>
+      {/* ── Weight quick-log card ──────────────────── */}
+      <div className="card p-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <Scale className="w-4 h-4 text-brand-500" />
+            <h2 className="section-title">Weight</h2>
           </div>
-          <div className="w-full min-w-0">
-          <ResponsiveContainer width="100%" height={56}>
-            <LineChart data={sparkData}>
-              <Line dataKey="weight" dot={false} stroke="#6366f1" strokeWidth={2} type="monotone" />
-              <Tooltip
-                contentStyle={TOOLTIP_STYLE}
-                formatter={(v: number) => [`${v} ${wUnit}`, 'Weight']}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-          </div>
-        </Link>
-      )}
+          <Link to="/weight" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-0.5">
+            View <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {weightLogs.length === 0 ? (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="w-full flex items-center gap-3 p-3 bg-brand-500/5 border border-dashed border-brand-500/30 rounded-xl hover:bg-brand-500/10 transition-colors text-left"
+          >
+            <div className="w-9 h-9 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <Plus className="w-4 h-4 text-brand-500" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-tx-primary">Log your first weight</p>
+              <p className="text-xs text-tx-muted">Tap to start tracking</p>
+            </div>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="w-full text-left active:scale-[0.99] transition-transform"
+            aria-label="Log weight"
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl font-bold text-tx-primary tabular-nums leading-none">
+                  {weightLogs[0].weight.toFixed(1)}
+                </span>
+                <span className="text-sm text-tx-muted">{wUnit}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const delta = weightStats?.change_7d ?? 0
+                  if (delta === 0) {
+                    return <span className="text-xs text-tx-muted">7d · no change</span>
+                  }
+                  return (
+                    <span className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
+                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(delta).toFixed(1)} {wUnit}
+                    </span>
+                  )
+                })()}
+                <span className="w-7 h-7 rounded-lg bg-brand-500 hover:bg-brand-600 flex items-center justify-center text-white shadow-sm">
+                  <Plus className="w-4 h-4" />
+                </span>
+              </div>
+            </div>
+            {weightLogs.length >= 2 && (
+              <div className="w-full min-w-0">
+                <ResponsiveContainer width="100%" height={48}>
+                  <LineChart data={sparkData}>
+                    <Line dataKey="weight" dot={false} stroke="#6366f1" strokeWidth={2} type="monotone" />
+                    <Tooltip
+                      contentStyle={TOOLTIP_STYLE}
+                      formatter={(v: number) => [`${v} ${wUnit}`, 'Weight']}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </button>
+        )}
+      </div>
+
+      <QuickWeighInSheet
+        isOpen={sheetOpen}
+        lastValue={weightLogs[0]?.weight ?? null}
+        onClose={() => setSheetOpen(false)}
+        onSuccess={(log) => {
+          setWeightLogs(prev => [log, ...prev])
+          weightAPI.stats().then(setWeightStats).catch(() => {})
+        }}
+      />
 
     </div>
   )

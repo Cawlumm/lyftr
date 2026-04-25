@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { TrendingDown, TrendingUp, Minus, Plus, Calendar, Info, AlertCircle, Trash2, Pencil } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { HelpTip } from '../components/Tooltip'
 import EditWeightModal from '../components/EditWeightModal'
 import Loading from '../components/Loading'
+import WeightInput from '../components/WeightInput'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import * as types from '../types'
@@ -163,6 +164,8 @@ export default function Weight() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const [deleting, setDeleting] = useState(false)
 
+  const prefillDoneRef = useRef(false)
+
   const refresh = async () => {
     const [logData, statsData] = await Promise.all([
       weightAPI.list({ limit: 365 }),
@@ -170,6 +173,10 @@ export default function Weight() {
     ])
     setLogs(logData || [])
     setStats(statsData)
+    if (!prefillDoneRef.current && logData && logData.length > 0) {
+      setNewWeight(String(logData[0].weight))
+      prefillDoneRef.current = true
+    }
   }
 
   useEffect(() => {
@@ -205,18 +212,37 @@ export default function Weight() {
     }
     setLogging(true)
     setError(null)
+
+    const tempId = -Date.now()
+    const loggedAtIso = new Date(`${newDate}T12:00:00`).toISOString()
+    const trimmedNotes = newNotes.trim()
+    const optimistic: types.WeightLog = {
+      id: tempId,
+      weight: w,
+      notes: trimmedNotes,
+      logged_at: loggedAtIso,
+    }
+    setLogs(prev =>
+      [optimistic, ...prev].sort(
+        (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+      )
+    )
+
     try {
-      await weightAPI.log({
+      const real = await weightAPI.log({
         weight: w,
-        notes: newNotes.trim(),
-        logged_at: new Date(`${newDate}T12:00:00`).toISOString(),
+        notes: trimmedNotes,
+        logged_at: loggedAtIso,
       })
-      setNewWeight('')
+      setLogs(prev => prev.map(l => (l.id === tempId ? real : l)))
+      // Re-prefill with the just-logged value so the next entry starts from there
+      setNewWeight(String(real.weight))
       setNewNotes('')
       setNewDate(todayStr())
       setShowNotes(false)
-      await refresh()
+      weightAPI.stats().then(setStats).catch(() => {})
     } catch (err: any) {
+      setLogs(prev => prev.filter(l => l.id !== tempId))
       setError(err?.response?.data?.error || 'Failed to log weight')
     } finally {
       setLogging(false)
@@ -286,12 +312,72 @@ export default function Weight() {
         </div>
       )}
 
+      {/* Quick log — at top of page so entry is reachable on first paint */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="section-title">Log Weight</h2>
+          {logs.length > 0 && (
+            <span className="text-[11px] text-tx-muted">last: {logs[0].weight.toFixed(1)} {wUnit}</span>
+          )}
+        </div>
+        <form onSubmit={handleLog} className="space-y-3">
+          <WeightInput
+            value={newWeight}
+            onChange={setNewWeight}
+            unit={wUnit}
+            size="lg"
+          />
+
+          {showNotes ? (
+            <div className="grid grid-cols-[auto_1fr] gap-2">
+              <input
+                type="date"
+                value={newDate}
+                onChange={e => setNewDate(e.target.value)}
+                max={todayStr()}
+                className="input"
+              />
+              <input
+                type="text"
+                value={newNotes}
+                onChange={e => setNewNotes(e.target.value)}
+                placeholder="Note (optional)"
+                maxLength={200}
+                className="input"
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowNotes(true)}
+              className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
+            >
+              + Change date or add a note
+            </button>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            <p className="input-help flex items-center gap-1 mb-0">
+              <Info className="w-3 h-3" />
+              Best logged in the morning, after the bathroom
+            </p>
+            <button
+              type="submit"
+              disabled={!newWeight || logging}
+              className="btn-primary btn-md flex-shrink-0"
+            >
+              <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
         {logs.length === 0 ? (
           <div className="text-center py-2">
             <p className="stat-label mb-1">Current Weight</p>
-            <p className="text-tx-muted text-sm">No logs yet — log your first weight below</p>
+            <p className="text-tx-muted text-sm">No logs yet — use the form above to log your first weight</p>
           </div>
         ) : (
           <>
@@ -380,68 +466,6 @@ export default function Weight() {
         ) : (
           <TrendChart points={chartPoints} wUnit={wUnit} showMA={showMA} />
         )}
-      </div>
-
-      {/* Log weight */}
-      <div className="card p-5">
-        <h2 className="section-title mb-3">Log Weight</h2>
-        <form onSubmit={handleLog} className="space-y-3">
-          <div className="grid grid-cols-[1fr_auto] gap-2">
-            <div className="relative">
-              <input
-                type="number"
-                value={newWeight}
-                onChange={e => setNewWeight(e.target.value)}
-                placeholder="185.0"
-                step="0.1"
-                min="0"
-                className="input pr-10"
-                required
-              />
-              <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-tx-muted">{wUnit}</span>
-            </div>
-            <input
-              type="date"
-              value={newDate}
-              onChange={e => setNewDate(e.target.value)}
-              max={todayStr()}
-              className="input w-auto"
-            />
-          </div>
-
-          {showNotes ? (
-            <input
-              type="text"
-              value={newNotes}
-              onChange={e => setNewNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              maxLength={200}
-              className="input"
-            />
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowNotes(true)}
-              className="text-xs text-brand-400 hover:text-brand-300 transition-colors"
-            >
-              + Add a note
-            </button>
-          )}
-
-          <div className="flex items-center justify-between gap-2">
-            <p className="input-help flex items-center gap-1 mb-0">
-              <Info className="w-3 h-3" />
-              Best logged in the morning, after using the bathroom
-            </p>
-            <button
-              type="submit"
-              disabled={!newWeight || logging}
-              className="btn-primary btn-md flex-shrink-0"
-            >
-              <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log'}
-            </button>
-          </div>
-        </form>
       </div>
 
       {/* History */}
