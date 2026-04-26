@@ -1,6 +1,7 @@
 name: Deploy demo
 
-# Runs on every merge to main — keeps lyftr-demo.fly.dev in sync with main.
+# PRs: validates fly.toml config (no deploy)
+# Merge to main: validates then deploys to lyftr-demo.fly.dev
 #
 # Required secret: FLY_API_TOKEN
 #   fly tokens create deploy -a lyftr-demo
@@ -8,17 +9,29 @@ name: Deploy demo
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  deploy:
-    name: Deploy to Fly.io
+  validate:
+    name: Validate fly.toml
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Validate config
+        run: fly config validate
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
+  deploy:
+    name: Deploy to Fly.io
+    needs: validate
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
       # --remote-only: skip local Docker build, use Fly's Depot builder instead.
       # fly.toml in repo root points to fly/Dockerfile as the build target.
       - name: Deploy
