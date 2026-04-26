@@ -1,0 +1,40 @@
+# fly.toml — Lyftr demo instance
+# Set app name below, then: fly secrets set JWT_SECRET=<random-32-chars>
+# First deploy: fly deploy
+# See fly/SETUP.md for full instructions.
+
+app = "lyftr-demo"
+primary_region = "fra"
+
+[build]
+  dockerfile = "fly/Dockerfile"
+
+[env]
+  ENV        = "production"
+  PORT       = "3000"
+  DB_PATH    = "/app/data/lyftr.db"
+  CORS_ORIGIN = "https://lyftr-demo.fly.dev"
+
+# JWT_SECRET must be set as a secret:
+#   fly secrets set JWT_SECRET=$(openssl rand -hex 32)
+
+[http_service]
+  internal_port       = 80
+  force_https         = true
+  auto_stop_machines  = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type       = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[mounts]]
+  source      = "lyftr_data"
+  destination = "/app/data"
+
+[[vm]]
+  memory   = "512mb"
+  cpu_kind = "shared"
+  cpus     = 1
