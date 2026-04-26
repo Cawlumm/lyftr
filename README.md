@@ -1,4 +1,6 @@
-<h1 align="center">Lyftr</h1>
+<p align="center">
+  <img src="docs/logo.svg" alt="Lyftr" width="220" />
+</p>
 
 <p align="center">
   <strong>Self-hosted fitness tracker. Your data, your server.</strong>
