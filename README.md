@@ -7,51 +7,65 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/status-early%20beta-orange" alt="Early Beta" />
-  <a href="https://hub.docker.com/r/cwlumm/lyftr-backend"><img src="https://img.shields.io/docker/pulls/cwlumm/lyftr-backend?label=docker%20pulls&logo=docker&logoColor=white&color=2496ED" alt="Docker Pulls" /></a>
+  <a href="https://selfh.st/weekly/2026-04-24/"><img src="https://img.shields.io/badge/Featured%20in-selfh.st%20%C2%B7%20Apr%202026-6366f1" alt="Featured in selfh.st" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS Planned" />
 </p>
 
 <p align="center">
+  <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="160" alt="Gym Mode" />
   <img src="docs/screenshots/dashboard-mobile.png" width="160" alt="Dashboard" />
-  <img src="docs/screenshots/workouts-mobile.png" width="160" alt="Workouts" />
-  <img src="docs/screenshots/active-workout-mobile.png" width="160" alt="Active Workout" />
-  <img src="docs/screenshots/gym-mode-overview-mobile.png" width="160" alt="Gym Mode Overview" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="160" alt="Gym Mode Sets" />
   <img src="docs/screenshots/exercise-detail-mobile.png" width="160" alt="Exercise Detail" />
-  <img src="docs/screenshots/programs-mobile.png" width="160" alt="Programs" />
-  <img src="docs/screenshots/settings-mobile.png" width="160" alt="Settings" />
 </p>
 
 <p align="center">
   <img src="docs/screenshots/dashboard-desktop.png" width="700" alt="Dashboard desktop" />
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/gym-mode-overview-desktop.png" width="700" alt="Gym Mode desktop" />
-</p>
-
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
 
-> **First official beta release coming soon** — stay tuned. Unlike your scheduled rest day, this one won't keep getting pushed back.
+> 🌐 **Live demo coming soon** — try it without spinning up Docker.
+
+---
+
+## Runs on
+
+Tested and working on:
+
+- **Raspberry Pi 4** (2 GB RAM, arm64 Docker image)
+- **Any x86 VPS** — Hetzner CAX11, DigitalOcean Droplet, Oracle Free Tier
+- **Synology NAS** via Docker (Container Manager)
+- **Proxmox LXC** with Docker installed
+- **Local machine** — Mac, Linux, Windows (WSL2)
+
+Single SQLite file, minimal RAM, no external services required.
+
+---
+
+## Why Lyftr?
+
+**Hevy and Strong** are polished apps but cloud-only, increasingly paywalled, and your data lives on someone else's server. **Wger** is self-hosted but complex to deploy and primarily web-focused. **FitNotes** is local-only with no sync or server deployment story.
+
+Lyftr is for people who want a modern, mobile-first workout tracker that they fully own and can run on a $5 VPS or a Raspberry Pi in the corner. No subscription. No vendor lock-in. No "your export is a Pro feature."
 
 ---
 
 ## Features
 
-| Feature | Web |
-|---------|-----|
+| Feature | Status |
+|---------|--------|
 | Workout logging with 800+ exercise library | ✓ |
 | Program builder — reusable workout templates | ✓ |
 | Active workout mode — guided set-by-set flow | ✓ |
 | Gym Mode — full-screen card layout, one exercise at a time | ✓ |
 | Exercise detail — personal records, progression chart, muscle diagram | ✓ |
 | Dashboard — volume trends, consistency heatmap, muscle balance | ✓ |
+| Weight tracking with trend graph | ✓ |
+| lbs / kg unit support across all data | ✓ |
 | Self-hosted — all data stays on your server | ✓ |
 | Nutrition tracking — calories and macros | In progress |
-| Weight tracking with trend graph | In progress |
+| PWA — installable on any device | Planned |
+| Strong / Hevy CSV import | Planned |
+| iOS app (Swift) | Planned |
 
 ---
 
@@ -71,6 +85,22 @@ docker compose up -d
 ```
 
 Open `http://localhost` in your browser and create your account. If running on a VPS, replace `localhost` with your server IP or domain.
+
+---
+
+## More Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/workouts-mobile.png" width="160" alt="Workouts" />
+  <img src="docs/screenshots/active-workout-mobile.png" width="160" alt="Active Workout" />
+  <img src="docs/screenshots/gym-mode-overview-mobile.png" width="160" alt="Gym Mode Overview" />
+  <img src="docs/screenshots/programs-mobile.png" width="160" alt="Programs" />
+  <img src="docs/screenshots/settings-mobile.png" width="160" alt="Settings" />
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/gym-mode-overview-desktop.png" width="700" alt="Gym Mode desktop" />
+</p>
 
 ---
 
@@ -97,9 +127,7 @@ On first startup, Lyftr automatically seeds 800+ exercises from [free-exercise-d
 
 The seed runs async so the server is immediately available. Exercises appear in the UI within a few seconds.
 
-**Re-sync exercises:**
-
-Go to **Settings → Exercise Library** — shows current exercise count and an in-progress indicator while seeding. Hit **Re-sync** to pull the latest exercises from the source (safe upsert, existing workout data is untouched).
+**Re-sync exercises:** Go to **Settings → Exercise Library** — shows current exercise count and a progress indicator while seeding. Hit **Re-sync** to pull the latest exercises (safe upsert, existing workout data is untouched).
 
 ---
 
@@ -142,10 +170,12 @@ For HTTPS, put Lyftr behind Caddy or nginx with a Let's Encrypt certificate.
 - [x] Active workout mode (list + gym mode layouts)
 - [x] Exercise detail — PRs, progression chart, muscle diagram
 - [x] Dashboard with charts and trends
+- [x] Weight tracking with trend graph + lbs/kg support
 - [x] Docker deployment with E2E test pipeline
 - [ ] Nutrition tracking — in progress
-- [ ] Weight tracking — in progress
-- [ ] PWA — installable on any device
+- [ ] PWA — installable on any device without an app store
+- [ ] Strong / Hevy CSV import — so you don't lose years of data switching
+- [ ] Apple Health / Google Fit export
 - [ ] iOS app (Swift)
 - [ ] Hosted option (no self-hosting required)
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -77,7 +77,14 @@ export default function AddProgram() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await programAPI.create(formData)
+      const payload = {
+        ...formData,
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
+        })),
+      }
+      await programAPI.create(payload)
       navigate('/programs')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create program')

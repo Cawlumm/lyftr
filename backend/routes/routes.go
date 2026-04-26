@@ -54,8 +54,10 @@ func Setup(r *gin.Engine) {
 		// Weight
 		protected.GET("weight", controllers.ListWeightLogs)
 		protected.POST("weight", controllers.LogWeight)
-		protected.DELETE("weight/:id", controllers.DeleteWeightLog)
 		protected.GET("weight/stats", controllers.GetWeightStats)
+		protected.GET("weight/:id", controllers.GetWeightLog)
+		protected.PATCH("weight/:id", controllers.UpdateWeightLog)
+		protected.DELETE("weight/:id", controllers.DeleteWeightLog)
 
 		// Food
 		protected.GET("food", controllers.ListFoodLogs)

@@ -5,7 +5,7 @@ import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, 
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -29,10 +29,11 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
     return () => document.removeEventListener('mousedown', handler)
   }, [])
   const durationMin = Math.round(workout.duration / 60)
-  const totalVolume = Math.round(
+  const totalVolume = Math.round(lbsToDisplay(
     workout.exercises?.reduce((total, e) =>
-      total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0), 0) || 0
-  )
+      total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0), 0) || 0,
+    wUnit
+  ))
 
   const handleDelete = async () => {
     setDeleting(true)

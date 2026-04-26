@@ -57,7 +57,7 @@ type Set struct {
 	WorkoutExerciseID int64   `json:"workout_exercise_id" db:"workout_exercise_id"`
 	SetNumber         int     `json:"set_number" db:"set_number"`
 	Reps              int     `json:"reps,omitempty" db:"reps"`
-	Weight            float64 `json:"weight,omitempty" db:"weight"` // stored in kg
+	Weight            float64 `json:"weight,omitempty" db:"weight"` // raw value in user's preferred unit (lbs or kg)
 	Duration          int     `json:"duration,omitempty" db:"duration"` // seconds, for timed sets
 	Distance          float64 `json:"distance,omitempty" db:"distance"` // meters
 	RPE               float64 `json:"rpe,omitempty" db:"rpe"`
@@ -67,7 +67,7 @@ type Set struct {
 type WeightLog struct {
 	ID        int64     `json:"id" db:"id"`
 	UserID    int64     `json:"user_id" db:"user_id"`
-	Weight    float64   `json:"weight" db:"weight"` // stored in kg
+	Weight    float64   `json:"weight" db:"weight"` // raw value in user's preferred unit (lbs or kg)
 	Notes     string    `json:"notes,omitempty" db:"notes"`
 	LoggedAt  time.Time `json:"logged_at" db:"logged_at"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
@@ -137,7 +137,7 @@ type CreateSetReq struct {
 }
 
 type LogWeightRequest struct {
-	Weight   float64   `json:"weight" validate:"required,gt=0"`
+	Weight   float64   `json:"weight" validate:"required,gt=0,lte=2000"`
 	Notes    string    `json:"notes"`
 	LoggedAt time.Time `json:"logged_at"`
 }

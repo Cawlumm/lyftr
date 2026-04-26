@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge } from 'lucide-react'
 import { workoutAPI, exerciseAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import ExercisePicker from './ExercisePicker'
 import * as types from '../types'
 
@@ -73,7 +73,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
           sets: (ex.sets || []).map(s => ({
             set_number: s.set_number,
             reps: s.reps,
-            weight: s.weight,
+            weight: lbsToDisplay(s.weight, settings.weight_unit),
           })),
         })),
       })
@@ -149,7 +149,10 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
         name: formData.name,
         notes: formData.notes,
         duration: formData.duration,
-        exercises: formData.exercises,
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+        })),
         started_at: originalStartedAt || new Date().toISOString(),
       })
       onSuccess()

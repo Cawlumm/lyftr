@@ -6,7 +6,7 @@ import {
   AlertCircle, ChevronRight, ChevronLeft, Info,
 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import { workoutAPI } from '../services/api'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -350,9 +350,9 @@ export default function ActiveWorkout() {
                           <input
                             type="number"
                             inputMode="decimal"
-                            value={set.actual_weight || ''}
-                            onChange={e => updateSet(exIdx, setIdx, 'actual_weight', Number(e.target.value) || 0)}
-                            placeholder={set.target_weight > 0 ? String(set.target_weight) : '—'}
+                            value={set.actual_weight ? lbsToDisplay(set.actual_weight, wUnit) : ''}
+                            onChange={e => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(e.target.value) || 0, wUnit))}
+                            placeholder={set.target_weight > 0 ? String(lbsToDisplay(set.target_weight, wUnit)) : '—'}
                             className={`input text-base text-center py-3 w-full pr-7 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
                             disabled={set.completed}
                             step="0.5"

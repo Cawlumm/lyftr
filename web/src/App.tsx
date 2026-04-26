@@ -18,6 +18,7 @@ import WorkoutDetail from './pages/WorkoutDetail'
 import ProgramDetail from './pages/ProgramDetail'
 import Food from './pages/Food'
 import Weight from './pages/Weight'
+import WeightDetail from './pages/WeightDetail'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -60,6 +61,7 @@ function App() {
             <Route path="/exercises/:exerciseId" element={<ExerciseDetail />} />
             <Route path="/food" element={<Food />} />
             <Route path="/weight" element={<Weight />} />
+            <Route path="/weight/:id" element={<WeightDetail />} />
             <Route path="/settings" element={<Settings />} />
           </Route>
         ) : (

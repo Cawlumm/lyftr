@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import ExercisePicker from './ExercisePicker'
 import * as types from '../types'
 
@@ -51,7 +51,7 @@ export default function EditProgramModal({ isOpen, onClose, onSuccess, programId
             sets: (ex.sets || []).map(s => ({
               set_number: s.set_number,
               target_reps: s.target_reps,
-              target_weight: s.target_weight,
+              target_weight: lbsToDisplay(s.target_weight, settings.weight_unit),
             })),
           })),
         })
@@ -105,7 +105,14 @@ export default function EditProgramModal({ isOpen, onClose, onSuccess, programId
 
     setLoading(true)
     try {
-      await programAPI.update(programId, formData)
+      const payload = {
+        ...formData,
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
+        })),
+      }
+      await programAPI.update(programId, payload)
       onSuccess()
       onClose()
     } catch (err: any) {
