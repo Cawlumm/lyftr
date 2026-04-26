@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen } from 'lucide-react'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import ExercisePicker from './ExercisePicker'
 import ProgramPicker from './ProgramPicker'
 import * as types from '../types'
@@ -133,7 +133,10 @@ export default function AddWorkoutModal({ isOpen, onClose, onSuccess }: Props) {
         name: formData.name,
         notes: formData.notes,
         duration: formData.duration,
-        exercises: formData.exercises,
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+        })),
         started_at: new Date().toISOString(),
       })
       setFormData({ name: '', notes: '', duration: 0, exercises: [] })

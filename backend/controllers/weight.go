@@ -97,11 +97,32 @@ func LogWeight(c *gin.Context) {
 
 	id, _ := res.LastInsertId()
 	var log models.WeightLog
-	db.DB.QueryRow(
+	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, id,
-	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt)
-
+	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
+		utils.InternalError(c)
+		return
+	}
 	utils.Created(c, log)
+}
+
+func GetWeightLog(c *gin.Context) {
+	uid := middleware.UserID(c)
+	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		utils.BadRequest(c, "invalid id")
+		return
+	}
+
+	var log models.WeightLog
+	if err := db.DB.QueryRow(
+		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ? AND user_id = ?`,
+		lid, uid,
+	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
+		utils.NotFound(c, "log entry not found")
+		return
+	}
+	utils.OK(c, log)
 }
 
 func UpdateWeightLog(c *gin.Context) {
@@ -144,9 +165,12 @@ func UpdateWeightLog(c *gin.Context) {
 	}
 
 	var log models.WeightLog
-	db.DB.QueryRow(
+	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, lid,
-	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt)
+	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
+		utils.InternalError(c)
+		return
+	}
 	utils.OK(c, log)
 }
 

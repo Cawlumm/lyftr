@@ -107,6 +107,7 @@ export const programAPI = {
 export const weightAPI = {
   list:   (params?: { limit?: number; from?: string; to?: string }) =>
     api.get<{ data: types.WeightLog[] }>('/weight', { params }).then(res => unwrap(res)),
+  get:    (id: number) => api.get<{ data: types.WeightLog }>(`/weight/${id}`).then(res => unwrap(res)),
   log:    (data: { weight: number; notes?: string; logged_at?: string }) =>
     api.post<{ data: types.WeightLog }>('/weight', data).then(res => unwrap(res)),
   update: (id: number, data: { weight: number; notes?: string; logged_at?: string }) =>

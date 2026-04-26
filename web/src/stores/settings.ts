@@ -55,3 +55,10 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
 export const weightLabel = (unit: string) => unit === 'kg' ? 'kg' : 'lbs'
 export const weightShort = (unit: string) => unit === 'kg' ? 'kg' : 'lb'
+
+// Backend always stores lbs. Use these helpers everywhere weight values are read/written.
+export const lbsToDisplay = (lbs: number, unit: string): number =>
+  unit === 'kg' ? lbs / 2.20462 : lbs
+
+export const displayToLbs = (val: number, unit: string): number =>
+  unit === 'kg' ? val * 2.20462 : val

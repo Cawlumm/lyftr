@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen, CalendarDays } from 'lucide-react'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import * as types from '../types'
@@ -79,7 +79,16 @@ export default function AddWorkout() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await workoutAPI.create({ ...formData, duration: formData.duration * 60, started_at: new Date(formData.date).toISOString() })
+      const payload = {
+        ...formData,
+        duration: formData.duration * 60,
+        started_at: new Date(formData.date).toISOString(),
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+        })),
+      }
+      await workoutAPI.create(payload)
       navigate('/workouts')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to create workout')

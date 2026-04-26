@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -193,7 +193,8 @@ export default function ProgramDetail() {
       <div className="space-y-2">
         {exs.map((ex) => {
           const sets = ex.sets ?? []
-          const maxTarget = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
+          const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
+          const maxTarget = Math.round(lbsToDisplay(maxTargetLbs, wUnit))
 
           return (
             <button
@@ -232,12 +233,12 @@ export default function ProgramDetail() {
               {sets.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 px-4 pb-4 border-t border-surface-border/50 pt-3">
                   {sets.map((set, i) => {
-                    const isBest = set.target_weight === maxTarget && maxTarget > 0
+                    const isBest = set.target_weight === maxTargetLbs && maxTargetLbs > 0
                     return (
                       <div key={i} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
                         isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
                       }`}>
-                        {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${set.target_weight} ${wUnit}` : 'BW'}
+                        {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${Math.round(lbsToDisplay(set.target_weight, wUnit))} ${wUnit}` : 'BW'}
                       </div>
                     )
                   })}

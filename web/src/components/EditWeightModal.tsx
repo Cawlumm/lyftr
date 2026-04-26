@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Scale, AlertCircle, Save } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { isPositiveNumber } from '../utils/numberUtils'
@@ -28,7 +28,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
 
   useEffect(() => {
     if (!isOpen || !log) return
-    setWeight(String(log.weight))
+    setWeight(String(Math.round(lbsToDisplay(log.weight, settings.weight_unit))))
     setLoggedAt(isoToDayInput(log.logged_at))
     setNotes(log.notes ?? '')
     setError('')
@@ -51,7 +51,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
     setError('')
     try {
       await weightAPI.update(log.id, {
-        weight: w,
+        weight: displayToLbs(w, settings.weight_unit),
         notes: notes.trim(),
         logged_at: dayToIsoNoon(loggedAt),
       })

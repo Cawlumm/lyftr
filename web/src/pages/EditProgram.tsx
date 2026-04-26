@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target, Dumbbell } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -47,7 +47,7 @@ export default function EditProgram() {
             sets: (ex.sets || []).map(s => ({
               set_number: s.set_number,
               target_reps: s.target_reps,
-              target_weight: s.target_weight,
+              target_weight: lbsToDisplay(s.target_weight, settings.weight_unit),
             })),
           })),
         })
@@ -100,7 +100,14 @@ export default function EditProgram() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await programAPI.update(Number(id), formData)
+      const payload = {
+        ...formData,
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
+        })),
+      }
+      await programAPI.update(Number(id), payload)
       navigate('/programs')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update program')

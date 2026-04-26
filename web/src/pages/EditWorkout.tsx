@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge } from 'lucide-react'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -44,7 +44,7 @@ export default function EditWorkout() {
           exercises: (workout.exercises || []).map(ex => ({
             exercise_id: ex.exercise_id,
             notes: ex.notes || '',
-            sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.reps, weight: s.weight })),
+            sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.reps, weight: lbsToDisplay(s.weight, settings.weight_unit) })),
           })),
         })
       })
@@ -91,7 +91,16 @@ export default function EditWorkout() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setLoading(true)
     try {
-      await workoutAPI.update(Number(id), { ...formData, duration: formData.duration * 60, started_at: originalStartedAt || new Date().toISOString() })
+      const payload = {
+        ...formData,
+        duration: formData.duration * 60,
+        started_at: originalStartedAt || new Date().toISOString(),
+        exercises: formData.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+        })),
+      }
+      await workoutAPI.update(Number(id), payload)
       navigate('/workouts')
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to update workout')
