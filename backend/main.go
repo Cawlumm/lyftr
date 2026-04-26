@@ -15,6 +15,7 @@ func main() {
 	db.Connect()
 	seed.DemoUser(db.DB)
 	seed.Exercises(db.DB)
+	go seed.DemoData(db.DB)
 
 	if config.C.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)

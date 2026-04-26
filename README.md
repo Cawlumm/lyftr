@@ -25,7 +25,7 @@
 
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
 
-> 🌐 **Live demo coming soon** — try it without spinning up Docker.
+> 🌐 **[Live demo → lyftr-demo.fly.dev](https://lyftr-demo.fly.dev)** — log in with `demo@lyftr.local` / `password123`. Shared instance, resets every hour.
 
 ---
 
@@ -68,6 +68,21 @@ Lyftr is for people who want a modern, mobile-first workout tracker that they fu
 | PWA — installable on any device | Planned |
 | Strong / Hevy CSV import | Planned |
 | iOS app (Swift) | Planned |
+
+---
+
+## Live Demo
+
+**[lyftr-demo.fly.dev](https://lyftr-demo.fly.dev)**
+
+| Field | Value |
+|-------|-------|
+| Email | `demo@lyftr.local` |
+| Password | `password123` |
+
+Pre-loaded with 8 weeks of PPL workouts, 90 days of weight logs, and food logs so every page has data to explore. Shared instance — resets automatically every hour so any changes are wiped clean.
+
+Or **register your own account** on the demo — your data persists until the next hourly reset, and nobody else can see it.
 
 ---
 
