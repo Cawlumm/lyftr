@@ -43,7 +43,7 @@ Single SQLite file, minimal RAM, no external services required.
 
 ## Why Lyftr?
 
-**Hevy and Strong** are polished apps but cloud-only, increasingly paywalled, and your data lives on someone else's server. **Wger** is self-hosted but complex to deploy and primarily web-focused. **FitNotes** is local-only with no sync or server deployment story.
+**Hevy and Strong** are polished apps but cloud-only, increasingly paywalled, and your data lives on someone else's server. **Wger** is a solid self-hosted option with a lot of features — Lyftr's focus is a more modern, mobile-first UI and a simpler deployment story. **FitNotes** is local-only with no sync or server deployment story.
 
 Lyftr is for people who want a modern, mobile-first workout tracker that they fully own and can run on a $5 VPS or a Raspberry Pi in the corner. No subscription. No vendor lock-in. No "your export is a Pro feature."
 
