@@ -1,12 +1,4 @@
 <p align="center">
-  <img src="docs/logo.svg" alt="Lyftr" width="220" />
-</p>
-
-<p align="center">
-  <strong>Self-hosted fitness tracker. Your data, your server.</strong>
-</p>
-
-<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/status-early%20beta-orange" alt="Early Beta" />
   <a href="https://selfh.st/weekly/2026-04-24/"><img src="https://img.shields.io/badge/Featured%20in-selfh.st%20%C2%B7%20Apr%202026-6366f1" alt="Featured in selfh.st" /></a>
@@ -14,13 +6,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="160" alt="Gym Mode" />
-  <img src="docs/screenshots/dashboard-mobile.png" width="160" alt="Dashboard" />
-  <img src="docs/screenshots/exercise-detail-mobile.png" width="160" alt="Exercise Detail" />
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/dashboard-desktop.png" width="700" alt="Dashboard desktop" />
+  <img src="docs/banner.png" alt="Lyftr — Self-hosted workout tracking" width="100%" />
 </p>
 
 > **Early beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
