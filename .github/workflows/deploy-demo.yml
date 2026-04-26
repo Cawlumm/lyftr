@@ -1,0 +1,27 @@
+name: Deploy demo
+
+# Runs on every merge to main — keeps lyftr-demo.fly.dev in sync with main.
+#
+# Required secret: FLY_API_TOKEN
+#   fly tokens create deploy -a lyftr-demo
+#   Add to: GitHub repo → Settings → Secrets and variables → Actions
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to Fly.io
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      # --remote-only: skip local Docker build, use Fly's Depot builder instead.
+      # fly.toml in repo root points to fly/Dockerfile as the build target.
+      - name: Deploy
+        run: fly deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
