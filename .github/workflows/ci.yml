@@ -1,4 +1,4 @@
-name: Build & Push to Docker Hub
+name: CI
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 
 jobs:
   test:
+    name: Go unit tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +21,7 @@ jobs:
       - run: cd backend && go test ./controllers/ -timeout 30s
 
   e2e:
+    name: Playwright E2E
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +85,7 @@ jobs:
           retention-days: 7
 
   build-backend:
+    name: Build & push backend image
     needs: [test, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -111,6 +114,7 @@ jobs:
           cache-to: type=gha,scope=lyftr-backend,mode=max
 
   build-frontend:
+    name: Build & push frontend image
     needs: [test, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -137,3 +141,16 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=lyftr-frontend
           cache-to: type=gha,scope=lyftr-frontend,mode=max
+
+  deploy-demo:
+    name: Deploy to Fly.io
+    needs: [test, e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
