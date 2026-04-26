@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Validate config
-        run: fly config validate
+        run: flyctl config validate
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
@@ -35,6 +35,6 @@ jobs:
       # --remote-only: skip local Docker build, use Fly's Depot builder instead.
       # fly.toml in repo root points to fly/Dockerfile as the build target.
       - name: Deploy
-        run: fly deploy --remote-only
+        run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
