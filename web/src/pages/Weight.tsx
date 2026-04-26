@@ -4,8 +4,9 @@ import { format, subDays } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
+import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
-import { useInfiniteList } from '../hooks/useInfiniteList'
+import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { isPositiveNumber } from '../utils/numberUtils'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
@@ -207,10 +208,31 @@ export default function Weight() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [period, setPeriod] = useState<Period>('30d')
-  const [logs, setLogs] = useState<types.WeightLog[]>([])
   const [stats, setStats] = useState<types.WeightStats | null>(null)
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Paginated history list
+  const { items, sentinelRef, hasMore, loading: listLoading, initialLoading, reload } = useServerInfiniteList<types.WeightLog>({
+    fetcher: (offset, limit) => weightAPI.list({ offset, limit }),
+  })
+
+  // Chart data — re-fetched when period changes
+  const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
+  const [chartLoading, setChartLoading] = useState(true)
+
+  useEffect(() => {
+    setChartLoading(true)
+    const days = PERIOD_DAYS[period]
+    const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+    weightAPI.list({ limit: 1000, from })
+      .then(data => setChartLogs(data || []))
+      .catch(() => {})
+      .finally(() => setChartLoading(false))
+  }, [period])
+
+  useEffect(() => {
+    weightAPI.stats().then(setStats).catch(() => {})
+  }, [])
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
@@ -222,46 +244,24 @@ export default function Weight() {
   const duplicateWarningDismissedRef = useRef(false)
   const logFormRef = useRef<HTMLFormElement>(null)
 
-  const { visibleCount, sentinelRef, hasMore } = useInfiniteList({ total: logs.length })
-
   const prefillDoneRef = useRef(false)
-
-  const refresh = async () => {
-    const [logData, statsData] = await Promise.all([
-      weightAPI.list({ limit: 365 }),
-      weightAPI.stats(),
-    ])
-    setLogs(logData || [])
-    setStats(statsData)
-    if (!prefillDoneRef.current && logData && logData.length > 0) {
-      setNewWeight(String(Math.round(lbsToDisplay(logData[0].weight, settings.weight_unit))))
+  useEffect(() => {
+    if (!prefillDoneRef.current && items.length > 0) {
+      setNewWeight(String(Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))))
       prefillDoneRef.current = true
     }
-  }
-
-  useEffect(() => {
-    refresh()
-      .catch(err => setError(err?.message || 'Failed to load weight data'))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const days = PERIOD_DAYS[period]
-  const filtered = useMemo(() => {
-    if (days == null) return logs
-    const cutoff = subDays(new Date(), days).getTime()
-    return logs.filter(l => new Date(l.logged_at).getTime() >= cutoff)
-  }, [logs, days])
+  }, [items])
 
   // Oldest → newest for the chart
   const chartPoints: ChartPoint[] = useMemo(() => {
-    return filtered
+    return chartLogs
       .slice()
       .reverse()
       .map(l => {
         const d = new Date(l.logged_at)
         return { ts: d.getTime(), weight: lbsToDisplay(l.weight, settings.weight_unit), date: d }
       })
-  }, [filtered, settings.weight_unit])
+  }, [chartLogs, settings.weight_unit])
 
   const handleLog = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -272,7 +272,7 @@ export default function Weight() {
       return
     }
 
-    if (!duplicateWarningDismissedRef.current && logs.length > 0 && isoToDayInput(logs[0].logged_at) === newDate) {
+    if (!duplicateWarningDismissedRef.current && items.length > 0 && isoToDayInput(items[0].logged_at) === newDate) {
       setShowDuplicateWarning(true)
       return
     }
@@ -281,46 +281,32 @@ export default function Weight() {
     setError(null)
     setShowDuplicateWarning(false)
 
-    const tempId = -Date.now()
-    const loggedAtIso = dayToIsoNoon(newDate)
-    const trimmedNotes = newNotes.trim()
-    const weightLbs = displayToLbs(w, settings.weight_unit)
-    const optimistic: types.WeightLog = {
-      id: tempId,
-      weight: weightLbs,
-      notes: trimmedNotes,
-      logged_at: loggedAtIso,
-    }
-    setLogs(prev =>
-      [optimistic, ...prev].sort(
-        (a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
-      )
-    )
-
     try {
       const real = await weightAPI.log({
-        weight: weightLbs,
-        notes: trimmedNotes,
-        logged_at: loggedAtIso,
+        weight: displayToLbs(w, settings.weight_unit),
+        notes: newNotes.trim(),
+        logged_at: dayToIsoNoon(newDate),
       })
-      setLogs(prev => prev.map(l => (l.id === tempId ? real : l)))
       setNewWeight(String(Math.round(lbsToDisplay(real.weight, settings.weight_unit))))
       setNewNotes('')
       setNewDate(todayStr())
       setShowNotes(false)
       duplicateWarningDismissedRef.current = false
+      reload()
       weightAPI.stats().then(setStats).catch(() => {})
+      const days = PERIOD_DAYS[period]
+      const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+      weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
     } catch (err: any) {
-      setLogs(prev => prev.filter(l => l.id !== tempId))
       setError(err?.response?.data?.error || 'Failed to log weight')
     } finally {
       setLogging(false)
     }
   }
 
-  if (loading) return <Loading />
+  if (initialLoading) return <Loading />
 
-  if (error && logs.length === 0) {
+  if (error && items.length === 0) {
     return (
       <div className="alert-error">
         <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -329,10 +315,9 @@ export default function Weight() {
     )
   }
 
-  // Period stats are computed from the in-memory `filtered` window so the hero
-  // card matches the period selector. For the "All" period we prefer the
-  // server-computed stats — they don't truncate at the fetch limit (365 rows).
-  const periodValues = filtered.map(l => l.weight) // raw lbs from DB
+  // Period stats computed from chartLogs (period-scoped server fetch).
+  // For "All" period prefer server-computed stats since they're not capped at 1000.
+  const periodValues = chartLogs.map(l => l.weight) // raw lbs from DB, newest first
   const useServerAggregate = period === 'All' && stats != null
   const currentLbs = periodValues[0] ?? stats?.latest ?? 0
   const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? 0
@@ -390,8 +375,8 @@ export default function Weight() {
             <Scale className="w-4 h-4 text-brand-500" />
             <h2 className="section-title">Log Weight</h2>
           </div>
-          {logs.length > 0 && (
-            <span className="text-[11px] text-tx-muted">last: {Math.round(lbsToDisplay(logs[0].weight, settings.weight_unit))} {wUnit}</span>
+          {items.length > 0 && (
+            <span className="text-[11px] text-tx-muted">last: {Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))} {wUnit}</span>
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
@@ -442,11 +427,11 @@ export default function Weight() {
             </button>
           )}
 
-          {showDuplicateWarning && logs.length > 0 && (
+          {showDuplicateWarning && items.length > 0 && (
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(new Date(logs[0].logged_at), 'MMM d')} ({Math.round(lbsToDisplay(logs[0].weight, settings.weight_unit))} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {format(new Date(items[0].logged_at), 'MMM d')} ({Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
@@ -487,7 +472,7 @@ export default function Weight() {
 
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
-        {logs.length === 0 ? (
+        {items.length === 0 ? (
           <div className="text-center py-2">
             <p className="stat-label mb-1">Current Weight</p>
             <p className="text-tx-muted text-sm">The scale doesn't know you exist yet. Fix that.</p>
@@ -537,21 +522,7 @@ export default function Weight() {
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4 gap-2">
           <h2 className="section-title">Trend</h2>
-          <div className="flex gap-1 bg-surface-overlay rounded-lg p-1">
-            {PERIODS.map(p => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ${
-                  period === p
-                    ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-card'
-                    : 'text-tx-muted hover:text-tx-primary'
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-          </div>
+          <PeriodSelector options={PERIODS} value={period} onChange={setPeriod} />
         </div>
 
         {chartPoints.length === 0 ? (
@@ -568,12 +539,12 @@ export default function Weight() {
       </div>
 
       {/* History */}
-      {logs.length > 0 && (
+      {items.length > 0 && (
         <>
           <h2 className="section-title px-1">History</h2>
           <div className="space-y-2">
-            {logs.slice(0, visibleCount).map((entry, i) => {
-              const next = logs[i + 1]
+            {items.map((entry, i) => {
+              const next = items[i + 1]
               const deltaLbs = next ? entry.weight - next.weight : 0
               const displayW = lbsToDisplay(entry.weight, settings.weight_unit)
               const displayDelta = lbsToDisplay(Math.abs(deltaLbs), settings.weight_unit)
@@ -613,10 +584,9 @@ export default function Weight() {
               )
             })}
           </div>
-          {hasMore && (
-            <div ref={sentinelRef} className="flex justify-center py-4">
-              <span className="text-xs text-tx-muted">Loading more…</span>
-            </div>
+          <div ref={sentinelRef} />
+          {hasMore && listLoading && (
+            <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
           )}
         </>
       )}

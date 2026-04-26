@@ -18,6 +18,10 @@ func ListWeightLogs(c *gin.Context) {
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 1000 {
 		limit = l
 	}
+	offset := 0
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
 
 	q := `SELECT id, user_id, weight, notes, logged_at, created_at
 	      FROM weight_logs WHERE user_id = ?`
@@ -48,8 +52,8 @@ func ListWeightLogs(c *gin.Context) {
 			args = append(args, hi)
 		}
 	}
-	q += ` ORDER BY logged_at DESC LIMIT ?`
-	args = append(args, limit)
+	q += ` ORDER BY logged_at DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
 
 	rows, err := db.DB.Query(q, args...)
 	if err != nil {

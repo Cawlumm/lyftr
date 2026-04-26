@@ -1,15 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
+import PeriodSelector from '../components/PeriodSelector'
 import * as types from '../types'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
+
+const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
+type HistoryPeriod = typeof HISTORY_PERIODS[number]
+const HISTORY_DAYS: Record<HistoryPeriod, number | null> = { '1m': 30, '3m': 90, '6m': 180, 'All': null }
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
   const primarySlugs = muscleToBodySlugs(exercise.muscle_group)
@@ -37,6 +42,7 @@ export default function ExerciseDetail() {
   const [exercise, setExercise] = useState<types.Exercise | null>(null)
   const [pr, setPR] = useState<types.PersonalRecord | null>(null)
   const [history, setHistory] = useState<types.ExerciseHistoryPoint[]>([])
+  const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -53,7 +59,7 @@ export default function ExerciseDetail() {
     Promise.all([
       exercisePromise,
       exerciseAPI.getPRs(id).catch(() => null),
-      exerciseAPI.getHistory(id, 15).catch(() => []),
+      exerciseAPI.getHistory(id, 50).catch(() => []),
     ])
       .then(([ex, prData, histData]) => {
         setExercise(ex)
@@ -63,6 +69,13 @@ export default function ExerciseDetail() {
       .catch(() => navigate(-1))
       .finally(() => setLoading(false))
   }, [exerciseId])
+
+  const filteredHistory = useMemo(() => {
+    const days = HISTORY_DAYS[historyPeriod]
+    if (days == null) return history
+    const cutoff = subDays(new Date(), days).getTime()
+    return history.filter(h => new Date(h.date).getTime() >= cutoff)
+  }, [history, historyPeriod])
 
   const bodyColor = isDark ? '#162240' : '#e2e8f0'
   const highlightColors = ['#0e7490', '#22d3ee'] // [secondary=cyan-700, primary=cyan-400]
@@ -197,15 +210,21 @@ export default function ExerciseDetail() {
 
       {/* History chart */}
       {history.length >= 2 && (() => {
-        const chartData = [...history].reverse().map(h => ({
+        const chartData = [...filteredHistory].reverse().map(h => ({
           date: format(new Date(h.date), 'M/d'),
           weight: Math.round(lbsToDisplay(h.max_weight, wUnit)),
         }))
         return (
           <div className="card p-4">
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">
-              Weight Progression
-            </p>
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">
+                Weight Progression
+              </p>
+              <PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />
+            </div>
+            {chartData.length < 2 ? (
+              <div className="flex items-center justify-center h-[110px] text-tx-muted text-sm">No data for this period</div>
+            ) : (
             <ResponsiveContainer width="100%" height={110}>
               <LineChart data={chartData}>
                 <XAxis
@@ -234,6 +253,7 @@ export default function ExerciseDetail() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            )}
           </div>
         )
       })()}

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { BookOpen, Plus, Dumbbell, Edit2, Trash2, AlertCircle, Search, Play, ChevronRight, MoreVertical } from 'lucide-react'
+import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
+import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import * as types from '../types'
@@ -225,36 +226,20 @@ function ProgramCard({
 
 export default function Programs() {
   const navigate = useNavigate()
-  const [programs, setPrograms] = useState<types.Program[]>([])
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  const loadPrograms = async () => {
-    try {
-      const data = await programAPI.list()
-      setPrograms(data || [])
-    } catch (err: any) {
-      setError(err.message || 'Failed to load programs')
-    } finally {
-      setLoading(false)
-    }
-  }
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
-  useEffect(() => { loadPrograms() }, [])
+  const { items: programs, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Program>({
+    fetcher: (offset, limit) => programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
+    deps: [debouncedSearch],
+  })
 
-  const filtered = programs.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
-
-  if (loading) return <Loading />
-
-  if (error) {
-    return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
-    )
-  }
+  if (initialLoading) return <Loading />
 
   return (
     <div className="space-y-5 animate-slide-up">
@@ -296,7 +281,7 @@ export default function Programs() {
       </div>
 
       <div className="space-y-2">
-        {filtered.length === 0 ? (
+        {programs.length === 0 && !loading ? (
           <div className="empty-state">
             <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
               <BookOpen className="w-6 h-6 text-tx-muted" />
@@ -305,14 +290,20 @@ export default function Programs() {
             <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Create a program to get started'}</p>
           </div>
         ) : (
-          filtered.map(p => (
-            <ProgramCard
-              key={p.id}
-              program={p}
-              onEdit={(id) => navigate(`/programs/${id}/edit`)}
-              onDelete={(id) => setPrograms(prev => prev.filter(x => x.id !== id))}
-            />
-          ))
+          <>
+            {programs.map(p => (
+              <ProgramCard
+                key={p.id}
+                program={p}
+                onEdit={(id) => navigate(`/programs/${id}/edit`)}
+                onDelete={() => reload()}
+              />
+            ))}
+            <div ref={sentinelRef} />
+            {hasMore && loading && (
+              <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
+            )}
+          </>
         )}
       </div>
 

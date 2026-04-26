@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
+import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
 import * as types from '../types'
@@ -200,34 +201,22 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 
 export default function Workouts() {
   const navigate = useNavigate()
-  const [workouts, setWorkouts] = useState<types.Workout[]>([])
-
   const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
 
-  const loadWorkouts = async () => {
-    try {
-      const data = await workoutAPI.list({ limit: 50 })
-      setWorkouts(data || [])
-    } catch (err: any) {
-      setError(err.message || 'Failed to load workouts')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Debounce search so we don't fire a request on every keystroke
   useEffect(() => {
-    loadWorkouts()
-  }, [])
+    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const filtered = workouts.filter(w =>
-    w.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const { items: workouts, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Workout>({
+    fetcher: (offset, limit) => workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
+    deps: [debouncedSearch],
+  })
 
-  if (loading) {
-    return <Loading />
-  }
+  if (initialLoading) return <Loading />
 
   if (error) {
     return (
@@ -283,7 +272,7 @@ export default function Workouts() {
 
       {/* Workout list */}
       <div className="space-y-2">
-        {filtered.length === 0 ? (
+        {workouts.length === 0 && !loading ? (
           <div className="empty-state">
             <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
               <Dumbbell className="w-6 h-6 text-tx-muted" />
@@ -292,10 +281,16 @@ export default function Workouts() {
             <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Log a workout to get started'}</p>
           </div>
         ) : (
-          filtered.map(w => <WorkoutCard key={w.id} workout={w}
-            onEdit={(id) => navigate(`/workouts/${id}/edit`)}
-            onDelete={(id) => setWorkouts(prev => prev.filter(x => x.id !== id))}
-          />)
+          <>
+            {workouts.map(w => <WorkoutCard key={w.id} workout={w}
+              onEdit={(id) => navigate(`/workouts/${id}/edit`)}
+              onDelete={() => reload()}
+            />)}
+            <div ref={sentinelRef} />
+            {hasMore && loading && (
+              <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
+            )}
+          </>
         )}
       </div>
 
