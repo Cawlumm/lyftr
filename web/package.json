@@ -18,6 +18,7 @@
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.6.2",
     "date-fns": "^3.0.0",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.8.0",
     "react": "^18.2.0",
     "react-body-highlighter": "^2.0.5",

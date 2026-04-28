@@ -33,7 +33,7 @@ const calcVolume = (w: types.Workout) =>
 
 const DEFAULT_FOOD: types.DailyStats = {
   date: format(TODAY, 'yyyy-MM-dd'),
-  total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, workout_count: 0,
+  total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
 const DEFAULT_SETTINGS: types.UserSettings = {
   user_id: 0, weight_unit: 'lbs', calorie_target: 2000,

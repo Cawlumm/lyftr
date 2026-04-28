@@ -59,11 +59,19 @@ func Setup(r *gin.Engine) {
 		protected.PATCH("weight/:id", controllers.UpdateWeightLog)
 		protected.DELETE("weight/:id", controllers.DeleteWeightLog)
 
-		// Food
+		// Food — named sub-paths must be registered before food/:id
 		protected.GET("food", controllers.ListFoodLogs)
 		protected.POST("food", controllers.LogFood)
-		protected.DELETE("food/:id", controllers.DeleteFoodLog)
 		protected.GET("food/stats", controllers.GetDailyStats)
+		protected.GET("food/history", controllers.GetFoodHistory)
+		protected.GET("food/search", controllers.SearchFood)
+		protected.GET("food/barcode/:code", controllers.LookupBarcode)
+		protected.GET("food/saved", controllers.ListSavedFoods)
+		protected.POST("food/saved", controllers.CreateSavedFood)
+		protected.DELETE("food/saved/:id", controllers.DeleteSavedFood)
+		protected.GET("food/:id", controllers.GetFoodLog)
+		protected.PATCH("food/:id", controllers.UpdateFoodLog)
+		protected.DELETE("food/:id", controllers.DeleteFoodLog)
 
 		// Exercises (read-only for users)
 		protected.GET("exercises", controllers.ListExercises)
