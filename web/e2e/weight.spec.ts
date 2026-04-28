@@ -127,7 +127,7 @@ test.describe('Weight', () => {
     await expect(page.getByText('Weight Entry')).toBeVisible()
 
     await page.getByRole('button', { name: /delete/i }).click()
-    await expect(page.getByText(/cannot be undone/i)).toBeVisible({ timeout: 3000 })
+    await expect(page.getByText(/permanently deleted/i)).toBeVisible({ timeout: 3000 })
     await page.getByRole('button', { name: /^delete$/i }).click()
     await page.waitForURL('/weight', { timeout: 5000 })
     await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()

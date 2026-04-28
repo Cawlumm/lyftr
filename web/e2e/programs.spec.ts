@@ -93,11 +93,11 @@ test.describe('Programs', () => {
   })
 
   test('search filters program list', async ({ page }) => {
-    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME)).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible({ timeout: 5000 })
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.fill('SearchTarget')
     await page.waitForTimeout(500)
-    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
     await expect(page.getByText(SEED_PROGRAM_NAME)).not.toBeVisible()
   })
 
@@ -105,11 +105,11 @@ test.describe('Programs', () => {
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.fill('SearchTarget')
     await page.waitForTimeout(500)
-    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
     await searchInput.fill('')
     await page.waitForTimeout(500)
     await expect(page.getByText(SEED_PROGRAM_NAME)).toBeVisible()
-    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
   })
 
   test('search input stays focused while typing', async ({ page }) => {
