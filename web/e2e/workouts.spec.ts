@@ -2,10 +2,12 @@ import { test, expect } from '@playwright/test'
 import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
 const E2E_WORKOUT_NAME = 'Test Workout E2E'
 const SEED_WORKOUT_NAME = 'Seeded Test Workout'
+const SEED_SEARCH_WORKOUT_NAME = 'ZZZ E2E SearchTarget Workout'
 const LAYOUT_KEY = 'lyftr_workout_layout'
 const SESSION_KEY = 'lyftr_active_session'
 
 let workoutId: number
+let searchWorkoutId: number
 let authToken: string
 
 test.describe('Workouts', () => {
@@ -27,14 +29,29 @@ test.describe('Workouts', () => {
     })
     const wb = await w.json()
     workoutId = wb.data.id
+
+    const sw = await request.post(`${API}/workouts`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      data: {
+        name: SEED_SEARCH_WORKOUT_NAME,
+        duration: 1800,
+        started_at: new Date().toISOString(),
+        exercises: []
+      }
+    })
+    const swb = await sw.json()
+    searchWorkoutId = swb.data.id
   })
 
   test.afterAll(async ({ request }) => {
     const headers = { Authorization: `Bearer ${authToken}` }
 
-    // Delete seeded workout
+    // Delete seeded workouts
     if (workoutId) {
       await request.delete(`${API}/workouts/${workoutId}`, { headers })
+    }
+    if (searchWorkoutId) {
+      await request.delete(`${API}/workouts/${searchWorkoutId}`, { headers })
     }
 
     // Delete any UI-created E2E workouts
@@ -109,6 +126,35 @@ test.describe('Workouts', () => {
     await page.goto(`/workouts/${workoutId}`)
     await expect(page.getByRole('heading')).toBeVisible()
     await expect(page.locator('.card').first()).toBeVisible()
+  })
+
+  test('search filters workout list', async ({ page }) => {
+    await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible({ timeout: 5000 })
+    const searchInput = page.getByPlaceholder(/search workouts/i)
+    await searchInput.fill('SearchTarget')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
+    await expect(page.getByText(SEED_WORKOUT_NAME)).not.toBeVisible()
+  })
+
+  test('clearing search restores full list', async ({ page }) => {
+    const searchInput = page.getByPlaceholder(/search workouts/i)
+    await searchInput.fill('SearchTarget')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
+    await searchInput.fill('')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_WORKOUT_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
+  })
+
+  test('search input stays focused while typing', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: /workouts/i })).toBeVisible()
+    const searchInput = page.getByPlaceholder(/search workouts/i)
+    await searchInput.click()
+    await searchInput.type('S')
+    await page.waitForTimeout(500)
+    await expect(searchInput).toBeFocused()
   })
 
   test('weight unit displays consistently', async ({ page }) => {

@@ -9,6 +9,7 @@ import {
   LineChart, Line, PieChart, Pie, Legend,
 } from 'recharts'
 import Loading from '../components/Loading'
+import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -136,6 +137,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
@@ -173,8 +175,8 @@ export default function Dashboard() {
   const weekWorkouts = workouts.filter(w => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
 
-  // Volume chart: last 7 workouts oldest→newest
-  const chartData = workouts.slice(0, 7).reverse().map(w => ({
+  // Volume chart: slice by selected period, oldest→newest
+  const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
     date: format(new Date(w.started_at), 'M/d'),
     volume: Math.round(lbsToDisplay(calcVolume(w), settings.weight_unit)),
     name: w.name,
@@ -327,14 +329,16 @@ export default function Dashboard() {
 
       {/* ── Volume trend chart ─────────────────────── */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-brand-500" />
             <h2 className="section-title">Volume Trend</h2>
           </div>
-          <span className="text-xs text-tx-muted">
-            {chartData.length > 0 ? `last ${chartData.length} workouts` : ''}
-          </span>
+          <PeriodSelector
+            options={['7', '14', '30'] as const}
+            value={volumePeriod}
+            onChange={setVolumePeriod}
+          />
         </div>
 
         {chartData.length === 0 ? (

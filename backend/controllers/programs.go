@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"strconv"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -14,10 +15,29 @@ import (
 func ListPrograms(c *gin.Context) {
 	uid := middleware.UserID(c)
 
-	rows, err := db.DB.Query(
-		`SELECT id, user_id, name, notes, created_at FROM programs WHERE user_id = ? ORDER BY created_at DESC`,
-		uid,
-	)
+	limit := 20
+	offset := 0
+	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 100 {
+		limit = l
+	}
+	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
+		offset = o
+	}
+	q := c.Query("q")
+
+	var rows *sql.Rows
+	var err error
+	if q != "" {
+		rows, err = db.DB.Query(
+			`SELECT id, user_id, name, notes, created_at FROM programs WHERE user_id = ? AND LOWER(name) LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+			uid, "%"+strings.ToLower(q)+"%", limit, offset,
+		)
+	} else {
+		rows, err = db.DB.Query(
+			`SELECT id, user_id, name, notes, created_at FROM programs WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+			uid, limit, offset,
+		)
+	}
 	if err != nil {
 		utils.InternalError(c)
 		return

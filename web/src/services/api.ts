@@ -61,7 +61,7 @@ export const userAPI = {
 }
 
 export const workoutAPI = {
-  list:   (params?: { limit?: number; offset?: number }) =>
+  list:   (params?: { limit?: number; offset?: number; q?: string }) =>
     api.get<{ data: types.Workout[] }>('/workouts', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.Workout }>(`/workouts/${id}`).then(res => unwrap(res)),
   create: (data: any) => api.post<{ data: types.Workout }>('/workouts', data).then(res => unwrap(res)),
@@ -97,7 +97,7 @@ export const exerciseAPI = {
 
 
 export const programAPI = {
-  list:   () => api.get<{ data: types.Program[] }>('/programs').then(res => unwrap(res)),
+  list:   (params?: { limit?: number; offset?: number; q?: string }) => api.get<{ data: types.Program[] }>('/programs', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.Program }>(`/programs/${id}`).then(res => unwrap(res)),
   create: (data: any) => api.post<{ data: types.Program }>('/programs', data).then(res => unwrap(res)),
   update: (id: number, data: any) => api.put<{ data: types.Program }>(`/programs/${id}`, data).then(res => unwrap(res)),
@@ -105,7 +105,7 @@ export const programAPI = {
 }
 
 export const weightAPI = {
-  list:   (params?: { limit?: number; from?: string; to?: string }) =>
+  list:   (params?: { limit?: number; offset?: number; from?: string; to?: string }) =>
     api.get<{ data: types.WeightLog[] }>('/weight', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.WeightLog }>(`/weight/${id}`).then(res => unwrap(res)),
   log:    (data: { weight: number; notes?: string; logged_at?: string }) =>

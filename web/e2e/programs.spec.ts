@@ -2,8 +2,10 @@ import { test, expect } from '@playwright/test'
 import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
 const E2E_PROGRAM_NAME = 'Test Program E2E'
 const SEED_PROGRAM_NAME = 'Seeded Test Program'
+const SEED_SEARCH_PROGRAM_NAME = 'ZZZ E2E SearchTarget Program'
 
 let programId: number
+let searchProgramId: number
 let authToken: string
 
 test.describe('Programs', () => {
@@ -24,14 +26,28 @@ test.describe('Programs', () => {
     })
     const pb = await p.json()
     programId = pb.data.id
+
+    const sp = await request.post(`${API}/programs`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      data: {
+        name: SEED_SEARCH_PROGRAM_NAME,
+        notes: 'Created by E2E seed for search',
+        exercises: []
+      }
+    })
+    const spb = await sp.json()
+    searchProgramId = spb.data.id
   })
 
   test.afterAll(async ({ request }) => {
     const headers = { Authorization: `Bearer ${authToken}` }
 
-    // Delete seeded program
+    // Delete seeded programs
     if (programId) {
       await request.delete(`${API}/programs/${programId}`, { headers })
+    }
+    if (searchProgramId) {
+      await request.delete(`${API}/programs/${searchProgramId}`, { headers })
     }
 
     // Delete any UI-created E2E programs
@@ -74,6 +90,35 @@ test.describe('Programs', () => {
     await page.getByRole('button', { name: /save program/i }).click()
     await page.waitForURL('/programs')
     await expect(page.getByText(E2E_PROGRAM_NAME).first()).toBeVisible()
+  })
+
+  test('search filters program list', async ({ page }) => {
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible({ timeout: 5000 })
+    const searchInput = page.getByPlaceholder(/search programs/i)
+    await searchInput.fill('SearchTarget')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
+    await expect(page.getByText(SEED_PROGRAM_NAME)).not.toBeVisible()
+  })
+
+  test('clearing search restores full list', async ({ page }) => {
+    const searchInput = page.getByPlaceholder(/search programs/i)
+    await searchInput.fill('SearchTarget')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
+    await searchInput.fill('')
+    await page.waitForTimeout(500)
+    await expect(page.getByText(SEED_PROGRAM_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
+  })
+
+  test('search input stays focused while typing', async ({ page }) => {
+    await expect(page.getByRole('heading', { name: /programs/i })).toBeVisible()
+    const searchInput = page.getByPlaceholder(/search programs/i)
+    await searchInput.click()
+    await searchInput.type('S')
+    await page.waitForTimeout(500)
+    await expect(searchInput).toBeFocused()
   })
 
   test('program detail page loads with exercises', async ({ page }) => {

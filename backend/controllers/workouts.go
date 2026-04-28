@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -22,12 +23,23 @@ func ListWorkouts(c *gin.Context) {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		offset = o
 	}
+	q := c.Query("q")
 
-	rows, err := db.DB.Query(
-		`SELECT id, user_id, name, notes, duration, started_at, created_at
-		 FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`,
-		uid, limit, offset,
-	)
+	var rows *sql.Rows
+	var err error
+	if q != "" {
+		rows, err = db.DB.Query(
+			`SELECT id, user_id, name, notes, duration, started_at, created_at
+			 FROM workouts WHERE user_id = ? AND LOWER(name) LIKE ? ORDER BY started_at DESC LIMIT ? OFFSET ?`,
+			uid, "%"+strings.ToLower(q)+"%", limit, offset,
+		)
+	} else {
+		rows, err = db.DB.Query(
+			`SELECT id, user_id, name, notes, duration, started_at, created_at
+			 FROM workouts WHERE user_id = ? ORDER BY started_at DESC LIMIT ? OFFSET ?`,
+			uid, limit, offset,
+		)
+	}
 	if err != nil {
 		utils.InternalError(c)
 		return
