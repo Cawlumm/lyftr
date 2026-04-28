@@ -50,7 +50,7 @@ test.describe('Weight', () => {
   })
 
   test('page loads with log form and history', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /weight/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /log weight/i })).toBeVisible()
     await expect(page.getByText(/history/i)).toBeVisible({ timeout: 5000 })
   })
@@ -63,12 +63,12 @@ test.describe('Weight', () => {
   })
 
   test('period selector switches chart range without crash', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /weight/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
     for (const period of ['7d', '90d', 'All', '30d']) {
       await page.getByRole('button', { name: period, exact: true }).click()
       await page.waitForTimeout(300)
       // Page should still be showing the weight heading — no crash/remount
-      await expect(page.getByRole('heading', { name: /weight/i })).toBeVisible()
+      await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
     }
   })
 
@@ -106,7 +106,7 @@ test.describe('Weight', () => {
     await expect(firstEntry).toBeVisible({ timeout: 5000 })
     await firstEntry.click()
     await expect(page).toHaveURL(/\/weight\/\d+/)
-    await expect(page.getByRole('heading')).toBeVisible()
+    await expect(page.getByText('Weight Entry')).toBeVisible()
   })
 
   test('weight detail delete removes entry and returns to list', async ({ page }) => {
@@ -124,12 +124,12 @@ test.describe('Weight', () => {
     const deleteId = data.id
 
     await page.goto(`/weight/${deleteId}`)
-    await expect(page.getByRole('heading')).toBeVisible()
+    await expect(page.getByText('Weight Entry')).toBeVisible()
 
     await page.getByRole('button', { name: /delete/i }).click()
     await expect(page.getByText(/cannot be undone/i)).toBeVisible({ timeout: 3000 })
     await page.getByRole('button', { name: /^delete$/i }).click()
     await page.waitForURL('/weight', { timeout: 5000 })
-    await expect(page.getByRole('heading', { name: /weight/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
   })
 })
