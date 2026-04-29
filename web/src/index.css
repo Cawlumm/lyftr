@@ -69,7 +69,8 @@
   .btn-primary   { @apply bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm; }
   .btn-secondary { @apply bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary hover:border-tx-muted; }
   .btn-ghost     { @apply text-tx-muted hover:text-tx-primary hover:bg-surface-muted; }
-  .btn-danger    { @apply bg-error-500/10 border border-error-500/20 text-error-400 hover:bg-error-500/20; }
+  .btn-danger        { @apply bg-error-500/10 border border-error-500/20 text-error-400 hover:bg-error-500/20; }
+  .btn-danger-solid  { @apply bg-error-500 text-white hover:bg-error-600 active:bg-error-700 shadow-sm; }
   .btn-icon      { @apply btn p-2.5 rounded-lg; }
   .btn-icon-sm   { @apply btn p-2   rounded-md; }
 

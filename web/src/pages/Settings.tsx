@@ -5,6 +5,7 @@ import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
 import * as types from '../types'
 import { HelpTip } from '../components/Tooltip'
+import PageHeader from '../components/ui/PageHeader'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
   Dumbbell, RefreshCw,
@@ -143,11 +144,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-5 animate-slide-up max-w-2xl">
-      {/* Header */}
-      <div>
-        <h1 className="font-display font-bold text-2xl text-tx-primary">Settings</h1>
-        <p className="text-tx-muted text-sm mt-0.5">Preferences and account configuration</p>
-      </div>
+      <PageHeader title="Settings" subtitle="Preferences and account configuration" />
 
       {error && (
         <div className="alert-error">

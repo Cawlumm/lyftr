@@ -4,6 +4,8 @@ import { format } from 'date-fns'
 import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
+import EmptyState from '../components/ui/EmptyState'
+import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
@@ -61,12 +63,10 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setConfirming(false)}
-              className="px-3 py-1.5 text-xs bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium">
+            <button onClick={() => setConfirming(false)} className="btn-secondary btn-sm">
               Cancel
             </button>
-            <button onClick={handleDelete} disabled={deleting}
-              className="px-3 py-1.5 text-xs bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex items-center gap-1">
+            <button onClick={handleDelete} disabled={deleting} className="btn-danger-solid btn-sm disabled:opacity-50">
               <Trash2 className="w-3 h-3" />
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
@@ -229,16 +229,15 @@ export default function Workouts() {
 
   return (
     <div className="space-y-5 animate-slide-up">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-tx-primary">Workouts</h1>
-          <p className="text-tx-muted text-sm mt-0.5">Track and review your training sessions</p>
-        </div>
-        <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-md">
-          <Plus className="w-4 h-4" /> Log Workout
-        </button>
-      </div>
+      <PageHeader
+        title="Workouts"
+        subtitle="Track and review your training sessions"
+        action={
+          <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
+            <Plus className="w-4 h-4" /> Log Workout
+          </button>
+        }
+      />
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
@@ -273,13 +272,11 @@ export default function Workouts() {
       {/* Workout list */}
       <div className="space-y-2">
         {workouts.length === 0 && !loading ? (
-          <div className="empty-state">
-            <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
-              <Dumbbell className="w-6 h-6 text-tx-muted" />
-            </div>
-            <p className="text-sm font-medium text-tx-primary mb-1">No workouts found</p>
-            <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Log a workout to get started'}</p>
-          </div>
+          <EmptyState
+            icon={Dumbbell}
+            title="No workouts found"
+            subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+          />
         ) : (
           <>
             {workouts.map(w => <WorkoutCard key={w.id} workout={w}

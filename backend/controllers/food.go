@@ -23,17 +23,17 @@ var offClient = &http.Client{Timeout: 5 * time.Second}
 
 const offUserAgent = "Lyftr/1.0 (https://lyftr.app; nutrition-tracker)"
 
-// scanFoodLog scans all food_log columns including fiber.
+// scanFoodLog scans all food_log columns including fiber and image_url.
 func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
 	return row.Scan(
 		&f.ID, &f.UserID, &f.Name, &f.Meal,
 		&f.Calories, &f.Protein, &f.Carbs, &f.Fat, &f.Fiber,
-		&f.Servings, &f.ServingSize, &f.Barcode,
+		&f.Servings, &f.ServingSize, &f.Barcode, &f.ImageURL,
 		&f.LoggedAt, &f.CreatedAt,
 	)
 }
 
-const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, logged_at, created_at FROM food_logs`
+const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, created_at FROM food_logs`
 
 func ListFoodLogs(c *gin.Context) {
 	uid := middleware.UserID(c)
@@ -44,7 +44,7 @@ func ListFoodLogs(c *gin.Context) {
 	}
 
 	rows, err := db.DB.Query(
-		foodLogSelect+` WHERE user_id = ? AND date(logged_at) = ? ORDER BY logged_at ASC`,
+		foodLogSelect+` WHERE user_id = ? AND substr(logged_at, 1, 10) = ? ORDER BY logged_at ASC`,
 		uid, date,
 	)
 	if err != nil {
@@ -102,10 +102,10 @@ func LogFood(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(
-		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, logged_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.LoggedAt,
+		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
 	)
 	if err != nil {
 		log.Printf("[food/log] db error: %v", err)
@@ -143,10 +143,10 @@ func UpdateFoodLog(c *gin.Context) {
 
 	res, err := db.DB.Exec(
 		`UPDATE food_logs SET name=?, meal=?, calories=?, protein=?, carbs=?, fat=?, fiber=?,
-		 servings=?, serving_size=?, barcode=?, logged_at=?
+		 servings=?, serving_size=?, barcode=?, image_url=?, logged_at=?
 		 WHERE id=? AND user_id=?`,
 		req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.LoggedAt,
+		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
 		lid, uid,
 	)
 	if err != nil {
@@ -201,12 +201,12 @@ func GetDailyStats(c *gin.Context) {
 	db.DB.QueryRow(
 		`SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
-		 FROM food_logs WHERE user_id = ? AND date(logged_at) = ?`,
+		 FROM food_logs WHERE user_id = ? AND substr(logged_at, 1, 10) = ?`,
 		uid, date,
 	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber)
 
 	db.DB.QueryRow(
-		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND date(started_at) = ?`,
+		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND substr(started_at, 1, 10) = ?`,
 		uid, date,
 	).Scan(&stats.WorkoutCount)
 
@@ -222,7 +222,7 @@ func GetFoodHistory(c *gin.Context) {
 	}
 
 	rows, err := db.DB.Query(
-		`SELECT date(logged_at) as d,
+		`SELECT substr(logged_at, 1, 10) as d,
 		        COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0)
 		 FROM food_logs
@@ -408,7 +408,7 @@ func SearchFood(c *gin.Context) {
 
 // offBarcodeResponse is a partial decode of the OFF v3 product endpoint.
 type offBarcodeResponse struct {
-	Status  int        `json:"status"`
+	Status  string     `json:"status"` // v3 API returns "success" | "failure"
 	Product offProduct `json:"product"`
 }
 
@@ -460,7 +460,7 @@ func LookupBarcode(c *gin.Context) {
 		return
 	}
 
-	if parsed.Status != 1 || parsed.Product.ProductName == "" {
+	if !strings.HasPrefix(parsed.Status, "success") || parsed.Product.ProductName == "" {
 		utils.NotFound(c, "product not found")
 		return
 	}

@@ -86,6 +86,7 @@ type FoodLog struct {
 	Servings    float64   `json:"servings" db:"servings"`
 	ServingSize string    `json:"serving_size" db:"serving_size"`
 	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
+	ImageURL    string    `json:"image_url,omitempty" db:"image_url"`
 	LoggedAt    time.Time `json:"logged_at" db:"logged_at"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
@@ -190,6 +191,7 @@ type LogFoodRequest struct {
 	Servings    float64   `json:"servings" validate:"gt=0"`
 	ServingSize string    `json:"serving_size"`
 	Barcode     string    `json:"barcode"`
+	ImageURL    string    `json:"image_url"`
 	LoggedAt    time.Time `json:"logged_at"`
 }
 

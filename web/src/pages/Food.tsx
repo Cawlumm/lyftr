@@ -1,12 +1,19 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { format, subDays, addDays } from 'date-fns'
-import { ChevronLeft, ChevronRight, Flame, Plus, Pencil, Trash2, AlertCircle } from 'lucide-react'
+import {
+  ChevronLeft, ChevronRight, Flame, Plus, Trash2,
+  AlertCircle, Coffee, Sun, Moon, Cookie, CalendarDays, Utensils,
+} from 'lucide-react'
+import IconButton from '../components/ui/IconButton'
+import SectionHeader from '../components/ui/SectionHeader'
+import SegmentedControl from '../components/ui/SegmentedControl'
+import PageHeader from '../components/ui/PageHeader'
 import {
   BarChart, Bar, XAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
-import FoodLogModal from '../components/FoodLogModal'
 import { foodAPI, userAPI } from '../services/api'
 import { todayStr } from '../utils/dateUtils'
 import * as types from '../types'
@@ -14,6 +21,13 @@ import * as types from '../types'
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
   breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snacks: 'Snacks',
+}
+const MEAL_ICONS: Record<string, React.ElementType> = {
+  breakfast: Coffee, lunch: Sun, dinner: Moon, snacks: Cookie,
+}
+const MEAL_COLORS: Record<string, string> = {
+  breakfast: 'text-amber-400', lunch: 'text-yellow-400',
+  dinner: 'text-indigo-400', snacks: 'text-pink-400',
 }
 const HISTORY_PERIODS = ['7d', '30d', '90d'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
@@ -23,22 +37,29 @@ type HistoryPeriod = typeof HISTORY_PERIODS[number]
 function MacroRing({
   value, target, color, label,
 }: { value: number; target: number; color: string; label: string }) {
-  const r = 26
+  const r = 30
   const circ = 2 * Math.PI * r
   const pct = Math.min(1, value / Math.max(target, 1))
   return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width="64" height="64" className="-rotate-90">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="currentColor" strokeWidth="4"
-          className="text-surface-muted" />
-        <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="4"
-          strokeDasharray={circ}
-          strokeDashoffset={circ * (1 - pct)}
-          strokeLinecap="round"
-          style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
-      </svg>
-      <span className="stat-value text-sm tabular-nums">{Math.round(value)}g</span>
-      <span className="text-[10px] text-tx-muted">{label}</span>
+    <div className="flex flex-col items-center gap-1.5">
+      <div className="relative">
+        <svg width="72" height="72" className="-rotate-90">
+          <circle cx="36" cy="36" r={r} fill="none" stroke="currentColor" strokeWidth="5"
+            className="text-surface-muted" />
+          <circle cx="36" cy="36" r={r} fill="none" stroke={color} strokeWidth="5"
+            strokeDasharray={circ}
+            strokeDashoffset={circ * (1 - pct)}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round(pct * 100)}%</span>
+        </div>
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-semibold tabular-nums text-tx-primary">{Math.round(value)}g</p>
+        <p className="text-[10px] text-tx-muted">{label} / {target}g</p>
+      </div>
     </div>
   )
 }
@@ -46,6 +67,8 @@ function MacroRing({
 // ─── Food page ────────────────────────────────────────────────────────────────
 
 export default function Food() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [logs, setLogs] = useState<types.FoodLog[]>([])
   const [stats, setStats] = useState<types.DailyStats | null>(null)
@@ -53,18 +76,11 @@ export default function Food() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Tab state
   const [tab, setTab] = useState<'today' | 'history'>('today')
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<types.FoodHistoryPoint[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
 
-  // Modal state
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalMeal, setModalMeal] = useState<types.FoodLog['meal']>('breakfast')
-  const [editEntry, setEditEntry] = useState<types.FoodLog | undefined>(undefined)
-
-  // Delete confirm state: id being deleted
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
 
@@ -73,9 +89,8 @@ export default function Food() {
     setError(null)
     try {
       const defaultStats: types.DailyStats = {
-        date,
-        total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0,
-        total_fiber: 0, workout_count: 0,
+        date, total_calories: 0, total_protein: 0, total_carbs: 0,
+        total_fat: 0, total_fiber: 0, workout_count: 0,
       }
       const [logData, statsData, settingsData] = await Promise.all([
         foodAPI.list(date),
@@ -97,7 +112,7 @@ export default function Food() {
     }
   }, [settings])
 
-  useEffect(() => { loadDay(selectedDate) }, [selectedDate])
+  useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key])
 
   useEffect(() => {
     if (tab !== 'history') return
@@ -110,23 +125,7 @@ export default function Food() {
   }, [tab, historyPeriod])
 
   const openLog = (meal: types.FoodLog['meal']) => {
-    setEditEntry(undefined)
-    setModalMeal(meal)
-    setModalOpen(true)
-  }
-
-  const openEdit = (entry: types.FoodLog) => {
-    setEditEntry(entry)
-    setModalOpen(true)
-  }
-
-  const handleLogged = (entry: types.FoodLog) => {
-    if (editEntry) {
-      setLogs(prev => prev.map(l => l.id === entry.id ? entry : l))
-    } else {
-      setLogs(prev => [...prev, entry])
-    }
-    foodAPI.stats(selectedDate).then(setStats).catch(() => {})
+    navigate(`/food/log?meal=${meal}&date=${selectedDate}`)
   }
 
   const handleDelete = async (id: number) => {
@@ -150,28 +149,31 @@ export default function Food() {
   const calTarget = settings?.calorie_target ?? 2000
   const remaining = calTarget - totalCals
   const isOver = remaining < 0
+  const calPct = Math.min(100, (totalCals / calTarget) * 100)
 
   const isToday = selectedDate === todayStr()
-
-  const prevDate = format(subDays(new Date(selectedDate + 'T12:00:00'), 1), 'yyyy-MM-dd')
-  const nextDate = format(addDays(new Date(selectedDate + 'T12:00:00'), 1), 'yyyy-MM-dd')
+  const selectedDateObj = new Date(selectedDate + 'T12:00:00')
+  const prevDate = format(subDays(selectedDateObj, 1), 'yyyy-MM-dd')
+  const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()
 
+  const dayLabel = isToday
+    ? 'Today'
+    : selectedDate === format(subDays(new Date(), 1), 'yyyy-MM-dd')
+      ? 'Yesterday'
+      : format(selectedDateObj, 'EEE, MMM d')
+
   return (
-    <div className="space-y-5 animate-slide-up">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-tx-primary">Nutrition</h1>
-          <p className="text-tx-muted text-sm mt-0.5">Track macros and meals</p>
-        </div>
-        <button
-          onClick={() => openLog('breakfast')}
-          className="btn-primary btn-sm"
-        >
-          <Plus className="w-3.5 h-3.5" /> Log
-        </button>
-      </div>
+    <div className="space-y-4 animate-slide-up">
+      <PageHeader
+        title="Nutrition"
+        subtitle="Macros & meals"
+        action={
+          <button onClick={() => openLog('breakfast')} className="btn-primary btn-sm">
+            <Plus className="w-4 h-4" /> Log Food
+          </button>
+        }
+      />
 
       {error && (
         <div className="alert-error">
@@ -181,43 +183,47 @@ export default function Food() {
       )}
 
       {/* Date navigator */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setSelectedDate(prevDate)}
-          className="p-2 rounded-lg hover:bg-surface-muted transition-colors text-tx-muted"
+          className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
-        <span className="text-sm font-medium text-tx-primary">
-          {isToday ? 'Today' : format(new Date(selectedDate + 'T12:00:00'), 'MMM d, yyyy')}
-        </span>
+        <div className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-surface-muted">
+          <CalendarDays className="w-4 h-4 text-tx-muted" />
+          <span className="text-sm font-semibold text-tx-primary">{dayLabel}</span>
+          {!isToday && (
+            <span className="text-xs text-tx-muted">{format(selectedDateObj, 'yyyy')}</span>
+          )}
+        </div>
         <button
           onClick={() => setSelectedDate(nextDate)}
           disabled={!canGoNext}
-          className="p-2 rounded-lg hover:bg-surface-muted transition-colors text-tx-muted disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-5 h-5" />
         </button>
       </div>
 
       {/* Macro summary card */}
       {settings && (
-        <div className="card p-5">
+        <div className="card p-5 space-y-5">
           {/* Calorie hero */}
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="stat-label mb-0.5">Calories</p>
-              <div className="flex items-end gap-1.5">
-                <span className="stat-value text-4xl tabular-nums">{Math.round(totalCals)}</span>
-                <span className="text-tx-muted text-sm mb-1">/ {calTarget} kcal</span>
+              <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-4xl font-bold tabular-nums text-tx-primary">{Math.round(totalCals)}</span>
+                <span className="text-sm text-tx-muted">/ {calTarget}</span>
               </div>
             </div>
-            <div className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg border ${
+            <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl border ${
               isOver
-                ? 'bg-warning-400/10 border-warning-400/20 text-warning-400'
-                : 'bg-surface-muted border-surface-border text-tx-muted'
+                ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
             }`}>
-              <Flame className="w-3.5 h-3.5" />
+              <Flame className="w-4 h-4" />
               {isOver
                 ? `${Math.round(Math.abs(remaining))} over`
                 : `${Math.round(remaining)} left`
@@ -225,19 +231,27 @@ export default function Food() {
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="progress-track mb-5">
-            <div
-              className="progress-bar"
-              style={{
-                width: `${Math.min(100, (totalCals / calTarget) * 100)}%`,
-                background: isOver ? '#f59e0b' : '#00b8d9',
-              }}
-            />
+          {/* Segmented progress bar */}
+          <div className="space-y-1">
+            <div className="h-2.5 rounded-full bg-surface-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${calPct}%`,
+                  background: isOver
+                    ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                    : 'linear-gradient(90deg, #00b8d9, #10b981)',
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-tx-muted">
+              <span>0</span>
+              <span>{calTarget} kcal goal</span>
+            </div>
           </div>
 
           {/* Macro rings */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-3">
             <MacroRing
               value={s?.total_protein ?? 0}
               target={settings.protein_target}
@@ -261,53 +275,56 @@ export default function Food() {
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-1 bg-surface-overlay rounded-lg p-1">
-        {(['today', 'history'] as const).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors duration-150 ${
-              tab === t
-                ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-card'
-                : 'text-tx-muted hover:text-tx-primary'
-            }`}
-          >
-            {t === 'today' ? (isToday ? 'Today' : format(new Date(selectedDate + 'T12:00:00'), 'MMM d')) : 'History'}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        options={[
+          { value: 'today', label: isToday ? 'Today' : format(selectedDateObj, 'MMM d') },
+          { value: 'history', label: 'History' },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {/* Today tab */}
       {tab === 'today' && (
         <div className="space-y-3">
           {MEALS.map(meal => {
+            const MealIcon = MEAL_ICONS[meal]
+            const iconColor = MEAL_COLORS[meal]
             const entries = logs.filter(l => l.meal === meal)
             const mealCals = entries.reduce((sum, e) => sum + e.calories, 0)
 
             return (
               <div key={meal} className="card overflow-hidden">
-                <div className="px-4 py-3 border-b border-surface-border flex justify-between items-center">
-                  <div className="flex items-center gap-2">
+                {/* Meal header */}
+                <div className="px-4 py-3.5 flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-surface-muted flex-shrink-0`}>
+                    <MealIcon className={`w-4 h-4 ${iconColor}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
                     <span className="text-sm font-semibold text-tx-primary">{MEAL_LABELS[meal]}</span>
                     {mealCals > 0 && (
-                      <span className="badge-dim tabular-nums">{Math.round(mealCals)} kcal</span>
+                      <span className="ml-2 text-xs text-tx-muted tabular-nums">{Math.round(mealCals)} kcal</span>
                     )}
                   </div>
-                  <button
+                  <IconButton
+                    icon={Plus}
+                    variant="solid"
+                    label={`Add to ${MEAL_LABELS[meal]}`}
                     onClick={() => openLog(meal)}
-                    className="btn-ghost btn-icon-sm"
-                    aria-label={`Add to ${MEAL_LABELS[meal]}`}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+                  />
                 </div>
 
                 {entries.length === 0 ? (
-                  <div className="px-4 py-5 text-center">
-                    <p className="text-xs text-tx-muted">No entries</p>
-                  </div>
+                  <button
+                    onClick={() => openLog(meal)}
+                    className="w-full px-4 py-4 text-center border-t border-surface-border hover:bg-surface-muted/50 transition-colors group"
+                  >
+                    <p className="text-xs text-tx-muted group-hover:text-tx-secondary transition-colors">
+                      + Tap to add food
+                    </p>
+                  </button>
                 ) : (
-                  <div className="divide-y divide-surface-border">
+                  <div className="divide-y divide-surface-border border-t border-surface-border">
                     {entries.map(entry => (
                       <div key={entry.id}>
                         {deleteConfirmId === entry.id ? (
@@ -316,49 +333,47 @@ export default function Food() {
                               Delete <span className="font-medium text-tx-primary">{entry.name}</span>?
                             </p>
                             <div className="flex gap-2 flex-shrink-0">
-                              <button
-                                onClick={() => setDeleteConfirmId(null)}
-                                className="px-2.5 py-1 text-xs rounded-lg bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors"
-                              >
+                              <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary btn-sm">
                                 Cancel
                               </button>
-                              <button
-                                onClick={() => handleDelete(entry.id)}
-                                disabled={deletingId === entry.id}
-                                className="px-2.5 py-1 text-xs rounded-lg bg-error-500/20 border border-error-500/30 text-error-400 hover:bg-error-500/30 transition-colors disabled:opacity-50"
-                              >
-                                {deletingId === entry.id ? 'Deleting…' : 'Delete'}
+                              <button onClick={() => handleDelete(entry.id)} disabled={deletingId === entry.id} className="btn-danger-solid btn-sm disabled:opacity-50">
+                                {deletingId === entry.id ? '…' : 'Delete'}
                               </button>
                             </div>
                           </div>
                         ) : (
-                          <div className="px-4 py-3 flex items-center gap-2 hover:bg-surface-muted transition-colors group">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-tx-primary truncate">{entry.name}</p>
-                              <p className="text-xs text-tx-muted tabular-nums">
-                                {Math.round(entry.calories)} kcal
-                                {' · '}{entry.protein.toFixed(0)}g P
-                                {' · '}{entry.carbs.toFixed(0)}g C
-                                {' · '}{entry.fat.toFixed(0)}g F
-                                {entry.servings !== 1 && ` · ×${entry.servings}`}
-                              </p>
-                            </div>
-                            <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
-                              <button
-                                onClick={() => openEdit(entry)}
-                                className="p-1.5 rounded-lg hover:bg-surface-overlay text-tx-muted hover:text-tx-primary transition-colors"
-                                aria-label="Edit"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirmId(entry.id)}
-                                className="p-1.5 rounded-lg hover:bg-error-500/10 text-tx-muted hover:text-error-400 transition-colors"
-                                aria-label="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                          <div className="flex items-center gap-2 px-4 py-3">
+                            <button
+                              onClick={() => navigate(`/food/log?edit=${entry.id}&date=${selectedDate}`)}
+                              className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                            >
+                              {entry.image_url ? (
+                                <img src={entry.image_url} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-surface-border" />
+                              ) : (
+                                <div className="w-11 h-11 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center flex-shrink-0">
+                                  <Utensils className="w-5 h-5 text-tx-muted opacity-40" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-tx-primary truncate">{entry.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="text-xs font-semibold text-tx-secondary tabular-nums">
+                                    {Math.round(entry.calories)} kcal
+                                  </span>
+                                  <span className="text-[10px] text-tx-muted">·</span>
+                                  <span className="text-xs text-emerald-400 tabular-nums">{entry.protein.toFixed(0)}g P</span>
+                                  <span className="text-[10px] text-tx-muted">·</span>
+                                  <span className="text-xs text-amber-400 tabular-nums">{entry.carbs.toFixed(0)}g C</span>
+                                  <span className="text-[10px] text-tx-muted">·</span>
+                                  <span className="text-xs text-violet-400 tabular-nums">{entry.fat.toFixed(0)}g F</span>
+                                  {entry.servings !== 1 && (
+                                    <span className="text-xs text-tx-muted">× {entry.servings}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
+                            </button>
+                            <IconButton icon={Trash2} variant="danger" label="Delete" onClick={() => setDeleteConfirmId(entry.id)} />
                           </div>
                         )}
                       </div>
@@ -374,15 +389,19 @@ export default function Food() {
       {/* History tab */}
       {tab === 'history' && (
         <div className="card p-5">
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <h2 className="section-title">Macro History</h2>
-            <PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />
-          </div>
+          <SectionHeader
+            title="Macro History"
+            right={<PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />}
+            className="mb-5"
+          />
 
           {historyLoading ? (
             <div className="flex items-center justify-center h-48 text-xs text-tx-muted">Loading…</div>
           ) : historyData.length === 0 ? (
-            <div className="flex items-center justify-center h-48 text-xs text-tx-muted">No data yet</div>
+            <div className="flex flex-col items-center justify-center h-48 gap-2">
+              <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
+              <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={historyData} barSize={8} barGap={2} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
@@ -413,8 +432,7 @@ export default function Food() {
             </ResponsiveContainer>
           )}
 
-          {/* Legend */}
-          <div className="flex gap-4 justify-center mt-3">
+          <div className="flex gap-4 justify-center mt-4">
             {[
               { color: '#10b981', label: 'Protein' },
               { color: '#f59e0b', label: 'Carbs' },
@@ -429,14 +447,6 @@ export default function Food() {
         </div>
       )}
 
-      <FoodLogModal
-        open={modalOpen}
-        onClose={() => { setModalOpen(false); setEditEntry(undefined) }}
-        onLogged={handleLogged}
-        defaultMeal={modalMeal}
-        editEntry={editEntry}
-        defaultDate={selectedDate}
-      />
     </div>
   )
 }

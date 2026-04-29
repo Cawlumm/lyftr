@@ -81,6 +81,7 @@ export interface FoodLog {
   servings: number
   serving_size?: string
   barcode?: string
+  image_url?: string
   logged_at: string
   created_at?: string
 }

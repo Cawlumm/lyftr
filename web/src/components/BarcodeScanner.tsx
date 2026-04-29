@@ -1,47 +1,46 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { useZxing } from 'react-zxing'
+import { X, AlertCircle } from 'lucide-react'
 
 interface Props {
   onResult: (code: string) => void
   onClose: () => void
 }
 
-const SCANNER_ID = 'lyftr-barcode-scanner'
-
 export default function BarcodeScanner({ onResult, onClose }: Props) {
-  const scannerRef = useRef<Html5Qrcode | null>(null)
   const resolvedRef = useRef(false)
+  const [cameraError, setCameraError] = useState<string | null>(null)
+
+  const { ref } = useZxing({
+    constraints: {
+      audio: false,
+      video: { facingMode: 'environment' },
+    },
+    timeBetweenDecodingAttempts: 150,
+    onDecodeResult(result) {
+      if (resolvedRef.current) return
+      resolvedRef.current = true
+      navigator.vibrate?.(100)
+      onResult(result.getText())
+    },
+    onError(err) {
+      const msg = (err as any)?.message ?? String(err)
+      // ZXing fires NotFoundException on every frame with no barcode — ignore those
+      if (!msg.includes('NotFoundException') && !msg.includes('No MultiFormat')) {
+        setCameraError(msg)
+      }
+    },
+  })
 
   useEffect(() => {
-    const scanner = new Html5Qrcode(SCANNER_ID)
-    scannerRef.current = scanner
-
-    scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
-      (decodedText) => {
-        if (resolvedRef.current) return
-        resolvedRef.current = true
-        navigator.vibrate?.(100)
-        scanner.stop().catch(() => {})
-        onResult(decodedText)
-      },
-      () => { /* scan failure — silent */ },
-    ).catch((err) => {
-      console.warn('[BarcodeScanner] start failed:', err)
-      onClose()
-    })
-
-    return () => {
-      scanner.stop().catch(() => {})
-    }
-  }, [])
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
-      {/* Close */}
       <div className="flex items-center justify-between p-4">
         <p className="text-white text-sm font-medium">Scan barcode</p>
         <button
@@ -53,29 +52,44 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
         </button>
       </div>
 
-      {/* Camera feed + overlay */}
-      <div className="flex-1 flex items-center justify-center relative overflow-hidden">
-        {/* html5-qrcode mounts video here */}
-        <div id={SCANNER_ID} className="w-full max-w-sm" />
+      <div className="flex-1 flex items-center justify-center relative">
+        {!cameraError && (
+          <video
+            ref={ref as React.RefObject<HTMLVideoElement>}
+            className="w-full max-w-sm rounded-lg"
+            style={{ maxHeight: '60vh', objectFit: 'cover' }}
+            playsInline
+          />
+        )}
 
-        {/* Corner brackets */}
-        <div className="absolute pointer-events-none" style={{ width: 260, height: 160 }}>
-          {/* Top-left */}
-          <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-brand-400 rounded-tl" />
-          {/* Top-right */}
-          <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-brand-400 rounded-tr" />
-          {/* Bottom-left */}
-          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-brand-400 rounded-bl" />
-          {/* Bottom-right */}
-          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-brand-400 rounded-br" />
-          {/* Scan line */}
-          <div className="absolute inset-x-0 h-0.5 bg-brand-400/70" style={{ animation: 'barcode-scan 1.5s ease-in-out infinite' }} />
-        </div>
+        {!cameraError && (
+          <div className="absolute pointer-events-none" style={{ width: 260, height: 160 }}>
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-brand-400 rounded-tl" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-brand-400 rounded-tr" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-brand-400 rounded-bl" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-brand-400 rounded-br" />
+            <div
+              className="absolute inset-x-0 h-0.5 bg-brand-400/70"
+              style={{ animation: 'barcode-scan 1.5s ease-in-out infinite' }}
+            />
+          </div>
+        )}
       </div>
 
-      <p className="text-center text-white/60 text-xs pb-8 px-4">
-        Point camera at barcode — it will scan automatically
-      </p>
+      {cameraError ? (
+        <div className="flex flex-col items-center gap-3 px-6 pb-10 text-center">
+          <AlertCircle className="w-8 h-8 text-error-400" />
+          <p className="text-white text-sm font-medium">Camera unavailable</p>
+          <p className="text-white/50 text-xs font-mono break-all">{cameraError}</p>
+          <button onClick={onClose} className="btn-primary btn-sm mt-2">
+            Search by name instead
+          </button>
+        </div>
+      ) : (
+        <p className="text-center text-white/60 text-xs pb-8 px-4">
+          Point camera at barcode — it will scan automatically
+        </p>
+      )}
 
       <style>{`
         @keyframes barcode-scan {

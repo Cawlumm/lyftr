@@ -9,6 +9,7 @@ import {
   LineChart, Line, PieChart, Pie, Legend,
 } from 'recharts'
 import Loading from '../components/Loading'
+import SectionHeader from '../components/ui/SectionHeader'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
@@ -329,17 +330,12 @@ export default function Dashboard() {
 
       {/* ── Volume trend chart ─────────────────────── */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-3 gap-2">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-brand-500" />
-            <h2 className="section-title">Volume Trend</h2>
-          </div>
-          <PeriodSelector
-            options={['7', '14', '30'] as const}
-            value={volumePeriod}
-            onChange={setVolumePeriod}
-          />
-        </div>
+        <SectionHeader
+          icon={TrendingUp}
+          title="Volume Trend"
+          right={<PeriodSelector options={['7', '14', '30'] as const} value={volumePeriod} onChange={setVolumePeriod} />}
+          className="mb-3"
+        />
 
         {chartData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -400,13 +396,12 @@ export default function Dashboard() {
 
       {/* ── Frequency heatmap ──────────────────────── */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-brand-500" />
-            <h2 className="section-title">Consistency</h2>
-          </div>
-          <span className="text-xs text-tx-muted">12 weeks</span>
-        </div>
+        <SectionHeader
+          icon={Activity}
+          title="Consistency"
+          right={<span className="text-xs text-tx-muted">12 weeks</span>}
+          className="mb-3"
+        />
 
         {workouts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 gap-2">
@@ -598,13 +593,12 @@ export default function Dashboard() {
 
       {/* ── Muscle group balance ────────────────────── */}
       <div className="card p-4">
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <Dumbbell className="w-4 h-4 text-brand-500" />
-              <h2 className="section-title">Muscle Balance</h2>
-            </div>
-            <span className="text-xs text-tx-muted">{workouts.length} workouts</span>
-          </div>
+          <SectionHeader
+            icon={Dumbbell}
+            title="Muscle Balance"
+            right={<span className="text-xs text-tx-muted">{workouts.length} workouts</span>}
+            className="mb-1"
+          />
 
           {topMuscle ? (
             <p className="text-xs text-tx-muted mb-3 italic">
@@ -683,15 +677,16 @@ export default function Dashboard() {
 
       {/* ── Weight quick-log card ──────────────────── */}
       <div className="card p-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Scale className="w-4 h-4 text-brand-500" />
-            <h2 className="section-title">Weight</h2>
-          </div>
-          <Link to="/weight" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-0.5">
-            View <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
+        <SectionHeader
+          icon={Scale}
+          title="Weight"
+          right={
+            <Link to="/weight" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-0.5">
+              View <ArrowRight className="w-3 h-3" />
+            </Link>
+          }
+          className="mb-2"
+        />
 
         {weightLogs.length === 0 ? (
           <button
@@ -733,9 +728,9 @@ export default function Dashboard() {
                     </span>
                   )
                 })()}
-                <span className="w-7 h-7 rounded-lg bg-brand-500 hover:bg-brand-600 flex items-center justify-center text-white shadow-sm">
-                  <Plus className="w-4 h-4" />
-                </span>
+                <div className="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center text-white shadow-sm flex-shrink-0">
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
               </div>
             </div>
             {weightLogs.length >= 2 && (
