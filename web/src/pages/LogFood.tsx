@@ -1,16 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { format, subDays } from 'date-fns'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
   Bookmark, BookmarkCheck, AlertCircle, Utensils, Zap,
-  Coffee, Sun, Moon, Cookie, ChevronRight, CalendarDays,
+  Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { todayStr, dayToIsoNoon } from '../utils/dateUtils'
+import { MACRO_COLORS } from '../utils/macroColors'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
+import DateInput from '../components/ui/DateInput'
 import * as types from '../types'
 
 type Phase = 'search' | 'detail' | 'scan'
@@ -120,7 +121,7 @@ export default function LogFood() {
       setDate(entry.logged_at.slice(0, 10))
       setPhase('detail')
     }).catch(() => navigate('/food', { replace: true }))
-  }, [editId])
+  }, [editId, navigate])
 
   useEffect(() => {
     foodAPI.list(todayStr()).then(logs => {
@@ -172,7 +173,7 @@ export default function LogFood() {
       selectResult(await foodAPI.barcode(code))
     } catch (err: any) {
       if (err?.response?.status === 404) {
-        selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'off' })
+        selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
       } else {
         setSearchError('Product not found — enter details manually')
       }
@@ -348,7 +349,7 @@ export default function LogFood() {
                     <p className="text-xs text-tx-muted mt-1 opacity-60">Search or scan to log food</p>
                   </div>
                 )
-                : recentItems.map((item, i) => <FoodResultRow key={i} item={item} onClick={() => selectResult(item)} />)
+                : recentItems.map((item) => <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onClick={() => selectResult(item)} />)
             )}
 
             {tab === 'myfoods' && (
@@ -384,8 +385,8 @@ export default function LogFood() {
                 </button>
               </div>
             )}
-            {tab === 'all' && !searching && searchResults.map((item, i) => (
-              <FoodResultRow key={i} item={item} onClick={() => selectResult(item)} />
+            {tab === 'all' && !searching && searchResults.map((item) => (
+              <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onClick={() => selectResult(item)} />
             ))}
           </div>
         </div>
@@ -435,9 +436,9 @@ export default function LogFood() {
                 {(pro + carb + fat_) > 0 && (
                   <div className="flex flex-col gap-1 items-end w-20 flex-shrink-0">
                     {[
-                      { label: 'P', value: pro, color: '#10b981' },
-                      { label: 'C', value: carb, color: '#f59e0b' },
-                      { label: 'F', value: fat_, color: '#8b5cf6' },
+                      { label: 'P', value: pro, color: MACRO_COLORS.protein },
+                      { label: 'C', value: carb, color: MACRO_COLORS.carbs },
+                      { label: 'F', value: fat_, color: MACRO_COLORS.fat },
                     ].map(m => {
                       const total = pro + carb + fat_
                       const pct = total > 0 ? Math.round((m.value / total) * 100) : 0
@@ -518,48 +519,7 @@ export default function LogFood() {
 
             <div className="border-t border-surface-border" />
 
-            {/* When */}
-            {(() => {
-              const today = todayStr()
-              const yesterday = format(subDays(new Date(), 1), 'yyyy-MM-dd')
-              const isToday = date === today
-              const isYesterday = date === yesterday
-              const isCustom = !isToday && !isYesterday
-              const activeCls = 'bg-brand-500/10 border-brand-500/40 text-tx-primary'
-              const idleCls = 'bg-surface-muted border-surface-border text-tx-secondary hover:text-tx-primary hover:bg-surface-overlay'
-              return (
-                <div className="space-y-3">
-                  <label className="label">When</label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setDate(today)}
-                      className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all ${isToday ? activeCls : idleCls}`}
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => setDate(yesterday)}
-                      className={`flex-1 py-3 rounded-xl border text-sm font-medium transition-all ${isYesterday ? activeCls : idleCls}`}
-                    >
-                      Yesterday
-                    </button>
-                    <div className="relative flex-1">
-                      <div className={`w-full py-3 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-1.5 pointer-events-none ${isCustom ? activeCls : idleCls}`}>
-                        <CalendarDays className="w-3.5 h-3.5 flex-shrink-0" />
-                        {isCustom ? format(new Date(date + 'T12:00:00'), 'MMM d') : 'Other'}
-                      </div>
-                      <input
-                        type="date"
-                        value={date}
-                        onChange={e => setDate(e.target.value)}
-                        max={today}
-                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
+            <DateInput label="When" value={date} onChange={setDate} max={todayStr()} />
           </div>
 
           {/* Save to My Foods toggle — hidden in edit mode */}

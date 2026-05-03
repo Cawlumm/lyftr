@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { format, subDays, addDays } from 'date-fns'
 import {
@@ -7,15 +7,15 @@ import {
 } from 'lucide-react'
 import IconButton from '../components/ui/IconButton'
 import SectionHeader from '../components/ui/SectionHeader'
-import SegmentedControl from '../components/ui/SegmentedControl'
 import PageHeader from '../components/ui/PageHeader'
 import {
-  BarChart, Bar, XAxis, Tooltip, ResponsiveContainer,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from 'recharts'
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, userAPI } from '../services/api'
 import { todayStr } from '../utils/dateUtils'
+import { MACRO_COLORS } from '../utils/macroColors'
 import * as types from '../types'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
@@ -76,12 +76,12 @@ export default function Food() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [tab, setTab] = useState<'today' | 'history'>('today')
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<types.FoodHistoryPoint[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
 
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const dateInputRef = useRef<HTMLInputElement>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
 
   const loadDay = useCallback(async (date: string) => {
@@ -112,17 +112,16 @@ export default function Food() {
     }
   }, [settings])
 
-  useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key])
+  useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
 
   useEffect(() => {
-    if (tab !== 'history') return
     setHistoryLoading(true)
     const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
     foodAPI.history(days)
       .then(data => setHistoryData(data || []))
       .catch(() => {})
       .finally(() => setHistoryLoading(false))
-  }, [tab, historyPeriod])
+  }, [historyPeriod])
 
   const openLog = (meal: types.FoodLog['meal']) => {
     navigate(`/food/log?meal=${meal}&date=${selectedDate}`)
@@ -190,12 +189,22 @@ export default function Food() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-surface-muted">
-          <CalendarDays className="w-4 h-4 text-tx-muted" />
-          <span className="text-sm font-semibold text-tx-primary">{dayLabel}</span>
-          {!isToday && (
-            <span className="text-xs text-tx-muted">{format(selectedDateObj, 'yyyy')}</span>
-          )}
+        <div className="relative flex-1 cursor-pointer" onClick={() => dateInputRef.current?.showPicker?.()}>
+          <div className="flex items-center justify-center gap-2 py-2 rounded-xl bg-surface-muted pointer-events-none">
+            <CalendarDays className="w-4 h-4 text-tx-muted" />
+            <span className="text-sm font-semibold text-tx-primary">{dayLabel}</span>
+            {!isToday && (
+              <span className="text-xs text-tx-muted">{format(selectedDateObj, 'yyyy')}</span>
+            )}
+          </div>
+          <input
+            ref={dateInputRef}
+            type="date"
+            value={selectedDate}
+            onChange={e => e.target.value && setSelectedDate(e.target.value)}
+            max={todayStr()}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+          />
         </div>
         <button
           onClick={() => setSelectedDate(nextDate)}
@@ -239,8 +248,8 @@ export default function Food() {
                 style={{
                   width: `${calPct}%`,
                   background: isOver
-                    ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
-                    : 'linear-gradient(90deg, #00b8d9, #10b981)',
+                    ? `linear-gradient(90deg, ${MACRO_COLORS.carbs}, #ef4444)`
+                    : `linear-gradient(90deg, #00b8d9, ${MACRO_COLORS.protein})`,
                 }}
               />
             </div>
@@ -255,39 +264,28 @@ export default function Food() {
             <MacroRing
               value={s?.total_protein ?? 0}
               target={settings.protein_target}
-              color="#10b981"
+              color={MACRO_COLORS.protein}
               label="Protein"
             />
             <MacroRing
               value={s?.total_carbs ?? 0}
               target={settings.carb_target}
-              color="#f59e0b"
+              color={MACRO_COLORS.carbs}
               label="Carbs"
             />
             <MacroRing
               value={s?.total_fat ?? 0}
               target={settings.fat_target}
-              color="#8b5cf6"
+              color={MACRO_COLORS.fat}
               label="Fat"
             />
           </div>
         </div>
       )}
 
-      {/* Tab bar */}
-      <SegmentedControl
-        options={[
-          { value: 'today', label: isToday ? 'Today' : format(selectedDateObj, 'MMM d') },
-          { value: 'history', label: 'History' },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-
-      {/* Today tab */}
-      {tab === 'today' && (
-        <div className="space-y-3">
-          {MEALS.map(meal => {
+      {/* Meals */}
+      <div className="space-y-3">
+        {MEALS.map(meal => {
             const MealIcon = MEAL_ICONS[meal]
             const iconColor = MEAL_COLORS[meal]
             const entries = logs.filter(l => l.meal === meal)
@@ -382,70 +380,88 @@ export default function Food() {
                 )}
               </div>
             )
-          })}
-        </div>
-      )}
+        })}
+      </div>
 
-      {/* History tab */}
-      {tab === 'history' && (
-        <div className="card p-5">
-          <SectionHeader
-            title="Macro History"
-            right={<PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />}
-            className="mb-5"
-          />
+      {/* Macro history */}
+      <div className="card p-5">
+        <SectionHeader
+          title="Macro History"
+          right={<PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />}
+          className="mb-5"
+        />
 
-          {historyLoading ? (
-            <div className="flex items-center justify-center h-48 text-xs text-tx-muted">Loading…</div>
-          ) : historyData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 gap-2">
-              <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
-              <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
-            </div>
-          ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={historyData} barSize={8} barGap={2} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={d => format(new Date(d + 'T12:00:00'), 'M/d')}
-                  tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
-                  axisLine={false}
-                  tickLine={false}
-                  interval="preserveStartEnd"
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: 'var(--color-surface-raised)',
-                    border: '1px solid var(--color-surface-border)',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    color: 'var(--color-tx-primary)',
-                  }}
-                  labelFormatter={d => format(new Date(d + 'T12:00:00'), 'MMM d')}
-                  formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
-                  cursor={{ fill: 'rgba(99,102,241,0.06)' }}
-                />
-                <Bar dataKey="protein" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} name="Protein" />
-                <Bar dataKey="carbs" stackId="a" fill="#f59e0b" radius={[0, 0, 0, 0]} name="Carbs" />
-                <Bar dataKey="fat" stackId="a" fill="#8b5cf6" radius={[2, 2, 0, 0]} name="Fat" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-
-          <div className="flex gap-4 justify-center mt-4">
-            {[
-              { color: '#10b981', label: 'Protein' },
-              { color: '#f59e0b', label: 'Carbs' },
-              { color: '#8b5cf6', label: 'Fat' },
-            ].map(m => (
-              <div key={m.label} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: m.color }} />
-                <span className="text-xs text-tx-muted">{m.label}</span>
-              </div>
-            ))}
+        {historyLoading ? (
+          <div className="flex items-center justify-center h-48 text-xs text-tx-muted">Loading…</div>
+        ) : historyData.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 gap-2">
+            <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
+            <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
           </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={historyData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="gProtein" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MACRO_COLORS.protein} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={MACRO_COLORS.protein} stopOpacity={0.1} />
+                </linearGradient>
+                <linearGradient id="gCarbs" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MACRO_COLORS.carbs} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={MACRO_COLORS.carbs} stopOpacity={0.1} />
+                </linearGradient>
+                <linearGradient id="gFat" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={MACRO_COLORS.fat} stopOpacity={0.5} />
+                  <stop offset="100%" stopColor={MACRO_COLORS.fat} stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <XAxis
+                dataKey="date"
+                tickFormatter={d => format(new Date(d + 'T12:00:00'), 'M/d')}
+                tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={v => `${v}g`}
+                width={36}
+              />
+              <Tooltip
+                contentStyle={{
+                  background: 'var(--color-surface-raised)',
+                  border: '1px solid var(--color-surface-border)',
+                  borderRadius: '12px',
+                  fontSize: '12px',
+                  color: 'var(--color-tx-primary)',
+                }}
+                labelFormatter={d => format(new Date(d + 'T12:00:00'), 'MMM d')}
+                formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
+                cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
+              />
+              <Area type="monotone" dataKey="fat" stackId="macros" stroke={MACRO_COLORS.fat} strokeWidth={1.5} fill="url(#gFat)" name="Fat" dot={false} />
+              <Area type="monotone" dataKey="carbs" stackId="macros" stroke={MACRO_COLORS.carbs} strokeWidth={1.5} fill="url(#gCarbs)" name="Carbs" dot={false} />
+              <Area type="monotone" dataKey="protein" stackId="macros" stroke={MACRO_COLORS.protein} strokeWidth={1.5} fill="url(#gProtein)" name="Protein" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+
+        <div className="flex gap-4 justify-center mt-4">
+          {[
+            { color: MACRO_COLORS.protein, label: 'Protein' },
+            { color: MACRO_COLORS.carbs, label: 'Carbs' },
+            { color: MACRO_COLORS.fat, label: 'Fat' },
+          ].map(m => (
+            <div key={m.label} className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: m.color }} />
+              <span className="text-xs text-tx-muted">{m.label}</span>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
     </div>
   )

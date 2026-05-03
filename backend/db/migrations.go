@@ -19,7 +19,10 @@ func alterMigrations() {
 			var notnull int
 			var dflt interface{}
 			var pk int
-			rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk)
+			if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+				log.Printf("migrations: scan error: %v", err)
+				continue
+			}
 			if name == "fiber" {
 				hasFiber = true
 			}

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
+import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
@@ -396,13 +397,7 @@ export default function Weight() {
                   <X className="w-3.5 h-3.5 text-tx-muted" />
                 </button>
               </div>
-              <input
-                type="date"
-                value={newDate}
-                onChange={e => setNewDate(e.target.value)}
-                max={todayStr()}
-                className="input"
-              />
+              <DateInput value={newDate} onChange={setNewDate} max={todayStr()} />
               <input
                 type="text"
                 value={newNotes}

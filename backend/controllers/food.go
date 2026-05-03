@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -93,6 +94,22 @@ func LogFood(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	if len(req.Name) > 200 {
+		utils.BadRequest(c, "name exceeds 200 characters")
+		return
+	}
+	if len(req.ServingSize) > 100 {
+		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		return
+	}
+	if len(req.Barcode) > 50 {
+		utils.BadRequest(c, "barcode exceeds 50 characters")
+		return
+	}
+	if len(req.ImageURL) > 500 {
+		utils.BadRequest(c, "image_url exceeds 500 characters")
+		return
+	}
 
 	if req.LoggedAt.IsZero() {
 		req.LoggedAt = time.Now()
@@ -115,7 +132,7 @@ func LogFood(c *gin.Context) {
 
 	id, _ := res.LastInsertId()
 	var f models.FoodLog
-	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ?`, id)
+	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, id, uid)
 	scanFoodLog(row, &f)
 	utils.Created(c, f)
 }
@@ -135,6 +152,22 @@ func UpdateFoodLog(c *gin.Context) {
 	}
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+	if len(req.Name) > 200 {
+		utils.BadRequest(c, "name exceeds 200 characters")
+		return
+	}
+	if len(req.ServingSize) > 100 {
+		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		return
+	}
+	if len(req.Barcode) > 50 {
+		utils.BadRequest(c, "barcode exceeds 50 characters")
+		return
+	}
+	if len(req.ImageURL) > 500 {
+		utils.BadRequest(c, "image_url exceeds 500 characters")
 		return
 	}
 	if req.Servings == 0 {
@@ -161,7 +194,7 @@ func UpdateFoodLog(c *gin.Context) {
 	}
 
 	var f models.FoodLog
-	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ?`, lid)
+	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, lid, uid)
 	scanFoodLog(row, &f)
 	utils.OK(c, f)
 }
@@ -198,17 +231,25 @@ func GetDailyStats(c *gin.Context) {
 	var stats models.DailyStats
 	stats.Date = date
 
-	db.DB.QueryRow(
+	if err := db.DB.QueryRow(
 		`SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
 		 FROM food_logs WHERE user_id = ? AND substr(logged_at, 1, 10) = ?`,
 		uid, date,
-	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber)
+	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber); err != nil {
+		log.Printf("[food/stats] scan error (macros): %v", err)
+		utils.InternalError(c)
+		return
+	}
 
-	db.DB.QueryRow(
+	if err := db.DB.QueryRow(
 		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND substr(started_at, 1, 10) = ?`,
 		uid, date,
-	).Scan(&stats.WorkoutCount)
+	).Scan(&stats.WorkoutCount); err != nil {
+		log.Printf("[food/stats] scan error (workouts): %v", err)
+		utils.InternalError(c)
+		return
+	}
 
 	utils.OK(c, stats)
 }
@@ -240,7 +281,10 @@ func GetFoodHistory(c *gin.Context) {
 	points := []models.FoodHistoryPoint{}
 	for rows.Next() {
 		var p models.FoodHistoryPoint
-		rows.Scan(&p.Date, &p.Calories, &p.Protein, &p.Carbs, &p.Fat)
+		if err := rows.Scan(&p.Date, &p.Calories, &p.Protein, &p.Carbs, &p.Fat); err != nil {
+			log.Printf("food/history scan: %v", err)
+			continue
+		}
 		points = append(points, p)
 	}
 	utils.OK(c, points)
@@ -296,11 +340,11 @@ type offNutrients struct {
 }
 
 func offProductToResult(p offProduct) models.FoodSearchResult {
-	serving := p.ServingSize
-	if serving == "" {
-		serving = "100g"
-	}
 	brand := strings.Join(p.Brands, ", ")
+	imageURL := p.ImageURL
+	if !strings.HasPrefix(imageURL, "https://") {
+		imageURL = ""
+	}
 	return models.FoodSearchResult{
 		Name:        p.ProductName,
 		Brand:       brand,
@@ -309,8 +353,8 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 		Carbs:       p.Nutriments.Carbohydrates100g,
 		Fat:         p.Nutriments.Fat100g,
 		Fiber:       p.Nutriments.Fiber100g,
-		ServingSize: serving,
-		ImageURL:    p.ImageURL,
+		ServingSize: "per 100g",
+		ImageURL:    imageURL,
 		Source:      "off",
 	}
 }
@@ -419,6 +463,12 @@ func LookupBarcode(c *gin.Context) {
 		return
 	}
 
+	matched, err := regexp.MatchString(`^\d{6,14}$`, code)
+	if err != nil || !matched {
+		utils.BadRequest(c, "Invalid barcode format")
+		return
+	}
+
 	start := time.Now()
 	lookupURL := fmt.Sprintf("https://world.openfoodfacts.org/api/v3/product/%s.json", url.PathEscape(code))
 	log.Printf("[food/barcode] OFF request: code=%q", code)
@@ -488,8 +538,11 @@ func ListSavedFoods(c *gin.Context) {
 	foods := []models.SavedFood{}
 	for rows.Next() {
 		var f models.SavedFood
-		rows.Scan(&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Calories, &f.Protein, &f.Carbs, &f.Fat,
-			&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt)
+		if err := rows.Scan(&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Calories, &f.Protein, &f.Carbs, &f.Fat,
+			&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt); err != nil {
+			log.Printf("food/saved/list scan: %v", err)
+			continue
+		}
 		foods = append(foods, f)
 	}
 	utils.OK(c, foods)

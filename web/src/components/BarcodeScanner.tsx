@@ -55,6 +55,7 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
       <div className="flex-1 flex items-center justify-center relative">
         {!cameraError && (
           <video
+            // react-zxing ref type doesn't match HTMLVideoElement exactly; cast is safe as useZxing always returns a video ref
             ref={ref as React.RefObject<HTMLVideoElement>}
             className="w-full max-w-sm rounded-lg"
             style={{ maxHeight: '60vh', objectFit: 'cover' }}

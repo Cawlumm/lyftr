@@ -106,7 +106,7 @@ export interface FoodSearchResult {
   fiber: number
   serving_size: string
   image_url?: string
-  source: 'off' | 'saved'
+  source: 'off' | 'saved' | 'manual'
 }
 
 export interface SavedFood {
