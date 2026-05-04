@@ -188,7 +188,7 @@ type LogFoodRequest struct {
 	Carbs       float64   `json:"carbs" validate:"gte=0"`
 	Fat         float64   `json:"fat" validate:"gte=0"`
 	Fiber       float64   `json:"fiber" validate:"gte=0"`
-	Servings    float64   `json:"servings" validate:"gt=0"`
+	Servings    float64   `json:"servings" validate:"gte=0"`
 	ServingSize string    `json:"serving_size"`
 	Barcode     string    `json:"barcode"`
 	ImageURL    string    `json:"image_url"`

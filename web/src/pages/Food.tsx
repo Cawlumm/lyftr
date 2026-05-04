@@ -184,6 +184,7 @@ export default function Food() {
       {/* Date navigator */}
       <div className="flex items-center gap-2">
         <button
+          aria-label="Previous day"
           onClick={() => setSelectedDate(prevDate)}
           className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted"
         >
@@ -207,6 +208,7 @@ export default function Food() {
           />
         </div>
         <button
+          aria-label="Next day"
           onClick={() => setSelectedDate(nextDate)}
           disabled={!canGoNext}
           className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted disabled:opacity-30 disabled:cursor-not-allowed"

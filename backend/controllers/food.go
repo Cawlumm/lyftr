@@ -332,11 +332,17 @@ type offProduct struct {
 }
 
 type offNutrients struct {
-	EnergyKcal100g  float64 `json:"energy-kcal_100g"`
-	Proteins100g    float64 `json:"proteins_100g"`
+	EnergyKcal100g    float64 `json:"energy-kcal_100g"`
+	Proteins100g      float64 `json:"proteins_100g"`
 	Carbohydrates100g float64 `json:"carbohydrates_100g"`
-	Fat100g         float64 `json:"fat_100g"`
-	Fiber100g       float64 `json:"fiber_100g"`
+	Fat100g           float64 `json:"fat_100g"`
+	Fiber100g         float64 `json:"fiber_100g"`
+
+	EnergyKcalServing    float64 `json:"energy-kcal_serving"`
+	ProteinsServing      float64 `json:"proteins_serving"`
+	CarbohydratesServing float64 `json:"carbohydrates_serving"`
+	FatServing           float64 `json:"fat_serving"`
+	FiberServing         float64 `json:"fiber_serving"`
 }
 
 func offProductToResult(p offProduct) models.FoodSearchResult {
@@ -345,15 +351,37 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 	if !strings.HasPrefix(imageURL, "https://") {
 		imageURL = ""
 	}
+
+	// Prefer per-serving values when OFF provides them and a serving size label.
+	// Fall back to per-100g so the label always matches the numbers.
+	useServing := p.Nutriments.EnergyKcalServing > 0 && strings.TrimSpace(p.ServingSize) != ""
+	var cal, pro, carb, fat, fiber float64
+	var servingLabel string
+	if useServing {
+		cal = p.Nutriments.EnergyKcalServing
+		pro = p.Nutriments.ProteinsServing
+		carb = p.Nutriments.CarbohydratesServing
+		fat = p.Nutriments.FatServing
+		fiber = p.Nutriments.FiberServing
+		servingLabel = p.ServingSize
+	} else {
+		cal = p.Nutriments.EnergyKcal100g
+		pro = p.Nutriments.Proteins100g
+		carb = p.Nutriments.Carbohydrates100g
+		fat = p.Nutriments.Fat100g
+		fiber = p.Nutriments.Fiber100g
+		servingLabel = "per 100g"
+	}
+
 	return models.FoodSearchResult{
 		Name:        p.ProductName,
 		Brand:       brand,
-		Calories:    p.Nutriments.EnergyKcal100g,
-		Protein:     p.Nutriments.Proteins100g,
-		Carbs:       p.Nutriments.Carbohydrates100g,
-		Fat:         p.Nutriments.Fat100g,
-		Fiber:       p.Nutriments.Fiber100g,
-		ServingSize: "per 100g",
+		Calories:    cal,
+		Protein:     pro,
+		Carbs:       carb,
+		Fat:         fat,
+		Fiber:       fiber,
+		ServingSize: servingLabel,
 		ImageURL:    imageURL,
 		Source:      "off",
 	}

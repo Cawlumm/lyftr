@@ -16,7 +16,7 @@ function dockerBaseURL(): string {
 }
 
 const baseURL = process.env.BASE_URL
-  ?? (process.env.E2E_DOCKER ? dockerBaseURL() : 'http://localhost:5173')
+  ?? (process.env.E2E_DOCKER ? dockerBaseURL() : 'https://localhost:5173')
 
 export default defineConfig({
   testDir: './e2e',
@@ -27,6 +27,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL,
+    ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

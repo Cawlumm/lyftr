@@ -76,6 +76,12 @@ function FoodResultRow({ item, onClick }: { item: types.FoodSearchResult; onClic
           <span className="text-xs text-amber-400 tabular-nums">{item.carbs.toFixed(0)}g C</span>
           <span className="text-[10px] text-tx-muted">·</span>
           <span className="text-xs text-violet-400 tabular-nums">{item.fat.toFixed(0)}g F</span>
+          {item.serving_size && (
+            <>
+              <span className="text-[10px] text-tx-muted">·</span>
+              <span className="text-[10px] text-tx-muted">{item.serving_size}</span>
+            </>
+          )}
         </div>
       </div>
       <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -203,7 +209,7 @@ export default function LogFood() {
       } else {
         await foodAPI.log(payload)
         if (saveToMyFoods) {
-          savedFoodsAPI.create({
+          await savedFoodsAPI.create({
             name: selected.name, brand: selected.brand ?? '',
             calories: selected.calories, protein: selected.protein,
             carbs: selected.carbs, fat: selected.fat, fiber: selected.fiber ?? 0,
@@ -475,7 +481,12 @@ export default function LogFood() {
 
           {/* Servings */}
           <div className="card p-4 space-y-3">
-            <label className="label">Servings</label>
+            <div className="flex items-baseline gap-2">
+              <label className="label">Servings</label>
+              {selected.serving_size && (
+                <span className="text-xs text-tx-muted">({selected.serving_size} each)</span>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <IconButton icon={Minus} variant="secondary" size="lg" label="Decrease servings" onClick={() => setServings(s => Math.max(0.5, +(s - 0.5).toFixed(1)))} />
               <input

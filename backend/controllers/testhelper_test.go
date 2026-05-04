@@ -108,6 +108,37 @@ CREATE TABLE IF NOT EXISTS weight_logs (
   notes TEXT NOT NULL DEFAULT '',
   logged_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS food_logs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  meal         TEXT    NOT NULL DEFAULT 'snacks',
+  calories     REAL    NOT NULL DEFAULT 0,
+  protein      REAL    NOT NULL DEFAULT 0,
+  carbs        REAL    NOT NULL DEFAULT 0,
+  fat          REAL    NOT NULL DEFAULT 0,
+  fiber        REAL    NOT NULL DEFAULT 0,
+  servings     REAL    NOT NULL DEFAULT 1,
+  serving_size TEXT    NOT NULL DEFAULT '',
+  barcode      TEXT    NOT NULL DEFAULT '',
+  image_url    TEXT    NOT NULL DEFAULT '',
+  logged_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS saved_foods (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  brand        TEXT    NOT NULL DEFAULT '',
+  calories     REAL    NOT NULL DEFAULT 0,
+  protein      REAL    NOT NULL DEFAULT 0,
+  carbs        REAL    NOT NULL DEFAULT 0,
+  fat          REAL    NOT NULL DEFAULT 0,
+  fiber        REAL    NOT NULL DEFAULT 0,
+  serving_size TEXT    NOT NULL DEFAULT '',
+  barcode      TEXT    NOT NULL DEFAULT '',
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );`
 	_, err := db.DB.Exec(schema)
 	return err
