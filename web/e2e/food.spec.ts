@@ -22,31 +22,33 @@ test.describe('Food', () => {
     const h = { Authorization: `Bearer ${authToken}` }
 
     // Pre-cleanup: wipe ALL E2E-prefixed food log entries from the last 3 days
-    // (covers timezone edge cases and accumulated state from multiple test runs)
+    // (covers timezone edge cases and accumulated state from multiple test runs).
+    // Deletes are serial — bulk Promise.all against SQLite single-writer can
+    // drop requests under load and leave entries behind.
     for (let d = 0; d < 3; d++) {
       const checkDate = new Date(_now)
       checkDate.setDate(_now.getDate() - d)
       const dateStr = `${checkDate.getFullYear()}-${_pad(checkDate.getMonth() + 1)}-${_pad(checkDate.getDate())}`
       const existing = await request.get(`${API}/food?date=${dateStr}`, { headers: h })
       const body = await existing.json()
-      await Promise.all(
-        (body.data ?? [])
-          .filter((e: any) =>
-            e.name.startsWith(SEED_PREFIX) ||
-            e.name.startsWith('E2ELog-') ||
-            e.name.startsWith('E2ESave-') ||
-            e.name.startsWith('E2EEdit-')
-          )
-          .map((e: any) => request.delete(`${API}/food/${e.id}`, { headers: h }))
+      const toDelete = (body.data ?? []).filter((e: any) =>
+        e.name.startsWith(SEED_PREFIX) ||
+        e.name.startsWith('E2ELog-') ||
+        e.name.startsWith('E2ESave-') ||
+        e.name.startsWith('E2EEdit-')
       )
+      for (const e of toDelete) {
+        await request.delete(`${API}/food/${e.id}`, { headers: h })
+      }
     }
     const existingSaved = await request.get(`${API}/food/saved`, { headers: h })
     const es = await existingSaved.json()
-    await Promise.all(
-      (es.data ?? [])
-        .filter((s: any) => s.name.startsWith(SEED_PREFIX) || s.name.startsWith('E2ESave-'))
-        .map((s: any) => request.delete(`${API}/food/saved/${s.id}`, { headers: h }))
+    const savedToDelete = (es.data ?? []).filter((s: any) =>
+      s.name.startsWith(SEED_PREFIX) || s.name.startsWith('E2ESave-')
     )
+    for (const s of savedToDelete) {
+      await request.delete(`${API}/food/saved/${s.id}`, { headers: h })
+    }
 
     // Seed one entry per meal so meal sections have data
     for (const [name, meal] of [
@@ -74,10 +76,12 @@ test.describe('Food', () => {
   test.afterAll(async ({ request }) => {
     const h = { Authorization: `Bearer ${authToken}` }
 
-    await Promise.all([
-      ...seedFoodIds.map(id => request.delete(`${API}/food/${id}`, { headers: h })),
-      ...seedSavedIds.map(id => request.delete(`${API}/food/saved/${id}`, { headers: h })),
-    ])
+    for (const id of seedFoodIds) {
+      await request.delete(`${API}/food/${id}`, { headers: h })
+    }
+    for (const id of seedSavedIds) {
+      await request.delete(`${API}/food/saved/${id}`, { headers: h })
+    }
 
     // Clean up any UI-created entries
     const list = await request.get(`${API}/food?date=${today}`, { headers: h })
@@ -85,13 +89,17 @@ test.describe('Food', () => {
     const toDelete = (lb.data ?? []).filter((e: any) =>
       e.name.startsWith('E2ELog-') || e.name.startsWith('E2ESave-') || e.name.startsWith('E2EEdit-')
     )
-    await Promise.all(toDelete.map((e: any) => request.delete(`${API}/food/${e.id}`, { headers: h })))
+    for (const e of toDelete) {
+      await request.delete(`${API}/food/${e.id}`, { headers: h })
+    }
 
     // Clean up saved foods created via UI
     const sfList = await request.get(`${API}/food/saved`, { headers: h })
     const sfb = await sfList.json()
     const sfToDelete = (sfb.data ?? []).filter((s: any) => s.name.startsWith('E2ESave-'))
-    await Promise.all(sfToDelete.map((s: any) => request.delete(`${API}/food/saved/${s.id}`, { headers: h })))
+    for (const s of sfToDelete) {
+      await request.delete(`${API}/food/saved/${s.id}`, { headers: h })
+    }
   })
 
   test.beforeEach(async ({ page }) => {

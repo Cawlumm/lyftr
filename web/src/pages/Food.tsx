@@ -86,6 +86,8 @@ export default function Food() {
 
   const loadDay = useCallback(async (date: string) => {
     setLoading(true)
+    setLogs([])
+    setStats(null)
     setError(null)
     try {
       const defaultStats: types.DailyStats = {
