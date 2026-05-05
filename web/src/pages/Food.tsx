@@ -83,6 +83,7 @@ export default function Food() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const hasLoadedRef = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
     setLoading(true)
@@ -110,6 +111,7 @@ export default function Food() {
     } catch (err: any) {
       setError(err.message || 'Failed to load food data')
     } finally {
+      hasLoadedRef.current = true
       setLoading(false)
     }
   }, [settings])
@@ -143,7 +145,7 @@ export default function Food() {
     }
   }
 
-  if (loading && !logs.length) return <Loading />
+  if (loading && !hasLoadedRef.current) return <Loading />
 
   const s = stats
   const totalCals = s?.total_calories ?? 0
