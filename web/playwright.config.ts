@@ -23,7 +23,12 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: 1,
+  // Files are namespaced by SEED prefix so cross-file writes don't collide.
+  // Within a file, tests stay serial (fullyParallel: false) because they
+  // share seeded state and would race on the same demo user's data.
+  // Capped at 2: backend uses SQLite in DELETE journal mode, which serializes
+  // tightly under concurrent writes. More workers cause sporadic busy timeouts.
+  workers: 2,
   reporter: 'list',
   use: {
     baseURL,

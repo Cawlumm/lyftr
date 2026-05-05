@@ -36,13 +36,14 @@ test.describe('Weight', () => {
       await request.delete(`${API}/weight/${id}`, { headers })
     }
 
-    // Clean up any entries the form-submit test created
+    // Clean up any entries the form-submit test created (serial — SQLite
+    // single-writer drops bulk Promise.all requests under load).
     const list = await request.get(`${API}/weight?limit=100`, { headers })
     const lb = await list.json()
     const toDelete = (lb.data ?? []).filter((w: any) => w.notes === FORM_WEIGHT_NOTE)
-    await Promise.all(toDelete.map((w: any) =>
-      request.delete(`${API}/weight/${w.id}`, { headers })
-    ))
+    for (const w of toDelete) {
+      await request.delete(`${API}/weight/${w.id}`, { headers })
+    }
   })
 
   test.beforeEach(async ({ page }) => {
