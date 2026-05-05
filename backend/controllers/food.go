@@ -133,7 +133,11 @@ func LogFood(c *gin.Context) {
 	id, _ := res.LastInsertId()
 	var f models.FoodLog
 	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, id, uid)
-	scanFoodLog(row, &f)
+	if err := scanFoodLog(row, &f); err != nil {
+		log.Printf("[food/log] scan error: %v", err)
+		utils.InternalError(c)
+		return
+	}
 	utils.Created(c, f)
 }
 
@@ -587,6 +591,22 @@ func CreateSavedFood(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	if len(req.Name) > 200 {
+		utils.BadRequest(c, "name exceeds 200 characters")
+		return
+	}
+	if len(req.Brand) > 200 {
+		utils.BadRequest(c, "brand exceeds 200 characters")
+		return
+	}
+	if len(req.ServingSize) > 100 {
+		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		return
+	}
+	if len(req.Barcode) > 50 {
+		utils.BadRequest(c, "barcode exceeds 50 characters")
+		return
+	}
 
 	res, err := db.DB.Exec(
 		`INSERT INTO saved_foods (user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode)
@@ -602,11 +622,15 @@ func CreateSavedFood(c *gin.Context) {
 
 	id, _ := res.LastInsertId()
 	var f models.SavedFood
-	db.DB.QueryRow(
+	if err := db.DB.QueryRow(
 		`SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode, created_at
 		 FROM saved_foods WHERE id = ?`, id,
 	).Scan(&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Calories, &f.Protein, &f.Carbs, &f.Fat,
-		&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt)
+		&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt); err != nil {
+		log.Printf("[food/saved/create] scan error: %v", err)
+		utils.InternalError(c)
+		return
+	}
 	utils.Created(c, f)
 }
 

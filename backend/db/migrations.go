@@ -33,17 +33,15 @@ func alterMigrations() {
 		rows.Close()
 		if !hasFiber {
 			if _, err := DB.Exec(`ALTER TABLE food_logs ADD COLUMN fiber REAL NOT NULL DEFAULT 0`); err != nil {
-				log.Printf("alter food_logs add fiber: %v", err)
-			} else {
-				log.Println("migration: added food_logs.fiber")
+				log.Fatalf("alter food_logs add fiber: %v", err)
 			}
+			log.Println("migration: added food_logs.fiber")
 		}
 		if !hasImageURL {
 			if _, err := DB.Exec(`ALTER TABLE food_logs ADD COLUMN image_url TEXT NOT NULL DEFAULT ''`); err != nil {
-				log.Printf("alter food_logs add image_url: %v", err)
-			} else {
-				log.Println("migration: added food_logs.image_url")
+				log.Fatalf("alter food_logs add image_url: %v", err)
 			}
+			log.Println("migration: added food_logs.image_url")
 		}
 	}
 }

@@ -101,7 +101,7 @@ export default function FoodLogModal({
     setSaving(false)
     setSaveError(null)
     setSaveToMyFoods(false)
-  }, [open])
+  }, [open, editEntry])
 
   useEffect(() => {
     if (!open || phase !== 'search') return
