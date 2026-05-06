@@ -54,13 +54,14 @@ test.describe('Workouts', () => {
       await request.delete(`${API}/workouts/${searchWorkoutId}`, { headers })
     }
 
-    // Delete any UI-created E2E workouts
+    // Delete any UI-created E2E workouts (serial — SQLite single-writer
+    // drops bulk Promise.all requests under load).
     const list = await request.get(`${API}/workouts?limit=100`, { headers })
     const lb = await list.json()
     const toDelete = (lb.data ?? []).filter((w: any) => w.name === E2E_WORKOUT_NAME)
-    await Promise.all(toDelete.map((w: any) =>
-      request.delete(`${API}/workouts/${w.id}`, { headers })
-    ))
+    for (const w of toDelete) {
+      await request.delete(`${API}/workouts/${w.id}`, { headers })
+    }
   })
 
   test.beforeEach(async ({ page }) => {

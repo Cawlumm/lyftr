@@ -16,17 +16,23 @@ function dockerBaseURL(): string {
 }
 
 const baseURL = process.env.BASE_URL
-  ?? (process.env.E2E_DOCKER ? dockerBaseURL() : 'http://localhost:5173')
+  ?? (process.env.E2E_DOCKER ? dockerBaseURL() : 'https://localhost:5173')
 
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Single worker. Each spec file is run twice (chromium + mobile projects)
+  // and shares one demo user, so two workers running the same spec across
+  // projects race on cleanup — both `beforeAll` hooks run their pre-clean,
+  // and the second worker wipes the first's seeded rows mid-test.
+  // Per-worker namespacing would unblock workers > 1; deferred for now.
   workers: 1,
   reporter: 'list',
   use: {
     baseURL,
+    ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

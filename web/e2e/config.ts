@@ -22,6 +22,11 @@ function getBase(): string {
 
 const base = getBase()
 
-export const API_BASE = process.env.API_URL ?? `${base}/api/v1`
+// API_BASE is used by the Playwright `request` fixture (not the browser).
+// Direct calls to :3000 bypass the Vite proxy and avoid its HTTPS self-signed cert.
+// Docker mode keeps routing through the reverse proxy.
+export const API_BASE = process.env.API_URL ?? (
+  process.env.E2E_DOCKER ? `${base}/api/v1` : 'http://localhost:3000/api/v1'
+)
 export const TEST_EMAIL = process.env.TEST_EMAIL ?? 'demo@lyftr.local'
 export const TEST_PASSWORD = process.env.TEST_PASSWORD ?? 'password123'

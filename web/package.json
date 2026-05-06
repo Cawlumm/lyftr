@@ -23,6 +23,7 @@
     "react-body-highlighter": "^2.0.5",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0",
+    "react-zxing": "^2.1.0",
     "recharts": "^2.10.3",
     "zustand": "^4.4.6"
   },
@@ -32,6 +33,7 @@
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.16",
     "cross-env": "^10.1.0",

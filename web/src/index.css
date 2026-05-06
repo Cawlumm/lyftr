@@ -69,14 +69,16 @@
   .btn-primary   { @apply bg-brand-500 text-white hover:bg-brand-600 active:bg-brand-700 shadow-sm; }
   .btn-secondary { @apply bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary hover:border-tx-muted; }
   .btn-ghost     { @apply text-tx-muted hover:text-tx-primary hover:bg-surface-muted; }
-  .btn-danger    { @apply bg-error-500/10 border border-error-500/20 text-error-400 hover:bg-error-500/20; }
+  .btn-danger        { @apply bg-error-500/10 border border-error-500/20 text-error-400 hover:bg-error-500/20; }
+  .btn-danger-solid  { @apply bg-error-500 text-white hover:bg-error-600 active:bg-error-700 shadow-sm; }
   .btn-icon      { @apply btn p-2.5 rounded-lg; }
   .btn-icon-sm   { @apply btn p-2   rounded-md; }
 
   /* Inputs */
   .input {
     /* text-base (16px) is the minimum to prevent iOS Safari auto-zoom on focus. */
-    @apply w-full px-3.5 py-2.5 bg-surface-overlay border border-surface-border rounded-lg
+    /* min-w-0 overrides browser-imposed intrinsic min-width on date/number inputs. */
+    @apply w-full min-w-0 px-3.5 py-2.5 bg-surface-overlay border border-surface-border rounded-lg
            text-tx-primary placeholder-tx-muted text-base
            focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500
            transition-colors duration-150;

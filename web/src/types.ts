@@ -77,9 +77,11 @@ export interface FoodLog {
   protein: number
   carbs: number
   fat: number
+  fiber?: number
   servings: number
   serving_size?: string
   barcode?: string
+  image_url?: string
   logged_at: string
   created_at?: string
 }
@@ -90,7 +92,42 @@ export interface DailyStats {
   total_protein: number
   total_carbs: number
   total_fat: number
+  total_fiber: number
   workout_count: number
+}
+
+export interface FoodSearchResult {
+  name: string
+  brand?: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  serving_size: string
+  image_url?: string
+  source: 'off' | 'saved' | 'manual'
+}
+
+export interface SavedFood {
+  id: number
+  name: string
+  brand?: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  serving_size: string
+  barcode?: string
+}
+
+export interface FoodHistoryPoint {
+  date: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
 }
 
 export interface WeightStats {

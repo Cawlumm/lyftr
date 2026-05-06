@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
+import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -243,15 +244,15 @@ export default function Programs() {
 
   return (
     <div className="space-y-5 animate-slide-up">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-tx-primary">Programs</h1>
-          <p className="text-tx-muted text-sm mt-0.5">Reusable workout templates</p>
-        </div>
-        <button onClick={() => navigate('/programs/new')} className="btn-primary btn-md">
-          <Plus className="w-4 h-4" /> New Program
-        </button>
-      </div>
+      <PageHeader
+        title="Programs"
+        subtitle="Reusable workout templates"
+        action={
+          <button onClick={() => navigate('/programs/new')} className="btn-primary btn-sm">
+            <Plus className="w-4 h-4" /> New Program
+          </button>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3">
         {[

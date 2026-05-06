@@ -37,5 +37,7 @@ func Connect() {
 		log.Fatalf("migration failed: %v", err)
 	}
 
+	alterMigrations()
+
 	log.Printf("SQLite database ready at %s", dbPath)
 }

@@ -47,7 +47,7 @@ export default {
         },
         success: { 400: '#4ade80', 500: '#22c55e', DEFAULT: '#22c55e' },
         warning: { 400: '#facc15', 500: '#eab308', DEFAULT: '#eab308' },
-        error:   { 400: '#f87171', 500: '#ef4444', DEFAULT: '#ef4444' },
+        error:   { 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', DEFAULT: '#ef4444' },
       },
       backgroundImage: {
         'gradient-brand': 'linear-gradient(135deg, #00b8d9 0%, #8b5cf6 100%)',

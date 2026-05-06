@@ -1,8 +1,49 @@
 package db
 
+import "log"
+
 func migrate() error {
 	_, err := DB.Exec(schema)
 	return err
+}
+
+// alterMigrations adds columns/tables that postdate the initial schema.
+// Each operation is idempotent: it checks before altering.
+func alterMigrations() {
+	rows, err := DB.Query("PRAGMA table_info(food_logs)")
+	if err == nil {
+		hasFiber, hasImageURL := false, false
+		for rows.Next() {
+			var cid int
+			var name, typ string
+			var notnull int
+			var dflt interface{}
+			var pk int
+			if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+				log.Printf("migrations: scan error: %v", err)
+				continue
+			}
+			if name == "fiber" {
+				hasFiber = true
+			}
+			if name == "image_url" {
+				hasImageURL = true
+			}
+		}
+		rows.Close()
+		if !hasFiber {
+			if _, err := DB.Exec(`ALTER TABLE food_logs ADD COLUMN fiber REAL NOT NULL DEFAULT 0`); err != nil {
+				log.Fatalf("alter food_logs add fiber: %v", err)
+			}
+			log.Println("migration: added food_logs.fiber")
+		}
+		if !hasImageURL {
+			if _, err := DB.Exec(`ALTER TABLE food_logs ADD COLUMN image_url TEXT NOT NULL DEFAULT ''`); err != nil {
+				log.Fatalf("alter food_logs add image_url: %v", err)
+			}
+			log.Println("migration: added food_logs.image_url")
+		}
+	}
 }
 
 const schema = `
@@ -97,6 +138,23 @@ CREATE TABLE IF NOT EXISTS food_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_food_logs_user ON food_logs(user_id, logged_at DESC);
+
+CREATE TABLE IF NOT EXISTS saved_foods (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT    NOT NULL,
+  brand        TEXT    NOT NULL DEFAULT '',
+  calories     REAL    NOT NULL DEFAULT 0,
+  protein      REAL    NOT NULL DEFAULT 0,
+  carbs        REAL    NOT NULL DEFAULT 0,
+  fat          REAL    NOT NULL DEFAULT 0,
+  fiber        REAL    NOT NULL DEFAULT 0,
+  serving_size TEXT    NOT NULL DEFAULT '',
+  barcode      TEXT    NOT NULL DEFAULT '',
+  created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_saved_foods_user ON saved_foods(user_id);
 
 CREATE TABLE IF NOT EXISTS active_sessions (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,

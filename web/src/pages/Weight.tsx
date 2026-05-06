@@ -4,6 +4,8 @@ import { format, subDays } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
+import PageHeader from '../components/ui/PageHeader'
+import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
@@ -350,16 +352,11 @@ export default function Weight() {
 
   return (
     <div className="space-y-5 animate-slide-up">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="font-display font-bold text-2xl text-tx-primary">Weight</h1>
-          <p className="text-tx-muted text-sm mt-0.5">Track your body weight over time</p>
-        </div>
-        <span className="badge-brand">
-          <Calendar className="w-3 h-3" /> {wUnit}
-        </span>
-      </div>
+      <PageHeader
+        title="Weight"
+        subtitle="Track your body weight over time"
+        action={<span className="badge-brand"><Calendar className="w-3 h-3" /> {wUnit}</span>}
+      />
 
       {error && (
         <div className="alert-error" role="alert" aria-live="polite">
@@ -400,13 +397,7 @@ export default function Weight() {
                   <X className="w-3.5 h-3.5 text-tx-muted" />
                 </button>
               </div>
-              <input
-                type="date"
-                value={newDate}
-                onChange={e => setNewDate(e.target.value)}
-                max={todayStr()}
-                className="input"
-              />
+              <DateInput value={newDate} onChange={setNewDate} max={todayStr()} />
               <input
                 type="text"
                 value={newNotes}

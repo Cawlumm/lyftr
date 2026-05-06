@@ -117,10 +117,21 @@ export const weightAPI = {
 }
 
 export const foodAPI = {
-  list:   (date?: string) => api.get<{ data: types.FoodLog[] }>('/food', { params: { date } }).then(res => unwrap(res)),
-  log:    (data: any) => api.post<{ data: types.FoodLog }>('/food', data).then(res => unwrap(res)),
-  delete: (id: number) => api.delete(`/food/${id}`),
-  stats:  (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(res => unwrap(res)),
+  list:    (date?: string) => api.get<{ data: types.FoodLog[] }>('/food', { params: { date } }).then(res => unwrap(res)),
+  log:     (data: any) => api.post<{ data: types.FoodLog }>('/food', data).then(res => unwrap(res)),
+  get:     (id: number) => api.get<{ data: types.FoodLog }>(`/food/${id}`).then(res => unwrap(res)),
+  update:  (id: number, data: any) => api.patch<{ data: types.FoodLog }>(`/food/${id}`, data).then(res => unwrap(res)),
+  delete:  (id: number) => api.delete(`/food/${id}`),
+  stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(res => unwrap(res)),
+  history: (days = 30) => api.get<{ data: types.FoodHistoryPoint[] }>('/food/history', { params: { days } }).then(res => unwrap(res)),
+  search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit } }).then(res => unwrap(res)),
+  barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`).then(res => unwrap(res)),
+}
+
+export const savedFoodsAPI = {
+  list:   () => api.get<{ data: types.SavedFood[] }>('/food/saved').then(res => unwrap(res)),
+  create: (data: any) => api.post<{ data: types.SavedFood }>('/food/saved', data).then(res => unwrap(res)),
+  delete: (id: number) => api.delete(`/food/saved/${id}`),
 }
 
 export default api

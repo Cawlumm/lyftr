@@ -15,28 +15,40 @@ test.describe('Programs', () => {
     })
     const body = await res.json()
     authToken = body.data.token
+    const headers = { Authorization: `Bearer ${authToken}` }
 
-    const p = await request.post(`${API}/programs`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-      data: {
-        name: SEED_PROGRAM_NAME,
-        notes: 'Created by E2E seed',
-        exercises: []
-      }
-    })
-    const pb = await p.json()
-    programId = pb.data.id
+    // Pre-clean any accumulated seed programs from prior runs so the search
+    // and list assertions don't see duplicates. Serial deletes — bulk
+    // Promise.all races against SQLite's single-writer.
+    const existing = await request.get(`${API}/programs`, { headers })
+    const eb = await existing.json()
+    const stale = (eb.data ?? []).filter((p: any) =>
+      p.name === SEED_PROGRAM_NAME ||
+      p.name === SEED_SEARCH_PROGRAM_NAME ||
+      p.name === E2E_PROGRAM_NAME
+    )
+    for (const p of stale) {
+      await request.delete(`${API}/programs/${p.id}`, { headers })
+    }
 
-    const sp = await request.post(`${API}/programs`, {
-      headers: { Authorization: `Bearer ${authToken}` },
-      data: {
-        name: SEED_SEARCH_PROGRAM_NAME,
-        notes: 'Created by E2E seed for search',
-        exercises: []
+    // Retry create on transient backend failure (e.g. SQLite busy under
+    // concurrent worker load). spb.data is undefined when backend returned
+    // an error envelope instead of the created row.
+    const createSeed = async (name: string, notes: string): Promise<number> => {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const r = await request.post(`${API}/programs`, {
+          headers,
+          data: { name, notes, exercises: [] },
+        })
+        const rb = await r.json()
+        if (rb.data?.id) return rb.data.id
+        await new Promise(res => setTimeout(res, 200 * (attempt + 1)))
       }
-    })
-    const spb = await sp.json()
-    searchProgramId = spb.data.id
+      throw new Error(`Failed to create seed program "${name}" after 3 attempts`)
+    }
+
+    programId = await createSeed(SEED_PROGRAM_NAME, 'Created by E2E seed')
+    searchProgramId = await createSeed(SEED_SEARCH_PROGRAM_NAME, 'Created by E2E seed for search')
   })
 
   test.afterAll(async ({ request }) => {
@@ -50,13 +62,14 @@ test.describe('Programs', () => {
       await request.delete(`${API}/programs/${searchProgramId}`, { headers })
     }
 
-    // Delete any UI-created E2E programs
+    // Delete any UI-created E2E programs (serial — bulk Promise.all races
+    // against SQLite's single-writer and silently drops requests).
     const list = await request.get(`${API}/programs`, { headers })
     const lb = await list.json()
     const toDelete = (lb.data ?? []).filter((p: any) => p.name === E2E_PROGRAM_NAME)
-    await Promise.all(toDelete.map((p: any) =>
-      request.delete(`${API}/programs/${p.id}`, { headers })
-    ))
+    for (const p of toDelete) {
+      await request.delete(`${API}/programs/${p.id}`, { headers })
+    }
   })
 
   test.beforeEach(async ({ page }) => {

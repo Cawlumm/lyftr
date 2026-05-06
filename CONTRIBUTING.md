@@ -4,6 +4,66 @@ Bug reports, feature requests, and pull requests are welcome. Open an issue befo
 
 ---
 
+## Local Development Setup
+
+### Prerequisites
+
+- [Go 1.22+](https://go.dev/dl/)
+- [Node.js 20+](https://nodejs.org/)
+
+### Backend
+
+```bash
+cd backend
+go run .
+# API listens on http://localhost:3000
+```
+
+On first run the backend seeds a demo account and exercise database automatically.
+
+**Demo credentials**
+```
+Email:    demo@lyftr.local
+Password: password123
+```
+
+To seed additional food log history for the demo account:
+
+```bash
+python3 scripts/seed_food.py
+```
+
+### Frontend
+
+```bash
+cd web
+npm install
+npm run dev
+# App at https://localhost:5173
+```
+
+The dev server uses a self-signed HTTPS certificate (via `@vitejs/plugin-basic-ssl`). Your browser will show a security warning on first visit — accept it to proceed. HTTPS is required so the barcode scanner can access the device camera on mobile.
+
+**Testing on a mobile device**
+
+1. Run `npm run dev` — Vite binds to all network interfaces (`host: true`)
+2. Find your machine's LAN IP: `ipconfig` (Windows) / `ifconfig` (macOS/Linux)
+3. Open `https://<your-lan-ip>:5173` on the phone
+4. Accept the self-signed cert warning once
+5. Barcode scanner and camera will work
+
+### Production
+
+Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real TLS certificate — no Vite or self-signed certs involved. The `basicSsl` plugin is dev-only and has no effect on `vite build` output.
+
+```
+Internet → nginx/Caddy (real TLS cert)
+              ├── /       → dist/  (vite build output)
+              └── /api    → localhost:3000
+```
+
+---
+
 ## Branch Naming
 
 | Prefix | Use for | Example |

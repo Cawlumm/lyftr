@@ -82,11 +82,49 @@ type FoodLog struct {
 	Protein     float64   `json:"protein" db:"protein"`
 	Carbs       float64   `json:"carbs" db:"carbs"`
 	Fat         float64   `json:"fat" db:"fat"`
+	Fiber       float64   `json:"fiber" db:"fiber"`
 	Servings    float64   `json:"servings" db:"servings"`
 	ServingSize string    `json:"serving_size" db:"serving_size"`
 	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
+	ImageURL    string    `json:"image_url,omitempty" db:"image_url"`
 	LoggedAt    time.Time `json:"logged_at" db:"logged_at"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+type SavedFood struct {
+	ID          int64     `json:"id" db:"id"`
+	UserID      int64     `json:"user_id,omitempty" db:"user_id"`
+	Name        string    `json:"name" db:"name"`
+	Brand       string    `json:"brand" db:"brand"`
+	Calories    float64   `json:"calories" db:"calories"`
+	Protein     float64   `json:"protein" db:"protein"`
+	Carbs       float64   `json:"carbs" db:"carbs"`
+	Fat         float64   `json:"fat" db:"fat"`
+	Fiber       float64   `json:"fiber" db:"fiber"`
+	ServingSize string    `json:"serving_size" db:"serving_size"`
+	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+type FoodSearchResult struct {
+	Name        string  `json:"name"`
+	Brand       string  `json:"brand,omitempty"`
+	Calories    float64 `json:"calories"`
+	Protein     float64 `json:"protein"`
+	Carbs       float64 `json:"carbs"`
+	Fat         float64 `json:"fat"`
+	Fiber       float64 `json:"fiber"`
+	ServingSize string  `json:"serving_size"`
+	ImageURL    string  `json:"image_url,omitempty"`
+	Source      string  `json:"source"` // "off" | "saved"
+}
+
+type FoodHistoryPoint struct {
+	Date     string  `json:"date"`
+	Calories float64 `json:"calories"`
+	Protein  float64 `json:"protein"`
+	Carbs    float64 `json:"carbs"`
+	Fat      float64 `json:"fat"`
 }
 
 // Request/Response types
@@ -149,10 +187,24 @@ type LogFoodRequest struct {
 	Protein     float64   `json:"protein" validate:"gte=0"`
 	Carbs       float64   `json:"carbs" validate:"gte=0"`
 	Fat         float64   `json:"fat" validate:"gte=0"`
-	Servings    float64   `json:"servings" validate:"gt=0"`
+	Fiber       float64   `json:"fiber" validate:"gte=0"`
+	Servings    float64   `json:"servings" validate:"gte=0"`
 	ServingSize string    `json:"serving_size"`
 	Barcode     string    `json:"barcode"`
+	ImageURL    string    `json:"image_url"`
 	LoggedAt    time.Time `json:"logged_at"`
+}
+
+type SaveFoodRequest struct {
+	Name        string  `json:"name" validate:"required"`
+	Brand       string  `json:"brand"`
+	Calories    float64 `json:"calories" validate:"gte=0"`
+	Protein     float64 `json:"protein" validate:"gte=0"`
+	Carbs       float64 `json:"carbs" validate:"gte=0"`
+	Fat         float64 `json:"fat" validate:"gte=0"`
+	Fiber       float64 `json:"fiber" validate:"gte=0"`
+	ServingSize string  `json:"serving_size"`
+	Barcode     string  `json:"barcode"`
 }
 
 type UpdateSettingsRequest struct {
@@ -214,5 +266,6 @@ type DailyStats struct {
 	TotalProtein  float64 `json:"total_protein"`
 	TotalCarbs    float64 `json:"total_carbs"`
 	TotalFat      float64 `json:"total_fat"`
+	TotalFiber    float64 `json:"total_fiber"`
 	WorkoutCount  int     `json:"workout_count"`
 }
