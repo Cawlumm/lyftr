@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta" />
   <a href="https://selfh.st/weekly/2026-04-24/"><img src="https://img.shields.io/badge/Featured%20in-selfh.st%20%C2%B7%20Apr%202026-6366f1" alt="Featured in selfh.st" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS Planned" />
-  <a href="https://discord.gg/uBr2tUH6j"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Join Discord" /></a>
+  <a href="https://discord.gg/hfFWsrebQA"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Join Discord" /></a>
 </p>
 
 <p align="center">
