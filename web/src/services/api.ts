@@ -1,19 +1,21 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
 
-const getAPIBase = () => {
+// Resolved per-request so the "Server settings" panel takes effect immediately,
+// without needing a full page reload.
+const resolveAPIBase = () => {
+  const envUrl = import.meta.env.VITE_API_URL as string | undefined
+  if (envUrl) return envUrl
   const serverUrl = localStorage.getItem('server_url')
   return serverUrl ? `${serverUrl}/api/v1` : '/api/v1'
 }
 
-const API_BASE = (import.meta.env.VITE_API_URL as string) || getAPIBase()
-
 const api: AxiosInstance = axios.create({
-  baseURL: API_BASE,
   headers: { 'Content-Type': 'application/json' },
 })
 
 api.interceptors.request.use((config) => {
+  config.baseURL = resolveAPIBase()
   const token = localStorage.getItem('access_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
@@ -27,7 +29,7 @@ api.interceptors.response.use(
       original._retry = true
       try {
         const refreshToken = localStorage.getItem('refresh_token')
-        const res = await axios.post(`${API_BASE}/auth/refresh`, { refresh_token: refreshToken })
+        const res = await axios.post(`${resolveAPIBase()}/auth/refresh`, { refresh_token: refreshToken })
         const newToken = res.data.data.token
         localStorage.setItem('access_token', newToken)
         original.headers.Authorization = `Bearer ${newToken}`
