@@ -1,0 +1,132 @@
+{
+  "common": {
+    "save": "Save",
+    "close": "Close",
+    "or": "or",
+    "version": "v0.1.0"
+  },
+  "auth": {
+    "brand": {
+      "headline": "Log. Lift.",
+      "highlight": "Progress.",
+      "tagline": "Your self-hosted fitness tracker. Track workouts, log food, monitor weight — all under your control, running on your own server.",
+      "footer": "© lyftr · {{version}}"
+    },
+    "features": {
+      "workouts": "Track workouts",
+      "food": "Log food + macros",
+      "progress": "See progress"
+    },
+    "server": {
+      "toggle": "Server settings",
+      "url": "Server URL",
+      "urlPlaceholder": "http://localhost:3000",
+      "current": "Current: {{url}}"
+    },
+    "fields": {
+      "email": "Email",
+      "emailPlaceholder": "you@example.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "passwordMinPlaceholder": "Min 8 characters",
+      "passwordConfirm": "Confirm password"
+    },
+    "login": {
+      "heading": "Welcome back",
+      "subtitle": "Sign in to continue training.",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "demo": "Try demo account",
+      "signupPrompt": "New here?",
+      "signupLink": "Create account",
+      "errorInvalid": "Invalid email or password.",
+      "errorDemo": "Demo login failed"
+    },
+    "register": {
+      "heading": "Create account",
+      "subtitle": "Start tracking your fitness today.",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "signinPrompt": "Already have an account?",
+      "signinLink": "Sign in",
+      "errorMismatch": "Passwords do not match",
+      "errorTooShort": "Password must be at least 8 characters",
+      "errorFailed": "Registration failed."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Preferences and account configuration",
+    "loadError": "Failed to load settings",
+    "saveError": "Failed to save settings",
+    "saveSuccess": "Settings saved successfully",
+    "account": {
+      "title": "Account",
+      "email": "Email",
+      "emailDesc": "Your login email address",
+      "memberSince": "Member since"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": "Theme",
+      "themeDesc": "Interface color scheme",
+      "dark": "Dark",
+      "light": "Light",
+      "language": "Language",
+      "languageDesc": "Display language for the interface"
+    },
+    "workout": {
+      "title": "Workout",
+      "layout": "Active workout layout",
+      "layoutDesc": "How exercises are shown during a workout",
+      "list": "List",
+      "gym": "Gym Mode"
+    },
+    "goals": {
+      "title": "Goals & Units",
+      "weightUnit": "Weight unit",
+      "weightUnitDesc": "Changes apply immediately across the app",
+      "calorieTarget": "Calorie target",
+      "calorieTargetDesc": "Daily calorie goal",
+      "kcal": "kcal",
+      "proteinTarget": "Protein target",
+      "proteinTargetDesc": "Daily protein goal",
+      "carbTarget": "Carb target",
+      "carbTargetDesc": "Daily carb goal",
+      "fatTarget": "Fat target",
+      "fatTargetDesc": "Daily fat goal",
+      "grams": "g",
+      "saveHint": "Save calorie and macro targets",
+      "save": "Save targets",
+      "saving": "Saving..."
+    },
+    "instance": {
+      "title": "Self-Hosted Instance",
+      "apiServer": "API server",
+      "apiServerDesc": "Backend server this client is connected to",
+      "database": "Database",
+      "databaseDesc": "Storage backend",
+      "version": "Version",
+      "versionDesc": "lyftr backend version"
+    },
+    "exercises": {
+      "title": "Exercise Library",
+      "database": "Exercise database",
+      "databaseDesc": "800+ exercises seeded automatically on first run",
+      "seeding": "Seeding...",
+      "count": "{{count}} exercises",
+      "synced": "Synced {{count}} exercises",
+      "syncFailed": "Sync failed",
+      "resync": "Re-sync",
+      "syncing": "Syncing..."
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "signOut": "Sign out",
+      "signOutDesc": "Log out of this device",
+      "deleteAccount": "Delete account",
+      "deleteAccountDesc": "Permanently delete all your data",
+      "delete": "Delete"
+    }
+  }
+}

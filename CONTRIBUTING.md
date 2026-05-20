@@ -101,6 +101,16 @@ git rebase origin/main
 
 ---
 
+## Translations
+
+The web UI is internationalised with react-i18next; all strings live in
+`web/src/locales/`. Adding or improving a language is just editing JSON — no
+code change. The easiest path is Weblate, which opens the PR for you.
+
+See [TRANSLATING.md](TRANSLATING.md) for the full guide.
+
+---
+
 ## Commit Messages
 
 Follow conventional commits:

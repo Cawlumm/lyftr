@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn, ChevronDown, Server } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import Logo from '../components/Logo'
 
 export default function Login() {
+  const { t } = useTranslation()
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState('')
@@ -32,7 +34,7 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid email or password.')
+      setError(err.response?.data?.error || t('auth.login.errorInvalid'))
     } finally {
       setLoading(false)
     }
@@ -44,7 +46,7 @@ export default function Login() {
       await login('demo@lyftr.local', 'password123')
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Demo login failed')
+      setError(err.response?.data?.error || t('auth.login.errorDemo'))
     } finally {
       setLoading(false)
     }
@@ -74,23 +76,23 @@ export default function Login() {
         {/* Headline and features */}
         <div className="relative space-y-8">
           <h1 className="font-display font-bold text-5xl leading-tight tracking-tight">
-            Log. Lift.
+            {t('auth.brand.headline')}
             <br />
             <span className="bg-gradient-to-r from-brand-500 to-violet-500 bg-clip-text text-transparent">
-              Progress.
+              {t('auth.brand.highlight')}
             </span>
           </h1>
 
           <p className="text-tx-secondary text-base leading-relaxed max-w-sm">
-            Your self-hosted fitness tracker. Track workouts, log food, monitor weight — all under your control, running on your own server.
+            {t('auth.brand.tagline')}
           </p>
 
           {/* Features */}
           <div className="space-y-4">
             {[
-              { icon: Dumbbell, label: 'Track workouts' },
-              { icon: Apple, label: 'Log food + macros' },
-              { icon: TrendingUp, label: 'See progress' },
+              { icon: Dumbbell, label: t('auth.features.workouts') },
+              { icon: Apple, label: t('auth.features.food') },
+              { icon: TrendingUp, label: t('auth.features.progress') },
             ].map(({ icon: Icon, label }) => (
               <div key={label} className="flex items-center gap-3 text-tx-muted text-sm">
                 <Icon className="w-4 h-4 text-brand-500" strokeWidth={2} />
@@ -102,7 +104,7 @@ export default function Login() {
 
         {/* Footer */}
         <div className="relative text-tx-muted text-xs">
-          © lyftr · v0.1.0
+          {t('auth.brand.footer', { version: t('common.version') })}
         </div>
       </div>
 
@@ -117,10 +119,10 @@ export default function Login() {
           {/* Heading */}
           <div className="mb-8">
             <h2 className="font-display font-bold text-3xl text-tx-primary tracking-tight">
-              Welcome back
+              {t('auth.login.heading')}
             </h2>
             <p className="text-tx-muted text-sm mt-2">
-              Sign in to continue training.
+              {t('auth.login.subtitle')}
             </p>
           </div>
 
@@ -130,19 +132,19 @@ export default function Login() {
             className="flex items-center gap-2 px-3 py-2 mb-4 text-xs text-tx-muted hover:text-tx-secondary rounded-lg hover:bg-surface-muted/40 transition-colors"
           >
             <Server className="w-3.5 h-3.5" />
-            <span>Server settings</span>
+            <span>{t('auth.server.toggle')}</span>
             <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${showServerSettings ? 'rotate-180' : ''}`} />
           </button>
 
           {/* Server settings panel */}
           {showServerSettings && (
             <div className="mb-4 p-3 bg-surface-muted/30 border border-surface-border rounded-lg space-y-2">
-              <label className="block text-xs font-medium text-tx-secondary uppercase tracking-wider">Server URL</label>
+              <label className="block text-xs font-medium text-tx-secondary uppercase tracking-wider">{t('auth.server.url')}</label>
               <input
                 type="text"
                 value={serverInput || serverUrl}
                 onChange={e => setServerInput(e.target.value)}
-                placeholder="http://localhost:3000"
+                placeholder={t('auth.server.urlPlaceholder')}
                 className="input text-sm"
               />
               <div className="flex gap-2 pt-1">
@@ -151,17 +153,17 @@ export default function Login() {
                   disabled={!serverInput.trim()}
                   className="flex-1 px-2 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
                 >
-                  Save
+                  {t('common.save')}
                 </button>
                 <button
                   onClick={() => setShowServerSettings(false)}
                   className="flex-1 px-2 py-1.5 text-xs bg-surface-border text-tx-secondary hover:bg-surface-border/80 rounded-lg transition-colors"
                 >
-                  Close
+                  {t('common.close')}
                 </button>
               </div>
               {serverUrl !== 'http://localhost:3000' && (
-                <p className="text-xs text-tx-muted pt-1">Current: {serverUrl}</p>
+                <p className="text-xs text-tx-muted pt-1">{t('auth.server.current', { url: serverUrl })}</p>
               )}
             </div>
           )}
@@ -170,14 +172,14 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
             <div>
-              <label htmlFor="email" className="label">Email</label>
+              <label htmlFor="email" className="label">{t('auth.fields.email')}</label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 className="input mt-2"
-                placeholder="you@example.com"
+                placeholder={t('auth.fields.emailPlaceholder')}
                 autoComplete="email"
                 required
               />
@@ -186,7 +188,7 @@ export default function Login() {
             {/* Password */}
             <div>
               <div className="mb-2">
-                <label htmlFor="password" className="label">Password</label>
+                <label htmlFor="password" className="label">{t('auth.fields.password')}</label>
               </div>
               <input
                 id="password"
@@ -194,7 +196,7 @@ export default function Login() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 className="input mt-2"
-                placeholder="••••••••"
+                placeholder={t('auth.fields.passwordPlaceholder')}
                 autoComplete="current-password"
                 required
               />
@@ -215,13 +217,13 @@ export default function Login() {
               className="btn-primary btn-lg w-full mt-6 flex items-center justify-center gap-2"
             >
               <LogIn className="w-4 h-4" />
-              {isLoading ? 'Signing in…' : 'Sign in'}
+              {isLoading ? t('auth.login.submitting') : t('auth.login.submit')}
             </button>
 
             {/* Divider */}
             <div className="relative flex items-center my-6">
               <div className="flex-1 h-px bg-surface-border" />
-              <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
+              <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">{t('common.or')}</span>
               <div className="flex-1 h-px bg-surface-border" />
             </div>
 
@@ -234,19 +236,19 @@ export default function Login() {
                 className="btn-secondary btn-lg w-full flex items-center justify-center gap-2"
               >
                 <Zap className="w-4 h-4 text-warning-400" />
-                Try demo account
+                {t('auth.login.demo')}
               </button>
             )}
           </form>
 
           {/* Sign up link */}
           <p className="mt-8 text-center text-sm text-tx-muted">
-            New here?{' '}
+            {t('auth.login.signupPrompt')}{' '}
             <Link
               to="/register"
               className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
             >
-              Create account
+              {t('auth.login.signupLink')}
             </Link>
           </p>
         </div>

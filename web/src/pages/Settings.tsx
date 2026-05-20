@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
+import { SUPPORTED_LANGUAGES } from '../i18n'
 import * as types from '../types'
 import { HelpTip } from '../components/Tooltip'
 import PageHeader from '../components/ui/PageHeader'
@@ -37,6 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function Settings() {
+  const { t, i18n } = useTranslation()
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout } = useSettingsStore()
@@ -78,7 +81,7 @@ export default function Settings() {
           fat_target: s.fat_target,
         })
       } catch (err: any) {
-        setError(err.message || 'Failed to load settings')
+        setError(err.message || t('settings.loadError'))
       } finally {
         setLoading(false)
       }
@@ -102,13 +105,17 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.sync()
-      setSeedMsg(`Synced ${res.total.toLocaleString()} exercises`)
+      setSeedMsg(t('settings.exercises.synced', { count: res.total }))
       loadSeedStatus()
     } catch (err: any) {
-      setSeedMsg(err.message || 'Sync failed')
+      setSeedMsg(err.message || t('settings.exercises.syncFailed'))
     } finally {
       setSeedAction(null)
     }
+  }
+
+  const handleLanguageChange = (lng: string) => {
+    i18n.changeLanguage(lng)
   }
 
 
@@ -128,7 +135,7 @@ export default function Settings() {
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
-      setError(err.message || 'Failed to save settings')
+      setError(err.message || t('settings.saveError'))
     } finally {
       setSaving(false)
     }
@@ -144,7 +151,7 @@ export default function Settings() {
 
   return (
     <div className="space-y-5 animate-slide-up max-w-2xl">
-      <PageHeader title="Settings" subtitle="Preferences and account configuration" />
+      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       {error && (
         <div className="alert-error">
@@ -156,37 +163,48 @@ export default function Settings() {
       {success && (
         <div className="alert-success">
           <Check className="w-5 h-5 flex-shrink-0" />
-          <span>Settings saved successfully</span>
+          <span>{t('settings.saveSuccess')}</span>
         </div>
       )}
 
       {/* Account */}
-      <Section title="Account">
-        <SettingRow label="Email" description="Your login email address">
+      <Section title={t('settings.account.title')}>
+        <SettingRow label={t('settings.account.email')} description={t('settings.account.emailDesc')}>
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
         </SettingRow>
-        <SettingRow label="Member since">
+        <SettingRow label={t('settings.account.memberSince')}>
           <span className="text-sm text-tx-muted">
-            {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
+            {user?.created_at ? new Date(user.created_at).toLocaleDateString(i18n.language, { month: 'long', year: 'numeric' }) : '—'}
           </span>
         </SettingRow>
       </Section>
 
       {/* Appearance */}
-      <Section title="Appearance">
-        <SettingRow label="Theme" description="Interface color scheme">
+      <Section title={t('settings.appearance.title')}>
+        <SettingRow label={t('settings.appearance.theme')} description={t('settings.appearance.themeDesc')}>
           <button onClick={toggleTheme} className="btn-secondary btn-sm">
             {theme === 'dark'
-              ? <><Moon className="w-3.5 h-3.5" /> Dark</>
-              : <><Sun className="w-3.5 h-3.5" /> Light</>
+              ? <><Moon className="w-3.5 h-3.5" /> {t('settings.appearance.dark')}</>
+              : <><Sun className="w-3.5 h-3.5" /> {t('settings.appearance.light')}</>
             }
           </button>
+        </SettingRow>
+        <SettingRow label={t('settings.appearance.language')} description={t('settings.appearance.languageDesc')}>
+          <select
+            value={i18n.resolvedLanguage}
+            onChange={e => handleLanguageChange(e.target.value)}
+            className="input btn-sm py-1.5 pr-8"
+          >
+            {SUPPORTED_LANGUAGES.map(lng => (
+              <option key={lng.code} value={lng.code}>{lng.label}</option>
+            ))}
+          </select>
         </SettingRow>
       </Section>
 
       {/* Workout */}
-      <Section title="Workout">
-        <SettingRow label="Active workout layout" description="How exercises are shown during a workout">
+      <Section title={t('settings.workout.title')}>
+        <SettingRow label={t('settings.workout.layout')} description={t('settings.workout.layoutDesc')}>
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
             {(['list', 'gym'] as const).map(mode => (
               <button
@@ -198,7 +216,7 @@ export default function Settings() {
                     : 'text-tx-muted hover:text-tx-primary'
                 }`}
               >
-                {mode === 'list' ? 'List' : 'Gym Mode'}
+                {mode === 'list' ? t('settings.workout.list') : t('settings.workout.gym')}
               </button>
             ))}
           </div>
@@ -206,8 +224,8 @@ export default function Settings() {
       </Section>
 
       {/* Goals & Units */}
-      <Section title="Goals & Units">
-        <SettingRow label="Weight unit" description="Changes apply immediately across the app">
+      <Section title={t('settings.goals.title')}>
+        <SettingRow label={t('settings.goals.weightUnit')} description={t('settings.goals.weightUnitDesc')}>
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
             {(['lbs', 'kg'] as const).map(unit => (
               <button
@@ -225,7 +243,7 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <SettingRow label="Calorie target" description="Daily calorie goal">
+        <SettingRow label={t('settings.goals.calorieTarget')} description={t('settings.goals.calorieTargetDesc')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -235,11 +253,11 @@ export default function Settings() {
               min={500}
               max={10000}
             />
-            <span className="text-xs text-tx-muted">kcal</span>
+            <span className="text-xs text-tx-muted">{t('settings.goals.kcal')}</span>
           </div>
         </SettingRow>
 
-        <SettingRow label="Protein target" description="Daily protein goal">
+        <SettingRow label={t('settings.goals.proteinTarget')} description={t('settings.goals.proteinTargetDesc')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -247,11 +265,11 @@ export default function Settings() {
               onChange={e => setFormData({ ...formData, protein_target: parseInt(e.target.value) || 0 })}
               className="input w-24 text-right"
             />
-            <span className="text-xs text-tx-muted">g</span>
+            <span className="text-xs text-tx-muted">{t('settings.goals.grams')}</span>
           </div>
         </SettingRow>
 
-        <SettingRow label="Carb target" description="Daily carb goal">
+        <SettingRow label={t('settings.goals.carbTarget')} description={t('settings.goals.carbTargetDesc')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -259,11 +277,11 @@ export default function Settings() {
               onChange={e => setFormData({ ...formData, carb_target: parseInt(e.target.value) || 0 })}
               className="input w-24 text-right"
             />
-            <span className="text-xs text-tx-muted">g</span>
+            <span className="text-xs text-tx-muted">{t('settings.goals.grams')}</span>
           </div>
         </SettingRow>
 
-        <SettingRow label="Fat target" description="Daily fat goal">
+        <SettingRow label={t('settings.goals.fatTarget')} description={t('settings.goals.fatTargetDesc')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -271,52 +289,52 @@ export default function Settings() {
               onChange={e => setFormData({ ...formData, fat_target: parseInt(e.target.value) || 0 })}
               className="input w-24 text-right"
             />
-            <span className="text-xs text-tx-muted">g</span>
+            <span className="text-xs text-tx-muted">{t('settings.goals.grams')}</span>
           </div>
         </SettingRow>
 
         <div className="py-3 flex items-center justify-between">
-          <p className="text-xs text-tx-muted">Save calorie and macro targets</p>
+          <p className="text-xs text-tx-muted">{t('settings.goals.saveHint')}</p>
           <button
             onClick={handleSave}
             disabled={saving}
             className="btn-primary btn-sm"
           >
-            <Check className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save targets'}
+            <Check className="w-3.5 h-3.5" /> {saving ? t('settings.goals.saving') : t('settings.goals.save')}
           </button>
         </div>
       </Section>
 
       {/* Server info */}
-      <Section title="Self-Hosted Instance">
-        <SettingRow label="API server" description="Backend server this client is connected to">
+      <Section title={t('settings.instance.title')}>
+        <SettingRow label={t('settings.instance.apiServer')} description={t('settings.instance.apiServerDesc')}>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-success-500 flex-shrink-0" />
             <span className="text-xs font-mono text-tx-muted">localhost:3000</span>
           </div>
         </SettingRow>
-        <SettingRow label="Database" description="Storage backend">
+        <SettingRow label={t('settings.instance.database')} description={t('settings.instance.databaseDesc')}>
           <span className="badge-dim">SQLite</span>
         </SettingRow>
-        <SettingRow label="Version" description="lyftr backend version">
-          <span className="text-xs text-tx-muted font-mono">v0.1.0</span>
+        <SettingRow label={t('settings.instance.version')} description={t('settings.instance.versionDesc')}>
+          <span className="text-xs text-tx-muted font-mono">{t('common.version')}</span>
         </SettingRow>
       </Section>
 
       {/* Exercise Library */}
-      <Section title="Exercise Library">
+      <Section title={t('settings.exercises.title')}>
         <SettingRow
-          label="Exercise database"
-          description="800+ exercises seeded automatically on first run"
+          label={t('settings.exercises.database')}
+          description={t('settings.exercises.databaseDesc')}
         >
           <div className="flex items-center gap-2">
             {seedStatus?.in_progress ? (
               <span className="flex items-center gap-1.5 text-xs text-brand-400">
-                <Loader className="w-3.5 h-3.5 animate-spin" /> Seeding...
+                <Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.exercises.seeding')}
               </span>
             ) : (
               <span className="text-sm font-mono text-tx-muted">
-                {seedStatus ? seedStatus.count.toLocaleString() : '—'} exercises
+                {seedStatus ? t('settings.exercises.count', { count: seedStatus.count }) : '—'}
               </span>
             )}
           </div>
@@ -335,23 +353,23 @@ export default function Settings() {
             className="btn-secondary btn-sm"
           >
             {seedAction === 'sync'
-              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
-              : <><RefreshCw className="w-3.5 h-3.5" /> Re-sync</>
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.exercises.syncing')}</>
+              : <><RefreshCw className="w-3.5 h-3.5" /> {t('settings.exercises.resync')}</>
             }
           </button>
         </div>
       </Section>
 
       {/* Danger Zone */}
-      <Section title="Danger Zone">
-        <SettingRow label="Sign out" description="Log out of this device">
+      <Section title={t('settings.danger.title')}>
+        <SettingRow label={t('settings.danger.signOut')} description={t('settings.danger.signOutDesc')}>
           <button onClick={() => logout()} className="btn-secondary btn-sm">
-            <LogOut className="w-3.5 h-3.5" /> Sign out
+            <LogOut className="w-3.5 h-3.5" /> {t('settings.danger.signOut')}
           </button>
         </SettingRow>
-        <SettingRow label="Delete account" description="Permanently delete all your data">
+        <SettingRow label={t('settings.danger.deleteAccount')} description={t('settings.danger.deleteAccountDesc')}>
           <button className="btn-danger btn-sm">
-            <Trash2 className="w-3.5 h-3.5" /> Delete
+            <Trash2 className="w-3.5 h-3.5" /> {t('settings.danger.delete')}
           </button>
         </SettingRow>
       </Section>
