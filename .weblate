@@ -8,7 +8,8 @@
 # NEVER commit an API token here. Store it in ~/.config/weblate under [keys].
 
 [weblate]
-url = https://hosted.weblate.org/api/
+# Self-hosted instance. (Hosted Weblate users: https://hosted.weblate.org/api/)
+url = https://weblate.example.com/api/
 
 # Default project/component the CLI operates on. Adjust to your project slug.
 [component "lyftr/web"]

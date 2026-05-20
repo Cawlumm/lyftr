@@ -97,12 +97,47 @@ Configure one component in the Weblate project UI:
 | Source language | English |
 | New translations | Use the base file as template |
 
-Enable Weblate's GitHub integration (or the GitHub App) so it pushes
-translations back as pull requests. The repo-side `.weblate` file at the project
-root points the [`wlc`](https://docs.weblate.org/en/latest/wlc.html) CLI at the
-server and default component — update the URL and component slug to match your
-instance. **Never commit an API token**; `wlc` reads it from
-`~/.config/weblate`.
+The `github` VCS backend ("GitHub pull request") makes Weblate push
+translations back as pull requests instead of committing to `main` directly.
+For that to work the instance needs GitHub credentials.
+
+### Self-hosting the instance
+
+Weblate runs as a Docker stack. Use the official compose — don't fork it:
+
+```bash
+git clone https://github.com/WeblateOrg/docker.git weblate-docker
+cd weblate-docker
+# edit ./environment — at minimum set:
+#   WEBLATE_SITE_DOMAIN, WEBLATE_ADMIN_EMAIL, WEBLATE_ADMIN_PASSWORD
+#   WEBLATE_SERVER_EMAIL, WEBLATE_DEFAULT_FROM_EMAIL
+#   WEBLATE_GITHUB_USERNAME + WEBLATE_GITHUB_TOKEN   ← enables the PR backend
+docker compose up -d
+```
+
+It must run on a **persistent host** with a real domain (not in CI / ephemeral
+containers). See the [official self-hosting docs](https://docs.weblate.org/en/latest/admin/install/docker.html)
+for the full env reference.
+
+Once it's up, create the project + component without clicking through the UI:
+
+```bash
+WEBLATE_URL=https://weblate.example.com \
+WEBLATE_TOKEN=<your admin API token> \
+scripts/weblate-provision.sh
+```
+
+The script creates the project and component with the exact values from the
+table above. If it rejects `file_format` or `vcs`, confirm the slugs against
+your version (`GET <url>/api/file-formats/`) and pass overrides, e.g.
+`FILE_FORMAT=… VCS=… scripts/weblate-provision.sh`.
+
+### The `.weblate` CLI config
+
+The repo-root `.weblate` file points the
+[`wlc`](https://docs.weblate.org/en/latest/wlc.html) CLI at the server and
+default component — update the `url` to your instance. **Never commit an API
+token**; `wlc` reads it from `~/.config/weblate`.
 
 ---
 
