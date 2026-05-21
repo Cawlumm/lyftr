@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
+import { useServerInfo } from '../hooks/useServerInfo'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
@@ -40,6 +41,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function Settings() {
   const { user, logout } = useAuthStore()
   const serverUrl = useServerStore(s => s.serverUrl)
+  const serverInfo = useServerInfo()
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout } = useSettingsStore()
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
@@ -301,7 +303,7 @@ export default function Settings() {
           <span className="badge-dim">SQLite</span>
         </SettingRow>
         <SettingRow label="Version" description="lyftr backend version">
-          <span className="text-xs text-tx-muted font-mono">v0.1.0</span>
+          <span className="text-xs text-tx-muted font-mono">{serverInfo ? serverInfo.version : '—'}</span>
         </SettingRow>
       </Section>
 

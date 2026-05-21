@@ -25,6 +25,14 @@ type Config struct {
 
 var C *Config
 
+// buildVersion is set at build time via:
+//   -ldflags "-X github.com/Cawlumm/lyftr-backend/config.buildVersion=$VERSION"
+// where the Dockerfile passes the git tag as the VERSION build-arg. It falls back
+// to "dev" for local/untagged builds. If you rename this var or the package, also
+// update the Dockerfile ldflags path and the version-smoke CI job, or the injection
+// will silently no-op and ship "dev".
+var buildVersion = "dev"
+
 func Load() {
 	_ = godotenv.Load()
 
@@ -41,7 +49,7 @@ func Load() {
 		JWTExpiry:  getEnv("JWT_EXPIRY", "3600"),
 		CORSOrigin: getEnv("CORS_ORIGIN", "http://localhost:5173"),
 		Env:        getEnv("ENV", "development"),
-		Version:    getEnv("APP_VERSION", "0.1.0"),
+		Version:    getEnv("APP_VERSION", buildVersion),
 	}
 
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {

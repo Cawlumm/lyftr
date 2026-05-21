@@ -3,12 +3,15 @@ import { useNavigate, Link } from 'react-router-dom'
 import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
+import { useServerInfo } from '../hooks/useServerInfo'
+import { formatVersion } from '../utils/version'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 
 export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuthStore()
+  const serverInfo = useServerInfo()
 
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
@@ -93,7 +96,7 @@ export default function Login() {
 
         {/* Footer */}
         <div className="relative text-tx-muted text-xs">
-          © lyftr · v0.1.0
+          © lyftr{serverInfo ? ` · ${formatVersion(serverInfo.version)}` : ''}
         </div>
       </div>
 
