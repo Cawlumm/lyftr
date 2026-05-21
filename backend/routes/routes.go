@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/controllers"
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -9,22 +12,16 @@ import (
 )
 
 func Setup(r *gin.Engine) {
-	corsOrigins := []string{config.C.CORSOrigin}
-	if config.C.Env == "development" {
-		corsOrigins = []string{"*"}
-	}
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     corsOrigins,
-		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		AllowCredentials: config.C.Env != "development",
-	}))
+	r.Use(cors.New(corsConfig()))
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
 
 	api := r.Group("/api/v1")
+
+	// Public: "test connection" probe for the in-app server selector.
+	api.GET("/info", controllers.ServerInfo)
 
 	// Auth (public)
 	auth := api.Group("/auth")
@@ -96,4 +93,34 @@ func Setup(r *gin.Engine) {
 		protected.GET("admin/seed-status", controllers.ExerciseSeedStatus)
 		protected.POST("admin/reset-exercises", controllers.ResetExercises)
 	}
+}
+
+// corsConfig builds the CORS policy. Auth is Bearer-token based (no cookies), so
+// credentials mode is off — which also lets the wildcard origin be valid. In
+// development, or when CORS_ORIGIN is unset or "*", any origin is allowed; in
+// production CORS_ORIGIN is a comma-separated allow-list of client origins.
+func corsConfig() cors.Config {
+	cfg := cors.Config{
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: false,
+	}
+
+	origins := parseOrigins(config.C.CORSOrigin)
+	if config.C.Env == "development" || len(origins) == 0 || slices.Contains(origins, "*") {
+		cfg.AllowAllOrigins = true
+	} else {
+		cfg.AllowOrigins = origins
+	}
+	return cfg
+}
+
+func parseOrigins(raw string) []string {
+	out := make([]string, 0)
+	for _, p := range strings.Split(raw, ",") {
+		if t := strings.TrimSpace(p); t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
 }

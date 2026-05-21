@@ -118,8 +118,9 @@ All variables live in `.env` at the project root.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `JWT_SECRET` | *required* | Min 32-char secret for signing tokens |
-| `CORS_ORIGIN` | `http://localhost` | Set to your domain in production |
+| `CORS_ORIGIN` | `http://localhost` | Comma-separated allow-list of client origins. Use `*` to allow any (the API is Bearer-token based, no cookies) |
 | `PORT` | `80` | Host port for the web interface |
+| `BACKEND_ORIGIN` | `backend:3000` | `host:port` the frontend proxies `/api` to. Must match the backend's `PORT` if you change it |
 
 ---
 

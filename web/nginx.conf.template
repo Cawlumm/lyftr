@@ -18,9 +18,12 @@ server {
         application/json
         image/svg+xml;
 
-    # Proxy API requests to the backend service
+    # Proxy API requests to the backend service.
+    # BACKEND_ORIGIN is host:port of the backend (default backend:3000), set via
+    # env so deployments that run the backend on another port don't have to
+    # rebuild the image. Substituted at container start by nginx's envsubst entrypoint.
     location /api/ {
-        proxy_pass http://backend:3000/api/;
+        proxy_pass http://${BACKEND_ORIGIN}/api/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

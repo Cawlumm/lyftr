@@ -1,28 +1,19 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn, ChevronDown, Server } from 'lucide-react'
+import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
-import { useServerStore } from '../stores/server'
+import { apiErrorMessage } from '../services/api'
 import Logo from '../components/Logo'
+import ServerSettings from '../components/ServerSettings'
 
 export default function Login() {
+  const navigate = useNavigate()
+  const { login } = useAuthStore()
+
   const [email, setEmail]           = useState('')
   const [password, setPassword]     = useState('')
   const [error, setError]           = useState('')
   const [isLoading, setLoading]     = useState(false)
-  const [showServerSettings, setShowServerSettings] = useState(false)
-  const [serverInput, setServerInput] = useState('')
-
-  const navigate = useNavigate()
-  const { login } = useAuthStore()
-  const { serverUrl, setServerUrl } = useServerStore()
-
-  const handleServerUrlChange = () => {
-    if (serverInput.trim()) {
-      setServerUrl(serverInput)
-      setServerInput('')
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,7 +23,7 @@ export default function Login() {
       await login(email, password)
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Invalid email or password.')
+      setError(apiErrorMessage(err, 'Invalid email or password.'))
     } finally {
       setLoading(false)
     }
@@ -44,7 +35,7 @@ export default function Login() {
       await login('demo@lyftr.local', 'password123')
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Demo login failed')
+      setError(apiErrorMessage(err, 'Demo login failed'))
     } finally {
       setLoading(false)
     }
@@ -124,47 +115,8 @@ export default function Login() {
             </p>
           </div>
 
-          {/* Server settings toggle */}
-          <button
-            onClick={() => setShowServerSettings(!showServerSettings)}
-            className="flex items-center gap-2 px-3 py-2 mb-4 text-xs text-tx-muted hover:text-tx-secondary rounded-lg hover:bg-surface-muted/40 transition-colors"
-          >
-            <Server className="w-3.5 h-3.5" />
-            <span>Server settings</span>
-            <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${showServerSettings ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Server settings panel */}
-          {showServerSettings && (
-            <div className="mb-4 p-3 bg-surface-muted/30 border border-surface-border rounded-lg space-y-2">
-              <label className="block text-xs font-medium text-tx-secondary uppercase tracking-wider">Server URL</label>
-              <input
-                type="text"
-                value={serverInput || serverUrl}
-                onChange={e => setServerInput(e.target.value)}
-                placeholder="http://localhost:3000"
-                className="input text-sm"
-              />
-              <div className="flex gap-2 pt-1">
-                <button
-                  onClick={handleServerUrlChange}
-                  disabled={!serverInput.trim()}
-                  className="flex-1 px-2 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium rounded-lg transition-colors"
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => setShowServerSettings(false)}
-                  className="flex-1 px-2 py-1.5 text-xs bg-surface-border text-tx-secondary hover:bg-surface-border/80 rounded-lg transition-colors"
-                >
-                  Close
-                </button>
-              </div>
-              {serverUrl !== 'http://localhost:3000' && (
-                <p className="text-xs text-tx-muted pt-1">Current: {serverUrl}</p>
-              )}
-            </div>
-          )}
+          {/* Server selector */}
+          <ServerSettings />
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">

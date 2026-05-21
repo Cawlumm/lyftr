@@ -20,6 +20,7 @@ type Config struct {
 	JWTExpiry     string
 	CORSOrigin    string
 	Env           string
+	Version       string
 }
 
 var C *Config
@@ -40,6 +41,7 @@ func Load() {
 		JWTExpiry:  getEnv("JWT_EXPIRY", "3600"),
 		CORSOrigin: getEnv("CORS_ORIGIN", "http://localhost:5173"),
 		Env:        getEnv("ENV", "development"),
+		Version:    getEnv("APP_VERSION", "0.1.0"),
 	}
 
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {

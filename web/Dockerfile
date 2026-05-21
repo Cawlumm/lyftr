@@ -14,8 +14,15 @@ RUN npm run build
 # Stage 2: Runtime
 FROM nginx:alpine
 
-# Custom nginx config for SPA + API proxy
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Backend upstream for the /api proxy. Override at runtime (compose/`docker run -e`)
+# when the backend runs on a non-default port, e.g. BACKEND_ORIGIN=backend:3008.
+ENV BACKEND_ORIGIN=backend:3000
+# Only substitute our own var so nginx runtime vars ($host, $uri, ...) are left intact.
+ENV NGINX_ENVSUBST_FILTER=BACKEND_ORIGIN
+
+# Custom nginx config for SPA + API proxy. nginx's entrypoint renders templates in
+# /etc/nginx/templates/*.template through envsubst into /etc/nginx/conf.d/ on start.
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 # Copy built assets
 COPY --from=builder /app/dist /usr/share/nginx/html

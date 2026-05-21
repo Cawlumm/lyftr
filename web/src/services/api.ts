@@ -1,13 +1,65 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
+import { normalizeServerUrl } from '../stores/server'
+
+// Every API call lives under this versioned path. `origin` is an absolute server
+// origin for a cross-origin backend, or '' for the same-origin reverse proxy.
+const API_BASE_PATH = '/api/v1'
+const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
 
 // Resolved per-request so the "Server settings" panel takes effect immediately,
 // without needing a full page reload.
 const resolveAPIBase = () => {
   const envUrl = import.meta.env.VITE_API_URL as string | undefined
   if (envUrl) return envUrl
-  const serverUrl = localStorage.getItem('server_url')
-  return serverUrl ? `${serverUrl}/api/v1` : '/api/v1'
+  // Re-normalize in case localStorage holds a legacy/scheme-less value: a relative
+  // base would make axios fold the host into the request path (bogus 405s), so fall
+  // back to the same-origin reverse proxy when it can't be made absolute.
+  const stored = localStorage.getItem('server_url')
+  const base = stored ? normalizeServerUrl(stored) : ''
+  return apiUrl(base)
+}
+
+// Turn an axios error into an actionable message. Network/CORS/connection failures
+// (no response) and proxy misconfig (404/405) are distinguished from real auth and
+// server errors, so connectivity problems don't masquerade as "Registration failed."
+// Intended for the auth/connectivity flows (login/register/connection test); the
+// 404/405 wording assumes a misconfigured server URL rather than a missing resource.
+export const apiErrorMessage = (err: any, fallback: string): string => {
+  if (err?.response) {
+    const serverError = err.response.data?.error
+    if (serverError) return serverError
+    const status = err.response.status
+    if (status === 404 || status === 405) {
+      return "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings."
+    }
+    if (status >= 500) return 'Server error. Please try again shortly.'
+    return fallback
+  }
+  return "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS)."
+}
+
+export interface ServerInfo {
+  name: string
+  version: string
+}
+
+// Probes a server's public /info endpoint to confirm it's reachable and is a
+// Lyftr backend. Pass '' to test the same-origin reverse-proxy path. Runs under
+// the backend's CORS policy, so success predicts that real requests will work.
+export const testServerConnection = async (
+  base: string,
+): Promise<{ ok: true; info: ServerInfo } | { ok: false; message: string }> => {
+  try {
+    const res = await axios.get<{ data: ServerInfo }>(`${apiUrl(base)}/info`, { timeout: 8000 })
+    const info = res.data?.data
+    if (!info?.name) {
+      return { ok: false, message: "That responded, but it doesn't look like a Lyftr server." }
+    }
+    return { ok: true, info }
+  } catch (err) {
+    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.") }
+  }
 }
 
 const api: AxiosInstance = axios.create({
@@ -25,7 +77,11 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    // A 401 from the auth endpoints themselves is a credential error, not an
+    // expired session — let the page show it instead of attempting a token
+    // refresh and redirecting (which would wipe "Invalid email or password").
+    const isAuthRequest = (original?.url || '').includes('/auth/')
+    if (error.response?.status === 401 && !original._retry && !isAuthRequest) {
       original._retry = true
       try {
         const refreshToken = localStorage.getItem('refresh_token')

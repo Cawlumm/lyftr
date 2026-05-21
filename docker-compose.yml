@@ -26,6 +26,9 @@ services:
     image: cwlumm/lyftr-frontend:latest
     build: ./web
     restart: unless-stopped
+    environment:
+      # host:port the frontend nginx proxies /api to. Must match the backend's PORT.
+      - BACKEND_ORIGIN=${BACKEND_ORIGIN:-backend:3000}
     ports:
       - "${PORT:-80}:80"
     depends_on:
