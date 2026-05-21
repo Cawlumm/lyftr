@@ -24,7 +24,10 @@ export default function ServerSettings() {
     const raw = input.trim()
     const normalized = normalizeServerUrl(raw) // '' = same origin (reverse proxy)
     if (raw && !normalized) {
-      setStatus({ kind: 'error', message: 'Enter a full URL, e.g. http://192.168.1.10:3000' })
+      setStatus({
+        kind: 'error',
+        message: 'Include http:// or https:// — e.g. http://192.168.1.10:3000',
+      })
       return
     }
     // Save immediately (warn-but-save): the choice is authoritative right away;

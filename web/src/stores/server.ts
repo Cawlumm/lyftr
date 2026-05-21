@@ -1,21 +1,19 @@
 import { create } from 'zustand'
 
 // Normalize a user-entered server URL to an absolute origin (scheme + host[:port]).
-// Returns '' for empty/invalid input, which means "use this site's own origin via
-// the reverse proxy" — the zero-config default. Without this, a scheme-less value
-// like "192.168.1.10:3000" is treated by the browser as a relative path and folded
-// into the frontend origin (the cause of the bogus POST /host:port/... 405s).
+// Empty input returns '' — "use this site's own origin via the reverse proxy", the
+// zero-config default. A non-empty value MUST include an explicit http:// or
+// https:// scheme; a bare host ("192.168.1.10:3000"), wrong scheme, or garbage
+// returns '' so the caller can reject it with an error. We deliberately do NOT
+// guess a scheme: silently prepending one hides typos and can pick the wrong
+// protocol (e.g. http on an HTTPS deployment), so the user must be explicit.
 export const normalizeServerUrl = (raw: string): string => {
   const trimmed = raw.trim()
   if (!trimmed) return ''
-  if (/\s/.test(trimmed)) return '' // a server URL never contains whitespace
-  // Default the scheme to the page's protocol: on an HTTPS-served app, coercing a
-  // bare host to http:// would make the browser block the request as mixed content.
-  const pageScheme =
-    typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http'
-  const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `${pageScheme}://${trimmed}`
+  if (/\s/.test(trimmed)) return ''             // a server URL never contains whitespace
+  if (!/^https?:\/\//i.test(trimmed)) return '' // require an explicit http:// or https://
   try {
-    const u = new URL(withScheme)
+    const u = new URL(trimmed)
     if (!u.hostname) return ''
     return `${u.protocol}//${u.host}`
   } catch {

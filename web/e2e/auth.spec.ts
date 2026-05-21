@@ -30,7 +30,7 @@ test('server settings rejects an invalid URL without persisting it', async ({ pa
   await page.getByRole('button', { name: /server settings/i }).click()
   await page.getByPlaceholder('Leave blank to use this site').fill('not a valid url')
   await page.getByRole('button', { name: /test & save/i }).click()
-  await expect(page.getByText(/enter a full url/i)).toBeVisible()
+  await expect(page.getByText(/include http:\/\/ or https:\/\//i)).toBeVisible()
   expect(await page.evaluate(() => localStorage.getItem('server_url'))).toBeNull()
 })
 
@@ -41,15 +41,13 @@ test('server settings tests and connects to the default (reverse proxy)', async 
   await expect(page.getByText(/connected · lyftr/i)).toBeVisible()
 })
 
-test('server settings normalizes a scheme-less host using the page protocol', async ({ page }) => {
-  // A bare host must adopt the page's own scheme (https on an HTTPS page, http on
-  // an HTTP one) — coercing to a fixed scheme would risk mixed-content blocking.
-  // The dev server runs over HTTPS and the Docker E2E over HTTP, so derive it.
+test('server settings rejects a scheme-less host instead of guessing the scheme', async ({ page }) => {
+  // A bare host like "127.0.0.1:9" must be rejected with an error — we no longer
+  // silently prepend a scheme. The user has to type http:// or https:// explicitly.
   await page.goto('/login')
-  const expected = `${new URL(page.url()).protocol}//127.0.0.1:9`
   await page.getByRole('button', { name: /server settings/i }).click()
   await page.getByPlaceholder('Leave blank to use this site').fill('127.0.0.1:9')
   await page.getByRole('button', { name: /test & save/i }).click()
-  await expect(page.getByText(`Current: ${expected}`)).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('server_url'))).toBe(expected)
+  await expect(page.getByText(/include http:\/\/ or https:\/\//i)).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('server_url'))).toBeNull()
 })
