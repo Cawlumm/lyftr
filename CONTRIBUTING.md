@@ -133,15 +133,24 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). E
 
 - **Backend:** `gofmt` before committing. Errors wrapped with context. No unnecessary abstractions.
 - **Frontend:** Follow existing patterns. No new npm dependencies without discussion.
-- **Tests:** Go controller tests and Playwright E2E must pass before any PR.
+- **Tests:** Go controller tests, Vitest unit tests, and Playwright E2E must pass before any PR.
 
 ```bash
 # Backend
 cd backend && go test ./controllers/ -timeout 30s
 
+# Frontend unit tests (fast, no servers needed)
+cd web && npm run test:unit          # add --coverage for a report
+
 # Frontend E2E (requires backend on :3000 and frontend on :5173)
 cd web && npm run test:e2e
 ```
+
+**Unit (Vitest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
+isolated components — anything that runs without a real backend or cross-page
+navigation; reserve E2E for full user journeys against the running stack. Unit
+files are `src/**/*.test.ts(x)`; E2E specs are `e2e/**/*.spec.ts`. Keep the two
+suffixes/locations distinct so the runners never pick up each other's files.
 
 Never commit with failing tests. Fix root cause — don't skip or comment out.
 

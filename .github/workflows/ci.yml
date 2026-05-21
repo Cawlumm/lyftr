@@ -20,6 +20,25 @@ jobs:
       - run: cd backend && go mod download
       - run: cd backend && go test ./controllers/ -timeout 30s
 
+  unit:
+    name: Web unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - run: cd web && npm ci
+      - run: cd web && npm run coverage   # runs the unit suite + prints a coverage report (not gated)
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-coverage
+          path: web/coverage/
+          retention-days: 7
+
   e2e:
     name: Playwright E2E
     runs-on: ubuntu-latest
@@ -100,7 +119,7 @@ jobs:
 
   build-backend:
     name: Build & push backend image
-    needs: [test, e2e, version-smoke]
+    needs: [test, unit, e2e, version-smoke]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -136,7 +155,7 @@ jobs:
 
   build-frontend:
     name: Build & push frontend image
-    needs: [test, e2e]
+    needs: [test, unit, e2e]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -165,7 +184,7 @@ jobs:
 
   deploy-demo:
     name: Deploy to Fly.io
-    needs: [test, e2e, version-smoke]
+    needs: [test, unit, e2e, version-smoke]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:

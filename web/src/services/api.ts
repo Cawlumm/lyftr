@@ -5,7 +5,7 @@ import { normalizeServerUrl } from '../stores/server'
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy.
 const API_BASE_PATH = '/api/v1'
-const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
+export const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
 
 // Resolved per-request so the "Server settings" panel takes effect immediately,
 // without needing a full page reload.
