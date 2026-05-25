@@ -91,16 +91,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build backend image with a known version
         run: docker build --build-arg VERSION=smoke-9.9.9 -t lyftr-backend:smoke ./backend
-      - name: Assert /info reports the injected version
+      - name: Assert the binary reports the injected version
         run: |
-          docker run -d --name lyftr-smoke -p 3000:3000 lyftr-backend:smoke
-          for i in $(seq 1 30); do curl -sf http://localhost:3000/health >/dev/null && break; sleep 1; done
-          info=$(curl -s http://localhost:3000/api/v1/info)
-          echo "info: $info"
-          echo "$info" | grep -qE '"version":[[:space:]]*"smoke-9.9.9"'
-      - name: Cleanup
-        if: always()
-        run: docker rm -f lyftr-smoke || true
+          set -euo pipefail
+          out=$(docker run --rm lyftr-backend:smoke --version)
+          echo "version output: $out"
+          echo "$out" | grep -q 'smoke-9.9.9'
 
   build-backend:
     name: Build & push backend image

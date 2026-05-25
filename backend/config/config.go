@@ -35,6 +35,10 @@ var C *Config
 // will silently no-op and ship "dev".
 var buildVersion = "dev"
 
+// Version returns the build-time version. Unlike C.Version it needs no Load(),
+// so the --version flag can report it without touching env or the database.
+func Version() string { return buildVersion }
+
 func Load() {
 	_ = godotenv.Load()
 

@@ -1,7 +1,10 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -11,6 +14,13 @@ import (
 )
 
 func main() {
+	showVersion := flag.Bool("version", false, "print the build version and exit")
+	flag.Parse()
+	if *showVersion {
+		fmt.Printf("lyftr %s\n", config.Version())
+		os.Exit(0)
+	}
+
 	config.Load()
 	db.Connect()
 	seed.DemoUser(db.DB)
