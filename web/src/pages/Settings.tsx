@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../stores/auth'
+import { useServerStore } from '../stores/server'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
@@ -38,6 +39,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function Settings() {
   const { user, logout } = useAuthStore()
+  const serverUrl = useServerStore(s => s.serverUrl)
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout } = useSettingsStore()
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
@@ -292,7 +294,7 @@ export default function Settings() {
         <SettingRow label="API server" description="Backend server this client is connected to">
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-success-500 flex-shrink-0" />
-            <span className="text-xs font-mono text-tx-muted">localhost:3000</span>
+            <span className="text-xs font-mono text-tx-muted">{serverUrl || 'This site (reverse proxy)'}</span>
           </div>
         </SettingRow>
         <SettingRow label="Database" description="Storage backend">

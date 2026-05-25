@@ -69,6 +69,10 @@ export default function ServerSettings() {
             spellCheck={false}
           />
 
+          <p className="text-[11px] leading-relaxed text-tx-muted">
+            Full URL, e.g. <span className="font-mono text-tx-secondary">http://192.168.1.10:3000</span>
+          </p>
+
           {status.kind === 'error' && <p className="text-xs text-error-400">{status.message}</p>}
           {status.kind === 'warn' && (
             <p className="flex items-start gap-1.5 text-xs text-warning-400">
