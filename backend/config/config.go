@@ -8,25 +8,27 @@ import (
 )
 
 type Config struct {
-	Port          string
-	DBType        string // "sqlite" or "postgres"
-	DBPath        string // sqlite only
-	DBHost        string // postgres only
-	DBPort        string
-	DBName        string
-	DBUser        string
-	DBPassword    string
-	JWTSecret     string
-	JWTExpiry     string
-	CORSOrigin    string
-	Env           string
-	Version       string
+	Port       string
+	DBType     string // "sqlite" or "postgres"
+	DBPath     string // sqlite only
+	DBHost     string // postgres only
+	DBPort     string
+	DBName     string
+	DBUser     string
+	DBPassword string
+	JWTSecret  string
+	JWTExpiry  string
+	CORSOrigin string
+	Env        string
+	Version    string
 }
 
 var C *Config
 
 // buildVersion is set at build time via:
-//   -ldflags "-X github.com/Cawlumm/lyftr-backend/config.buildVersion=$VERSION"
+//
+//	-ldflags "-X github.com/Cawlumm/lyftr-backend/config.buildVersion=$VERSION"
+//
 // where the Dockerfile passes the git tag as the VERSION build-arg. It falls back
 // to "dev" for local/untagged builds. If you rename this var or the package, also
 // update the Dockerfile ldflags path and the version-smoke CI job, or the injection
@@ -49,7 +51,7 @@ func Load() {
 		JWTExpiry:  getEnv("JWT_EXPIRY", "3600"),
 		CORSOrigin: getEnv("CORS_ORIGIN", "http://localhost:5173"),
 		Env:        getEnv("ENV", "development"),
-		Version:    getEnv("APP_VERSION", buildVersion),
+		Version:    buildVersion,
 	}
 
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {

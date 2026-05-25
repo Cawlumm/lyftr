@@ -97,7 +97,7 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://localhost:3000/health >/dev/null && break; sleep 1; done
           info=$(curl -s http://localhost:3000/api/v1/info)
           echo "info: $info"
-          echo "$info" | grep -q '"version":"smoke-9.9.9"'
+          echo "$info" | grep -qE '"version":[[:space:]]*"smoke-9.9.9"'
       - name: Cleanup
         if: always()
         run: docker rm -f lyftr-smoke || true
