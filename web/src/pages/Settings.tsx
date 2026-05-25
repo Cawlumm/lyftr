@@ -303,7 +303,7 @@ export default function Settings() {
           <span className="badge-dim">SQLite</span>
         </SettingRow>
         <SettingRow label="Version" description="lyftr backend version">
-          <span className="text-xs text-tx-muted font-mono">{serverInfo ? serverInfo.version : '—'}</span>
+          <span className="text-xs text-tx-muted font-mono">{serverInfo?.version || '—'}</span>
         </SettingRow>
       </Section>
 
