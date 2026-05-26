@@ -56,7 +56,8 @@ func ListWeightLogs(c *gin.Context) {
 	args = append(args, limit, offset)
 
 	rows, err := db.DB.Query(q, args...)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	defer rows.Close()
@@ -93,7 +94,8 @@ func LogWeight(c *gin.Context) {
 		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
 		uid, req.Weight, req.Notes, req.LoggedAt,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -102,7 +104,7 @@ func LogWeight(c *gin.Context) {
 	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, id,
 	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
-		utils.DBError(c, err)
+		utils.InternalError(c)
 		return
 	}
 	utils.Created(c, log)
@@ -121,11 +123,7 @@ func GetWeightLog(c *gin.Context) {
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ? AND user_id = ?`,
 		lid, uid,
 	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
-		if err == sql.ErrNoRows {
-			utils.NotFound(c, "log entry not found")
-			return
-		}
-		utils.DBError(c, err)
+		utils.NotFound(c, "log entry not found")
 		return
 	}
 	utils.OK(c, log)
@@ -160,7 +158,8 @@ func UpdateWeightLog(c *gin.Context) {
 		`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
 		req.Weight, req.Notes, req.LoggedAt, lid, uid,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -173,7 +172,7 @@ func UpdateWeightLog(c *gin.Context) {
 	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, lid,
 	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
-		utils.DBError(c, err)
+		utils.InternalError(c)
 		return
 	}
 	utils.OK(c, log)
@@ -188,7 +187,8 @@ func DeleteWeightLog(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(`DELETE FROM weight_logs WHERE id = ? AND user_id = ?`, lid, uid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()

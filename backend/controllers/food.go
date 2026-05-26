@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -49,7 +48,9 @@ func ListFoodLogs(c *gin.Context) {
 		foodLogSelect+` WHERE user_id = ? AND substr(logged_at, 1, 10) = ? ORDER BY logged_at ASC`,
 		uid, date,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/list] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	defer rows.Close()
@@ -76,11 +77,7 @@ func GetFoodLog(c *gin.Context) {
 	var f models.FoodLog
 	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, lid, uid)
 	if err := scanFoodLog(row, &f); err != nil {
-		if err == sql.ErrNoRows {
-			utils.NotFound(c, "log entry not found")
-			return
-		}
-		utils.DBError(c, err)
+		utils.NotFound(c, "log entry not found")
 		return
 	}
 	utils.OK(c, f)
@@ -127,14 +124,18 @@ func LogFood(c *gin.Context) {
 		uid, req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
 		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/log] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 
 	id, _ := res.LastInsertId()
 	var f models.FoodLog
 	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, id, uid)
-	if err := scanFoodLog(row, &f); utils.DBError(c, err) {
+	if err := scanFoodLog(row, &f); err != nil {
+		log.Printf("[food/log] scan error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	utils.Created(c, f)
@@ -185,7 +186,9 @@ func UpdateFoodLog(c *gin.Context) {
 		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
 		lid, uid,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/update] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -196,9 +199,7 @@ func UpdateFoodLog(c *gin.Context) {
 
 	var f models.FoodLog
 	row := db.DB.QueryRow(foodLogSelect+` WHERE id = ? AND user_id = ?`, lid, uid)
-	if err := scanFoodLog(row, &f); utils.DBError(c, err) {
-		return
-	}
+	scanFoodLog(row, &f)
 	utils.OK(c, f)
 }
 
@@ -211,7 +212,9 @@ func DeleteFoodLog(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(`DELETE FROM food_logs WHERE id = ? AND user_id = ?`, lid, uid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/delete] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -237,14 +240,18 @@ func GetDailyStats(c *gin.Context) {
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
 		 FROM food_logs WHERE user_id = ? AND substr(logged_at, 1, 10) = ?`,
 		uid, date,
-	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber); utils.DBError(c, err) {
+	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber); err != nil {
+		log.Printf("[food/stats] scan error (macros): %v", err)
+		utils.InternalError(c)
 		return
 	}
 
 	if err := db.DB.QueryRow(
 		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND substr(started_at, 1, 10) = ?`,
 		uid, date,
-	).Scan(&stats.WorkoutCount); utils.DBError(c, err) {
+	).Scan(&stats.WorkoutCount); err != nil {
+		log.Printf("[food/stats] scan error (workouts): %v", err)
+		utils.InternalError(c)
 		return
 	}
 
@@ -268,7 +275,9 @@ func GetFoodHistory(c *gin.Context) {
 		 GROUP BY d ORDER BY d ASC`,
 		uid, fmt.Sprintf("-%d days", days),
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/history] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	defer rows.Close()
@@ -551,7 +560,9 @@ func ListSavedFoods(c *gin.Context) {
 		 FROM saved_foods WHERE user_id = ? ORDER BY name ASC`,
 		uid,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/saved/list] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	defer rows.Close()
@@ -603,7 +614,9 @@ func CreateSavedFood(c *gin.Context) {
 		uid, req.Name, req.Brand, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
 		req.ServingSize, req.Barcode,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/saved/create] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 
@@ -613,7 +626,9 @@ func CreateSavedFood(c *gin.Context) {
 		`SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode, created_at
 		 FROM saved_foods WHERE id = ?`, id,
 	).Scan(&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Calories, &f.Protein, &f.Carbs, &f.Fat,
-		&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt); utils.DBError(c, err) {
+		&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt); err != nil {
+		log.Printf("[food/saved/create] scan error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	utils.Created(c, f)
@@ -628,7 +643,9 @@ func DeleteSavedFood(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(`DELETE FROM saved_foods WHERE id = ? AND user_id = ?`, fid, uid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		log.Printf("[food/saved/delete] db error: %v", err)
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()

@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"database/sql"
-
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -16,11 +14,8 @@ func GetMe(c *gin.Context) {
 	err := db.DB.QueryRow(
 		`SELECT id, email, created_at, updated_at FROM users WHERE id = ?`, uid,
 	).Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt)
-	if err == sql.ErrNoRows {
-		utils.NotFound(c, "user not found")
-		return
-	}
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	utils.OK(c, u)
@@ -33,15 +28,12 @@ func GetSettings(c *gin.Context) {
 		`SELECT user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target
 		 FROM user_settings WHERE user_id = ?`, uid,
 	).Scan(&s.UserID, &s.WeightUnit, &s.CalorieTarget, &s.ProteinTarget, &s.CarbTarget, &s.FatTarget)
-	if err == sql.ErrNoRows {
-		// No settings row yet — return defaults.
+	if err != nil {
+		// Return defaults if not found
 		utils.OK(c, models.UserSettings{
 			UserID: uid, WeightUnit: "lbs",
 			CalorieTarget: 2000, ProteinTarget: 150, CarbTarget: 250, FatTarget: 65,
 		})
-		return
-	}
-	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, s)
@@ -55,7 +47,7 @@ func UpdateSettings(c *gin.Context) {
 		return
 	}
 
-	_, err := db.DB.Exec(
+	db.DB.Exec(
 		`INSERT INTO user_settings (user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(user_id) DO UPDATE SET
@@ -66,9 +58,6 @@ func UpdateSettings(c *gin.Context) {
 		   fat_target     = excluded.fat_target`,
 		uid, req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget,
 	)
-	if utils.DBError(c, err) {
-		return
-	}
 
 	GetSettings(c)
 }
@@ -76,7 +65,8 @@ func UpdateSettings(c *gin.Context) {
 func DeleteAccount(c *gin.Context) {
 	uid := middleware.UserID(c)
 	_, err := db.DB.Exec(`DELETE FROM users WHERE id = ?`, uid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})

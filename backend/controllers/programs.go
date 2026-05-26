@@ -38,7 +38,8 @@ func ListPrograms(c *gin.Context) {
 			uid, limit, offset,
 		)
 	}
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	defer rows.Close()
@@ -69,7 +70,8 @@ func GetProgram(c *gin.Context) {
 		utils.NotFound(c, "program not found")
 		return
 	}
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -90,7 +92,8 @@ func CreateProgram(c *gin.Context) {
 	}
 
 	tx, err := db.DB.Begin()
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	defer tx.Rollback()
@@ -99,11 +102,13 @@ func CreateProgram(c *gin.Context) {
 		`INSERT INTO programs (user_id, name, notes) VALUES (?, ?, ?)`,
 		uid, req.Name, req.Notes,
 	)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	pid, err := res.LastInsertId()
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -112,11 +117,13 @@ func CreateProgram(c *gin.Context) {
 			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
 			pid, ex.ExerciseID, i, ex.Notes,
 		)
-		if utils.DBError(c, err) {
+		if err != nil {
+			utils.InternalError(c)
 			return
 		}
 		peid, err := exRes.LastInsertId()
-		if utils.DBError(c, err) {
+		if err != nil {
+			utils.InternalError(c)
 			return
 		}
 		for j, s := range ex.Sets {
@@ -128,13 +135,15 @@ func CreateProgram(c *gin.Context) {
 				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
 				peid, sn, s.TargetReps, s.TargetWeight,
 			)
-			if utils.DBError(c, err) {
+			if err != nil {
+				utils.InternalError(c)
 				return
 			}
 		}
 	}
 
-	if err := tx.Commit(); utils.DBError(c, err) {
+	if err := tx.Commit(); err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -172,23 +181,27 @@ func UpdateProgram(c *gin.Context) {
 		utils.NotFound(c, "program not found")
 		return
 	}
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
 	tx, err := db.DB.Begin()
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	defer tx.Rollback()
 
 	_, err = tx.Exec(`UPDATE programs SET name = ?, notes = ? WHERE id = ?`, req.Name, req.Notes, pid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
 	_, err = tx.Exec(`DELETE FROM program_exercises WHERE program_id = ?`, pid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -197,11 +210,13 @@ func UpdateProgram(c *gin.Context) {
 			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
 			pid, ex.ExerciseID, i, ex.Notes,
 		)
-		if utils.DBError(c, err) {
+		if err != nil {
+			utils.InternalError(c)
 			return
 		}
 		peid, err := exRes.LastInsertId()
-		if utils.DBError(c, err) {
+		if err != nil {
+			utils.InternalError(c)
 			return
 		}
 		for j, s := range ex.Sets {
@@ -213,13 +228,15 @@ func UpdateProgram(c *gin.Context) {
 				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
 				peid, sn, s.TargetReps, s.TargetWeight,
 			)
-			if utils.DBError(c, err) {
+			if err != nil {
+				utils.InternalError(c)
 				return
 			}
 		}
 	}
 
-	if err := tx.Commit(); utils.DBError(c, err) {
+	if err := tx.Commit(); err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -240,7 +257,8 @@ func DeleteProgram(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(`DELETE FROM programs WHERE id = ? AND user_id = ?`, pid, uid)
-	if utils.DBError(c, err) {
+	if err != nil {
+		utils.InternalError(c)
 		return
 	}
 	n, _ := res.RowsAffected()
