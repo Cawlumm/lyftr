@@ -120,7 +120,9 @@ All variables live in `.env` at the project root.
 | `JWT_SECRET` | *required* | Min 32-char secret for signing tokens |
 | `CORS_ORIGIN` | `http://localhost` | Comma-separated allow-list of client origins. Use `*` to allow any (the API is Bearer-token based, no cookies) |
 | `PORT` | `80` | Host port for the web interface |
-| `BACKEND_ORIGIN` | `backend:3000` | `host:port` the frontend proxies `/api` to. Must match the backend's `PORT` if you change it |
+| `BACKEND_ORIGIN` | `backend:3000` | Docker **service name**:port the frontend proxies `/api` to — not a host IP. Only change the port, to match a custom backend `PORT` |
+
+> **Self-hosting note:** `BACKEND_ORIGIN` is resolved over the internal Docker network, so it must use the backend's **service name** (`backend`), not your server's host or LAN IP. The default compose only *exposes* the backend on the Docker network — it isn't published to the host — so pointing `BACKEND_ORIGIN` at something like `192.168.1.10:3000` produces a `502 Bad Gateway` (`connect() failed (111: Connection refused)`). If you set a custom backend `PORT`, change only the port (e.g. `backend:3008`).
 
 ---
 
