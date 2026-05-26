@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"strconv"
 
@@ -41,15 +42,17 @@ func ListExercises(c *gin.Context) {
 	args = append(args, limit)
 
 	rows, err := db.DB.Query(query, args...)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	defer rows.Close()
 
 	exercises := []models.Exercise{}
 	for rows.Next() {
-		e := scanExercise(rows)
+		e, err := scanExercise(rows)
+		if utils.DBError(c, err) {
+			return
+		}
 		exercises = append(exercises, e)
 	}
 	utils.OK(c, exercises)
@@ -62,13 +65,15 @@ func GetExercise(c *gin.Context) {
 		return
 	}
 
-	row := db.DB.QueryRow(
+	e, err := scanExercise(db.DB.QueryRow(
 		`SELECT id, name, muscle_group, secondary_muscles, category, equipment, description, image_url
 		 FROM exercises WHERE id = ?`, id,
-	)
-	e := scanExercise(row)
-	if e.ID == 0 {
+	))
+	if err == sql.ErrNoRows {
 		utils.NotFound(c, "exercise not found")
+		return
+	}
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, e)
@@ -97,7 +102,11 @@ func GetExercisePRs(c *gin.Context) {
 	var date string
 	var workoutID int64
 	if err := row.Scan(&weight, &reps, &date, &workoutID); err != nil {
-		utils.OK(c, nil)
+		if err == sql.ErrNoRows {
+			utils.OK(c, nil)
+			return
+		}
+		utils.DBError(c, err)
 		return
 	}
 
@@ -134,8 +143,7 @@ func GetExerciseHistory(c *gin.Context) {
 		ORDER BY w.started_at DESC
 		LIMIT ?
 	`, userID, exerciseID, limit)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	defer rows.Close()
@@ -184,13 +192,15 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func scanExercise(row scanner) models.Exercise {
+func scanExercise(row scanner) (models.Exercise, error) {
 	var e models.Exercise
 	var secondaryRaw string
-	row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &e.ImageURL)
+	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &e.ImageURL); err != nil {
+		return e, err
+	}
 	json.Unmarshal([]byte(secondaryRaw), &e.SecondaryMuscles)
 	if e.SecondaryMuscles == nil {
 		e.SecondaryMuscles = []string{}
 	}
-	return e
+	return e, nil
 }

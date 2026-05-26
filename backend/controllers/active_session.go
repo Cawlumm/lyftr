@@ -21,8 +21,7 @@ func GetActiveSession(c *gin.Context) {
 		utils.OK(c, nil)
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	c.JSON(200, gin.H{"data": gin.H{"data": data, "updated_at": updatedAt}})
@@ -43,8 +42,7 @@ func UpsertActiveSession(c *gin.Context) {
 		 ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP`,
 		uid, body.Data,
 	)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, gin.H{"saved": true})

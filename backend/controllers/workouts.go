@@ -40,8 +40,7 @@ func ListWorkouts(c *gin.Context) {
 			uid, limit, offset,
 		)
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	defer rows.Close()
@@ -73,8 +72,7 @@ func GetWorkout(c *gin.Context) {
 		utils.NotFound(c, "workout not found")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 
@@ -99,8 +97,7 @@ func CreateWorkout(c *gin.Context) {
 	}
 
 	tx, err := db.DB.Begin()
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	defer tx.Rollback()
@@ -109,13 +106,11 @@ func CreateWorkout(c *gin.Context) {
 		`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Notes, req.Duration, req.StartedAt,
 	)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	wid, err := res.LastInsertId()
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 
@@ -124,13 +119,11 @@ func CreateWorkout(c *gin.Context) {
 			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
 			wid, ex.ExerciseID, i, ex.Notes,
 		)
-		if err != nil {
-			utils.InternalError(c)
+		if utils.DBError(c, err) {
 			return
 		}
 		weid, err := exRes.LastInsertId()
-		if err != nil {
-			utils.InternalError(c)
+		if utils.DBError(c, err) {
 			return
 		}
 		for j, s := range ex.Sets {
@@ -139,15 +132,13 @@ func CreateWorkout(c *gin.Context) {
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
 			)
-			if err != nil {
-				utils.InternalError(c)
+			if utils.DBError(c, err) {
 				return
 			}
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		utils.InternalError(c)
+	if err := tx.Commit(); utils.DBError(c, err) {
 		return
 	}
 
@@ -185,14 +176,12 @@ func UpdateWorkout(c *gin.Context) {
 		utils.NotFound(c, "workout not found")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 
 	tx, err := db.DB.Begin()
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	defer tx.Rollback()
@@ -201,14 +190,12 @@ func UpdateWorkout(c *gin.Context) {
 		`UPDATE workouts SET name = ?, notes = ?, duration = ?, started_at = ? WHERE id = ?`,
 		req.Name, req.Notes, req.Duration, req.StartedAt, wid,
 	)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 
 	_, err = tx.Exec(`DELETE FROM workout_exercises WHERE workout_id = ?`, wid)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 
@@ -217,13 +204,11 @@ func UpdateWorkout(c *gin.Context) {
 			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
 			wid, ex.ExerciseID, i, ex.Notes,
 		)
-		if err != nil {
-			utils.InternalError(c)
+		if utils.DBError(c, err) {
 			return
 		}
 		weid, err := exRes.LastInsertId()
-		if err != nil {
-			utils.InternalError(c)
+		if utils.DBError(c, err) {
 			return
 		}
 		for j, s := range ex.Sets {
@@ -232,15 +217,13 @@ func UpdateWorkout(c *gin.Context) {
 				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				weid, j+1, s.Reps, s.Weight, s.Duration, s.Distance, s.RPE, s.IsWarmup,
 			)
-			if err != nil {
-				utils.InternalError(c)
+			if utils.DBError(c, err) {
 				return
 			}
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		utils.InternalError(c)
+	if err := tx.Commit(); utils.DBError(c, err) {
 		return
 	}
 
@@ -261,8 +244,7 @@ func DeleteWorkout(c *gin.Context) {
 	}
 
 	res, err := db.DB.Exec(`DELETE FROM workouts WHERE id = ? AND user_id = ?`, wid, uid)
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	n, _ := res.RowsAffected()

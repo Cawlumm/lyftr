@@ -34,7 +34,11 @@ func Register(c *gin.Context) {
 		req.Email, hash,
 	)
 	if err != nil {
-		utils.BadRequest(c, "email already registered")
+		if utils.IsUniqueViolation(err) {
+			utils.Conflict(c, "email already registered")
+			return
+		}
+		utils.DBError(c, err)
 		return
 	}
 
@@ -70,12 +74,15 @@ func Login(c *gin.Context) {
 		req.Email,
 	).Scan(&user.ID, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
 
-	if err == sql.ErrNoRows || !utils.CheckPassword(req.Password, user.Password) {
+	if err == sql.ErrNoRows {
 		utils.Unauthorized(c, "invalid email or password")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
+		return
+	}
+	if !utils.CheckPassword(req.Password, user.Password) {
+		utils.Unauthorized(c, "invalid email or password")
 		return
 	}
 
