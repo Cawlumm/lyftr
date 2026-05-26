@@ -26,8 +26,9 @@ WORKDIR /build
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -ldflags="-s -w -X github.com/Cawlumm/lyftr-backend/config.buildVersion=${VERSION}" -o lyftr-api .
+# Build via backend/build.sh (copied above) — shared with backend/Dockerfile so the
+# version ldflags live in one place and can't drift between the two images.
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION sh build.sh
 
 # ── Stage 3: Runtime ─────────────────────────────────────────────────────────
 FROM nginx:alpine

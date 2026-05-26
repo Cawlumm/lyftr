@@ -29,10 +29,10 @@ var C *Config
 //
 //	-ldflags "-X github.com/Cawlumm/lyftr-backend/config.buildVersion=$VERSION"
 //
-// where the Dockerfile passes the git tag as the VERSION build-arg. It falls back
+// where the Dockerfiles pass the git tag as the VERSION build-arg. It falls back
 // to "dev" for local/untagged builds. If you rename this var or the package, also
-// update the Dockerfile ldflags path and the version-smoke CI job, or the injection
-// will silently no-op and ship "dev".
+// update backend/build.sh (the shared ldflags) and the version-smoke CI job, or the
+// injection will silently no-op and ship "dev".
 var buildVersion = "dev"
 
 // Version returns the build-time version. Unlike C.Version it needs no Load(),

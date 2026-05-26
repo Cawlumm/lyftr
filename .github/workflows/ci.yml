@@ -89,22 +89,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The build below only proves backend/Dockerfile injects the version. fly/Dockerfile
-      # (used by deploy-demo) builds the same binary but isn't smoke-tested here — a full
-      # nginx+frontend build just to read a version string isn't worth it. Instead, assert
-      # the two Dockerfiles inject identically, so a rename/typo in one can't silently ship
-      # "dev" from the other.
-      - name: Guard fly/Dockerfile injects the version like backend/Dockerfile
-        run: |
-          set -euo pipefail
-          b=$(sed -n 's/.*-ldflags="\([^"]*\)".*/\1/p' backend/Dockerfile)
-          f=$(sed -n 's/.*-ldflags="\([^"]*\)".*/\1/p' fly/Dockerfile)
-          echo "backend ldflags: $b"
-          echo "fly ldflags:     $f"
-          if [ -z "$b" ] || [ "$b" != "$f" ]; then
-            echo "::error::ldflags drift — backend/ and fly/ Dockerfiles must inject the version identically" >&2
-            exit 1
-          fi
       - name: Build backend image with a known version
         run: docker build --build-arg VERSION=smoke-9.9.9 -t lyftr-backend:smoke ./backend
       - name: Assert the binary reports the injected version
