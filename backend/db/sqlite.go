@@ -33,12 +33,13 @@ func Connect() {
 		log.Fatalf("failed to open database: %v", err)
 	}
 
-	// SQLite permits only one writer at a time. Serializing all access through a
-	// single connection means two requests can never contend in-process, which is
-	// the most reliable defense against "database is locked"; WAL keeps it fast.
-	DB.SetMaxOpenConns(1)
-	DB.SetMaxIdleConns(1)
-	DB.SetConnMaxLifetime(0)
+	// WAL + busy_timeout (above) is what makes concurrent access safe; the pool
+	// size just bounds it. Note: a single connection is NOT safe here — several
+	// handlers issue a query while a parent rows cursor is still open (e.g.
+	// loadWorkoutExercises -> loadSets), which needs more than one connection, so
+	// MaxOpenConns(1) would deadlock them.
+	DB.SetMaxOpenConns(10)
+	DB.SetMaxIdleConns(5)
 
 	if err = DB.Ping(); err != nil {
 		log.Fatalf("failed to ping database: %v", err)
