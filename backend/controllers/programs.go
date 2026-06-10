@@ -44,12 +44,26 @@ func ListPrograms(c *gin.Context) {
 	}
 	defer rows.Close()
 
+	// Scan all parents and close the cursor before loading children: querying
+	// while a cursor is open needs a second pool connection per request, which
+	// deadlocks the pool under concurrent load (#30).
 	programs := []models.Program{}
 	for rows.Next() {
 		var p models.Program
-		rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
-		p.Exercises = loadProgramExercises(p.ID)
+		if err := rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt); err != nil {
+			utils.InternalError(c)
+			return
+		}
 		programs = append(programs, p)
+	}
+	if err := rows.Err(); err != nil {
+		utils.InternalError(c)
+		return
+	}
+	rows.Close()
+
+	for i := range programs {
+		programs[i].Exercises = loadProgramExercises(programs[i].ID)
 	}
 	utils.OK(c, programs)
 }
@@ -286,14 +300,22 @@ func loadProgramExercises(programID int64) []models.ProgramExercise {
 	var exercises []models.ProgramExercise
 	for rows.Next() {
 		var pe models.ProgramExercise
-		rows.Scan(
+		if err := rows.Scan(
 			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
-		)
+		); err != nil {
+			return nil
+		}
 		pe.Exercise.ID = pe.ExerciseID
-		pe.Sets = loadProgramSets(pe.ID)
 		exercises = append(exercises, pe)
+	}
+	// Close before loading sets — a nested query while this cursor is open
+	// holds two pool connections and deadlocks under concurrent load (#30).
+	rows.Close()
+
+	for i := range exercises {
+		exercises[i].Sets = loadProgramSets(exercises[i].ID)
 	}
 	return exercises
 }
@@ -312,7 +334,9 @@ func loadProgramSets(programExerciseID int64) []models.ProgramSet {
 	var sets []models.ProgramSet
 	for rows.Next() {
 		var s models.ProgramSet
-		rows.Scan(&s.ID, &s.ProgramExerciseID, &s.SetNumber, &s.TargetReps, &s.TargetWeight)
+		if err := rows.Scan(&s.ID, &s.ProgramExerciseID, &s.SetNumber, &s.TargetReps, &s.TargetWeight); err != nil {
+			return nil
+		}
 		sets = append(sets, s)
 	}
 	return sets

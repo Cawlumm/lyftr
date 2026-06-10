@@ -46,12 +46,26 @@ func ListWorkouts(c *gin.Context) {
 	}
 	defer rows.Close()
 
+	// Scan all parents and close the cursor before loading children: querying
+	// while a cursor is open needs a second pool connection per request, which
+	// deadlocks the pool under concurrent load (#30).
 	workouts := []models.Workout{}
 	for rows.Next() {
 		var w models.Workout
-		rows.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt)
-		w.Exercises = loadWorkoutExercises(w.ID)
+		if err := rows.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt); err != nil {
+			utils.InternalError(c)
+			return
+		}
 		workouts = append(workouts, w)
+	}
+	if err := rows.Err(); err != nil {
+		utils.InternalError(c)
+		return
+	}
+	rows.Close()
+
+	for i := range workouts {
+		workouts[i].Exercises = loadWorkoutExercises(workouts[i].ID)
 	}
 	utils.OK(c, workouts)
 }
@@ -290,14 +304,22 @@ func loadWorkoutExercises(workoutID int64) []models.WorkoutExercise {
 	var exercises []models.WorkoutExercise
 	for rows.Next() {
 		var we models.WorkoutExercise
-		rows.Scan(
+		if err := rows.Scan(
 			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes,
 			&we.Exercise.Name, &we.Exercise.MuscleGroup, &we.Exercise.Category,
 			&we.Exercise.Equipment, &we.Exercise.ImageURL,
-		)
+		); err != nil {
+			return nil
+		}
 		we.Exercise.ID = we.ExerciseID
-		we.Sets = loadSets(we.ID)
 		exercises = append(exercises, we)
+	}
+	// Close before loading sets — a nested query while this cursor is open
+	// holds two pool connections and deadlocks under concurrent load (#30).
+	rows.Close()
+
+	for i := range exercises {
+		exercises[i].Sets = loadSets(exercises[i].ID)
 	}
 	return exercises
 }
@@ -316,7 +338,9 @@ func loadSets(workoutExerciseID int64) []models.Set {
 	var sets []models.Set
 	for rows.Next() {
 		var s models.Set
-		rows.Scan(&s.ID, &s.WorkoutExerciseID, &s.SetNumber, &s.Reps, &s.Weight, &s.Duration, &s.Distance, &s.RPE, &s.IsWarmup)
+		if err := rows.Scan(&s.ID, &s.WorkoutExerciseID, &s.SetNumber, &s.Reps, &s.Weight, &s.Duration, &s.Distance, &s.RPE, &s.IsWarmup); err != nil {
+			return nil
+		}
 		sets = append(sets, s)
 	}
 	return sets
