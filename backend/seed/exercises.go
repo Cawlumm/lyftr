@@ -72,21 +72,36 @@ func SyncExercises(db *sql.DB) error {
 
 // WipeAndReseed deletes all exercises then re-fetches from source.
 func WipeAndReseed(db *sql.DB) error {
-	if seeding.Load() {
+	// Claim the flag atomically BEFORE wiping: a Load-then-act check races —
+	// two concurrent calls could both pass it, double-wipe, and seed twice.
+	if !seeding.CompareAndSwap(false, true) {
 		return fmt.Errorf("seed already in progress")
 	}
 	if _, err := db.Exec(`DELETE FROM exercises`); err != nil {
+		seeding.Store(false)
 		return fmt.Errorf("wipe failed: %w", err)
 	}
 	log.Println("seed: exercises wiped, starting re-seed...")
-	go fetchAndStoreAsync(db)
+	go func() {
+		defer seeding.Store(false)
+		if err := fetchAndStoreLocked(db); err != nil {
+			log.Printf("seed: exercise sync failed: %v", err)
+		}
+	}()
 	return nil
 }
 
+// fetchAndStore claims the seeding flag for the duration of the sync.
 func fetchAndStore(db *sql.DB) error {
-	seeding.Store(true)
+	if !seeding.CompareAndSwap(false, true) {
+		return fmt.Errorf("seed already in progress")
+	}
 	defer seeding.Store(false)
+	return fetchAndStoreLocked(db)
+}
 
+// fetchAndStoreLocked does the sync; the caller must hold the seeding flag.
+func fetchAndStoreLocked(db *sql.DB) error {
 	items, err := fetchAll()
 	if err != nil {
 		return err
