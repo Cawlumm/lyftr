@@ -46,8 +46,39 @@ func UpdateSettings(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
 
-	db.DB.Exec(
+	// Merge over the stored row (or defaults) so a partial payload only
+	// changes the fields it provides instead of zeroing the rest.
+	s := models.UserSettings{
+		UserID: uid, WeightUnit: "lbs",
+		CalorieTarget: 2000, ProteinTarget: 150, CarbTarget: 250, FatTarget: 65,
+	}
+	db.DB.QueryRow(
+		`SELECT weight_unit, calorie_target, protein_target, carb_target, fat_target
+		 FROM user_settings WHERE user_id = ?`, uid,
+	).Scan(&s.WeightUnit, &s.CalorieTarget, &s.ProteinTarget, &s.CarbTarget, &s.FatTarget)
+
+	if req.WeightUnit != nil {
+		s.WeightUnit = *req.WeightUnit
+	}
+	if req.CalorieTarget != nil {
+		s.CalorieTarget = *req.CalorieTarget
+	}
+	if req.ProteinTarget != nil {
+		s.ProteinTarget = *req.ProteinTarget
+	}
+	if req.CarbTarget != nil {
+		s.CarbTarget = *req.CarbTarget
+	}
+	if req.FatTarget != nil {
+		s.FatTarget = *req.FatTarget
+	}
+
+	if _, err := db.DB.Exec(
 		`INSERT INTO user_settings (user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target)
 		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(user_id) DO UPDATE SET
@@ -56,8 +87,11 @@ func UpdateSettings(c *gin.Context) {
 		   protein_target = excluded.protein_target,
 		   carb_target    = excluded.carb_target,
 		   fat_target     = excluded.fat_target`,
-		uid, req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget,
-	)
+		uid, s.WeightUnit, s.CalorieTarget, s.ProteinTarget, s.CarbTarget, s.FatTarget,
+	); err != nil {
+		utils.InternalError(c)
+		return
+	}
 
 	GetSettings(c)
 }

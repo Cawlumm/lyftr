@@ -207,12 +207,14 @@ type SaveFoodRequest struct {
 	Barcode     string  `json:"barcode"`
 }
 
+// Pointer fields distinguish "absent" from zero so a partial payload only
+// updates the fields it provides.
 type UpdateSettingsRequest struct {
-	WeightUnit    string `json:"weight_unit" validate:"omitempty,oneof=lbs kg"`
-	CalorieTarget int    `json:"calorie_target" validate:"omitempty,gte=0"`
-	ProteinTarget int    `json:"protein_target" validate:"omitempty,gte=0"`
-	CarbTarget    int    `json:"carb_target" validate:"omitempty,gte=0"`
-	FatTarget     int    `json:"fat_target" validate:"omitempty,gte=0"`
+	WeightUnit    *string `json:"weight_unit" validate:"omitempty,oneof=lbs kg"`
+	CalorieTarget *int    `json:"calorie_target" validate:"omitempty,gte=0"`
+	ProteinTarget *int    `json:"protein_target" validate:"omitempty,gte=0"`
+	CarbTarget    *int    `json:"carb_target" validate:"omitempty,gte=0"`
+	FatTarget     *int    `json:"fat_target" validate:"omitempty,gte=0"`
 }
 
 type Program struct {
