@@ -57,4 +57,5 @@ CLAUDE.md
 # Playwright artifacts
 web/e2e/.auth/
 web/test-results/
+web/playwright-report/
 .playwright-mcp/
