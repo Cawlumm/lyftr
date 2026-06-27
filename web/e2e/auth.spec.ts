@@ -41,6 +41,28 @@ test('server settings tests and connects to the default (reverse proxy)', async 
   await expect(page.getByText(/connected · lyftr/i)).toBeVisible()
 })
 
+test('server settings Save stays enabled when the field equals the current server (regression #18)', async ({ page }) => {
+  // Regression for #18: before the #24 refactor the Save button was gated on a
+  // separate `serverInput` state that only became non-empty once the *displayed*
+  // value changed. So when the field already showed the current server URL and the
+  // user re-typed that same value, `serverInput` stayed empty and Save was stuck
+  // disabled. Seed a stored URL so the panel initializes with a non-empty value
+  // matching what the user re-types, and assert Save never gets stuck.
+  await page.addInitScript(() => localStorage.setItem('server_url', 'http://localhost:3000'))
+  await page.goto('/login')
+  await page.getByRole('button', { name: /server settings/i }).click()
+
+  const field = page.getByPlaceholder('Leave blank to use this site')
+  await expect(field).toHaveValue('http://localhost:3000')
+
+  const save = page.getByRole('button', { name: /test & save/i })
+  await expect(save).toBeEnabled()
+
+  // Re-typing the identical value must not disable Save (the original #18 repro).
+  await field.fill('http://localhost:3000')
+  await expect(save).toBeEnabled()
+})
+
 test('server settings rejects a scheme-less host instead of guessing the scheme', async ({ page }) => {
   // A bare host like "127.0.0.1:9" must be rejected with an error — we no longer
   // silently prepend a scheme. The user has to type http:// or https:// explicitly.
