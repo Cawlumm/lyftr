@@ -8,6 +8,7 @@ import { exerciseAPI } from '../services/api'
 import * as types from '../types'
 import { HelpTip } from '../components/Tooltip'
 import PageHeader from '../components/ui/PageHeader'
+import ServerSettings from '../components/ServerSettings'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
   Dumbbell, RefreshCw,
@@ -299,6 +300,11 @@ export default function Settings() {
             <span className="text-xs font-mono text-tx-muted">{serverUrl || 'This site (reverse proxy)'}</span>
           </div>
         </SettingRow>
+        {/* #17: same Server Settings editor as the sign-in screens, so a logged-in
+            user can repoint the client (or recover from a bad URL) without signing out. */}
+        <div className="py-2">
+          <ServerSettings />
+        </div>
         <SettingRow label="Database" description="Storage backend">
           <span className="badge-dim">SQLite</span>
         </SettingRow>
