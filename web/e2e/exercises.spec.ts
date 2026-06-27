@@ -56,29 +56,10 @@ test.describe('Exercise Detail', () => {
     await expect(page.getByRole('heading')).toBeVisible()
   })
 
-  test('PR API returns data after seeded workout', async ({ request }) => {
-    const res = await request.get(`${API}/exercises/${exerciseId}/prs`, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    })
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(body.data).not.toBeNull()
-    expect(body.data.weight).toBeGreaterThan(0)
-    expect(body.data.estimated_1rm).toBeGreaterThan(0)
-  })
-
-  test('history API returns sessions', async ({ request }) => {
-    const res = await request.get(`${API}/exercises/${exerciseId}/history`, {
-      headers: { Authorization: `Bearer ${authToken}` }
-    })
-    expect(res.status()).toBe(200)
-    const body = await res.json()
-    expect(Array.isArray(body.data)).toBe(true)
-    expect(body.data.length).toBeGreaterThan(0)
-    const point = body.data[0]
-    expect(point.max_weight).toBeGreaterThan(0)
-    expect(point.sets_count).toBeGreaterThan(0)
-  })
+  // NOTE: the GET /exercises/:id/prs and /history API-contract tests were moved to
+  // Go integration tests (controllers/exercises_test.go: TestGetExercisePRs_*,
+  // TestGetExerciseHistory_*), which assert exact values deterministically. The
+  // beforeAll seeding stays — the UI tests below depend on it.
 
   test('exercise detail shows PR card when history exists', async ({ page }) => {
     await page.goto(`/exercises/${exerciseId}`)

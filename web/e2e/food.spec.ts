@@ -406,88 +406,9 @@ test.describe('Food', () => {
     await expect(page.locator('input[placeholder="Search food…"]')).toBeVisible()
   })
 
-  test('barcode API returns 404 for unknown barcode', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/barcode/000000000000`, { headers: h })
-    expect([404, 429, 503]).toContain(r.status())
-  })
-
-  test('barcode API returns product data for known barcode', async ({ page }) => {
-    // 051500255186 is Jif Creamy Peanut Butter — seeded via seed script
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/barcode/051500255186`, { headers: h })
-    // May be 200 (product in OFF), 503 (OFF unreachable), 404 or 429 (rate-limited)
-    expect([200, 503, 404, 429]).toContain(r.status())
-  })
-
-  // ─── Backend endpoints ─────────────────────────────────────────────────────
-
-  test('GET /food/search returns results for a common query', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/search?q=apple`, { headers: h })
-    // May be 200 (OFF reachable) or 503 (unreachable) — not 4xx
-    expect([200, 503]).toContain(r.status())
-  })
-
-  test('GET /food/history returns array of date-grouped entries', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/history?days=7`, { headers: h })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    expect(Array.isArray(body.data)).toBe(true)
-    if (body.data.length > 0) {
-      expect(body.data[0]).toHaveProperty('date')
-      expect(body.data[0]).toHaveProperty('calories')
-    }
-  })
-
-  test('GET /food/saved returns user saved foods', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/saved`, { headers: h })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    expect(Array.isArray(body.data)).toBe(true)
-    const found = body.data.find((s: any) => s.name === `${SEED_PREFIX}-saved`)
-    expect(found).toBeTruthy()
-  })
-
-  test('PATCH /food/:id updates food log', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const [firstId] = seedFoodIds
-    const r = await page.request.patch(`${API}/food/${firstId}`, {
-      headers: h,
-      data: { name: `${SEED_PREFIX}-breakfast`, meal: 'breakfast', calories: 350, protein: 22, carbs: 44, fat: 11, servings: 1, logged_at: todayNoon },
-    })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    expect(body.data.calories).toBe(350)
-  })
-
-  test('GET /food/:id returns ownership-scoped entry', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const [firstId] = seedFoodIds
-    const r = await page.request.get(`${API}/food/${firstId}`, { headers: h })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    expect(body.data.name).toBe(`${SEED_PREFIX}-breakfast`)
-  })
-
-  test('GET /food?date= returns entries for the specified date', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food?date=${today}`, { headers: h })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    const seeded = body.data.filter((e: any) => e.name.startsWith(SEED_PREFIX))
-    expect(seeded.length).toBeGreaterThanOrEqual(3)
-  })
-
-  test('GET /food/stats returns calorie and macro totals', async ({ page }) => {
-    const h = { Authorization: `Bearer ${authToken}` }
-    const r = await page.request.get(`${API}/food/stats?date=${today}`, { headers: h })
-    expect(r.status()).toBe(200)
-    const body = await r.json()
-    expect(body.data).toHaveProperty('total_calories')
-    expect(body.data).toHaveProperty('total_protein')
-    expect(body.data.total_calories).toBeGreaterThan(0)
-  })
+  // NOTE: the food API-contract tests (GET/PATCH /food, /food/search, /food/history,
+  // /food/saved, /food/stats, /food/barcode) were moved to Go integration tests
+  // (controllers/food_test.go), which mock OpenFoodFacts and assert exact values
+  // deterministically — no real-network flakiness. The beforeAll seeding stays for
+  // the UI tests above.
 })

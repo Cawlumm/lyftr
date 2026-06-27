@@ -63,13 +63,8 @@ test('server settings Save stays enabled when the field equals the current serve
   await expect(save).toBeEnabled()
 })
 
-test('server settings rejects a scheme-less host instead of guessing the scheme', async ({ page }) => {
-  // A bare host like "127.0.0.1:9" must be rejected with an error — we no longer
-  // silently prepend a scheme. The user has to type http:// or https:// explicitly.
-  await page.goto('/login')
-  await page.getByRole('button', { name: /server settings/i }).click()
-  await page.getByPlaceholder('Leave blank to use this site').fill('127.0.0.1:9')
-  await page.getByRole('button', { name: /test & save/i }).click()
-  await expect(page.getByText(/include http:\/\/ or https:\/\//i)).toBeVisible()
-  expect(await page.evaluate(() => localStorage.getItem('server_url'))).toBeNull()
-})
+// NOTE: the scheme-less-host rejection case was removed — normalizeServerUrl's
+// validation (scheme-less, whitespace, unparseable, path-stripping) is covered
+// exhaustively in web/src/stores/server.test.ts. The "rejects an invalid URL"
+// test above is kept as the single E2E proof that the panel surfaces a
+// validation error to the user.
