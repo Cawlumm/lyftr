@@ -152,6 +152,9 @@ navigation; reserve E2E for full user journeys against the running stack. Unit
 files are `src/**/*.test.ts(x)`; E2E specs are `e2e/**/*.spec.ts`. Keep the two
 suffixes/locations distinct so the runners never pick up each other's files.
 
+For the full layer model (unit / integration / e2e), where a new test belongs, and
+how to run each, see [docs/TESTING.md](docs/TESTING.md).
+
 Never commit with failing tests. Fix root cause — don't skip or comment out.
 
 ---
