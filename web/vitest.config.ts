@@ -1,5 +1,11 @@
 import { defineConfig } from 'vitest/config'
 
+// Pin a fixed, DST-aware non-UTC timezone so the local<->UTC date tests are
+// deterministic no matter how vitest is launched. The `test:unit` npm script
+// also sets TZ via cross-env, but doing it here too means a raw `vitest` run or
+// an IDE's test runner (which bypass the script) don't false-fail.
+process.env.TZ ??= 'America/New_York'
+
 // Unit tests only. Scoped to src/**/*.test.ts(x) so it never picks up the
 // Playwright e2e specs (e2e/**/*.spec.ts), which run under a separate runner.
 export default defineConfig({
