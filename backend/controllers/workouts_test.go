@@ -230,3 +230,29 @@ func TestListWorkouts_limitCap(t *testing.T) {
 		t.Errorf("expected 5 workouts, got %d", len(data))
 	}
 }
+
+func TestListWorkouts_filtersBySearchQuery(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	other := otherUser(t)
+
+	db.DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, uid, "Morning Push")
+	db.DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, uid, "Leg Session")
+	// Same matching name under another user — must NOT leak across users.
+	db.DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, CURRENT_TIMESTAMP)`, other, "Morning Push (theirs)")
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/workouts?q=push", nil)
+	c.Request.URL.RawQuery = "q=push" // case-insensitive LIKE on name, scoped by user
+	ListWorkouts(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 match for q=push (case-insensitive, excludes 'Leg Session' and the other user's), got %d", len(data))
+	}
+	if name := data[0].(map[string]any)["name"]; name != "Morning Push" {
+		t.Errorf("expected 'Morning Push', got %v", name)
+	}
+}

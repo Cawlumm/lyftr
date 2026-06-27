@@ -218,3 +218,29 @@ func TestCreateProgram_setNumberNormalized(t *testing.T) {
 		t.Errorf("expected set_number 1 after normalization, got %v", setNum)
 	}
 }
+
+func TestListPrograms_filtersBySearchQuery(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	other := otherUser(t)
+
+	db.DB.Exec(`INSERT INTO programs (user_id, name) VALUES (?, ?)`, uid, "Push Day")
+	db.DB.Exec(`INSERT INTO programs (user_id, name) VALUES (?, ?)`, uid, "Leg Day")
+	// Same matching name under another user — must NOT leak across users.
+	db.DB.Exec(`INSERT INTO programs (user_id, name) VALUES (?, ?)`, other, "Push Day (theirs)")
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/programs?q=push", nil)
+	c.Request.URL.RawQuery = "q=push" // case-insensitive LIKE on name, scoped by user
+	ListPrograms(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 match for q=push (case-insensitive, excludes 'Leg Day' and the other user's), got %d", len(data))
+	}
+	if name := data[0].(map[string]any)["name"]; name != "Push Day" {
+		t.Errorf("expected 'Push Day', got %v", name)
+	}
+}
