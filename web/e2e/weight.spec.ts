@@ -73,7 +73,8 @@ test.describe('Weight', () => {
     }
   })
 
-  test('log weight via form adds entry to history', async ({ page }) => {
+  // @mobile: logging weight is a core on-phone action (numeric keypad) — smoke it.
+  test('log weight via form adds entry to history', { tag: '@mobile' }, async ({ page }) => {
     const testDate = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0]
 
     await page.getByRole('button', { name: /add date.*note/i }).click()

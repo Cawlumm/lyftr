@@ -171,7 +171,8 @@ test.describe('Food', () => {
 
   // ─── Log food flow ─────────────────────────────────────────────────────────
 
-  test('manual entry: log food and verify it appears in meal section', async ({ page }) => {
+  // @mobile: logging food is a core on-phone action — smoke it at phone viewport.
+  test('manual entry: log food and verify it appears in meal section', { tag: '@mobile' }, async ({ page }) => {
     const name = `E2ELog-${Date.now()}`
 
     await page.route('**/api/v1/food/search**', route =>
@@ -209,7 +210,8 @@ test.describe('Food', () => {
     await expect(page.getByText('500').first()).toBeVisible()
   })
 
-  test('servings stepper scales macros in detail phase', async ({ page }) => {
+  // @mobile: touch stepper (+/- taps) — a phone-viewport touch interaction.
+  test('servings stepper scales macros in detail phase', { tag: '@mobile' }, async ({ page }) => {
     await page.route('**/api/v1/food/search**', route =>
       route.fulfill({
         json: {
@@ -230,7 +232,8 @@ test.describe('Food', () => {
     await expect(page.getByText('400').first()).toBeVisible()
   })
 
-  test('meal selector in detail phase updates active meal', async ({ page }) => {
+  // @mobile: touch chip selector that sets the entry's meal.
+  test('meal selector in detail phase updates active meal', { tag: '@mobile' }, async ({ page }) => {
     await page.route('**/api/v1/food/search**', route =>
       route.fulfill({ json: { data: [] } })
     )
