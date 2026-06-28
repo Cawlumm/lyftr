@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
+import { test, expect } from './fixtures'
+import { API_BASE as API } from './config'
+import { cleanupSeed } from './seedHelpers'
 
 const SEED_PREFIX = 'E2EFood'
 // Use local calendar date to match what todayStr() returns in the frontend.
@@ -14,41 +15,18 @@ let seedFoodIds: number[] = []
 let seedSavedIds: number[] = []
 
 test.describe('Food', () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD },
-    })
-    authToken = (await res.json()).data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    authToken = workerAuth.token
     const h = { Authorization: `Bearer ${authToken}` }
 
-    // Pre-cleanup: wipe ALL E2E-prefixed food log entries from the last 3 days
-    // (covers timezone edge cases and accumulated state from multiple test runs).
-    // Deletes are serial — bulk Promise.all against SQLite single-writer can
-    // drop requests under load and leave entries behind.
-    for (let d = 0; d < 3; d++) {
-      const checkDate = new Date(_now)
-      checkDate.setDate(_now.getDate() - d)
-      const dateStr = `${checkDate.getFullYear()}-${_pad(checkDate.getMonth() + 1)}-${_pad(checkDate.getDate())}`
-      const existing = await request.get(`${API}/food?date=${dateStr}`, { headers: h })
-      const body = await existing.json()
-      const toDelete = (body.data ?? []).filter((e: any) =>
-        e.name.startsWith(SEED_PREFIX) ||
-        e.name.startsWith('E2ELog-') ||
-        e.name.startsWith('E2ESave-') ||
-        e.name.startsWith('E2EEdit-')
-      )
-      for (const e of toDelete) {
-        await request.delete(`${API}/food/${e.id}`, { headers: h })
-      }
-    }
-    const existingSaved = await request.get(`${API}/food/saved`, { headers: h })
-    const es = await existingSaved.json()
-    const savedToDelete = (es.data ?? []).filter((s: any) =>
-      s.name.startsWith(SEED_PREFIX) || s.name.startsWith('E2ESave-')
-    )
-    for (const s of savedToDelete) {
-      await request.delete(`${API}/food/saved/${s.id}`, { headers: h })
-    }
+    // Idempotent seed: beforeAll runs once per project (chromium + mobile) on the
+    // shared workers:1 user, so clear our own seed names first, then create exactly
+    // one set. Reset the module-level id arrays (they persist across both runs).
+    seedFoodIds = []
+    seedSavedIds = []
+    const mealNames = [`${SEED_PREFIX}-breakfast`, `${SEED_PREFIX}-lunch`, `${SEED_PREFIX}-snacks`]
+    await cleanupSeed(request, authToken, `${API}/food?date=${today}`, `${API}/food`, e => mealNames.includes(e.name))
+    await cleanupSeed(request, authToken, `${API}/food/saved`, `${API}/food/saved`, s => s.name === `${SEED_PREFIX}-saved`)
 
     // Seed one entry per meal so meal sections have data
     for (const [name, meal] of [

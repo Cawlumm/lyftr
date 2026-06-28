@@ -95,6 +95,16 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
   web-first assertion (`await expect(locator).toBeVisible()` auto-retries), a
   navigation (`waitForURL`), or the actual network call
   (`page.waitForResponse(r => r.url().includes('/api/v1/weight') && r.request().method() === 'POST')`).
+- **Isolation: one fresh user per worker + idempotent seeding.** Each worker
+  registers its own account (`e2e/fixtures.ts`), so runs are hermetic. Seed via
+  `cleanupSeed` (delete your exact seed names, then create) so a `beforeAll` is
+  idempotent — it runs once *per project* (chromium + mobile), so on the shared
+  workers:1 user it executes twice; idempotent seeding keeps the result to one set.
+- **No strict-mode traps on list items.** For "this row is gone after filter/delete"
+  use `await expect(page.getByText(name)).toHaveCount(0)` (auto-retries to zero) —
+  NOT `.not.toBeVisible()`, which throws a strict-mode error (not retried) if a
+  debounced list re-render transiently shows two matching nodes. Use `.first()` on
+  "this row appears" checks for the same reason.
 - **WHY-comments.** Explain non-obvious test setup in the same explanatory style as
   the rest of the codebase.
 

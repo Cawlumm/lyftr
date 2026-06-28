@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
+import { test, expect } from './fixtures'
+import { API_BASE as API } from './config'
+import { cleanupSeed } from './seedHelpers'
 
 const SEED_WEIGHT_NOTE = 'E2E seed weight'
 const FORM_WEIGHT_NOTE = 'E2E form weight test'
@@ -8,12 +9,13 @@ let authToken: string
 let seedWeightIds: number[] = []
 
 test.describe('Weight', () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
-    })
-    authToken = (await res.json()).data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    authToken = workerAuth.token
     const headers = { Authorization: `Bearer ${authToken}` }
+
+    // Idempotent seed (beforeAll runs in both projects on the shared workers:1 user).
+    seedWeightIds = []
+    await cleanupSeed(request, authToken, `${API}/weight?limit=100`, `${API}/weight`, w => w.notes === SEED_WEIGHT_NOTE)
 
     // Seed entries at -7d, -3d, and today so history and period selector have data
     const offsets = [7, 3, 0]

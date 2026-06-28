@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
+import { test, expect } from './fixtures'
+import { API_BASE as API } from './config'
+import { cleanupSeed } from './seedHelpers'
 const E2E_PROGRAM_NAME = 'Test Program E2E'
 const SEED_PROGRAM_NAME = 'Seeded Test Program'
 const SEED_SEARCH_PROGRAM_NAME = 'ZZZ E2E SearchTarget Program'
@@ -9,46 +10,24 @@ let searchProgramId: number
 let authToken: string
 
 test.describe('Programs', () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
-    })
-    const body = await res.json()
-    authToken = body.data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    authToken = workerAuth.token
     const headers = { Authorization: `Bearer ${authToken}` }
 
-    // Pre-clean any accumulated seed programs from prior runs so the search
-    // and list assertions don't see duplicates. Serial deletes — bulk
-    // Promise.all races against SQLite's single-writer.
-    const existing = await request.get(`${API}/programs`, { headers })
-    const eb = await existing.json()
-    const stale = (eb.data ?? []).filter((p: any) =>
-      p.name === SEED_PROGRAM_NAME ||
-      p.name === SEED_SEARCH_PROGRAM_NAME ||
-      p.name === E2E_PROGRAM_NAME
-    )
-    for (const p of stale) {
-      await request.delete(`${API}/programs/${p.id}`, { headers })
-    }
+    // Idempotent seed: clear our own seed names, then create exactly one of each.
+    // (Previously a retry-on-transient-failure here could double-create — if the
+    // first POST committed but returned an error envelope — leaving duplicates.)
+    await cleanupSeed(request, authToken, `${API}/programs`, `${API}/programs`,
+      p => p.name === SEED_PROGRAM_NAME || p.name === SEED_SEARCH_PROGRAM_NAME)
 
-    // Retry create on transient backend failure (e.g. SQLite busy under
-    // concurrent worker load). spb.data is undefined when backend returned
-    // an error envelope instead of the created row.
-    const createSeed = async (name: string, notes: string): Promise<number> => {
-      for (let attempt = 0; attempt < 3; attempt++) {
-        const r = await request.post(`${API}/programs`, {
-          headers,
-          data: { name, notes, exercises: [] },
-        })
-        const rb = await r.json()
-        if (rb.data?.id) return rb.data.id
-        await new Promise(res => setTimeout(res, 200 * (attempt + 1)))
-      }
-      throw new Error(`Failed to create seed program "${name}" after 3 attempts`)
+    const createProgram = async (name: string, notes: string): Promise<number> => {
+      const r = await request.post(`${API}/programs`, { headers, data: { name, notes, exercises: [] } })
+      const rb = await r.json()
+      if (!rb.data?.id) throw new Error(`Failed to create seed program "${name}": ${JSON.stringify(rb)}`)
+      return rb.data.id
     }
-
-    programId = await createSeed(SEED_PROGRAM_NAME, 'Created by E2E seed')
-    searchProgramId = await createSeed(SEED_SEARCH_PROGRAM_NAME, 'Created by E2E seed for search')
+    programId = await createProgram(SEED_PROGRAM_NAME, 'Created by E2E seed')
+    searchProgramId = await createProgram(SEED_SEARCH_PROGRAM_NAME, 'Created by E2E seed for search')
   })
 
   test.afterAll(async ({ request }) => {
@@ -110,7 +89,9 @@ test.describe('Programs', () => {
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.fill('SearchTarget')
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
-    await expect(page.getByText(SEED_PROGRAM_NAME)).not.toBeVisible()
+    // toHaveCount(0) auto-retries until fully filtered out; not.toBeVisible()
+    // would strict-mode-throw on the transient 2-node re-render.
+    await expect(page.getByText(SEED_PROGRAM_NAME)).toHaveCount(0)
   })
 
   test('clearing search restores full list', async ({ page }) => {
@@ -118,7 +99,7 @@ test.describe('Programs', () => {
     await searchInput.fill('SearchTarget')
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
     await searchInput.fill('')
-    await expect(page.getByText(SEED_PROGRAM_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_PROGRAM_NAME).first()).toBeVisible()
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
   })
 
