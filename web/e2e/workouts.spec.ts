@@ -181,7 +181,9 @@ test.describe('Workouts', () => {
 let gymAuthToken: string
 let gymExerciseId: number
 
-test.describe('Gym Mode', () => {
+// @mobile: Gym Mode is the mobile-first full-screen workout UX — run it on the
+// iPhone profile (it also runs on chromium via the full suite).
+test.describe('Gym Mode', { tag: '@mobile' }, () => {
   test.beforeAll(async ({ request }) => {
     const res = await request.post(`${API}/auth/login`, {
       data: { email: TEST_EMAIL, password: TEST_PASSWORD }

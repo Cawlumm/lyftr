@@ -3,7 +3,8 @@ import { test, expect } from '@playwright/test'
 // These run logged-out, so override the shared authenticated storage state.
 test.use({ storageState: { cookies: [], origins: [] } })
 
-test('registers a new user and lands on the dashboard', async ({ page }) => {
+// @mobile: critical smoke that auth + the app shell work at phone viewport.
+test('registers a new user and lands on the dashboard', { tag: '@mobile' }, async ({ page }) => {
   const email = `e2e+${Date.now()}@lyftr.local`
   await page.goto('/register')
   await page.getByPlaceholder('you@example.com').fill(email)

@@ -43,9 +43,25 @@ response shape, and DB persistence.
   layer.
 
 ### 3. E2E — real browser, real user journeys
-Playwright (`web/e2e/*.spec.ts`), run under chromium and an iPhone-14 profile.
-For multi-step things a user actually does in the UI: register/login, log a
-workout, gym mode, the barcode scanner, the Settings server editor.
+Playwright (`web/e2e/*.spec.ts`). For multi-step things a user actually does in
+the UI: register/login, log a workout, gym mode, the barcode scanner, the
+Settings server editor.
+
+**Two projects, asymmetric by design:**
+- **chromium** runs the *full* suite — business logic is covered once here.
+- **mobile** (iPhone-14) runs *only* tests tagged `@mobile` — the flows where the
+  phone viewport itself is under test (gym mode, the barcode scanner) plus a
+  critical auth smoke. We do **not** re-run viewport-independent tests on mobile.
+
+Tag a test/`describe` `@mobile` when the **mobile viewport is the thing under
+test** (responsive layout, touch interactions, camera, mobile nav) or it's a
+thin critical smoke proving the app works at phone size. Otherwise leave it
+chromium-only.
+
+```ts
+test.describe('Gym Mode', { tag: '@mobile' }, () => { ... })
+test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
+```
 
 - **Run:** `cd web && npm run test:e2e`
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.

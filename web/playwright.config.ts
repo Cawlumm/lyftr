@@ -47,12 +47,18 @@ export default defineConfig({
       dependencies: ['setup'],
     },
     {
+      // Mobile (iPhone-14) runs ONLY @mobile-tagged tests — the flows where the
+      // phone viewport itself is under test (gym mode, barcode scanner) plus a
+      // critical auth smoke. Chromium (above) runs the full suite, so business
+      // logic is covered once; the mobile project guards mobile-specific UX
+      // without re-running every viewport-independent test. See docs/TESTING.md.
       name: 'mobile',
       use: {
         ...devices['iPhone 14'],
         storageState: 'e2e/.auth/user.json',
       },
       dependencies: ['setup'],
+      grep: /@mobile/,
     },
   ],
 })

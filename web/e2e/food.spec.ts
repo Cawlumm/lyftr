@@ -392,14 +392,14 @@ test.describe('Food', () => {
 
   // ─── Barcode scanner ──────────────────────────────────────────────────────
 
-  test('Scan button renders scan phase overlay with close button', async ({ page }) => {
+  test('Scan button renders scan phase overlay with close button', { tag: '@mobile' }, async ({ page }) => {
     test.slow()
     await page.goto('/food/log')
     await page.getByRole('button', { name: /scan/i }).click()
     await expect(page.getByRole('button', { name: 'Close scanner' })).toBeVisible({ timeout: 3000 })
   })
 
-  test('Close scanner button returns to search phase', async ({ page }) => {
+  test('Close scanner button returns to search phase', { tag: '@mobile' }, async ({ page }) => {
     await page.goto('/food/log')
     await page.getByRole('button', { name: /scan/i }).click()
     await page.getByRole('button', { name: 'Close scanner' }).click()
