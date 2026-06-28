@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { API_BASE as API } from './config'
 
 // These run logged-out, so override the shared authenticated storage state.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -12,6 +13,11 @@ test('registers a new user and lands on the dashboard', { tag: '@mobile' }, asyn
   await page.locator('#password-confirm').fill('password123')
   await page.getByRole('button', { name: /create account/i }).click()
   await page.waitForURL(url => new URL(url).pathname === '/')
+
+  // Clean up this throwaway account (DELETE /me cascades its data) so register
+  // test users don't accumulate in the DB across runs.
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) await page.request.delete(`${API}/me`, { headers: { Authorization: `Bearer ${token}` } })
 })
 
 test('wrong password shows an error and stays on the login page (no reload)', async ({ page }) => {

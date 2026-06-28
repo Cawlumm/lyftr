@@ -1,28 +1,9 @@
-import { test as base, expect } from '@playwright/test'
-import { readFileSync } from 'fs'
+import { test as base, expect, request } from '@playwright/test'
+import { API_BASE } from './config'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-
-// Resolve the app's base URL the SAME way playwright.config.ts does, so the
-// manual registration context below targets the right server in every mode:
-// dev (https://localhost:5173) and CI docker (http://localhost[:PORT]). The
-// config `use.baseURL` isn't applied to contexts we create by hand, so we can't
-// rely on it here — replicate the logic instead.
-function resolveBaseURL(): string {
-  if (process.env.BASE_URL) return process.env.BASE_URL
-  if (process.env.E2E_DOCKER) {
-    try {
-      const env = readFileSync(path.resolve(__dirname, '../../.env'), 'utf8')
-      const port = env.match(/^PORT=(\d+)/m)?.[1] ?? '80'
-      return port === '80' ? 'http://localhost' : `http://localhost:${port}`
-    } catch {
-      return 'http://localhost'
-    }
-  }
-  return 'https://localhost:5173'
-}
 
 export type WorkerAuth = { token: string; email: string }
 
@@ -66,6 +47,18 @@ export const test = base.extend<object, { workerAuth: WorkerAuth }>({
     if (!token) throw new Error(`worker ${idx}: failed to obtain access_token after register`)
 
     await use({ token, email })
+
+    // Teardown: delete this worker's account. `DELETE /me` cascades (ON DELETE
+    // CASCADE) to ALL its data — workouts, food, weight, programs, saved foods,
+    // settings — so every run fully cleans up after itself, even if a spec's
+    // afterAll was skipped by a failure (worker teardown still runs). Best-effort.
+    try {
+      const api = await request.newContext({ ignoreHTTPSErrors: true })
+      await api.delete(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } })
+      await api.dispose()
+    } catch {
+      // Non-fatal: leftover is bounded to one disposable per-run user.
+    }
   }, { scope: 'worker' }],
 
   // Logged-in specs get this worker's freshly-registered storage state.
