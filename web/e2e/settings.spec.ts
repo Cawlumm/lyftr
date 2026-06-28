@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect } from './fixtures'
 
 // Authenticated spec — relies on the shared storage state from auth.setup.ts
 // (no test.use override), since Settings is only reachable when logged in.

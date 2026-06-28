@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
+import { test, expect } from './fixtures'
+import { API_BASE as API } from './config'
+import { cleanupSeed } from './seedHelpers'
 const E2E_WORKOUT_NAME = 'Test Workout E2E'
 const SEED_WORKOUT_NAME = 'Seeded Test Workout'
 const SEED_SEARCH_WORKOUT_NAME = 'ZZZ E2E SearchTarget Workout'
@@ -11,12 +12,13 @@ let searchWorkoutId: number
 let authToken: string
 
 test.describe('Workouts', () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
-    })
-    const body = await res.json()
-    authToken = body.data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    authToken = workerAuth.token
+
+    // Idempotent seed: clear our own seed names first so the list stays
+    // deterministic regardless of how many times beforeAll runs.
+    await cleanupSeed(request, authToken, `${API}/workouts?limit=100`, `${API}/workouts`,
+      w => w.name === SEED_WORKOUT_NAME || w.name === SEED_SEARCH_WORKOUT_NAME)
 
     const w = await request.post(`${API}/workouts`, {
       headers: { Authorization: `Bearer ${authToken}` },
@@ -133,7 +135,9 @@ test.describe('Workouts', () => {
     const searchInput = page.getByPlaceholder(/search workouts/i)
     await searchInput.fill('SearchTarget')
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
-    await expect(page.getByText(SEED_WORKOUT_NAME)).not.toBeVisible()
+    // toHaveCount(0) auto-retries until the filtered-out item is fully gone;
+    // not.toBeVisible() would strict-mode-throw on the transient 2-node re-render.
+    await expect(page.getByText(SEED_WORKOUT_NAME)).toHaveCount(0)
   })
 
   test('clearing search restores full list', async ({ page }) => {
@@ -141,7 +145,7 @@ test.describe('Workouts', () => {
     await searchInput.fill('SearchTarget')
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
     await searchInput.fill('')
-    await expect(page.getByText(SEED_WORKOUT_NAME)).toBeVisible()
+    await expect(page.getByText(SEED_WORKOUT_NAME).first()).toBeVisible()
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
   })
 
@@ -183,11 +187,8 @@ let gymExerciseId: number
 // @mobile: Gym Mode is the mobile-first full-screen workout UX — run it on the
 // iPhone profile (it also runs on chromium via the full suite).
 test.describe('Gym Mode', { tag: '@mobile' }, () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
-    })
-    gymAuthToken = (await res.json()).data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    gymAuthToken = workerAuth.token
 
     const exRes = await request.get(`${API}/exercises?limit=1`, {
       headers: { Authorization: `Bearer ${gymAuthToken}` }

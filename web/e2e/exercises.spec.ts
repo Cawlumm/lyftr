@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
-import { API_BASE as API, TEST_EMAIL, TEST_PASSWORD } from './config'
+import { test, expect } from './fixtures'
+import { API_BASE as API } from './config'
+import { cleanupSeed } from './seedHelpers'
 
 let authToken: string
 let exerciseId: number
@@ -7,11 +8,8 @@ let workoutId: number
 let workoutId2: number
 
 test.describe('Exercise Detail', () => {
-  test.beforeAll(async ({ request }) => {
-    const res = await request.post(`${API}/auth/login`, {
-      data: { email: TEST_EMAIL, password: TEST_PASSWORD }
-    })
-    authToken = (await res.json()).data.token
+  test.beforeAll(async ({ request, workerAuth }) => {
+    authToken = workerAuth.token
 
     // Find a real exercise ID to use
     const exRes = await request.get(`${API}/exercises?limit=1`, {
@@ -19,6 +17,10 @@ test.describe('Exercise Detail', () => {
     })
     const exBody = await exRes.json()
     exerciseId = exBody.data[0].id
+
+    // Idempotent seed (defensive — keeps history deterministic across runs).
+    await cleanupSeed(request, authToken, `${API}/workouts?limit=100`, `${API}/workouts`,
+      w => typeof w.name === 'string' && w.name.startsWith('E2E Exercise History Seed'))
 
     // Seed two workouts on different days so history.length >= 2 (chart requires 2+ points)
     const yesterday = new Date(Date.now() - 86400000).toISOString()

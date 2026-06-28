@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { recordCreatedUser } from './userRegistry'
 
 // These run logged-out, so override the shared authenticated storage state.
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -12,6 +13,11 @@ test('registers a new user and lands on the dashboard', { tag: '@mobile' }, asyn
   await page.locator('#password-confirm').fill('password123')
   await page.getByRole('button', { name: /create account/i }).click()
   await page.waitForURL(url => new URL(url).pathname === '/')
+
+  // Record for globalTeardown to delete (cascades its data) — keeps register
+  // test users from accumulating in the DB across runs.
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) recordCreatedUser(token)
 })
 
 test('wrong password shows an error and stays on the login page (no reload)', async ({ page }) => {

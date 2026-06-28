@@ -20,14 +20,16 @@ const baseURL = process.env.BASE_URL
 
 export default defineConfig({
   testDir: './e2e',
+  // Deletes every e2e account created during the run (recorded in userRegistry),
+  // guaranteeing the DB is left as it started — no orphaned test users locally.
+  globalTeardown: './e2e/globalTeardown.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // Single worker. Each spec file is run twice (chromium + mobile projects)
-  // and shares one demo user, so two workers running the same spec across
-  // projects race on cleanup — both `beforeAll` hooks run their pre-clean,
-  // and the second worker wipes the first's seeded rows mid-test.
-  // Per-worker namespacing would unblock workers > 1; deferred for now.
+  // Kept at 1 for now: each worker registers its own isolated user (see
+  // e2e/fixtures.ts), so the suite is parallel-SAFE, but the backend is a single
+  // SQLite writer (DELETE journal mode) that drops writes under concurrent load.
+  // Raising workers waits on SQLite WAL (a separate backend change).
   workers: 1,
   reporter: 'list',
   use: {
@@ -37,15 +39,9 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'setup', testMatch: '**/auth.setup.ts' },
-    {
-      name: 'chromium',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
+    // storageState is supplied per-worker by e2e/fixtures.ts (logged-in specs).
+    // auth.spec imports @playwright/test directly and stays logged out.
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     {
       // Mobile (iPhone-14) runs ONLY @mobile-tagged tests — the flows where the
       // phone viewport itself is under test (gym mode, barcode scanner) plus a
@@ -53,11 +49,7 @@ export default defineConfig({
       // logic is covered once; the mobile project guards mobile-specific UX
       // without re-running every viewport-independent test. See docs/TESTING.md.
       name: 'mobile',
-      use: {
-        ...devices['iPhone 14'],
-        storageState: 'e2e/.auth/user.json',
-      },
-      dependencies: ['setup'],
+      use: { ...devices['iPhone 14'] },
       grep: /@mobile/,
     },
   ],
