@@ -111,7 +111,6 @@ test.describe('Workouts', () => {
     const optionsBtn = page.getByRole('button', { name: /options/i }).first()
     if (await optionsBtn.isVisible()) {
       await optionsBtn.click()
-      await page.waitForTimeout(300)
       await page.getByRole('button', { name: /delete workout/i }).first().click()
     } else {
       const deleteButtons = page.getByRole('button', { name: /delete/i })
@@ -133,7 +132,6 @@ test.describe('Workouts', () => {
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible({ timeout: 5000 })
     const searchInput = page.getByPlaceholder(/search workouts/i)
     await searchInput.fill('SearchTarget')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
     await expect(page.getByText(SEED_WORKOUT_NAME)).not.toBeVisible()
   })
@@ -141,10 +139,8 @@ test.describe('Workouts', () => {
   test('clearing search restores full list', async ({ page }) => {
     const searchInput = page.getByPlaceholder(/search workouts/i)
     await searchInput.fill('SearchTarget')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
     await searchInput.fill('')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_WORKOUT_NAME)).toBeVisible()
     await expect(page.getByText(SEED_SEARCH_WORKOUT_NAME).first()).toBeVisible()
   })
@@ -154,15 +150,18 @@ test.describe('Workouts', () => {
     const searchInput = page.getByPlaceholder(/search workouts/i)
     await searchInput.click()
     await searchInput.type('S')
-    await page.waitForTimeout(500)
     await expect(searchInput).toBeFocused()
   })
 
   test('weight unit displays consistently', async ({ page }) => {
     await page.goto('/settings')
     const kgButton = page.getByRole('button', { name: 'kg' })
-    await kgButton.click()
-    await page.waitForTimeout(500)
+    // Wait for the settings save (PUT /settings) before navigating, so /workouts
+    // reads the updated unit — a real signal, not a fixed sleep.
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/v1/settings') && r.request().method() === 'PUT'),
+      kgButton.click(),
+    ])
 
     await page.goto('/workouts')
     const volumeElements = page.locator('text=/\\d+ kg/')

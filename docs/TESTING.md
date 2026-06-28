@@ -90,6 +90,11 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 - **Determinism.** Pin `TZ` for any local↔UTC date logic (see `vitest.config.ts`).
   Don't share mutable state across tests that may run in parallel — each test owns
   its own data.
+- **No hard waits in E2E.** Never `page.waitForTimeout(...)` — it's slow when the
+  app is fast and flaky when it's slow. Wait on a *real signal* instead: a
+  web-first assertion (`await expect(locator).toBeVisible()` auto-retries), a
+  navigation (`waitForURL`), or the actual network call
+  (`page.waitForResponse(r => r.url().includes('/api/v1/weight') && r.request().method() === 'POST')`).
 - **WHY-comments.** Explain non-obvious test setup in the same explanatory style as
   the rest of the codebase.
 

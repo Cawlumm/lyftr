@@ -109,7 +109,6 @@ test.describe('Programs', () => {
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible({ timeout: 5000 })
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.fill('SearchTarget')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
     await expect(page.getByText(SEED_PROGRAM_NAME)).not.toBeVisible()
   })
@@ -117,10 +116,8 @@ test.describe('Programs', () => {
   test('clearing search restores full list', async ({ page }) => {
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.fill('SearchTarget')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
     await searchInput.fill('')
-    await page.waitForTimeout(500)
     await expect(page.getByText(SEED_PROGRAM_NAME)).toBeVisible()
     await expect(page.getByText(SEED_SEARCH_PROGRAM_NAME).first()).toBeVisible()
   })
@@ -130,7 +127,6 @@ test.describe('Programs', () => {
     const searchInput = page.getByPlaceholder(/search programs/i)
     await searchInput.click()
     await searchInput.type('S')
-    await page.waitForTimeout(500)
     await expect(searchInput).toBeFocused()
   })
 

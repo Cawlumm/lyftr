@@ -66,9 +66,11 @@ test.describe('Weight', () => {
   test('period selector switches chart range without crash', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
     for (const period of ['7d', '90d', 'All', '30d']) {
-      await page.getByRole('button', { name: period, exact: true }).click()
-      await page.waitForTimeout(300)
-      // Page should still be showing the weight heading — no crash/remount
+      const periodBtn = page.getByRole('button', { name: period, exact: true })
+      await periodBtn.click()
+      // Selected period takes the active style (deterministic, no data
+      // dependency), and the page is still alive — replaces a fixed sleep.
+      await expect(periodBtn).toHaveClass(/bg-surface-raised/)
       await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
     }
   })
@@ -85,8 +87,11 @@ test.describe('Weight', () => {
     const weightInput = page.locator('input[inputmode="decimal"]').first()
     await weightInput.fill('170')
 
-    await page.getByRole('button', { name: /log weight/i }).click()
-    await page.waitForTimeout(500)
+    // Wait for the actual save (POST /weight) instead of a fixed sleep.
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/v1/weight') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: /log weight/i }).click(),
+    ])
 
     // Entry should appear in history
     await expect(page.getByText(/history/i)).toBeVisible({ timeout: 5000 })

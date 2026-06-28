@@ -152,9 +152,11 @@ test.describe('Food', () => {
   test('Macro History section renders with period selector', async ({ page }) => {
     await expect(page.getByText('Macro History')).toBeVisible()
     for (const period of ['7d', '30d', '90d']) {
-      await page.getByRole('button', { name: period, exact: true }).click()
-      await page.waitForTimeout(300)
-      await expect(page.getByRole('heading', { name: 'Nutrition' })).toBeVisible()
+      const periodBtn = page.getByRole('button', { name: period, exact: true })
+      await periodBtn.click()
+      // The selected period button takes the active style — a deterministic
+      // signal the switch registered, with no fixed sleep or data dependency.
+      await expect(periodBtn).toHaveClass(/bg-surface-raised/)
     }
   })
 
