@@ -20,6 +20,9 @@ const baseURL = process.env.BASE_URL
 
 export default defineConfig({
   testDir: './e2e',
+  // Deletes every e2e account created during the run (recorded in userRegistry),
+  // guaranteeing the DB is left as it started — no orphaned test users locally.
+  globalTeardown: './e2e/globalTeardown.ts',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

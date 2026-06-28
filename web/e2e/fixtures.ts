@@ -1,7 +1,7 @@
-import { test as base, expect, request } from '@playwright/test'
-import { API_BASE } from './config'
+import { test as base, expect } from '@playwright/test'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { recordCreatedUser } from './userRegistry'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,19 +46,11 @@ export const test = base.extend<object, { workerAuth: WorkerAuth }>({
 
     if (!token) throw new Error(`worker ${idx}: failed to obtain access_token after register`)
 
-    await use({ token, email })
+    // Record for globalTeardown to delete at the end (cascades all its data).
+    // Centralized cleanup with retry — robust to transient failures and crashes.
+    recordCreatedUser(token)
 
-    // Teardown: delete this worker's account. `DELETE /me` cascades (ON DELETE
-    // CASCADE) to ALL its data — workouts, food, weight, programs, saved foods,
-    // settings — so every run fully cleans up after itself, even if a spec's
-    // afterAll was skipped by a failure (worker teardown still runs). Best-effort.
-    try {
-      const api = await request.newContext({ ignoreHTTPSErrors: true })
-      await api.delete(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } })
-      await api.dispose()
-    } catch {
-      // Non-fatal: leftover is bounded to one disposable per-run user.
-    }
+    await use({ token, email })
   }, { scope: 'worker' }],
 
   // Logged-in specs get this worker's freshly-registered storage state.
