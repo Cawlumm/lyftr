@@ -1,12 +1,28 @@
 import { test as base, expect } from '@playwright/test'
+import { readFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// Must match playwright.config's baseURL (non-docker default). The config `use`
-// options don't apply to the manual context we create below, so set it here.
-const BASE_URL = process.env.BASE_URL ?? 'https://localhost:5173'
+// Resolve the app's base URL the SAME way playwright.config.ts does, so the
+// manual registration context below targets the right server in every mode:
+// dev (https://localhost:5173) and CI docker (http://localhost[:PORT]). The
+// config `use.baseURL` isn't applied to contexts we create by hand, so we can't
+// rely on it here — replicate the logic instead.
+function resolveBaseURL(): string {
+  if (process.env.BASE_URL) return process.env.BASE_URL
+  if (process.env.E2E_DOCKER) {
+    try {
+      const env = readFileSync(path.resolve(__dirname, '../../.env'), 'utf8')
+      const port = env.match(/^PORT=(\d+)/m)?.[1] ?? '80'
+      return port === '80' ? 'http://localhost' : `http://localhost:${port}`
+    } catch {
+      return 'http://localhost'
+    }
+  }
+  return 'https://localhost:5173'
+}
 
 export type WorkerAuth = { token: string; email: string }
 
@@ -27,9 +43,12 @@ export const test = base.extend<object, { workerAuth: WorkerAuth }>({
     // Register via the real UI so the browser session + tokens are captured
     // exactly as the app writes them (token lives in localStorage). This manual
     // context needs baseURL + ignoreHTTPSErrors set explicitly — the config
-    // `use` options only apply to test-created contexts, not this one.
+    // `use` options only apply to test-created contexts, not this one. Read the
+    // project's RESOLVED baseURL so this works in both dev (https://localhost:5173)
+    // and CI docker mode (http://localhost) — don't hardcode.
+    const baseURL = (workerInfo.project.use.baseURL as string | undefined) ?? 'https://localhost:5173'
     const context = await browser.newContext({
-      baseURL: BASE_URL,
+      baseURL,
       ignoreHTTPSErrors: true,
       storageState: undefined,
     })
