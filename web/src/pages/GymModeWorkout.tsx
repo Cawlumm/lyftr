@@ -11,6 +11,8 @@ import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } 
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { workoutAPI } from '../services/api'
+import WeightInput from '../components/WeightInput'
+import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
   const primarySlugs = muscleToBodySlugs(exercise.muscle_group)
@@ -575,25 +577,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           {/* Weight */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Weight ({wUnit})</p>
-            <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', Math.max(0, (set.actual_weight || 0) - 2.5))}
+            <div className="w-full">
+              <WeightInput
+                size="lg"
+                value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
+                onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
+                unit={wUnit}
+                placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
                 disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
-              >−</button>
-              <input
-                type="number" inputMode="decimal"
-                value={set.actual_weight || ''}
-                onChange={e => updateSet(activeIdx, clampedSetIdx, 'actual_weight', Number(e.target.value) || 0)}
-                placeholder={set.target_weight > 0 ? String(set.target_weight) : '0'}
-                className={`input text-2xl font-bold text-center flex-1 py-3 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
-                disabled={set.completed} step="2.5"
               />
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', (set.actual_weight || 0) + 2.5)}
-                disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
-              >+</button>
             </div>
           </div>
         </div>

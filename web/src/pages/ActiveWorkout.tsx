@@ -6,7 +6,8 @@ import {
   AlertCircle, ChevronRight, ChevronLeft, Info,
 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
+import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -346,19 +347,14 @@ export default function ActiveWorkout() {
                         />
 
                         {/* Weight */}
-                        <div className="relative">
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            value={set.actual_weight ? lbsToDisplay(set.actual_weight, wUnit) : ''}
-                            onChange={e => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(e.target.value) || 0, wUnit))}
-                            placeholder={set.target_weight > 0 ? String(lbsToDisplay(set.target_weight, wUnit)) : '—'}
-                            className={`input text-base text-center py-3 w-full pr-7 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
-                            disabled={set.completed}
-                            step="0.5"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{wUnit}</span>
-                        </div>
+                        <WeightInput
+                          stepper={false}
+                          value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
+                          onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
+                          unit={wUnit}
+                          placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
+                          disabled={set.completed}
+                        />
 
                         {/* Complete toggle */}
                         <button

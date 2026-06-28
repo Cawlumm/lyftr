@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
+import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import * as types from '../types'
 
@@ -234,10 +235,7 @@ export default function EditWorkout() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
-                          <div className="relative">
-                            <input type="number" inputMode="decimal" value={set.weight || ''} onChange={e => updateSet(exIdx, setIdx, 'weight', e.target.value)} placeholder="225" className="input text-sm w-full pr-7" min="0" step="0.5" />
-                            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
-                          </div>
+                          <WeightInput stepper={false} size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
                         </div>
                         <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                           <Trash2 className="w-4 h-4 text-error-400" />

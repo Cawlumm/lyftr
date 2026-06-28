@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Plus, X, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
+import WeightInput from './WeightInput'
 import ExercisePicker from './ExercisePicker'
 import * as types from '../types'
 
@@ -265,19 +266,7 @@ export default function AddProgramModal({ isOpen, onClose, onSuccess }: Props) {
                           </div>
                           <div className="flex-1 min-w-0">
                             <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Weight</label>
-                            <div className="relative">
-                              <input
-                                type="number"
-                                inputMode="decimal"
-                                value={set.target_weight || ''}
-                                onChange={e => updateSet(exIdx, setIdx, 'target_weight', e.target.value)}
-                                placeholder="135"
-                                className="input text-sm w-full pr-7"
-                                min="0"
-                                step="0.5"
-                              />
-                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted font-medium pointer-events-none">{wUnit}</span>
-                            </div>
+                            <WeightInput stepper={false} size="sm" value={set.target_weight ? String(set.target_weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'target_weight', v)} unit={wUnit} placeholder="135" />
                           </div>
                           <button
                             type="button"

@@ -6,11 +6,19 @@ interface Props {
   unit: string
   step?: number
   autoFocus?: boolean
-  size?: 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg'
+  /** Show the +/- stepper buttons (prominent inputs). Off = bare field for compact rows. */
+  stepper?: boolean
+  placeholder?: string
+  disabled?: boolean
 }
 
-const STEP_DEFAULT = 0.5
+const STEP_DEFAULT = 0.1
 
+// Single component for every weight input in the app. Conversion-agnostic: the
+// caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`
+// toggles the prominent +/- layout (bodyweight, gym mode) vs a bare field for
+// compact sets-table rows. All weight inputs share step=0.1 + the unit suffix.
 export default function WeightInput({
   value,
   onChange,
@@ -18,6 +26,9 @@ export default function WeightInput({
   step = STEP_DEFAULT,
   autoFocus = false,
   size = 'md',
+  stepper = true,
+  placeholder = '0.0',
+  disabled = false,
 }: Props) {
   const adjust = (delta: number) => {
     const current = parseFloat(value)
@@ -28,41 +39,46 @@ export default function WeightInput({
 
   const inputSize = size === 'lg'
     ? 'text-3xl py-4 font-display font-bold'
-    : 'text-base py-2.5'
+    : size === 'sm'
+      ? 'text-sm py-2.5'
+      : 'text-base py-2.5'
+  // Compact contexts (bare field or sm) use tighter unit padding.
+  const compact = !stepper || size === 'sm'
+  const pad = compact ? 'pr-7' : 'pr-12'
+  const unitPos = compact ? 'right-2' : 'right-3.5'
+
+  const field = (
+    <div className="relative flex-1 min-w-0">
+      <input
+        type="number"
+        inputMode="decimal"
+        enterKeyHint="done"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        step={step}
+        min="0"
+        autoFocus={autoFocus}
+        disabled={disabled}
+        className={`input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
+        placeholder={placeholder}
+      />
+      <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>
+    </div>
+  )
+
+  if (!stepper) return field
+
   const buttonSize = size === 'lg' ? 'p-4' : 'p-2.5'
   const iconSize = size === 'lg' ? 'w-6 h-6' : 'w-4 h-4'
+  const btn = `${buttonSize} bg-surface-overlay border border-surface-border rounded-lg text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-30`
 
   return (
     <div className="flex items-stretch gap-2">
-      <button
-        type="button"
-        onClick={() => adjust(-step)}
-        className={`${buttonSize} bg-surface-overlay border border-surface-border rounded-lg text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all flex items-center justify-center flex-shrink-0`}
-        aria-label={`Decrease by ${step}`}
-      >
+      <button type="button" onClick={() => adjust(-step)} disabled={disabled} className={btn} aria-label={`Decrease by ${step}`}>
         <Minus className={iconSize} />
       </button>
-      <div className="relative flex-1 min-w-0">
-        <input
-          type="number"
-          inputMode="decimal"
-          enterKeyHint="done"
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          step={step}
-          min="0"
-          autoFocus={autoFocus}
-          className={`input ${inputSize} pr-12 text-center w-full tabular-nums`}
-          placeholder="0.0"
-        />
-        <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-tx-muted">{unit}</span>
-      </div>
-      <button
-        type="button"
-        onClick={() => adjust(step)}
-        className={`${buttonSize} bg-surface-overlay border border-surface-border rounded-lg text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all flex items-center justify-center flex-shrink-0`}
-        aria-label={`Increase by ${step}`}
-      >
+      {field}
+      <button type="button" onClick={() => adjust(step)} disabled={disabled} className={btn} aria-label={`Increase by ${step}`}>
         <Plus className={iconSize} />
       </button>
     </div>
