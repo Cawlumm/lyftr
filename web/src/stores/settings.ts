@@ -62,3 +62,16 @@ export const lbsToDisplay = (lbs: number, unit: string): number =>
 
 export const displayToLbs = (val: number, unit: string): number =>
   unit === 'kg' ? val * 2.20462 : val
+
+// Round to 0.1. Used for weight display/inputs: enough precision to log exact
+// weights (#39) without floating-point noise from the kg conversion.
+export const round1 = (n: number): number => Math.round(n * 10) / 10
+
+// Weight in the user's unit, rounded to 0.1 — use everywhere a weight is shown
+// or pre-filled into an input (replaces the old Math.round that forced integers).
+export const displayWeight = (lbs: number, unit: string): number => round1(lbsToDisplay(lbs, unit))
+
+// Volume/aggregate (sum of reps×weight) in the user's unit, as a whole number.
+// Volumes are large and never want 0.1 precision — keep this distinct from
+// displayWeight so the two can't be confused.
+export const displayVolume = (lbs: number, unit: string): number => Math.round(lbsToDisplay(lbs, unit))

@@ -6,7 +6,7 @@ import {
   ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
+import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -17,7 +17,7 @@ function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit:
         ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
         : 'bg-surface-raised text-tx-secondary'
     }`}>
-      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${Math.round(lbsToDisplay(set.weight, unit))} ${unit}` : 'BW'}
+      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : 'BW'}
     </div>
   )
 }
@@ -82,10 +82,10 @@ export default function WorkoutDetail() {
   }
 
   const exs = workout.exercises ?? []
-  const totalVolume = Math.round(lbsToDisplay(
+  const totalVolume = displayVolume(
     exs.reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0),
     wUnit
-  ))
+  )
   const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
   const durationMin = Math.round(workout.duration / 60)
 
@@ -194,8 +194,8 @@ export default function WorkoutDetail() {
         {exs.map((ex, idx) => {
           const sets = ex.sets ?? []
           const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map(s => s.weight || 0)) : 0
-          const maxWeight = Math.round(lbsToDisplay(maxWeightLbs, wUnit))
-          const exVol = Math.round(lbsToDisplay(sets.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0), wUnit))
+          const maxWeight = displayWeight(maxWeightLbs, wUnit)
+          const exVol = displayVolume(sets.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0), wUnit)
 
           return (
             <button

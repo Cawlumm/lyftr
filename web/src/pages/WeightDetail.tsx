@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { isPositiveNumber } from '../utils/numberUtils'
@@ -42,7 +42,7 @@ export default function WeightDetail() {
     weightAPI.get(Number(id))
       .then(data => {
         setLog(data)
-        setEditWeight(String(Math.round(lbsToDisplay(data.weight, settings.weight_unit))))
+        setEditWeight(String(displayWeight(data.weight, settings.weight_unit)))
         setEditDate(isoToDayInput(data.logged_at))
         setEditNotes(data.notes ?? '')
       })
@@ -52,7 +52,7 @@ export default function WeightDetail() {
 
   const startEdit = () => {
     if (!log) return
-    setEditWeight(String(Math.round(lbsToDisplay(log.weight, settings.weight_unit))))
+    setEditWeight(String(displayWeight(log.weight, settings.weight_unit)))
     setEditDate(isoToDayInput(log.logged_at))
     setEditNotes(log.notes ?? '')
     setEditError('')
@@ -158,7 +158,7 @@ export default function WeightDetail() {
             ) : (
               <>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl tabular-nums">{Math.round(lbsToDisplay(log.weight, settings.weight_unit))}</span>
+                  <span className="stat-value text-5xl tabular-nums">{displayWeight(log.weight, settings.weight_unit)}</span>
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
                 <p className="text-sm text-tx-muted mt-1">
@@ -248,7 +248,7 @@ export default function WeightDetail() {
             <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
             <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Entry?</h3>
             <p className="text-sm text-tx-muted mb-5">
-              {format(new Date(log.logged_at), 'MMMM d, yyyy')} · {Math.round(lbsToDisplay(log.weight, settings.weight_unit))} {wUnit} will be permanently deleted.
+              {format(new Date(log.logged_at), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
             </p>
             <div className="flex gap-3">
               <button

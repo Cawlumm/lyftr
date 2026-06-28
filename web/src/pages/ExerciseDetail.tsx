@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
+import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
 import * as types from '../types'
@@ -199,11 +199,11 @@ export default function ExerciseDetail() {
             <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Your Best</p>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-tx-primary tabular-nums">{Math.round(lbsToDisplay(pr.weight, wUnit))}</span>
+            <span className="text-2xl font-bold text-tx-primary tabular-nums">{displayWeight(pr.weight, wUnit)}</span>
             <span className="text-sm text-tx-muted mb-0.5">{wUnit} × {pr.reps} reps</span>
           </div>
           <p className="text-xs text-tx-muted mt-1">
-            Est. 1RM: {Math.round(lbsToDisplay(pr.estimated_1rm, wUnit))} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
+            Est. 1RM: {displayWeight(pr.estimated_1rm, wUnit)} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
           </p>
         </div>
       )}
@@ -212,7 +212,7 @@ export default function ExerciseDetail() {
       {history.length >= 2 && (() => {
         const chartData = [...filteredHistory].reverse().map(h => ({
           date: format(new Date(h.date), 'M/d'),
-          weight: Math.round(lbsToDisplay(h.max_weight, wUnit)),
+          weight: displayWeight(h.max_weight, wUnit),
         }))
         return (
           <div className="card p-4">

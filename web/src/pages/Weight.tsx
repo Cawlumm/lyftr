@@ -12,7 +12,7 @@ import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { isPositiveNumber } from '../utils/numberUtils'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 } from '../stores/settings'
 import * as types from '../types'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -101,7 +101,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
   // Callout: flip left if dot near right edge, flip below if dot near top
   const calloutFlipH = last[0] > W * 0.65
   const calloutFlipV = last[1] < PT + 30
-  const calloutLabel = String(Math.round(points[points.length - 1].weight))
+  const calloutLabel = String(round1(points[points.length - 1].weight))
   const calloutW = calloutLabel.length * 9 + 16
   const calloutX = calloutFlipH ? last[0] - calloutW - 8 : last[0] + 8
   const calloutY = calloutFlipV ? last[1] + 10 : last[1] - 28
@@ -121,7 +121,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
         >
           <div className="bg-surface-raised border border-surface-border rounded-xl px-3 py-2 shadow-card text-xs whitespace-nowrap">
             <p className="font-bold tabular-nums text-tx-primary text-sm">
-              {Math.round(activePoint.weight)} <span className="font-normal text-tx-muted">{wUnit}</span>
+              {round1(activePoint.weight)} <span className="font-normal text-tx-muted">{wUnit}</span>
             </p>
             <p className="text-tx-muted mt-0.5">{format(activePoint.date, 'MMM d, yyyy')}</p>
           </div>
@@ -249,7 +249,7 @@ export default function Weight() {
   const prefillDoneRef = useRef(false)
   useEffect(() => {
     if (!prefillDoneRef.current && items.length > 0) {
-      setNewWeight(String(Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))))
+      setNewWeight(String(displayWeight(items[0].weight, settings.weight_unit)))
       prefillDoneRef.current = true
     }
   }, [items])
@@ -289,7 +289,7 @@ export default function Weight() {
         notes: newNotes.trim(),
         logged_at: dayToIsoNoon(newDate),
       })
-      setNewWeight(String(Math.round(lbsToDisplay(real.weight, settings.weight_unit))))
+      setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
       setNewNotes('')
       setNewDate(todayStr())
       setShowNotes(false)
@@ -334,11 +334,11 @@ export default function Weight() {
     ? (stats!.max ?? 0)
     : (periodValues.length > 0 ? Math.max(...periodValues) : 0)
 
-  const current = lbsToDisplay(currentLbs, settings.weight_unit)
-  const change = Math.round(lbsToDisplay(changeLbs, settings.weight_unit))
-  const avg = Math.round(lbsToDisplay(avgLbs, settings.weight_unit))
-  const min = Math.round(lbsToDisplay(minLbs, settings.weight_unit))
-  const max = Math.round(lbsToDisplay(maxLbs, settings.weight_unit))
+  const current = displayWeight(currentLbs, settings.weight_unit)
+  const change = displayWeight(changeLbs, settings.weight_unit)
+  const avg = displayWeight(avgLbs, settings.weight_unit)
+  const min = displayWeight(minLbs, settings.weight_unit)
+  const max = displayWeight(maxLbs, settings.weight_unit)
 
   const trendIcon = change === 0 ? Minus : change < 0 ? TrendingDown : TrendingUp
   const TrendIcon = trendIcon
@@ -373,7 +373,7 @@ export default function Weight() {
             <h2 className="section-title">Log Weight</h2>
           </div>
           {items.length > 0 && (
-            <span className="text-[11px] text-tx-muted">last: {Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))} {wUnit}</span>
+            <span className="text-[11px] text-tx-muted">last: {displayWeight(items[0].weight, settings.weight_unit)} {wUnit}</span>
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
@@ -422,7 +422,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(new Date(items[0].logged_at), 'MMM d')} ({Math.round(lbsToDisplay(items[0].weight, settings.weight_unit))} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {format(new Date(items[0].logged_at), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
@@ -474,7 +474,7 @@ export default function Weight() {
               <div>
                 <p className="stat-label mb-2">Current Weight</p>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl">{Math.round(current)}</span>
+                  <span className="stat-value text-5xl">{current}</span>
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
               </div>
@@ -537,8 +537,8 @@ export default function Weight() {
             {items.map((entry, i) => {
               const next = items[i + 1]
               const deltaLbs = next ? entry.weight - next.weight : 0
-              const displayW = lbsToDisplay(entry.weight, settings.weight_unit)
-              const displayDelta = lbsToDisplay(Math.abs(deltaLbs), settings.weight_unit)
+              const displayW = displayWeight(entry.weight, settings.weight_unit)
+              const displayDelta = displayWeight(Math.abs(deltaLbs), settings.weight_unit)
               return (
                 <Link
                   key={entry.id}

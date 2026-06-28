@@ -15,7 +15,7 @@ import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
-import { useSettingsStore, weightShort, lbsToDisplay } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayWeight, displayVolume } from '../stores/settings'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -179,7 +179,7 @@ export default function Dashboard() {
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
     date: format(new Date(w.started_at), 'M/d'),
-    volume: Math.round(lbsToDisplay(calcVolume(w), settings.weight_unit)),
+    volume: displayVolume(calcVolume(w), settings.weight_unit),
     name: w.name,
   }))
 
@@ -468,7 +468,7 @@ export default function Dashboard() {
         {lastWorkout ? (() => {
           const exs = lastWorkout.exercises ?? []
           const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
-          const totalVolume = Math.round(lbsToDisplay(calcVolume(lastWorkout), settings.weight_unit))
+          const totalVolume = displayVolume(calcVolume(lastWorkout), settings.weight_unit)
           const mins = Math.round(lastWorkout.duration / 60)
           return (
             <div className="card p-4 overflow-hidden min-w-0 cursor-pointer active:scale-[0.99] transition-transform"
@@ -517,7 +517,7 @@ export default function Dashboard() {
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {sets.length}×{best.weight > 0 ? ` ${Math.round(lbsToDisplay(best.weight, settings.weight_unit))}${wUnit}` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, settings.weight_unit)}${wUnit}` : ' BW'}
                         </span>
                       )}
                     </div>
@@ -712,7 +712,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-tx-primary tabular-nums leading-none">
-                  {Math.round(lbsToDisplay(weightLogs[0].weight, settings.weight_unit))}
+                  {displayWeight(weightLogs[0].weight, settings.weight_unit)}
                 </span>
                 <span className="text-sm text-tx-muted">{wUnit}</span>
               </div>
@@ -724,7 +724,7 @@ export default function Dashboard() {
                   }
                   return (
                     <span className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
-                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(Math.round(lbsToDisplay(delta, settings.weight_unit)))} {wUnit}
+                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, settings.weight_unit))} {wUnit}
                     </span>
                   )
                 })()}
@@ -752,7 +752,7 @@ export default function Dashboard() {
 
       <QuickWeighInSheet
         isOpen={sheetOpen}
-        lastValue={weightLogs[0] ? Math.round(lbsToDisplay(weightLogs[0].weight, settings.weight_unit)) : null}
+        lastValue={weightLogs[0] ? displayWeight(weightLogs[0].weight, settings.weight_unit) : null}
         lastLog={weightLogs[0] ?? null}
         onClose={() => setSheetOpen(false)}
         onSuccess={(log) => {
