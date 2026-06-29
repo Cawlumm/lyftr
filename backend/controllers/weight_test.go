@@ -210,6 +210,67 @@ func TestLogWeight_success(t *testing.T) {
 	}
 }
 
+// One weight per calendar day: re-logging a day the user already logged updates
+// that entry in place rather than creating a duplicate.
+func TestLogWeight_sameDayUpdatesInPlace(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := "2026-06-29T12:00:00Z"
+	c1, w1 := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 181.0, "notes": "am", "logged_at": day})
+	LogWeight(c1)
+	if w1.Code != http.StatusCreated {
+		t.Fatalf("first log: expected 201, got %d: %s", w1.Code, w1.Body.String())
+	}
+
+	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 186.0, "notes": "pm", "logged_at": day})
+	LogWeight(c2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("second log: expected 201, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var count int
+	var weight float64
+	var notes string
+	if err := db.DB.QueryRow(
+		`SELECT COUNT(*), MAX(weight), MAX(notes) FROM weight_logs WHERE user_id = ?`,
+		uid,
+	).Scan(&count, &weight, &notes); err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 entry for the day (upsert), got %d", count)
+	}
+	if weight != 186.0 {
+		t.Errorf("expected updated weight 186, got %v", weight)
+	}
+	if notes != "pm" {
+		t.Errorf("expected updated notes 'pm', got %q", notes)
+	}
+}
+
+// Different days still create separate entries.
+func TestLogWeight_differentDaysCoexist(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	for _, d := range []string{"2026-06-27T12:00:00Z", "2026-06-28T12:00:00Z"} {
+		c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
+			map[string]any{"weight": 180.0, "logged_at": d})
+		LogWeight(c)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("log %s: expected 201, got %d", d, w.Code)
+		}
+	}
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&count)
+	if count != 2 {
+		t.Fatalf("expected 2 entries across 2 days, got %d", count)
+	}
+}
+
 func TestLogWeight_rejectsNonPositive(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

@@ -90,16 +90,40 @@ func LogWeight(c *gin.Context) {
 		req.LoggedAt = time.Now().UTC()
 	}
 
-	res, err := db.DB.Exec(
-		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-		uid, req.Weight, req.Notes, req.LoggedAt,
-	)
-	if err != nil {
+	// One weight entry per calendar day: if the user already logged this day,
+	// update that entry in place instead of creating a duplicate. Match on a
+	// [dayStart, nextDay) range rather than SQLite date(), because timestamps are
+	// stored in Go's time.String() format ("... +0000 UTC") which date() can't parse.
+	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	var id int64
+	err := db.DB.QueryRow(
+		`SELECT id FROM weight_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY id DESC LIMIT 1`,
+		uid, dayStart, dayEnd,
+	).Scan(&id)
+	switch err {
+	case nil:
+		if _, uerr := db.DB.Exec(
+			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ?`,
+			req.Weight, req.Notes, req.LoggedAt, id,
+		); uerr != nil {
+			utils.InternalError(c)
+			return
+		}
+	case sql.ErrNoRows:
+		res, ierr := db.DB.Exec(
+			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
+			uid, req.Weight, req.Notes, req.LoggedAt,
+		)
+		if ierr != nil {
+			utils.InternalError(c)
+			return
+		}
+		id, _ = res.LastInsertId()
+	default:
 		utils.InternalError(c)
 		return
 	}
-
-	id, _ := res.LastInsertId()
 	var log models.WeightLog
 	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, id,
