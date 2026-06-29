@@ -271,6 +271,25 @@ func TestLogWeight_differentDaysCoexist(t *testing.T) {
 	}
 }
 
+// A client-supplied non-UTC offset timestamp must not 500; it's normalized to
+// UTC (a non-UTC time.Time otherwise fails to scan back from SQLite).
+func TestLogWeight_normalizesOffsetToUTC(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 190.0, "logged_at": "2026-07-16T20:00:00-05:00"})
+	LogWeight(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("offset ts: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	// 2026-07-16T20:00:00-05:00 == 2026-07-17T01:00:00Z
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if got := data["logged_at"].(string); got != "2026-07-17T01:00:00Z" {
+		t.Errorf("expected UTC-normalized 2026-07-17T01:00:00Z, got %v", got)
+	}
+}
+
 func TestLogWeight_rejectsNonPositive(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

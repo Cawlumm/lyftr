@@ -84,11 +84,12 @@ func LogWeight(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		// .UTC() so the serialized response doesn't depend on the server's
-		// timezone setting (the instant is the same either way; this keeps the
-		// wire format consistent across deployments).
-		req.LoggedAt = time.Now().UTC()
+		req.LoggedAt = time.Now()
 	}
+	// Always store in UTC: keeps the wire format consistent across deployments
+	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
+	// time.Time otherwise fails to scan back, 500ing the request).
+	req.LoggedAt = req.LoggedAt.UTC()
 
 	// One weight entry per calendar day: if the user already logged this day,
 	// update that entry in place instead of creating a duplicate. Match on a
@@ -172,11 +173,12 @@ func UpdateWeightLog(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		// .UTC() so the serialized response doesn't depend on the server's
-		// timezone setting (the instant is the same either way; this keeps the
-		// wire format consistent across deployments).
-		req.LoggedAt = time.Now().UTC()
+		req.LoggedAt = time.Now()
 	}
+	// Always store in UTC: keeps the wire format consistent across deployments
+	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
+	// time.Time otherwise fails to scan back, 500ing the request).
+	req.LoggedAt = req.LoggedAt.UTC()
 
 	res, err := db.DB.Exec(
 		`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
