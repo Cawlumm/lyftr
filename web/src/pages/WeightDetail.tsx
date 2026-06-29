@@ -4,7 +4,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs, displayWeight , weightError, maxWeight } from '../stores/settings'
+import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
@@ -71,7 +71,7 @@ export default function WeightDetail() {
     setEditError('')
     try {
       const updated = await weightAPI.update(log.id, {
-        weight: displayToLbs(w, settings.weight_unit),
+        weight: resolveWeightLbs(editWeight, log.weight, settings.weight_unit),
         notes: editNotes.trim(),
         logged_at: dayToIsoNoon(editDate),
       })

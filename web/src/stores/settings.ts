@@ -94,3 +94,14 @@ export const weightError = (value: number, unit: string): string | null => {
 }
 
 export const isValidWeight = (value: number, unit: string): boolean => weightError(value, unit) === null
+
+// Resolve the lbs value to store when saving an edited weight. Weights are shown
+// rounded to 0.1 in the display unit, so re-converting the shown value back to lbs
+// drifts (e.g. 180 lb → 81.6 kg → 179.9 lb). If the shown value is unchanged from
+// the original's rounded display, keep the original lbs exactly; only convert when
+// the user actually changed it. `displayValue` is the (possibly-edited) field string.
+export const resolveWeightLbs = (displayValue: string, originalLbs: number, unit: string): number => {
+  const shown = parseFloat(displayValue)
+  if (Number.isFinite(shown) && shown === displayWeight(originalLbs, unit)) return originalLbs
+  return displayToLbs(shown, unit)
+}
