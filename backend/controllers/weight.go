@@ -52,7 +52,7 @@ func ListWeightLogs(c *gin.Context) {
 			args = append(args, hi)
 		}
 	}
-	q += ` ORDER BY logged_at DESC LIMIT ? OFFSET ?`
+	q += ` ORDER BY logged_at DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := db.DB.Query(q, args...)
@@ -84,22 +84,47 @@ func LogWeight(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		// .UTC() so the serialized response doesn't depend on the server's
-		// timezone setting (the instant is the same either way; this keeps the
-		// wire format consistent across deployments).
-		req.LoggedAt = time.Now().UTC()
+		req.LoggedAt = time.Now()
 	}
+	// Always store in UTC: keeps the wire format consistent across deployments
+	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
+	// time.Time otherwise fails to scan back, 500ing the request).
+	req.LoggedAt = req.LoggedAt.UTC()
 
-	res, err := db.DB.Exec(
-		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-		uid, req.Weight, req.Notes, req.LoggedAt,
-	)
-	if err != nil {
+	// One weight entry per calendar day: if the user already logged this day,
+	// update that entry in place instead of creating a duplicate. Match on a
+	// [dayStart, nextDay) range rather than SQLite date(), because timestamps are
+	// stored in Go's time.String() format ("... +0000 UTC") which date() can't parse.
+	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	var id int64
+	err := db.DB.QueryRow(
+		`SELECT id FROM weight_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY id DESC LIMIT 1`,
+		uid, dayStart, dayEnd,
+	).Scan(&id)
+	switch err {
+	case nil:
+		if _, uerr := db.DB.Exec(
+			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ?`,
+			req.Weight, req.Notes, req.LoggedAt, id,
+		); uerr != nil {
+			utils.InternalError(c)
+			return
+		}
+	case sql.ErrNoRows:
+		res, ierr := db.DB.Exec(
+			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
+			uid, req.Weight, req.Notes, req.LoggedAt,
+		)
+		if ierr != nil {
+			utils.InternalError(c)
+			return
+		}
+		id, _ = res.LastInsertId()
+	default:
 		utils.InternalError(c)
 		return
 	}
-
-	id, _ := res.LastInsertId()
 	var log models.WeightLog
 	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, id,
@@ -148,11 +173,12 @@ func UpdateWeightLog(c *gin.Context) {
 	}
 
 	if req.LoggedAt.IsZero() {
-		// .UTC() so the serialized response doesn't depend on the server's
-		// timezone setting (the instant is the same either way; this keeps the
-		// wire format consistent across deployments).
-		req.LoggedAt = time.Now().UTC()
+		req.LoggedAt = time.Now()
 	}
+	// Always store in UTC: keeps the wire format consistent across deployments
+	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
+	// time.Time otherwise fails to scan back, 500ing the request).
+	req.LoggedAt = req.LoggedAt.UTC()
 
 	res, err := db.DB.Exec(
 		`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
@@ -165,6 +191,20 @@ func UpdateWeightLog(c *gin.Context) {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		utils.NotFound(c, "log entry not found")
+		return
+	}
+
+	// One weight per day: if this edit moved the entry onto a day that already
+	// had another entry, drop the other(s) so the day keeps a single entry —
+	// consistent with LogWeight's upsert. Done after the update succeeds so a
+	// not-found/unauthorized edit never deletes anything.
+	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	if _, err := db.DB.Exec(
+		`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_at >= ? AND logged_at < ?`,
+		uid, lid, dayStart, dayEnd,
+	); err != nil {
+		utils.InternalError(c)
 		return
 	}
 
@@ -208,8 +248,8 @@ func GetWeightStats(c *gin.Context) {
 	)
 	db.DB.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC  LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC, id ASC LIMIT 1),
 		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
 		 FROM weight_logs WHERE user_id = ?`,
 		uid, uid, uid,
@@ -250,8 +290,8 @@ func changeOver(uid int64, days int) float64 {
 	var latest, earliest sql.NullFloat64
 	db.DB.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC  LIMIT 1)`,
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
 		uid, cutoff, uid, cutoff,
 	).Scan(&latest, &earliest)
 	if !latest.Valid || !earliest.Valid {

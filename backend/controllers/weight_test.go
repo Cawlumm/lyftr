@@ -68,6 +68,54 @@ func TestListWeightLogs_orderedDescAndScopedByUser(t *testing.T) {
 	}
 }
 
+// Regression: multiple logs on the same calendar day share an identical
+// logged_at (the frontend stamps every same-day entry at noon). Without an `id`
+// tiebreaker, ORDER BY logged_at DESC returned the OLDEST of the tie first, so
+// after re-logging the same day the UI kept showing the stale value (it reads
+// items[0] for the current weight / prefill / duplicate warning).
+func TestListWeightLogs_sameDayNewestFirst(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	insertWeightLog(t, uid, 181.0, day)
+	insertWeightLog(t, uid, 186.0, day) // newer, identical timestamp
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight", nil)
+	ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].([]any)
+	if len(data) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(data))
+	}
+	if first := data[0].(map[string]any); first["weight"].(float64) != 186.0 {
+		t.Errorf("expected newest same-day entry (186) first, got %v", first["weight"])
+	}
+}
+
+func TestGetWeightStats_latestPrefersNewestSameDay(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	insertWeightLog(t, uid, 181.0, day)
+	insertWeightLog(t, uid, 186.0, day)
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
+	GetWeightStats(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if data["latest"].(float64) != 186.0 {
+		t.Errorf("latest: expected newest same-day (186), got %v", data["latest"])
+	}
+}
+
 func TestListWeightLogs_dateRange(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
@@ -162,6 +210,86 @@ func TestLogWeight_success(t *testing.T) {
 	}
 }
 
+// One weight per calendar day: re-logging a day the user already logged updates
+// that entry in place rather than creating a duplicate.
+func TestLogWeight_sameDayUpdatesInPlace(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := "2026-06-29T12:00:00Z"
+	c1, w1 := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 181.0, "notes": "am", "logged_at": day})
+	LogWeight(c1)
+	if w1.Code != http.StatusCreated {
+		t.Fatalf("first log: expected 201, got %d: %s", w1.Code, w1.Body.String())
+	}
+
+	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 186.0, "notes": "pm", "logged_at": day})
+	LogWeight(c2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("second log: expected 201, got %d: %s", w2.Code, w2.Body.String())
+	}
+
+	var count int
+	var weight float64
+	var notes string
+	if err := db.DB.QueryRow(
+		`SELECT COUNT(*), MAX(weight), MAX(notes) FROM weight_logs WHERE user_id = ?`,
+		uid,
+	).Scan(&count, &weight, &notes); err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 entry for the day (upsert), got %d", count)
+	}
+	if weight != 186.0 {
+		t.Errorf("expected updated weight 186, got %v", weight)
+	}
+	if notes != "pm" {
+		t.Errorf("expected updated notes 'pm', got %q", notes)
+	}
+}
+
+// Different days still create separate entries.
+func TestLogWeight_differentDaysCoexist(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	for _, d := range []string{"2026-06-27T12:00:00Z", "2026-06-28T12:00:00Z"} {
+		c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
+			map[string]any{"weight": 180.0, "logged_at": d})
+		LogWeight(c)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("log %s: expected 201, got %d", d, w.Code)
+		}
+	}
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&count)
+	if count != 2 {
+		t.Fatalf("expected 2 entries across 2 days, got %d", count)
+	}
+}
+
+// A client-supplied non-UTC offset timestamp must not 500; it's normalized to
+// UTC (a non-UTC time.Time otherwise fails to scan back from SQLite).
+func TestLogWeight_normalizesOffsetToUTC(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
+		map[string]any{"weight": 190.0, "logged_at": "2026-07-16T20:00:00-05:00"})
+	LogWeight(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("offset ts: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	// 2026-07-16T20:00:00-05:00 == 2026-07-17T01:00:00Z
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if got := data["logged_at"].(string); got != "2026-07-17T01:00:00Z" {
+		t.Errorf("expected UTC-normalized 2026-07-17T01:00:00Z, got %v", got)
+	}
+}
+
 func TestLogWeight_rejectsNonPositive(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
@@ -209,6 +337,37 @@ func TestUpdateWeightLog_success(t *testing.T) {
 	if data["notes"].(string) != "after run" {
 		t.Errorf("expected updated notes, got %v", data["notes"])
 	}
+}
+
+// Editing an entry's date onto a day that already has another entry keeps the
+// day to a single entry (the edited one) — consistent with the log-time upsert.
+func TestUpdateWeightLog_dedupsOnTargetDay(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	a := insertWeightLog(t, uid, 180.0, time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC))
+	b := insertWeightLog(t, uid, 185.0, time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC))
+
+	// Move B onto day 07-20 (where A lives).
+	body := map[string]any{"weight": 186.0, "logged_at": "2026-07-20T12:00:00Z"}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/weight/"+fmt.Sprint(b), body)
+	setParam(c, "id", fmt.Sprint(b))
+	UpdateWeightLog(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&count)
+	if count != 1 {
+		t.Fatalf("expected 1 entry after edit-merge (A dropped), got %d", count)
+	}
+	var survivingID int64
+	var weight float64
+	db.DB.QueryRow(`SELECT id, weight FROM weight_logs WHERE user_id = ?`, uid).Scan(&survivingID, &weight)
+	if survivingID != b || weight != 186.0 {
+		t.Errorf("expected surviving entry to be the edited one (id=%d, w=186), got id=%d w=%v", b, survivingID, weight)
+	}
+	_ = a
 }
 
 func TestUpdateWeightLog_ownershipEnforced(t *testing.T) {
