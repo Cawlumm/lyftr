@@ -194,6 +194,20 @@ func UpdateWeightLog(c *gin.Context) {
 		return
 	}
 
+	// One weight per day: if this edit moved the entry onto a day that already
+	// had another entry, drop the other(s) so the day keeps a single entry —
+	// consistent with LogWeight's upsert. Done after the update succeeds so a
+	// not-found/unauthorized edit never deletes anything.
+	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
+	dayEnd := dayStart.AddDate(0, 0, 1)
+	if _, err := db.DB.Exec(
+		`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_at >= ? AND logged_at < ?`,
+		uid, lid, dayStart, dayEnd,
+	); err != nil {
+		utils.InternalError(c)
+		return
+	}
+
 	var log models.WeightLog
 	if err := db.DB.QueryRow(
 		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, lid,

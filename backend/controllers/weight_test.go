@@ -339,6 +339,37 @@ func TestUpdateWeightLog_success(t *testing.T) {
 	}
 }
 
+// Editing an entry's date onto a day that already has another entry keeps the
+// day to a single entry (the edited one) — consistent with the log-time upsert.
+func TestUpdateWeightLog_dedupsOnTargetDay(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	a := insertWeightLog(t, uid, 180.0, time.Date(2026, 7, 20, 12, 0, 0, 0, time.UTC))
+	b := insertWeightLog(t, uid, 185.0, time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC))
+
+	// Move B onto day 07-20 (where A lives).
+	body := map[string]any{"weight": 186.0, "logged_at": "2026-07-20T12:00:00Z"}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/weight/"+fmt.Sprint(b), body)
+	setParam(c, "id", fmt.Sprint(b))
+	UpdateWeightLog(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&count)
+	if count != 1 {
+		t.Fatalf("expected 1 entry after edit-merge (A dropped), got %d", count)
+	}
+	var survivingID int64
+	var weight float64
+	db.DB.QueryRow(`SELECT id, weight FROM weight_logs WHERE user_id = ?`, uid).Scan(&survivingID, &weight)
+	if survivingID != b || weight != 186.0 {
+		t.Errorf("expected surviving entry to be the edited one (id=%d, w=186), got id=%d w=%v", b, survivingID, weight)
+	}
+	_ = a
+}
+
 func TestUpdateWeightLog_ownershipEnforced(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
