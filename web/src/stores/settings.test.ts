@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { round1, displayWeight, displayVolume, weightError, isValidWeight, maxWeight } from './settings'
+import { round1, displayWeight, displayVolume, weightError, isValidWeight, maxWeight, resolveWeightLbs, displayToLbs } from './settings'
 
 describe('round1', () => {
   it('rounds to one decimal place', () => {
@@ -71,5 +71,18 @@ describe('weight validation (mirrors backend gt=0, lte=2000 lbs)', () => {
     expect(isValidWeight(907, 'kg')).toBe(true)          // 907 kg = 1999.6 lb
     expect(isValidWeight(910, 'kg')).toBe(false)         // 910 kg = 2006 lb
     expect(weightError(910, 'kg')).toMatch(/under 907 kg/)
+  })
+})
+
+describe('resolveWeightLbs (no drift when an edit leaves the shown value unchanged)', () => {
+  it('keeps the original lbs exactly when the shown value is unchanged', () => {
+    // 180 lb shows as 81.6 kg; re-saving "81.6" must stay 180, not drift to 179.9.
+    expect(resolveWeightLbs('81.6', 180, 'kg')).toBe(180)
+    expect(resolveWeightLbs('180', 180, 'lbs')).toBe(180)
+  })
+
+  it('converts only when the user actually changes the shown value', () => {
+    expect(resolveWeightLbs('82', 180, 'kg')).toBe(displayToLbs(82, 'kg'))   // changed → convert
+    expect(resolveWeightLbs('176', 180, 'lbs')).toBe(176)                    // changed → convert
   })
 })

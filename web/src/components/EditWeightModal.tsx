@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Scale, AlertCircle, Save } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs, displayWeight , weightError, maxWeight } from '../stores/settings'
+import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import WeightInput from './WeightInput'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
@@ -52,7 +52,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
     setError('')
     try {
       await weightAPI.update(log.id, {
-        weight: displayToLbs(w, settings.weight_unit),
+        weight: resolveWeightLbs(weight, log.weight, settings.weight_unit),
         notes: notes.trim(),
         logged_at: dayToIsoNoon(loggedAt),
       })
