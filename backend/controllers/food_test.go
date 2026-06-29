@@ -82,7 +82,7 @@ func TestListFoodLogs_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food", nil)
-	ListFoodLogs(c)
+	th.ListFoodLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -108,7 +108,7 @@ func TestListFoodLogs_scopedByDateAndUser(t *testing.T) {
 
 	date := today.Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food?date="+date, nil)
-	ListFoodLogs(c)
+	th.ListFoodLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -133,7 +133,7 @@ func TestGetFoodLog_success(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	GetFoodLog(c)
+	th.GetFoodLog(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -153,7 +153,7 @@ func TestGetFoodLog_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	GetFoodLog(c)
+	th.GetFoodLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user get, got %d", w.Code)
@@ -166,7 +166,7 @@ func TestGetFoodLog_invalidID(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/abc", nil)
 	setParam(c, "id", "abc")
-	GetFoodLog(c)
+	th.GetFoodLog(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid id, got %d", w.Code)
@@ -185,7 +185,7 @@ func TestLogFood_success(t *testing.T) {
 		"fiber": 5.0, "servings": 1.0, "serving_size": "1 cup",
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -215,7 +215,7 @@ func TestLogFood_defaultsServingsToOne(t *testing.T) {
 		"calories": 95.0, "protein": 0.5, "carbs": 25.0, "fat": 0.3,
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -233,7 +233,7 @@ func TestLogFood_missingName(t *testing.T) {
 
 	body := map[string]any{"meal": "breakfast", "calories": 300.0}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected error for missing name, got 201")
@@ -249,7 +249,7 @@ func TestLogFood_nameTooLong(t *testing.T) {
 		"calories": 100.0, "protein": 5.0, "carbs": 10.0, "fat": 3.0,
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for name > 200 chars, got %d", w.Code)
@@ -266,7 +266,7 @@ func TestLogFood_imageURLTooLong(t *testing.T) {
 		"image_url": "https://" + strings.Repeat("a", 494),
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for image_url > 500 chars, got %d", w.Code)
@@ -283,7 +283,7 @@ func TestLogFood_barcodeTooLong(t *testing.T) {
 		"barcode": strings.Repeat("1", 51),
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
-	LogFood(c)
+	th.LogFood(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for barcode > 50 chars, got %d", w.Code)
@@ -303,7 +303,7 @@ func TestUpdateFoodLog_success(t *testing.T) {
 	}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
 	setParam(c, "id", fmt.Sprint(id))
-	UpdateFoodLog(c)
+	th.UpdateFoodLog(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -333,7 +333,7 @@ func TestUpdateFoodLog_ownershipEnforced(t *testing.T) {
 	}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
 	setParam(c, "id", fmt.Sprint(id))
-	UpdateFoodLog(c)
+	th.UpdateFoodLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user update, got %d", w.Code)
@@ -355,7 +355,7 @@ func TestUpdateFoodLog_notFound(t *testing.T) {
 	}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/9999", body)
 	setParam(c, "id", "9999")
-	UpdateFoodLog(c)
+	th.UpdateFoodLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for missing entry, got %d", w.Code)
@@ -371,7 +371,7 @@ func TestDeleteFoodLog_success(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/food/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	DeleteFoodLog(c)
+	th.DeleteFoodLog(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -391,7 +391,7 @@ func TestDeleteFoodLog_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/food/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	DeleteFoodLog(c)
+	th.DeleteFoodLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user delete, got %d", w.Code)
@@ -411,7 +411,7 @@ func TestGetDailyStats_empty(t *testing.T) {
 
 	date := time.Now().Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+date, nil)
-	GetDailyStats(c)
+	th.GetDailyStats(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -435,7 +435,7 @@ func TestGetDailyStats_sumsMacrosCorrectly(t *testing.T) {
 
 	date := today.Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+date, nil)
-	GetDailyStats(c)
+	th.GetDailyStats(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -467,7 +467,7 @@ func TestGetDailyStats_scopedByUser(t *testing.T) {
 
 	date := today.Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+date, nil)
-	GetDailyStats(c)
+	th.GetDailyStats(c)
 
 	resp := decodeResponse(t, w)
 	data := resp["data"].(map[string]any)
@@ -483,7 +483,7 @@ func TestGetFoodHistory_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history?days=7", nil)
-	GetFoodHistory(c)
+	th.GetFoodHistory(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -507,7 +507,7 @@ func TestGetFoodHistory_groupsByDay(t *testing.T) {
 	insertFoodLog(t, uid, "Old", "dinner", 500, 30, 60, 12, now.AddDate(0, 0, -10))
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history?days=7", nil)
-	GetFoodHistory(c)
+	th.GetFoodHistory(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -533,7 +533,7 @@ func TestGetFoodHistory_defaultsDaysTo30(t *testing.T) {
 	insertFoodLog(t, uid, "Included", "lunch", 500, 30, 60, 15, time.Now().AddDate(0, 0, -20))
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history", nil)
-	GetFoodHistory(c)
+	th.GetFoodHistory(c)
 
 	resp := decodeResponse(t, w)
 	data := resp["data"].([]any)
@@ -658,7 +658,7 @@ func TestLookupBarcode_invalidFormat(t *testing.T) {
 	for _, code := range []string{"abc", "123", "12345678901234567", "../etc"} {
 		c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/"+code, nil)
 		setParam(c, "code", code)
-		LookupBarcode(c)
+		th.LookupBarcode(c)
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("code %q: expected 400, got %d", code, w.Code)
 		}
@@ -677,7 +677,7 @@ func TestLookupBarcode_success(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/051500255186", nil)
 	setParam(c, "code", "051500255186")
-	LookupBarcode(c)
+	th.LookupBarcode(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -703,7 +703,7 @@ func TestLookupBarcode_productNotFound(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/012345678901", nil)
 	setParam(c, "code", "012345678901")
-	LookupBarcode(c)
+	th.LookupBarcode(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for unknown barcode, got %d", w.Code)
@@ -720,7 +720,7 @@ func TestLookupBarcode_rateLimited(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/012345678901", nil)
 	setParam(c, "code", "012345678901")
-	LookupBarcode(c)
+	th.LookupBarcode(c)
 
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 forwarded, got %d", w.Code)
@@ -734,7 +734,7 @@ func TestSearchFood_missingQuery(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/search", nil)
-	SearchFood(c)
+	th.SearchFood(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for missing q, got %d", w.Code)
@@ -752,7 +752,7 @@ func TestSearchFood_success(t *testing.T) {
 	})
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/search?q=milk", nil)
-	SearchFood(c)
+	th.SearchFood(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -778,7 +778,7 @@ func TestSearchFood_rateLimited(t *testing.T) {
 	})
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/search?q=pizza", nil)
-	SearchFood(c)
+	th.SearchFood(c)
 
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 forwarded, got %d", w.Code)
@@ -794,7 +794,7 @@ func TestSearchFood_upstreamError(t *testing.T) {
 	})
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/search?q=pizza", nil)
-	SearchFood(c)
+	th.SearchFood(c)
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("expected 503 for OFF 5xx, got %d", w.Code)
@@ -808,7 +808,7 @@ func TestListSavedFoods_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/saved", nil)
-	ListSavedFoods(c)
+	th.ListSavedFoods(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -831,7 +831,7 @@ func TestListSavedFoods_alphabeticalAndScopedByUser(t *testing.T) {
 	insertSavedFood(t, other, "Should not appear")
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/saved", nil)
-	ListSavedFoods(c)
+	th.ListSavedFoods(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -863,7 +863,7 @@ func TestCreateSavedFood_success(t *testing.T) {
 		"fiber": 0.0, "serving_size": "1 container (170g)",
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
-	CreateSavedFood(c)
+	th.CreateSavedFood(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -884,7 +884,7 @@ func TestCreateSavedFood_missingName(t *testing.T) {
 
 	body := map[string]any{"calories": 100.0, "protein": 5.0, "carbs": 10.0, "fat": 3.0}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
-	CreateSavedFood(c)
+	th.CreateSavedFood(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected error for missing name, got 201")
@@ -900,7 +900,7 @@ func TestDeleteSavedFood_success(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/food/saved/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	DeleteSavedFood(c)
+	th.DeleteSavedFood(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -920,7 +920,7 @@ func TestDeleteSavedFood_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/food/saved/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	DeleteSavedFood(c)
+	th.DeleteSavedFood(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user delete, got %d", w.Code)

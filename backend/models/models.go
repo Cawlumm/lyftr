@@ -24,7 +24,7 @@ type Exercise struct {
 	Name             string   `json:"name" db:"name"`
 	MuscleGroup      string   `json:"muscle_group" db:"muscle_group"`
 	SecondaryMuscles []string `json:"secondary_muscles" db:"-"` // decoded from JSON column
-	Category         string   `json:"category" db:"category"` // "strength", "cardio", "flexibility"
+	Category         string   `json:"category" db:"category"`   // "strength", "cardio", "flexibility"
 	Equipment        string   `json:"equipment" db:"equipment"`
 	Description      string   `json:"description" db:"description"`
 	ImageURL         string   `json:"image_url,omitempty" db:"image_url"`
@@ -57,7 +57,7 @@ type Set struct {
 	WorkoutExerciseID int64   `json:"workout_exercise_id" db:"workout_exercise_id"`
 	SetNumber         int     `json:"set_number" db:"set_number"`
 	Reps              int     `json:"reps,omitempty" db:"reps"`
-	Weight            float64 `json:"weight,omitempty" db:"weight"` // raw value in user's preferred unit (lbs or kg)
+	Weight            float64 `json:"weight,omitempty" db:"weight"`     // raw value in user's preferred unit (lbs or kg)
 	Duration          int     `json:"duration,omitempty" db:"duration"` // seconds, for timed sets
 	Distance          float64 `json:"distance,omitempty" db:"distance"` // meters
 	RPE               float64 `json:"rpe,omitempty" db:"rpe"`
@@ -150,17 +150,17 @@ type RefreshRequest struct {
 }
 
 type CreateWorkoutRequest struct {
-	Name      string                    `json:"name" validate:"required"`
-	Notes     string                    `json:"notes"`
-	Duration  int                       `json:"duration"`
-	StartedAt time.Time                 `json:"started_at"`
+	Name      string                     `json:"name" validate:"required"`
+	Notes     string                     `json:"notes"`
+	Duration  int                        `json:"duration"`
+	StartedAt time.Time                  `json:"started_at"`
 	Exercises []CreateWorkoutExerciseReq `json:"exercises"`
 }
 
 type CreateWorkoutExerciseReq struct {
-	ExerciseID int64        `json:"exercise_id" validate:"required"`
-	OrderIndex int          `json:"order_index"`
-	Notes      string       `json:"notes"`
+	ExerciseID int64          `json:"exercise_id" validate:"required"`
+	OrderIndex int            `json:"order_index"`
+	Notes      string         `json:"notes"`
 	Sets       []CreateSetReq `json:"sets"`
 }
 
@@ -243,14 +243,14 @@ type ProgramSet struct {
 }
 
 type CreateProgramRequest struct {
-	Name      string                    `json:"name" validate:"required"`
-	Notes     string                    `json:"notes"`
+	Name      string                     `json:"name" validate:"required"`
+	Notes     string                     `json:"notes"`
 	Exercises []CreateProgramExerciseReq `json:"exercises"`
 }
 
 type CreateProgramExerciseReq struct {
-	ExerciseID int64                `json:"exercise_id" validate:"required"`
-	Notes      string               `json:"notes"`
+	ExerciseID int64                 `json:"exercise_id" validate:"required"`
+	Notes      string                `json:"notes"`
 	Sets       []CreateProgramSetReq `json:"sets"`
 }
 

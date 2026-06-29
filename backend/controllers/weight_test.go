@@ -27,7 +27,7 @@ func TestListWeightLogs_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight", nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -52,7 +52,7 @@ func TestListWeightLogs_orderedDescAndScopedByUser(t *testing.T) {
 	insertWeightLog(t, otherUID, 999.0, now)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight", nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -82,7 +82,7 @@ func TestListWeightLogs_sameDayNewestFirst(t *testing.T) {
 	insertWeightLog(t, uid, 186.0, day) // newer, identical timestamp
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight", nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
@@ -105,7 +105,7 @@ func TestGetWeightStats_latestPrefersNewestSameDay(t *testing.T) {
 	insertWeightLog(t, uid, 186.0, day)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
-	GetWeightStats(c)
+	th.GetWeightStats(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
@@ -127,7 +127,7 @@ func TestListWeightLogs_dateRange(t *testing.T) {
 	from := now.AddDate(0, 0, -7).Format("2006-01-02")
 	to := now.Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/weight?from=%s&to=%s", from, to), nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -154,7 +154,7 @@ func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
 	insertWeightLog(t, uid, 175.0, loggedAt)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight?from=2026-04-25&to=2026-04-25", nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -176,7 +176,7 @@ func TestListWeightLogs_dateRangeExactRFC3339(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet,
 		"/api/v1/weight?from=2026-04-25T12:00:00Z&to=2026-04-25T15:00:00Z", nil)
-	ListWeightLogs(c)
+	th.ListWeightLogs(c)
 
 	resp := decodeResponse(t, w)
 	data := resp["data"].([]any)
@@ -195,7 +195,7 @@ func TestLogWeight_success(t *testing.T) {
 
 	body := map[string]any{"weight": 185.5, "notes": "morning"}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", body)
-	LogWeight(c)
+	th.LogWeight(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -219,14 +219,14 @@ func TestLogWeight_sameDayUpdatesInPlace(t *testing.T) {
 	day := "2026-06-29T12:00:00Z"
 	c1, w1 := newContext(uid, http.MethodPost, "/api/v1/weight",
 		map[string]any{"weight": 181.0, "notes": "am", "logged_at": day})
-	LogWeight(c1)
+	th.LogWeight(c1)
 	if w1.Code != http.StatusCreated {
 		t.Fatalf("first log: expected 201, got %d: %s", w1.Code, w1.Body.String())
 	}
 
 	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/weight",
 		map[string]any{"weight": 186.0, "notes": "pm", "logged_at": day})
-	LogWeight(c2)
+	th.LogWeight(c2)
 	if w2.Code != http.StatusCreated {
 		t.Fatalf("second log: expected 201, got %d: %s", w2.Code, w2.Body.String())
 	}
@@ -259,7 +259,7 @@ func TestLogWeight_differentDaysCoexist(t *testing.T) {
 	for _, d := range []string{"2026-06-27T12:00:00Z", "2026-06-28T12:00:00Z"} {
 		c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
 			map[string]any{"weight": 180.0, "logged_at": d})
-		LogWeight(c)
+		th.LogWeight(c)
 		if w.Code != http.StatusCreated {
 			t.Fatalf("log %s: expected 201, got %d", d, w.Code)
 		}
@@ -279,7 +279,7 @@ func TestLogWeight_normalizesOffsetToUTC(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/weight",
 		map[string]any{"weight": 190.0, "logged_at": "2026-07-16T20:00:00-05:00"})
-	LogWeight(c)
+	th.LogWeight(c)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("offset ts: expected 201, got %d: %s", w.Code, w.Body.String())
 	}
@@ -296,7 +296,7 @@ func TestLogWeight_rejectsNonPositive(t *testing.T) {
 
 	body := map[string]any{"weight": 0}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", body)
-	LogWeight(c)
+	th.LogWeight(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected validation error for weight=0, got 201")
@@ -309,7 +309,7 @@ func TestLogWeight_rejectsImplausiblyLarge(t *testing.T) {
 
 	body := map[string]any{"weight": 9999}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", body)
-	LogWeight(c)
+	th.LogWeight(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected validation error for weight=9999, got 201")
@@ -324,7 +324,7 @@ func TestUpdateWeightLog_success(t *testing.T) {
 	body := map[string]any{"weight": 178.0, "notes": "after run"}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/weight/"+fmt.Sprint(id), body)
 	setParam(c, "id", fmt.Sprint(id))
-	UpdateWeightLog(c)
+	th.UpdateWeightLog(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -351,7 +351,7 @@ func TestUpdateWeightLog_dedupsOnTargetDay(t *testing.T) {
 	body := map[string]any{"weight": 186.0, "logged_at": "2026-07-20T12:00:00Z"}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/weight/"+fmt.Sprint(b), body)
 	setParam(c, "id", fmt.Sprint(b))
-	UpdateWeightLog(c)
+	th.UpdateWeightLog(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
@@ -380,7 +380,7 @@ func TestUpdateWeightLog_ownershipEnforced(t *testing.T) {
 	body := map[string]any{"weight": 100.0}
 	c, w := newContext(uid, http.MethodPatch, "/api/v1/weight/"+fmt.Sprint(id), body)
 	setParam(c, "id", fmt.Sprint(id))
-	UpdateWeightLog(c)
+	th.UpdateWeightLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user update, got %d", w.Code)
@@ -401,7 +401,7 @@ func TestDeleteWeightLog_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/weight/"+fmt.Sprint(id), nil)
 	setParam(c, "id", fmt.Sprint(id))
-	DeleteWeightLog(c)
+	th.DeleteWeightLog(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user delete, got %d", w.Code)
@@ -423,7 +423,7 @@ func TestGetWeightStats_richFields(t *testing.T) {
 	insertWeightLog(t, uid, 175.0, now.AddDate(0, 0, -1))
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
-	GetWeightStats(c)
+	th.GetWeightStats(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -461,7 +461,7 @@ func TestGetWeightStats_noData(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
-	GetWeightStats(c)
+	th.GetWeightStats(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)

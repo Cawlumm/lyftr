@@ -5,73 +5,53 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
 )
 
-func ListWeightLogs(c *gin.Context) {
+func (h *Handler) ListWeightLogs(c *gin.Context) {
 	uid := middleware.UserID(c)
-	limit := 90
+	f := stores.WeightFilter{Limit: 90}
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 1000 {
-		limit = l
+		f.Limit = l
 	}
-	offset := 0
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
-		offset = o
+		f.Offset = o
 	}
-
-	q := `SELECT id, user_id, weight, notes, logged_at, created_at
-	      FROM weight_logs WHERE user_id = ?`
-	args := []any{uid}
 
 	// Date params are calendar days in the user's local timezone. We don't know
-	// the client's UTC offset, so for bare YYYY-MM-DD we widen the window by
-	// ±12h to cover any plausible client TZ. Callers that want exact bounds can
-	// pass a full RFC3339 timestamp instead.
+	// the client's UTC offset, so for bare YYYY-MM-DD we widen the window by ±12h
+	// to cover any plausible client TZ. A full RFC3339 timestamp is used exactly.
 	if from := c.Query("from"); from != "" {
 		if t, exact, ok := parseDayOrTime(from); ok {
 			lo := t
 			if !exact {
 				lo = t.Add(-12 * time.Hour)
 			}
-			q += ` AND logged_at >= ?`
-			args = append(args, lo)
+			f.From = &lo
 		}
 	}
 	if to := c.Query("to"); to != "" {
 		if t, exact, ok := parseDayOrTime(to); ok {
 			hi := t
 			if !exact {
-				// 24h of the day itself + 12h padding for west-of-UTC clocks.
 				hi = t.Add(36 * time.Hour)
 			}
-			q += ` AND logged_at < ?`
-			args = append(args, hi)
+			f.To = &hi
 		}
 	}
-	q += ` ORDER BY logged_at DESC, id DESC LIMIT ? OFFSET ?`
-	args = append(args, limit, offset)
 
-	rows, err := db.DB.Query(q, args...)
-	if err != nil {
-		utils.InternalError(c)
+	logs, err := h.s.Weight.List(uid, f)
+	if utils.DBError(c, err) {
 		return
-	}
-	defer rows.Close()
-
-	logs := []models.WeightLog{}
-	for rows.Next() {
-		var w models.WeightLog
-		rows.Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.CreatedAt)
-		logs = append(logs, w)
 	}
 	utils.OK(c, logs)
 }
 
-func LogWeight(c *gin.Context) {
+func (h *Handler) LogWeight(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -82,86 +62,40 @@ func LogWeight(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 
-	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
-	}
-	// Always store in UTC: keeps the wire format consistent across deployments
-	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
-	// time.Time otherwise fails to scan back, 500ing the request).
-	req.LoggedAt = req.LoggedAt.UTC()
-
-	// One weight entry per calendar day: if the user already logged this day,
-	// update that entry in place instead of creating a duplicate. Match on a
-	// [dayStart, nextDay) range rather than SQLite date(), because timestamps are
-	// stored in Go's time.String() format ("... +0000 UTC") which date() can't parse.
-	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
-	dayEnd := dayStart.AddDate(0, 0, 1)
-	var id int64
-	err := db.DB.QueryRow(
-		`SELECT id FROM weight_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY id DESC LIMIT 1`,
-		uid, dayStart, dayEnd,
-	).Scan(&id)
-	switch err {
-	case nil:
-		if _, uerr := db.DB.Exec(
-			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ?`,
-			req.Weight, req.Notes, req.LoggedAt, id,
-		); uerr != nil {
-			utils.InternalError(c)
-			return
-		}
-	case sql.ErrNoRows:
-		res, ierr := db.DB.Exec(
-			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-			uid, req.Weight, req.Notes, req.LoggedAt,
-		)
-		if ierr != nil {
-			utils.InternalError(c)
-			return
-		}
-		id, _ = res.LastInsertId()
-	default:
-		utils.InternalError(c)
-		return
-	}
-	var log models.WeightLog
-	if err := db.DB.QueryRow(
-		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, id,
-	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
-		utils.InternalError(c)
+	log, err := h.s.Weight.UpsertForDay(uid, req)
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.Created(c, log)
 }
 
-func GetWeightLog(c *gin.Context) {
+func (h *Handler) GetWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		utils.BadRequest(c, "invalid id")
 		return
 	}
-
-	var log models.WeightLog
-	if err := db.DB.QueryRow(
-		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ? AND user_id = ?`,
-		lid, uid,
-	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
+	log, err := h.s.Weight.Get(uid, lid)
+	if err == sql.ErrNoRows {
 		utils.NotFound(c, "log entry not found")
+		return
+	}
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, log)
 }
 
-func UpdateWeightLog(c *gin.Context) {
+func (h *Handler) UpdateWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		utils.BadRequest(c, "invalid id")
 		return
 	}
-
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -171,67 +105,30 @@ func UpdateWeightLog(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 
-	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
-	}
-	// Always store in UTC: keeps the wire format consistent across deployments
-	// and lets a client-supplied offset timestamp round-trip cleanly (a non-UTC
-	// time.Time otherwise fails to scan back, 500ing the request).
-	req.LoggedAt = req.LoggedAt.UTC()
-
-	res, err := db.DB.Exec(
-		`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
-		req.Weight, req.Notes, req.LoggedAt, lid, uid,
-	)
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	log, err := h.s.Weight.Update(uid, lid, req)
+	if err == sql.ErrNoRows {
 		utils.NotFound(c, "log entry not found")
 		return
 	}
-
-	// One weight per day: if this edit moved the entry onto a day that already
-	// had another entry, drop the other(s) so the day keeps a single entry —
-	// consistent with LogWeight's upsert. Done after the update succeeds so a
-	// not-found/unauthorized edit never deletes anything.
-	dayStart := time.Date(req.LoggedAt.Year(), req.LoggedAt.Month(), req.LoggedAt.Day(), 0, 0, 0, 0, req.LoggedAt.Location())
-	dayEnd := dayStart.AddDate(0, 0, 1)
-	if _, err := db.DB.Exec(
-		`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_at >= ? AND logged_at < ?`,
-		uid, lid, dayStart, dayEnd,
-	); err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	var log models.WeightLog
-	if err := db.DB.QueryRow(
-		`SELECT id, user_id, weight, notes, logged_at, created_at FROM weight_logs WHERE id = ?`, lid,
-	).Scan(&log.ID, &log.UserID, &log.Weight, &log.Notes, &log.LoggedAt, &log.CreatedAt); err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, log)
 }
 
-func DeleteWeightLog(c *gin.Context) {
+func (h *Handler) DeleteWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		utils.BadRequest(c, "invalid id")
 		return
 	}
-
-	res, err := db.DB.Exec(`DELETE FROM weight_logs WHERE id = ? AND user_id = ?`, lid, uid)
-	if err != nil {
-		utils.InternalError(c)
+	n, err := h.s.Weight.Delete(uid, lid)
+	if utils.DBError(c, err) {
 		return
 	}
-	n, _ := res.RowsAffected()
 	if n == 0 {
 		utils.NotFound(c, "log entry not found")
 		return
@@ -239,40 +136,36 @@ func DeleteWeightLog(c *gin.Context) {
 	utils.OK(c, gin.H{"deleted": true})
 }
 
-func GetWeightStats(c *gin.Context) {
+func (h *Handler) GetWeightStats(c *gin.Context) {
 	uid := middleware.UserID(c)
-
-	var (
-		latest, oldest, minW, maxW, avgW sql.NullFloat64
-		count                            int
-	)
-	db.DB.QueryRow(
-		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC, id ASC LIMIT 1),
-		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
-		 FROM weight_logs WHERE user_id = ?`,
-		uid, uid, uid,
-	).Scan(&latest, &oldest, &minW, &maxW, &avgW, &count)
-
-	change7 := changeOver(uid, 7)
-	change30 := changeOver(uid, 30)
-
+	stats, err := h.s.Weight.Stats(uid)
+	if utils.DBError(c, err) {
+		return
+	}
 	utils.OK(c, gin.H{
-		"latest":        latest.Float64,
-		"starting":      oldest.Float64,
-		"min":           minW.Float64,
-		"max":           maxW.Float64,
-		"avg":           avgW.Float64,
-		"total_entries": count,
-		"change_7d":     change7,
-		"change_30d":    change30,
+		"latest":        stats.Latest,
+		"starting":      stats.Starting,
+		"min":           stats.Min,
+		"max":           stats.Max,
+		"avg":           stats.Avg,
+		"total_entries": stats.TotalEntries,
+		"change_7d":     stats.Change7d,
+		"change_30d":    stats.Change30d,
 	})
 }
 
-// parseDayOrTime accepts either a full RFC3339 timestamp or a bare YYYY-MM-DD.
-// Returns the parsed time, whether the input was an exact timestamp (so callers
-// know not to widen the window), and parse success.
+// normalizeLoggedAt defaults a zero time to now and forces UTC: keeps the wire
+// format consistent across deployments and lets a client-supplied offset
+// timestamp round-trip cleanly (a non-UTC time.Time otherwise fails to scan back).
+func normalizeLoggedAt(t time.Time) time.Time {
+	if t.IsZero() {
+		t = time.Now()
+	}
+	return t.UTC()
+}
+
+// parseDayOrTime accepts a full RFC3339 timestamp or a bare YYYY-MM-DD. Returns
+// the parsed time, whether it was an exact timestamp (don't widen), and success.
 func parseDayOrTime(s string) (t time.Time, exact bool, ok bool) {
 	if v, err := time.Parse(time.RFC3339, s); err == nil {
 		return v, true, true
@@ -281,21 +174,4 @@ func parseDayOrTime(s string) (t time.Time, exact bool, ok bool) {
 		return v, false, true
 	}
 	return time.Time{}, false, false
-}
-
-// changeOver returns latest weight minus the earliest weight within the last
-// `days` days. Returns 0 when there are fewer than two entries in the window.
-func changeOver(uid int64, days int) float64 {
-	cutoff := time.Now().UTC().AddDate(0, 0, -days)
-	var latest, earliest sql.NullFloat64
-	db.DB.QueryRow(
-		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
-		uid, cutoff, uid, cutoff,
-	).Scan(&latest, &earliest)
-	if !latest.Valid || !earliest.Valid {
-		return 0
-	}
-	return latest.Float64 - earliest.Float64
 }

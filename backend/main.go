@@ -7,9 +7,11 @@ import (
 	"os"
 
 	"github.com/Cawlumm/lyftr-backend/config"
+	"github.com/Cawlumm/lyftr-backend/controllers"
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/routes"
 	"github.com/Cawlumm/lyftr-backend/seed"
+	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,7 +34,9 @@ func main() {
 	}
 
 	r := gin.Default()
-	routes.Setup(r)
+	s := stores.New(db.DB)
+	h := controllers.NewHandler(s)
+	routes.Setup(r, h)
 
 	addr := ":" + config.C.Port
 	log.Printf("lyftr API listening on %s (env=%s)", addr, config.C.Env)

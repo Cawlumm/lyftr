@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 
-	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
@@ -12,7 +11,7 @@ import (
 
 var validate = validator.New()
 
-func Register(c *gin.Context) {
+func (h *Handler) Register(c *gin.Context) {
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -29,19 +28,14 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	res, err := db.DB.Exec(
-		`INSERT INTO users (email, password_hash) VALUES (?, ?)`,
-		req.Email, hash,
-	)
-	if err != nil {
-		utils.BadRequest(c, "email already registered")
+	userID, err := h.s.User.Create(req.Email, hash)
+	if utils.IsUniqueViolation(err) {
+		utils.Conflict(c, "email already registered")
 		return
 	}
-
-	userID, _ := res.LastInsertId()
-
-	// Create default settings
-	db.DB.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, userID)
+	if utils.DBError(c, err) {
+		return
+	}
 
 	access, refresh, err := utils.GenerateTokenPair(userID, req.Email)
 	if err != nil {
@@ -53,7 +47,7 @@ func Register(c *gin.Context) {
 	utils.Created(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
-func Login(c *gin.Context) {
+func (h *Handler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -64,18 +58,16 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	var user models.User
-	err := db.DB.QueryRow(
-		`SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?`,
-		req.Email,
-	).Scan(&user.ID, &user.Email, &user.Password, &user.CreatedAt, &user.UpdatedAt)
-
-	if err == sql.ErrNoRows || !utils.CheckPassword(req.Password, user.Password) {
+	user, err := h.s.User.GetByEmail(req.Email)
+	if err == sql.ErrNoRows {
 		utils.Unauthorized(c, "invalid email or password")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
+		return
+	}
+	if !utils.CheckPassword(req.Password, user.Password) {
+		utils.Unauthorized(c, "invalid email or password")
 		return
 	}
 
@@ -89,7 +81,7 @@ func Login(c *gin.Context) {
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
-func RefreshToken(c *gin.Context) {
+func (h *Handler) RefreshToken(c *gin.Context) {
 	var req models.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())

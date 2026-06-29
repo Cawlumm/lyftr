@@ -13,7 +13,7 @@ func TestListWorkouts_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/workouts", nil)
-	ListWorkouts(c)
+	th.ListWorkouts(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -50,7 +50,7 @@ func TestCreateWorkout_success(t *testing.T) {
 	}
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
-	CreateWorkout(c)
+	th.CreateWorkout(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -75,7 +75,7 @@ func TestCreateWorkout_missingName(t *testing.T) {
 		"exercises": []map[string]any{},
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
-	CreateWorkout(c)
+	th.CreateWorkout(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected error for empty name, got 201")
@@ -101,7 +101,7 @@ func TestCreateWorkout_preservesStartedAt(t *testing.T) {
 	}
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
-	CreateWorkout(c)
+	th.CreateWorkout(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -130,7 +130,7 @@ func TestGetWorkout_ownershipEnforced(t *testing.T) {
 	// Try to GET as uid (different user)
 	c, w := newContext(uid, http.MethodGet, "/api/v1/workouts/"+fmt.Sprint(wid), nil)
 	setParam(c, "id", fmt.Sprint(wid))
-	GetWorkout(c)
+	th.GetWorkout(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user access, got %d", w.Code)
@@ -151,7 +151,7 @@ func TestDeleteWorkout_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/workouts/"+fmt.Sprint(wid), nil)
 	setParam(c, "id", fmt.Sprint(wid))
-	DeleteWorkout(c)
+	th.DeleteWorkout(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user delete, got %d", w.Code)
@@ -191,7 +191,7 @@ func TestUpdateWorkout_preservesStartedAt(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+fmt.Sprint(wid), body)
 	setParam(c, "id", fmt.Sprint(wid))
-	UpdateWorkout(c)
+	th.UpdateWorkout(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -218,7 +218,7 @@ func TestListWorkouts_limitCap(t *testing.T) {
 	// Request with limit=200 (above cap of 100)
 	c, w := newContext(uid, http.MethodGet, "/api/v1/workouts?limit=200", nil)
 	c.Request.URL.RawQuery = "limit=200"
-	ListWorkouts(c)
+	th.ListWorkouts(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
@@ -243,7 +243,7 @@ func TestListWorkouts_filtersBySearchQuery(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/workouts?q=push", nil)
 	c.Request.URL.RawQuery = "q=push" // case-insensitive LIKE on name, scoped by user
-	ListWorkouts(c)
+	th.ListWorkouts(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())

@@ -13,7 +13,7 @@ func TestListPrograms_empty(t *testing.T) {
 	uid := createTestUser(t)
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/programs", nil)
-	ListPrograms(c)
+	th.ListPrograms(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -50,7 +50,7 @@ func TestCreateProgram_success(t *testing.T) {
 	}
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
-	CreateProgram(c)
+	th.CreateProgram(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -86,7 +86,7 @@ func TestCreateProgram_missingName(t *testing.T) {
 		"exercises": []map[string]any{},
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
-	CreateProgram(c)
+	th.CreateProgram(c)
 
 	if w.Code == http.StatusCreated {
 		t.Fatal("expected error for empty name, got 201")
@@ -104,7 +104,7 @@ func TestGetProgram_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/programs/"+fmt.Sprint(pid), nil)
 	setParam(c, "id", fmt.Sprint(pid))
-	GetProgram(c)
+	th.GetProgram(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user access, got %d", w.Code)
@@ -122,7 +122,7 @@ func TestDeleteProgram_ownershipEnforced(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodDelete, "/api/v1/programs/"+fmt.Sprint(pid), nil)
 	setParam(c, "id", fmt.Sprint(pid))
-	DeleteProgram(c)
+	th.DeleteProgram(c)
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("expected 404 for cross-user delete, got %d", w.Code)
@@ -166,7 +166,7 @@ func TestUpdateProgram_replacesExercises(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodPut, "/api/v1/programs/"+fmt.Sprint(pid), body)
 	setParam(c, "id", fmt.Sprint(pid))
-	UpdateProgram(c)
+	th.UpdateProgram(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -203,7 +203,7 @@ func TestCreateProgram_setNumberNormalized(t *testing.T) {
 	}
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
-	CreateProgram(c)
+	th.CreateProgram(c)
 
 	if w.Code != http.StatusCreated {
 		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
@@ -231,7 +231,7 @@ func TestListPrograms_filtersBySearchQuery(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/programs?q=push", nil)
 	c.Request.URL.RawQuery = "q=push" // case-insensitive LIKE on name, scoped by user
-	ListPrograms(c)
+	th.ListPrograms(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())

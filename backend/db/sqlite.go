@@ -21,13 +21,27 @@ func Connect() {
 	}
 
 	var err error
-	DB, err = sql.Open("sqlite", dbPath+"?_journal_mode=DELETE&_foreign_keys=on&_busy_timeout=5000")
+	// modernc.org/sqlite uses _pragma=NAME(VALUE) DSN syntax. The old mattn-style
+	// params (_journal_mode=…&_busy_timeout=…) were silently ignored, leaving
+	// busy_timeout at 0 — so any contended lock failed instantly (a write racing
+	// other requests would 500). Fix:
+	//   busy_timeout(5000): wait up to 5s for a lock instead of erroring.
+	//   journal_mode(WAL): readers don't block the writer; fewer locks.
+	//   synchronous(NORMAL): the safe, faster durability setting under WAL.
+	//   foreign_keys(on): keep cascade deletes working (DeleteAccount relies on it).
+	DB, err = sql.Open("sqlite", dbPath+"?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(on)")
 	if err != nil {
 		log.Fatalf("failed to open database: %v", err)
 	}
 
-	DB.SetMaxOpenConns(10)
-	DB.SetMaxIdleConns(5)
+	// SQLite is a single writer — it does not do concurrent writes. Rather than
+	// fight that with a larger pool (which only turns contention into lock errors
+	// to retry), serialize all DB access through ONE connection. With the
+	// nested-cursor fix (no request needs a second connection mid-query), one
+	// connection is sufficient and leaves no in-process lock contention to fail on.
+	// The busy_timeout/WAL pragmas above remain only as cheap cross-process defense.
+	DB.SetMaxOpenConns(1)
+	DB.SetMaxIdleConns(1)
 
 	if err = DB.Ping(); err != nil {
 		log.Fatalf("failed to ping database: %v", err)

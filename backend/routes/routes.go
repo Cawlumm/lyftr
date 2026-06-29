@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Setup(r *gin.Engine) {
+func Setup(r *gin.Engine, h *controllers.Handler) {
 	r.Use(cors.New(corsConfig()))
 
 	r.GET("/health", func(c *gin.Context) {
@@ -21,14 +21,14 @@ func Setup(r *gin.Engine) {
 	api := r.Group("/api/v1")
 
 	// Public: "test connection" probe for the in-app server selector.
-	api.GET("/info", controllers.ServerInfo)
+	api.GET("/info", h.ServerInfo)
 
 	// Auth (public)
 	auth := api.Group("/auth")
 	{
-		auth.POST("/register", controllers.Register)
-		auth.POST("/login", controllers.Login)
-		auth.POST("/refresh", controllers.RefreshToken)
+		auth.POST("/register", h.Register)
+		auth.POST("/login", h.Login)
+		auth.POST("/refresh", h.RefreshToken)
 	}
 
 	// Protected routes
@@ -36,62 +36,62 @@ func Setup(r *gin.Engine) {
 	protected.Use(middleware.Auth())
 	{
 		// User
-		protected.GET("me", controllers.GetMe)
-		protected.GET("settings", controllers.GetSettings)
-		protected.PUT("settings", controllers.UpdateSettings)
-		protected.DELETE("me", controllers.DeleteAccount)
+		protected.GET("me", h.GetMe)
+		protected.GET("settings", h.GetSettings)
+		protected.PUT("settings", h.UpdateSettings)
+		protected.DELETE("me", h.DeleteAccount)
 
 		// Workouts
-		protected.GET("workouts", controllers.ListWorkouts)
-		protected.POST("workouts", controllers.CreateWorkout)
-		protected.GET("workouts/:id", controllers.GetWorkout)
-		protected.PUT("workouts/:id", controllers.UpdateWorkout)
-		protected.DELETE("workouts/:id", controllers.DeleteWorkout)
+		protected.GET("workouts", h.ListWorkouts)
+		protected.POST("workouts", h.CreateWorkout)
+		protected.GET("workouts/:id", h.GetWorkout)
+		protected.PUT("workouts/:id", h.UpdateWorkout)
+		protected.DELETE("workouts/:id", h.DeleteWorkout)
 
 		// Weight
-		protected.GET("weight", controllers.ListWeightLogs)
-		protected.POST("weight", controllers.LogWeight)
-		protected.GET("weight/stats", controllers.GetWeightStats)
-		protected.GET("weight/:id", controllers.GetWeightLog)
-		protected.PATCH("weight/:id", controllers.UpdateWeightLog)
-		protected.DELETE("weight/:id", controllers.DeleteWeightLog)
+		protected.GET("weight", h.ListWeightLogs)
+		protected.POST("weight", h.LogWeight)
+		protected.GET("weight/stats", h.GetWeightStats)
+		protected.GET("weight/:id", h.GetWeightLog)
+		protected.PATCH("weight/:id", h.UpdateWeightLog)
+		protected.DELETE("weight/:id", h.DeleteWeightLog)
 
 		// Food — named sub-paths must be registered before food/:id
-		protected.GET("food", controllers.ListFoodLogs)
-		protected.POST("food", controllers.LogFood)
-		protected.GET("food/stats", controllers.GetDailyStats)
-		protected.GET("food/history", controllers.GetFoodHistory)
-		protected.GET("food/search", controllers.SearchFood)
-		protected.GET("food/barcode/:code", controllers.LookupBarcode)
-		protected.GET("food/saved", controllers.ListSavedFoods)
-		protected.POST("food/saved", controllers.CreateSavedFood)
-		protected.DELETE("food/saved/:id", controllers.DeleteSavedFood)
-		protected.GET("food/:id", controllers.GetFoodLog)
-		protected.PATCH("food/:id", controllers.UpdateFoodLog)
-		protected.DELETE("food/:id", controllers.DeleteFoodLog)
+		protected.GET("food", h.ListFoodLogs)
+		protected.POST("food", h.LogFood)
+		protected.GET("food/stats", h.GetDailyStats)
+		protected.GET("food/history", h.GetFoodHistory)
+		protected.GET("food/search", h.SearchFood)
+		protected.GET("food/barcode/:code", h.LookupBarcode)
+		protected.GET("food/saved", h.ListSavedFoods)
+		protected.POST("food/saved", h.CreateSavedFood)
+		protected.DELETE("food/saved/:id", h.DeleteSavedFood)
+		protected.GET("food/:id", h.GetFoodLog)
+		protected.PATCH("food/:id", h.UpdateFoodLog)
+		protected.DELETE("food/:id", h.DeleteFoodLog)
 
 		// Exercises (read-only for users)
-		protected.GET("exercises", controllers.ListExercises)
-		protected.GET("exercises/:id", controllers.GetExercise)
-		protected.GET("exercises/:id/prs", controllers.GetExercisePRs)
-		protected.GET("exercises/:id/history", controllers.GetExerciseHistory)
+		protected.GET("exercises", h.ListExercises)
+		protected.GET("exercises/:id", h.GetExercise)
+		protected.GET("exercises/:id/prs", h.GetExercisePRs)
+		protected.GET("exercises/:id/history", h.GetExerciseHistory)
 
 		// Active session
-		protected.GET("active-session", controllers.GetActiveSession)
-		protected.PUT("active-session", controllers.UpsertActiveSession)
-		protected.DELETE("active-session", controllers.DeleteActiveSession)
+		protected.GET("active-session", h.GetActiveSession)
+		protected.PUT("active-session", h.UpsertActiveSession)
+		protected.DELETE("active-session", h.DeleteActiveSession)
 
 		// Programs
-		protected.GET("programs", controllers.ListPrograms)
-		protected.POST("programs", controllers.CreateProgram)
-		protected.GET("programs/:id", controllers.GetProgram)
-		protected.PUT("programs/:id", controllers.UpdateProgram)
-		protected.DELETE("programs/:id", controllers.DeleteProgram)
+		protected.GET("programs", h.ListPrograms)
+		protected.POST("programs", h.CreateProgram)
+		protected.GET("programs/:id", h.GetProgram)
+		protected.PUT("programs/:id", h.UpdateProgram)
+		protected.DELETE("programs/:id", h.DeleteProgram)
 
 		// Admin
-		protected.POST("admin/sync-exercises", controllers.SyncExercises)
-		protected.GET("admin/seed-status", controllers.ExerciseSeedStatus)
-		protected.POST("admin/reset-exercises", controllers.ResetExercises)
+		protected.POST("admin/sync-exercises", h.SyncExercises)
+		protected.GET("admin/seed-status", h.ExerciseSeedStatus)
+		protected.POST("admin/reset-exercises", h.ResetExercises)
 	}
 }
 

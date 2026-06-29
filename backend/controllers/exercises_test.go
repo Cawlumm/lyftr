@@ -43,7 +43,7 @@ func TestGetExercisePRs_noHistory(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/prs", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExercisePRs(c)
+	th.GetExercisePRs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -65,7 +65,7 @@ func TestGetExercisePRs_returnsBestSet(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/prs", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExercisePRs(c)
+	th.GetExercisePRs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -96,7 +96,7 @@ func TestGetExercisePRs_ignoresWarmup(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/prs", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExercisePRs(c)
+	th.GetExercisePRs(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -123,7 +123,7 @@ func TestGetExercisePRs_isolatesUser(t *testing.T) {
 
 	c, w := newContext(uid1, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/prs", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExercisePRs(c)
+	th.GetExercisePRs(c)
 
 	resp := decodeResponse(t, w)
 	data := resp["data"].(map[string]any)
@@ -138,7 +138,7 @@ func TestGetExercisePRs_invalidID(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/exercises/bad/prs", nil)
 	setParam(c, "id", "bad")
-	GetExercisePRs(c)
+	th.GetExercisePRs(c)
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
@@ -152,7 +152,7 @@ func TestGetExerciseHistory_empty(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/history", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExerciseHistory(c)
+	th.GetExerciseHistory(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
@@ -178,7 +178,7 @@ func TestGetExerciseHistory_returnsSessionsGrouped(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d/history", exID), nil)
 	setParam(c, "id", fmt.Sprintf("%d", exID))
-	GetExerciseHistory(c)
+	th.GetExerciseHistory(c)
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
