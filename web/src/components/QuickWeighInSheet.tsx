@@ -2,10 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Scale, Save, AlertCircle, Calendar, FileText } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { isPositiveNumber } from '../utils/numberUtils'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import WeightInput from './WeightInput'
 import * as types from '../types'
@@ -55,8 +54,9 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     e.preventDefault()
     if (saving) return
     const w = parseFloat(value)
-    if (!Number.isFinite(w) || w <= 0) {
-      setError('Enter a valid weight')
+    const wErr = weightError(w, settings.weight_unit)
+    if (wErr) {
+      setError(wErr)
       return
     }
 
@@ -151,6 +151,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             value={value}
             onChange={setValue}
             unit={wUnit}
+            max={maxWeight(settings.weight_unit)}
             autoFocus
             size="lg"
           />
@@ -195,7 +196,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
 
           <button
             type="submit"
-            disabled={!isPositiveNumber(value) || saving}
+            disabled={!(parseFloat(value) > 0) || saving}
             className="btn-primary btn-lg w-full"
           >
             <Save className="w-4 h-4" />

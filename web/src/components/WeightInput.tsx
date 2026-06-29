@@ -12,6 +12,10 @@ interface Props {
   stepper?: boolean
   placeholder?: string
   disabled?: boolean
+  /** Optional upper bound (display units) — clamps the +/- stepper. Submit-time
+   *  validation/messaging is the caller's job (an html max would preempt it with
+   *  a native browser tooltip). */
+  max?: number
 }
 
 // The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
@@ -34,11 +38,12 @@ export default function WeightInput({
   stepper = true,
   placeholder = '0.0',
   disabled = false,
+  max,
 }: Props) {
   const adjust = (delta: number) => {
     const current = parseFloat(value)
     const base = Number.isFinite(current) ? current : 0
-    const next = Math.max(0, +(base + delta).toFixed(1))
+    const next = Math.min(max ?? Infinity, Math.max(0, +(base + delta).toFixed(1)))
     onChange(String(next))
   }
 

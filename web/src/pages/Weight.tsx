@@ -9,10 +9,9 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { isPositiveNumber } from '../utils/numberUtils'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 } from '../stores/settings'
+import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 import * as types from '../types'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -269,8 +268,9 @@ export default function Weight() {
     e.preventDefault()
     if (logging) return
     const w = parseFloat(newWeight)
-    if (!Number.isFinite(w) || w <= 0) {
-      setError('Enter a valid weight')
+    const wErr = weightError(w, settings.weight_unit)
+    if (wErr) {
+      setError(wErr)
       return
     }
 
@@ -381,6 +381,7 @@ export default function Weight() {
             value={newWeight}
             onChange={setNewWeight}
             unit={wUnit}
+            max={maxWeight(settings.weight_unit)}
             size="lg"
           />
 
@@ -449,7 +450,7 @@ export default function Weight() {
 
           <button
             type="submit"
-            disabled={!isPositiveNumber(newWeight) || logging}
+            disabled={!(parseFloat(newWeight) > 0) || logging}
             className="btn-primary btn-lg w-full"
           >
             <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log Weight'}

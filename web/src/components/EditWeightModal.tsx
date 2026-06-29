@@ -2,11 +2,10 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Scale, AlertCircle, Save } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs, displayWeight , weightError, maxWeight } from '../stores/settings'
 import WeightInput from './WeightInput'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { isPositiveNumber } from '../utils/numberUtils'
 import { dayToIsoNoon, isoToDayInput, todayStr } from '../utils/dateUtils'
 import * as types from '../types'
 
@@ -44,8 +43,9 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
     e.preventDefault()
     if (!log || saving) return
     const w = parseFloat(weight)
-    if (!Number.isFinite(w) || w <= 0) {
-      setError('Enter a valid weight')
+    const wErr = weightError(w, settings.weight_unit)
+    if (wErr) {
+      setError(wErr)
       return
     }
     setSaving(true)
@@ -100,7 +100,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
           <div>
             <label className="label">Weight</label>
             <div className="mt-1">
-              <WeightInput value={weight} onChange={setWeight} unit={wUnit} autoFocus />
+              <WeightInput value={weight} onChange={setWeight} unit={wUnit} max={maxWeight(settings.weight_unit)} autoFocus />
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
             </button>
             <button
               type="submit"
-              disabled={!isPositiveNumber(weight) || saving}
+              disabled={!(parseFloat(weight) > 0) || saving}
               className="btn-primary btn-md"
             >
               <Save className="w-4 h-4" />

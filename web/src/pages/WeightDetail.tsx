@@ -4,10 +4,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs, displayWeight , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { isPositiveNumber } from '../utils/numberUtils'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import WeightInput from '../components/WeightInput'
 import * as types from '../types'
@@ -63,8 +62,9 @@ export default function WeightDetail() {
     e.preventDefault()
     if (!log || saving) return
     const w = parseFloat(editWeight)
-    if (!Number.isFinite(w) || w <= 0) {
-      setEditError('Enter a valid weight')
+    const wErr = weightError(w, settings.weight_unit)
+    if (wErr) {
+      setEditError(wErr)
       return
     }
     setSaving(true)
@@ -192,6 +192,7 @@ export default function WeightDetail() {
                   value={editWeight}
                   onChange={setEditWeight}
                   unit={wUnit}
+                  max={maxWeight(settings.weight_unit)}
                   size="lg"
                 />
               </div>
@@ -230,7 +231,7 @@ export default function WeightDetail() {
               </button>
               <button
                 type="submit"
-                disabled={!isPositiveNumber(editWeight) || saving}
+                disabled={!(parseFloat(editWeight) > 0) || saving}
                 className="flex-1 btn-primary py-2.5 rounded-xl flex items-center justify-center gap-1.5"
               >
                 <Save className="w-4 h-4" />
