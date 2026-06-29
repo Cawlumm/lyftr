@@ -15,7 +15,7 @@ import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
-import { useSettingsStore, weightShort, lbsToDisplay, displayWeight, displayVolume } from '../stores/settings'
+import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -244,7 +244,7 @@ export default function Dashboard() {
   // Weight sparkline
   const sparkData = [...weightLogs].reverse().map(l => ({
     date: format(new Date(l.logged_at), 'M/d'),
-    weight: Math.round(lbsToDisplay(l.weight, settings.weight_unit)),
+    weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
   const username = user?.email?.split('@')[0] ?? 'there'

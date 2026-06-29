@@ -41,4 +41,24 @@ describe('WeightInput', () => {
     render(<WeightInput value="100" onChange={() => {}} unit="kg" stepper={false} />)
     expect(screen.getByText('kg')).toBeTruthy()
   })
+
+  it('default + button steps by 0.5 (locks STEP_DEFAULT — bodyweight ergonomics)', () => {
+    const onChange = vi.fn()
+    render(<WeightInput value="100" onChange={onChange} unit="lbs" />) // no step prop
+    fireEvent.click(screen.getByLabelText(/increase/i))
+    expect(onChange).toHaveBeenCalledWith('100.5')
+  })
+
+  it('the field always accepts 0.1 precision regardless of the button step', () => {
+    render(<WeightInput value="100" onChange={() => {}} unit="lbs" step={2.5} />)
+    // Button step is 2.5, but the input's typing precision stays 0.1.
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).step).toBe('0.1')
+  })
+
+  it('disabled disables the field and both buttons', () => {
+    render(<WeightInput value="100" onChange={() => {}} unit="lbs" disabled />)
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByLabelText(/decrease/i) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByLabelText(/increase/i) as HTMLButtonElement).disabled).toBe(true)
+  })
 })

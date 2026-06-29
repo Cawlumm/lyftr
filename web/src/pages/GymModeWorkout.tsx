@@ -580,6 +580,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             <div className="w-full">
               <WeightInput
                 size="lg"
+                step={2.5}
                 value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                 onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                 unit={wUnit}

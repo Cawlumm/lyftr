@@ -4,6 +4,7 @@ interface Props {
   value: string
   onChange: (next: string) => void
   unit: string
+  /** Increment for the +/- stepper buttons. Typing is always 0.1-precision regardless. */
   step?: number
   autoFocus?: boolean
   size?: 'sm' | 'md' | 'lg'
@@ -13,7 +14,11 @@ interface Props {
   disabled?: boolean
 }
 
-const STEP_DEFAULT = 0.1
+// The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
+// by `step` — a larger, ergonomic increment — so gym mode can jump by 2.5 while you
+// can still type an exact 0.1 value. Bodyweight keeps the original 0.5 button feel.
+const INPUT_STEP = 0.1
+const STEP_DEFAULT = 0.5
 
 // Single component for every weight input in the app. Conversion-agnostic: the
 // caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`
@@ -55,7 +60,7 @@ export default function WeightInput({
         enterKeyHint="done"
         value={value}
         onChange={e => onChange(e.target.value)}
-        step={step}
+        step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}
         disabled={disabled}
