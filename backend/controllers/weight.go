@@ -52,7 +52,7 @@ func ListWeightLogs(c *gin.Context) {
 			args = append(args, hi)
 		}
 	}
-	q += ` ORDER BY logged_at DESC LIMIT ? OFFSET ?`
+	q += ` ORDER BY logged_at DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, limit, offset)
 
 	rows, err := db.DB.Query(q, args...)
@@ -208,8 +208,8 @@ func GetWeightStats(c *gin.Context) {
 	)
 	db.DB.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC  LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC, id ASC LIMIT 1),
 		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
 		 FROM weight_logs WHERE user_id = ?`,
 		uid, uid, uid,
@@ -250,8 +250,8 @@ func changeOver(uid int64, days int) float64 {
 	var latest, earliest sql.NullFloat64
 	db.DB.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC  LIMIT 1)`,
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
 		uid, cutoff, uid, cutoff,
 	).Scan(&latest, &earliest)
 	if !latest.Valid || !earliest.Valid {

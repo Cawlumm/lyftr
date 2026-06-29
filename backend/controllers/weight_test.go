@@ -68,6 +68,54 @@ func TestListWeightLogs_orderedDescAndScopedByUser(t *testing.T) {
 	}
 }
 
+// Regression: multiple logs on the same calendar day share an identical
+// logged_at (the frontend stamps every same-day entry at noon). Without an `id`
+// tiebreaker, ORDER BY logged_at DESC returned the OLDEST of the tie first, so
+// after re-logging the same day the UI kept showing the stale value (it reads
+// items[0] for the current weight / prefill / duplicate warning).
+func TestListWeightLogs_sameDayNewestFirst(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	insertWeightLog(t, uid, 181.0, day)
+	insertWeightLog(t, uid, 186.0, day) // newer, identical timestamp
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight", nil)
+	ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].([]any)
+	if len(data) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(data))
+	}
+	if first := data[0].(map[string]any); first["weight"].(float64) != 186.0 {
+		t.Errorf("expected newest same-day entry (186) first, got %v", first["weight"])
+	}
+}
+
+func TestGetWeightStats_latestPrefersNewestSameDay(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	day := time.Date(2026, 6, 29, 12, 0, 0, 0, time.UTC)
+	insertWeightLog(t, uid, 181.0, day)
+	insertWeightLog(t, uid, 186.0, day)
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
+	GetWeightStats(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if data["latest"].(float64) != 186.0 {
+		t.Errorf("latest: expected newest same-day (186), got %v", data["latest"])
+	}
+}
+
 func TestListWeightLogs_dateRange(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
