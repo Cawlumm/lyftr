@@ -72,3 +72,56 @@ func TestListWorkoutsConcurrentDoesNotExhaustPool(t *testing.T) {
 		t.Fatal("concurrent ListWorkouts deadlocked the connection pool (#30 regression)")
 	}
 }
+
+// TestListProgramsConcurrentDoesNotExhaustPool is the program-side twin of the
+// workout test above (ProgramStore.loadExercises uses the same close-then-load fix).
+func TestListProgramsConcurrentDoesNotExhaustPool(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	res, err := db.DB.Exec(`INSERT INTO programs (user_id, name) VALUES (?, 'PPL')`, uid)
+	if err != nil {
+		t.Fatalf("insert program: %v", err)
+	}
+	pid, _ := res.LastInsertId()
+	peRes, err := db.DB.Exec(
+		`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, 0)`, pid, exID,
+	)
+	if err != nil {
+		t.Fatalf("insert program_exercise: %v", err)
+	}
+	peid, _ := peRes.LastInsertId()
+	if _, err := db.DB.Exec(
+		`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, 1, 5, 135)`, peid,
+	); err != nil {
+		t.Fatalf("insert program_set: %v", err)
+	}
+
+	db.DB.SetMaxOpenConns(2)
+	const concurrency = 6
+
+	done := make(chan struct{})
+	go func() {
+		var wg sync.WaitGroup
+		for i := 0; i < concurrency; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				c, w := newContext(uid, "GET", "/programs", nil)
+				th.ListPrograms(c)
+				if w.Code != 200 {
+					t.Errorf("ListPrograms returned %d", w.Code)
+				}
+			}()
+		}
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("concurrent ListPrograms deadlocked the connection pool (#30 regression)")
+	}
+}

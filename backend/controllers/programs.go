@@ -3,53 +3,26 @@ package controllers
 import (
 	"database/sql"
 	"strconv"
-	"strings"
 
-	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
 )
 
 func (h *Handler) ListPrograms(c *gin.Context) {
 	uid := middleware.UserID(c)
-
-	limit := 20
-	offset := 0
+	f := stores.ProgramFilter{Limit: 20, Query: c.Query("q")}
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 100 {
-		limit = l
+		f.Limit = l
 	}
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
-		offset = o
+		f.Offset = o
 	}
-	q := c.Query("q")
-
-	var rows *sql.Rows
-	var err error
-	if q != "" {
-		rows, err = db.DB.Query(
-			`SELECT id, user_id, name, notes, created_at FROM programs WHERE user_id = ? AND LOWER(name) LIKE ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-			uid, "%"+strings.ToLower(q)+"%", limit, offset,
-		)
-	} else {
-		rows, err = db.DB.Query(
-			`SELECT id, user_id, name, notes, created_at FROM programs WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-			uid, limit, offset,
-		)
-	}
-	if err != nil {
-		utils.InternalError(c)
+	programs, err := h.s.Program.List(uid, f)
+	if utils.DBError(c, err) {
 		return
-	}
-	defer rows.Close()
-
-	programs := []models.Program{}
-	for rows.Next() {
-		var p models.Program
-		rows.Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
-		p.Exercises = loadProgramExercises(p.ID)
-		programs = append(programs, p)
 	}
 	utils.OK(c, programs)
 }
@@ -61,21 +34,14 @@ func (h *Handler) GetProgram(c *gin.Context) {
 		utils.BadRequest(c, "invalid program id")
 		return
 	}
-
-	var p models.Program
-	err = db.DB.QueryRow(
-		`SELECT id, user_id, name, notes, created_at FROM programs WHERE id = ? AND user_id = ?`, pid, uid,
-	).Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
+	p, err := h.s.Program.Get(uid, pid)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "program not found")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
-
-	p.Exercises = loadProgramExercises(pid)
 	utils.OK(c, p)
 }
 
@@ -90,68 +56,10 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-
-	tx, err := db.DB.Begin()
-	if err != nil {
-		utils.InternalError(c)
+	p, err := h.s.Program.Create(uid, req)
+	if utils.DBError(c, err) {
 		return
 	}
-	defer tx.Rollback()
-
-	res, err := tx.Exec(
-		`INSERT INTO programs (user_id, name, notes) VALUES (?, ?, ?)`,
-		uid, req.Name, req.Notes,
-	)
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-	pid, err := res.LastInsertId()
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	for i, ex := range req.Exercises {
-		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
-			pid, ex.ExerciseID, i, ex.Notes,
-		)
-		if err != nil {
-			utils.InternalError(c)
-			return
-		}
-		peid, err := exRes.LastInsertId()
-		if err != nil {
-			utils.InternalError(c)
-			return
-		}
-		for j, s := range ex.Sets {
-			sn := s.SetNumber
-			if sn == 0 {
-				sn = j + 1
-			}
-			_, err := tx.Exec(
-				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
-				peid, sn, s.TargetReps, s.TargetWeight,
-			)
-			if err != nil {
-				utils.InternalError(c)
-				return
-			}
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	var p models.Program
-	db.DB.QueryRow(
-		`SELECT id, user_id, name, notes, created_at FROM programs WHERE id = ?`, pid,
-	).Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
-	p.Exercises = loadProgramExercises(pid)
 	utils.Created(c, p)
 }
 
@@ -162,7 +70,6 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 		utils.BadRequest(c, "invalid program id")
 		return
 	}
-
 	var req models.CreateProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -172,79 +79,14 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-
-	var existing models.Program
-	err = db.DB.QueryRow(
-		`SELECT id FROM programs WHERE id = ? AND user_id = ?`, pid, uid,
-	).Scan(&existing.ID)
+	p, err := h.s.Program.Update(uid, pid, req)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "program not found")
 		return
 	}
-	if err != nil {
-		utils.InternalError(c)
+	if utils.DBError(c, err) {
 		return
 	}
-
-	tx, err := db.DB.Begin()
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-	defer tx.Rollback()
-
-	_, err = tx.Exec(`UPDATE programs SET name = ?, notes = ? WHERE id = ?`, req.Name, req.Notes, pid)
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	_, err = tx.Exec(`DELETE FROM program_exercises WHERE program_id = ?`, pid)
-	if err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	for i, ex := range req.Exercises {
-		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
-			pid, ex.ExerciseID, i, ex.Notes,
-		)
-		if err != nil {
-			utils.InternalError(c)
-			return
-		}
-		peid, err := exRes.LastInsertId()
-		if err != nil {
-			utils.InternalError(c)
-			return
-		}
-		for j, s := range ex.Sets {
-			sn := s.SetNumber
-			if sn == 0 {
-				sn = j + 1
-			}
-			_, err := tx.Exec(
-				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
-				peid, sn, s.TargetReps, s.TargetWeight,
-			)
-			if err != nil {
-				utils.InternalError(c)
-				return
-			}
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		utils.InternalError(c)
-		return
-	}
-
-	var p models.Program
-	db.DB.QueryRow(
-		`SELECT id, user_id, name, notes, created_at FROM programs WHERE id = ?`, pid,
-	).Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
-	p.Exercises = loadProgramExercises(pid)
 	utils.OK(c, p)
 }
 
@@ -255,65 +97,13 @@ func (h *Handler) DeleteProgram(c *gin.Context) {
 		utils.BadRequest(c, "invalid program id")
 		return
 	}
-
-	res, err := db.DB.Exec(`DELETE FROM programs WHERE id = ? AND user_id = ?`, pid, uid)
-	if err != nil {
-		utils.InternalError(c)
+	n, err := h.s.Program.Delete(uid, pid)
+	if utils.DBError(c, err) {
 		return
 	}
-	n, _ := res.RowsAffected()
 	if n == 0 {
 		utils.NotFound(c, "program not found")
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})
-}
-
-func loadProgramExercises(programID int64) []models.ProgramExercise {
-	rows, err := db.DB.Query(
-		`SELECT pe.id, pe.program_id, pe.exercise_id, pe.order_index, pe.notes,
-		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
-		 FROM program_exercises pe
-		 JOIN exercises e ON e.id = pe.exercise_id
-		 WHERE pe.program_id = ? ORDER BY pe.order_index`,
-		programID,
-	)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	var exercises []models.ProgramExercise
-	for rows.Next() {
-		var pe models.ProgramExercise
-		rows.Scan(
-			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes,
-			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
-			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
-		)
-		pe.Exercise.ID = pe.ExerciseID
-		pe.Sets = loadProgramSets(pe.ID)
-		exercises = append(exercises, pe)
-	}
-	return exercises
-}
-
-func loadProgramSets(programExerciseID int64) []models.ProgramSet {
-	rows, err := db.DB.Query(
-		`SELECT id, program_exercise_id, set_number, target_reps, target_weight
-		 FROM program_sets WHERE program_exercise_id = ? ORDER BY set_number`,
-		programExerciseID,
-	)
-	if err != nil {
-		return nil
-	}
-	defer rows.Close()
-
-	var sets []models.ProgramSet
-	for rows.Next() {
-		var s models.ProgramSet
-		rows.Scan(&s.ID, &s.ProgramExerciseID, &s.SetNumber, &s.TargetReps, &s.TargetWeight)
-		sets = append(sets, s)
-	}
-	return sets
 }
