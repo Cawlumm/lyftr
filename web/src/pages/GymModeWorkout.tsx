@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2, Minus, Repeat,
+  Minimize2, Trash2, Minus, Repeat, Check,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
@@ -522,30 +522,40 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         </div>
       </div>
 
-      {/* Set dots nav */}
-      <div className="flex items-center justify-center gap-2 py-3 px-5 flex-shrink-0">
-        {ex.sets.map((s, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveSetIdx(i)}
-            className={`rounded-full transition-all duration-200 ${
-              i === clampedSetIdx ? 'w-6 h-2.5 bg-brand-500' :
-              s.completed ? 'w-2.5 h-2.5 bg-brand-500/50' :
-              'w-2.5 h-2.5 bg-surface-border'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Single set card — centred, fills remaining space */}
+      {/* The whole logging group (set chips, target, inputs, action) centred
+          together as one composed unit. */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6">
-        {/* Set label */}
-        <div className="text-center">
-          <p className={`text-6xl font-black tabular-nums transition-colors ${set.completed ? 'text-brand-400' : 'text-tx-primary'}`}>
-            {set.set_number}
-          </p>
-          <p className="text-sm text-tx-muted mt-1">of {ex.sets.length} sets</p>
+        {/* Set selector — one chip per set: active filled, done shows a check.
+            Progress + navigation in one place (replaced the old dots + big number). */}
+        <div className="flex items-center justify-center flex-wrap gap-2">
+          {ex.sets.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveSetIdx(i)}
+              aria-label={`Set ${i + 1}${s.completed ? ', done' : ''}`}
+              aria-current={i === clampedSetIdx}
+              className={`flex items-center justify-center gap-1 min-w-[2.75rem] h-10 px-3 rounded-full text-sm font-bold tabular-nums transition-all active:scale-95 ${
+                i === clampedSetIdx ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/30' :
+                s.completed ? 'bg-brand-500/15 text-brand-400' :
+                'bg-surface-muted text-tx-muted hover:text-tx-secondary'
+              }`}
+            >
+              {s.completed && <Check className="w-3.5 h-3.5" />}
+              {i + 1}
+            </button>
+          ))}
         </div>
+
+        {/* Target reference for this set (the goal to hit) */}
+        {(set.target_reps > 0 || set.target_weight > 0) && (
+          <p className="text-sm text-tx-muted text-center">
+            Target{' '}
+            <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? set.target_reps : '—'} reps</span>
+            {set.target_weight > 0 && (
+              <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
+            )}
+          </p>
+        )}
 
         {/* Reps + Weight — a tile per metric: icon header, big value, split ⊖/⊕ footer.
             Value spans the full tile (buttons are below, not flanking) so long
