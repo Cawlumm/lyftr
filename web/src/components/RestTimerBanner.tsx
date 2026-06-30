@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Pause, Minus, Plus, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useCountdown } from '../hooks/useCountdown'
@@ -14,9 +14,24 @@ function fmt(s: number): string {
 export default function RestTimerBanner() {
   const { restEndsAt, restDurationSec, adjustRest, clearRest } = useWorkoutSession()
   const left = useCountdown(restEndsAt, () => navigator.vibrate?.([120, 60, 120]))
+  const done = left === 0
+
+  // Smoothly drain the progress line over the *actual* remaining time (one linear
+  // CSS transition), instead of stepping every second. Re-runs on start + ±15s.
+  const barRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = barRef.current
+    if (!el || restEndsAt == null) return
+    const total = Math.max(1, (restDurationSec ?? 0) * 1000)
+    const remaining = Math.max(0, restEndsAt - Date.now())
+    el.style.transition = 'none'
+    el.style.width = `${Math.min(100, (remaining / total) * 100)}%`
+    void el.offsetWidth // reflow so the next change animates from here
+    el.style.transition = `width ${remaining}ms linear`
+    el.style.width = '0%'
+  }, [restEndsAt, restDurationSec])
 
   // Auto-dismiss a couple seconds after "rest over".
-  const done = left === 0
   useEffect(() => {
     if (restEndsAt == null || !done) return
     const id = setTimeout(() => clearRest(), 3000)
@@ -25,7 +40,6 @@ export default function RestTimerBanner() {
 
   if (restEndsAt == null || left == null) return null
 
-  const frac = done ? 1 : restDurationSec ? Math.max(0, Math.min(1, left / restDurationSec)) : 0
   const step = 'flex items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary active:scale-95'
 
   return (
@@ -34,30 +48,34 @@ export default function RestTimerBanner() {
           only — taps still pass through so you can set up your next set) */}
       <div className="fixed inset-0 z-[65] bg-black/40 animate-fade-in pointer-events-none" aria-hidden />
       <div className="fixed bottom-24 inset-x-3 z-[70] mx-auto max-w-md animate-slide-up">
-      <div className="rounded-2xl border border-surface-border bg-surface-raised overflow-hidden shadow-lg">
-        {/* progress line */}
-        <div className="h-1 bg-surface-muted">
-          <div className={`h-full transition-[width] duration-300 ease-linear ${done ? 'bg-success-500' : 'bg-brand-500'}`} style={{ width: `${frac * 100}%` }} />
-        </div>
-        <div className="flex items-center gap-2 px-3.5 py-2.5">
-          {done
-            ? <Check className="w-4 h-4 text-success-500 flex-shrink-0" />
-            : <Pause className="w-4 h-4 text-brand-500 flex-shrink-0" />}
-          <span className="font-bold tabular-nums text-tx-primary">{fmt(left)}</span>
-          <span className="text-xs text-tx-muted">{done ? 'rest over' : 'rest'}</span>
-          <div className="flex-1" />
-          {!done && (
-            <>
-              <button onClick={() => adjustRest(-15)} className={step}><Minus className="w-3.5 h-3.5" />15</button>
-              <button onClick={() => adjustRest(15)} className={step}><Plus className="w-3.5 h-3.5" />15</button>
-            </>
+        <div className="rounded-2xl border border-surface-border bg-surface-raised overflow-hidden shadow-lg">
+          {/* count-down line */}
+          {done ? (
+            <div className="h-1.5 bg-success-500" />
+          ) : (
+            <div className="h-1.5 bg-surface-muted">
+              <div ref={barRef} className="h-full rounded-r-full bg-brand-500" />
+            </div>
           )}
-          <button onClick={() => clearRest()}
-            className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-500 text-white active:scale-95">
-            {done ? <><Check className="w-3.5 h-3.5" />Done</> : <><SkipForward className="w-3.5 h-3.5" />Skip</>}
-          </button>
+          <div className="flex items-center gap-2.5 px-4 py-3">
+            {done
+              ? <Check className="w-5 h-5 text-success-500 flex-shrink-0" />
+              : <Pause className="w-5 h-5 text-brand-500 flex-shrink-0" />}
+            <span className="text-lg font-black tabular-nums text-tx-primary leading-none">{fmt(left)}</span>
+            <span className="text-xs text-tx-muted">{done ? 'rest over' : 'rest'}</span>
+            <div className="flex-1" />
+            {!done && (
+              <>
+                <button onClick={() => adjustRest(-15)} className={step}><Minus className="w-3.5 h-3.5" />15</button>
+                <button onClick={() => adjustRest(15)} className={step}><Plus className="w-3.5 h-3.5" />15</button>
+              </>
+            )}
+            <button onClick={() => clearRest()}
+              className="flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-sm font-semibold bg-brand-500 text-white active:scale-95">
+              {done ? <><Check className="w-3.5 h-3.5" />Done</> : <><SkipForward className="w-3.5 h-3.5" />Skip</>}
+            </button>
+          </div>
         </div>
-      </div>
       </div>
     </>
   )
