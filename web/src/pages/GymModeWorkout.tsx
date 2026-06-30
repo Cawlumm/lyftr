@@ -127,27 +127,20 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
-            {s.exercises.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setGymState('exercise-info', i, 0)}
-                className={`h-1.5 rounded-full transition-all duration-200 ${
-                  i === activeIdx ? 'w-6 bg-brand-500' :
-                  s.exercises[i].sets.every(st => st.completed) && s.exercises[i].sets.length > 0
-                    ? 'w-2 bg-brand-500/40' : 'w-2 bg-surface-border'
-                }`}
-              />
-            ))}
-            <span className="text-xs text-tx-muted tabular-nums">{activeIdx + 1}/{s.exercises.length}</span>
-          </div>
-          <div className="h-0.5 bg-surface-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand-500 transition-all duration-500"
-              style={{ width: `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%` }}
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+          {s.exercises.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setGymState('exercise-info', i, 0)}
+              aria-label={`Go to exercise ${i + 1}`}
+              className={`h-1.5 rounded-full flex-shrink-0 transition-all duration-200 ${
+                i === activeIdx ? 'w-6 bg-brand-500' :
+                s.exercises[i].sets.every(st => st.completed) && s.exercises[i].sets.length > 0
+                  ? 'w-2 bg-brand-500/40' : 'w-2 bg-surface-border'
+              }`}
             />
-          </div>
+          ))}
+          <span className="text-xs text-tx-muted tabular-nums flex-shrink-0 ml-1">{activeIdx + 1}/{s.exercises.length}</span>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
