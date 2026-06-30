@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader,
+  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader, Timer, TimerOff,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
@@ -27,6 +27,8 @@ export default function WorkoutDetail() {
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
+  const restOn = settings.rest_enabled ?? true
+  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -190,6 +192,11 @@ export default function WorkoutDetail() {
       </div>
 
       {/* Exercises */}
+      {!restOn && (
+        <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
+          <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+        </div>
+      )}
       <div className="space-y-3">
         {exs.map((ex, idx) => {
           const sets = ex.sets ?? []
@@ -225,6 +232,10 @@ export default function WorkoutDetail() {
                       </span>
                     )}
                     <span className="text-xs text-tx-muted">{sets.length} sets</span>
+                    {restOn && (ex.rest_seconds === 0
+                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-surface-muted text-tx-muted"><TimerOff className="w-3 h-3" />No rest</span>
+                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-brand-500/15 text-brand-400"><Timer className="w-3 h-3" />{restLabel(ex.rest_seconds ?? 90)} rest</span>
+                    )}
                     {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} {wUnit}</span>}
                   </div>
                 </div>
