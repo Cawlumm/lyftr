@@ -149,24 +149,35 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             />
           </div>
         </div>
-        <button
-          onClick={() => setConfirmFinish(true)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
-            allDone
-              ? 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm shadow-brand-500/30'
-              : 'bg-surface-muted text-tx-muted border border-surface-border'
-          }`}
-        >
-          <Flag className="w-3.5 h-3.5" />
-          Finish
-        </button>
-        <button
-          onClick={handleMinimize}
-          className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted"
-          aria-label="Minimize"
-        >
-          <Minimize2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => setConfirmFinish(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              allDone
+                ? 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm shadow-brand-500/30'
+                : 'bg-surface-muted text-tx-muted border border-surface-border'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" />
+            Finish
+          </button>
+          <button
+            onClick={handleMinimize}
+            className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted"
+            aria-label="Minimize workout"
+            title="Minimize"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setConfirmCancel(true)}
+            className="p-2 hover:bg-error-500/10 rounded-xl transition-colors text-tx-muted hover:text-error-400"
+            aria-label="Discard workout"
+            title="Discard workout"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     )
   }
@@ -292,12 +303,12 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
               <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
+              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
+              <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
                 <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Cancel
+                  <Trash2 className="w-3.5 h-3.5" />Discard
                 </button>
               </div>
             </div>
@@ -472,12 +483,12 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
               <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
+              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
+              <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
                 <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Cancel
+                  <Trash2 className="w-3.5 h-3.5" />Discard
                 </button>
               </div>
             </div>
@@ -753,15 +764,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
             <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
+            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
+            <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
                 Keep Going
               </button>
               <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" />
-                Cancel
+                Discard
               </button>
             </div>
           </div>
