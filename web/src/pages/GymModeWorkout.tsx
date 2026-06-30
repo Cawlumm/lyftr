@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2,
+  Minimize2, Trash2, Minus, Repeat,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
@@ -547,57 +547,65 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           <p className="text-sm text-tx-muted mt-1">of {ex.sets.length} sets</p>
         </div>
 
-        {/* Reps + Weight inputs */}
-        <div className="w-full grid grid-cols-2 gap-4">
+        {/* Reps + Weight — a tile per metric: icon header, big value, split ⊖/⊕ footer.
+            Value spans the full tile (buttons are below, not flanking) so long
+            weights never clip. */}
+        <div className="w-full grid grid-cols-2 gap-3">
           {/* Reps */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Reps</p>
-            <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.max(0, (set.actual_reps || 0) - 1))}
-                disabled={set.completed}
-                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
-              >−</button>
+          <div className="card overflow-hidden">
+            <div className="px-3 pt-3 pb-1.5 flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-tx-muted uppercase tracking-wider">
+                <Repeat className="w-3.5 h-3.5 text-brand-400" />Reps
+              </div>
               <input
                 type="number" inputMode="numeric"
                 value={set.actual_reps || ''}
                 onChange={e => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Number(e.target.value) || 0)}
                 placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'}
-                className={`input text-2xl font-bold text-center flex-1 py-3 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
                 disabled={set.completed}
+                className={`w-full bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 text-3xl font-black text-center tabular-nums text-tx-primary placeholder-tx-muted/50 ${set.completed ? 'opacity-40' : ''}`}
               />
-              <button
+            </div>
+            <div className="flex border-t border-surface-border divide-x divide-surface-border">
+              <button aria-label="Decrease reps" disabled={set.completed}
+                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.max(0, (set.actual_reps || 0) - 1))}
+                className="flex-1 py-2.5 flex items-center justify-center text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all disabled:opacity-30">
+                <Minus className="w-5 h-5" />
+              </button>
+              <button aria-label="Increase reps" disabled={set.completed}
                 onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', (set.actual_reps || 0) + 1)}
-                disabled={set.completed}
-                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
-              >+</button>
+                className="flex-1 py-2.5 flex items-center justify-center text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all disabled:opacity-30">
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
           </div>
 
-          {/* Weight — matches the reps stepper: w-11 buttons step ±2.5 (display units) */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Weight ({wUnit})</p>
-            <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Math.max(0, +(displayWeight(set.actual_weight, wUnit) - 2.5).toFixed(1)), wUnit))}
-                disabled={set.completed}
-                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
-              >−</button>
+          {/* Weight */}
+          <div className="card overflow-hidden">
+            <div className="px-3 pt-3 pb-1.5 flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-tx-muted uppercase tracking-wider">
+                <Dumbbell className="w-3.5 h-3.5 text-brand-400" />Weight ({wUnit})
+              </div>
               <WeightInput
-                stepper={false}
-                size="lg"
-                showUnit={false}
+                plain stepper={false} showUnit={false}
                 value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                 onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                 unit={wUnit}
                 placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
                 disabled={set.completed}
               />
-              <button
+            </div>
+            <div className="flex border-t border-surface-border divide-x divide-surface-border">
+              <button aria-label="Decrease weight" disabled={set.completed}
+                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Math.max(0, +(displayWeight(set.actual_weight, wUnit) - 2.5).toFixed(1)), wUnit))}
+                className="flex-1 py-2.5 flex items-center justify-center text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all disabled:opacity-30">
+                <Minus className="w-5 h-5" />
+              </button>
+              <button aria-label="Increase weight" disabled={set.completed}
                 onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(+(displayWeight(set.actual_weight, wUnit) + 2.5).toFixed(1), wUnit))}
-                disabled={set.completed}
-                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
-              >+</button>
+                className="flex-1 py-2.5 flex items-center justify-center text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all disabled:opacity-30">
+                <Plus className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>

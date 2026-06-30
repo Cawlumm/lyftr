@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useNumericText } from '../hooks/useNumericText'
 
 interface Props {
   value: string
@@ -20,6 +20,9 @@ interface Props {
   /** Show the in-field unit suffix. Off when a nearby label already states the unit
    *  (e.g. gym mode's "Weight (LB)" header) so the number gets the full width. */
   showUnit?: boolean
+  /** Borderless, oversized field (transparent bg, no border) for use inside a card
+   *  tile where the surrounding card is the visual container. */
+  plain?: boolean
 }
 
 // The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
@@ -44,22 +47,11 @@ export default function WeightInput({
   disabled = false,
   max,
   showUnit = true,
+  plain = false,
 }: Props) {
-  // Hold the raw typed text locally so in-progress entry (a trailing ".", a leading
-  // "0", a mid-edit value) isn't clobbered when the parent re-derives `value` from a
-  // rounded number — or maps 0 → '' — on every keystroke. Re-sync from the parent
-  // only when it represents a genuinely *different* number than what's shown
-  // (stepper taps, programmatic changes); treat '' and 0 as the same so a 0→''
-  // parent mapping doesn't wipe a "0." you're typing.
-  const [text, setText] = useState(value)
-  useEffect(() => {
-    const a = parseFloat(text)
-    const b = parseFloat(value)
-    const aEmpty = Number.isNaN(a) || a === 0
-    const bEmpty = Number.isNaN(b) || b === 0
-    if (a !== b && !(aEmpty && bEmpty)) setText(value)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
+  // Raw typed text (see useNumericText) so in-progress entry isn't clobbered by the
+  // parent re-deriving `value` from a rounded/0→'' number on every keystroke.
+  const [text, setText] = useNumericText(value)
 
   const emit = (next: string) => {
     setText(next)
@@ -98,7 +90,9 @@ export default function WeightInput({
         min="0"
         autoFocus={autoFocus}
         disabled={disabled}
-        className={`input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
+        className={plain
+          ? `w-full bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 text-3xl font-black text-center tabular-nums text-tx-primary placeholder-tx-muted/50 ${disabled ? 'opacity-40' : ''}`
+          : `input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
         placeholder={placeholder}
       />
       {showUnit && <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>}
