@@ -378,11 +378,9 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             </div>
 
             {/* Rest timer for this exercise */}
-            <div className="card p-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
-                <p className="text-[11px] text-tx-muted mt-0.5">Auto-starts when you complete a set</p>
-              </div>
+            <div className="card p-4">
+              <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
+              <p className="text-[11px] text-tx-muted mt-0.5 mb-3">Auto-starts when you complete a set</p>
               <RestPicker value={ex.rest_seconds ?? (settings.rest_seconds_default ?? 90)} onChange={secs => setExerciseRest(activeIdx, secs)} />
             </div>
 
