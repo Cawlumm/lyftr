@@ -29,7 +29,11 @@ export default function RestTimerBanner() {
   const step = 'flex items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary active:scale-95'
 
   return (
-    <div className="fixed bottom-24 inset-x-3 z-[70] mx-auto max-w-md animate-slide-up">
+    <>
+      {/* dim everything behind the bar to focus on the rest countdown (visual
+          only — taps still pass through so you can set up your next set) */}
+      <div className="fixed inset-0 z-[65] bg-black/40 animate-fade-in pointer-events-none" aria-hidden />
+      <div className="fixed bottom-24 inset-x-3 z-[70] mx-auto max-w-md animate-slide-up">
       <div className="rounded-2xl border border-surface-border bg-surface-raised overflow-hidden shadow-lg">
         {/* progress line */}
         <div className="h-1 bg-surface-muted">
@@ -54,6 +58,7 @@ export default function RestTimerBanner() {
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   )
 }
