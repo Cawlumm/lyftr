@@ -11,7 +11,7 @@ import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
-  Dumbbell, RefreshCw,
+  Dumbbell, RefreshCw, Pencil,
 } from 'lucide-react'
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -238,6 +238,10 @@ export default function Settings() {
             `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
               active ? 'bg-brand-500 text-white shadow-sm' : 'bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary'
             }`
+          const ghost = (active: boolean) =>
+            `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-1 ${
+              active ? 'bg-brand-500 text-white shadow-sm border border-brand-500' : 'bg-transparent border border-dashed border-surface-border text-tx-muted hover:text-tx-primary'
+            }`
           return (
             <div className={`py-4 transition-opacity ${enabled ? '' : 'opacity-40 pointer-events-none select-none'}`} aria-disabled={!enabled}>
               <p className="text-sm font-medium text-tx-primary">Default rest</p>
@@ -248,8 +252,8 @@ export default function Settings() {
                     {sec}s
                   </button>
                 ))}
-                <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={chip(customActive)}>
-                  {isCustom ? `${cur}s` : 'Custom'}
+                <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={ghost(customActive)}>
+                  <Pencil className="w-3.5 h-3.5" /> {isCustom ? `${cur}s` : 'Custom'}
                 </button>
               </div>
               {customActive && (
