@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader, Timer, TimerOff,
+  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader, Pause, TimerOff,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
@@ -225,18 +225,13 @@ export default function WorkoutDetail() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-2 mt-0.5">
                     {ex.exercise?.muscle_group && (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
                         {ex.exercise.muscle_group}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted">{sets.length} sets</span>
-                    {restOn && (ex.rest_seconds === 0
-                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-surface-muted text-tx-muted"><TimerOff className="w-3 h-3" />No rest</span>
-                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-brand-500/15 text-brand-400"><Timer className="w-3 h-3" />{restLabel(ex.rest_seconds ?? 90)} rest</span>
-                    )}
-                    {exVol > 0 && <span className="text-xs text-tx-muted">{exVol.toLocaleString()} {wUnit}</span>}
+                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
                   </div>
                 </div>
                 {maxWeight > 0 && (
@@ -249,11 +244,16 @@ export default function WorkoutDetail() {
               </div>
 
               {sets.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-4 pb-4 pt-0 border-t border-surface-border/50">
-                  <div className="w-full pt-3" />
-                  {sets.map((set, i) => (
-                    <SetChip key={i} set={set} isBest={set.weight === maxWeightLbs && maxWeightLbs > 0} unit={wUnit} />
-                  ))}
+                <div className="flex items-center gap-2 px-4 pb-4 pt-3 border-t border-surface-border/50">
+                  <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                    {sets.map((set, i) => (
+                      <SetChip key={i} set={set} isBest={set.weight === maxWeightLbs && maxWeightLbs > 0} unit={wUnit} />
+                    ))}
+                  </div>
+                  {restOn && (ex.rest_seconds === 0
+                    ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
+                    : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
+                  )}
                 </div>
               )}
             </button>
