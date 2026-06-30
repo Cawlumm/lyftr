@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect } from 'react'
 import { Pause, Minus, Plus, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useCountdown } from '../hooks/useCountdown'
@@ -17,10 +17,11 @@ export default function RestTimerBanner() {
   const done = left === 0
 
   // Smoothly drain the progress line over the *actual* remaining time (one linear
-  // CSS transition), instead of stepping every second. Re-runs on start + ±15s.
-  const barRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = barRef.current
+  // CSS transition), instead of stepping every second. A callback ref (not an
+  // effect) so it fires on the real mount — the bar only renders a render *after*
+  // restEndsAt is set (once the countdown has a value), which an effect keyed on
+  // restEndsAt would miss. Re-armed when the ref callback changes (start + ±15s).
+  const setupLine = useCallback((el: HTMLDivElement | null) => {
     if (!el || restEndsAt == null) return
     const total = Math.max(1, (restDurationSec ?? 0) * 1000)
     const remaining = Math.max(0, restEndsAt - Date.now())
@@ -54,7 +55,7 @@ export default function RestTimerBanner() {
             <div className="h-1.5 bg-success-500" />
           ) : (
             <div className="h-1.5 bg-surface-muted">
-              <div ref={barRef} className="h-full rounded-r-full bg-brand-500" />
+              <div ref={setupLine} className="h-full rounded-r-full bg-brand-500" />
             </div>
           )}
           <div className="flex items-center gap-2.5 px-4 py-3">
