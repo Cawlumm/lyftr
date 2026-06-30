@@ -43,13 +43,14 @@ type Workout struct {
 }
 
 type WorkoutExercise struct {
-	ID         int64    `json:"id" db:"id"`
-	WorkoutID  int64    `json:"workout_id" db:"workout_id"`
-	ExerciseID int64    `json:"exercise_id" db:"exercise_id"`
-	OrderIndex int      `json:"order_index" db:"order_index"`
-	Notes      string   `json:"notes,omitempty" db:"notes"`
-	Exercise   Exercise `json:"exercise,omitempty"`
-	Sets       []Set    `json:"sets,omitempty"`
+	ID          int64    `json:"id" db:"id"`
+	WorkoutID   int64    `json:"workout_id" db:"workout_id"`
+	ExerciseID  int64    `json:"exercise_id" db:"exercise_id"`
+	OrderIndex  int      `json:"order_index" db:"order_index"`
+	Notes       string   `json:"notes,omitempty" db:"notes"`
+	RestSeconds int      `json:"rest_seconds" db:"rest_seconds"`
+	Exercise    Exercise `json:"exercise,omitempty"`
+	Sets        []Set    `json:"sets,omitempty"`
 }
 
 type Set struct {
@@ -158,10 +159,11 @@ type CreateWorkoutRequest struct {
 }
 
 type CreateWorkoutExerciseReq struct {
-	ExerciseID int64          `json:"exercise_id" validate:"required"`
-	OrderIndex int            `json:"order_index"`
-	Notes      string         `json:"notes"`
-	Sets       []CreateSetReq `json:"sets"`
+	ExerciseID  int64          `json:"exercise_id" validate:"required"`
+	OrderIndex  int            `json:"order_index"`
+	Notes       string         `json:"notes"`
+	RestSeconds int            `json:"rest_seconds"`
+	Sets        []CreateSetReq `json:"sets"`
 }
 
 type CreateSetReq struct {
@@ -225,13 +227,14 @@ type Program struct {
 }
 
 type ProgramExercise struct {
-	ID         int64        `json:"id,omitempty"`
-	ProgramID  int64        `json:"program_id,omitempty"`
-	ExerciseID int64        `json:"exercise_id"`
-	OrderIndex int          `json:"order_index,omitempty"`
-	Notes      string       `json:"notes"`
-	Exercise   Exercise     `json:"exercise"`
-	Sets       []ProgramSet `json:"sets"`
+	ID          int64        `json:"id,omitempty"`
+	ProgramID   int64        `json:"program_id,omitempty"`
+	ExerciseID  int64        `json:"exercise_id"`
+	OrderIndex  int          `json:"order_index,omitempty"`
+	Notes       string       `json:"notes"`
+	RestSeconds int          `json:"rest_seconds"`
+	Exercise    Exercise     `json:"exercise"`
+	Sets        []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -249,9 +252,10 @@ type CreateProgramRequest struct {
 }
 
 type CreateProgramExerciseReq struct {
-	ExerciseID int64                 `json:"exercise_id" validate:"required"`
-	Notes      string                `json:"notes"`
-	Sets       []CreateProgramSetReq `json:"sets"`
+	ExerciseID  int64                 `json:"exercise_id" validate:"required"`
+	Notes       string                `json:"notes"`
+	RestSeconds int                   `json:"rest_seconds"`
+	Sets        []CreateProgramSetReq `json:"sets"`
 }
 
 type CreateProgramSetReq struct {

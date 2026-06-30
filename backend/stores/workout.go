@@ -160,8 +160,8 @@ func (s *WorkoutStore) Delete(uid, id int64) (int64, error) {
 func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWorkoutExerciseReq) error {
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
-			wid, ex.ExerciseID, i, ex.Notes,
+			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?)`,
+			wid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
 		)
 		if err != nil {
 			return err
@@ -188,7 +188,7 @@ func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWork
 // queries (#36) so a request never holds two pool connections at once.
 func (s *WorkoutStore) loadExercises(workoutID int64) ([]models.WorkoutExercise, error) {
 	rows, err := s.db.Query(
-		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes,
+		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes, we.rest_seconds,
 		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM workout_exercises we
 		 JOIN exercises e ON e.id = we.exercise_id
@@ -202,7 +202,7 @@ func (s *WorkoutStore) loadExercises(workoutID int64) ([]models.WorkoutExercise,
 	for rows.Next() {
 		var we models.WorkoutExercise
 		if err := rows.Scan(
-			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes,
+			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes, &we.RestSeconds,
 			&we.Exercise.Name, &we.Exercise.MuscleGroup, &we.Exercise.Category,
 			&we.Exercise.Equipment, &we.Exercise.ImageURL,
 		); err != nil {
