@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight,
+  ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Timer, TimerOff,
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -17,6 +17,8 @@ export default function ProgramDetail() {
   const { session, startSession } = useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
+  const restOn = settings.rest_enabled ?? true
+  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [program, setProgram] = useState<types.Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -191,6 +193,11 @@ export default function ProgramDetail() {
       </div>
 
       {/* Exercises */}
+      {!restOn && (
+        <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
+          <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+        </div>
+      )}
       <div className="space-y-2">
         {exs.map((ex) => {
           const sets = ex.sets ?? []
@@ -225,6 +232,10 @@ export default function ProgramDetail() {
                       </span>
                     )}
                     <span className="text-xs text-tx-muted">{sets.length} sets</span>
+                    {restOn && (ex.rest_seconds === 0
+                      ? <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-surface-muted text-tx-muted"><TimerOff className="w-3 h-3" />No rest</span>
+                      : <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-brand-500/15 text-brand-400"><Timer className="w-3 h-3" />{restLabel(ex.rest_seconds ?? 90)} rest</span>
+                    )}
                     {maxTarget > 0 && <span className="text-xs text-tx-muted">target {maxTarget} {wUnit}</span>}
                   </div>
                 </div>
