@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Minus, Plus, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useCountdown } from '../hooks/useCountdown'
 
@@ -55,11 +56,17 @@ export default function RestTimerBanner() {
 
         <div className="flex items-center gap-2 mt-4">
           <button onClick={() => adjustRest(-15)} disabled={done}
-            className="flex-1 py-2 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary disabled:opacity-40">−15s</button>
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary disabled:opacity-40">
+            <Minus className="w-3.5 h-3.5" />15s
+          </button>
           <button onClick={() => adjustRest(15)} disabled={done}
-            className="flex-1 py-2 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary disabled:opacity-40">+15s</button>
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary disabled:opacity-40">
+            <Plus className="w-3.5 h-3.5" />15s
+          </button>
           <button onClick={() => clearRest()}
-            className="flex-1 py-2 rounded-lg text-sm font-semibold bg-brand-500 text-white">{done ? 'Done' : 'Skip'}</button>
+            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-semibold bg-brand-500 text-white">
+            {done ? <><Check className="w-4 h-4" />Done</> : <><SkipForward className="w-4 h-4" />Skip</>}
+          </button>
         </div>
       </div>
     </div>

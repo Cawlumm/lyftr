@@ -11,7 +11,7 @@ import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
-  Dumbbell, RefreshCw, Pencil,
+  Dumbbell, RefreshCw, Pencil, Clock,
 } from 'lucide-react'
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -234,26 +234,24 @@ export default function Settings() {
           const cur = storedSettings.rest_seconds_default ?? 90
           const isCustom = !presets.includes(cur)
           const customActive = isCustom || showCustomRest
-          const chip = (active: boolean) =>
-            `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-              active ? 'bg-brand-500 text-white shadow-sm' : 'bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary'
-            }`
-          const ghost = (active: boolean) =>
-            `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-1 ${
-              active ? 'bg-brand-500 text-white shadow-sm border border-brand-500' : 'bg-transparent border border-dashed border-surface-border text-tx-muted hover:text-tx-primary'
+          const seg = (active: boolean) =>
+            `flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
+              active ? 'bg-brand-500 text-white' : 'bg-surface-muted text-tx-secondary hover:text-tx-primary'
             }`
           return (
             <div className={`py-4 transition-opacity ${enabled ? '' : 'opacity-40 pointer-events-none select-none'}`} aria-disabled={!enabled}>
               <p className="text-sm font-medium text-tx-primary">Default rest</p>
               <p className="text-xs text-tx-muted mt-0.5 mb-3">Seeds new exercises · per-exercise rest overrides it</p>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              <div className="flex rounded-xl border border-surface-border overflow-hidden divide-x divide-surface-border">
                 {presets.map(sec => (
-                  <button key={sec} disabled={!enabled} onClick={() => { setShowCustomRest(false); setRestSeconds(sec) }} className={chip(!customActive && cur === sec)}>
-                    {sec}s
+                  <button key={sec} disabled={!enabled} onClick={() => { setShowCustomRest(false); setRestSeconds(sec) }} className={seg(!customActive && cur === sec)}>
+                    <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="text-[11px] font-semibold leading-none">{sec}s</span>
                   </button>
                 ))}
-                <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={ghost(customActive)}>
-                  <Pencil className="w-3.5 h-3.5" /> {isCustom ? `${cur}s` : 'Custom'}
+                <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={seg(customActive)}>
+                  <Pencil className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-[11px] font-semibold leading-none">{isCustom ? `${cur}s` : 'Custom'}</span>
                 </button>
               </div>
               {customActive && (

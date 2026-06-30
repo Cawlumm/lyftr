@@ -1,42 +1,44 @@
 import { useState } from 'react'
-import { TimerOff, Pencil } from 'lucide-react'
+import { Clock, TimerOff, Pencil } from 'lucide-react'
 
 interface Props {
   value: number
   onChange: (secs: number) => void
 }
 
-const PRESETS = [60, 90, 120, 180]
+const PRESETS = [0, 60, 90, 120, 180]
+const SEGMENTS = [
+  { v: 0, label: 'Off', Icon: TimerOff },
+  { v: 60, label: '60s', Icon: Clock },
+  { v: 90, label: '90s', Icon: Clock },
+  { v: 120, label: '120s', Icon: Clock },
+  { v: 180, label: '180s', Icon: Clock },
+]
 
-// Per-exercise rest control. The numeric presets are solid chips; Off (disable)
-// and Custom (type-a-value) get a distinct ghost + icon look so they read as a
-// different kind of control. Custom reveals a seconds field only when chosen.
+// Per-exercise rest control: one connected segmented bar (Off · presets · Custom),
+// each segment icon-labelled. Custom reveals a seconds field when chosen.
 export default function RestPicker({ value, onChange }: Props) {
-  const isCustom = value !== 0 && !PRESETS.includes(value)
+  const isCustom = !PRESETS.includes(value)
   const [showCustom, setShowCustom] = useState(false)
   const customActive = isCustom || showCustom
 
-  const base = 'px-3 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-1'
-  const solid = (active: boolean) =>
-    `${base} ${active ? 'bg-brand-500 text-white shadow-sm' : 'bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary'}`
-  const ghost = (active: boolean, dashed = false) =>
-    `${base} ${active
-      ? 'bg-brand-500 text-white shadow-sm border border-brand-500'
-      : `bg-transparent border ${dashed ? 'border-dashed' : ''} border-surface-border text-tx-muted hover:text-tx-primary`}`
+  const seg = (active: boolean) =>
+    `flex-1 min-w-0 flex flex-col items-center justify-center gap-1 py-2 transition-colors ${
+      active ? 'bg-brand-500 text-white' : 'bg-surface-muted text-tx-secondary hover:text-tx-primary'
+    }`
 
   return (
     <div>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        <button type="button" onClick={() => { setShowCustom(false); onChange(0) }} className={ghost(!customActive && value === 0)}>
-          <TimerOff className="w-3.5 h-3.5" /> Off
-        </button>
-        {PRESETS.map(sec => (
-          <button key={sec} type="button" onClick={() => { setShowCustom(false); onChange(sec) }} className={solid(!customActive && value === sec)}>
-            {sec}s
+      <div className="flex rounded-xl border border-surface-border overflow-hidden divide-x divide-surface-border">
+        {SEGMENTS.map(({ v, label, Icon }) => (
+          <button key={v} type="button" onClick={() => { setShowCustom(false); onChange(v) }} className={seg(!customActive && value === v)}>
+            <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+            <span className="text-[11px] font-semibold leading-none">{label}</span>
           </button>
         ))}
-        <button type="button" onClick={() => setShowCustom(true)} className={ghost(customActive, true)}>
-          <Pencil className="w-3.5 h-3.5" /> {isCustom ? `${value}s` : 'Custom'}
+        <button type="button" onClick={() => setShowCustom(true)} className={seg(customActive)}>
+          <Pencil className="w-3.5 h-3.5 flex-shrink-0" />
+          <span className="text-[11px] font-semibold leading-none">{isCustom ? `${value}s` : 'Custom'}</span>
         </button>
       </div>
       {customActive && (
