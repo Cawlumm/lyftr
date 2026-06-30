@@ -41,6 +41,8 @@ export default function RestTimerBanner() {
 
   if (restEndsAt == null || left == null) return null
 
+  // Light haptic tick on adjust (Android/Chrome only — iOS Safari ignores it).
+  const tap = () => navigator.vibrate?.(15)
   const step = 'flex items-center justify-center gap-0.5 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-surface-muted border border-surface-border text-tx-secondary active:scale-95'
 
   return (
@@ -67,8 +69,8 @@ export default function RestTimerBanner() {
             <div className="flex-1" />
             {!done && (
               <>
-                <button onClick={() => adjustRest(-15)} className={step}><Minus className="w-3.5 h-3.5" />15</button>
-                <button onClick={() => adjustRest(15)} className={step}><Plus className="w-3.5 h-3.5" />15</button>
+                <button onClick={() => { tap(); adjustRest(-15) }} className={step}><Minus className="w-3.5 h-3.5" />15</button>
+                <button onClick={() => { tap(); adjustRest(15) }} className={step}><Plus className="w-3.5 h-3.5" />15</button>
               </>
             )}
             <button onClick={() => clearRest()}
