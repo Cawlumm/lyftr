@@ -235,7 +235,7 @@ export default function Settings() {
           const isCustom = !presets.includes(cur)
           const customActive = isCustom || showCustomRest
           const chip = (active: boolean) =>
-            `px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
               active ? 'bg-brand-500 text-white shadow-sm' : 'bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary'
             }`
           return (
@@ -261,7 +261,7 @@ export default function Settings() {
                     disabled={!enabled}
                     value={cur}
                     onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
-                    className="input w-24 text-center py-2"
+                    className="input w-24 text-center py-2.5"
                     aria-label="Custom rest seconds"
                   />
                   <span className="text-sm text-tx-muted">seconds</span>
