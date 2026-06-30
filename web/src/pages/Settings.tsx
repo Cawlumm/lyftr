@@ -44,7 +44,7 @@ export default function Settings() {
   const serverUrl = useServerStore(s => s.serverUrl)
   const serverInfo = useServerInfo()
   const { theme, toggleTheme } = useTheme()
-  const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout } = useSettingsStore()
+  const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -208,6 +208,55 @@ export default function Settings() {
             ))}
           </div>
         </SettingRow>
+
+        <SettingRow label="Rest timer" description="Auto-start a countdown between sets in gym mode">
+          <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
+            {([['Off', false], ['On', true]] as const).map(([label, val]) => (
+              <button
+                key={label}
+                onClick={() => setRestEnabled(val)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  (storedSettings.rest_enabled ?? true) === val
+                    ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-sm'
+                    : 'text-tx-muted hover:text-tx-primary'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </SettingRow>
+
+        {(storedSettings.rest_enabled ?? true) && (
+          <SettingRow label="Default rest" description="Seeds new exercises; per-exercise rest overrides it">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
+                {[60, 90, 120, 180].map(sec => (
+                  <button
+                    key={sec}
+                    onClick={() => setRestSeconds(sec)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      (storedSettings.rest_seconds_default ?? 90) === sec
+                        ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-sm'
+                        : 'text-tx-muted hover:text-tx-primary'
+                    }`}
+                  >
+                    {sec}s
+                  </button>
+                ))}
+              </div>
+              <input
+                type="number"
+                min={0}
+                max={3600}
+                value={storedSettings.rest_seconds_default ?? 90}
+                onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
+                className="input w-20 text-center text-sm py-1.5"
+                aria-label="Default rest seconds"
+              />
+            </div>
+          </SettingRow>
+        )}
       </Section>
 
       {/* Goals & Units */}

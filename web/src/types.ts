@@ -13,6 +13,9 @@ export interface UserSettings {
   carb_target: number
   fat_target: number
   workout_layout?: 'list' | 'gym'
+  // Client-only (localStorage, not persisted server-side):
+  rest_enabled?: boolean        // master rest-timer on/off
+  rest_seconds_default?: number // default rest seconds, seeds new exercises
 }
 
 export interface Exercise {
@@ -45,6 +48,7 @@ export interface WorkoutExercise {
   order_index?: number
   notes?: string
   exercise: Exercise
+  rest_seconds?: number
   sets: Set[]
 }
 
@@ -154,6 +158,7 @@ export interface ProgramExercise {
   order_index?: number
   notes?: string
   exercise: Exercise
+  rest_seconds?: number
   sets: ProgramSet[]
 }
 
@@ -178,6 +183,7 @@ export interface ActiveSessionExercise {
   exercise_id: number
   exercise: Exercise
   notes: string
+  rest_seconds?: number
   sets: ActiveSessionSet[]
 }
 

@@ -6,6 +6,7 @@ import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
+import RestPicker from '../components/RestPicker'
 import * as types from '../types'
 
 interface WorkoutFormData {
@@ -13,7 +14,7 @@ interface WorkoutFormData {
   notes: string
   duration: number
   date: string
-  exercises: { exercise_id: number; notes: string; sets: { set_number: number; reps: number; weight: number }[] }[]
+  exercises: { exercise_id: number; notes: string; rest_seconds: number; sets: { set_number: number; reps: number; weight: number }[] }[]
 }
 
 export default function AddWorkout() {
@@ -33,7 +34,7 @@ export default function AddWorkout() {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }
     const newExercises = (program.exercises || []).map(ex => {
       newMap[ex.exercise_id] = ex.exercise
-      return { exercise_id: ex.exercise_id, notes: ex.notes || '', sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.target_reps, weight: s.target_weight })) }
+      return { exercise_id: ex.exercise_id, notes: ex.notes || '', rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90), sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.target_reps, weight: s.target_weight })) }
     })
     setPickerExercises(newMap)
     setFormData(prev => ({ ...prev, exercises: newExercises }))
@@ -43,7 +44,7 @@ export default function AddWorkout() {
 
   const addExercise = (exercise: types.Exercise) => {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))
-    setFormData(prev => ({ ...prev, exercises: [...prev.exercises, { exercise_id: exercise.id, notes: '', sets: [{ set_number: 1, reps: 0, weight: 0 }] }] }))
+    setFormData(prev => ({ ...prev, exercises: [...prev.exercises, { exercise_id: exercise.id, notes: '', rest_seconds: settings.rest_seconds_default ?? 90, sets: [{ set_number: 1, reps: 0, weight: 0 }] }] }))
     setShowPicker(false)
     setError('')
   }
@@ -70,6 +71,14 @@ export default function AddWorkout() {
     setFormData(prev => {
       const exercises = [...prev.exercises]
       ;(exercises[exIdx].sets[setIdx] as any)[field] = Number(value) || 0
+      return { ...prev, exercises }
+    })
+  }
+
+  const setExRest = (exIdx: number, secs: number) => {
+    setFormData(prev => {
+      const exercises = [...prev.exercises]
+      exercises[exIdx] = { ...exercises[exIdx], rest_seconds: secs }
       return { ...prev, exercises }
     })
   }
@@ -213,6 +222,11 @@ export default function AddWorkout() {
                   <div className="mb-4">
                     <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Notes</label>
                     <input type="text" value={workoutEx.notes} onChange={e => { const ex = [...formData.exercises]; ex[exIdx].notes = e.target.value; setFormData(p => ({ ...p, exercises: ex })) }} placeholder="e.g., Felt strong" className="input text-sm" />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Rest between sets</label>
+                    <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={secs => setExRest(exIdx, secs)} />
                   </div>
 
                   <div className="space-y-2 mb-3">

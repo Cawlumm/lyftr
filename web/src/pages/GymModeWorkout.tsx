@@ -10,6 +10,8 @@ import * as types from '../types'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useSettingsStore } from '../stores/settings'
+import RestPicker from '../components/RestPicker'
 import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
@@ -66,7 +68,9 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     gymPhase: phase, gymExIdx: activeIdx, gymSetIdx: activeSetIdx, setGymState,
     updateSet, completeSet, addSet, removeSet, removeExercise, updateExerciseNotes,
     buildPayload, cancelSession,
+    startRest, clearRest, restExIdx, restSetIdx, setExerciseRest,
   } = useWorkoutSession()
+  const { settings } = useSettingsStore()
 
   const [imgFailed, setImgFailed] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -373,6 +377,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               ))}
             </div>
 
+            {/* Rest timer for this exercise */}
+            <div className="card p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
+                <p className="text-[11px] text-tx-muted mt-0.5">Auto-starts when you complete a set</p>
+              </div>
+              <RestPicker value={ex.rest_seconds ?? (settings.rest_seconds_default ?? 90)} onChange={secs => setExerciseRest(activeIdx, secs)} />
+            </div>
+
             {/* Secondary muscles */}
             {exercise.secondary_muscles?.length > 0 && (
               <div>
@@ -474,7 +487,18 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   const set = ex.sets[clampedSetIdx]
 
   const handleCompleteSetGym = (setIdx: number) => {
+    const wasCompleted = ex.sets[setIdx].completed
     completeSet(activeIdx, setIdx)
+    if (wasCompleted) {
+      // Un-completing: cancel the running rest only if it belongs to this set.
+      if (restExIdx === activeIdx && restSetIdx === setIdx) clearRest()
+      return
+    }
+    // Completing: start rest (per-exercise value, else the global default; 0 = off).
+    if (settings.rest_enabled) {
+      const r = ex.rest_seconds ?? settings.rest_seconds_default ?? 90
+      if (r > 0) startRest(r, activeIdx, setIdx)
+    }
     // Auto-advance to next incomplete set
     const next = ex.sets.findIndex((s, i) => i > setIdx && !s.completed)
     if (next !== -1) setActiveSetIdx(next)

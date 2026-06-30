@@ -5,6 +5,7 @@ import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
+import RestPicker from '../components/RestPicker'
 import * as types from '../types'
 
 interface ProgramFormData {
@@ -13,6 +14,7 @@ interface ProgramFormData {
   exercises: {
     exercise_id: number
     notes: string
+    rest_seconds: number
     sets: { set_number: number; target_reps: number; target_weight: number }[]
   }[]
 }
@@ -45,6 +47,7 @@ export default function EditProgram() {
           exercises: (p.exercises || []).map(ex => ({
             exercise_id: ex.exercise_id,
             notes: ex.notes || '',
+            rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
             sets: (ex.sets || []).map(s => ({
               set_number: s.set_number,
               target_reps: s.target_reps,
@@ -61,7 +64,7 @@ export default function EditProgram() {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))
     setFormData(prev => ({
       ...prev,
-      exercises: [...prev.exercises, { exercise_id: exercise.id, notes: '', sets: [{ set_number: 1, target_reps: 0, target_weight: 0 }] }],
+      exercises: [...prev.exercises, { exercise_id: exercise.id, notes: '', rest_seconds: settings.rest_seconds_default ?? 90, sets: [{ set_number: 1, target_reps: 0, target_weight: 0 }] }],
     }))
     setShowPicker(false)
     setError('')
@@ -91,6 +94,14 @@ export default function EditProgram() {
     setFormData(prev => {
       const exercises = [...prev.exercises]
       ;(exercises[exIdx].sets[setIdx] as any)[field] = Number(value) || 0
+      return { ...prev, exercises }
+    })
+  }
+
+  const setExRest = (exIdx: number, secs: number) => {
+    setFormData(prev => {
+      const exercises = [...prev.exercises]
+      exercises[exIdx] = { ...exercises[exIdx], rest_seconds: secs }
       return { ...prev, exercises }
     })
   }
@@ -216,6 +227,11 @@ export default function EditProgram() {
                   <div className="mb-4">
                     <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Notes</label>
                     <input type="text" value={workoutEx.notes} onChange={e => { const ex = [...formData.exercises]; ex[exIdx].notes = e.target.value; setFormData(p => ({ ...p, exercises: ex })) }} placeholder="e.g., Focus on controlled eccentric" className="input text-sm" />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Rest between sets</label>
+                    <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={secs => setExRest(exIdx, secs)} />
                   </div>
 
                   <div className="space-y-2 mb-3">

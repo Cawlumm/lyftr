@@ -57,6 +57,17 @@ interface WorkoutSessionStore {
   openGym: () => void
   minimizeGym: () => void
   setGymState: (phase: GymPhase, exIdx: number, setIdx: number) => void
+  setExerciseRest: (exIdx: number, secs: number) => void
+  // Rest timer — ephemeral (never persisted). Survives minimize/restore via the
+  // module singleton; evaporates on full refresh by design (an absolute timestamp
+  // must not outlive the session moment).
+  restEndsAt: number | null
+  restDurationSec: number | null
+  restExIdx: number | null
+  restSetIdx: number | null
+  startRest: (durationSec: number, exIdx: number, setIdx: number) => void
+  adjustRest: (deltaSec: number) => void
+  clearRest: () => void
 }
 
 const _savedGymUi = loadGymUi()
@@ -67,6 +78,21 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   gymPhase: _savedGymUi.phase,
   gymExIdx: _savedGymUi.exIdx,
   gymSetIdx: _savedGymUi.setIdx,
+  restEndsAt: null,
+  restDurationSec: null,
+  restExIdx: null,
+  restSetIdx: null,
+
+  startRest: (durationSec, exIdx, setIdx) =>
+    set({ restEndsAt: Date.now() + durationSec * 1000, restDurationSec: durationSec, restExIdx: exIdx, restSetIdx: setIdx }),
+  adjustRest: (deltaSec) => set(state => {
+    if (state.restEndsAt == null) return {}
+    return {
+      restEndsAt: Math.max(Date.now(), state.restEndsAt + deltaSec * 1000),
+      restDurationSec: Math.max(1, (state.restDurationSec ?? 0) + deltaSec),
+    }
+  }),
+  clearRest: () => set({ restEndsAt: null, restDurationSec: null, restExIdx: null, restSetIdx: null }),
 
   openGym: () => set({ gymOpen: true }),
   minimizeGym: () => set({ gymOpen: false }),
@@ -118,6 +144,15 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     const session = get().session
     if (!session) return
     const exercises = session.exercises.map((ex, i) => i !== exIdx ? ex : { ...ex, notes })
+    const updated = { ...session, exercises }
+    saveLocal(updated)
+    set({ session: updated })
+  },
+
+  setExerciseRest: (exIdx, secs) => {
+    const session = get().session
+    if (!session) return
+    const exercises = session.exercises.map((ex, i) => i !== exIdx ? ex : { ...ex, rest_seconds: secs })
     const updated = { ...session, exercises }
     saveLocal(updated)
     set({ session: updated })
@@ -189,6 +224,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
       exercises: session.exercises.map(ex => ({
         exercise_id: ex.exercise_id,
         notes: ex.notes,
+        rest_seconds: ex.rest_seconds,
         sets: ex.sets.map((s, i) => ({
           set_number: i + 1,
           reps: s.actual_reps || s.target_reps,
@@ -201,6 +237,9 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   cancelSession: () => {
     saveLocal(null)
     localStorage.removeItem(GYM_UI_KEY)
-    set({ session: null, gymOpen: false, gymPhase: 'overview', gymExIdx: 0, gymSetIdx: 0 })
+    set({
+      session: null, gymOpen: false, gymPhase: 'overview', gymExIdx: 0, gymSetIdx: 0,
+      restEndsAt: null, restDurationSec: null, restExIdx: null, restSetIdx: null,
+    })
   },
 }))

@@ -10,6 +10,7 @@ import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
+import RestTimerBanner from './RestTimerBanner'
 import Logo from './Logo'
 
 const NAV = [
@@ -180,6 +181,10 @@ export default function Layout() {
       {session && settings.workout_layout === 'gym' && gymOpen && (
         <GymModeWorkout wUnit={wUnit} />
       )}
+
+      {/* Rest timer — floats above everything (incl. the gym overlay) and on any
+          screen, so the countdown + alert survive minimizing gym mode. */}
+      <RestTimerBanner />
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">

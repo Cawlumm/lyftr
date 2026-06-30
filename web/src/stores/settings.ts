@@ -3,6 +3,18 @@ import * as types from '../types'
 import { userAPI } from '../services/api'
 
 const LAYOUT_KEY = 'lyftr_workout_layout'
+const REST_ON_KEY = 'lyftr_rest_enabled'
+const REST_SEC_KEY = 'lyftr_rest_seconds'
+
+// Client-only prefs (not stored server-side) — re-applied over any backend fetch
+// so a settings GET/PUT never clobbers them.
+function clientPrefs(): Pick<types.UserSettings, 'workout_layout' | 'rest_enabled' | 'rest_seconds_default'> {
+  return {
+    workout_layout: (localStorage.getItem(LAYOUT_KEY) as 'list' | 'gym') ?? 'list',
+    rest_enabled: localStorage.getItem(REST_ON_KEY) !== 'false', // default on
+    rest_seconds_default: Number(localStorage.getItem(REST_SEC_KEY)) || 90,
+  }
+}
 
 interface SettingsStore {
   settings: types.UserSettings
@@ -10,6 +22,8 @@ interface SettingsStore {
   fetch: () => Promise<void>
   update: (patch: Partial<types.UserSettings>) => Promise<void>
   setWorkoutLayout: (layout: 'list' | 'gym') => void
+  setRestEnabled: (on: boolean) => void
+  setRestSeconds: (secs: number) => void
   reset: () => void
 }
 
@@ -20,7 +34,7 @@ const DEFAULTS: types.UserSettings = {
   protein_target: 150,
   carb_target: 250,
   fat_target: 65,
-  workout_layout: (localStorage.getItem(LAYOUT_KEY) as 'list' | 'gym') ?? 'list',
+  ...clientPrefs(),
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -31,8 +45,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (get().loaded) return
     try {
       const s = await userAPI.getSettings()
-      const layout = localStorage.getItem(LAYOUT_KEY) as 'list' | 'gym' | null
-      set({ settings: { ...s, workout_layout: layout ?? 'list' }, loaded: true })
+      set({ settings: { ...s, ...clientPrefs() }, loaded: true })
     } catch {
       set({ loaded: true })
     }
@@ -41,13 +54,22 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   update: async (patch) => {
     set(state => ({ settings: { ...state.settings, ...patch } }))
     const updated = await userAPI.updateSettings(patch)
-    const layout = localStorage.getItem(LAYOUT_KEY) as 'list' | 'gym' | null
-    set({ settings: { ...updated, workout_layout: layout ?? 'list' } })
+    set({ settings: { ...updated, ...clientPrefs() } })
   },
 
   setWorkoutLayout: (layout) => {
     localStorage.setItem(LAYOUT_KEY, layout)
     set(state => ({ settings: { ...state.settings, workout_layout: layout } }))
+  },
+
+  setRestEnabled: (on) => {
+    localStorage.setItem(REST_ON_KEY, String(on))
+    set(state => ({ settings: { ...state.settings, rest_enabled: on } }))
+  },
+
+  setRestSeconds: (secs) => {
+    localStorage.setItem(REST_SEC_KEY, String(secs))
+    set(state => ({ settings: { ...state.settings, rest_seconds_default: secs } }))
   },
 
   reset: () => set({ settings: DEFAULTS, loaded: false }),
