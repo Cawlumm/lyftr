@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target } from 'lucide-react'
+import { Plus, ArrowLeft, Trash2, AlertCircle, BookOpen, FileText, Zap, Target, Timer } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
@@ -230,7 +230,10 @@ export default function AddProgram() {
                   </div>
 
                   <div className="mb-4">
-                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Rest between sets</label>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Timer className="w-3.5 h-3.5 text-brand-500" />
+                      <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">Rest between sets</label>
+                    </div>
                     <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={secs => setExRest(exIdx, secs)} />
                   </div>
 

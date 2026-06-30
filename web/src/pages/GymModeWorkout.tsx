@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2, Repeat, Check, Layers,
+  Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
@@ -379,8 +379,11 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
             {/* Rest timer for this exercise */}
             <div className="card p-4">
-              <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
-              <p className="text-[11px] text-tx-muted mt-0.5 mb-3">Auto-starts when you complete a set</p>
+              <div className="flex items-center gap-2">
+                <Timer className="w-4 h-4 text-brand-500" />
+                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
+              </div>
+              <p className="text-[11px] text-tx-muted mt-1 mb-3">Auto-starts when you complete a set</p>
               <RestPicker value={ex.rest_seconds ?? (settings.rest_seconds_default ?? 90)} onChange={secs => setExerciseRest(activeIdx, secs)} />
             </div>
 
