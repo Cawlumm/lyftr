@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2, Minus, Repeat, Check,
+  Minimize2, Trash2, Minus, Repeat, Check, Layers,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
@@ -322,6 +322,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
       ? exercise.description.split('\n').filter(l => l.trim())
       : []
     const bodyData = buildBodyData(exercise)
+    // Plan summary: one value if every set matches, else a min–max range.
+    const repsVals = ex.sets.map(s => s.target_reps).filter(r => r > 0)
+    const wtVals = ex.sets.map(s => displayWeight(s.target_weight, wUnit)).filter(w => w > 0)
+    const range = (a: number[]) => (a.length === 0 ? '—' : Math.min(...a) === Math.max(...a) ? String(Math.min(...a)) : `${Math.min(...a)}–${Math.max(...a)}`)
+    const planStats = [
+      { icon: Layers, label: 'Sets', value: <>{ex.sets.length}</> },
+      { icon: Repeat, label: 'Reps', value: <>{range(repsVals)}</> },
+      { icon: Dumbbell, label: 'Weight', value: <>{range(wtVals)}<span className="text-xs font-semibold text-tx-muted ml-0.5">{wUnit}</span></> },
+    ]
 
     return (
       <div className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
@@ -359,22 +368,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               </div>
             </div>
 
-            {/* Plan — what you're about to do (sets + targets) */}
-            <div className="card overflow-hidden">
-              <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
-                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Plan</p>
-                <span className="text-xs text-tx-muted tabular-nums">{ex.sets.length} {ex.sets.length === 1 ? 'set' : 'sets'}</span>
-              </div>
-              <div className="divide-y divide-surface-border/60">
-                {ex.sets.map((s, i) => (
-                  <div key={i} className="px-4 py-2.5 flex items-center justify-between">
-                    <span className="text-sm text-tx-muted">Set {i + 1}</span>
-                    <span className="text-sm font-semibold text-tx-primary tabular-nums">
-                      {s.target_reps > 0 ? s.target_reps : '—'} reps{s.target_weight > 0 ? ` · ${displayWeight(s.target_weight, wUnit)} ${wUnit}` : ''}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            {/* Plan — what you're about to do, as an icon stat strip */}
+            <div className="card p-4 grid grid-cols-3 divide-x divide-surface-border">
+              {planStats.map(({ icon: Ico, label, value }) => (
+                <div key={label} className="flex flex-col items-center gap-1.5 px-2">
+                  <Ico className="w-4 h-4 text-brand-400" />
+                  <span className="font-display font-bold text-xl text-tx-primary tabular-nums leading-none whitespace-nowrap">{value}</span>
+                  <span className="text-[10px] font-medium text-tx-muted uppercase tracking-wider">{label}</span>
+                </div>
+              ))}
             </div>
 
             {/* Secondary muscles */}
