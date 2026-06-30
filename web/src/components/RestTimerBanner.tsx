@@ -10,10 +10,12 @@ function fmt(s: number): string {
 
 // Slim, solid rest-timer bar. Mounted once at the app shell at a high z-index so
 // it shows over the gym overlay AND on any other screen (when gym is minimized),
-// and so the "rest over" alert fires from a single instance (no double-buzz).
+// so the "rest over" alert is visible regardless of where you are in the app.
+// (Haptics are intentionally left to a future native app — the web Vibration API
+// doesn't work on iOS Safari.)
 export default function RestTimerBanner() {
   const { restEndsAt, restDurationSec, adjustRest, clearRest } = useWorkoutSession()
-  const left = useCountdown(restEndsAt, () => navigator.vibrate?.([120, 60, 120]))
+  const left = useCountdown(restEndsAt)
   const done = left === 0
 
   // Smoothly drain the progress line over the *actual* remaining time (one linear
