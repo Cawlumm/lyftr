@@ -536,8 +536,8 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             </div>
           </div>
           {!allSetsComplete && (
-            <button onClick={handleRemoveExercise} className="p-1.5 hover:bg-error-500/10 rounded-lg transition-colors flex-shrink-0">
-              <X className="w-4 h-4 text-tx-muted hover:text-error-400 transition-colors" />
+            <button onClick={handleRemoveExercise} aria-label="Remove this exercise" title="Remove exercise" className="p-1.5 hover:bg-error-500/10 rounded-lg transition-colors flex-shrink-0">
+              <Trash2 className="w-4 h-4 text-tx-muted hover:text-error-400 transition-colors" />
             </button>
           )}
         </div>
