@@ -352,10 +352,28 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                   </span>
                 )}
                 {exercise.category && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-xs font-medium text-brand-400 capitalize">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-surface-muted border border-surface-border text-xs font-medium text-tx-secondary capitalize">
                     {exercise.category}
                   </span>
                 )}
+              </div>
+            </div>
+
+            {/* Plan — what you're about to do (sets + targets) */}
+            <div className="card overflow-hidden">
+              <div className="px-4 pt-3.5 pb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Plan</p>
+                <span className="text-xs text-tx-muted tabular-nums">{ex.sets.length} {ex.sets.length === 1 ? 'set' : 'sets'}</span>
+              </div>
+              <div className="divide-y divide-surface-border/60">
+                {ex.sets.map((s, i) => (
+                  <div key={i} className="px-4 py-2.5 flex items-center justify-between">
+                    <span className="text-sm text-tx-muted">Set {i + 1}</span>
+                    <span className="text-sm font-semibold text-tx-primary tabular-nums">
+                      {s.target_reps > 0 ? s.target_reps : '—'} reps{s.target_weight > 0 ? ` · ${displayWeight(s.target_weight, wUnit)} ${wUnit}` : ''}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
