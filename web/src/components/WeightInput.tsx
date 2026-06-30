@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 interface Props {
   value: string
@@ -16,6 +17,9 @@ interface Props {
    *  validation/messaging is the caller's job (an html max would preempt it with
    *  a native browser tooltip). */
   max?: number
+  /** Show the in-field unit suffix. Off when a nearby label already states the unit
+   *  (e.g. gym mode's "Weight (LB)" header) so the number gets the full width. */
+  showUnit?: boolean
 }
 
 // The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
@@ -39,22 +43,47 @@ export default function WeightInput({
   placeholder = '0.0',
   disabled = false,
   max,
+  showUnit = true,
 }: Props) {
+  // Hold the raw typed text locally so in-progress entry (a trailing ".", a leading
+  // "0", a mid-edit value) isn't clobbered when the parent re-derives `value` from a
+  // rounded number — or maps 0 → '' — on every keystroke. Re-sync from the parent
+  // only when it represents a genuinely *different* number than what's shown
+  // (stepper taps, programmatic changes); treat '' and 0 as the same so a 0→''
+  // parent mapping doesn't wipe a "0." you're typing.
+  const [text, setText] = useState(value)
+  useEffect(() => {
+    const a = parseFloat(text)
+    const b = parseFloat(value)
+    const aEmpty = Number.isNaN(a) || a === 0
+    const bEmpty = Number.isNaN(b) || b === 0
+    if (a !== b && !(aEmpty && bEmpty)) setText(value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  const emit = (next: string) => {
+    setText(next)
+    onChange(next)
+  }
+
   const adjust = (delta: number) => {
-    const current = parseFloat(value)
+    const current = parseFloat(text)
     const base = Number.isFinite(current) ? current : 0
     const next = Math.min(max ?? Infinity, Math.max(0, +(base + delta).toFixed(1)))
-    onChange(String(next))
+    emit(String(next))
   }
 
   const inputSize = size === 'lg'
-    ? 'text-3xl py-4 font-display font-bold'
+    // Bare `lg` (gym mode, custom stepper around it) matches the reps field next to
+    // it; `lg` with the built-in stepper (body-weight pages) stays extra large.
+    ? (stepper ? 'text-3xl py-4 font-display font-bold' : 'text-xl py-3 font-bold')
     : size === 'sm'
       ? 'text-sm py-2.5'
       : 'text-base py-2.5'
-  // Compact contexts (bare field or sm) use tighter unit padding.
+  // Compact contexts (bare field or sm) use tighter unit padding. No suffix → no
+  // right padding, so the number gets the full (centered) width.
   const compact = !stepper || size === 'sm'
-  const pad = compact ? 'pr-7' : 'pr-12'
+  const pad = !showUnit ? 'px-0' : compact ? 'pr-7' : 'pr-12'
   const unitPos = compact ? 'right-2' : 'right-3.5'
 
   const field = (
@@ -63,8 +92,8 @@ export default function WeightInput({
         type="number"
         inputMode="decimal"
         enterKeyHint="done"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        value={text}
+        onChange={e => emit(e.target.value)}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}
@@ -72,7 +101,7 @@ export default function WeightInput({
         className={`input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
         placeholder={placeholder}
       />
-      <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>
+      {showUnit && <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>}
     </div>
   )
 

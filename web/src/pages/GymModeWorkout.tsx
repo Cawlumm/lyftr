@@ -556,7 +556,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               <button
                 onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.max(0, (set.actual_reps || 0) - 1))}
                 disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
+                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
               >−</button>
               <input
                 type="number" inputMode="numeric"
@@ -569,24 +569,35 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               <button
                 onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', (set.actual_reps || 0) + 1)}
                 disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
+                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
               >+</button>
             </div>
           </div>
 
-          {/* Weight */}
+          {/* Weight — matches the reps stepper: w-11 buttons step ±2.5 (display units) */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Weight ({wUnit})</p>
-            <div className="w-full">
+            <div className="flex items-center gap-2 w-full">
+              <button
+                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Math.max(0, +(displayWeight(set.actual_weight, wUnit) - 2.5).toFixed(1)), wUnit))}
+                disabled={set.completed}
+                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
+              >−</button>
               <WeightInput
+                stepper={false}
                 size="lg"
-                step={2.5}
+                showUnit={false}
                 value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                 onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                 unit={wUnit}
                 placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
                 disabled={set.completed}
               />
+              <button
+                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(+(displayWeight(set.actual_weight, wUnit) + 2.5).toFixed(1), wUnit))}
+                disabled={set.completed}
+                className="w-9 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30 flex-shrink-0"
+              >+</button>
             </div>
           </div>
         </div>
