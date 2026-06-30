@@ -11,7 +11,7 @@ import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
 import {
   User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
-  Dumbbell, RefreshCw, Pencil, Clock,
+  Dumbbell, RefreshCw, Pencil, Clock, Minus, Plus,
 } from 'lucide-react'
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -255,18 +255,28 @@ export default function Settings() {
                 </button>
               </div>
               {customActive && (
-                <div className="flex items-center gap-2 mt-3">
-                  <input
-                    type="number"
-                    min={0}
-                    max={3600}
-                    disabled={!enabled}
-                    value={cur}
-                    onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
-                    className="input w-24 text-center py-2.5"
-                    aria-label="Custom rest seconds"
-                  />
-                  <span className="text-sm text-tx-muted">seconds</span>
+                <div className="flex items-center justify-center gap-2 mt-3">
+                  <button type="button" disabled={!enabled} aria-label="−5 seconds" onClick={() => setRestSeconds(Math.max(0, cur - 5))}
+                    className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={3600}
+                      disabled={!enabled}
+                      value={cur}
+                      onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
+                      className="input w-28 text-center py-2.5 pr-9 text-base font-semibold tabular-nums"
+                      aria-label="Custom rest seconds"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">sec</span>
+                  </div>
+                  <button type="button" disabled={!enabled} aria-label="+5 seconds" onClick={() => setRestSeconds(Math.min(3600, cur + 5))}
+                    className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
+                    <Plus className="w-4 h-4" />
+                  </button>
                 </div>
               )}
             </div>
