@@ -228,7 +228,8 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        {(storedSettings.rest_enabled ?? true) && (() => {
+        {(() => {
+          const enabled = storedSettings.rest_enabled ?? true
           const presets = [60, 90, 120, 180]
           const cur = storedSettings.rest_seconds_default ?? 90
           const isCustom = !presets.includes(cur)
@@ -238,16 +239,16 @@ export default function Settings() {
               active ? 'bg-brand-500 text-white shadow-sm' : 'bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary'
             }`
           return (
-            <div className="py-4">
+            <div className={`py-4 transition-opacity ${enabled ? '' : 'opacity-40 pointer-events-none select-none'}`} aria-disabled={!enabled}>
               <p className="text-sm font-medium text-tx-primary">Default rest</p>
               <p className="text-xs text-tx-muted mt-0.5 mb-3">Seeds new exercises · per-exercise rest overrides it</p>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {presets.map(sec => (
-                  <button key={sec} onClick={() => { setShowCustomRest(false); setRestSeconds(sec) }} className={chip(!customActive && cur === sec)}>
+                  <button key={sec} disabled={!enabled} onClick={() => { setShowCustomRest(false); setRestSeconds(sec) }} className={chip(!customActive && cur === sec)}>
                     {sec}s
                   </button>
                 ))}
-                <button onClick={() => setShowCustomRest(true)} className={chip(customActive)}>
+                <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={chip(customActive)}>
                   {isCustom ? `${cur}s` : 'Custom'}
                 </button>
               </div>
@@ -257,6 +258,7 @@ export default function Settings() {
                     type="number"
                     min={0}
                     max={3600}
+                    disabled={!enabled}
                     value={cur}
                     onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
                     className="input w-24 text-center py-2"
