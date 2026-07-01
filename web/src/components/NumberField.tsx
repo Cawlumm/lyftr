@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNumericText } from '../hooks/useNumericText'
 
 // Shared borderless big-number field style (used here and by WeightInput's `plain`
@@ -17,9 +18,13 @@ interface Props {
 
 // Borderless numeric field for use inside a StepperTile. Robust typing via
 // useNumericText (in-progress entry isn't clobbered by the parent re-deriving the
-// value); the parent owns validation/conversion in onChange.
+// value, and never mid-edit while focused); the parent owns conversion in onChange.
 export default function NumberField({ value, onChange, inputMode = 'decimal', placeholder = '0', disabled = false, min = 0, ...aria }: Props) {
-  const [text, setText] = useNumericText(value)
+  const [focused, setFocused] = useState(false)
+  const [text, setText] = useNumericText(value, focused)
+  // Non-negative always; integer fields (inputMode "numeric") also reject a decimal
+  // point so reps can't be typed fractional.
+  const blocked = inputMode === 'numeric' ? ['e', 'E', '+', '-', '.'] : ['e', 'E', '+', '-']
   return (
     <input
       type="number"
@@ -29,7 +34,10 @@ export default function NumberField({ value, onChange, inputMode = 'decimal', pl
       value={text}
       disabled={disabled}
       placeholder={placeholder}
-      onChange={e => { const v = min >= 0 ? e.target.value.replace(/-/g, '') : e.target.value; setText(v); onChange(v) }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onKeyDown={e => { if (blocked.includes(e.key)) e.preventDefault() }}
+      onChange={e => { const v = e.target.value.replace(/-/g, ''); setText(v); onChange(v) }}
       className={`${PLAIN_FIELD_CLASS} ${disabled ? 'opacity-40' : ''}`}
       aria-label={aria['aria-label']}
     />

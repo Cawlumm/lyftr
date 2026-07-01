@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
 import { clampStep } from '../utils/number'
@@ -53,7 +54,8 @@ export default function WeightInput({
 }: Props) {
   // Raw typed text (see useNumericText) so in-progress entry isn't clobbered by the
   // parent re-deriving `value` from a rounded/0→'' number on every keystroke.
-  const [text, setText] = useNumericText(value)
+  const [focused, setFocused] = useState(false)
+  const [text, setText] = useNumericText(value, focused)
 
   const emit = (next: string) => {
     setText(next)
@@ -63,9 +65,7 @@ export default function WeightInput({
   const adjust = (delta: number) => emit(String(clampStep(parseFloat(text), delta, { max })))
 
   const inputSize = size === 'lg'
-    // Bare `lg` (gym mode, custom stepper around it) matches the reps field next to
-    // it; `lg` with the built-in stepper (body-weight pages) stays extra large.
-    ? (stepper ? 'text-3xl py-4 font-display font-bold' : 'text-xl py-3 font-bold')
+    ? 'text-3xl py-4 font-display font-bold'
     : size === 'sm'
       ? 'text-sm py-2.5'
       : 'text-base py-2.5'
@@ -83,6 +83,8 @@ export default function WeightInput({
         enterKeyHint="done"
         value={text}
         onChange={e => emit(e.target.value.replace(/-/g, ''))}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}

@@ -31,4 +31,13 @@ describe('useNumericText', () => {
     rerender({ v: '95' }) // stepper / programmatic change
     expect(result.current[0]).toBe('95')
   })
+
+  it('does not clobber the field while focused, then syncs on blur', () => {
+    const { result, rerender } = renderHook(({ v, f }) => useNumericText(v, f), { initialProps: { v: '90', f: true } })
+    act(() => result.current[1]('12.25')) // typing a sub-0.1 value while focused
+    rerender({ v: '12.3', f: true }) // parent re-derived the rounded value, still focused
+    expect(result.current[0]).toBe('12.25') // preserved — not snapped mid-type
+    rerender({ v: '12.3', f: false }) // blur
+    expect(result.current[0]).toBe('12.3') // now shows the canonical value
+  })
 })

@@ -14,6 +14,7 @@ import { workoutAPI } from '../services/api'
 import WeightInput from '../components/WeightInput'
 import StepperTile from '../components/StepperTile'
 import NumberField from '../components/NumberField'
+import DiscardConfirm from '../components/DiscardConfirm'
 import { clampStep, clampValue } from '../utils/number'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
@@ -297,22 +298,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </div>,
           document.body
         )}
-        {confirmCancel && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Discard
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
       </div>
     )
   }
@@ -477,22 +463,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </div>,
           document.body
         )}
-        {confirmCancel && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Discard
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
       </div>
     )
   }
@@ -636,13 +607,16 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           {set.completed ? 'Completed' : 'Complete Set'}
         </button>
 
-        {/* Remove set */}
-        <button
-          onClick={() => handleRemoveSet(clampedSetIdx)}
-          className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
-        >
-          Remove this set
-        </button>
+        {/* Remove set — hidden on the last set (removing it would empty the exercise
+            and drop to a blank screen; use the header trash to remove the exercise) */}
+        {ex.sets.length > 1 && (
+          <button
+            onClick={() => handleRemoveSet(clampedSetIdx)}
+            className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
+          >
+            Remove this set
+          </button>
+        )}
       </div>
 
       {/* Bottom nav */}
@@ -732,25 +706,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
       )}
 
       {/* ── Cancel confirm ── */}
-      {confirmCancel && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Discard workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">This ends the workout without saving — all progress is lost.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Keep Going
-              </button>
-              <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />
-                Discard
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
     </div>
   )
 }
