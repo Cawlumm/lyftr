@@ -1,4 +1,4 @@
-import { useNumericText } from '../hooks/useNumericText'
+import { useNumericText } from '../../hooks/useNumericText'
 
 // Borderless big-number field style for the inside of a metric tile (the card is
 // the visual container).
