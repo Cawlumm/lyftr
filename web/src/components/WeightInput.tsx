@@ -1,8 +1,6 @@
-import { useState } from 'react'
 import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
 import { clampStep } from '../utils/number'
-import { PLAIN_FIELD_CLASS } from './NumberField'
 
 interface Props {
   value: string
@@ -20,12 +18,6 @@ interface Props {
    *  validation/messaging is the caller's job (an html max would preempt it with
    *  a native browser tooltip). */
   max?: number
-  /** Show the in-field unit suffix. Off when a nearby label already states the unit
-   *  (e.g. gym mode's "Weight (LB)" header) so the number gets the full width. */
-  showUnit?: boolean
-  /** Borderless, oversized field (transparent bg, no border) for use inside a card
-   *  tile where the surrounding card is the visual container. */
-  plain?: boolean
 }
 
 // The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
@@ -37,7 +29,7 @@ const STEP_DEFAULT = 0.5
 // Single component for every weight input in the app. Conversion-agnostic: the
 // caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`
 // toggles the prominent +/- layout (bodyweight, gym mode) vs a bare field for
-// compact sets-table rows. All weight inputs share step=0.1 + the unit suffix.
+// compact sets-table rows. (Gym set tiles use the borderless NumberField instead.)
 export default function WeightInput({
   value,
   onChange,
@@ -49,13 +41,10 @@ export default function WeightInput({
   placeholder = '0.0',
   disabled = false,
   max,
-  showUnit = true,
-  plain = false,
 }: Props) {
   // Raw typed text (see useNumericText) so in-progress entry isn't clobbered by the
   // parent re-deriving `value` from a rounded/0→'' number on every keystroke.
-  const [focused, setFocused] = useState(false)
-  const [text, setText] = useNumericText(value, focused)
+  const [text, setText] = useNumericText(value)
 
   const emit = (next: string) => {
     setText(next)
@@ -69,10 +58,8 @@ export default function WeightInput({
     : size === 'sm'
       ? 'text-sm py-2.5'
       : 'text-base py-2.5'
-  // Compact contexts (bare field or sm) use tighter unit padding. No suffix → no
-  // right padding, so the number gets the full (centered) width.
   const compact = !stepper || size === 'sm'
-  const pad = !showUnit ? 'px-0' : compact ? 'pr-7' : 'pr-12'
+  const pad = compact ? 'pr-7' : 'pr-12'
   const unitPos = compact ? 'right-2' : 'right-3.5'
 
   const field = (
@@ -83,18 +70,15 @@ export default function WeightInput({
         enterKeyHint="done"
         value={text}
         onChange={e => emit(e.target.value.replace(/-/g, ''))}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onKeyDown={e => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}
         disabled={disabled}
-        className={plain
-          ? `${PLAIN_FIELD_CLASS} ${disabled ? 'opacity-40' : ''}`
-          : `input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
+        className={`input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
         placeholder={placeholder}
       />
-      {showUnit && <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>}
+      <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>
     </div>
   )
 

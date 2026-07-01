@@ -11,7 +11,6 @@ import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } 
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { workoutAPI } from '../services/api'
-import WeightInput from '../components/WeightInput'
 import StepperTile from '../components/StepperTile'
 import NumberField from '../components/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
@@ -582,14 +581,14 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={2.5} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
           >
-            <WeightInput
+            <NumberField
               key={`wt-${activeIdx}-${clampedSetIdx}`}
-              plain stepper={false} showUnit={false}
+              inputMode="decimal"
               value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
               onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), wUnit))}
-              unit={wUnit}
               placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
               disabled={set.completed}
+              aria-label="Weight"
             />
           </StepperTile>
         </div>

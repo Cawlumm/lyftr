@@ -1,5 +1,7 @@
 import { createPortal } from 'react-dom'
 import { Trash2 } from 'lucide-react'
+import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 
 interface Props {
   open: boolean
@@ -8,8 +10,11 @@ interface Props {
 }
 
 // Discard-workout confirmation bottom sheet, shared by every gym-mode phase (was
-// triplicated inline). Renders to document.body so it overlays the full-screen gym.
+// triplicated inline). Renders to document.body so it overlays the full-screen gym;
+// uses the shared escape/scroll-lock hooks like every other sheet.
 export default function DiscardConfirm({ open, onKeep, onDiscard }: Props) {
+  useBodyScrollLock(open)
+  useEscapeKey(open, onKeep) // Escape dismisses (the non-destructive choice)
   if (!open) return null
   return createPortal(
     <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
