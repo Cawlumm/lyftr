@@ -8,6 +8,8 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useRestTimer } from '../hooks/useRestTimer'
+import { fmtClock } from '../utils/workoutSets'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
@@ -35,6 +37,10 @@ function ActiveSessionBar() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [elapsed, setElapsed] = useState(0)
+  // Rest countdown for the minimized workout — the full panel doesn't follow you out
+  // of the workout; this compact chip does. (useRestTimer also owns the auto-dismiss,
+  // and this bar is always mounted, so "rest over" clears even while minimized.)
+  const { active: resting, paused, done, left } = useRestTimer()
 
   useEffect(() => {
     if (!session) return
@@ -74,6 +80,14 @@ function ActiveSessionBar() {
           <p className="text-xs font-bold text-white leading-tight truncate max-w-[140px]">{session.name}</p>
           <p className="text-[11px] text-white/70 leading-tight">{completedSets}/{totalSets} sets · {formatElapsed(elapsed)}</p>
         </div>
+        {resting && (
+          <div className="flex items-center gap-1.5 pl-2.5 py-1 pr-1 rounded-full bg-white/15 flex-shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-white/70 leading-none">
+              {done ? 'Rest over' : paused ? 'Paused' : 'Rest'}
+            </span>
+            {!done && <span className="text-xs font-bold text-white tabular-nums leading-none">{fmtClock(left)}</span>}
+          </div>
+        )}
         <ChevronRight className="w-4 h-4 text-white/80 flex-shrink-0" />
       </button>
     </div>
@@ -182,10 +196,11 @@ export default function Layout() {
         <GymModeWorkout wUnit={wUnit} />
       )}
 
-      {/* Rest timer — floating variant, for every screen EXCEPT the gym set screen
-          (there GymModeWorkout docks it in-flow so it pushes content up). This keeps
-          the countdown visible when gym is minimized / you're elsewhere in the app. */}
-      {!(gymOpen && gymPhase === 'exercise') && <RestTimerBanner />}
+      {/* Rest timer floating panel — only INSIDE the workout, on the gym overview /
+          exercise-info screens. The set screen docks its own copy (pushes content up),
+          and when the workout is minimized the countdown shows as a chip in the session
+          pill (ActiveSessionBar) rather than a panel following you around the app. */}
+      {gymOpen && gymPhase !== 'exercise' && <RestTimerBanner />}
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">

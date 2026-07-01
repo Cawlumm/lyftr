@@ -1,32 +1,23 @@
-import { useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
 import { Pause, Play, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useCountdown } from '../hooks/useCountdown'
-import { nextIncompleteSet } from '../utils/workoutSets'
+import { useRestTimer } from '../hooks/useRestTimer'
+import { fmtClock, nextIncompleteSet } from '../utils/workoutSets'
 import { IconButton } from './ui'
-
-function fmt(s: number): string {
-  const m = Math.floor(s / 60)
-  return `${m}:${String(s % 60).padStart(2, '0')}`
-}
 
 // Hevy/Strong-style rest panel: a thin draining progress line, a big centred
 // countdown with a pause/resume toggle, and full-width −15/+15/Skip actions.
-// Rendered in two spots (never both at once): DOCKED in-flow at the bottom of the
-// gym set screen so it PUSHES the set content up instead of covering it, and
-// FLOATING above the tab bar everywhere else (e.g. when gym is minimized) so the
-// countdown follows you. Haptics/sound are intentionally left to a future native
-// app (the web Vibration API doesn't work on iOS Safari).
+// Shown only INSIDE the workout — DOCKED in-flow at the bottom of the gym set screen
+// (pushes the set content up instead of covering it) and FLOATING above the gym
+// overview/exercise-info screens. When the workout is minimized the countdown moves
+// to a compact chip in the session pill (see Layout's ActiveSessionBar) instead of
+// following you around the app. Haptics/sound are left to a future native app.
 export default function RestTimerBanner({ docked = false }: { docked?: boolean }) {
   const {
     restEndsAt, restDurationSec, restPausedRemainingMs, restExIdx, restSetIdx,
     session, adjustRest, clearRest, pauseRest, resumeRest,
   } = useWorkoutSession()
-  const paused = restPausedRemainingMs != null
-  const live = useCountdown(restEndsAt)
-  // While paused, restEndsAt is null (live === null) — show the parked remaining time.
-  const left = paused ? Math.max(0, Math.ceil(restPausedRemainingMs! / 1000)) : live
-  const done = !paused && live === 0
+  const { active, paused, done, left } = useRestTimer()
 
   // Drain the progress line over the *actual* remaining time (one linear CSS
   // transition), not stepping per second. A callback ref (not an effect) so it
@@ -51,18 +42,8 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
     el.style.width = '0%'
   }, [restEndsAt, restDurationSec, restPausedRemainingMs])
 
-  // Auto-dismiss a couple seconds after "rest over". Anchored to the ABSOLUTE end
-  // time (restEndsAt + 3s), not `now + 3s`, so remounting the banner mid-window
-  // (docked↔floating on phase change / minimize) doesn't re-arm a fresh 3s and make
-  // the "rest over" panel linger.
-  useEffect(() => {
-    if (restEndsAt == null || !done) return
-    const id = setTimeout(() => clearRest(), Math.max(0, restEndsAt + 3000 - Date.now()))
-    return () => clearTimeout(id)
-  }, [restEndsAt, done, clearRest])
-
-  // Hidden only when neither running nor paused (`left` is non-null in both cases).
-  if ((restEndsAt == null && !paused) || left == null) return null
+  // Hidden when no rest is running or paused (auto-dismiss lives in useRestTimer).
+  if (!active) return null
 
   // Set ↔ timer linkage (Hevy-style): the store records which set started this rest
   // (restExIdx/restSetIdx = the just-completed set); label the panel with that set
@@ -109,7 +90,7 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
               className="!text-brand-500 hover:!text-brand-500"
             />
           )}
-          <span className="font-display text-4xl font-black tabular-nums text-tx-primary leading-none">{fmt(left)}</span>
+          <span className="font-display text-4xl font-black tabular-nums text-tx-primary leading-none">{fmtClock(left)}</span>
         </div>
         {/* full-width actions */}
         {done ? (
