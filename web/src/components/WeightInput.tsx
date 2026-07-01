@@ -1,5 +1,7 @@
 import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
+import { clampStep } from '../utils/number'
+import { PLAIN_FIELD_CLASS } from './NumberField'
 
 interface Props {
   value: string
@@ -58,12 +60,7 @@ export default function WeightInput({
     onChange(next)
   }
 
-  const adjust = (delta: number) => {
-    const current = parseFloat(text)
-    const base = Number.isFinite(current) ? current : 0
-    const next = Math.min(max ?? Infinity, Math.max(0, +(base + delta).toFixed(1)))
-    emit(String(next))
-  }
+  const adjust = (delta: number) => emit(String(clampStep(parseFloat(text), delta, { max })))
 
   const inputSize = size === 'lg'
     // Bare `lg` (gym mode, custom stepper around it) matches the reps field next to
@@ -85,13 +82,13 @@ export default function WeightInput({
         inputMode="decimal"
         enterKeyHint="done"
         value={text}
-        onChange={e => emit(e.target.value)}
+        onChange={e => emit(e.target.value.replace(/-/g, ''))}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}
         disabled={disabled}
         className={plain
-          ? `w-full bg-transparent border-0 outline-none focus:ring-0 px-0 py-1 text-3xl font-black text-center tabular-nums text-tx-primary placeholder-tx-muted/50 ${disabled ? 'opacity-40' : ''}`
+          ? `${PLAIN_FIELD_CLASS} ${disabled ? 'opacity-40' : ''}`
           : `input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
         placeholder={placeholder}
       />
