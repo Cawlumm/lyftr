@@ -193,7 +193,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             <button onClick={handleMinimize} className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted" aria-label="Minimize">
               <Minimize2 className="w-4 h-4" />
             </button>
-            <button onClick={() => setConfirmCancel(true)} aria-label="Cancel workout" className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted hover:text-error-400">
+            <button onClick={() => setConfirmCancel(true)} aria-label="Discard workout" title="Discard workout" className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted hover:text-error-400">
               <X className="w-5 h-5" />
             </button>
           </div>
