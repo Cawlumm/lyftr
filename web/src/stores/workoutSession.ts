@@ -65,12 +65,24 @@ interface WorkoutSessionStore {
   restDurationSec: number | null
   restExIdx: number | null
   restSetIdx: number | null
+  // When paused, restEndsAt is nulled and the frozen remaining time is parked here
+  // (ms). This is the single "paused" flag: paused iff restPausedRemainingMs != null.
+  restPausedRemainingMs: number | null
   startRest: (durationSec: number, exIdx: number, setIdx: number) => void
   adjustRest: (deltaSec: number) => void
+  pauseRest: () => void
+  resumeRest: () => void
   clearRest: () => void
 }
 
 const _savedGymUi = loadGymUi()
+
+// All rest-timer fields nulled — the single "no active rest" state, reused wherever
+// rest is cleared (clearRest, cancelSession, and structural edits that invalidate the
+// positional restExIdx/restSetIdx).
+const CLEARED_REST = {
+  restEndsAt: null, restDurationSec: null, restExIdx: null, restSetIdx: null, restPausedRemainingMs: null,
+} as const
 
 export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   session: loadLocal(),
@@ -78,21 +90,38 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
   gymPhase: _savedGymUi.phase,
   gymExIdx: _savedGymUi.exIdx,
   gymSetIdx: _savedGymUi.setIdx,
-  restEndsAt: null,
-  restDurationSec: null,
-  restExIdx: null,
-  restSetIdx: null,
+  ...CLEARED_REST,
 
   startRest: (durationSec, exIdx, setIdx) =>
-    set({ restEndsAt: Date.now() + durationSec * 1000, restDurationSec: durationSec, restExIdx: exIdx, restSetIdx: setIdx }),
+    set({ restEndsAt: Date.now() + durationSec * 1000, restDurationSec: durationSec, restExIdx: exIdx, restSetIdx: setIdx, restPausedRemainingMs: null }),
   adjustRest: (deltaSec) => set(state => {
+    const nextDuration = Math.max(1, (state.restDurationSec ?? 0) + deltaSec)
+    // Adjusting while paused shifts the parked remaining time, not a live end stamp.
+    if (state.restPausedRemainingMs != null) {
+      const nextMs = state.restPausedRemainingMs + deltaSec * 1000
+      // Adjusted to zero while paused → finish it: unpause into the completed
+      // state (restEndsAt = now → countdown reads 0 → done → auto-dismiss), so it
+      // never sticks at "0:00 · paused" with no completion path.
+      if (nextMs <= 0) return { restPausedRemainingMs: null, restEndsAt: Date.now(), restDurationSec: nextDuration }
+      return { restPausedRemainingMs: nextMs, restDurationSec: nextDuration }
+    }
     if (state.restEndsAt == null) return {}
     return {
       restEndsAt: Math.max(Date.now(), state.restEndsAt + deltaSec * 1000),
-      restDurationSec: Math.max(1, (state.restDurationSec ?? 0) + deltaSec),
+      restDurationSec: nextDuration,
     }
   }),
-  clearRest: () => set({ restEndsAt: null, restDurationSec: null, restExIdx: null, restSetIdx: null }),
+  // Freeze the countdown: park the remaining time and null the live end stamp so
+  // useCountdown (here and in the minimized-gym mount) stops ticking.
+  pauseRest: () => set(state => {
+    if (state.restEndsAt == null || state.restPausedRemainingMs != null) return {}
+    return { restPausedRemainingMs: Math.max(0, state.restEndsAt - Date.now()), restEndsAt: null }
+  }),
+  resumeRest: () => set(state => {
+    if (state.restPausedRemainingMs == null) return {}
+    return { restEndsAt: Date.now() + state.restPausedRemainingMs, restPausedRemainingMs: null }
+  }),
+  clearRest: () => set({ ...CLEARED_REST }),
 
   openGym: () => set({ gymOpen: true }),
   minimizeGym: () => set({ gymOpen: false }),
@@ -193,7 +222,9 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     })
     const updated = { ...session, exercises }
     saveLocal(updated)
-    set({ session: updated })
+    // Removing a set shifts set indices, invalidating the positional restSetIdx — cancel
+    // the (ephemeral) rest rather than let it point at the wrong set.
+    set({ session: updated, ...CLEARED_REST })
   },
 
   addExercise: (ex) => {
@@ -209,7 +240,9 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     if (!session) return
     const updated = { ...session, exercises: session.exercises.filter((_, i) => i !== exIdx) }
     saveLocal(updated)
-    set({ session: updated })
+    // filter() shifts exercise indices, invalidating the positional restExIdx — cancel
+    // the (ephemeral) rest so it can't collapse controls on the wrong exercise.
+    set({ session: updated, ...CLEARED_REST })
   },
 
   buildPayload: () => {
@@ -239,7 +272,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     localStorage.removeItem(GYM_UI_KEY)
     set({
       session: null, gymOpen: false, gymPhase: 'overview', gymExIdx: 0, gymSetIdx: 0,
-      restEndsAt: null, restDurationSec: null, restExIdx: null, restSetIdx: null,
+      ...CLEARED_REST,
     })
   },
 }))

@@ -160,7 +160,7 @@ function UserMenu() {
 
 export default function Layout() {
   const { pathname } = useLocation()
-  const { session, gymOpen } = useWorkoutSession()
+  const { session, gymOpen, gymPhase } = useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
@@ -182,9 +182,10 @@ export default function Layout() {
         <GymModeWorkout wUnit={wUnit} />
       )}
 
-      {/* Rest timer — floats above everything (incl. the gym overlay) and on any
-          screen, so the countdown + alert survive minimizing gym mode. */}
-      <RestTimerBanner />
+      {/* Rest timer — floating variant, for every screen EXCEPT the gym set screen
+          (there GymModeWorkout docks it in-flow so it pushes content up). This keeps
+          the countdown visible when gym is minimized / you're elsewhere in the app. */}
+      {!(gymOpen && gymPhase === 'exercise') && <RestTimerBanner />}
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">
