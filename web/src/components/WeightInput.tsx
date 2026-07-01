@@ -1,4 +1,6 @@
 import { Minus, Plus } from 'lucide-react'
+import { useNumericText } from '../hooks/useNumericText'
+import { clampStep } from '../utils/number'
 
 interface Props {
   value: string
@@ -27,7 +29,7 @@ const STEP_DEFAULT = 0.5
 // Single component for every weight input in the app. Conversion-agnostic: the
 // caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`
 // toggles the prominent +/- layout (bodyweight, gym mode) vs a bare field for
-// compact sets-table rows. All weight inputs share step=0.1 + the unit suffix.
+// compact sets-table rows. (Gym set tiles use the borderless NumberField instead.)
 export default function WeightInput({
   value,
   onChange,
@@ -40,19 +42,22 @@ export default function WeightInput({
   disabled = false,
   max,
 }: Props) {
-  const adjust = (delta: number) => {
-    const current = parseFloat(value)
-    const base = Number.isFinite(current) ? current : 0
-    const next = Math.min(max ?? Infinity, Math.max(0, +(base + delta).toFixed(1)))
-    onChange(String(next))
+  // Raw typed text (see useNumericText) so in-progress entry isn't clobbered by the
+  // parent re-deriving `value` from a rounded/0→'' number on every keystroke.
+  const [text, setText] = useNumericText(value)
+
+  const emit = (next: string) => {
+    setText(next)
+    onChange(next)
   }
+
+  const adjust = (delta: number) => emit(String(clampStep(parseFloat(text), delta, { max })))
 
   const inputSize = size === 'lg'
     ? 'text-3xl py-4 font-display font-bold'
     : size === 'sm'
       ? 'text-sm py-2.5'
       : 'text-base py-2.5'
-  // Compact contexts (bare field or sm) use tighter unit padding.
   const compact = !stepper || size === 'sm'
   const pad = compact ? 'pr-7' : 'pr-12'
   const unitPos = compact ? 'right-2' : 'right-3.5'
@@ -63,8 +68,9 @@ export default function WeightInput({
         type="number"
         inputMode="decimal"
         enterKeyHint="done"
-        value={value}
-        onChange={e => onChange(e.target.value)}
+        value={text}
+        onChange={e => emit(e.target.value.replace(/-/g, ''))}
+        onKeyDown={e => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}

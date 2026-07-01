@@ -268,11 +268,11 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await page.goto('/workout/active')
     await expect(page.getByRole('button', { name: /start workout/i })).toBeVisible({ timeout: 5000 })
 
-    // X button (aria-label="Cancel workout") in overview header opens cancel confirm
-    await page.getByRole('button', { name: 'Cancel workout', exact: true }).click()
-    await expect(page.getByText('Cancel Workout?')).toBeVisible({ timeout: 3000 })
+    // X button (aria-label="Discard workout") in overview header opens the discard confirm
+    await page.getByRole('button', { name: 'Discard workout', exact: true }).click()
+    await expect(page.getByText('Discard workout?')).toBeVisible({ timeout: 3000 })
     await page.getByRole('button', { name: /keep going/i }).click()
-    await expect(page.getByText('Cancel Workout?')).not.toBeVisible()
+    await expect(page.getByText('Discard workout?')).not.toBeVisible()
   })
 
   test('gym mode navigates overview → exercise info → sets', async ({ page }) => {

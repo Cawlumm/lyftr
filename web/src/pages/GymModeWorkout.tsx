@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2,
+  Minimize2, Trash2, Repeat, Check, Layers,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
@@ -11,7 +11,10 @@ import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } 
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { workoutAPI } from '../services/api'
-import WeightInput from '../components/WeightInput'
+import StepperTile from '../components/ui/StepperTile'
+import NumberField from '../components/ui/NumberField'
+import DiscardConfirm from '../components/DiscardConfirm'
+import { clampStep, clampValue } from '../utils/number'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
@@ -127,46 +130,52 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          <div className="flex items-center gap-1.5 overflow-x-auto min-w-0">
             {s.exercises.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setGymState('exercise-info', i, 0)}
-                className={`h-1.5 rounded-full transition-all duration-200 ${
+                aria-label={`Go to exercise ${i + 1}`}
+                className={`h-1.5 rounded-full flex-shrink-0 transition-all duration-200 ${
                   i === activeIdx ? 'w-6 bg-brand-500' :
                   s.exercises[i].sets.every(st => st.completed) && s.exercises[i].sets.length > 0
                     ? 'w-2 bg-brand-500/40' : 'w-2 bg-surface-border'
                 }`}
               />
             ))}
-            <span className="text-xs text-tx-muted tabular-nums">{activeIdx + 1}/{s.exercises.length}</span>
           </div>
-          <div className="h-0.5 bg-surface-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand-500 transition-all duration-500"
-              style={{ width: `${totalSets > 0 ? (completedSets / totalSets) * 100 : 0}%` }}
-            />
-          </div>
+          <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">{activeIdx + 1}/{s.exercises.length}</span>
         </div>
-        <button
-          onClick={() => setConfirmFinish(true)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all flex-shrink-0 ${
-            allDone
-              ? 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm shadow-brand-500/30'
-              : 'bg-surface-muted text-tx-muted border border-surface-border'
-          }`}
-        >
-          <Flag className="w-3.5 h-3.5" />
-          Finish
-        </button>
-        <button
-          onClick={handleMinimize}
-          className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted"
-          aria-label="Minimize"
-        >
-          <Minimize2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <button
+            onClick={() => setConfirmFinish(true)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              allDone
+                ? 'bg-brand-500 hover:bg-brand-600 text-white shadow-sm shadow-brand-500/30'
+                : 'bg-surface-muted text-tx-muted border border-surface-border'
+            }`}
+          >
+            <Flag className="w-3.5 h-3.5" />
+            Finish
+          </button>
+          <button
+            onClick={handleMinimize}
+            className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted"
+            aria-label="Minimize workout"
+            title="Minimize"
+          >
+            <Minimize2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setConfirmCancel(true)}
+            className="p-2 hover:bg-error-500/10 rounded-xl transition-colors text-tx-muted hover:text-error-400"
+            aria-label="Discard workout"
+            title="Discard workout"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
     )
   }
@@ -184,7 +193,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             <button onClick={handleMinimize} className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted" aria-label="Minimize">
               <Minimize2 className="w-4 h-4" />
             </button>
-            <button onClick={() => setConfirmCancel(true)} aria-label="Cancel workout" className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted hover:text-error-400">
+            <button onClick={() => setConfirmCancel(true)} aria-label="Discard workout" title="Discard workout" className="p-2 hover:bg-surface-muted rounded-xl transition-colors text-tx-muted hover:text-error-400">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -288,22 +297,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </div>,
           document.body
         )}
-        {confirmCancel && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
       </div>
     )
   }
@@ -322,6 +316,15 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
       ? exercise.description.split('\n').filter(l => l.trim())
       : []
     const bodyData = buildBodyData(exercise)
+    // Plan summary: one value if every set matches, else a min–max range.
+    const repsVals = ex.sets.map(s => s.target_reps).filter(r => r > 0)
+    const wtVals = ex.sets.map(s => displayWeight(s.target_weight, wUnit)).filter(w => w > 0)
+    const range = (a: number[]) => (a.length === 0 ? '—' : Math.min(...a) === Math.max(...a) ? String(Math.min(...a)) : `${Math.min(...a)}–${Math.max(...a)}`)
+    const planStats = [
+      { icon: Layers, label: 'Sets', value: <>{ex.sets.length}</> },
+      { icon: Repeat, label: 'Reps', value: <>{range(repsVals)}</> },
+      { icon: Dumbbell, label: 'Weight', value: <>{range(wtVals)}<span className="text-xs font-semibold text-tx-muted ml-0.5">{wUnit}</span></> },
+    ]
 
     return (
       <div className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
@@ -352,11 +355,22 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                   </span>
                 )}
                 {exercise.category && (
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-xs font-medium text-brand-400 capitalize">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-surface-muted border border-surface-border text-xs font-medium text-tx-secondary capitalize">
                     {exercise.category}
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* Plan — what you're about to do, as an icon stat strip */}
+            <div className="card p-4 grid grid-cols-3 divide-x divide-surface-border">
+              {planStats.map(({ icon: Ico, label, value }) => (
+                <div key={label} className="flex flex-col items-center gap-1.5 px-2">
+                  <Ico className="w-4 h-4 text-brand-400" />
+                  <span className="font-display font-bold text-xl text-tx-primary tabular-nums leading-none whitespace-nowrap">{value}</span>
+                  <span className="text-[10px] font-medium text-tx-muted uppercase tracking-wider">{label}</span>
+                </div>
+              ))}
             </div>
 
             {/* Secondary muscles */}
@@ -448,22 +462,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </div>,
           document.body
         )}
-        {confirmCancel && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Trash2 className="w-3.5 h-3.5" />Cancel
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
       </div>
     )
   }
@@ -512,8 +511,8 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             </div>
           </div>
           {!allSetsComplete && (
-            <button onClick={handleRemoveExercise} className="p-1.5 hover:bg-error-500/10 rounded-lg transition-colors flex-shrink-0">
-              <X className="w-4 h-4 text-tx-muted hover:text-error-400 transition-colors" />
+            <button onClick={handleRemoveExercise} aria-label="Remove this exercise" title="Remove exercise" className="p-1.5 hover:bg-error-500/10 rounded-lg transition-colors flex-shrink-0">
+              <Trash2 className="w-4 h-4 text-tx-muted hover:text-error-400 transition-colors" />
             </button>
           )}
         </div>
@@ -522,73 +521,76 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         </div>
       </div>
 
-      {/* Set dots nav */}
-      <div className="flex items-center justify-center gap-2 py-3 px-5 flex-shrink-0">
-        {ex.sets.map((s, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveSetIdx(i)}
-            className={`rounded-full transition-all duration-200 ${
-              i === clampedSetIdx ? 'w-6 h-2.5 bg-brand-500' :
-              s.completed ? 'w-2.5 h-2.5 bg-brand-500/50' :
-              'w-2.5 h-2.5 bg-surface-border'
-            }`}
-          />
-        ))}
-      </div>
-
-      {/* Single set card — centred, fills remaining space */}
+      {/* The whole logging group (set chips, target, inputs, action) centred
+          together as one composed unit. */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6">
-        {/* Set label */}
-        <div className="text-center">
-          <p className={`text-6xl font-black tabular-nums transition-colors ${set.completed ? 'text-brand-400' : 'text-tx-primary'}`}>
-            {set.set_number}
-          </p>
-          <p className="text-sm text-tx-muted mt-1">of {ex.sets.length} sets</p>
+        {/* Set selector — one chip per set: active filled, done shows a check.
+            Progress + navigation in one place (replaced the old dots + big number). */}
+        <div className="flex items-center justify-center flex-wrap gap-2">
+          {ex.sets.map((s, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveSetIdx(i)}
+              aria-label={`Set ${i + 1}${s.completed ? ', done' : ''}`}
+              aria-current={i === clampedSetIdx}
+              className={`flex items-center justify-center gap-1 min-w-[2.75rem] h-10 px-3 rounded-full text-sm font-bold tabular-nums transition-all active:scale-95 ${
+                i === clampedSetIdx ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/30' :
+                s.completed ? 'bg-brand-500/15 text-brand-400' :
+                'bg-surface-muted text-tx-muted hover:text-tx-secondary'
+              }`}
+            >
+              {s.completed && <Check className="w-3.5 h-3.5" />}
+              {i + 1}
+            </button>
+          ))}
         </div>
 
-        {/* Reps + Weight inputs */}
-        <div className="w-full grid grid-cols-2 gap-4">
-          {/* Reps */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Reps</p>
-            <div className="flex items-center gap-2 w-full">
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.max(0, (set.actual_reps || 0) - 1))}
-                disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
-              >−</button>
-              <input
-                type="number" inputMode="numeric"
-                value={set.actual_reps || ''}
-                onChange={e => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Number(e.target.value) || 0)}
-                placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'}
-                className={`input text-2xl font-bold text-center flex-1 py-3 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
-                disabled={set.completed}
-              />
-              <button
-                onClick={() => updateSet(activeIdx, clampedSetIdx, 'actual_reps', (set.actual_reps || 0) + 1)}
-                disabled={set.completed}
-                className="w-11 h-11 rounded-xl bg-surface-muted hover:bg-surface-muted/80 border border-surface-border flex items-center justify-center text-xl font-bold text-tx-secondary transition-colors disabled:opacity-30"
-              >+</button>
-            </div>
-          </div>
+        {/* Target reference for this set (the goal to hit) */}
+        {(set.target_reps > 0 || set.target_weight > 0) && (
+          <p className="text-sm text-tx-muted text-center">
+            Target{' '}
+            <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? set.target_reps : '—'} reps</span>
+            {set.target_weight > 0 && (
+              <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
+            )}
+          </p>
+        )}
+
+        {/* Reps + Weight — a tile per metric: icon header, big value, split ⊖/⊕ footer.
+            Value spans the full tile (buttons are below, not flanking) so long
+            weights never clip. */}
+        <div className="w-full grid grid-cols-2 gap-3">
+          {/* Reps — key by set so a half-typed value can't bleed to the next set */}
+          <StepperTile
+            icon={Repeat} label="Reps" name="reps" step={1} disabled={set.completed}
+            onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}
+          >
+            <NumberField
+              key={`reps-${activeIdx}-${clampedSetIdx}`}
+              inputMode="numeric"
+              value={set.actual_reps ? String(set.actual_reps) : ''}
+              onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))}
+              placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'}
+              disabled={set.completed}
+              aria-label="Reps"
+            />
+          </StepperTile>
 
           {/* Weight */}
-          <div className="flex flex-col items-center gap-2">
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Weight ({wUnit})</p>
-            <div className="w-full">
-              <WeightInput
-                size="lg"
-                step={2.5}
-                value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
-                onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
-                unit={wUnit}
-                placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
-                disabled={set.completed}
-              />
-            </div>
-          </div>
+          <StepperTile
+            icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={2.5} disabled={set.completed}
+            onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
+          >
+            <NumberField
+              key={`wt-${activeIdx}-${clampedSetIdx}`}
+              inputMode="decimal"
+              value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
+              onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), wUnit))}
+              placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
+              disabled={set.completed}
+              aria-label="Weight"
+            />
+          </StepperTile>
         </div>
 
         {/* Complete button */}
@@ -604,13 +606,16 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           {set.completed ? 'Completed' : 'Complete Set'}
         </button>
 
-        {/* Remove set */}
-        <button
-          onClick={() => handleRemoveSet(clampedSetIdx)}
-          className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
-        >
-          Remove this set
-        </button>
+        {/* Remove set — hidden on the last set (removing it would empty the exercise
+            and drop to a blank screen; use the header trash to remove the exercise) */}
+        {ex.sets.length > 1 && (
+          <button
+            onClick={() => handleRemoveSet(clampedSetIdx)}
+            className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
+          >
+            Remove this set
+          </button>
+        )}
       </div>
 
       {/* Bottom nav */}
@@ -700,25 +705,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
       )}
 
       {/* ── Cancel confirm ── */}
-      {confirmCancel && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmCancel(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Keep Going
-              </button>
-              <button onClick={() => { cancelSession(); handleMinimize() }} className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
     </div>
   )
 }
