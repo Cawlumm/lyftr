@@ -61,6 +61,15 @@ export interface Workout {
   started_at: string
   created_at: string
   exercises: WorkoutExercise[]
+  // Present on the create response when finishing auto-progressed routine targets (#40).
+  progression?: ProgressionResult
+}
+
+// Summary of a routine auto-progression, used to show the finish toast (#40).
+export interface ProgressionResult {
+  program_id: number
+  program_name: string
+  count: number
 }
 
 export interface WeightLog {
@@ -177,6 +186,9 @@ export interface ActiveSessionSet {
   actual_reps: number
   actual_weight: number
   completed: boolean
+  // Links back to the routine's ProgramSet so finishing can auto-progress that
+  // target (issue #40). Absent for freestyle sessions and ad-hoc added sets.
+  program_set_id?: number
 }
 
 export interface ActiveSessionExercise {

@@ -137,6 +137,85 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 	return s.get(id)
 }
 
+// ProgressInput is one logged working set to consider for auto-progression:
+// the routine set it came from and what the user actually logged.
+type ProgressInput struct {
+	ProgramSetID int64
+	Weight       float64
+	Reps         int
+}
+
+// ProgressTargets bumps a routine's per-set targets to match sets the user beat
+// this workout (issue #40 — Hevy-style auto-progression). Upward only, per
+// progressedTarget. Returns the routine name and how many targets actually
+// changed. If the program isn't the caller's, nothing is touched (name "",
+// count 0, no error): the ownership check plus the pe.program_id join are what
+// stop a client from bumping another user's routine by guessing set ids.
+func (s *ProgramStore) ProgressTargets(uid, programID int64, sets []ProgressInput) (string, int, error) {
+	var name string
+	count := 0
+	err := inTxDo(s.db, func(tx *sql.Tx) error {
+		if err := tx.QueryRow(`SELECT name FROM programs WHERE id = ? AND user_id = ?`, programID, uid).Scan(&name); err != nil {
+			return err
+		}
+		for _, in := range sets {
+			var curReps int
+			var curWeight float64
+			// Re-assert the set belongs to THIS (already-owned) program before touching it.
+			err := tx.QueryRow(
+				`SELECT ps.target_reps, ps.target_weight
+				 FROM program_sets ps
+				 JOIN program_exercises pe ON pe.id = ps.program_exercise_id
+				 WHERE ps.id = ? AND pe.program_id = ?`,
+				in.ProgramSetID, programID,
+			).Scan(&curReps, &curWeight)
+			if err == sql.ErrNoRows {
+				continue // set isn't in this routine anymore (edited/deleted) — skip
+			}
+			if err != nil {
+				return err
+			}
+			newWeight, newReps, improved := progressedTarget(curWeight, curReps, in.Weight, in.Reps)
+			if !improved {
+				continue
+			}
+			if _, err := tx.Exec(
+				`UPDATE program_sets SET target_weight = ?, target_reps = ? WHERE id = ?`,
+				newWeight, newReps, in.ProgramSetID,
+			); err != nil {
+				return err
+			}
+			count++
+		}
+		return nil
+	})
+	if err == sql.ErrNoRows {
+		return "", 0, nil // not the caller's program — no-op, not an error
+	}
+	if err != nil {
+		return "", 0, err
+	}
+	return name, count, nil
+}
+
+// progressedTarget applies the upward-only progression rule for a single set and
+// reports whether the target changed: a heavier logged weight raises the weight
+// and adopts the reps done at it; the same weight with more reps raises the reps;
+// equal-or-lighter leaves the target untouched (a deload never lowers a routine).
+// eps absorbs float drift from unit conversion so an unchanged weight still counts
+// as "same" for the reps branch.
+func progressedTarget(curWeight float64, curReps int, logWeight float64, logReps int) (float64, int, bool) {
+	const eps = 1e-6
+	switch {
+	case logWeight > curWeight+eps:
+		return logWeight, logReps, true
+	case logWeight >= curWeight-eps && logReps > curReps:
+		return curWeight, logReps, true
+	default:
+		return curWeight, curReps, false
+	}
+}
+
 func (s *ProgramStore) Delete(uid, id int64) (int64, error) {
 	res, err := s.db.Exec(`DELETE FROM programs WHERE id = ? AND user_id = ?`, id, uid)
 	if err != nil {

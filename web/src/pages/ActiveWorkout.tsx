@@ -104,9 +104,10 @@ export default function ActiveWorkout() {
     setSaveError('')
     try {
       const payload = buildPayload()
-      await workoutAPI.create(payload)
+      const saved = await workoutAPI.create(payload)
       cancelSession()
-      navigate('/workouts')
+      // Surface the routine auto-progression as a toast on the workouts list (#40).
+      navigate('/workouts', saved?.progression ? { state: { progression: saved.progression } } : undefined)
     } catch (err: any) {
       setSaveError(err.response?.data?.error || 'Failed to save workout')
       setSaving(false)

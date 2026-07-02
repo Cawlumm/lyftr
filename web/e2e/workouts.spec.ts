@@ -4,6 +4,7 @@ import { cleanupSeed } from './seedHelpers'
 const E2E_WORKOUT_NAME = 'Test Workout E2E'
 const SEED_WORKOUT_NAME = 'Seeded Test Workout'
 const SEED_SEARCH_WORKOUT_NAME = 'ZZZ E2E SearchTarget Workout'
+const PROG_PROGRESSION_NAME = 'E2E AutoProgression Routine'
 const LAYOUT_KEY = 'lyftr_workout_layout'
 const SESSION_KEY = 'lyftr_active_session'
 
@@ -176,6 +177,56 @@ test.describe('Workouts', () => {
 
     await page.goto('/settings')
     await page.getByRole('button', { name: 'lbs' }).click()
+  })
+
+  // Issue #40: finishing a workout that beat a routine's per-set target bumps that
+  // target and toasts it. Drives the real finish flow; asserts the routine via API.
+  test('finishing a workout that beats a routine target auto-progresses it', async ({ page, request }) => {
+    const headers = { Authorization: `Bearer ${authToken}` }
+    const exId = (await (await request.get(`${API}/exercises?limit=1`, { headers })).json()).data[0].id
+
+    // Routine with one working set targeting 5 × 100.
+    const created = await request.post(`${API}/programs`, {
+      headers,
+      data: { name: PROG_PROGRESSION_NAME, notes: '', exercises: [{ exercise_id: exId, notes: '', rest_seconds: 90, sets: [{ set_number: 1, target_reps: 5, target_weight: 100 }] }] },
+    })
+    const progId = (await created.json()).data.id
+    const psid = (await (await request.get(`${API}/programs/${progId}`, { headers })).json()).data.exercises[0].sets[0].id
+
+    // Seed a list-mode session where the logged set beat the target (105 > 100).
+    const session = {
+      program_id: progId,
+      name: PROG_PROGRESSION_NAME,
+      started_at: new Date(Date.now() - 600000).toISOString(),
+      exercises: [{
+        exercise_id: exId,
+        exercise: { id: exId, name: 'Bench Press', muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+        notes: '', rest_seconds: 90,
+        sets: [{ set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 105, completed: true, program_set_id: psid }],
+      }],
+    }
+    await page.addInitScript(({ sk, lk, s }: { sk: string; lk: string; s: any }) => {
+      localStorage.setItem(sk, JSON.stringify(s))
+      localStorage.setItem(lk, 'list')
+    }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: session })
+
+    await page.goto('/workout/active')
+    await page.getByRole('button', { name: 'Finish' }).first().click()
+    await page.getByRole('button', { name: 'Finish' }).last().click()
+
+    await page.waitForURL('**/workouts')
+    await expect(page.getByText(/Progressed 1 target/)).toBeVisible({ timeout: 5000 })
+
+    // The routine's target was bumped 100 → 105.
+    const after = await (await request.get(`${API}/programs/${progId}`, { headers })).json()
+    expect(after.data.exercises[0].sets[0].target_weight).toBe(105)
+
+    // Cleanup: the workout we just logged + the routine.
+    const wl = await (await request.get(`${API}/workouts?limit=20`, { headers })).json()
+    for (const w of (wl.data ?? []).filter((x: any) => x.name === PROG_PROGRESSION_NAME)) {
+      await request.delete(`${API}/workouts/${w.id}`, { headers })
+    }
+    await request.delete(`${API}/programs/${progId}`, { headers })
   })
 })
 

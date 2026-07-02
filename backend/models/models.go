@@ -40,6 +40,17 @@ type Workout struct {
 	StartedAt time.Time         `json:"started_at" db:"started_at"`
 	CreatedAt time.Time         `json:"created_at" db:"created_at"`
 	Exercises []WorkoutExercise `json:"exercises,omitempty"`
+	// Progression is set in-memory on the create response when finishing this
+	// workout auto-progressed routine targets (issue #40). Never persisted.
+	Progression *ProgressionResult `json:"progression,omitempty"`
+}
+
+// ProgressionResult summarizes an auto-progression for the finish toast: which
+// routine and how many of its per-set targets were bumped. Transient (issue #40).
+type ProgressionResult struct {
+	ProgramID   int64  `json:"program_id"`
+	ProgramName string `json:"program_name"`
+	Count       int    `json:"count"`
 }
 
 type WorkoutExercise struct {
@@ -155,6 +166,10 @@ type CreateWorkoutRequest struct {
 	Notes     string                     `json:"notes"`
 	Duration  int                        `json:"duration"`
 	StartedAt time.Time                  `json:"started_at"`
+	// ProgramID is set when the workout was started from a routine — it enables
+	// per-set auto-progression of that routine's targets (issue #40). nil for
+	// freestyle/quick workouts, which never progress a routine.
+	ProgramID *int64                     `json:"program_id"`
 	Exercises []CreateWorkoutExerciseReq `json:"exercises"`
 }
 
@@ -174,6 +189,10 @@ type CreateSetReq struct {
 	Distance  float64 `json:"distance"`
 	RPE       float64 `json:"rpe"`
 	IsWarmup  bool    `json:"is_warmup"`
+	// ProgramSetID links this logged set back to the routine set it came from, so
+	// auto-progression (issue #40) can bump exactly that target. nil for sets not
+	// sourced from a routine (freestyle, or ad-hoc sets added mid-workout).
+	ProgramSetID *int64 `json:"program_set_id"`
 }
 
 type LogWeightRequest struct {

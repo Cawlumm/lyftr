@@ -39,6 +39,7 @@ export default function StartWorkout() {
         actual_reps: s.target_reps,
         actual_weight: s.target_weight,
         completed: false,
+        program_set_id: s.id, // link for routine target auto-progression (#40)
       })),
     }))
     startSession(program.name, exercises, program.id)

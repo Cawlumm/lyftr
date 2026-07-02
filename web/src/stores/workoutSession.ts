@@ -254,6 +254,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
       notes: '',
       duration: durationSec,
       started_at: session.started_at,
+      program_id: session.program_id ?? null, // lets the backend auto-progress the routine (#40)
       exercises: session.exercises.map(ex => ({
         exercise_id: ex.exercise_id,
         notes: ex.notes,
@@ -262,6 +263,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
           set_number: i + 1,
           reps: s.actual_reps || s.target_reps,
           weight: s.actual_weight || s.target_weight,
+          program_set_id: s.program_set_id ?? null, // which routine target this set can progress (#40)
         })),
       })),
     }
