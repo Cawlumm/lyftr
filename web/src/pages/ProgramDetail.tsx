@@ -4,13 +4,16 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Pause, TimerOff,
-  Award, TrendingUp, Check, X,
+  Award, TrendingUp, Check, X, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
+
+// Rows shown before the review banner collapses behind a "Show all" toggle (#40).
+const SUGGESTION_CAP = 3
 
 export default function ProgramDetail() {
   const { id } = useParams<{ id: string }>()
@@ -26,6 +29,7 @@ export default function ProgramDetail() {
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [resolving, setResolving] = useState(false)
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
 
   // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
   // then refresh from the returned program.
@@ -196,7 +200,7 @@ export default function ProgramDetail() {
             <span className="text-sm font-semibold text-tx-primary flex-1">New targets from your last workout</span>
             <span className="text-xs font-bold text-warning-400 bg-warning-500/15 px-2 py-0.5 rounded-full tabular-nums">{suggestions.length}</span>
           </div>
-          {suggestions.map(sg => (
+          {(showAllSuggestions ? suggestions : suggestions.slice(0, SUGGESTION_CAP)).map(sg => (
             <div key={sg.setId} className="flex items-center gap-3 px-4 py-2.5 border-t border-surface-border/60">
               <span className="text-sm text-tx-secondary min-w-0 flex-1 truncate flex items-center gap-1.5">
                 {sg.isPR && <Award className="w-3.5 h-3.5 text-warning-400 flex-shrink-0" />}
@@ -227,6 +231,16 @@ export default function ProgramDetail() {
               </span>
             </div>
           ))}
+          {suggestions.length > SUGGESTION_CAP && (
+            <button
+              onClick={() => setShowAllSuggestions(v => !v)}
+              className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 text-warning-400 hover:text-warning-300 text-xs font-semibold transition-colors"
+            >
+              {showAllSuggestions
+                ? <>Show less <ChevronUp className="w-3.5 h-3.5" /></>
+                : <>Show all {suggestions.length} <ChevronDown className="w-3.5 h-3.5" /></>}
+            </button>
+          )}
           <div className="flex gap-2 px-4 py-3 border-t border-surface-border/60">
             <button
               onClick={() => resolveSuggestions([], suggestedSetIds)}
