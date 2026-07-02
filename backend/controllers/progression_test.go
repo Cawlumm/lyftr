@@ -119,6 +119,34 @@ func TestSuggestTargets_StagesUpwardOnly(t *testing.T) {
 	}
 }
 
+// A pending suggestion is never downgraded by a later smaller-but-over-target set;
+// a bigger one overwrites it (compare against best-of target/pending).
+func TestSuggestTargets_KeepsBestPending(t *testing.T) {
+	setupTestDB(t)
+	ps := stores.NewProgramStore(db.DB)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+	pid, ids := seedProgram(t, uid, exID, []ptTarget{{5, 100}})
+
+	// Stage 110, then a lighter 105 (still > target 100) must NOT downgrade it.
+	ps.SuggestTargets(uid, pid, []stores.ProgressInput{{ProgramSetID: ids[0], Weight: 110, Reps: 5}})
+	_, count, _, _ := ps.SuggestTargets(uid, pid, []stores.ProgressInput{{ProgramSetID: ids[0], Weight: 105, Reps: 5}})
+	if count != 0 {
+		t.Errorf("count = %d, want 0 (105 shouldn't overwrite pending 110)", count)
+	}
+	if _, w, _, _ := getSuggestion(t, ids[0]); w != 110 {
+		t.Errorf("pending suggestion = %.1f, want 110 (not downgraded)", w)
+	}
+	// A bigger 115 does overwrite.
+	_, count2, _, _ := ps.SuggestTargets(uid, pid, []stores.ProgressInput{{ProgramSetID: ids[0], Weight: 115, Reps: 5}})
+	if count2 != 1 {
+		t.Errorf("count = %d, want 1 (115 overwrites pending 110)", count2)
+	}
+	if _, w, _, _ := getSuggestion(t, ids[0]); w != 115 {
+		t.Errorf("pending suggestion = %.1f, want 115", w)
+	}
+}
+
 // A lighter set never stages a suggestion, even with more reps (weight-first rule).
 func TestSuggestTargets_NeverLowers(t *testing.T) {
 	setupTestDB(t)

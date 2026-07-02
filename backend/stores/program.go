@@ -164,21 +164,32 @@ func (s *ProgramStore) SuggestTargets(uid, programID int64, sets []ProgressInput
 		for _, in := range sets {
 			var curReps int
 			var curWeight float64
+			var sugReps sql.NullInt64
+			var sugWeight sql.NullFloat64
 			// Re-assert the set belongs to THIS (already-owned) program before touching it.
 			err := tx.QueryRow(
-				`SELECT ps.target_reps, ps.target_weight
+				`SELECT ps.target_reps, ps.target_weight, ps.suggested_reps, ps.suggested_weight
 				 FROM program_sets ps
 				 JOIN program_exercises pe ON pe.id = ps.program_exercise_id
 				 WHERE ps.id = ? AND pe.program_id = ?`,
 				in.ProgramSetID, programID,
-			).Scan(&curReps, &curWeight)
+			).Scan(&curReps, &curWeight, &sugReps, &sugWeight)
 			if err == sql.ErrNoRows {
 				continue // set isn't in this routine anymore (edited/deleted) — skip
 			}
 			if err != nil {
 				return err
 			}
-			newWeight, newReps, improved := progressedTarget(curWeight, curReps, in.Weight, in.Reps)
+			// Compare against the best of (current target, any pending suggestion) so a
+			// smaller-but-still-over-target set can't downgrade an un-approved PR (#40 edge).
+			baseReps, baseWeight := curReps, curWeight
+			if sugReps.Valid {
+				baseReps = int(sugReps.Int64)
+			}
+			if sugWeight.Valid {
+				baseWeight = sugWeight.Float64
+			}
+			newWeight, newReps, improved := progressedTarget(baseWeight, baseReps, in.Weight, in.Reps)
 			if !improved {
 				continue
 			}

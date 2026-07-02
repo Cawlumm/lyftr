@@ -120,21 +120,36 @@ export default function ProgramDetail() {
   const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
 
   // Pending auto-progression suggestions (#40), flattened for the review banner. A
-  // suggestion exists when suggested_reps is set; weight-vs-reps change decides the label.
+  // suggestion exists when suggested_reps is set. Show the FULL reps×weight on both
+  // sides when both changed (a heavier set can also drop the rep target — the user
+  // must see that before approving), else the single changed dimension.
   const suggestions = exs.flatMap(ex =>
     (ex.sets ?? [])
       .filter(s => s.id != null && s.suggested_reps != null)
       .map(s => {
-        const weightChanged = s.suggested_weight != null && Math.abs(s.suggested_weight - s.target_weight) > 1e-6
+        const sw = s.suggested_weight as number
+        const sr = s.suggested_reps as number
+        const weightChanged = s.suggested_weight != null && Math.abs(sw - s.target_weight) > 1e-6
+        const repsChanged = sr !== s.target_reps
+        const wLabel = (v: number) => (v > 0 ? `${displayWeight(v, wUnit)} ${wUnit}` : 'BW')
+        let oldLabel: string, newLabel: string
+        if (weightChanged && repsChanged) {
+          oldLabel = `${s.target_reps} × ${wLabel(s.target_weight)}`
+          newLabel = `${sr} × ${wLabel(sw)}`
+        } else if (weightChanged) {
+          oldLabel = wLabel(s.target_weight)
+          newLabel = wLabel(sw)
+        } else {
+          oldLabel = `${s.target_reps}`
+          newLabel = `${sr} reps`
+        }
         return {
           setId: s.id as number,
           exName: ex.exercise?.name ?? 'Exercise',
           setNumber: s.set_number,
           isPR: !!s.suggested_is_pr,
-          oldLabel: weightChanged ? `${displayWeight(s.target_weight, wUnit)}` : `${s.target_reps}`,
-          newLabel: weightChanged
-            ? `${displayWeight(s.suggested_weight as number, wUnit)} ${wUnit}`
-            : `${s.suggested_reps} reps`,
+          oldLabel,
+          newLabel,
         }
       })
   )
