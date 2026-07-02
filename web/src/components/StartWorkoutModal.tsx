@@ -47,6 +47,7 @@ export default function StartWorkoutModal({ isOpen, onClose }: Props) {
       exercise_id: ex.exercise_id,
       exercise: ex.exercise,
       notes: ex.notes || '',
+      rest_seconds: ex.rest_seconds,
       sets: (ex.sets || []).map(s => ({
         set_number: s.set_number,
         target_reps: s.target_reps,

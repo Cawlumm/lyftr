@@ -44,6 +44,39 @@ func alterMigrations() {
 			log.Println("migration: added food_logs.image_url")
 		}
 	}
+
+	// Per-exercise rest timer (#33). Existing rows seed to 90s (on); 0 = off.
+	ensureColumn("program_exercises", "rest_seconds", `ALTER TABLE program_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
+	ensureColumn("workout_exercises", "rest_seconds", `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
+}
+
+// ensureColumn adds a column to a table if it's missing — idempotent on every boot.
+func ensureColumn(table, column, alterSQL string) {
+	rows, err := DB.Query("PRAGMA table_info(" + table + ")")
+	if err != nil {
+		return
+	}
+	has := false
+	for rows.Next() {
+		var cid int
+		var name, typ string
+		var notnull int
+		var dflt interface{}
+		var pk int
+		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
+			continue
+		}
+		if name == column {
+			has = true
+		}
+	}
+	rows.Close()
+	if !has {
+		if _, err := DB.Exec(alterSQL); err != nil {
+			log.Fatalf("alter %s add %s: %v", table, column, err)
+		}
+		log.Printf("migration: added %s.%s", table, column)
+	}
 }
 
 const schema = `

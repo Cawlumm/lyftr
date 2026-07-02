@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight,
+  ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Pause, TimerOff,
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -17,6 +17,8 @@ export default function ProgramDetail() {
   const { session, startSession } = useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
+  const restOn = settings.rest_enabled ?? true
+  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [program, setProgram] = useState<types.Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +46,7 @@ export default function ProgramDetail() {
       exercise_id: ex.exercise_id,
       exercise: ex.exercise,
       notes: ex.notes || '',
+      rest_seconds: ex.rest_seconds,
       sets: (ex.sets || []).map(s => ({
         set_number: s.set_number,
         target_reps: s.target_reps,
@@ -190,6 +193,11 @@ export default function ProgramDetail() {
       </div>
 
       {/* Exercises */}
+      {!restOn && (
+        <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
+          <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+        </div>
+      )}
       <div className="space-y-2">
         {exs.map((ex) => {
           const sets = ex.sets ?? []
@@ -217,31 +225,36 @@ export default function ProgramDetail() {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <div className="flex items-center gap-2 mt-0.5">
                     {ex.exercise?.muscle_group && (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
                         {ex.exercise.muscle_group}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted">{sets.length} sets</span>
-                    {maxTarget > 0 && <span className="text-xs text-tx-muted">target {maxTarget} {wUnit}</span>}
+                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
               </div>
 
               {sets.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 px-4 pb-4 border-t border-surface-border/50 pt-3">
-                  {sets.map((set, i) => {
-                    const isBest = set.target_weight === maxTargetLbs && maxTargetLbs > 0
-                    return (
-                      <div key={i} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
-                        isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
-                      }`}>
-                        {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
-                      </div>
-                    )
-                  })}
+                <div className="flex items-center gap-2 px-4 pb-4 border-t border-surface-border/50 pt-3">
+                  <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                    {sets.map((set, i) => {
+                      const isBest = set.target_weight === maxTargetLbs && maxTargetLbs > 0
+                      return (
+                        <div key={i} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
+                          isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
+                        }`}>
+                          {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {restOn && (ex.rest_seconds === 0
+                    ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
+                    : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
+                  )}
                 </div>
               )}
             </button>

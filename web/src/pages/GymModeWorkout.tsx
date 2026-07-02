@@ -3,18 +3,22 @@ import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
-  Minimize2, Trash2, Repeat, Check, Layers,
+  Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import * as types from '../types'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { useSettingsStore } from '../stores/settings'
+import RestPicker from '../components/RestPicker'
+import RestTimerBanner from '../components/RestTimerBanner'
 import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
 import { clampStep, clampValue } from '../utils/number'
+import { nextIncompleteSet } from '../utils/workoutSets'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
@@ -66,7 +70,9 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     gymPhase: phase, gymExIdx: activeIdx, gymSetIdx: activeSetIdx, setGymState,
     updateSet, completeSet, addSet, removeSet, removeExercise, updateExerciseNotes,
     buildPayload, cancelSession,
+    startRest, clearRest, restExIdx, restSetIdx, setExerciseRest,
   } = useWorkoutSession()
+  const { settings } = useSettingsStore()
 
   const [imgFailed, setImgFailed] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
@@ -373,6 +379,16 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               ))}
             </div>
 
+            {/* Rest timer for this exercise */}
+            <div className="card p-4">
+              <div className="flex items-center gap-2">
+                <Timer className="w-4 h-4 text-brand-500" />
+                <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Rest between sets</p>
+              </div>
+              <p className="text-[11px] text-tx-muted mt-1 mb-3">Auto-starts when you complete a set</p>
+              <RestPicker value={ex.rest_seconds ?? (settings.rest_seconds_default ?? 90)} onChange={secs => setExerciseRest(activeIdx, secs)} />
+            </div>
+
             {/* Secondary muscles */}
             {exercise.secondary_muscles?.length > 0 && (
               <div>
@@ -474,9 +490,20 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   const set = ex.sets[clampedSetIdx]
 
   const handleCompleteSetGym = (setIdx: number) => {
+    const wasCompleted = ex.sets[setIdx].completed
     completeSet(activeIdx, setIdx)
+    if (wasCompleted) {
+      // Un-completing: cancel the running rest only if it belongs to this set.
+      if (restExIdx === activeIdx && restSetIdx === setIdx) clearRest()
+      return
+    }
+    // Completing: start rest (per-exercise value, else the global default; 0 = off).
+    if (settings.rest_enabled) {
+      const r = ex.rest_seconds ?? settings.rest_seconds_default ?? 90
+      if (r > 0) startRest(r, activeIdx, setIdx)
+    }
     // Auto-advance to next incomplete set
-    const next = ex.sets.findIndex((s, i) => i > setIdx && !s.completed)
+    const next = nextIncompleteSet(ex.sets, setIdx)
     if (next !== -1) setActiveSetIdx(next)
   }
 
@@ -493,6 +520,14 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   }
 
   if (!set) return null
+
+  // Rest-timer view state for this exercise (restExIdx/restSetIdx are cleared or
+  // remapped by the store on structural edits, so they're safe to key on here).
+  const restingHere = restExIdx === activeIdx
+  // The set the rest is "before" — the one auto-advance focuses. We only collapse the
+  // Complete Set control for THAT set, so navigating to a different set stays loggable.
+  const restNextSet = restingHere && restSetIdx != null ? nextIncompleteSet(ex.sets, restSetIdx) : -1
+  const hideCompleteForRest = restingHere && clampedSetIdx === restNextSet
 
   return (
     <div className="fixed inset-0 z-[60] bg-surface-base flex flex-col">
@@ -521,28 +556,41 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         </div>
       </div>
 
-      {/* The whole logging group (set chips, target, inputs, action) centred
-          together as one composed unit. */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 gap-6">
+      {/* The whole logging group (set chips, target, inputs, action). Scrollable +
+          min-h-0 so when the rest timer docks below and compresses this area the
+          content scrolls instead of clipping; m-auto keeps it centred when it fits. */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+        {/* m-auto (not justify-center): centres the group when it fits, and when the
+            docked rest panel leaves too little room (short phones) the auto margins
+            collapse and the group scrolls with EVERYTHING reachable — margin-auto is
+            scroll-stable where flex justify-center fights the scroll. No hardcoded
+            heights. Spacing tightens while resting; roomy otherwise. */}
+        <div className={`m-auto w-full flex flex-col items-center px-5 ${restingHere ? 'gap-4 py-2' : 'gap-6 py-4'}`}>
         {/* Set selector — one chip per set: active filled, done shows a check.
             Progress + navigation in one place (replaced the old dots + big number). */}
         <div className="flex items-center justify-center flex-wrap gap-2">
-          {ex.sets.map((s, i) => (
-            <button
-              key={i}
-              onClick={() => setActiveSetIdx(i)}
-              aria-label={`Set ${i + 1}${s.completed ? ', done' : ''}`}
-              aria-current={i === clampedSetIdx}
-              className={`flex items-center justify-center gap-1 min-w-[2.75rem] h-10 px-3 rounded-full text-sm font-bold tabular-nums transition-all active:scale-95 ${
-                i === clampedSetIdx ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/30' :
-                s.completed ? 'bg-brand-500/15 text-brand-400' :
-                'bg-surface-muted text-tx-muted hover:text-tx-secondary'
-              }`}
-            >
-              {s.completed && <Check className="w-3.5 h-3.5" />}
-              {i + 1}
-            </button>
-          ))}
+          {ex.sets.map((s, i) => {
+            // Set ↔ timer linkage: while resting, the chip of the set that started
+            // the timer keeps a subtle brand ring so it reads as "resting after
+            // this one" even though focus auto-advanced to the next set.
+            const resting = restingHere && restSetIdx === i
+            return (
+              <button
+                key={i}
+                onClick={() => setActiveSetIdx(i)}
+                aria-label={`Set ${i + 1}${s.completed ? ', done' : ''}${resting ? ', resting' : ''}`}
+                aria-current={i === clampedSetIdx}
+                className={`flex items-center justify-center gap-1 min-w-[2.75rem] h-10 px-3 rounded-full text-sm font-bold tabular-nums transition-all active:scale-95 ${
+                  i === clampedSetIdx ? 'bg-brand-500 text-white shadow-sm shadow-brand-500/30' :
+                  s.completed ? `bg-brand-500/15 text-brand-400${resting ? ' ring-1 ring-brand-500/60' : ''}` :
+                  'bg-surface-muted text-tx-muted hover:text-tx-secondary'
+                }`}
+              >
+                {s.completed && <Check className="w-3.5 h-3.5" />}
+                {i + 1}
+              </button>
+            )
+          })}
         </div>
 
         {/* Target reference for this set (the goal to hit) */}
@@ -593,29 +641,39 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </StepperTile>
         </div>
 
-        {/* Complete button */}
-        <button
-          onClick={() => handleCompleteSetGym(clampedSetIdx)}
-          className={`w-full py-5 rounded-2xl text-base font-bold flex items-center justify-center gap-3 transition-all ${
-            set.completed
-              ? 'bg-brand-500/15 border-2 border-brand-500/40 text-brand-400'
-              : 'bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30'
-          }`}
-        >
-          <CheckCircle2 className="w-6 h-6" />
-          {set.completed ? 'Completed' : 'Complete Set'}
-        </button>
-
-        {/* Remove set — hidden on the last set (removing it would empty the exercise
-            and drop to a blank screen; use the header trash to remove the exercise) */}
-        {ex.sets.length > 1 && (
+        {/* While resting before this set, collapse + fade the Complete Set / Remove
+            controls out of the way — you Skip the timer to begin it. This also frees
+            the space so the set content never clips behind the docked rest panel.
+            Keyed on the specific up-next set (not the whole exercise) so navigating to
+            another set to log it still shows its Complete button. */}
+        <div className={`w-full flex flex-col items-center gap-6 overflow-hidden transition-all duration-300 ${
+          hideCompleteForRest ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-40 opacity-100'
+        }`}>
+          {/* Complete button */}
           <button
-            onClick={() => handleRemoveSet(clampedSetIdx)}
-            className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
+            onClick={() => handleCompleteSetGym(clampedSetIdx)}
+            className={`w-full py-5 rounded-2xl text-base font-bold flex items-center justify-center gap-3 transition-all ${
+              set.completed
+                ? 'bg-brand-500/15 border-2 border-brand-500/40 text-brand-400'
+                : 'bg-brand-500 hover:bg-brand-600 text-white shadow-lg shadow-brand-500/30'
+            }`}
           >
-            Remove this set
+            <CheckCircle2 className="w-6 h-6" />
+            {set.completed ? 'Completed' : 'Complete Set'}
           </button>
-        )}
+
+          {/* Remove set — hidden on the last set (removing it would empty the exercise
+              and drop to a blank screen; use the header trash to remove the exercise) */}
+          {ex.sets.length > 1 && (
+            <button
+              onClick={() => handleRemoveSet(clampedSetIdx)}
+              className="text-xs text-tx-muted/50 hover:text-error-400 transition-colors"
+            >
+              Remove this set
+            </button>
+          )}
+        </div>
+        </div>
       </div>
 
       {/* Bottom nav */}
@@ -681,6 +739,10 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           )}
         </div>
       </div>
+
+      {/* Rest timer — docked here (in-flow, last child) so it pushes the set
+          content up instead of covering it. Renders null when no rest is active. */}
+      <RestTimerBanner docked />
 
       {/* ── Finish confirm ── */}
       {confirmFinish && createPortal(

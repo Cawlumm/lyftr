@@ -149,8 +149,8 @@ func (s *ProgramStore) Delete(uid, id int64) (int64, error) {
 func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProgramExerciseReq) error {
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes) VALUES (?, ?, ?, ?)`,
-			pid, ex.ExerciseID, i, ex.Notes,
+			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?)`,
+			pid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
 		)
 		if err != nil {
 			return err
@@ -179,7 +179,7 @@ func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProg
 // sets (#36), and surfaces scan errors.
 func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise, error) {
 	rows, err := s.db.Query(
-		`SELECT pe.id, pe.program_id, pe.exercise_id, pe.order_index, pe.notes,
+		`SELECT pe.id, pe.program_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
 		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id
@@ -193,7 +193,7 @@ func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise,
 	for rows.Next() {
 		var pe models.ProgramExercise
 		if err := rows.Scan(
-			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes,
+			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {
