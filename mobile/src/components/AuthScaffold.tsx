@@ -65,11 +65,11 @@ export function AuthScaffold({
                   </Text>
                   <Text
                     style={{
-                      fontFamily: 'PlusJakartaSans_700Bold',
-                      fontSize: 11,
-                      letterSpacing: 2.2,
-                      color: 'rgba(255,255,255,0.78)',
-                      marginTop: 3,
+                      fontFamily: 'PlusJakartaSans_800ExtraBold',
+                      fontSize: 10.5,
+                      letterSpacing: 3.2,
+                      color: 'rgba(255,255,255,0.82)',
+                      marginTop: 6,
                     }}
                   >
                     TRAIN · TRACK · PROGRESS
@@ -80,10 +80,11 @@ export function AuthScaffold({
               <Text
                 style={{
                   fontFamily: 'Outfit_800ExtraBold',
-                  fontSize: 36,
-                  letterSpacing: -0.6,
+                  fontSize: 37,
+                  letterSpacing: -0.8,
                   color: '#fff',
-                  marginTop: 28,
+                  marginTop: 34,
+                  lineHeight: 39,
                 }}
               >
                 {heading}

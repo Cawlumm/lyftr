@@ -29,7 +29,7 @@ export function IconInput({
   const [hide, setHide] = useState(!!password)
   const Icon = icon === 'mail' ? Mail : Lock
   return (
-    <View style={{ marginTop: 18 }}>
+    <View style={{ marginTop: 19 }}>
       <Text
         style={{
           fontFamily: FONT.label,
@@ -46,15 +46,19 @@ export function IconInput({
           flexDirection: 'row',
           alignItems: 'center',
           gap: 11,
-          height: 52,
+          height: 55,
           paddingHorizontal: 16,
           borderRadius: 15,
           backgroundColor: '#111e35',
           borderWidth: 1.5,
-          borderColor: focused ? '#8b5cf6' : '#1c2f50',
+          borderColor: focused ? '#00b8d9' : '#1c2f50',
+          shadowColor: focused ? '#00b8d9' : 'transparent',
+          shadowOffset: { width: 0, height: 0 },
+          shadowOpacity: focused ? 0.25 : 0,
+          shadowRadius: 8,
         }}
       >
-        <Icon size={17} color={focused ? '#8b5cf6' : '#94a3b8'} strokeWidth={2} />
+        <Icon size={17} color={focused ? '#00b8d9' : '#94a3b8'} strokeWidth={2} />
         <TextInput
           style={{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: '#f1f5f9' }}
           placeholderTextColor="#475569"
@@ -87,13 +91,25 @@ export function GradientButton({
   disabled?: boolean
 }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled || loading} style={{ marginTop: 24 }}>
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={{
+        marginTop: 26,
+        borderRadius: 16,
+        shadowColor: '#00b8d9',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.4,
+        shadowRadius: 20,
+        elevation: 8,
+      }}
+    >
       <LinearGradient
         colors={['#00b8d9', '#8b5cf6']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={{
-          height: 54,
+          height: 57,
           borderRadius: 16,
           flexDirection: 'row',
           alignItems: 'center',
@@ -139,7 +155,7 @@ export function SecondaryButton({ title, onPress }: { title: string; onPress?: (
 
 export function AuthDivider() {
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 20 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 22 }}>
       <View style={{ flex: 1, height: 1, backgroundColor: '#1c2f50' }} />
       <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.8, color: '#475569' }}>OR</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: '#1c2f50' }} />
@@ -252,8 +268,10 @@ export function ServerRow() {
 }
 
 export function Footer({ children }: { children: ReactNode }) {
+  // Flow right under the content (28px) instead of pinning to the bottom — kills the
+  // dead space between "Try demo account" and this footer.
   return (
-    <View style={{ marginTop: 'auto', paddingTop: 18, paddingBottom: 10, alignItems: 'center' }}>
+    <View style={{ marginTop: 28, paddingBottom: 16, alignItems: 'center' }}>
       {children}
     </View>
   )
