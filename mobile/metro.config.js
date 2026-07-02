@@ -21,4 +21,20 @@ config.resolver.nodeModulesPaths = [
 // guaranteed by the root package.json `overrides.react` pin + a hoisted single copy.
 config.resolver.disableHierarchicalLookup = false
 
+// WEB-ONLY: force zustand to its CJS build. On web, Metro's package-exports resolution
+// picks zustand's ESM (esm/*.mjs), which uses bare `import.meta` — Metro can't bundle
+// that ("Cannot use 'import.meta' outside a module"). Native resolves the CJS build
+// already, so this override is scoped to platform === 'web'.
+const defaultResolveRequest = config.resolver.resolveRequest
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === 'web' && (moduleName === 'zustand' || moduleName.startsWith('zustand/'))) {
+    const sub = moduleName === 'zustand' ? 'index' : moduleName.slice('zustand/'.length)
+    return {
+      type: 'sourceFile',
+      filePath: path.resolve(workspaceRoot, 'node_modules/zustand', `${sub}.js`),
+    }
+  }
+  return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform)
+}
+
 module.exports = withNativeWind(config, { input: './global.css' })
