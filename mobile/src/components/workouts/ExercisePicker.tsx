@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
@@ -83,6 +83,11 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
+      {/* A Modal renders in its own native view hierarchy outside the app's
+          SafeAreaProvider, so SafeAreaView's top inset resolves to 0 there and the
+          header rides up under the status bar/notch. Nest a provider inside the modal
+          so insets are re-measured for its window (the documented RN fix). */}
+      <SafeAreaProvider>
       <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
         {/* Header */}
         <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-4 pt-3">
@@ -149,6 +154,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
           />
         )}
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   )
 }
