@@ -235,31 +235,33 @@ export default function AddWorkout() {
             />
           </View>
 
-          {/* Date and Duration each get a full-width row: the Duration stepper's fixed
-              ±  buttons overflow a half-width column on real devices (squeezing Date
-              out), so they can't share a row. */}
-          <View>
-            <FieldHeader icon={CalendarDays} label="Date" />
-            <DateInput
-              value={formData.date}
-              onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
-              maximumDate={new Date()}
-            />
-          </View>
-          <View>
-            <FieldHeader
-              icon={Clock}
-              label="Duration (min)"
-              // h/m readout only once it means something — "0h 5m" is noise.
-              hint={formData.duration >= 60
-                ? `= ${Math.floor(formData.duration / 60)}h ${formData.duration % 60}m`
-                : undefined}
-            />
-            <DurationField
-              value={formData.duration}
-              onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
-              inputAccessoryViewID={KEYPAD_DONE_ID}
-            />
+          {/* Date + duration share a row — related scalar facts, half-width each. The
+              duration stepper is a single overflow-hidden container, so it fits the
+              half column (its center just narrows) rather than overflowing it. */}
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <FieldHeader icon={CalendarDays} label="Date" />
+              <DateInput
+                value={formData.date}
+                onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
+                maximumDate={new Date()}
+              />
+            </View>
+            <View className="flex-1">
+              <FieldHeader
+                icon={Clock}
+                label="Duration (min)"
+                // h/m readout only once it means something — "0h 5m" is noise.
+                hint={formData.duration >= 60
+                  ? `= ${Math.floor(formData.duration / 60)}h ${formData.duration % 60}m`
+                  : undefined}
+              />
+              <DurationField
+                value={formData.duration}
+                onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
+                inputAccessoryViewID={KEYPAD_DONE_ID}
+              />
+            </View>
           </View>
 
           <View>

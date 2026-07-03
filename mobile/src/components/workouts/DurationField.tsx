@@ -25,7 +25,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         accessibilityLabel="Decrease duration"
         onPress={() => step(-STEP)}
         disabled={!canDec}
-        className={`w-12 items-center justify-center border-r border-surface-border active:bg-surface-muted ${canDec ? '' : 'opacity-40'}`}
+        className={`w-11 items-center justify-center border-r border-surface-border active:bg-surface-muted ${canDec ? '' : 'opacity-40'}`}
       >
         <Minus size={18} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
       </Pressable>
@@ -53,7 +53,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         accessibilityRole="button"
         accessibilityLabel="Increase duration"
         onPress={() => step(STEP)}
-        className="w-12 items-center justify-center border-l border-surface-border active:bg-surface-muted"
+        className="w-11 items-center justify-center border-l border-surface-border active:bg-surface-muted"
       >
         <Plus size={18} color={accent} strokeWidth={2.4} />
       </Pressable>
