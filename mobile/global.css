@@ -1,3 +1,36 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Theme tokens — mirrors web/src/index.css exactly: light = :root defaults,
+   dark = .dark:root overrides (NativeWind's class-strategy selector). The
+   colorScheme is driven from useThemeStore in app/_layout.tsx, so these flip
+   the same way the web's `.dark` class does. RGB channels (space-separated)
+   so `<alpha-value>` opacity modifiers keep working. */
+@layer base {
+  :root {
+    --surface-base:    248 250 252;
+    --surface-raised:  255 255 255;
+    --surface-overlay: 241 245 249;
+    --surface-border:  226 232 240;
+    --surface-muted:   241 245 249;
+
+    --tx-primary:   15 23 42;
+    --tx-secondary: 71 85 105;
+    --tx-muted:     148 163 184;
+    --tx-inverse:   255 255 255;
+  }
+
+  .dark:root {
+    --surface-base:    7 13 26;
+    --surface-raised:  13 22 41;
+    --surface-overlay: 17 30 53;
+    --surface-border:  28 47 80;
+    --surface-muted:   22 34 64;
+
+    --tx-primary:   241 245 249;
+    --tx-secondary: 148 163 184;
+    --tx-muted:     71 85 105;
+    --tx-inverse:   15 23 42;
+  }
+}

@@ -1,8 +1,10 @@
 import { ReactNode } from 'react'
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BarbellMark } from './Logo'
+import { useTheme } from '../theme/useTheme'
 
 // Bold-branded auth layout in our dark palette: a cyan→violet gradient hero (brand
 // gradient) with the barbell mark + wordmark + tagline, and a dark sheet that
@@ -16,11 +18,14 @@ export function AuthScaffold({
   subtitle: string
   children: ReactNode
 }) {
+  const { colors } = useTheme()
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#070d1a' }}
+      style={{ flex: 1, backgroundColor: colors.base }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {/* Hero is always the brand gradient (dark), so the status bar stays light. */}
+      <StatusBar style="light" />
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
@@ -108,17 +113,17 @@ export function AuthScaffold({
           style={{
             flex: 1,
             marginTop: -26,
-            backgroundColor: '#070d1a',
+            backgroundColor: colors.base,
             borderTopLeftRadius: 30,
             borderTopRightRadius: 30,
             borderTopWidth: 1,
-            borderColor: '#1c2f50',
+            borderColor: colors.border,
             paddingHorizontal: 28,
             paddingTop: 12,
           }}
         >
           <View
-            style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: '#1c2f50', alignSelf: 'center', marginBottom: 6 }}
+            style={{ width: 44, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 6 }}
           />
           {children}
         </View>

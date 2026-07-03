@@ -4,6 +4,7 @@ import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { IconInput, GradientButton, SecondaryButton, AuthDivider, ServerRow, Footer } from '../../src/components/authui'
 import { useAuthStore } from '../../src/lib/lyftr'
+import { useTheme } from '../../src/theme/useTheme'
 
 // Public hosted demo (Fly) — the "Try demo account" button opens it in the browser.
 const DEMO_URL = 'https://lyftr-demo.fly.dev'
@@ -15,6 +16,7 @@ export default function Login() {
   const loading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
+  const { accent, colors } = useTheme()
 
   const submit = async () => {
     try { await login(email.trim(), password) } catch {}
@@ -49,11 +51,11 @@ export default function Login() {
       ) : null}
       <GradientButton title="Sign in" onPress={submit} loading={loading} />
       <AuthDivider />
-      <SecondaryButton title="Try demo account" onPress={demo} />
+      <SecondaryButton title="Try demo account" hint="no sign-up" onPress={demo} />
       <Footer>
         <View style={{ flexDirection: 'row', gap: 5 }}>
-          <Text style={{ color: '#94a3b8', fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
-          <Link href="/register" style={{ color: '#38d8fb', fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
+          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
+          <Link href="/register" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
             Create account
           </Link>
         </View>

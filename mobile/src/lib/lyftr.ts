@@ -6,6 +6,7 @@ import {
   createAuthStore,
   createServerStore,
   createSettingsStore,
+  createThemeStore,
 } from '@lyftr/shared'
 import { storage } from './storage'
 
@@ -23,5 +24,7 @@ export const client = createClient(storage, {
 export const useAuthStore = createAuthStore(client, storage)
 export const useServerStore = createServerStore(storage)
 export const useSettingsStore = createSettingsStore(client, storage)
+// Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.
+export const useThemeStore = createThemeStore(storage, 'light')
 
 export { storage }

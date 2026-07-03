@@ -1,29 +1,29 @@
 /** NativeWind (Tailwind for RN). Tokens ported from web/tailwind.config.ts +
- *  index.css. MVP ships the app's DARK palette as the fixed theme (the web app's
- *  .dark values); light-mode + CSS-variable theming can follow later. */
+ *  index.css. Surface/text tokens resolve from CSS variables (see global.css) so
+ *  they flip between light + dark exactly like the web app; brand colors are
+ *  theme-independent literals. */
 module.exports = {
-  // Fixed dark palette (no dark: variants yet); 'class' avoids NativeWind's
-  // media-based color-scheme management + its "dark mode is type 'media'" warning.
+  // Class strategy: the .dark class is toggled by NativeWind's colorScheme,
+  // driven from useThemeStore in app/_layout.tsx (mirrors web's `.dark` toggle).
   darkMode: 'class',
   content: ['./app/**/*.{js,ts,jsx,tsx}', './src/**/*.{js,ts,jsx,tsx}'],
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
       colors: {
-        // Surfaces (from index.css .dark)
+        // Surfaces + text resolve from CSS vars (global.css) → theme-aware.
         surface: {
-          base: '#070d1a',
-          raised: '#0d1629',
-          overlay: '#111e35',
-          border: '#1c2f50',
-          muted: '#162240',
+          base: 'rgb(var(--surface-base) / <alpha-value>)',
+          raised: 'rgb(var(--surface-raised) / <alpha-value>)',
+          overlay: 'rgb(var(--surface-overlay) / <alpha-value>)',
+          border: 'rgb(var(--surface-border) / <alpha-value>)',
+          muted: 'rgb(var(--surface-muted) / <alpha-value>)',
         },
-        // Text (from index.css .dark)
         tx: {
-          primary: '#f1f5f9',
-          secondary: '#94a3b8',
-          muted: '#475569',
-          inverse: '#0f172a',
+          primary: 'rgb(var(--tx-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--tx-secondary) / <alpha-value>)',
+          muted: 'rgb(var(--tx-muted) / <alpha-value>)',
+          inverse: 'rgb(var(--tx-inverse) / <alpha-value>)',
         },
         // Brand — electric cyan (from web tailwind.config)
         brand: {

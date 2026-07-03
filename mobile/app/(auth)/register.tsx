@@ -4,6 +4,7 @@ import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { IconInput, GradientButton, ServerRow, Footer } from '../../src/components/authui'
 import { useAuthStore } from '../../src/lib/lyftr'
+import { useTheme } from '../../src/theme/useTheme'
 
 export default function Register() {
   const [email, setEmail] = useState('')
@@ -12,6 +13,7 @@ export default function Register() {
   const loading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
+  const { accent, colors } = useTheme()
 
   const localError =
     password.length > 0 && password.length < 8 ? 'Password must be at least 8 characters' : null
@@ -48,8 +50,8 @@ export default function Register() {
       <GradientButton title="Create account" onPress={submit} loading={loading} disabled={!!localError} />
       <Footer>
         <View style={{ flexDirection: 'row', gap: 5 }}>
-          <Text style={{ color: '#94a3b8', fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Have an account?</Text>
-          <Link href="/login" style={{ color: '#38d8fb', fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
+          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Have an account?</Text>
+          <Link href="/login" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
             Sign in
           </Link>
         </View>

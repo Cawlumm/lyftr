@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTheme } from '../theme/useTheme'
 
 // Screen wrapper — dark base surface + safe-area padding.
 export function Screen({ children, className = '' }: { children: ReactNode; className?: string }) {
@@ -76,13 +77,14 @@ export function Field({
   className = '',
   ...rest
 }: TextInputProps & { label?: string; error?: string | null; className?: string }) {
+  const { colors } = useTheme()
   return (
     <View className="gap-1.5">
       {label ? (
         <Text className="text-xs font-medium text-tx-secondary uppercase tracking-wide">{label}</Text>
       ) : null}
       <TextInput
-        placeholderTextColor="#475569"
+        placeholderTextColor={colors.txMuted}
         className={`w-full px-3.5 h-12 bg-surface-overlay border rounded-lg text-tx-primary text-base ${error ? 'border-error-500' : 'border-surface-border'} ${className}`}
         {...rest}
       />

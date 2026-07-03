@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { ScrollView, View, Text, Pressable } from 'react-native'
+import { Sun, Moon } from 'lucide-react-native'
 import { Screen, H1, Card, Field, Button, Muted } from '../../src/components/ui'
 import { client, useAuthStore, useServerStore, useSettingsStore } from '../../src/lib/lyftr'
+import { useTheme } from '../../src/theme/useTheme'
 import { testServerConnection, normalizeServerUrl } from '@lyftr/shared'
 
 export default function SettingsScreen() {
@@ -46,6 +48,8 @@ export default function SettingsScreen() {
   const unit = settings.weight_unit
   const toggleUnit = () => updateSettings({ weight_unit: unit === 'lbs' ? 'kg' : 'lbs' })
 
+  const { mode, setMode } = useTheme()
+
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -62,6 +66,14 @@ export default function SettingsScreen() {
             <View className="flex-row gap-2">
               <UnitPill label="lbs" active={unit === 'lbs'} onPress={() => unit !== 'lbs' && toggleUnit()} />
               <UnitPill label="kg" active={unit === 'kg'} onPress={() => unit !== 'kg' && toggleUnit()} />
+            </View>
+          </Card>
+
+          <Card>
+            <Muted className="text-xs uppercase mb-2">Appearance</Muted>
+            <View className="flex-row gap-2">
+              <ThemePill label="Light" icon="sun" active={mode === 'light'} onPress={() => setMode('light')} />
+              <ThemePill label="Dark" icon="moon" active={mode === 'dark'} onPress={() => setMode('dark')} />
             </View>
           </Card>
 
@@ -93,6 +105,31 @@ function UnitPill({ label, active, onPress }: { label: string; active: boolean; 
       onPress={onPress}
       className={`px-5 h-11 rounded-lg items-center justify-center ${active ? 'bg-brand-500' : 'bg-surface-muted border border-surface-border'}`}
     >
+      <Text className={`font-semibold ${active ? 'text-white' : 'text-tx-secondary'}`}>{label}</Text>
+    </Pressable>
+  )
+}
+
+function ThemePill({
+  label,
+  icon,
+  active,
+  onPress,
+}: {
+  label: string
+  icon: 'sun' | 'moon'
+  active: boolean
+  onPress: () => void
+}) {
+  const { colors } = useTheme()
+  const Icon = icon === 'sun' ? Sun : Moon
+  const tint = active ? '#ffffff' : colors.txSecondary
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-1 flex-row gap-2 h-11 rounded-lg items-center justify-center ${active ? 'bg-brand-500' : 'bg-surface-muted border border-surface-border'}`}
+    >
+      <Icon color={tint} size={16} strokeWidth={2.2} />
       <Text className={`font-semibold ${active ? 'text-white' : 'text-tx-secondary'}`}>{label}</Text>
     </Pressable>
   )
