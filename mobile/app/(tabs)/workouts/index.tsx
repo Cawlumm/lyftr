@@ -94,7 +94,7 @@ export default function Workouts() {
         // nears the end (threshold 0.5 ≈ the web's 200px rootMargin pre-fetch).
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
-        ItemSeparatorComponent={() => <View className="h-2" />}
+        ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
@@ -113,8 +113,10 @@ export default function Workouts() {
 
             {/* Summary — web's 3-card grid */}
             <View className="flex-row gap-3">
+              {/* Tighter horizontal padding than Card's default: three-up columns are
+                  narrow and the uppercase wide-tracked label truncates at p-4. */}
               {stats.map((s) => (
-                <Card key={s.label} className="flex-1">
+                <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>

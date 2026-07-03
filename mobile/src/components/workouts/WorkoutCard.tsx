@@ -26,6 +26,10 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   const durationMin = Math.round(workout.duration / 60)
+  // The meta line has ~3 items competing for one row next to the trash/chevron
+  // gutter — compact big volumes ("18.7k") so nothing truncates or wraps.
+  const compact = (n: number) =>
+    n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : n.toLocaleString()
   const totalVolume = displayVolume(
     workout.exercises?.reduce(
       (total, e) => total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0),
@@ -56,39 +60,50 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
-      <Card className="flex-row items-center gap-3">
+      <Card className="flex-row items-center gap-3 rounded-2xl">
         <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} />
         <View className="flex-1">
           <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
-          <AppText variant="caption" color="muted" className="mt-0.5">
-            {format(new Date(workout.started_at), 'MMM d, yyyy')}
-          </AppText>
+          {/* Two balanced meta lines instead of one overloaded row: date + duration,
+              then exercises + volume — three items on one line truncated at 390pt. */}
           <View className="flex-row items-center gap-x-2 mt-0.5">
+            <AppText variant="caption" color="muted" numberOfLines={1}>
+              {format(new Date(workout.started_at), 'MMM d, yyyy')}
+            </AppText>
             {durationMin > 0 && (
-              <View className="flex-row items-center gap-1">
-                <Clock size={12} color={colors.txMuted} />
-                <AppText variant="caption" color="muted">{durationMin} min</AppText>
-              </View>
+              <>
+                <AppText variant="caption" color="muted">·</AppText>
+                <View className="flex-row items-center gap-1">
+                  <Clock size={12} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{durationMin} min</AppText>
+                </View>
+              </>
             )}
-            {durationMin > 0 && <AppText variant="caption" color="muted">·</AppText>}
-            <AppText variant="caption" color="muted">{workout.exercises?.length || 0} exercises</AppText>
+          </View>
+          <View className="flex-row items-center gap-x-2 mt-0.5">
+            <AppText variant="caption" color="muted" numberOfLines={1}>
+              {workout.exercises?.length || 0} exercises
+            </AppText>
             {totalVolume > 0 && (
               <>
                 <AppText variant="caption" color="muted">·</AppText>
                 <View className="flex-row items-center gap-1 flex-shrink">
                   <TrendingUp size={12} color={colors.txMuted} />
                   <AppText variant="caption" color="muted" numberOfLines={1}>
-                    {totalVolume.toLocaleString()} {unit}
+                    {compact(totalVolume)} {unit}
                   </AppText>
                 </View>
               </>
             )}
           </View>
         </View>
+        {/* De-emphasized destructive action: a muted glyph (not a loud red box)
+            keeps the row reading as tap-to-open media, native-list style. The OS
+            Alert still gates the actual delete, so discoverability is preserved. */}
         <IconButton
           icon={Trash2}
           label={`Delete ${workout.name}`}
-          variant="danger"
+          variant="ghost"
           size="sm"
           onPress={confirmDelete}
           disabled={deleting}

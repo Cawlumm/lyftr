@@ -168,11 +168,14 @@ export default function WorkoutDetail() {
                 size="md"
                 onPress={() => router.push(`/workouts/${workout.id}/edit`)}
               />
+              {/* Match the edit chip's tinted-pill weight (danger variant is bare by
+                  design elsewhere; a bare glyph next to a chip reads unbalanced here). */}
               <IconButton
                 icon={Trash2}
                 label="Delete workout"
                 variant="danger"
                 size="md"
+                className="bg-error-500/10 border border-error-500/20"
                 onPress={confirmDelete}
                 disabled={deleting}
               />
@@ -180,7 +183,7 @@ export default function WorkoutDetail() {
           </View>
 
           {/* Header card */}
-          <View className="bg-surface-raised border border-surface-border rounded-xl p-4">
+          <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
             <View className="flex-row items-start gap-3">
               <ExerciseImage url={exs[0]?.exercise?.image_url} size="hero" />
               <View className="flex-1">
@@ -251,7 +254,7 @@ export default function WorkoutDetail() {
                   // Card surface inlined (not <Card>): its baked-in p-4 can't be
                   // overridden safely (two padding classes = stylesheet-order
                   // roulette) and this card needs edge-to-edge inner sections.
-                  className="bg-surface-raised border border-surface-border rounded-xl overflow-hidden active:scale-[0.99]"
+                  className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99]"
                 >
                   <View className="flex-row items-center gap-3 p-4">
                     <ExerciseImage url={ex.exercise?.image_url} />

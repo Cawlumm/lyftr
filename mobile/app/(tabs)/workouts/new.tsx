@@ -37,10 +37,13 @@ const COMPACT_INPUT = 'h-10 rounded-lg border border-surface-border bg-surface-o
 
 // Web's icon+label field headers (Dumbbell/CalendarDays/Clock/FileText/Zap rows).
 function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
-  const { accent } = useTheme()
+  // Muted (not accent) field icons: with every header cyan the form reads busy and
+  // the accent loses meaning. Restrained neutral glyphs let the brand color stay
+  // reserved for real signal (the Exercises section, PR chips, primary CTA).
+  const { colors } = useTheme()
   return (
-    <View className="mb-2 flex-row items-center gap-2">
-      <Icon size={14} color={accent} strokeWidth={2.2} />
+    <View className="mb-2.5 flex-row items-center gap-2">
+      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
       <Label>{label}</Label>
       {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
     </View>
@@ -295,8 +298,11 @@ export default function AddWorkout() {
 
           {/* Exercises section */}
           <View>
-            <View className="mb-3 flex-row items-center justify-between">
-              <View className="flex-row items-center gap-2">
+            {/* Label row + full-width button row: label group AND two buttons don't
+                fit one 390pt row (the Add button clipped off-screen), and equal-width
+                buttons make friendlier touch targets anyway. */}
+            <View className="mb-3">
+              <View className="mb-2.5 flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>Exercises</Label>
                 <AppText variant="caption" color="muted">(required)</AppText>
@@ -305,7 +311,7 @@ export default function AddWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowProgramPicker(true)}
-                  className="flex-row items-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2 active:scale-95"
+                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95"
                 >
                   <BookOpen size={13} color={colors.txSecondary} />
                   <Text className="font-sans-semibold text-xs text-tx-secondary">Load Program</Text>
@@ -313,7 +319,7 @@ export default function AddWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowPicker(true)}
-                  className="flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95"
+                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
                 >
                   <Plus size={13} color="#ffffff" />
                   <Text className="font-sans-semibold text-xs text-white">Add Exercise</Text>

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
+import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft } from 'lucide-react-native'
+import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
-import { AppText, Field, IconButton } from '../ui'
+import { AppText, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
-import { EQUIPMENT_LABEL, muscleColor } from '../../utils/exerciseUtils'
+import { EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 
 interface Props {
@@ -18,21 +18,21 @@ interface Props {
 const MAX_SHOWN = 40
 
 function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
-  const { colors } = useTheme()
-  const tint = muscleColor(exercise.muscle_group)
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-row items-center gap-3 rounded-xl px-3 py-3 active:bg-surface-muted"
+      className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
     >
       <ExerciseImage url={exercise.image_url} />
       <View className="flex-1">
         <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
         <View className="mt-0.5 flex-row flex-wrap items-center gap-1.5">
-          {/* Bordered muscle badge (web muscleColorBordered); text tint inline — see exerciseUtils. */}
-          <View className={`rounded border px-1.5 py-0.5 ${tint ? `${tint.chip} ${tint.border}` : 'bg-surface-muted border-surface-border'}`}>
-            <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>
+          {/* Neutral muscle chip: a whole scrolling list of loud per-muscle colors
+              reads busy and there's no "best"/PR signal here to reserve color for —
+              keep the taxonomy legible but let the exercise name be the hero. */}
+          <View className="rounded border border-surface-border bg-surface-muted px-1.5 py-0.5">
+            <AppText variant="caption" color="muted" className="capitalize">
               {exercise.muscle_group}
             </AppText>
           </View>
@@ -52,7 +52,7 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
 // search state resets per open — a routed screen can't hand the picked Exercise
 // back to the form without a store detour, hence Modal).
 export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
-  const { accent } = useTheme()
+  const { accent, colors } = useTheme()
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -85,24 +85,36 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
         {/* Header */}
-        <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-3 pt-2">
+        <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-4 pt-3">
           <IconButton icon={ArrowLeft} label="Close exercise picker" variant="ghost" size="md" onPress={onClose} />
           <View>
-            <AppText variant="heading">Add Exercise</AppText>
+            {/* Large title (matches the sibling "Log Workout" screen title) — the
+                18px heading read undersized for a full-screen surface. */}
+            <AppText variant="title">Add Exercise</AppText>
             <AppText variant="caption" color="muted">{available.length} available</AppText>
           </View>
         </View>
 
-        {/* Search */}
+        {/* Search — local composed input (not the shared Field, which has no leading
+            slot) so the magnifier icon reads as a native search bar. Same value/
+            onChangeText/behavior as before; only the chrome changed. */}
         <View className="border-b border-surface-border px-4 py-3">
-          <Field
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search name, muscle, equipment…"
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-          />
+          <View
+            className="flex-row items-center gap-2.5 rounded-xl border border-surface-border px-3.5"
+            style={{ minHeight: 48, backgroundColor: colors.overlay }}
+          >
+            <Search size={18} color={colors.txMuted} strokeWidth={2.2} />
+            <TextInput
+              className="flex-1 font-sans text-base text-tx-primary"
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search name, muscle, equipment…"
+              placeholderTextColor={colors.txMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+          </View>
         </View>
 
         {/* List */}
@@ -118,6 +130,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            // Inset hairline between rows (native list idiom): starts past the leading
+            // media so the thumbnails read as a column, not boxed cells.
+            ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
             renderItem={({ item }) => <PickerRow exercise={item} onPress={() => onSelect(item)} />}
             ListEmptyComponent={
               <View className="items-center py-16">
