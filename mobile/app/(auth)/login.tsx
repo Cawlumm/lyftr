@@ -16,24 +16,33 @@ const EMAIL_RE = /^\S+@\S+\.\S+$/
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
   const login = useAuthStore((s) => s.login)
   const loading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
-  const { accent, colors, brand } = useTheme()
+  const { accent, colors } = useTheme()
 
-  // RN has no HTML `required`, so gate the button instead: both fields filled and the
-  // email looks like an email (mirrors the web form's native validation).
-  const emailOk = EMAIL_RE.test(email.trim())
-  const canSubmit = emailOk && password.length > 0
+  // Clear both the client-side and the server error when a field is edited.
+  const onChange = (setter: (t: string) => void) => (t: string) => {
+    clearError()
+    setLocalError(null)
+    setter(t)
+  }
 
+  // Validate only on submit (not while typing): the browser's `required`/`type=email`
+  // equivalent, surfaced as an error after the user presses Sign in.
   const submit = async () => {
-    if (!canSubmit) return
+    if (!EMAIL_RE.test(email.trim())) { setLocalError('Enter a valid email address'); return }
+    if (!password) { setLocalError('Enter your password'); return }
+    setLocalError(null)
     try { await login(email.trim(), password) } catch {}
   }
   const demo = () => {
     Linking.openURL(DEMO_URL).catch(() => {})
   }
+
+  const shownError = localError || error
 
   return (
     <AuthScaffold heading="Welcome back" subtitle="Sign in to continue training.">
@@ -42,25 +51,20 @@ export default function Login() {
         label="Email"
         icon="mail"
         value={email}
-        onChangeText={(t) => { clearError(); setEmail(t) }}
+        onChangeText={onChange(setEmail)}
         keyboardType="email-address"
         placeholder="you@example.com"
       />
-      {email.length > 0 && !emailOk ? (
-        <Text style={{ marginTop: 7, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 12, color: brand.error }}>
-          Enter a valid email address
-        </Text>
-      ) : null}
       <IconInput
         label="Password"
         icon="lock"
         password
         value={password}
-        onChangeText={(t) => { clearError(); setPassword(t) }}
+        onChangeText={onChange(setPassword)}
         placeholder="••••••••"
       />
-      {error ? <AuthError message={error} /> : null}
-      <GradientButton title="Sign in" onPress={submit} loading={loading} disabled={!canSubmit} />
+      {shownError ? <AuthError message={shownError} /> : null}
+      <GradientButton title="Sign in" onPress={submit} loading={loading} />
       <AuthDivider />
       <SecondaryButton title="Try demo account" hint="no sign-up" onPress={demo} />
       <Footer>

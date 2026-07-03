@@ -22,20 +22,19 @@ export default function Register() {
   const clearError = useAuthStore((s) => s.clearError)
   const { accent, colors } = useTheme()
 
-  // Web equivalent of `required` on all three fields (email also type=email).
-  const canSubmit = EMAIL_RE.test(email.trim()) && password.length > 0 && passwordConfirm.length > 0
-
   const onChange = (setter: (t: string) => void) => (t: string) => {
     clearError()
     setLocalError(null)
     setter(t)
   }
 
+  // Validate only on submit (not while typing) — same checks, same order, same copy
+  // as web/src/pages/Register.tsx, surfaced after the user presses Create account.
   const submit = async () => {
-    if (!canSubmit) return
-    // Same checks, same order, same copy as web/src/pages/Register.tsx.
+    if (!EMAIL_RE.test(email.trim())) { setLocalError('Enter a valid email address'); return }
     if (password !== passwordConfirm) { setLocalError('Passwords do not match'); return }
     if (password.length < 8) { setLocalError('Password must be at least 8 characters'); return }
+    setLocalError(null)
     try { await register(email.trim(), password) } catch {}
   }
 
@@ -69,7 +68,7 @@ export default function Register() {
         placeholder="••••••••"
       />
       {shownError ? <AuthError message={shownError} /> : null}
-      <GradientButton title="Create account" onPress={submit} loading={loading} disabled={!canSubmit} />
+      <GradientButton title="Create account" onPress={submit} loading={loading} />
       <Footer>
         <View style={{ flexDirection: 'row', gap: 5 }}>
           <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Have an account?</Text>

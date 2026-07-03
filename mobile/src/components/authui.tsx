@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from 'react-native-reanimated'
 import { AlertCircle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from 'lucide-react-native'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
@@ -30,40 +31,49 @@ export function IconInput({
   ...rest
 }: TextInputProps & { label: string; icon: 'mail' | 'lock'; password?: boolean }) {
   const { colors, brand } = useTheme()
-  const [focused, setFocused] = useState(false)
   const [hide, setHide] = useState(!!password)
+  // Focus styling via Reanimated (UI thread) instead of React state. On the New
+  // Architecture (Fabric), a React re-render fired from a TextInput's own onFocus
+  // immediately blurs the input — the keyboard flashes up then dismisses. Driving the
+  // border/glow off a shared value means focusing causes NO re-render, so it sticks.
+  const focus = useSharedValue(0)
+  const boxStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(focus.value, [0, 1], [colors.border, brand.cyan]),
+    shadowOpacity: focus.value * 0.25,
+  }))
   const Icon = icon === 'mail' ? Mail : Lock
   return (
     <View style={{ marginTop: 19 }}>
       <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.4, color: LABEL_COLOR, marginBottom: 8 }}>
         {label.toUpperCase()}
       </Text>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 11,
-          height: 55,
-          paddingHorizontal: 16,
-          borderRadius: 15,
-          backgroundColor: colors.overlay,
-          borderWidth: 1.5,
-          borderColor: focused ? brand.cyan : colors.border,
-          shadowColor: focused ? brand.cyan : 'transparent',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: focused ? 0.25 : 0,
-          shadowRadius: 8,
-        }}
+      <Reanimated.View
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 11,
+            height: 55,
+            paddingHorizontal: 16,
+            borderRadius: 15,
+            backgroundColor: colors.overlay,
+            borderWidth: 1.5,
+            shadowColor: brand.cyan,
+            shadowOffset: { width: 0, height: 0 },
+            shadowRadius: 8,
+          },
+          boxStyle,
+        ]}
       >
-        <Icon size={17} color={focused ? brand.cyan : LABEL_COLOR} strokeWidth={2} />
+        <Icon size={17} color={LABEL_COLOR} strokeWidth={2} />
         <TextInput
           style={{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }}
           placeholderTextColor={colors.txMuted}
           secureTextEntry={hide}
           autoCapitalize="none"
           autoCorrect={false}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={() => { focus.value = withTiming(1, { duration: 150 }) }}
+          onBlur={() => { focus.value = withTiming(0, { duration: 150 }) }}
           {...rest}
         />
         {password ? (
@@ -71,7 +81,7 @@ export function IconInput({
             {hide ? <Eye size={19} color={LABEL_COLOR} strokeWidth={2} /> : <EyeOff size={19} color={LABEL_COLOR} strokeWidth={2} />}
           </Pressable>
         ) : null}
-      </View>
+      </Reanimated.View>
     </View>
   )
 }
