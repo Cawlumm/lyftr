@@ -13,7 +13,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
-import { useAuthStore, useServerStore, useThemeStore } from '../src/lib/lyftr'
+import { useAuthStore, useServerStore, useThemeStore, useWorkoutSession } from '../src/lib/lyftr'
 import { useTheme } from '../src/theme/useTheme'
 
 // Root layout: hydrate persisted state once, then gate routes on auth. Unauthed users
@@ -22,6 +22,7 @@ export default function RootLayout() {
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const hydrateServer = useServerStore((s) => s.hydrate)
   const hydrateTheme = useThemeStore((s) => s.hydrate)
+  const hydrateWorkout = useWorkoutSession((s) => s.hydrate)
   const isHydrated = useAuthStore((s) => s.isHydrated)
   const themeHydrated = useThemeStore((s) => s.isHydrated)
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
@@ -42,7 +43,8 @@ export default function RootLayout() {
     hydrateAuth()
     hydrateServer()
     hydrateTheme()
-  }, [hydrateAuth, hydrateServer, hydrateTheme])
+    hydrateWorkout()
+  }, [hydrateAuth, hydrateServer, hydrateTheme, hydrateWorkout])
 
   // Drive NativeWind's className theming from the same store the inline-styled
   // screens read, so `dark:`/CSS-var tokens flip together with useTheme().

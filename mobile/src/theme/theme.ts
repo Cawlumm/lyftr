@@ -49,4 +49,6 @@ export const brand = {
   successSoft: '#4ade80',
   error: '#ef4444',
   errorSoft: '#f87171',
+  warning: '#eab308',
+  warningSoft: '#facc15',
 }

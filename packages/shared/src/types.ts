@@ -178,6 +178,9 @@ export interface ActiveSessionSet {
   actual_reps: number
   actual_weight: number
   completed: boolean
+  // Links back to the routine's ProgramSet so finishing can auto-progress that
+  // target (issue #40). Absent for freestyle sessions and ad-hoc added sets.
+  program_set_id?: number
 }
 
 export interface ActiveSessionExercise {

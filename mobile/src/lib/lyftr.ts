@@ -7,6 +7,7 @@ import {
   createServerStore,
   createSettingsStore,
   createThemeStore,
+  createWorkoutSession,
 } from '@lyftr/shared'
 import { storage } from './storage'
 
@@ -26,5 +27,8 @@ export const useServerStore = createServerStore(storage)
 export const useSettingsStore = createSettingsStore(client, storage)
 // Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.
 export const useThemeStore = createThemeStore(storage, 'light')
+// Workout session state (active workout + gym UI position) — device-local via
+// AsyncStorage; rest-timer state is in-memory only (see the store).
+export const useWorkoutSession = createWorkoutSession(storage)
 
 export { storage }

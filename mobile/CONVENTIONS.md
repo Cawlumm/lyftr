@@ -143,7 +143,7 @@ spinners for partial data.
 | `SectionHeader` | `SectionHeader` | built |
 | `StepperTile` | `StepperTile` | built |
 | `EmptyState` | `EmptyState` | built |
-| `Toast` | — | **to-build** (RN: absolutely-positioned above tab bar; no portal needed) |
+| `Toast` | `Toast` | built |
 | `DateInput` | — | **to-build** (needs `@react-native-community/datetimepicker`; add the dep only when a screen needs it) |
 | `.card` CSS class | `Card` | built |
 | `.btn` CSS classes | `Button` | built |
