@@ -107,10 +107,29 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
 
       <ActionSheet
         open={menuOpen}
-        title="Workout"
-        subtitle={workout.name}
         layout="row"
         onClose={() => setMenuOpen(false)}
+        // Rich header: a preview of the workout being acted on (thumbnail + meta),
+        // so the sheet isn't a bare pair of buttons.
+        header={
+          <View className="flex-row items-center gap-3">
+            <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} size="hero" />
+            <View className="flex-1">
+              <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
+                {format(new Date(workout.started_at), 'MMM d, yyyy')}
+                {durationMin > 0 ? ` · ${durationMin} min` : ''}
+                {` · ${workout.exercises?.length || 0} exercises`}
+              </AppText>
+              {totalVolume > 0 ? (
+                <View className="mt-1.5 flex-row items-center gap-1">
+                  <TrendingUp size={12} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{compact(totalVolume)} {unit} total volume</AppText>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        }
         actions={[
           { label: 'Edit', icon: Edit2, onPress: () => router.push(`/workouts/${workout.id}/edit`) },
           { label: 'Delete', icon: Trash2, destructive: true, onPress: () => setConfirming(true) },

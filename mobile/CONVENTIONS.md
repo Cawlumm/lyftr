@@ -153,7 +153,7 @@ was an interim stand-in).
 | `DateInput` | `DateInput` | built (wraps `@react-native-community/datetimepicker`; value stays `YYYY-MM-DD`) |
 | — (bottom-sheet shell) | `Sheet` | built (**base primitive** — scrim-fade + slide-up, root insets, grabber; `SHEET_ANIM_MS` for follow-up timing. Build new sheets on this, don't re-derive the chrome) |
 | portal confirm sheet (per page) | `ConfirmSheet` | built on `Sheet`; **use instead of `Alert.alert` for confirms** — icon badge + centered copy + Cancel/confirm |
-| mobile kebab (⋮) → portal menu | `ActionSheet` | built on `Sheet`; slide-up options menu, `actions: SheetAction[]` (icon/label/`destructive`); fires each onPress after dismiss so a follow-up sheet doesn't overlap |
+| mobile kebab (⋮) → portal menu | `ActionSheet` | built on `Sheet`; slide-up options menu, `actions: SheetAction[]` (icon/label/`destructive`), `layout='stack'\|'row'`, optional rich `header` slot (item preview); fires each onPress after dismiss so a follow-up sheet doesn't overlap |
 | `Loading` (barbell rig) | `Loading` | built (full-screen initial-load state; barbell dips/flexes + rep-dot chase, Reanimated. `if (initialLoading) return <Loading />`, same as web) |
 | `.card` CSS class | `Card` | built |
 | `.btn` CSS classes | `Button` | built |
