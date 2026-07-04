@@ -54,7 +54,14 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
           // includeFontPadding:false drops Android's extra glyph padding.
           style={{ fontVariant: ['tabular-nums'], minWidth: 16, maxWidth: 44, lineHeight: LINE, includeFontPadding: false }}
         />
-        <Text className="ml-1 font-sans text-sm text-tx-muted" style={{ lineHeight: LINE }}>min</Text>
+        {/* Nudge "min" down a touch to sit on the value's optical line (the bold value
+            renders slightly low on iOS); transform keeps it out of the layout flow. */}
+        <Text
+          className="ml-1 font-sans text-sm text-tx-muted"
+          style={{ lineHeight: LINE, transform: [{ translateY: 1.5 }] }}
+        >
+          min
+        </Text>
       </View>
 
       <Pressable
