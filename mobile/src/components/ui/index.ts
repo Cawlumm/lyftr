@@ -35,6 +35,8 @@ export { EmptyState } from './EmptyState'
 // Feedback
 export { Toast } from './Toast'
 export type { ToastVariant } from './Toast'
+export { Sheet, SHEET_ANIM_MS } from './Sheet'
+export { SheetButton } from './SheetButton'
 export { ConfirmSheet } from './ConfirmSheet'
 export { ActionSheet } from './ActionSheet'
 export type { SheetAction } from './ActionSheet'
