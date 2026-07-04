@@ -154,6 +154,7 @@ was an interim stand-in).
 | — (bottom-sheet shell) | `Sheet` | built (**base primitive** — scrim-fade + slide-up, root insets, grabber; `SHEET_ANIM_MS` for follow-up timing. Build new sheets on this, don't re-derive the chrome) |
 | portal confirm sheet (per page) | `ConfirmSheet` | built on `Sheet`; **use instead of `Alert.alert` for confirms** — icon badge + centered copy + Cancel/confirm |
 | mobile kebab (⋮) → portal menu | `ActionSheet` | built on `Sheet`; slide-up options menu, `actions: SheetAction[]` (icon/label/`destructive`), `layout='stack'\|'row'`, optional rich `header` slot (item preview); fires each onPress after dismiss so a follow-up sheet doesn't overlap |
+| — (semantic action presets) | `editAction` / `deleteAction` | built (`sheetActions.ts`) — factories returning a `SheetAction` so a menu's Edit/Delete are defined once (icon + intent + default label). Prefer these over inline `{ icon, destructive, label }`; add a preset when an action recurs. Keeps primitives free of app concepts (no `kind` enum, no per-action components) |
 | `Loading` (barbell rig) | `Loading` | built (full-screen initial-load state; barbell dips/flexes + rep-dot chase, Reanimated. `if (initialLoading) return <Loading />`, same as web) |
 | `.card` CSS class | `Card` | built |
 | `.btn` CSS classes | `Button` | built |

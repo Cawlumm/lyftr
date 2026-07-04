@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
-import { ChevronRight, Clock, Edit2, MoreVertical, TrendingUp, Trash2 } from 'lucide-react-native'
+import { ChevronRight, Clock, MoreVertical, TrendingUp, Trash2 } from 'lucide-react-native'
 import { displayVolume, type Workout } from '@lyftr/shared'
-import { ActionSheet, AppText, Card, ConfirmSheet, IconButton } from '../ui'
+import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { ExerciseImage } from './ExerciseImage'
@@ -131,8 +131,8 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
           </View>
         }
         actions={[
-          { label: 'Edit', icon: Edit2, onPress: () => router.push(`/workouts/${workout.id}/edit`) },
-          { label: 'Delete', icon: Trash2, destructive: true, onPress: () => setConfirming(true) },
+          editAction(() => router.push(`/workouts/${workout.id}/edit`)),
+          deleteAction(() => setConfirming(true)),
         ]}
       />
 
