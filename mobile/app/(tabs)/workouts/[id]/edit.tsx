@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
-  AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
+  AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Timer, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import {
@@ -11,15 +11,15 @@ import {
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
+import { RestPicker } from '../../../../src/components/workouts/RestPicker'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useTheme } from '../../../../src/theme/useTheme'
 
-// Edit-form shape. Unlike web (which leaves the date immutable) mobile lets you
-// correct the workout's date here too — so `date` (local YYYY-MM-DD) joins the form.
-// NO rest_seconds (the edit screen doesn't touch rest). Weights/duration in DISPLAY
-// units; converted on submit.
+// Edit-form shape. Mobile is a superset of web's edit form: it lets you correct the
+// workout's `date` (local YYYY-MM-DD) and per-exercise `rest_seconds` too. Weights/
+// duration in DISPLAY units; converted on submit.
 interface WorkoutFormData {
   name: string
   notes: string
@@ -28,6 +28,7 @@ interface WorkoutFormData {
   exercises: {
     exercise_id: number
     notes: string
+    rest_seconds: number
     sets: { set_number: number; reps: number; weight: number }[]
   }[]
 }
@@ -109,6 +110,7 @@ export default function EditWorkout() {
           exercises: (workout.exercises || []).map((ex) => ({
             exercise_id: ex.exercise_id,
             notes: ex.notes || '',
+            rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
             // Web parity: unrounded lbsToDisplay prefill (kg users see long decimals).
             sets: (ex.sets || []).map((s) => ({
               set_number: s.set_number,
@@ -132,7 +134,12 @@ export default function EditWorkout() {
       ...prev,
       exercises: [
         ...prev.exercises,
-        { exercise_id: exercise.id, notes: '', sets: [{ set_number: 1, reps: 0, weight: 0 }] },
+        {
+          exercise_id: exercise.id,
+          notes: '',
+          rest_seconds: settings.rest_seconds_default ?? 90,
+          sets: [{ set_number: 1, reps: 0, weight: 0 }],
+        },
       ],
     }))
     setShowPicker(false)
@@ -162,6 +169,14 @@ export default function EditWorkout() {
     setFormData((prev) => {
       const exercises = [...prev.exercises]
       exercises[exIdx].sets[setIdx][field] = Number(value) || 0
+      return { ...prev, exercises }
+    })
+  }
+
+  const setExRest = (exIdx: number, secs: number) => {
+    setFormData((prev) => {
+      const exercises = [...prev.exercises]
+      exercises[exIdx] = { ...exercises[exIdx], rest_seconds: secs }
       return { ...prev, exercises }
     })
   }
@@ -316,7 +331,6 @@ export default function EditWorkout() {
             )}
 
             <View className="gap-4">
-              {/* No RestPicker footer here — web's edit form doesn't touch rest_seconds. */}
               {formData.exercises.map((workoutEx, exIdx) => (
                 <ExerciseFormCard
                   key={exIdx}
@@ -331,6 +345,15 @@ export default function EditWorkout() {
                   onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
                   onUpdateSet={(setIdx, field, v) => updateSet(exIdx, setIdx, field, v)}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
+                  footer={
+                    <View>
+                      <View className="mb-1 flex-row items-center gap-1.5">
+                        <Timer size={13} color={accent} />
+                        <Label>Rest between sets</Label>
+                      </View>
+                      <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={(secs) => setExRest(exIdx, secs)} />
+                    </View>
+                  }
                 />
               ))}
               {/* Thumb-zone duplicate of Add Exercise: the header button scrolls away
