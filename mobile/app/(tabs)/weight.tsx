@@ -8,7 +8,7 @@ import {
 } from 'react-native'
 import { format, parseISO } from 'date-fns'
 import { Trash2 } from 'lucide-react-native'
-import { Screen, H1, Card, Field, Button, Muted, ConfirmSheet } from '../../src/components/ui'
+import { Screen, H1, Card, Field, Button, Muted, ConfirmSheet, deleteConfirmProps } from '../../src/components/ui'
 import { WeightChart } from '../../src/components/WeightChart'
 import { client, useSettingsStore } from '../../src/lib/lyftr'
 import {
@@ -144,15 +144,11 @@ export default function Weight() {
       />
 
       <ConfirmSheet
+        {...deleteConfirmProps({
+          title: 'Delete Entry?',
+          subject: pendingDelete ? `${displayWeight(pendingDelete.weight, unit)} ${weightShort(unit)}` : '',
+        })}
         open={!!pendingDelete}
-        title="Delete Entry?"
-        message={pendingDelete
-          ? `${displayWeight(pendingDelete.weight, unit)} ${weightShort(unit)} will be permanently deleted.`
-          : ''}
-        confirmLabel="Delete"
-        busyLabel="Deleting…"
-        destructive
-        icon={Trash2}
         busy={deleting}
         onConfirm={handleDelete}
         onCancel={() => setPendingDelete(null)}

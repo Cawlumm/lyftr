@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import { memo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
-import { FileText, Plus, Trash2, X } from 'lucide-react-native'
+import { FileText, Plus, Timer, Trash2, X } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
+import { RestPicker } from './RestPicker'
 import { useNumericText } from '../../hooks/useNumericText'
 import { useTheme } from '../../theme/useTheme'
 
@@ -15,20 +15,22 @@ interface SetData {
 }
 
 interface Props {
-  /** 0-based position in the workout — rendered as the 1-based order badge. */
+  /** 0-based position in the workout — rendered as the 1-based order badge. Also passed
+      back to every callback so the owning screen doesn't bind a fresh closure per card
+      (that would defeat the memo below and re-render all cards on any edit). */
   index: number
   exercise?: Exercise
   notes: string
   sets: SetData[]
+  restSeconds: number
   /** Display unit short label (lb/kg) — shown once in the column header, not per row. */
   unit: string
-  onRemove: () => void
-  onNotesChange: (text: string) => void
-  onAddSet: () => void
-  onRemoveSet: (setIdx: number) => void
-  onUpdateSet: (setIdx: number, field: 'reps' | 'weight', value: string) => void
-  /** Optional extra per-exercise control (Log form's RestPicker) tucked at the card foot. */
-  footer?: ReactNode
+  onRemove: (index: number) => void
+  onNotesChange: (index: number, text: string) => void
+  onAddSet: (index: number) => void
+  onRemoveSet: (index: number, setIdx: number) => void
+  onUpdateSet: (index: number, setIdx: number, field: 'reps' | 'weight', value: string) => void
+  onRestChange: (index: number, secs: number) => void
   /** iOS: ties the numeric cells to the screen's keyboard "Done" accessory bar. */
   inputAccessoryViewID?: string
 }
@@ -90,9 +92,9 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
 // the Hevy/Strong spreadsheet pattern) + ghost Add Set. Notes are progressive
 // disclosure: hidden behind a "Note" toggle until they exist. Purely
 // presentational — all state stays in the owning screen.
-export function ExerciseFormCard({
-  index, exercise, notes, sets, unit,
-  onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, footer,
+function ExerciseFormCardBase({
+  index, exercise, notes, sets, restSeconds, unit,
+  onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange,
   inputAccessoryViewID,
 }: Props) {
   const { colors, accent } = useTheme()
@@ -135,7 +137,7 @@ export function ExerciseFormCard({
           label={`Remove ${exercise?.name ?? 'exercise'}`}
           variant="ghost"
           size="sm"
-          onPress={onRemove}
+          onPress={() => onRemove(index)}
         />
       </View>
 
@@ -158,7 +160,7 @@ export function ExerciseFormCard({
               <TextInput
                 ref={(r) => { repsRefs.current[setIdx] = r }}
                 value={set.reps ? String(set.reps) : ''}
-                onChangeText={(t) => onUpdateSet(setIdx, 'reps', t.replace(/[^0-9]/g, ''))}
+                onChangeText={(t) => onUpdateSet(index, setIdx, 'reps', t.replace(/[^0-9]/g, ''))}
                 keyboardType="number-pad"
                 returnKeyType="next"
                 submitBehavior="submit"
@@ -175,7 +177,7 @@ export function ExerciseFormCard({
             <View className="flex-1">
               <WeightCell
                 value={set.weight ? String(set.weight) : ''}
-                onChange={(v) => onUpdateSet(setIdx, 'weight', v)}
+                onChange={(v) => onUpdateSet(index, setIdx, 'weight', v)}
                 placeholderColor={colors.txMuted}
                 inputRef={(r) => { weightRefs.current[setIdx] = r }}
                 onNext={setIdx < sets.length - 1
@@ -185,7 +187,7 @@ export function ExerciseFormCard({
               />
             </View>
             <View className={`${COL_DELETE} items-center`}>
-              <IconButton icon={X} label="Remove set" variant="ghost" size="sm" onPress={() => onRemoveSet(setIdx)} />
+              <IconButton icon={X} label="Remove set" variant="ghost" size="sm" onPress={() => onRemoveSet(index, setIdx)} />
             </View>
           </View>
         ))}
@@ -195,7 +197,7 @@ export function ExerciseFormCard({
       <View className="mt-2.5 flex-row items-center gap-2">
         <Pressable
           accessibilityRole="button"
-          onPress={onAddSet}
+          onPress={() => onAddSet(index)}
           // 36pt row + 6pt vertical slop ≈ 48pt effective target; the slop stays
           // inside the surrounding whitespace (mt-2.5 above, card padding below).
           hitSlop={{ top: 6, bottom: 6 }}
@@ -225,7 +227,7 @@ export function ExerciseFormCard({
         <View className="mt-2.5 flex-row items-center gap-2">
           <TextInput
             value={notes}
-            onChangeText={onNotesChange}
+            onChangeText={(t) => onNotesChange(index, t)}
             placeholder="e.g., Felt strong"
             placeholderTextColor={colors.txMuted}
             accessibilityLabel="Exercise notes"
@@ -236,14 +238,28 @@ export function ExerciseFormCard({
             label="Remove note"
             variant="ghost"
             size="sm"
-            onPress={() => { onNotesChange(''); setShowNotes(false) }}
+            onPress={() => { onNotesChange(index, ''); setShowNotes(false) }}
           />
         </View>
       )}
 
-      {footer ? (
-        <View className="mt-3 border-t border-surface-border/60 pt-3">{footer}</View>
-      ) : null}
+      {/* Rest-between-sets picker, tucked at the card foot. Rendered here (not passed as a
+          JSX `footer` prop) so the card takes only stable, primitive props — an inline
+          footer element would be a new reference every parent render and defeat the memo. */}
+      <View className="mt-3 border-t border-surface-border/60 pt-3">
+        <View className="mb-1 flex-row items-center gap-1.5">
+          <Timer size={13} color={accent} />
+          <Label>Rest between sets</Label>
+        </View>
+        <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
+      </View>
     </View>
   )
 }
+
+// Memoized: the Log/Edit forms hold ALL exercises in one state object, so any edit
+// (even the duration stepper) re-renders the screen. Without this, all N cards re-render
+// on every keystroke/tap — the visible stepper lag. Props are kept referentially stable
+// by the screens (index-based useCallback handlers + primitive values), so only the card
+// whose data actually changed re-renders.
+export const ExerciseFormCard = memo(ExerciseFormCardBase)

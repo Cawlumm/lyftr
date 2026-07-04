@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import {
-  AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Timer, Zap,
+  AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { apiErrorMessage, displayToLbs, weightShort, type Exercise, type Program } from '@lyftr/shared'
@@ -12,7 +12,6 @@ import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramPicker } from '../../../src/components/workouts/ProgramPicker'
-import { RestPicker } from '../../../src/components/workouts/RestPicker'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -117,49 +116,55 @@ export default function AddWorkout() {
     setError('')
   }
 
-  const removeExercise = (index: number) =>
-    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) }))
+  // These handlers are passed to the memoized ExerciseFormCard, so they must be both
+  // referentially STABLE (useCallback with no deps — they only touch the setState updater)
+  // and IMMUTABLE (replace only the changed exercise/set with a new object). Immutability
+  // is what lets memo work: the edited card gets a fresh `sets`/`notes` ref and re-renders,
+  // while every other card keeps its old refs and is skipped.
+  const removeExercise = useCallback((index: number) =>
+    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
 
-  const addSet = (exIdx: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets.push({ set_number: exercises[exIdx].sets.length + 1, reps: 0, weight: 0 })
-      return { ...prev, exercises }
-    })
-  }
+  const addSet = useCallback((exIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] }),
+    }))
+  }, [])
 
   // Web parity: removing a middle set does NOT renumber the rest.
-  const removeSet = (exIdx: number, setIdx: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets = exercises[exIdx].sets.filter((_, i) => i !== setIdx)
-      return { ...prev, exercises }
-    })
-  }
+  const removeSet = useCallback((exIdx: number, setIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) }),
+    }))
+  }, [])
 
-  const updateSet = (exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets[setIdx][field] = Number(value) || 0
-      return { ...prev, exercises }
-    })
-  }
+  const updateSet = useCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, j) => (j !== setIdx ? s : { ...s, [field]: Number(value) || 0 })),
+        }),
+    }))
+  }, [])
 
-  const updateExNotes = (exIdx: number, text: string) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx] = { ...exercises[exIdx], notes: text }
-      return { ...prev, exercises }
-    })
-  }
+  const updateExNotes = useCallback((exIdx: number, text: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, notes: text })),
+    }))
+  }, [])
 
-  const setExRest = (exIdx: number, secs: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx] = { ...exercises[exIdx], rest_seconds: secs }
-      return { ...prev, exercises }
-    })
-  }
+  const setExRest = useCallback((exIdx: number, secs: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })),
+    }))
+  }, [])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }
@@ -320,22 +325,15 @@ export default function AddWorkout() {
                   exercise={pickerExercises[workoutEx.exercise_id]}
                   notes={workoutEx.notes}
                   sets={workoutEx.sets}
+                  restSeconds={workoutEx.rest_seconds ?? 90}
                   unit={wUnit}
-                  onRemove={() => removeExercise(exIdx)}
-                  onNotesChange={(t) => updateExNotes(exIdx, t)}
-                  onAddSet={() => addSet(exIdx)}
-                  onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
-                  onUpdateSet={(setIdx, field, v) => updateSet(exIdx, setIdx, field, v)}
+                  onRemove={removeExercise}
+                  onNotesChange={updateExNotes}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onUpdateSet={updateSet}
+                  onRestChange={setExRest}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
-                  footer={
-                    <View>
-                      <View className="mb-1 flex-row items-center gap-1.5">
-                        <Timer size={13} color={accent} />
-                        <Label>Rest between sets</Label>
-                      </View>
-                      <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={(secs) => setExRest(exIdx, secs)} />
-                    </View>
-                  }
                 />
               ))}
               {/* Thumb-zone duplicate of Add Exercise: the header buttons scroll away

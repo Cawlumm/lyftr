@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, View } from 'react-native'
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { Dumbbell, Plus } from 'lucide-react-native'
 import { weightShort, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, Field, IconButton, Label, Loading, PageHeader, Screen } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
+import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -26,9 +27,10 @@ export default function Workouts() {
     fetchSettings()
   }, [fetchSettings])
 
-  // Debounce search so we don't fire a request on every keystroke (1:1 with web).
+  // Debounce search so we don't fire a request on every keystroke. 250ms sits in the
+  // research-backed 200–300ms sweet spot (>300ms starts to feel laggy).
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300)
+    const t = setTimeout(() => setDebouncedSearch(search), 250)
     return () => clearTimeout(t)
   }, [search])
 
@@ -37,7 +39,7 @@ export default function Workouts() {
       client.workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     [debouncedSearch]
   )
-  const { items: workouts, loadMore, hasMore, loading, initialLoading, reload } =
+  const { items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload } =
     useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
 
   // The stack keeps this screen mounted under the detail screen, so a delete made
@@ -54,7 +56,17 @@ export default function Workouts() {
     }, [reload])
   )
 
-  if (initialLoading) return <Loading />
+  // Pull-to-refresh: drive the native RefreshControl spinner off the reload promise.
+  const [pulling, setPulling] = useState(false)
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await reload()
+    setPulling(false)
+  }, [reload])
+
+  // Skeleton (not the barbell loader) for the list's first load: content-shaped
+  // placeholders read as faster and match where the real cards will land.
+  if (initialLoading) return <WorkoutsSkeleton />
 
 
   const now = new Date()
@@ -89,6 +101,9 @@ export default function Workouts() {
         // nears the end (threshold 0.5 ≈ the web's 200px rootMargin pre-fetch).
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />
+        }
         ItemSeparatorComponent={() => <View className="h-3" />}
         ListHeaderComponent={
           <View className="gap-5 py-4">
@@ -106,8 +121,10 @@ export default function Workouts() {
               }
             />
 
-            {/* Summary — web's 3-card grid */}
-            <View className="flex-row gap-3">
+            {/* Summary — web's 3-card grid. Dimmed while a new search revalidates: the
+                stats summarize the loaded items, so they're stale mid-search — fading
+                them (and the rows below) signals "updating" without a blank flash. */}
+            <View className="flex-row gap-3" style={{ opacity: refreshing ? 0.5 : 1 }}>
               {/* Tighter horizontal padding than Card's default: three-up columns are
                   narrow and the uppercase wide-tracked label truncates at p-4. */}
               {stats.map((s) => (
@@ -125,25 +142,28 @@ export default function Workouts() {
               ))}
             </View>
 
-            {/* Search — Field has no leading-icon slot; the web's inline Search icon
-                is deferred to polish rather than forking the primitive. */}
-            <Field
+            {/* Reusable SearchField: leading search icon + a trailing slot that is a
+                spinner while a new query fetches (previous results stay on screen and
+                swap in place — no flash-to-zero) or a clear (×) button once there's text. */}
+            <SearchField
               value={search}
               onChangeText={setSearch}
+              loading={refreshing}
               placeholder="Search workouts…"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="search"
             />
           </View>
         }
         renderItem={({ item }) => (
-          <WorkoutCard
-            workout={item}
-            unit={unit}
-            onPress={() => router.push(`/workouts/${item.id}`)}
-            onDeleted={() => reload()}
-          />
+          // Fade the stale rows while a new search revalidates (they swap in place when
+          // the fresh page lands); the search field above stays full-opacity/interactive.
+          <View style={{ opacity: refreshing ? 0.5 : 1 }}>
+            <WorkoutCard
+              workout={item}
+              unit={unit}
+              onPress={() => router.push(`/workouts/${item.id}`)}
+              onDeleted={() => reload()}
+            />
+          </View>
         )}
         ListEmptyComponent={
           loading ? null : (

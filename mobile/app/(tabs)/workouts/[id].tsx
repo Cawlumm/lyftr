@@ -9,7 +9,7 @@ import {
   apiErrorMessage, displayVolume, displayWeight, weightShort,
   type Workout, type Set as WorkoutSet,
 } from '@lyftr/shared'
-import { AppText, ConfirmSheet, Loading, Screen } from '../../../src/components/ui'
+import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -175,13 +175,8 @@ export default function WorkoutDetail() {
 
           {/* Delete confirm — slide-up bottom sheet (mirrors web's portal sheet). */}
           <ConfirmSheet
+            {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${workout.name}"` })}
             open={confirming}
-            title="Delete Workout?"
-            message={`"${workout.name}" will be permanently deleted.`}
-            confirmLabel="Delete"
-            busyLabel="Deleting…"
-            destructive
-            icon={Trash2}
             busy={deleting}
             onConfirm={handleDelete}
             onCancel={() => setConfirming(false)}

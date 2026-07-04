@@ -23,6 +23,7 @@ export { OptionPill } from './OptionPill'
 
 // Inputs
 export { Field } from './Field'
+export { SearchField } from './SearchField'
 export { NumberField } from './NumberField'
 export { StepperTile } from './StepperTile'
 export { DateInput } from './DateInput'
@@ -32,6 +33,9 @@ export { Stat } from './Stat'
 export { ListRow } from './ListRow'
 export { EmptyState } from './EmptyState'
 
+// Loading placeholders (skeleton screens) — reusable across list/detail pages
+export { Skeleton, SkeletonText, SkeletonListRow, SkeletonList, SkeletonStat, SkeletonStatRow } from './Skeleton'
+
 // Feedback
 export { Toast } from './Toast'
 export type { ToastVariant } from './Toast'
@@ -40,5 +44,6 @@ export { SheetButton } from './SheetButton'
 export { ConfirmSheet } from './ConfirmSheet'
 export { ActionSheet } from './ActionSheet'
 export type { SheetAction } from './ActionSheet'
-export { editAction, deleteAction } from './sheetActions'
+export type { ConfirmSheetProps } from './ConfirmSheet'
+export { editAction, deleteAction, deleteConfirmProps } from './sheetActions'
 export { Loading } from './Loading'

@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
-import { ChevronRight, Clock, MoreVertical, TrendingUp, Trash2 } from 'lucide-react-native'
+import { ChevronRight, Clock, MoreVertical, TrendingUp } from 'lucide-react-native'
 import { displayVolume, type Workout } from '@lyftr/shared'
-import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, editAction } from '../ui'
+import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { ExerciseImage } from './ExerciseImage'
@@ -137,13 +137,8 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
       />
 
       <ConfirmSheet
+        {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${workout.name}"` })}
         open={confirming}
-        title="Delete Workout?"
-        message={`"${workout.name}" will be permanently deleted.`}
-        confirmLabel="Delete"
-        busyLabel="Deleting…"
-        destructive
-        icon={Trash2}
         busy={deleting}
         onConfirm={handleDelete}
         onCancel={() => setConfirming(false)}

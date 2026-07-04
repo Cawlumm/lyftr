@@ -5,7 +5,7 @@ import { AppText } from './Typography'
 import { SheetButton } from './SheetButton'
 import { Sheet } from './Sheet'
 
-interface Props {
+export interface ConfirmSheetProps {
   open: boolean
   title: string
   /** Body copy under the title (e.g. what will be deleted). */
@@ -30,7 +30,7 @@ interface Props {
 export function ConfirmSheet({
   open, title, message, confirmLabel, busyLabel, cancelLabel = 'Cancel',
   destructive = false, icon: Icon, busy = false, onConfirm, onCancel,
-}: Props) {
+}: ConfirmSheetProps) {
   const { brand, accent, isDark } = useTheme()
   // errorSoft reads on dark, error on light — same split as IconButton.
   const badgeIconColor = destructive ? (isDark ? brand.errorSoft : brand.error) : accent

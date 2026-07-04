@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
-  AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Timer, Zap,
+  AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import {
@@ -11,7 +11,6 @@ import {
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
-import { RestPicker } from '../../../../src/components/workouts/RestPicker'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
@@ -146,48 +145,51 @@ export default function EditWorkout() {
     setError('')
   }
 
-  const removeExercise = (index: number) =>
-    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) }))
+  // Stable + immutable so the memoized ExerciseFormCard only re-renders the edited card,
+  // not all N of them, on each keystroke/tap. See the matching note in new.tsx.
+  const removeExercise = useCallback((index: number) =>
+    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
 
-  const addSet = (exIdx: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets.push({ set_number: exercises[exIdx].sets.length + 1, reps: 0, weight: 0 })
-      return { ...prev, exercises }
-    })
-  }
+  const addSet = useCallback((exIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] }),
+    }))
+  }, [])
 
-  const removeSet = (exIdx: number, setIdx: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets = exercises[exIdx].sets.filter((_, i) => i !== setIdx)
-      return { ...prev, exercises }
-    })
-  }
+  const removeSet = useCallback((exIdx: number, setIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) }),
+    }))
+  }, [])
 
-  const updateSet = (exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx].sets[setIdx][field] = Number(value) || 0
-      return { ...prev, exercises }
-    })
-  }
+  const updateSet = useCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, j) => (j !== setIdx ? s : { ...s, [field]: Number(value) || 0 })),
+        }),
+    }))
+  }, [])
 
-  const setExRest = (exIdx: number, secs: number) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx] = { ...exercises[exIdx], rest_seconds: secs }
-      return { ...prev, exercises }
-    })
-  }
+  const setExRest = useCallback((exIdx: number, secs: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })),
+    }))
+  }, [])
 
-  const updateExNotes = (exIdx: number, text: string) => {
-    setFormData((prev) => {
-      const exercises = [...prev.exercises]
-      exercises[exIdx] = { ...exercises[exIdx], notes: text }
-      return { ...prev, exercises }
-    })
-  }
+  const updateExNotes = useCallback((exIdx: number, text: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, notes: text })),
+    }))
+  }, [])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }
@@ -333,22 +335,15 @@ export default function EditWorkout() {
                   exercise={pickerExercises[workoutEx.exercise_id]}
                   notes={workoutEx.notes}
                   sets={workoutEx.sets}
+                  restSeconds={workoutEx.rest_seconds ?? 90}
                   unit={wUnit}
-                  onRemove={() => removeExercise(exIdx)}
-                  onNotesChange={(t) => updateExNotes(exIdx, t)}
-                  onAddSet={() => addSet(exIdx)}
-                  onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
-                  onUpdateSet={(setIdx, field, v) => updateSet(exIdx, setIdx, field, v)}
+                  onRemove={removeExercise}
+                  onNotesChange={updateExNotes}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onUpdateSet={updateSet}
+                  onRestChange={setExRest}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
-                  footer={
-                    <View>
-                      <View className="mb-1 flex-row items-center gap-1.5">
-                        <Timer size={13} color={accent} />
-                        <Label>Rest between sets</Label>
-                      </View>
-                      <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={(secs) => setExRest(exIdx, secs)} />
-                    </View>
-                  }
                 />
               ))}
               {/* Thumb-zone duplicate of Add Exercise: the header button scrolls away

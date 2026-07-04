@@ -1,4 +1,6 @@
+import type { ReactNode } from 'react'
 import { Text, TextInput, TextInputProps, View } from 'react-native'
+import type { LucideIcon } from 'lucide-react-native'
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,6 +14,10 @@ interface Props extends TextInputProps {
   label?: string
   error?: string | null
   className?: string
+  /** Optional leading glyph inside the box (e.g. a search icon). */
+  leftIcon?: LucideIcon
+  /** Optional trailing element inside the box (e.g. a spinner or clear button). */
+  rightSlot?: ReactNode
 }
 
 // Labeled text field, mirrors the web `.input` + `.label` pattern, with a focus
@@ -26,7 +32,7 @@ interface Props extends TextInputProps {
 //
 // `multiline` is the web `textarea min-h-20 resize-none` analog: taller floor,
 // top-aligned input, same UI-thread focus glow.
-export function Field({ label, error, className = '', onFocus, onBlur, multiline, ...rest }: Props) {
+export function Field({ label, error, className = '', leftIcon: LeftIcon, rightSlot, onFocus, onBlur, multiline, ...rest }: Props) {
   const { colors, brand } = useTheme()
   const focus = useSharedValue(0)
   const boxStyle = useAnimatedStyle(() => ({
@@ -52,9 +58,13 @@ export function Field({ label, error, className = '', onFocus, onBlur, multiline
           boxStyle,
         ]}
       >
+        {LeftIcon ? <LeftIcon size={18} color={colors.txMuted} style={{ marginRight: 8 }} /> : null}
         <TextInput
-          className="flex-1 font-sans text-base text-tx-primary"
-          style={multiline ? { minHeight: 60, textAlignVertical: 'top' } : undefined}
+          className="flex-1 font-sans text-tx-primary"
+          // fontSize inline instead of the `text-base` class so NO lineHeight is imposed:
+          // on iOS a single-line TextInput with a set lineHeight top-aligns its text and
+          // clips descenders (g, j, p, y). Natural line metrics render them in full.
+          style={multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' } : { fontSize: 16 }}
           multiline={multiline}
           placeholderTextColor={colors.txMuted}
           onFocus={(e) => {
@@ -67,6 +77,7 @@ export function Field({ label, error, className = '', onFocus, onBlur, multiline
           }}
           {...rest}
         />
+        {rightSlot ? <View style={{ marginLeft: 8 }}>{rightSlot}</View> : null}
       </Reanimated.View>
       {error ? <Text className="font-sans text-xs text-error-400">{error}</Text> : null}
     </View>

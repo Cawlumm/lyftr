@@ -8,12 +8,6 @@ import { useTheme } from '../../theme/useTheme'
 // Value + onChange are whole MINUTES (same as the form's formData.duration), so the
 // payload upstream is unchanged.
 const STEP = 5
-// One shared line box for the value (16pt bold) and the "min" label (14pt) so
-// vertical centering lines them up on the same optical line.
-const LINE = 20
-// Points to drop "min" so it lands on the value's iOS optical line. Calibrated on
-// device (web centers the value, so it can't measure this) — bump if still high.
-const MIN_NUDGE = 3.5
 
 export function DurationField({ value, onChange, inputAccessoryViewID }: {
   value: number
@@ -36,33 +30,41 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         <Minus size={16} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
       </Pressable>
 
-      {/* The value + "min" read as one centered group. This column is only ~1/3 of the
-          row, so the control stays compact: slim ± end caps and a small "min". */}
-      <View className="flex-1 flex-row items-center justify-center">
-        <TextInput
-          value={value ? String(value) : ''}
-          onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')) || 0)}
-          keyboardType="number-pad"
-          returnKeyType="done"
-          selectTextOnFocus
-          inputAccessoryViewID={inputAccessoryViewID}
-          placeholder="0"
-          placeholderTextColor={colors.txMuted}
-          accessibilityLabel="Duration in minutes"
-          className="py-0 text-center font-sans-bold text-base text-tx-primary"
-          // Share one lineHeight across the value + "min" so items-center lines up
-          // their text boxes exactly (iOS renders placeholder/value low otherwise).
-          // includeFontPadding:false drops Android's extra glyph padding.
-          style={{ fontVariant: ['tabular-nums'], minWidth: 14, maxWidth: 40, lineHeight: LINE, includeFontPadding: false }}
-        />
-        {/* Nudge "min" down to sit on the value's optical line (the bold value renders
-            low within its line box on iOS); transform keeps it out of layout. */}
-        <Text
-          className="ml-0.5 font-sans text-xs text-tx-muted"
-          style={{ lineHeight: LINE, transform: [{ translateY: MIN_NUDGE }] }}
-        >
-          min
-        </Text>
+      {/* The value + "min" read as one group. They live in an auto-height inner block
+          that BASELINE-aligns them (items-baseline), and that block is centered in the
+          field (items-center on the column). Baseline-locking is the fix for the load-in
+          jump: "min" is pinned to the number's text baseline, so even if iOS re-measures
+          the input a frame late and the block re-centers, the two move together instead
+          of "min" drifting relative to the number. Height is left to h-12 (stretched from
+          the row) — an inline `height` here doesn't merge cleanly with NativeWind on native
+          and let the box grow past 48 on iOS. */}
+      <View className="h-12 flex-1 items-center justify-center">
+        <View className="flex-row items-baseline">
+          <TextInput
+            value={value ? String(value) : ''}
+            onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')) || 0)}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            selectTextOnFocus
+            inputAccessoryViewID={inputAccessoryViewID}
+            placeholder="0"
+            placeholderTextColor={colors.txMuted}
+            accessibilityLabel="Duration in minutes"
+            className="py-0 text-center text-base text-tx-primary"
+            // fontFamily inline (not via className) so the input never renders one frame
+            // in the system fallback font before the brand font resolves. lineHeight +
+            // includeFontPadding bound the input's line box — without them iOS gives a
+            // bare TextInput extra intrinsic height, which (via items-baseline) makes the
+            // whole control render taller than the 48pt box and out-of-line with DateInput.
+            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontVariant: ['tabular-nums'], minWidth: 14, maxWidth: 40, lineHeight: 20, includeFontPadding: false }}
+          />
+          <Text
+            className="ml-0.5 text-xs text-tx-muted"
+            style={{ fontFamily: 'PlusJakartaSans_500Medium', includeFontPadding: false }}
+          >
+            min
+          </Text>
+        </View>
       </View>
 
       <Pressable
