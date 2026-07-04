@@ -35,3 +35,4 @@ export { EmptyState } from './EmptyState'
 // Feedback
 export { Toast } from './Toast'
 export type { ToastVariant } from './Toast'
+export { ConfirmSheet } from './ConfirmSheet'

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
@@ -9,7 +9,7 @@ import {
   apiErrorMessage, displayVolume, displayWeight, weightShort,
   type Workout, type Set as WorkoutSet,
 } from '@lyftr/shared'
-import { AppText, Screen } from '../../../src/components/ui'
+import { AppText, ConfirmSheet, Screen } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -66,6 +66,7 @@ export default function WorkoutDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -90,26 +91,17 @@ export default function WorkoutDetail() {
   // Deep links can land here with no history — fall back to the list route.
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
-  const confirmDelete = () => {
+  // Web's portal bottom-sheet confirm, ported 1:1 to a slide-up ConfirmSheet
+  // (replaces the interim OS Alert) — closer to the web app the user knows.
+  const handleDelete = async () => {
     if (!workout) return
-    // Web's portal bottom-sheet confirm → the OS-native destructive Alert
-    // (weight.tsx precedent; simplest faithful confirm on RN).
-    Alert.alert('Delete Workout?', `"${workout.name}" will be permanently deleted.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          setDeleting(true)
-          try {
-            await client.workoutAPI.delete(workout.id)
-            goBack() // list refetches on focus
-          } catch {
-            setDeleting(false)
-          }
-        },
-      },
-    ])
+    setDeleting(true)
+    try {
+      await client.workoutAPI.delete(workout.id)
+      goBack() // list refetches on focus
+    } catch {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -176,7 +168,7 @@ export default function WorkoutDetail() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Delete workout"
-                onPress={confirmDelete}
+                onPress={() => setConfirming(true)}
                 disabled={deleting}
                 hitSlop={6}
                 className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
@@ -185,6 +177,20 @@ export default function WorkoutDetail() {
               </Pressable>
             </View>
           </View>
+
+          {/* Delete confirm — slide-up bottom sheet (mirrors web's portal sheet). */}
+          <ConfirmSheet
+            open={confirming}
+            title="Delete Workout?"
+            message={`"${workout.name}" will be permanently deleted.`}
+            confirmLabel="Delete"
+            busyLabel="Deleting…"
+            destructive
+            icon={Trash2}
+            busy={deleting}
+            onConfirm={handleDelete}
+            onCancel={() => setConfirming(false)}
+          />
 
           {/* Header card */}
           <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
