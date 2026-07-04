@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
@@ -9,7 +9,7 @@ import {
   apiErrorMessage, displayVolume, displayWeight, weightShort,
   type Workout, type Set as WorkoutSet,
 } from '@lyftr/shared'
-import { AppText, ConfirmSheet, Screen } from '../../../src/components/ui'
+import { AppText, ConfirmSheet, Loading, Screen } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -104,13 +104,8 @@ export default function WorkoutDetail() {
     }
   }
 
-  if (loading) {
-    return (
-      <Screen className="items-center justify-center">
-        <ActivityIndicator color={accent} />
-      </Screen>
-    )
-  }
+  if (loading) return <Loading />
+
 
   if (error || !workout) {
     return (

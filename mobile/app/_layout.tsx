@@ -1,7 +1,6 @@
 import '../src/lib/polyfills'
 import '../global.css'
 import { useEffect } from 'react'
-import { ActivityIndicator, View } from 'react-native'
 import { Slot, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { colorScheme } from 'nativewind'
@@ -15,6 +14,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans'
 import { useAuthStore, useServerStore, useThemeStore, useWorkoutSession } from '../src/lib/lyftr'
 import { useTheme } from '../src/theme/useTheme'
+import { Loading } from '../src/components/ui'
 
 // Root layout: hydrate persisted state once, then gate routes on auth. Unauthed users
 // are pushed into the (auth) group; authed users out of it.
@@ -26,7 +26,7 @@ export default function RootLayout() {
   const isHydrated = useAuthStore((s) => s.isHydrated)
   const themeHydrated = useThemeStore((s) => s.isHydrated)
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
-  const { mode, isDark, colors } = useTheme()
+  const { mode, isDark } = useTheme()
   const segments = useSegments()
   const router = useRouter()
   const [fontsLoaded] = useFonts({
@@ -62,13 +62,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      {ready ? (
-        <Slot />
-      ) : (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.base }}>
-          <ActivityIndicator color="#00b8d9" />
-        </View>
-      )}
+      {ready ? <Slot /> : <Loading />}
     </SafeAreaProvider>
   )
 }

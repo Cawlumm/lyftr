@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Timer, Zap,
@@ -8,7 +8,7 @@ import type { LucideIcon } from 'lucide-react-native'
 import {
   apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise,
 } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../../src/components/ui'
+import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { RestPicker } from '../../../../src/components/workouts/RestPicker'
@@ -217,13 +217,8 @@ export default function EditWorkout() {
     }
   }
 
-  if (initialLoading) {
-    return (
-      <Screen className="items-center justify-center">
-        <ActivityIndicator color={accent} />
-      </Screen>
-    )
-  }
+  if (initialLoading) return <Loading />
+
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
   const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)

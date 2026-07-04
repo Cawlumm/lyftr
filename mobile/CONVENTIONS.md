@@ -130,7 +130,10 @@ error border, `AlertCircle`) or `Field`'s `error` prop inline; transient success
 progression feedback uses Toast (to-build, mirror web's: icon chip + title +
 description, auto-dismiss ~4s, docked above the tab bar); loading uses the control's
 own `loading` prop (`Button`) or a pull-to-refresh `RefreshControl` — not full-screen
-spinners for partial data. **Confirmations (destructive or otherwise) use
+spinners for partial data. **Full-screen initial load** (a screen's first data fetch)
+renders `<Loading />` — the ported barbell rig — via `if (initialLoading) return
+<Loading />`, matching web; a small inline `ActivityIndicator` (brand color) is still
+right for in-place spots like pagination footers and picker lists. **Confirmations (destructive or otherwise) use
 `ConfirmSheet`, not `Alert.alert`** — a `[pending, setPending]` state drives
 `open`/`busy`; it mirrors web's portal bottom sheet and stays on-theme (the OS Alert
 was an interim stand-in).
@@ -149,6 +152,7 @@ was an interim stand-in).
 | `Toast` | `Toast` | built |
 | `DateInput` | `DateInput` | built (wraps `@react-native-community/datetimepicker`; value stays `YYYY-MM-DD`) |
 | portal confirm sheet (per page) | `ConfirmSheet` | built (slide-up bottom sheet; **use instead of `Alert.alert` for confirms** — icon badge + centered copy + Cancel/confirm) |
+| `Loading` (barbell rig) | `Loading` | built (full-screen initial-load state; barbell dips/flexes + rep-dot chase, Reanimated. `if (initialLoading) return <Loading />`, same as web) |
 | `.card` CSS class | `Card` | built |
 | `.btn` CSS classes | `Button` | built |
 | `.input` / `.label` CSS classes | `Field` | built (focus-glow, Fabric-safe) |

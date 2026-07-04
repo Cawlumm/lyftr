@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { Dumbbell, Plus } from 'lucide-react-native'
 import { weightShort, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, Field, IconButton, Label, PageHeader, Screen } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, Field, IconButton, Label, Loading, PageHeader, Screen } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -54,13 +54,8 @@ export default function Workouts() {
     }, [reload])
   )
 
-  if (initialLoading) {
-    return (
-      <Screen className="items-center justify-center">
-        <ActivityIndicator color={accent} />
-      </Screen>
-    )
-  }
+  if (initialLoading) return <Loading />
+
 
   const now = new Date()
   const stats = [
