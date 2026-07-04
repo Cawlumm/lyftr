@@ -8,6 +8,9 @@ import { useTheme } from '../../theme/useTheme'
 // Value + onChange are whole MINUTES (same as the form's formData.duration), so the
 // payload upstream is unchanged.
 const STEP = 5
+// One shared line box for the value (16pt bold) and the "min" label (14pt) so
+// vertical centering lines them up on the same optical line.
+const LINE = 20
 
 export function DurationField({ value, onChange, inputAccessoryViewID }: {
   value: number
@@ -34,7 +37,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
           value is flanked by equal widths and sits dead-center in the segment — no
           matter the digit count — while "min" still reads to its right (no overlap). */}
       <View className="flex-1 flex-row items-center justify-center">
-        <Text className="mr-1 font-sans text-sm opacity-0" aria-hidden>min</Text>
+        <Text className="mr-1 font-sans text-sm opacity-0" style={{ lineHeight: LINE }} aria-hidden>min</Text>
         <TextInput
           value={value ? String(value) : ''}
           onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')) || 0)}
@@ -46,9 +49,12 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
           placeholderTextColor={colors.txMuted}
           accessibilityLabel="Duration in minutes"
           className="py-0 text-center font-sans-bold text-base text-tx-primary"
-          style={{ fontVariant: ['tabular-nums'], minWidth: 16, maxWidth: 44 }}
+          // Share one lineHeight across the value + "min" so items-center lines up
+          // their text boxes exactly (iOS renders placeholder/value low otherwise).
+          // includeFontPadding:false drops Android's extra glyph padding.
+          style={{ fontVariant: ['tabular-nums'], minWidth: 16, maxWidth: 44, lineHeight: LINE, includeFontPadding: false }}
         />
-        <Text className="ml-1 font-sans text-sm text-tx-muted">min</Text>
+        <Text className="ml-1 font-sans text-sm text-tx-muted" style={{ lineHeight: LINE }}>min</Text>
       </View>
 
       <Pressable
