@@ -4,6 +4,7 @@ import { Pressable, Text, TextInput, View } from 'react-native'
 import { FileText, Plus, Trash2, X } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
+import { ExerciseImage } from './ExerciseImage'
 import { useNumericText } from '../../hooks/useNumericText'
 import { useTheme } from '../../theme/useTheme'
 
@@ -107,13 +108,19 @@ export function ExerciseFormCard({
 
   return (
     <View className="rounded-2xl border border-surface-border bg-surface-muted/30 p-4">
-      {/* Header: order badge, name, muscle • equipment; muted (not red) remove —
-          destructive styling is reserved for the confirm step, like the list screens. */}
-      <View className="mb-3 flex-row items-center gap-2.5">
-        <View className="h-6 w-6 items-center justify-center rounded-md bg-brand-500/15">
-          <AppText variant="caption" color="brand" style={{ fontVariant: ['tabular-nums'] }}>
-            {index + 1}
-          </AppText>
+      {/* Header: exercise thumbnail (with the order number tucked into a corner
+          badge), name, muscle • equipment; muted (not red) remove — destructive
+          styling is reserved for the confirm step, like the list screens. */}
+      <View className="mb-3 flex-row items-center gap-3">
+        <View className="relative">
+          <ExerciseImage url={exercise?.image_url} />
+          {/* Order number rides the thumbnail's corner so the image stays the anchor
+              and we don't spend a second leading chip on it. */}
+          <View className="absolute -left-1.5 -top-1.5 h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-surface-base bg-brand-500 px-1">
+            <AppText variant="caption" color="white" style={{ fontVariant: ['tabular-nums'] }}>
+              {index + 1}
+            </AppText>
+          </View>
         </View>
         <View className="flex-1">
           <AppText variant="bodySemibold" numberOfLines={1}>{exercise?.name}</AppText>
