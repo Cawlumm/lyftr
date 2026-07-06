@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
-import { ChevronRight, Clock, MoreVertical, TrendingUp } from 'lucide-react-native'
+import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
 import { displayVolume, type Workout } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
@@ -75,9 +75,13 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
             )}
           </View>
           <View className="flex-row items-center gap-x-2 mt-0.5">
-            <AppText variant="caption" color="muted" numberOfLines={1}>
-              {workout.exercises?.length || 0} exercises
-            </AppText>
+            {/* Dumbbell = exercises (shared icon taxonomy with ProgramCard + both detail strips). */}
+            <View className="flex-row items-center gap-1">
+              <Dumbbell size={12} color={colors.txMuted} />
+              <AppText variant="caption" color="muted" numberOfLines={1}>
+                {workout.exercises?.length || 0} exercises
+              </AppText>
+            </View>
             {totalVolume > 0 && (
               <>
                 <AppText variant="caption" color="muted">·</AppText>
