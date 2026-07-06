@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
-  AlertCircle, ArrowLeft, ChevronRight, Clock, Dumbbell, Edit2, Pause, TimerOff, Trash2, TrendingUp,
+  AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
 import {
   apiErrorMessage, displayVolume, displayWeight, weightShort,
@@ -15,8 +15,7 @@ import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor } from '../../../src/utils/exerciseUtils'
 
-// TODO(phase-2.5): exercise-detail screen. Until it lands this opens expo-router's
-// built-in Unmatched Route screen (deliberate — the nav is wired, back recovers).
+// Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
 const exerciseHref = (exerciseId: number) => `/workouts/exercise/${exerciseId}` as unknown as Href
 
 const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
@@ -208,7 +207,7 @@ export default function WorkoutDetail() {
               </View>
               <View className="flex-1 items-center border-x border-surface-border">
                 <View className="flex-row items-center gap-1 mb-0.5">
-                  <Dumbbell size={13} color={colors.txMuted} />
+                  <Layers size={13} color={colors.txMuted} />
                   <AppText variant="caption" color="muted">Sets</AppText>
                 </View>
                 <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{totalSets}</AppText>
