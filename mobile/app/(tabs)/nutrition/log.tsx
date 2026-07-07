@@ -347,7 +347,7 @@ export default function LogFood() {
                 recentItems.length === 0 ? (
                   <EmptyBlock icon={Utensils} title="No recent items today" subtitle="Search or scan to log food" />
                 ) : (
-                  recentItems.map((item) => <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onPress={() => selectResult(item)} />)
+                  recentItems.map((item, i) => <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />)
                 )
               ) : null}
 
@@ -376,8 +376,8 @@ export default function LogFood() {
                   </Pressable>
                 </View>
               ) : null}
-              {tab === 'all' && !searching ? searchResults.map((item) => (
-                <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onPress={() => selectResult(item)} />
+              {tab === 'all' && !searching ? searchResults.map((item, i) => (
+                <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />
               )) : null}
             </Card>
           </View>
