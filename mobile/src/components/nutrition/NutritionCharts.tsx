@@ -29,7 +29,10 @@ export function MacroRing({ value, target, color, label }: {
   const size = 72
   const cx = size / 2
   const circ = 2 * Math.PI * r
-  const pct = clamp(fin(value) / Math.max(fin(target), 1), 0, 1)
+  // No macro target set (0) is a real state — don't divide-by-1 and read a false 100%.
+  // Show an empty ring + "—" and drop the "/ 0g" goal suffix instead.
+  const hasTarget = fin(target) > 0
+  const pct = hasTarget ? clamp(fin(value) / fin(target), 0, 1) : 0
 
   return (
     <View className="flex-col items-center gap-1.5">
@@ -54,13 +57,13 @@ export function MacroRing({ value, target, color, label }: {
         </Svg>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <AppText variant="caption" style={{ color, fontVariant: ['tabular-nums'], fontWeight: '700' }}>
-            {Math.round(pct * 100)}%
+            {hasTarget ? `${Math.round(pct * 100)}%` : '—'}
           </AppText>
         </View>
       </View>
       <View className="items-center">
         <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(fin(value))}g</AppText>
-        <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{label} / {Math.round(fin(target))}g</AppText>
+        <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{hasTarget ? `${label} / ${Math.round(fin(target))}g` : label}</AppText>
       </View>
     </View>
   )
