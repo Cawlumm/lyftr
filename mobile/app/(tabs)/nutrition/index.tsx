@@ -162,15 +162,7 @@ export default function Nutrition() {
           <PageHeader
             title="Nutrition"
             subtitle="Macros & meals"
-            action={
-              <Pressable
-                onPress={() => openLog('breakfast')}
-                className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2.5 active:scale-95"
-              >
-                <Plus size={16} color="#ffffff" strokeWidth={2.4} />
-                <AppText variant="bodySemibold" color="white" style={{ fontSize: 13 }}>Log Food</AppText>
-              </Pressable>
-            }
+            action={<IconButton icon={Plus} variant="solid" size="md" label="Log Food" onPress={() => openLog('breakfast')} />}
           />
 
           {error ? (
