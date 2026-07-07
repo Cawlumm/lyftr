@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns'
 import { AlertCircle, ArrowLeft, CalendarDays, Edit2, Flame, Layers, Trash2 } from 'lucide-react-native'
 import type { FoodLog } from '@lyftr/shared'
 import {
-  AppText, Card, ConfirmSheet, Label, Loading, Screen, deleteConfirmProps,
+  AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
@@ -125,13 +125,10 @@ export default function NutritionDetail() {
               <Image source={{ uri: entry.image_url }} className="h-44 w-full" resizeMode="cover" />
             ) : null}
             <View className="p-5">
-              {/* Meal chip + serving */}
-              <View className="flex-row items-center justify-between gap-2">
-                <View className="flex-row items-center gap-1.5 rounded-full border px-2.5 py-1" style={{ backgroundColor: `${mealColor}1A`, borderColor: `${mealColor}40` }}>
-                  <MealIcon size={13} color={mealColor} />
-                  <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{MEAL_LABELS[meal]}</AppText>
-                </View>
-                <AppText variant="caption" color="muted" numberOfLines={1}>{servingText}</AppText>
+              {/* Meal chip */}
+              <View className="flex-row items-center gap-1.5 self-start rounded-full border px-2.5 py-1" style={{ backgroundColor: `${mealColor}1A`, borderColor: `${mealColor}40` }}>
+                <MealIcon size={13} color={mealColor} />
+                <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{MEAL_LABELS[meal]}</AppText>
               </View>
 
               {/* Name + calorie hero */}
@@ -171,14 +168,25 @@ export default function NutritionDetail() {
                   </View>
                 ))}
               </View>
-            </View>
-          </Card>
 
-          {/* Details */}
-          <Card className="gap-3">
-            <Label>Details</Label>
-            <DetailRow icon={CalendarDays} label="When" value={format(parseISO(entry.logged_at), 'EEEE, MMMM d, yyyy')} colors={colors} />
-            <DetailRow icon={Layers} label="Servings" value={servingText} colors={colors} />
+              {/* Meta strip: Servings / Logged (divided, like the workout detail) */}
+              <View className="mt-5 flex-row border-t border-surface-border pt-4">
+                <View className="flex-1 items-center">
+                  <View className="mb-0.5 flex-row items-center gap-1">
+                    <Layers size={13} color={colors.txMuted} />
+                    <AppText variant="caption" color="muted">Servings</AppText>
+                  </View>
+                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontVariant: ['tabular-nums'] }}>{servingText}</AppText>
+                </View>
+                <View className="flex-1 items-center border-l border-surface-border">
+                  <View className="mb-0.5 flex-row items-center gap-1">
+                    <CalendarDays size={13} color={colors.txMuted} />
+                    <AppText variant="caption" color="muted">Logged</AppText>
+                  </View>
+                  <AppText variant="bodySemibold" numberOfLines={1}>{format(parseISO(entry.logged_at), 'MMM d, yyyy')}</AppText>
+                </View>
+              </View>
+            </View>
           </Card>
         </View>
       </ScrollView>
@@ -191,21 +199,5 @@ export default function NutritionDetail() {
         onCancel={() => setConfirming(false)}
       />
     </Screen>
-  )
-}
-
-function DetailRow({ icon: Icon, label, value, colors }: {
-  icon: typeof CalendarDays; label: string; value: string; colors: { txMuted: string }
-}) {
-  return (
-    <View className="flex-row items-center gap-3">
-      <View className="h-9 w-9 items-center justify-center rounded-lg bg-surface-muted">
-        <Icon size={16} color={colors.txMuted} />
-      </View>
-      <View className="flex-1">
-        <AppText variant="caption" color="muted">{label}</AppText>
-        <AppText variant="bodySemibold">{value}</AppText>
-      </View>
-    </View>
   )
 }
