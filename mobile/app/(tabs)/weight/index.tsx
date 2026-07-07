@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { format, parseISO, subDays } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
-  Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, ChevronRight, Minus, Scale, Sunrise,
+  Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import {
@@ -16,6 +16,7 @@ import {
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
+import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -403,54 +404,14 @@ export default function Weight() {
             {items.length > 0 ? <Label className="px-1">History</Label> : null}
           </View>
         }
-        renderItem={({ item, index }) => {
-          const next = items[index + 1]
-          const deltaLbs = next ? item.weight - next.weight : 0
-          const displayW = displayWeight(item.weight, unit)
-          const displayDelta = displayWeight(Math.abs(deltaLbs), unit)
-          return (
-            <Pressable
-              onPress={() => router.push(`/weight/${item.id}`)}
-              className="mb-2 flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:scale-[0.99]"
-            >
-              <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
-                <Scale size={20} color={accent} />
-              </View>
-              <View className="min-w-0 flex-1">
-                <Text className="font-sans-semibold text-sm text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                  {Math.round(displayW)} {wUnit}
-                </Text>
-                <AppText variant="caption" color="muted" className="mt-0.5">
-                  {format(parseISO(item.logged_at), 'MMM d, yyyy')}
-                </AppText>
-                {deltaLbs !== 0 || item.notes ? (
-                  <View className="mt-0.5 flex-row items-center gap-x-2 overflow-hidden">
-                    {deltaLbs !== 0 ? (
-                      <View className="flex-row items-center gap-0.5">
-                        {deltaLbs < 0 ? (
-                          <TrendingDown size={12} color={brand.successSoft} />
-                        ) : (
-                          <TrendingUp size={12} color={brand.errorSoft} />
-                        )}
-                        <Text
-                          className="font-sans-medium text-xs"
-                          style={{ color: deltaLbs < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}
-                        >
-                          {Math.round(displayDelta)}
-                        </Text>
-                      </View>
-                    ) : null}
-                    {deltaLbs !== 0 && item.notes ? <AppText variant="caption" color="muted">·</AppText> : null}
-                    {item.notes ? (
-                      <AppText variant="caption" color="muted" numberOfLines={1} className="flex-1">{item.notes}</AppText>
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
-              <ChevronRight size={16} color={colors.txMuted} />
-            </Pressable>
-          )
-        }}
+        renderItem={({ item, index }) => (
+          <WeightEntryRow
+            item={item}
+            next={items[index + 1]}
+            unit={unit}
+            onDeleted={() => { reload(); refetchStats(); refetchChart() }}
+          />
+        )}
         ListFooterComponent={
           hasMore && loading && items.length > 0 ? (
             <View className="items-center py-3">

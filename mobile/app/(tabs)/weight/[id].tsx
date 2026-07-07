@@ -17,7 +17,7 @@ import { clampStep } from '../../../src/utils/number'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function WeightDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>()
+  const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
@@ -48,6 +48,8 @@ export default function WeightDetail() {
         setEditWeight(String(displayWeight(data.weight, unit)))
         setEditDate(isoToDayInput(data.logged_at))
         setEditNotes(data.notes ?? '')
+        // Deep-link from the list kebab's Edit action opens straight into edit mode.
+        if (edit) setEditing(true)
       })
       .catch((err) => setError(apiErrorMessage(err, 'Failed to load entry')))
       .finally(() => setLoading(false))

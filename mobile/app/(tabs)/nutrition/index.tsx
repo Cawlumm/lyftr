@@ -115,6 +115,12 @@ export default function Nutrition() {
   const goDay = (date: string) => { hSelect(); setSelectedDate(date) }
   const openLog = (meal: Meal) => { hSelect(); router.push(`/nutrition/log?meal=${meal}&date=${selectedDate}`) }
 
+  // Kebab-delete drops the row and refreshes the day's totals (rings + calorie hero).
+  const onEntryDeleted = useCallback((entryId: number) => {
+    setLogs((prev) => prev.filter((l) => l.id !== entryId))
+    client.foodAPI.stats(selectedDate).then(setStats).catch(() => {})
+  }, [selectedDate])
+
   if (!hasLoadedRef.current) return <NutritionSkeleton />
 
   const totalCals = stats?.total_calories ?? 0
@@ -264,6 +270,8 @@ export default function Nutrition() {
                           entry={entry}
                           first={i === 0}
                           onPress={() => { hSelect(); router.push(`/nutrition/${entry.id}`) }}
+                          onEdit={() => router.push(`/nutrition/log?edit=${entry.id}`)}
+                          onDeleted={onEntryDeleted}
                         />
                       ))}
                     </View>
