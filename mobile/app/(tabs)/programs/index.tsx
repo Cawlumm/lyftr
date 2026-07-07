@@ -5,6 +5,7 @@ import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
 import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
+import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -51,11 +52,15 @@ export default function Programs() {
     setPulling(false)
   }, [reload])
 
-  // Weight-style loading (no skeleton / center spinner): the screen renders
-  // immediately and content is grayed out while a *full* (re)load is in flight —
-  // the first fetch or a search/refresh. Pagination (loadMore) is excluded so
-  // appending a page doesn't dim the whole list.
-  const dim = initialLoading || refreshing
+  // First load shows a content-shaped skeleton (header + stats + search + card rows as
+  // placeholders) so the layout is there before the data fills in — same pattern as
+  // the Workouts list.
+  if (initialLoading) return <ProgramsSkeleton />
+
+  // Stale-while-revalidate: dim the loaded content while a search re-fetches (the
+  // previous results stay on screen until the fresh page lands). Pagination (loadMore)
+  // is excluded so appending a page doesn't dim the whole list.
+  const dim = refreshing
 
   const stats = [
     // 1:1 with web: summarize the *loaded* items, not a server-side stat.
