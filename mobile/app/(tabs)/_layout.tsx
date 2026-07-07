@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { House, Dumbbell, BookOpen, ChartLine, Settings } from 'lucide-react-native'
+import { House, Dumbbell, BookOpen, Scale, Settings } from 'lucide-react-native'
 import { useTheme } from '../../src/theme/useTheme'
 
 export default function TabsLayout() {
@@ -30,7 +30,7 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="weight"
-        options={{ title: 'Weight', tabBarIcon: ({ color, size }) => <ChartLine color={color} size={size} /> }}
+        options={{ title: 'Weight', tabBarIcon: ({ color, size }) => <Scale color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="settings"
