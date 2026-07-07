@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MoreVertical, Scale, TrendingDown, TrendingUp } from 'lucide-react-native'
 import { displayWeight, weightShort, type WeightLog } from '@lyftr/shared'
-import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 
@@ -47,11 +47,8 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
   }
 
   return (
-    <View className="mb-2 flex-row items-center gap-2">
-      <Pressable
-        onPress={() => router.push(`/weight/${item.id}`)}
-        className="min-w-0 flex-1 flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:scale-[0.99]"
-      >
+    <Pressable onPress={() => router.push(`/weight/${item.id}`)} className="mb-2 active:scale-[0.99]">
+      <Card className="flex-row items-center gap-3 rounded-2xl">
         <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
           <Scale size={20} color={accent} />
         </View>
@@ -75,16 +72,16 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
             </View>
           ) : null}
         </View>
+        <IconButton
+          icon={MoreVertical}
+          label={`${Math.round(displayW)} ${wUnit} options`}
+          variant="ghost"
+          size="sm"
+          onPress={() => setMenuOpen(true)}
+          disabled={deleting}
+        />
         <ChevronRight size={16} color={colors.txMuted} />
-      </Pressable>
-      <IconButton
-        icon={MoreVertical}
-        label={`${Math.round(displayW)} ${wUnit} options`}
-        variant="ghost"
-        size="sm"
-        onPress={() => setMenuOpen(true)}
-        disabled={deleting}
-      />
+      </Card>
 
       <ActionSheet
         open={menuOpen}
@@ -116,6 +113,6 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
         onConfirm={handleDelete}
         onCancel={() => setConfirming(false)}
       />
-    </View>
+    </Pressable>
   )
 }

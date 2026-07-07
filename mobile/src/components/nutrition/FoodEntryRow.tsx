@@ -65,15 +65,15 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
   )
 
   return (
-    <View className={`flex-row items-center gap-2 px-4 py-3 ${first ? '' : 'border-t border-surface-border'}`}>
-      <Pressable onPress={onPress} className="min-w-0 flex-1 flex-row items-center gap-3 active:opacity-70">
-        <Thumb />
-        <View className="min-w-0 flex-1">
-          <AppText variant="bodySemibold" numberOfLines={1}>{entry.name}</AppText>
-          {macroLine}
-        </View>
-        <ChevronRight size={16} color={colors.txMuted} />
-      </Pressable>
+    <Pressable
+      onPress={onPress}
+      className={`flex-row items-center gap-3 px-4 py-3 active:bg-surface-muted/50 ${first ? '' : 'border-t border-surface-border'}`}
+    >
+      <Thumb />
+      <View className="min-w-0 flex-1">
+        <AppText variant="bodySemibold" numberOfLines={1}>{entry.name}</AppText>
+        {macroLine}
+      </View>
       <IconButton
         icon={MoreVertical}
         label={`${entry.name} options`}
@@ -82,6 +82,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         onPress={() => setMenuOpen(true)}
         disabled={deleting}
       />
+      <ChevronRight size={16} color={colors.txMuted} />
 
       <ActionSheet
         open={menuOpen}
@@ -109,7 +110,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         onConfirm={handleDelete}
         onCancel={() => setConfirming(false)}
       />
-    </View>
+    </Pressable>
   )
 }
 

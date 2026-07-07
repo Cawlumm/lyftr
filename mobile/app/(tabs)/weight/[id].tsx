@@ -135,12 +135,26 @@ export default function WeightDetail() {
               <AppText variant="body" color="muted">Weight</AppText>
             </Pressable>
             {!editing ? (
-              <View className="flex-row items-center gap-1">
-                <Pressable onPress={startEdit} hitSlop={8} className="p-2 active:opacity-60" accessibilityLabel="Edit entry">
-                  <Edit2 size={18} color={accent} />
+              <View className="flex-row items-center gap-2">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit entry"
+                  onPress={startEdit}
+                  hitSlop={6}
+                  className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
+                >
+                  <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                  <AppText variant="label" style={{ color: accent }}>Edit</AppText>
                 </Pressable>
-                <Pressable onPress={() => setConfirming(true)} hitSlop={8} className="p-2 active:opacity-60" accessibilityLabel="Delete entry">
-                  <Trash2 size={18} color={brand.errorSoft} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete entry"
+                  onPress={() => setConfirming(true)}
+                  disabled={deleting}
+                  hitSlop={6}
+                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                >
+                  <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
                 </Pressable>
               </View>
             ) : null}
