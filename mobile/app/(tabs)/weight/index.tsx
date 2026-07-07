@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { format, parseISO, subDays } from 'date-fns'
 import * as Haptics from 'expo-haptics'
@@ -45,20 +45,28 @@ export default function Weight() {
   // Chart data — a separate period-scoped fetch (uncapped at 1000), re-fetched when the
   // period changes and after every successful log.
   const [chartLogs, setChartLogs] = useState<WeightLog[]>([])
+  // Returns the fetch promise so pull-to-refresh can await a full refresh.
   const refetchChart = useCallback(() => {
     const days = PERIOD_DAYS[period]
     const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
-    client.weightAPI.list({ limit: 1000, from }).then((data) => setChartLogs(data || [])).catch(() => {})
+    return client.weightAPI.list({ limit: 1000, from }).then((data) => setChartLogs(data || [])).catch(() => {})
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])
 
-  const refetchStats = useCallback(() => {
-    client.weightAPI.stats().then(setStats).catch(() => {})
-  }, [])
+  const refetchStats = useCallback(() => client.weightAPI.stats().then(setStats).catch(() => {}), [])
   useEffect(() => {
     fetchSettings()
     refetchStats()
   }, [fetchSettings, refetchStats])
+
+  // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh of all
+  // three sources (history list + stats + chart), same affordance as the Workouts list.
+  const [pulling, setPulling] = useState(false)
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await Promise.all([reload(), refetchStats(), refetchChart()])
+    setPulling(false)
+  }, [reload, refetchStats, refetchChart])
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
@@ -198,6 +206,9 @@ export default function Weight() {
         keyboardDismissMode="on-drag"
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />
+        }
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
