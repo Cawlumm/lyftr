@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { House, Dumbbell, BookOpen, Scale, Settings } from 'lucide-react-native'
+import { House, Dumbbell, BookOpen, Apple, Scale, Settings } from 'lucide-react-native'
 import { useTheme } from '../../src/theme/useTheme'
 
 export default function TabsLayout() {
@@ -27,6 +27,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="programs"
         options={{ title: 'Programs', tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} /> }}
+      />
+      <Tabs.Screen
+        name="nutrition"
+        options={{ title: 'Nutrition', tabBarIcon: ({ color, size }) => <Apple color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="weight"
