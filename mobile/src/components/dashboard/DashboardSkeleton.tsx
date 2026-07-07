@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native'
-import { Card, Screen, Skeleton, SkeletonStatRow } from '../ui'
+import { Card, Screen, Skeleton } from '../ui'
 
 // A card section-header placeholder: brand-dot + title line, optional right control.
 function CardHeaderSkel({ right }: { right?: boolean }) {
@@ -32,8 +32,24 @@ export function DashboardSkeleton() {
             <Skeleton width={92} height={36} radius={8} />
           </View>
 
-          {/* KPI strip */}
-          <SkeletonStatRow count={3} />
+          {/* This Week: big count + day dots */}
+          <Card>
+            <View className="flex-row items-start justify-between">
+              <View className="gap-2">
+                <Skeleton width={80} height={11} />
+                <Skeleton width={56} height={34} radius={8} />
+              </View>
+              <Skeleton width={36} height={36} radius={12} />
+            </View>
+            <View className="mt-4 flex-row items-center justify-between">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <View key={i} className="items-center gap-1.5">
+                  <Skeleton width={10} height={9} radius={4} />
+                  <Skeleton width={14} height={14} radius={999} />
+                </View>
+              ))}
+            </View>
+          </Card>
 
           {/* Volume Trend */}
           <Card>
@@ -62,15 +78,6 @@ export function DashboardSkeleton() {
             ))}
           </Card>
 
-          {/* Today's Nutrition: big number + macro bars */}
-          <Card className="gap-3">
-            <Skeleton width={140} height={15} />
-            <Skeleton width={120} height={30} radius={8} />
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} height={14} radius={7} />
-            ))}
-          </Card>
-
           {/* Muscle Balance: donut + legend rows */}
           <Card>
             <CardHeaderSkel right />
@@ -82,6 +89,15 @@ export function DashboardSkeleton() {
                 ))}
               </View>
             </View>
+          </Card>
+
+          {/* Today's Nutrition: big number + macro bars */}
+          <Card className="gap-3">
+            <Skeleton width={140} height={15} />
+            <Skeleton width={120} height={34} radius={8} />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} height={14} radius={7} />
+            ))}
           </Card>
 
           {/* Weight card: number + sparkline */}

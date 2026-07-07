@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
+import * as Haptics from 'expo-haptics'
 import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, Beef, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, AlertCircle, ArrowRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import {
   displayVolume, displayWeight, weightShort,
@@ -21,6 +22,11 @@ import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkele
 import { client, useAuthStore, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
 import { muscleColor } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
+
+// Native tap feedback (matches the rest of the app): selection tick for navigations /
+// sheet-opens, a firmer impact for the primary Start action.
+const hSelect = () => Haptics.selectionAsync().catch(() => {})
+const hImpact = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
 
 function greeting(now: Date) {
   const h = now.getHours()
@@ -90,6 +96,17 @@ function MuscleBadge({ muscle }: { muscle: string }) {
     <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
       <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscle}</AppText>
     </View>
+  )
+}
+
+// Section "See all"/"View" link — a right-aligned brand row with a chevron + haptic.
+function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
+  const { accent } = useTheme()
+  return (
+    <Pressable onPress={() => { hSelect(); onPress() }} hitSlop={8} className="flex-row items-center gap-0.5 active:opacity-60">
+      <AppText variant="caption" color="brand">{label}</AppText>
+      <ArrowRight size={12} color={accent} />
+    </Pressable>
   )
 }
 
@@ -166,7 +183,7 @@ export default function Dashboard() {
     )
   }
 
-  // ── Derived data (1:1 with web) ─────────────────────────────
+  // ── Derived data (unchanged from the 1:1 port) ─────────────────────────────
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
   const weekWorkouts = workouts.filter((w) => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
@@ -235,10 +252,10 @@ export default function Dashboard() {
     <Screen>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} colors={[accent]} />}
       >
-        <View className="gap-4 py-4">
+        <View className="gap-5 py-4">
           {/* ── Header ── */}
           <View className="flex-row items-start justify-between gap-3">
             <View className="min-w-0 flex-1">
@@ -248,10 +265,10 @@ export default function Dashboard() {
               <AppText variant="title" className="mt-0.5" numberOfLines={1}>{greeting(now)}, {username}</AppText>
             </View>
             <Pressable
-              onPress={() => router.push('/workouts/start')}
-              className="flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 active:bg-brand-700"
+              onPress={() => { hImpact(); router.push('/workouts/start') }}
+              className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95"
             >
-              <Play size={14} color="#fff" />
+              <Play size={15} color="#fff" />
               <Text className="font-sans-bold text-sm text-white">{session ? 'Resume' : 'Start'}</Text>
             </Pressable>
           </View>
@@ -259,53 +276,52 @@ export default function Dashboard() {
           {/* ── Active-session banner ── */}
           {session ? (
             <Pressable
-              onPress={() => router.push('/workouts/active')}
-              className="flex-row items-center justify-between rounded-xl border border-warning-500/30 bg-warning-500/10 p-3 active:opacity-80"
+              onPress={() => { hSelect(); router.push('/workouts/active') }}
+              className="flex-row items-center justify-between rounded-2xl border border-warning-500/30 bg-warning-500/10 p-3.5 active:scale-[0.99]"
             >
               <View className="flex-row items-center gap-3">
-                <View className="h-8 w-8 items-center justify-center rounded-lg border border-warning-500/30 bg-warning-500/20">
-                  <Timer size={16} color={brand.warningSoft} />
+                <View className="h-9 w-9 items-center justify-center rounded-xl border border-warning-500/30 bg-warning-500/20">
+                  <Timer size={18} color={brand.warningSoft} />
                 </View>
                 <View>
                   <Text className="font-sans-semibold text-sm text-warning-400">Workout in progress</Text>
                   <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{session.name} — tap to resume</Text>
                 </View>
               </View>
-              <ArrowRight size={16} color={brand.warningSoft} />
+              <ArrowRight size={18} color={brand.warningSoft} />
             </Pressable>
           ) : null}
 
-          {/* ── KPI strip ── */}
-          <View className="flex-row gap-2">
-            <Card className="flex-1" style={{ padding: 12 }}>
-              <View className="flex-row items-center justify-between">
-                <Label numberOfLines={1}>Week</Label>
-                <Dumbbell size={12} color={colors.txMuted} />
+          {/* ── This Week (sessions + current-week dots) ── */}
+          <Card>
+            <View className="flex-row items-start justify-between">
+              <View>
+                <Label>This Week</Label>
+                <View className="mt-1 flex-row items-end gap-1.5">
+                  <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{weekWorkouts.length}</AppText>
+                  <AppText variant="caption" color="muted" className="mb-2">{weekWorkouts.length === 1 ? 'session' : 'sessions'}</AppText>
+                </View>
               </View>
-              <AppText variant="heading" className="mt-1.5" style={{ fontVariant: ['tabular-nums'] }}>{weekWorkouts.length}</AppText>
-              <AppText variant="caption" color="muted">sessions</AppText>
-            </Card>
-
-            <Card className="flex-1" style={{ padding: 12 }}>
-              <View className="flex-row items-center justify-between">
-                <Label numberOfLines={1}>Cals</Label>
-                <Flame size={12} color={colors.txMuted} />
+              <View className="h-9 w-9 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                <Dumbbell size={18} color={accent} />
               </View>
-              <AppText variant="heading" className="mb-1.5 mt-1.5" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</AppText>
-              <ProgressBar pct={calPct} color="#00b8d9" />
-            </Card>
-
-            <Card className="flex-1" style={{ padding: 12 }}>
-              <View className="flex-row items-center justify-between">
-                <Label numberOfLines={1}>Protein</Label>
-                <Beef size={12} color={colors.txMuted} />
-              </View>
-              <Text className="mb-1.5 mt-1.5 font-display text-lg text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                {Math.round(food.total_protein)}<Text className="text-xs text-tx-muted">g</Text>
-              </Text>
-              <ProgressBar pct={protPct} color="#f59e0b" />
-            </Card>
-          </View>
+            </View>
+            <View className="mt-4 flex-row items-center justify-between px-0.5">
+              {weekDays.map((day, i) => {
+                const hasWorkout = workouts.some((w) => isSameDay(new Date(w.started_at), day))
+                const isToday = isSameDay(day, now)
+                const isFuture = day > now
+                return (
+                  <View key={i} className="items-center gap-1.5">
+                    <Text className={`text-[10px] font-sans-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>{format(day, 'EEEEE')}</Text>
+                    <View className={`h-3.5 w-3.5 rounded-full ${
+                      hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
+                    }`} />
+                  </View>
+                )
+              })}
+            </View>
+          </Card>
 
           {/* ── Volume Trend ── */}
           <Card>
@@ -316,31 +332,14 @@ export default function Dashboard() {
               className="mb-3"
             />
             {chartData.length === 0 ? (
-              <View className="items-center justify-center gap-2 py-8">
-                <Dumbbell size={24} color={colors.txMuted} style={{ opacity: 0.4 }} />
+              <View className="items-center justify-center gap-2 py-10">
+                <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.4 }} />
                 <AppText variant="caption" color="muted">Log workouts to see trends</AppText>
               </View>
             ) : (
-              <>
-                <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                  <VolumeBarChart data={chartData} width={chartWidth} unit={wUnit} />
-                </View>
-                <View className="mt-4 flex-row items-center justify-between px-1">
-                  {weekDays.map((day, i) => {
-                    const hasWorkout = workouts.some((w) => isSameDay(new Date(w.started_at), day))
-                    const isToday = isSameDay(day, now)
-                    const isFuture = day > now
-                    return (
-                      <View key={i} className="items-center gap-1.5">
-                        <Text className={`text-[10px] font-sans-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>{format(day, 'EEEEE')}</Text>
-                        <View className={`h-3 w-3 rounded-full ${
-                          hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
-                        }`} />
-                      </View>
-                    )
-                  })}
-                </View>
-              </>
+              <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+                <VolumeBarChart data={chartData} width={chartWidth} unit={wUnit} height={150} />
+              </View>
             )}
           </Card>
 
@@ -358,7 +357,6 @@ export default function Dashboard() {
               </View>
             ) : (
               <>
-                {/* Month labels */}
                 <View className="flex-row" style={{ gap: 2, marginBottom: 2 }}>
                   <View style={{ width: 14 }} />
                   {heatmapWeeks.map((_, i) => (
@@ -367,7 +365,6 @@ export default function Dashboard() {
                     </View>
                   ))}
                 </View>
-                {/* Day-label column + week columns */}
                 <View className="flex-row" style={{ gap: 2 }}>
                   <View style={{ width: 14, gap: 2 }}>
                     {(['M', '', 'W', '', 'F', '', 'S'] as const).map((lbl, di) => (
@@ -386,7 +383,7 @@ export default function Dashboard() {
                         return (
                           <Pressable
                             key={di}
-                            onPress={() => setHeatSel((c) => (c && isSameDay(c.day, day) ? null : { day, count }))}
+                            onPress={() => { hSelect(); setHeatSel((c) => (c && isSameDay(c.day, day) ? null : { day, count })) }}
                             className={`h-3 rounded-[2px] ${
                               future ? 'bg-surface-muted/20' : count === 0 ? 'bg-surface-muted/50' : count === 1 ? 'bg-brand-500/50' : 'bg-brand-500'
                             } ${isSel ? 'border border-brand-300' : ''}`}
@@ -396,13 +393,11 @@ export default function Dashboard() {
                     </View>
                   ))}
                 </View>
-                {/* Tap read-out (replaces web's per-cell hover title) */}
                 {heatSel ? (
                   <AppText variant="caption" color="muted" className="mt-1.5">
                     {format(heatSel.day, 'MMM d')}{heatSel.count > 0 ? ` · ${heatSel.count} workout${heatSel.count > 1 ? 's' : ''}` : ' · rest day'}
                   </AppText>
                 ) : null}
-                {/* Legend */}
                 <View className="mt-2 flex-row items-center justify-end gap-1.5">
                   <Text className="text-[9px] text-tx-muted">Less</Text>
                   {['bg-surface-muted/50', 'bg-brand-500/30', 'bg-brand-500/60', 'bg-brand-500'].map((cls, i) => (
@@ -421,11 +416,12 @@ export default function Dashboard() {
             const totalVolume = displayVolume(calcVolume(lastWorkout), unit)
             const mins = Math.round(lastWorkout.duration / 60)
             return (
-              <Pressable onPress={() => router.push(`/workouts/${lastWorkout.id}`)} className="active:scale-[0.99]">
+              <Pressable onPress={() => { hSelect(); router.push(`/workouts/${lastWorkout.id}`) }} className="active:scale-[0.99]">
                 <Card>
                   <View className="mb-3 flex-row items-start justify-between gap-2">
                     <View className="min-w-0 flex-1">
-                      <Text className="font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
+                      <Label className="mb-1">Last workout</Label>
+                      <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
                       <AppText variant="caption" color="muted" className="mt-0.5">
                         {format(new Date(lastWorkout.started_at), 'MMM d')}
                         {mins > 0 ? ` · ${mins} min` : ''}
@@ -433,10 +429,7 @@ export default function Dashboard() {
                         {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}
                       </AppText>
                     </View>
-                    <Pressable onPress={() => router.push('/workouts')} hitSlop={8} className="flex-row items-center gap-0.5 active:opacity-60">
-                      <AppText variant="caption" color="brand">All</AppText>
-                      <ArrowRight size={12} color={accent} />
-                    </Pressable>
+                    <LinkRow label="All" onPress={() => router.push('/workouts')} />
                   </View>
                   <View className="gap-2.5">
                     {exs.slice(0, 4).map((ex, i) => {
@@ -465,44 +458,14 @@ export default function Dashboard() {
               </Pressable>
             )
           })() : (
-            <Card className="items-center justify-center gap-2" style={{ minHeight: 144 }}>
-              <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.4 }} />
+            <Card className="items-center justify-center gap-2" style={{ minHeight: 148 }}>
+              <Dumbbell size={30} color={colors.txMuted} style={{ opacity: 0.4 }} />
               <AppText variant="body" color="muted">No workouts logged yet</AppText>
-              <Pressable onPress={() => router.push('/workouts/start')} hitSlop={6} className="active:opacity-60">
+              <Pressable onPress={() => { hSelect(); router.push('/workouts/start') }} hitSlop={6} className="active:opacity-60">
                 <AppText variant="caption" color="brand">Start your first workout →</AppText>
               </Pressable>
             </Card>
           )}
-
-          {/* ── Today's Nutrition ── */}
-          <Card>
-            {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
-            <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
-            <View className="mb-3 flex-row items-baseline gap-1.5">
-              <Text className="font-display-heavy text-3xl text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
-              <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
-              <View className="flex-1" />
-              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(calPct)}%</AppText>
-            </View>
-            <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
-            <View className="gap-2.5">
-              {[
-                { label: 'Protein', val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
-                { label: 'Carbs', val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
-                { label: 'Fat', val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
-              ].map((m) => (
-                <View key={m.label}>
-                  <View className="mb-1 flex-row items-center justify-between">
-                    <AppText variant="caption" color="muted">{m.label}</AppText>
-                    <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                      {Math.round(m.val)}g<Text className="font-sans font-normal text-tx-muted"> / {m.target}g</Text>
-                    </Text>
-                  </View>
-                  <ProgressBar pct={m.pct} color={m.color} />
-                </View>
-              ))}
-            </View>
-          </Card>
 
           {/* ── Muscle Balance ── */}
           <Card>
@@ -519,13 +482,13 @@ export default function Dashboard() {
             )}
             {muscleData.length === 0 ? (
               <View className="items-center justify-center gap-2 py-6">
-                <Dumbbell size={24} color={colors.txMuted} style={{ opacity: 0.3 }} />
+                <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.3 }} />
                 <AppText variant="caption" color="muted">No workout data yet</AppText>
               </View>
             ) : (
               <View className="items-center gap-4">
                 <MuscleDonut data={muscleData} total={totalMuscSets} colorFor={muscleHex} size={168} />
-                <View className="w-full gap-2">
+                <View className="w-full gap-2.5">
                   {muscleData.map((d) => {
                     const pct = Math.round((d.value / totalMuscSets) * 100)
                     const isTop = d.name === topMuscle
@@ -550,26 +513,51 @@ export default function Dashboard() {
             )}
           </Card>
 
+          {/* ── Today's Nutrition (also covers the Cals/Protein once in the KPI strip) ── */}
+          <Card>
+            {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
+            <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
+            <View className="mb-3 flex-row items-baseline gap-1.5">
+              <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
+              <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
+              <View className="flex-1" />
+              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(calPct)}%</AppText>
+            </View>
+            <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
+            <View className="gap-3">
+              {[
+                { label: 'Protein', val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
+                { label: 'Carbs', val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
+                { label: 'Fat', val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
+              ].map((m) => (
+                <View key={m.label}>
+                  <View className="mb-1 flex-row items-center justify-between">
+                    <AppText variant="caption" color="muted">{m.label}</AppText>
+                    <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
+                      {Math.round(m.val)}g<Text className="font-sans font-normal text-tx-muted"> / {m.target}g</Text>
+                    </Text>
+                  </View>
+                  <ProgressBar pct={m.pct} color={m.color} />
+                </View>
+              ))}
+            </View>
+          </Card>
+
           {/* ── Weight quick-log ── */}
           <Card>
             <SectionHeader
               icon={Scale}
               title="Weight"
-              right={
-                <Pressable onPress={() => router.push('/weight')} hitSlop={8} className="flex-row items-center gap-0.5 active:opacity-60">
-                  <AppText variant="caption" color="brand">View</AppText>
-                  <ArrowRight size={12} color={accent} />
-                </Pressable>
-              }
+              right={<LinkRow label="View" onPress={() => router.push('/weight')} />}
               className="mb-2"
             />
             {weightLogs.length === 0 ? (
               <Pressable
-                onPress={() => setSheetOpen(true)}
-                className="flex-row items-center gap-3 rounded-xl border border-dashed border-brand-500/30 bg-brand-500/5 p-3 active:opacity-80"
+                onPress={() => { hSelect(); setSheetOpen(true) }}
+                className="flex-row items-center gap-3 rounded-2xl border border-dashed border-brand-500/30 bg-brand-500/5 p-3.5 active:scale-[0.99]"
               >
-                <View className="h-9 w-9 items-center justify-center rounded-lg border border-brand-500/20 bg-brand-500/10">
-                  <Plus size={16} color={accent} />
+                <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                  <Plus size={18} color={accent} />
                 </View>
                 <View>
                   <Text className="text-sm font-sans-semibold text-tx-primary">Log your first weight</Text>
@@ -577,10 +565,10 @@ export default function Dashboard() {
                 </View>
               </Pressable>
             ) : (
-              <Pressable onPress={() => setSheetOpen(true)} className="active:scale-[0.99]" accessibilityLabel="Log weight">
+              <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className="active:scale-[0.99]" accessibilityLabel="Log weight">
                 <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-baseline gap-1.5">
-                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
+                    <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
                     <AppText variant="caption" color="muted">{wUnit}</AppText>
                   </View>
                   <View className="flex-row items-center gap-2">
@@ -593,8 +581,8 @@ export default function Dashboard() {
                         </Text>
                       )
                     })()}
-                    <View className="h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
-                      <Plus size={14} color="#fff" />
+                    <View className="h-9 w-9 items-center justify-center rounded-xl bg-brand-500">
+                      <Plus size={16} color="#fff" />
                     </View>
                   </View>
                 </View>
