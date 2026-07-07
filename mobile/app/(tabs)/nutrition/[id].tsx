@@ -2,13 +2,13 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format, parseISO } from 'date-fns'
-import { AlertCircle, ArrowLeft, CalendarDays, Edit2, Layers, Trash2, Utensils } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, CalendarDays, Edit2, Flame, Layers, Trash2 } from 'lucide-react-native'
 import type { FoodLog } from '@lyftr/shared'
 import {
   AppText, Card, ConfirmSheet, Label, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
-  MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
+  MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -67,13 +67,23 @@ export default function NutritionDetail() {
     )
   }
 
-  const MealIcon = MEAL_ICONS[entry.meal as Meal]
+  const meal = entry.meal as Meal
+  const MealIcon = MEAL_ICONS[meal]
+  const mealColor = MEAL_COLORS[meal]
   const macros = [
-    { label: 'Protein', value: entry.protein, color: MACRO_TEXT.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-    { label: 'Carbs', value: entry.carbs, color: MACRO_TEXT.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-    { label: 'Fat', value: entry.fat, color: MACRO_TEXT.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
-    { label: 'Fiber', value: entry.fiber ?? 0, color: colors.txSecondary, bg: colors.muted, border: colors.border },
+    { label: 'Protein', value: entry.protein, color: MACRO_TEXT.protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+    { label: 'Carbs', value: entry.carbs, color: MACRO_TEXT.carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+    { label: 'Fat', value: entry.fat, color: MACRO_TEXT.fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+    { label: 'Fiber', value: entry.fiber ?? 0, color: colors.txSecondary, bar: colors.txMuted, bg: colors.muted, border: colors.border },
   ]
+
+  // Calorie contribution per macro (4/4/9 kcal per g) → the composition bar + % split.
+  const cals = { protein: entry.protein * 4, carbs: entry.carbs * 4, fat: entry.fat * 9 }
+  const macroCal = cals.protein + cals.carbs + cals.fat
+  const pctCal = (v: number) => (macroCal > 0 ? Math.round((v / macroCal) * 100) : 0)
+  const servingText = entry.serving_size
+    ? `${entry.servings} × ${entry.serving_size}`
+    : `${entry.servings} serving${entry.servings === 1 ? '' : 's'}`
 
   return (
     <Screen>
@@ -112,27 +122,47 @@ export default function NutritionDetail() {
           {/* Hero card */}
           <Card className="overflow-hidden p-0">
             {entry.image_url ? (
-              <Image source={{ uri: entry.image_url }} className="h-52 w-full" resizeMode="cover" />
-            ) : (
-              <View className="h-32 w-full items-center justify-center border-b border-surface-border bg-surface-muted">
-                <Utensils size={40} color={colors.txMuted} style={{ opacity: 0.2 }} />
-              </View>
-            )}
+              <Image source={{ uri: entry.image_url }} className="h-44 w-full" resizeMode="cover" />
+            ) : null}
             <View className="p-5">
-              {/* Meal badge */}
-              <View className="mb-3 flex-row items-center gap-1.5 self-start rounded-full border border-surface-border bg-surface-muted px-2.5 py-1">
-                <MealIcon size={13} color={MEAL_COLORS[entry.meal as Meal]} />
-                <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>{MEAL_LABELS[entry.meal as Meal]}</AppText>
+              {/* Meal chip + serving */}
+              <View className="flex-row items-center justify-between gap-2">
+                <View className="flex-row items-center gap-1.5 rounded-full border px-2.5 py-1" style={{ backgroundColor: `${mealColor}1A`, borderColor: `${mealColor}40` }}>
+                  <MealIcon size={13} color={mealColor} />
+                  <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{MEAL_LABELS[meal]}</AppText>
+                </View>
+                <AppText variant="caption" color="muted" numberOfLines={1}>{servingText}</AppText>
               </View>
 
-              {/* Calorie hero */}
-              <View className="flex-row items-baseline gap-1.5">
-                <AppText variant="display" style={{ fontSize: 44, lineHeight: 46, fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)}</AppText>
-                <AppText variant="body" color="muted">kcal</AppText>
+              {/* Name + calorie hero */}
+              <AppText variant="title" className="mt-3" numberOfLines={2}>{entry.name}</AppText>
+              <View className="mt-1 flex-row items-center gap-1.5">
+                <Flame size={20} color={MACRO_COLORS.carbs} />
+                <AppText variant="display" style={{ fontSize: 38, lineHeight: 42, fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)}</AppText>
+                <AppText variant="body" color="muted" className="mb-1">kcal</AppText>
               </View>
-              <AppText variant="heading" className="mt-1">{entry.name}</AppText>
 
-              {/* Macro grid */}
+              {/* Macro composition bar (by calories) */}
+              {macroCal > 0 ? (
+                <View className="mt-5">
+                  <View className="h-3 flex-row overflow-hidden rounded-full bg-surface-muted">
+                    <View style={{ width: `${pctCal(cals.protein)}%`, backgroundColor: MACRO_COLORS.protein }} />
+                    <View style={{ width: `${pctCal(cals.carbs)}%`, backgroundColor: MACRO_COLORS.carbs }} />
+                    <View style={{ width: `${pctCal(cals.fat)}%`, backgroundColor: MACRO_COLORS.fat }} />
+                  </View>
+                  <View className="mt-2.5 flex-row justify-between">
+                    {([['Protein', cals.protein, MACRO_COLORS.protein], ['Carbs', cals.carbs, MACRO_COLORS.carbs], ['Fat', cals.fat, MACRO_COLORS.fat]] as const).map(([label, v, color]) => (
+                      <View key={label} className="flex-row items-center gap-1.5">
+                        <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: color }} />
+                        <AppText variant="caption" color="muted">{label}</AppText>
+                        <AppText variant="caption" style={{ fontWeight: '700', fontVariant: ['tabular-nums'] }}>{pctCal(v)}%</AppText>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+
+              {/* Macro grid (grams) */}
               <View className="mt-4 flex-row gap-2">
                 {macros.map((m) => (
                   <View key={m.label} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>
@@ -148,12 +178,7 @@ export default function NutritionDetail() {
           <Card className="gap-3">
             <Label>Details</Label>
             <DetailRow icon={CalendarDays} label="When" value={format(parseISO(entry.logged_at), 'EEEE, MMMM d, yyyy')} colors={colors} />
-            <DetailRow
-              icon={Layers}
-              label="Servings"
-              value={`${entry.servings}${entry.serving_size ? ` × ${entry.serving_size}` : ''}`}
-              colors={colors}
-            />
+            <DetailRow icon={Layers} label="Servings" value={servingText} colors={colors} />
           </Card>
         </View>
       </ScrollView>
