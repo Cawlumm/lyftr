@@ -12,10 +12,11 @@ import {
   weightError, weightShort, type WeightLog, type WeightStats,
 } from '@lyftr/shared'
 import {
-  AppText, Button, Card, DateInput, Field, Label, Loading, NumberField, NumericKeyboardAccessory,
+  AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
+import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { clampStep } from '../../../src/utils/number'
@@ -155,7 +156,7 @@ export default function Weight() {
     }
   }
 
-  if (initialLoading) return <Loading />
+  if (initialLoading) return <WeightSkeleton />
 
   // Period stats computed from chartLogs (period-scoped server fetch). For "All" prefer
   // the server-computed aggregate since it isn't capped at 1000.

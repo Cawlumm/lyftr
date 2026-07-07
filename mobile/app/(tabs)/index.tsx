@@ -11,12 +11,13 @@ import {
   displayVolume, displayWeight, weightShort,
   type DailyStats, type WeightLog, type WeightStats, type Workout,
 } from '@lyftr/shared'
-import { AppText, Card, Label, Loading, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { AppText, Card, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
 } from '../../src/components/dashboard/DashboardCharts'
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
+import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
 import { muscleColor } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
@@ -150,7 +151,7 @@ export default function Dashboard() {
     setRefreshing(false)
   }, [load])
 
-  if (loading) return <Loading />
+  if (loading) return <DashboardSkeleton />
 
   if (error) {
     return (
