@@ -215,7 +215,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
       {/* Tap-to-read: the selected slice's stats fill the donut hole (web showed a hover
           tooltip; the legend already lists every value, so the hole is the natural read-out). */}
       {selSlice ? (
-        <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <AppText variant="caption" color="muted" className="capitalize" numberOfLines={1}>{selSlice.d.name}</AppText>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{selSlice.d.value}</AppText>
           <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
@@ -223,7 +223,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
           </AppText>
         </View>
       ) : (
-        <View pointerEvents="none" className="absolute inset-0 items-center justify-center">
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'], color: colors.txMuted }}>{total}</AppText>
           <AppText variant="caption" color="muted">sets</AppText>
         </View>
