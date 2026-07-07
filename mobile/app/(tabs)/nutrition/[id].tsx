@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format, parseISO } from 'date-fns'
-import { AlertCircle, ArrowLeft, CalendarDays, Edit2, Flame, Layers, Trash2 } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
 import type { FoodLog } from '@lyftr/shared'
 import {
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
@@ -84,6 +84,14 @@ export default function NutritionDetail() {
   const servingText = entry.serving_size
     ? `${entry.servings} × ${entry.serving_size}`
     : `${entry.servings} serving${entry.servings === 1 ? '' : 's'}`
+
+  // Spec-list rows (MFP / Lose It convention): serving size, servings, meal, logged.
+  const specRows: { label: string; value: string; tabular?: boolean }[] = [
+    ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
+    { label: 'Servings', value: String(entry.servings), tabular: true },
+    { label: 'Meal', value: MEAL_LABELS[meal] },
+    { label: 'Logged', value: format(parseISO(entry.logged_at), 'EEE, MMM d, yyyy') },
+  ]
 
   return (
     <Screen>
@@ -168,25 +176,17 @@ export default function NutritionDetail() {
                   </View>
                 ))}
               </View>
-
-              {/* Meta strip: Servings / Logged (divided, like the workout detail) */}
-              <View className="mt-5 flex-row border-t border-surface-border pt-4">
-                <View className="flex-1 items-center">
-                  <View className="mb-0.5 flex-row items-center gap-1">
-                    <Layers size={13} color={colors.txMuted} />
-                    <AppText variant="caption" color="muted">Servings</AppText>
-                  </View>
-                  <AppText variant="bodySemibold" numberOfLines={1} style={{ fontVariant: ['tabular-nums'] }}>{servingText}</AppText>
-                </View>
-                <View className="flex-1 items-center border-l border-surface-border">
-                  <View className="mb-0.5 flex-row items-center gap-1">
-                    <CalendarDays size={13} color={colors.txMuted} />
-                    <AppText variant="caption" color="muted">Logged</AppText>
-                  </View>
-                  <AppText variant="bodySemibold" numberOfLines={1}>{format(parseISO(entry.logged_at), 'MMM d, yyyy')}</AppText>
-                </View>
-              </View>
             </View>
+          </Card>
+
+          {/* Details — spec list (label → value), the convention in MFP / Lose It. */}
+          <Card className="overflow-hidden p-0">
+            {specRows.map((r, i) => (
+              <View key={r.label} className={`flex-row items-center justify-between gap-4 px-4 py-3.5 ${i > 0 ? 'border-t border-surface-border' : ''}`}>
+                <AppText variant="body" color="muted">{r.label}</AppText>
+                <AppText variant="bodySemibold" numberOfLines={1} style={r.tabular ? { fontVariant: ['tabular-nums'] } : undefined}>{r.value}</AppText>
+              </View>
+            ))}
           </Card>
         </View>
       </ScrollView>
