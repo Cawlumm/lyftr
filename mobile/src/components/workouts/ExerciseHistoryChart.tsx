@@ -15,6 +15,8 @@ export interface ChartPoint {
   date: string
   /** y value in the user's display unit (web's displayWeight(max_weight)). */
   weight: number
+  /** Optional second line for the tap-to-read bubble (e.g. a full date). */
+  sub?: string
 }
 
 const STROKE = '#0891b2' // web Line stroke / dot fill (cyan-600)
@@ -76,11 +78,15 @@ export function ExerciseHistoryChart({
   width,
   unit,
   height = 132,
+  readoutNote = 'Max weight',
 }: {
   data: ChartPoint[]
   width: number
   unit: string
   height?: number
+  /** Trailing descriptor in the tap bubble's first line ("{weight} {unit} · {note}").
+   *  Defaults to "Max weight" (ExerciseDetail); pass '' to drop it (e.g. bodyweight). */
+  readoutNote?: string
 }) {
   const { colors } = useTheme()
   const [selected, setSelected] = useState<number | null>(null)
@@ -196,8 +202,11 @@ export function ExerciseHistoryChart({
           }}
         >
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[selected].weight} {unit} · Max weight
+            {data[selected].weight} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
           </AppText>
+          {data[selected].sub ? (
+            <AppText variant="caption" color="muted">{data[selected].sub}</AppText>
+          ) : null}
         </View>
       ) : null}
     </View>
