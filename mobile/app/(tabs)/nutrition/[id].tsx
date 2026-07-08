@@ -81,9 +81,6 @@ export default function NutritionDetail() {
   const cals = { protein: entry.protein * 4, carbs: entry.carbs * 4, fat: entry.fat * 9 }
   const macroCal = cals.protein + cals.carbs + cals.fat
   const pctCal = (v: number) => (macroCal > 0 ? Math.round((v / macroCal) * 100) : 0)
-  const servingText = entry.serving_size
-    ? `${entry.servings} × ${entry.serving_size}`
-    : `${entry.servings} serving${entry.servings === 1 ? '' : 's'}`
 
   // Spec-list rows (MFP / Lose It convention): serving size, servings, meal, logged.
   const specRows: { label: string; value: string; tabular?: boolean }[] = [

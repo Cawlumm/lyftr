@@ -7,9 +7,10 @@
     "packages/*",
     "mobile"
   ],
-  "//overrides": "Force a single React across the workspace — RN 0.81's Fabric renderer crashes if the app and @lyftr/shared resolve different React copies (even different 19.x minors).",
+  "//overrides": "Force a single React across the workspace — RN 0.81's Fabric renderer crashes if the app and @lyftr/shared resolve different React copies (even different 19.x minors). react-test-renderer is pinned to the same version because @testing-library/react-native renders through it and npm's `react` override does NOT cascade to react-test-renderer — a mismatched minor throws the 'multiple copies of React' hook error under jest.",
   "overrides": {
-    "react": "19.1.0"
+    "react": "19.1.0",
+    "react-test-renderer": "19.1.0"
   },
   "scripts": {
     "shared:type-check": "npm run type-check -w @lyftr/shared",

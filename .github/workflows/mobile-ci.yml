@@ -1,0 +1,49 @@
+# Mobile CI — typecheck + lint + unit/component tests for the Expo app and the shared
+# package. Separate from ci.yml (backend + web + Docker/Fly) and path-filtered so it only
+# runs when mobile/shared/workspace-root files change; a backend- or web-only PR skips it.
+name: Mobile CI
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'mobile/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - 'packages/shared/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/mobile-ci.yml'
+
+jobs:
+  mobile:
+    name: Mobile + shared checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          # Root workspace lockfile — installs mobile + packages/shared together. (ci.yml's
+          # web job keys on web/package-lock.json, a deliberately separate install.)
+          cache-dependency-path: package-lock.json
+
+      # One workspace install covers mobile + packages/shared.
+      - run: npm ci
+
+      # --- packages/shared (jest + tsc, previously ungated) ---
+      - run: npm run shared:type-check
+      - run: npm run shared:test
+
+      # --- mobile (Expo app) ---
+      - run: npm run type-check -w @lyftr/mobile
+      - run: npm run lint -w @lyftr/mobile
+      - run: npm run test -w @lyftr/mobile -- --ci

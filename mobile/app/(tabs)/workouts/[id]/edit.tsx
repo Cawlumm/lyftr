@@ -67,7 +67,7 @@ export default function EditWorkout() {
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
-  const { colors, brand, accent, isDark } = useTheme()
+  const { brand, accent, isDark } = useTheme()
 
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)

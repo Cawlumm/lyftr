@@ -10,7 +10,7 @@ import {
   type FoodLog, type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
-  AppText, Button, Card, DateInput, Field, IconButton, Label, NumberField,
+  AppText, Button, Card, DateInput, IconButton, Label, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl, Toggle,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
