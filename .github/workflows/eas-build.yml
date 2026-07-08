@@ -1,0 +1,75 @@
+# EAS Build — produces installable app binaries (Android APK for internal testers via the
+# `preview` profile). Deliberately SEPARATE from mobile-ci.yml: native builds are slow and
+# consume EAS quota, so they are NOT run per-PR. Trigger them on demand (Actions → this
+# workflow → "Run workflow") or by pushing a `mobile-v*` release tag.
+#
+# ── One-time setup (required before the first run) ────────────────────────────────────
+#   1. `cd mobile && npx eas login` then `npx eas init`   (links an EAS project; writes
+#      extra.eas.projectId + owner into app.json — commit that change).
+#   2. Create an Expo access token at https://expo.dev → Account Settings → Access Tokens
+#      (a dedicated "CI"/robot token is best practice), then add it in GitHub:
+#      Repo → Settings → Secrets and variables → Actions → New secret → name: EXPO_TOKEN.
+#   Android internal builds auto-generate a keystore in CI (no interactive step needed);
+#   iOS internal builds additionally need registered device UDIDs.
+name: EAS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        default: android
+        options: [android, ios, all]
+      profile:
+        description: EAS build profile
+        type: choice
+        default: preview
+        options: [preview, production]
+  push:
+    tags:
+      - 'mobile-v*' # mobile releases use their own tag namespace (web/backend use v*)
+
+# Don't run overlapping builds for the same ref — queue them instead of burning quota.
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: EAS ${{ github.event.inputs.profile || 'preview' }} (${{ github.event.inputs.platform || 'android' }})
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      # Workspace install so the EAS CLI can resolve @lyftr/shared + read app config.
+      - run: npm ci
+
+      # --no-wait returns as soon as the build is queued; the install page (QR + APK
+      # download for internal distribution) lives on the build's expo.dev page.
+      - name: EAS build
+        working-directory: mobile
+        run: |
+          eas build \
+            --platform ${{ github.event.inputs.platform || 'android' }} \
+            --profile ${{ github.event.inputs.profile || 'preview' }} \
+            --non-interactive \
+            --no-wait
