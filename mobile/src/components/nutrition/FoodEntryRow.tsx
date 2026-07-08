@@ -65,14 +65,16 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     )
 
   const macroLine = (
+    // Calories · then P/C/F grouped tighter (their colors, not dots, separate them)
+    // so the whole line fits one row instead of wrapping the fat onto a second line.
     <View className="mt-0.5 flex-row flex-wrap items-center gap-x-2">
       <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)} kcal</AppText>
       <Dot />
-      <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{entry.protein.toFixed(0)}g P</AppText>
-      <Dot />
-      <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{entry.carbs.toFixed(0)}g C</AppText>
-      <Dot />
-      <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{entry.fat.toFixed(0)}g F</AppText>
+      <View className="flex-row items-center gap-x-1.5">
+        <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{entry.protein.toFixed(0)}g P</AppText>
+        <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{entry.carbs.toFixed(0)}g C</AppText>
+        <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{entry.fat.toFixed(0)}g F</AppText>
+      </View>
       {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
     </View>
   )
