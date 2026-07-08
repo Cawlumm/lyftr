@@ -41,16 +41,23 @@ concurrency:
   group: eas-build-${{ github.ref }}
   cancel-in-progress: false
 
+# Least privilege by default; the release job opts up to contents:write below.
+permissions:
+  contents: read
+
 jobs:
   # On-demand tester build → the APK lives on the EAS build page (install link + QR).
   tester-build:
     if: github.event_name == 'workflow_dispatch'
     name: EAS ${{ github.event.inputs.profile }} (${{ github.event.inputs.platform }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+          if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
             exit 1
           fi
@@ -79,12 +86,15 @@ jobs:
     if: github.event_name == 'push'
     name: Release Android APK
     runs-on: ubuntu-latest
+    timeout-minutes: 45 # waits for the full EAS build, then attaches the APK
     permissions:
       contents: write # create/update the GitHub Release + upload the asset
     steps:
       - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+          if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
             exit 1
           fi
@@ -111,11 +121,16 @@ jobs:
             const fs = require("fs");
             const raw = JSON.parse(fs.readFileSync("build.json", "utf8"));
             const b = Array.isArray(raw) ? raw[0] : raw;
-            // Field name has drifted across EAS CLI versions — try the current one first,
-            // fall back to the legacy one, and dump artifacts if neither is present.
-            const url = b?.artifacts?.applicationArchiveUrl || b?.artifacts?.buildUrl;
+            // Robust to EAS CLI field renames: deep-scan the build object for any https URL
+            // whose path ends in .apk, and fall back to the known artifact fields.
+            const found = [];
+            (function walk(v) {
+              if (typeof v === "string") { if (/^https:\/\/\S+\.apk(\?|$)/i.test(v)) found.push(v); }
+              else if (v && typeof v === "object") { for (const k of Object.keys(v)) walk(v[k]); }
+            })(b);
+            const url = found[0] || b?.artifacts?.applicationArchiveUrl || b?.artifacts?.buildUrl;
             if (!url) {
-              console.error("No APK URL in build JSON. artifacts =", JSON.stringify(b?.artifacts));
+              console.error("No APK URL found. Full build object:\n" + JSON.stringify(b, null, 2));
               process.exit(1);
             }
             fs.appendFileSync(process.env.GITHUB_ENV, `APK_URL=${url}\n`);

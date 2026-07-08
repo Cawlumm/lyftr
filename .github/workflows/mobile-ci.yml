@@ -21,10 +21,21 @@ on:
       - 'package-lock.json'
       - '.github/workflows/mobile-ci.yml'
 
+# Least privilege — these checks only read the repo (no token write scope).
+permissions:
+  contents: read
+
+# A newer push to the same branch/PR cancels the in-flight run (saves CI minutes and
+# never leaves a stale result as the "latest").
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   mobile:
     name: Mobile + shared checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
