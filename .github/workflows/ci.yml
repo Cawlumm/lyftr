@@ -1,11 +1,24 @@
-name: CI
+name: Backend + Web CI
 
+# Backend (Go) + web (Vite) tests, the integrated Playwright e2e, image builds, and the
+# Fly deploy — one workflow because build/deploy are gated on all of them via `needs:`.
+# Mobile has its own pipeline (mobile-ci.yml); mobile/docs/markdown-only changes don't
+# touch anything here, so skip the whole run for them (no per-job filtering: build/deploy
+# depend on every test job, so skipping a job would skip the image-build check too).
 on:
   push:
     branches: ['**']
     tags: ['v*']
+    paths-ignore:
+      - 'mobile/**'
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'mobile/**'
+      - 'docs/**'
+      - '**.md'
 
 jobs:
   test:
