@@ -2,14 +2,18 @@ import { View } from 'react-native'
 import { Card, PageHeader, Screen, Skeleton } from '../ui'
 
 // Initial-load skeleton for the Nutrition page — content-shaped placeholders laid out
-// 1:1 with the real screen (date nav · calorie hero + rings · four meal cards · macro
-// history) so data fills into its own shape instead of popping after a blank spinner.
-// Mirrors WeightSkeleton / DashboardSkeleton. The PageHeader is the real, live title.
+// 1:1 with the real screen's default (Diary) view: Diary/Trends switch · date nav ·
+// calorie hero + rings · "Today's Food" label + search + a few rows. So data fills into
+// its own shape instead of popping after a blank spinner. Mirrors WeightSkeleton /
+// ProgramsSkeleton. The PageHeader is the real, live title.
 export function NutritionSkeleton() {
   return (
     <Screen>
       <View className="gap-4 py-4">
         <PageHeader title="Nutrition" subtitle="Macros & meals" action={<Skeleton width={92} height={32} radius={10} />} />
+
+        {/* Diary / Trends switch */}
+        <Skeleton height={44} radius={12} />
 
         {/* Date navigator */}
         <View className="flex-row items-center gap-2">
@@ -38,10 +42,14 @@ export function NutritionSkeleton() {
           </View>
         </Card>
 
-        {/* Today's Food — one card, a few rows */}
-        <View className="gap-2">
-          <Skeleton width={92} height={14} />
-          <Card className="gap-3">
+        {/* Today's Food — label + count, search bar, a few rows */}
+        <View className="mt-2 gap-2">
+          <View className="flex-row items-center justify-between px-1">
+            <Skeleton width={110} height={14} />
+            <Skeleton width={54} height={12} />
+          </View>
+          <Skeleton height={44} radius={12} />
+          <Card className="mt-1 gap-3">
             {[0, 1, 2].map((i) => (
               <View key={i} className="flex-row items-center gap-3">
                 <Skeleton width={44} height={44} radius={12} />
@@ -54,15 +62,6 @@ export function NutritionSkeleton() {
             ))}
           </Card>
         </View>
-
-        {/* Macro history */}
-        <Card>
-          <View className="mb-4 flex-row items-center justify-between">
-            <Skeleton width={110} height={16} />
-            <Skeleton width={120} height={28} radius={12} />
-          </View>
-          <Skeleton height={200} radius={12} />
-        </Card>
       </View>
     </Screen>
   )

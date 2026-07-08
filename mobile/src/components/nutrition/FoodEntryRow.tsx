@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Image, Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, MoreVertical, Utensils } from 'lucide-react-native'
+import { ChevronRight, Flame, MoreVertical, Utensils } from 'lucide-react-native'
 import type { FoodLog } from '@lyftr/shared'
 import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
@@ -65,16 +65,27 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     )
 
   const macroLine = (
-    // Calories · then P/C/F grouped tighter (their colors, not dots, separate them)
-    // so the whole line fits one row instead of wrapping the fat onto a second line.
-    <View className="mt-0.5 flex-row flex-wrap items-center gap-x-2">
-      <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)} kcal</AppText>
-      <Dot />
-      <View className="flex-row items-center gap-x-1.5">
-        <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{entry.protein.toFixed(0)}g P</AppText>
-        <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{entry.carbs.toFixed(0)}g C</AppText>
-        <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{entry.fat.toFixed(0)}g F</AppText>
+    // Calories (flame) + each macro as a colored-dot chip (P/C/F), mirroring the dot
+    // legend used on the entry-detail macro split. The color lives on the dot so the
+    // grams read in plain text (the old all-colored "0g P 0g C 0g F" looked muddy), and
+    // the dots give the eye three clear groups. gap-x-3 spaces them; flex-wrap lets a
+    // huge value drop cleanly to a second line instead of clipping.
+    <View className="mt-1 flex-row flex-wrap items-center gap-x-3 gap-y-1">
+      <View className="flex-row items-center gap-1">
+        <Flame size={12} color={colors.txMuted} />
+        <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)} kcal</AppText>
       </View>
+      {([
+        ['P', entry.protein, MACRO_TEXT.protein],
+        ['C', entry.carbs, MACRO_TEXT.carbs],
+        ['F', entry.fat, MACRO_TEXT.fat],
+      ] as const).map(([label, value, color]) => (
+        <View key={label} className="flex-row items-center gap-1">
+          <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
+          <AppText variant="caption" color="secondary" style={{ fontVariant: ['tabular-nums'] }}>{value.toFixed(0)}g</AppText>
+          <AppText variant="caption" color="muted">{label}</AppText>
+        </View>
+      ))}
       {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
     </View>
   )
@@ -130,8 +141,4 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       />
     </Pressable>
   )
-}
-
-function Dot() {
-  return <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>·</AppText>
 }
