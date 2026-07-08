@@ -24,7 +24,10 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0d1629"
-      }
+      },
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -37,7 +40,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Lyftr uses the camera to scan food barcodes so you can log nutrition quickly."
+          "cameraPermission": "Lyftr uses the camera to scan food barcodes so you can log nutrition quickly.",
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -54,6 +58,13 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0025f81b-fbc5-4bd1-8b12-521725e1425a"
+      }
+    },
+    "owner": "cwlumm"
   }
 }
