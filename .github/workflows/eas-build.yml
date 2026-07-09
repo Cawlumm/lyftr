@@ -144,6 +144,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: lyftr-${{ github.ref_name }}.apk
+          make_latest: false # separate release train; keep mobile out of the repo-wide Latest
+          prerelease: true # Android betas ship as prereleases (like the web betas)
           generate_release_notes: true
           body: |
             ### Android (side-load)
