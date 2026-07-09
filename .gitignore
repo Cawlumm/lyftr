@@ -59,3 +59,6 @@ web/e2e/.auth/
 web/test-results/
 web/playwright-report/
 .playwright-mcp/
+
+# Local Fable/Sonnet porting specs (working artifacts, not committed)
+.workouts-port/

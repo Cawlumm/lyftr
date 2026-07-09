@@ -1,0 +1,154 @@
+# EAS Build — produces installable app binaries for the Expo app.
+#
+# Two paths (matching how OSS Expo apps ship):
+#   • TESTERS  → run this workflow manually (Actions → Run workflow). EAS builds an
+#     Android APK; you install it from the build's expo.dev page (download link + QR).
+#   • PUBLIC   → push a `mobile-v*` tag. EAS builds the APK, and CI attaches it to a
+#     GitHub Release (a permanent, public "Download for Android" asset).
+#
+# Native builds are slow + consume EAS quota, so this is SEPARATE from mobile-ci.yml and
+# never runs per-PR.
+#
+# ── One-time setup (required before the first run) ────────────────────────────────────
+#   1. `cd mobile && npx eas login` then `npx eas init`   (links an EAS project; writes
+#      extra.eas.projectId + owner into app.json — commit that change).
+#   2. Create an Expo access token at https://expo.dev → Account Settings → Access Tokens
+#      (a dedicated "CI"/robot token is best practice), then add it in GitHub:
+#      Repo → Settings → Secrets and variables → Actions → New secret → name: EXPO_TOKEN.
+#   Android internal builds auto-generate a keystore in CI (no interactive step needed);
+#   iOS internal builds additionally need registered device UDIDs.
+name: EAS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build
+        type: choice
+        default: android
+        options: [android, ios, all]
+      profile:
+        description: EAS build profile
+        type: choice
+        default: preview
+        options: [preview, production]
+  push:
+    tags:
+      - 'mobile-v*' # mobile releases use their own tag namespace (web/backend use v*)
+
+# Don't run overlapping builds for the same ref — queue them instead of burning quota.
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: false
+
+# Least privilege by default; the release job opts up to contents:write below.
+permissions:
+  contents: read
+
+jobs:
+  # On-demand tester build → the APK lives on the EAS build page (install link + QR).
+  tester-build:
+    if: github.event_name == 'workflow_dispatch'
+    name: EAS ${{ github.event.inputs.profile }} (${{ github.event.inputs.platform }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: EAS build (queue, don't hold the runner)
+        working-directory: mobile
+        run: |
+          eas build \
+            --platform ${{ github.event.inputs.platform }} \
+            --profile ${{ github.event.inputs.profile }} \
+            --non-interactive \
+            --no-wait
+
+  # Tagged release → wait for the Android APK, then attach it to a GitHub Release.
+  release-apk:
+    if: github.event_name == 'push'
+    name: Release Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # waits for the full EAS build, then attaches the APK
+    permissions:
+      contents: write # create/update the GitHub Release + upload the asset
+    steps:
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      # Build with the `preview` profile: distribution:internal → a signed, installable
+      # APK (production builds an AAB store bundle, which isn't directly side-loadable).
+      # No --no-wait here: we need the finished artifact to attach to the Release.
+      - name: Build APK on EAS and capture the artifact URL
+        working-directory: mobile
+        run: |
+          eas build -p android --profile preview --non-interactive --json > build.json
+          node -e '
+            const fs = require("fs");
+            const raw = JSON.parse(fs.readFileSync("build.json", "utf8"));
+            const b = Array.isArray(raw) ? raw[0] : raw;
+            // Robust to EAS CLI field renames: deep-scan the build object for any https URL
+            // whose path ends in .apk, and fall back to the known artifact fields.
+            const found = [];
+            (function walk(v) {
+              if (typeof v === "string") { if (/^https:\/\/\S+\.apk(\?|$)/i.test(v)) found.push(v); }
+              else if (v && typeof v === "object") { for (const k of Object.keys(v)) walk(v[k]); }
+            })(b);
+            const url = found[0] || b?.artifacts?.applicationArchiveUrl || b?.artifacts?.buildUrl;
+            if (!url) {
+              console.error("No APK URL found. Full build object:\n" + JSON.stringify(b, null, 2));
+              process.exit(1);
+            }
+            fs.appendFileSync(process.env.GITHUB_ENV, `APK_URL=${url}\n`);
+            console.log("APK URL:", url);
+          '
+
+      - name: Download the APK
+        run: curl -fL -o "lyftr-${{ github.ref_name }}.apk" "$APK_URL"
+
+      - name: Attach APK to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: lyftr-${{ github.ref_name }}.apk
+          generate_release_notes: true
+          body: |
+            ### Android (side-load)
+            Download `lyftr-${{ github.ref_name }}.apk` below. On your phone, open it and
+            allow "install from unknown sources" if prompted.
+
+            > iOS is distributed via TestFlight / the App Store (Apple doesn't allow
+            > side-loading), so it isn't attached here.
