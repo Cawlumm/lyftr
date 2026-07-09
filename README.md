@@ -1,8 +1,9 @@
 <p align="center">
-  <a href="https://github.com/Cawlumm/lyftr/releases/latest"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?include_prereleases&label=release&color=6366f1" alt="Latest release" /></a>
+  <a href="https://github.com/Cawlumm/lyftr/releases?q=v0"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?filter=v*&label=release&color=6366f1" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta" />
   <a href="https://selfh.st/weekly/2026-04-24/"><img src="https://img.shields.io/badge/Featured%20in-selfh.st%20%C2%B7%20Apr%202026-6366f1" alt="Featured in selfh.st" /></a>
+  <a href="https://github.com/Cawlumm/lyftr/releases?q=mobile-v"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?filter=mobile-v*&label=Android&logo=android&logoColor=white&color=3ddc84" alt="Android APK" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS Planned" />
   <a href="https://discord.gg/hfFWsrebQA"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Join Discord" /></a>
 </p>
@@ -16,6 +17,24 @@
 > **Beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
 
 > 🌐 **[Live demo → lyftr-demo.fly.dev](https://lyftr-demo.fly.dev)** — log in with `demo@lyftr.local` / `password123`. Shared instance, resets every hour.
+
+---
+
+## 📱 Get the app
+
+<a href="https://github.com/Cawlumm/lyftr/releases?q=mobile-v"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?filter=mobile-v*&label=Download%20Android%20APK&logo=android&logoColor=white&color=3ddc84" alt="Download Android APK" /></a>
+
+**Android** — download the latest signed APK from the [Releases](https://github.com/Cawlumm/lyftr/releases?q=mobile-v) page, or grab the current build directly:
+
+**[⬇️  Download the Android APK](https://github.com/Cawlumm/lyftr/releases/download/mobile-v0.1.0/lyftr-mobile-v0.1.0.apk)**  (`mobile-v0.1.0`, ~102 MB)
+
+1. Open the `.apk` on your Android phone.
+2. Allow **"install from unknown sources"** if prompted.
+3. Launch Lyftr and point it at your server.
+
+> Side-loaded builds don't auto-update — when a new `mobile-v*` release drops, download and install it over the old one.
+
+**iOS** — planned. Apple doesn't allow side-loading, so iOS will ship via **TestFlight** / the App Store once the Apple Developer account is set up.
 
 ---
 
