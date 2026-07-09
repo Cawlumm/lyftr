@@ -12,6 +12,8 @@
   <img src="docs/banner.png" alt="Lyftr — Self-hosted workout tracking" width="100%" />
 </p>
 
+> 📱 **The Lyftr Android app is live — [download the APK](https://github.com/Cawlumm/lyftr/releases/download/mobile-v0.1.0/lyftr-mobile-v0.1.0.apk)** and track your workouts on your phone. This is an early beta — more polish, auto-updating store builds, and an iOS version are on the way.
+
 > 🎉 **First beta release is live — [`v0.1.0-beta.1`](https://github.com/Cawlumm/lyftr/releases/tag/v0.1.0-beta.1).** Workouts, programs, gym mode, dashboard, weight, and the new nutrition tracker are all in. Pin this tag for a stable self-host target instead of tracking `main`.
 
 > **Beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
