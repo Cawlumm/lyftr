@@ -1,0 +1,4 @@
+# Changes to CI workflows and infrastructure require the owner's review.
+# Enforced when branch protection on `main` has "Require review from Code Owners" enabled.
+/.github/           @Cawlumm
+/infra/             @Cawlumm
