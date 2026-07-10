@@ -3,11 +3,10 @@ import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import tailwind from '@astrojs/tailwind';
 
-// Defaults target GitHub Project Pages (cawlumm.github.io/lyftr). To move to the custom
-// domain later: set SITE_URL=https://lyftr.dev and SITE_BASE=/ in the deploy workflow and
-// drop a `public/CNAME` — no other changes needed (asset + internal links use the base).
-const site = process.env.SITE_URL || 'https://cawlumm.github.io';
-const base = process.env.SITE_BASE ?? '/lyftr';
+// Deploys to Cloudflare Pages (served at the domain root). The workflow sets SITE_URL/SITE_BASE;
+// these defaults keep local builds root-based too. Custom domain later = set SITE_URL=https://lyftr.dev.
+const site = process.env.SITE_URL || 'https://lyftr.pages.dev';
+const base = process.env.SITE_BASE ?? '/';
 
 export default defineConfig({
   site,
