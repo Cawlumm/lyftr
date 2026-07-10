@@ -1,0 +1,27 @@
+{
+  "name": "@lyftr/shared",
+  "version": "0.0.0",
+  "private": true,
+  "//": "Platform-agnostic core shared by web + mobile: types, API client, Zustand store logic, pure utils. NO UI, NO platform APIs — storage is injected via StorageAdapter. Consumed as TS source (Metro/Vite/tsc transpile); not pre-built.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "jest"
+  },
+  "dependencies": {
+    "axios": "^1.6.2"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "zustand": "^4.4.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "react": "19.1.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.2.2",
+    "zustand": "^4.4.6"
+  }
+}
