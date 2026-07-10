@@ -55,6 +55,20 @@ jobs:
           # point at the stable production URL even from preview builds (avoids duplicate-content).
           SITE_BASE: /
           SITE_URL: https://lyftr.pages.dev # → https://lyftr.dev once the custom domain is added
+
+      # Project-as-code with no Terraform state to store: create the Pages project on first run,
+      # no-op thereafter (idempotent). When infra grows to the custom domain + DNS, promote this
+      # to the parked Terraform in infra/cloudflare/ (with an R2 or HCP state backend).
+      - name: Ensure Cloudflare Pages project exists
+        if: ${{ env.CF_API_TOKEN != '' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if ! npx --yes wrangler@3 pages project list 2>/dev/null | grep -qw lyftr; then
+            npx --yes wrangler@3 pages project create lyftr --production-branch=main
+          fi
+
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' }}
         uses: cloudflare/wrangler-action@v3
