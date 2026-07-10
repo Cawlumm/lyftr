@@ -24,6 +24,7 @@ const description =
 
 const canonical = new URL(base, Astro.site).href;
 const ogImage = new URL(banner.src, Astro.site).href;
+const logoUrl = new URL('logo.svg', Astro.site).href;
 
 const proof = [
   '160+ GitHub stars',
@@ -59,16 +60,37 @@ const runsOn = ['Raspberry Pi 4', 'Hetzner / DigitalOcean / Oracle', 'Synology N
 
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'Lyftr',
-  applicationCategory: 'HealthApplication',
-  operatingSystem: 'Android, Web, Docker',
-  description,
-  url: canonical,
-  license: 'https://opensource.org/licenses/MIT',
-  isAccessibleForFree: true,
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  softwareHelp: canonical + 'getting-started/',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': canonical + '#website',
+      url: canonical,
+      name: 'Lyftr',
+      description,
+      inLanguage: 'en',
+      publisher: { '@id': canonical + '#org' },
+    },
+    {
+      '@type': 'Organization',
+      '@id': canonical + '#org',
+      name: 'Lyftr',
+      url: canonical,
+      logo: logoUrl,
+      sameAs: [REPO, DISCORD],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Lyftr',
+      applicationCategory: 'HealthApplication',
+      operatingSystem: 'Android, Web, Docker',
+      description,
+      url: canonical,
+      license: 'https://opensource.org/licenses/MIT',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      softwareHelp: canonical + 'getting-started/',
+    },
+  ],
 };
 ---
 
@@ -80,8 +102,10 @@ const jsonLd = {
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta name="theme-color" content="#070d1a" />
     <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
 
     <!-- Open Graph -->
     <meta property="og:type" content="website" />
@@ -89,7 +113,11 @@ const jsonLd = {
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content={banner.width.toString()} />
+    <meta property="og:image:height" content={banner.height.toString()} />
+    <meta property="og:image:alt" content="Lyftr — self-hosted workout tracker on phone and desktop" />
     <meta property="og:site_name" content="Lyftr" />
+    <meta property="og:locale" content="en_US" />
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
@@ -132,7 +160,7 @@ const jsonLd = {
               <span class="h-1.5 w-1.5 rounded-full bg-brand-400"></span> Open source · MIT · Self-hosted
             </span>
             <h1 class="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
-              The workout tracker you <span class="bg-gradient-brand bg-clip-text text-transparent">actually own</span>.
+              The self-hosted workout tracker you <span class="bg-gradient-brand bg-clip-text text-transparent">actually own</span>.
             </h1>
             <p class="mt-5 max-w-xl text-lg text-tx-secondary">
               Self-hosted, mobile-first workout &amp; nutrition tracking — a free, no-subscription
@@ -180,8 +208,8 @@ const jsonLd = {
 
       <!-- Comparison -->
       <section class="mx-auto max-w-6xl px-5 py-20">
-        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">How Lyftr compares</h2>
-        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">The honest version. Great apps exist — Lyftr's bet is self-hosted, open, and free.</p>
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">The open-source Hevy &amp; Strong alternative</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">The honest comparison. Great apps exist — Lyftr's bet is self-hosted, open-source, and free.</p>
         <div class="mt-10 overflow-x-auto">
           <table class="w-full min-w-[560px] border-separate border-spacing-0 overflow-hidden rounded-2xl border border-surface-border">
             <thead>

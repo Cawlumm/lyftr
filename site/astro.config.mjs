@@ -7,6 +7,7 @@ import tailwind from '@astrojs/tailwind';
 // these defaults keep local builds root-based too. Custom domain later = set SITE_URL=https://lyftr.dev.
 const site = process.env.SITE_URL || 'https://lyftr.pages.dev';
 const base = process.env.SITE_BASE ?? '/';
+const ogImage = new URL('og-image.png', site).href;
 
 export default defineConfig({
   site,
@@ -22,6 +23,13 @@ export default defineConfig({
         { icon: 'discord', label: 'Discord', href: 'https://discord.gg/hfFWsrebQA' },
       ],
       customCss: ['./src/styles/starlight-brand.css'],
+      // Starlight sets canonical + og:title/description itself; add a default social image
+      // + Twitter card so docs pages share nicely (per-page can override via frontmatter).
+      head: [
+        { tag: 'meta', attrs: { property: 'og:image', content: ogImage } },
+        { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
+        { tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
+      ],
       // The marketing landing lives at `/` (src/pages/index.astro); docs are served at
       // their own slugs and linked from here.
       sidebar: [
