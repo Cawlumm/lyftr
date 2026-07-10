@@ -1,0 +1,15 @@
+/* Brand the Starlight docs theme with Lyftr's electric-cyan accent (#00b8d9). */
+:root {
+  --sl-color-accent-low: #003d4d;
+  --sl-color-accent: #00b8d9;
+  --sl-color-accent-high: #b0f1fe;
+  --sl-font: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Light mode: use a slightly deeper cyan so it stays legible on white. */
+:root[data-theme='light'] {
+  --sl-color-accent-low: #b0f1fe;
+  --sl-color-accent: #0099b8;
+  --sl-color-accent-high: #005c72;
+}

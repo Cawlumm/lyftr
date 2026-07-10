@@ -1,0 +1,61 @@
+# Landing + docs site (Astro + Starlight) → GitHub Pages.
+# Path-filtered on site/** so it never runs for app-only changes, and fully separate from
+# ci.yml (backend + web) and mobile-ci.yml. PRs build-only (validation); main deploys.
+#
+# One-time setup: Repo → Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Custom domain later: set SITE_URL/SITE_BASE below + add site/public/CNAME (see astro.config.mjs).
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/site.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run overlapping Pages deploys; a newer main push supersedes an in-flight one.
+concurrency:
+  group: site-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+      - run: cd site && npm ci
+      - run: cd site && npm run build
+      # Only ship the artifact on main; PRs build purely to validate.
+      - uses: actions/upload-pages-artifact@v3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

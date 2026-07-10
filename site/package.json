@@ -1,0 +1,20 @@
+{
+  "name": "@lyftr/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "//": "Landing + docs site (Astro + Starlight). Pinned to the Astro 5 line so it builds on Node 20 (same as the app + CI); Astro 6/7 require Node 22.",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "0.37.0",
+    "@astrojs/tailwind": "6.0.2",
+    "astro": "5.18.2",
+    "sharp": "^0.33.5",
+    "tailwindcss": "3.4.17"
+  }
+}
