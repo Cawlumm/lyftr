@@ -4,6 +4,7 @@
 *.tfvars
 *.tfvars.json
 !example.tfvars
+backend.hcl
 .terraform/
 .terraform.lock.hcl
 crash.log

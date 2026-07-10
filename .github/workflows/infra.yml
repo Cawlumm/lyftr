@@ -1,0 +1,77 @@
+# Terraform for the Cloudflare infra (the Pages project; later: lyftr.dev domain + DNS).
+# State lives in Cloudflare R2 (free tier). `plan` on PRs, `apply` on main (and on-demand).
+# Separate from the content deploy (site.yml runs `wrangler pages deploy`).
+#
+# ── One-time bootstrap (steps are skipped until the secrets exist) ─────────────────────
+#   1. Create an R2 bucket named `lyftr-tfstate` (dashboard R2 → Create bucket, or
+#      `wrangler r2 bucket create lyftr-tfstate`).
+#   2. Create an R2 API token (Object Read & Write) → gives an Access Key ID + Secret.
+#   3. Create a Cloudflare API token with "Edit Cloudflare Pages"; note the Account ID.
+#   4. Add GitHub repo secrets (never paste them into a chat/PR):
+#        CLOUDFLARE_API_TOKEN   CLOUDFLARE_ACCOUNT_ID
+#        R2_ACCESS_KEY_ID       R2_SECRET_ACCESS_KEY
+#   5. Run this workflow once via "Run workflow" (workflow_dispatch) to create the project.
+name: Infra (Cloudflare)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/cloudflare/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/cloudflare/**'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize — never let two applies touch the same state at once.
+concurrency:
+  group: infra-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cloudflare
+    env:
+      # 'true' only when every required secret is set → steps below skip gracefully until then.
+      HAS_SECRETS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+
+      # Syntax/type check — no backend or secrets needed, so this always runs (PR feedback).
+      - name: Validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Write R2 backend config
+        if: env.HAS_SECRETS == 'true'
+        run: printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" > backend.hcl
+
+      - name: Plan (PRs)
+        if: env.HAS_SECRETS == 'true' && github.event_name == 'pull_request'
+        run: |
+          terraform init -reconfigure -backend-config=backend.hcl
+          terraform plan -input=false -no-color
+
+      - name: Apply (main / manual)
+        if: env.HAS_SECRETS == 'true' && (github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push'))
+        run: |
+          terraform init -reconfigure -backend-config=backend.hcl
+          terraform apply -auto-approve -input=false
