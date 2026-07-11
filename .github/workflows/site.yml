@@ -58,8 +58,11 @@ jobs:
 
       # The Pages project itself is provisioned by Terraform (infra/cloudflare/ + infra.yml) —
       # run that once before the first deploy. This workflow only pushes content to it.
+      # Deploy only once bootstrap is complete: token set AND the repo variable SITE_DEPLOY=true
+      # (set it in Settings → Variables after the Pages project exists). Keeps the check green
+      # during setup instead of red, and makes "go live" an explicit switch.
       - name: Deploy to Cloudflare Pages
-        if: ${{ env.CF_API_TOKEN != '' }}
+        if: ${{ env.CF_API_TOKEN != '' && vars.SITE_DEPLOY == 'true' }}
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
