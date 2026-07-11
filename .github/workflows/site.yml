@@ -54,7 +54,7 @@ jobs:
           # Cloudflare Pages serves at the domain root — no '/lyftr' base path. Canonical/OG
           # point at the stable production URL even from preview builds (avoids duplicate-content).
           SITE_BASE: /
-          SITE_URL: https://lyftr.pages.dev # → https://lyftr.dev once the custom domain is added
+          SITE_URL: https://lyftr-app.pages.dev # → https://lyftr.dev once the custom domain is added
 
       # The Pages project is provisioned by Terraform (infra/cloudflare/ + infra.yml) — run that
       # apply once before the first deploy. This workflow only pushes content to it.
@@ -67,4 +67,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # main → production; any other branch → a preview deployment with its own URL.
-          command: pages deploy site/dist --project-name=lyftr --branch=${{ github.ref_name }}
+          command: pages deploy site/dist --project-name=lyftr-app --branch=${{ github.ref_name }}

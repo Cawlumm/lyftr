@@ -8,7 +8,7 @@ variable "cloudflare_account_id" {
 # itself. `main` is the production branch; every other branch becomes a preview deployment.
 resource "cloudflare_pages_project" "lyftr" {
   account_id        = var.cloudflare_account_id
-  name              = "lyftr"
+  name              = "lyftr-app"
   production_branch = "main"
 }
 
