@@ -6,6 +6,7 @@
   <a href="https://github.com/Cawlumm/lyftr/releases?q=mobile-v"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?filter=mobile-v*&label=Android&logo=android&logoColor=white&color=3ddc84" alt="Android APK" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS Planned" />
   <a href="https://discord.gg/hfFWsrebQA"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Join Discord" /></a>
+  <a href="https://lyftr-app.pages.dev"><img src="https://img.shields.io/badge/website%20%26%20docs-lyftr--app.pages.dev-00b8d9?logo=cloudflare&logoColor=white" alt="Website & docs" /></a>
 </p>
 
 <p align="center">
@@ -19,6 +20,8 @@
 > **Beta** — actively being built. Expect rough edges and frequent updates. Issues and feedback are welcome. The software equivalent of going to the gym for the first time.
 
 > 🌐 **[Live demo → lyftr-demo.fly.dev](https://lyftr-demo.fly.dev)** — log in with `demo@lyftr.local` / `password123`. Shared instance, resets every hour.
+
+> 📖 **[Website & docs → lyftr-app.pages.dev](https://lyftr-app.pages.dev)** — install guides, configuration, HTTPS setup, mobile app, and FAQ.
 
 ---
 
@@ -191,7 +194,7 @@ nano .env   # set JWT_SECRET and CORS_ORIGIN
 docker compose up -d
 ```
 
-For HTTPS, put Lyftr behind Caddy or nginx with a Let's Encrypt certificate.
+For HTTPS, put Lyftr behind Caddy or nginx with a Let's Encrypt certificate — see the [HTTPS & reverse-proxy guide](https://lyftr-app.pages.dev/https/).
 
 ---
 
@@ -218,8 +221,10 @@ For HTTPS, put Lyftr behind Caddy or nginx with a Let's Encrypt certificate.
 |-------|-----------|
 | Backend | Go, Gin, SQLite |
 | Frontend | React, TypeScript, Tailwind CSS, Vite |
+| Mobile | React Native, Expo |
 | Auth | JWT with refresh tokens |
 | Deployment | Docker, nginx |
+| Website & docs | Astro, Starlight (Cloudflare Pages) |
 
 ---
 

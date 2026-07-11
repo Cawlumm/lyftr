@@ -5,7 +5,7 @@ import tailwind from '@astrojs/tailwind';
 
 // Deploys to Cloudflare Pages (served at the domain root). The workflow sets SITE_URL/SITE_BASE;
 // these defaults keep local builds root-based too. Custom domain later = set SITE_URL=https://lyftr.dev.
-const site = process.env.SITE_URL || 'https://lyftr.pages.dev';
+const site = process.env.SITE_URL || 'https://lyftr-app.pages.dev';
 const base = process.env.SITE_BASE ?? '/';
 const ogImage = new URL('og-image.png', site).href;
 
@@ -33,10 +33,31 @@ export default defineConfig({
       // The marketing landing lives at `/` (src/pages/index.astro); docs are served at
       // their own slugs and linked from here.
       sidebar: [
-        { label: 'Getting Started', slug: 'getting-started' },
-        { label: 'Self-Hosting', slug: 'self-hosting' },
-        { label: 'Configuration', slug: 'configuration' },
-        { label: 'FAQ', slug: 'faq' },
+        {
+          label: 'Start Here',
+          items: [{ label: 'Getting Started', slug: 'getting-started' }],
+        },
+        {
+          label: 'Self-Hosting',
+          items: [
+            { label: 'Install', slug: 'self-hosting' },
+            { label: 'Configuration', slug: 'configuration' },
+            { label: 'HTTPS & Reverse Proxy', slug: 'https' },
+            { label: 'Backups & Updates', slug: 'backups' },
+            { label: 'Troubleshooting', slug: 'troubleshooting' },
+          ],
+        },
+        {
+          label: 'Apps & Data',
+          items: [
+            { label: 'Mobile App', slug: 'mobile' },
+            { label: 'Exercise Library', slug: 'exercise-library' },
+          ],
+        },
+        {
+          label: 'Help',
+          items: [{ label: 'FAQ', slug: 'faq' }],
+        },
       ],
     }),
     // applyBaseStyles:false → don't inject Tailwind's base globally (it would fight

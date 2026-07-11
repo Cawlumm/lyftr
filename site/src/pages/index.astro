@@ -27,10 +27,10 @@ const ogImage = new URL(banner.src, Astro.site).href;
 const logoUrl = new URL('logo.svg', Astro.site).href;
 
 const proof = [
-  '160+ GitHub stars',
-  'Featured in selfh.st',
-  'Runs on Pi · NAS · $5 VPS',
-  'MIT · Free · No subscription',
+  { label: '160+ GitHub stars', href: REPO },
+  { label: 'Featured in selfh.st', href: 'https://selfh.st/weekly/2026-04-24/' },
+  { label: 'Runs on Pi · NAS · $5 VPS' },
+  { label: 'MIT · Free · No subscription' },
 ];
 
 const features = [
@@ -200,7 +200,7 @@ const jsonLd = {
           {proof.map((p) => (
             <span class="flex items-center gap-2">
               <svg class="h-4 w-4 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
-              {p}
+              {p.href ? <a href={p.href} class="transition hover:text-brand-300">{p.label}</a> : p.label}
             </span>
           ))}
         </div>

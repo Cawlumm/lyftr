@@ -41,18 +41,10 @@ Tested and working on:
 
 Single SQLite file, minimal RAM, no external services required.
 
-## Data & backups
+## Next steps
 
-All of your data lives in one SQLite file on a Docker volume. Backing up is copying that file —
-see [Configuration](../configuration/) for the exact paths and environment variables.
-
-## Updating
-
-Pull the latest images and recreate the containers:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Your data volume is preserved across updates.
+- **[Configuration](../configuration/)** — environment variables (`JWT_SECRET`, `CORS_ORIGIN`, ports).
+- **[HTTPS & Reverse Proxy](../https/)** — expose it publicly with automatic TLS (and to use the mobile app).
+- **[Backups & Updates](../backups/)** — protect your data and upgrade safely.
+- **[Mobile App](../mobile/)** — install the Android app and point it at your server.
+- **[Troubleshooting](../troubleshooting/)** — fixes for `502`, ports, and connectivity.

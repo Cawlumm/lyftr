@@ -32,4 +32,6 @@ change anything — or register your own throwaway account.
 
 - **[Self-Hosting](../self-hosting/)** — get your own instance running in one Docker command.
 - **[Configuration](../configuration/)** — environment variables and the self-hosting gotchas.
+- **[HTTPS & Reverse Proxy](../https/)** — expose it publicly with automatic TLS.
+- **[Mobile App](../mobile/)** — install the Android app and point it at your server.
 - **[FAQ](../faq/)** — common questions.
