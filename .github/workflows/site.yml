@@ -56,11 +56,23 @@ jobs:
           SITE_BASE: /
           SITE_URL: https://lyftr.pages.dev # → https://lyftr.dev once the custom domain is added
 
-      # The Pages project itself is provisioned by Terraform (infra/cloudflare/ + infra.yml) —
-      # run that once before the first deploy. This workflow only pushes content to it.
+      # Two-token path (no Terraform/R2 needed): create the Pages project on first deploy
+      # (idempotent — no-op once it exists), then push content. When you later adopt Terraform
+      # for state + a least-privilege token, `terraform import` the project and drop this step
+      # (see infra/cloudflare/README.md). Only runs once you flip SITE_DEPLOY=true.
+      - name: Ensure Cloudflare Pages project exists
+        if: ${{ env.CF_API_TOKEN != '' && vars.SITE_DEPLOY == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if ! npx --yes wrangler@3 pages project list 2>/dev/null | grep -qw lyftr; then
+            npx --yes wrangler@3 pages project create lyftr --production-branch=main
+          fi
+
       # Deploy only once bootstrap is complete: token set AND the repo variable SITE_DEPLOY=true
-      # (set it in Settings → Variables after the Pages project exists). Keeps the check green
-      # during setup instead of red, and makes "go live" an explicit switch.
+      # (set it in Settings → Variables). Keeps the check green during setup, and makes "go live"
+      # an explicit switch. main → production; other branches → preview URLs.
       - name: Deploy to Cloudflare Pages
         if: ${{ env.CF_API_TOKEN != '' && vars.SITE_DEPLOY == 'true' }}
         uses: cloudflare/wrangler-action@v3
