@@ -60,8 +60,8 @@ No clone, no build — just Docker:
 ```bash
 curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
 curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
-# set a strong JWT_SECRET in .env, then:
-docker compose up -d
+# set a strong JWT_SECRET in .env, then pull the prebuilt images and start:
+docker compose pull && docker compose up -d
 ```
 
 Open `http://localhost` and create your account.

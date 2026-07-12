@@ -13,15 +13,18 @@ The database is stored on a Docker volume and mounted at `./data/lyftr.db` next 
 
 ## Back up
 
+Copy the database file. For a personal instance with little write traffic, a live copy is fine:
+
 ```bash
-# Point-in-time copy
 cp ./data/lyftr.db ./data/lyftr.db.backup
 ```
 
-For a consistent snapshot while the app is running, use SQLite's online backup:
+For a guaranteed-consistent copy (e.g. right before an update), stop the stack first, then copy:
 
 ```bash
-docker compose exec backend sqlite3 /app/data/lyftr.db ".backup '/app/data/lyftr.db.backup'"
+docker compose down
+cp ./data/lyftr.db ./data/lyftr.db.backup
+docker compose up -d
 ```
 
 ### Automate it (cron)

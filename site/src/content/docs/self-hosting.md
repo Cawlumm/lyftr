@@ -14,14 +14,21 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/
 curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 ```
 
-Edit `.env` and set a strong `JWT_SECRET` (32+ characters), then bring it up:
+Edit `.env` and set a strong `JWT_SECRET` (32+ characters), then pull the prebuilt images and
+start:
 
 ```bash
+docker compose pull
 docker compose up -d
 ```
 
 Open `http://localhost` in your browser and create your account. On a VPS, replace `localhost`
 with your server's IP or domain.
+
+:::note[Why `pull` first]
+The compose file references prebuilt images on Docker Hub. Running `docker compose pull` fetches
+them so nothing is built locally — you don't need the source code, just the compose file and `.env`.
+:::
 
 :::tip[Exercise library]
 On first startup Lyftr seeds **800+ exercises** from
