@@ -44,16 +44,14 @@ const features = [
   { t: 'Nutrition tracking', d: 'Calories, macros, barcode scan, and food search.' },
 ];
 
-// Comparison — honest. true / false / 'partial'
-const cols = ['Lyftr', 'Hevy', 'Strong', 'Wger'];
-const rows: { label: string; v: (boolean | 'partial')[] }[] = [
-  { label: 'Self-hosted', v: [true, false, false, true] },
-  { label: 'Open source', v: [true, false, false, true] },
-  { label: 'Free / no subscription', v: [true, false, false, true] },
-  { label: 'Own your data', v: [true, false, false, true] },
-  { label: 'Mobile-first UI', v: [true, true, true, 'partial'] },
-  { label: 'Nutrition tracking', v: [true, false, false, true] },
-  { label: 'One-command Docker', v: [true, false, false, 'partial'] },
+// Why self-host — the value props (no competitor comparison).
+const values = [
+  { t: 'Self-hosted', d: 'Your data never leaves your server — no cloud account required.' },
+  { t: 'Open source (MIT)', d: 'No black box. Read it, fork it, audit it, extend it.' },
+  { t: 'Free forever', d: 'No subscription and no paywalled features. All of it, always.' },
+  { t: 'Own your data', d: 'Everything lives in one SQLite file you fully control.' },
+  { t: 'Mobile-first', d: 'A native Android app plus a fast, responsive web UI.' },
+  { t: 'One-command deploy', d: 'Up and running with Docker in a couple of minutes.' },
 ];
 
 const runsOn = ['Raspberry Pi 4', 'Hetzner / DigitalOcean / Oracle', 'Synology NAS', 'Proxmox LXC', 'Mac · Linux · Windows'];
@@ -206,39 +204,20 @@ const jsonLd = {
         </div>
       </section>
 
-      <!-- Comparison -->
+      <!-- Why self-host -->
       <section class="mx-auto max-w-6xl px-5 py-20">
-        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">The open-source Hevy &amp; Strong alternative</h2>
-        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">The honest comparison. Great apps exist — Lyftr's bet is self-hosted, open-source, and free.</p>
-        <div class="mt-10 overflow-x-auto">
-          <table class="w-full min-w-[560px] border-separate border-spacing-0 overflow-hidden rounded-2xl border border-surface-border">
-            <thead>
-              <tr>
-                <th class="bg-surface-raised px-4 py-4 text-left text-sm font-semibold text-tx-muted">Feature</th>
-                {cols.map((c, i) => (
-                  <th class={`px-4 py-4 text-center text-sm font-bold ${i === 0 ? 'bg-brand-500/10 text-brand-300' : 'bg-surface-raised text-tx-secondary'}`}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, ri) => (
-                <tr>
-                  <td class={`px-4 py-3.5 text-sm font-medium text-tx-primary ${ri % 2 ? 'bg-surface-raised/40' : ''}`}>{r.label}</td>
-                  {r.v.map((val, ci) => (
-                    <td class={`px-4 py-3.5 text-center ${ci === 0 ? 'bg-brand-500/5' : ''} ${ri % 2 ? 'bg-surface-raised/40' : ''}`}>
-                      {val === true ? (
-                        <span class="text-brand-400" aria-label="Yes">✓</span>
-                      ) : val === 'partial' ? (
-                        <span class="text-warning-400" aria-label="Partial">~</span>
-                      ) : (
-                        <span class="text-tx-muted" aria-label="No">✗</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Why self-host Lyftr?</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">A modern workout tracker that's yours — open, free, and running on your own server.</p>
+        <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {values.map((v) => (
+            <div class="rounded-xl border border-surface-border bg-surface-raised p-5">
+              <div class="flex items-center gap-2">
+                <svg class="h-5 w-5 shrink-0 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+                <h3 class="font-display text-base font-bold text-tx-primary">{v.t}</h3>
+              </div>
+              <p class="mt-1.5 text-sm text-tx-secondary">{v.d}</p>
+            </div>
+          ))}
         </div>
       </section>
 
