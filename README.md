@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>Self-hosted, mobile-first workout &amp; nutrition tracker.</b><br />
-  A free, no-subscription alternative to Hevy and Strong — own your data.
+  Free, open source, and yours to run — own your data.
 </p>
 
 <p align="center">
@@ -24,14 +24,13 @@
 
 ---
 
-## Why Lyftr?
+## What is Lyftr?
 
-**Hevy** and **Strong** are polished but cloud-only, increasingly paywalled, and your data lives on
-someone else's server. **wger** is a solid self-hosted option — Lyftr's focus is a more modern,
-mobile-first UI and a simpler, one-command deploy.
+A workout tracker you fully own. Log workouts, build reusable programs, run a guided gym session with
+a rest timer, and track nutrition and bodyweight — all self-hosted on a $5 VPS or a Raspberry Pi,
+with your data in a single SQLite file on your server.
 
-It's for people who want a workout tracker they **fully own** and can run on a $5 VPS or a Raspberry
-Pi. No subscription. No lock-in. No "your export is a Pro feature."
+No subscription. No lock-in. No "your export is a Pro feature."
 
 ## Features
 
