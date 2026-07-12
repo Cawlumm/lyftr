@@ -27,8 +27,8 @@
 ## What is Lyftr?
 
 A workout tracker you fully own. Log workouts, build reusable programs, run a guided gym session with
-a rest timer, and track nutrition and bodyweight — all self-hosted on a $5 VPS or a Raspberry Pi,
-with your data in a single SQLite file on your server.
+a rest timer, and track nutrition and bodyweight — all self-hosted and lightweight, with your data in
+a single SQLite file on your server.
 
 No subscription. No lock-in. No "your export is a Pro feature."
 
