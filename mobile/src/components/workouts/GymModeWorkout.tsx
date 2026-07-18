@@ -123,7 +123,7 @@ export function GymModeWorkout() {
     setSaving(true)
     try {
       const created = await client.workoutAPI.create(buildPayload())
-      setOutcome({ kind: 'saved', workoutId: created.id })
+      setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
       cancelSession()
       minimizeGym()
       router.replace('/workouts')

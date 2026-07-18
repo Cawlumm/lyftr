@@ -3,7 +3,8 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
-  AlertCircle, ArrowLeft, BookOpen, ChevronRight, Dumbbell, Edit2, Layers, Pause, Play, TimerOff, Trash2,
+  AlertCircle, ArrowLeft, Award, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell, Edit2,
+  Layers, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
 import {
   apiErrorMessage, displayWeight, weightShort,
@@ -24,19 +25,33 @@ const activeHref = '/workouts/active' as unknown as Href
 
 const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
 
-function SetChip({ set, isBest, unit }: { set: ProgramSet; isBest: boolean; unit: string }) {
+// Rows shown before the review banner collapses behind a "Show all" toggle (#40).
+const SUGGESTION_CAP = 3
+
+function SetChip({ set, isBest, hasSuggestion, unit }: { set: ProgramSet; isBest: boolean; hasSuggestion: boolean; unit: string }) {
   return (
     <View
-      className={`px-2.5 py-1.5 rounded-lg ${
-        isBest ? 'bg-brand-500/15 border border-brand-500/25' : 'bg-surface-raised border border-transparent'
+      className={`px-2.5 py-1.5 rounded-lg border ${
+        hasSuggestion ? 'bg-warning-500/10 border-warning-500/40'
+          : isBest ? 'bg-brand-500/15 border-brand-500/25' : 'bg-surface-raised border-transparent'
       }`}
     >
-      <AppText variant="caption" color={isBest ? 'brand' : 'secondary'} style={{ fontVariant: ['tabular-nums'] }}>
+      <AppText variant="caption" color={hasSuggestion ? 'secondary' : isBest ? 'brand' : 'secondary'} style={{ fontVariant: ['tabular-nums'] }}>
         {set.target_reps > 0 ? set.target_reps : '—'} ×{' '}
         {set.target_weight > 0 ? `${displayWeight(set.target_weight, unit)} ${unit}` : 'BW'}
       </AppText>
     </View>
   )
+}
+
+// One pending auto-progression suggestion (#40), flattened for the review banner.
+interface Suggestion {
+  setId: number
+  exName: string
+  setNumber: number
+  isPR: boolean
+  oldLabel: string
+  newLabel: string
 }
 
 function MuscleBadge({ muscle }: { muscle: string }) {
@@ -63,10 +78,27 @@ export default function ProgramDetail() {
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [resolving, setResolving] = useState(false)
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
 
   useEffect(() => {
     fetchSettings()
   }, [fetchSettings])
+
+  // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
+  // then refresh from the returned program.
+  const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
+    if (!program || resolving) return
+    setResolving(true)
+    try {
+      const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
+      setProgram(updated)
+    } catch {
+      // leave the banner in place so the user can retry
+    } finally {
+      setResolving(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -143,6 +175,43 @@ export default function ProgramDetail() {
   const exs = program.exercises ?? []
   const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
 
+  // Pending auto-progression suggestions (#40). A suggestion exists when suggested_reps
+  // is set. Show the FULL reps×weight on both sides when both changed (a heavier set can
+  // also drop the rep target — the user must see that before approving), else the single
+  // changed dimension.
+  const suggestions: Suggestion[] = exs.flatMap((ex) =>
+    (ex.sets ?? [])
+      .filter((s) => s.id != null && s.suggested_reps != null)
+      .map((s) => {
+        const sw = s.suggested_weight as number
+        const sr = s.suggested_reps as number
+        const weightChanged = s.suggested_weight != null && Math.abs(sw - s.target_weight) > 1e-6
+        const repsChanged = sr !== s.target_reps
+        const wLabel = (v: number) => (v > 0 ? `${displayWeight(v, wUnit)} ${wUnit}` : 'BW')
+        let oldLabel: string, newLabel: string
+        if (weightChanged && repsChanged) {
+          oldLabel = `${s.target_reps} × ${wLabel(s.target_weight)}`
+          newLabel = `${sr} × ${wLabel(sw)}`
+        } else if (weightChanged) {
+          oldLabel = wLabel(s.target_weight)
+          newLabel = wLabel(sw)
+        } else {
+          oldLabel = `${s.target_reps}`
+          newLabel = `${sr} reps`
+        }
+        return {
+          setId: s.id as number,
+          exName: ex.exercise?.name ?? 'Exercise',
+          setNumber: s.set_number,
+          isPR: !!s.suggested_is_pr,
+          oldLabel,
+          newLabel,
+        }
+      })
+  )
+  const suggestedSetIds = suggestions.map((s) => s.setId)
+  const warningColor = isDark ? brand.warningSoft : brand.warning
+
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -196,6 +265,81 @@ export default function ProgramDetail() {
             onConfirm={handleDelete}
             onCancel={() => setConfirming(false)}
           />
+
+          {/* Auto-progression review banner (#40) — approve the targets you beat last workout */}
+          {suggestions.length > 0 && (
+            <View className="bg-surface-raised border border-warning-500/30 rounded-2xl overflow-hidden">
+              <View className="flex-row items-center gap-2 px-4 py-3">
+                {suggestions.some((s) => s.isPR)
+                  ? <Award size={16} color={warningColor} />
+                  : <TrendingUp size={16} color={warningColor} />}
+                <AppText variant="bodySemibold" className="flex-1">New targets from your last workout</AppText>
+                <View className="bg-warning-500/15 rounded-full px-2 py-0.5">
+                  <AppText variant="caption" style={{ color: warningColor, fontWeight: 'bold' }}>{suggestions.length}</AppText>
+                </View>
+              </View>
+              {(showAllSuggestions ? suggestions : suggestions.slice(0, SUGGESTION_CAP)).map((sg) => (
+                <View key={sg.setId} className="flex-row items-center gap-3 px-4 py-2.5 border-t border-surface-border/60">
+                  <View className="flex-1 flex-row items-center gap-1.5 min-w-0">
+                    {sg.isPR ? <Award size={14} color={warningColor} /> : null}
+                    <AppText variant="caption" color="secondary" numberOfLines={1} className="flex-1">
+                      <AppText variant="caption" color="primary" style={{ fontWeight: '600' }}>{sg.exName}</AppText> · Set {sg.setNumber}
+                    </AppText>
+                  </View>
+                  <View className="flex-row items-center flex-shrink-0">
+                    <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'], textDecorationLine: 'line-through' }}>{sg.oldLabel}</AppText>
+                    <AppText variant="caption" style={{ color: warningColor, marginHorizontal: 6 }}>→</AppText>
+                    <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{sg.newLabel}</AppText>
+                  </View>
+                  <View className="flex-row gap-1.5 flex-shrink-0">
+                    <Pressable
+                      onPress={() => resolveSuggestions([sg.setId], [])}
+                      disabled={resolving}
+                      accessibilityLabel={`Accept ${sg.exName} set ${sg.setNumber}`}
+                      className={`w-7 h-7 rounded-lg bg-success-500/15 items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                    >
+                      <Check size={14} color={isDark ? brand.successSoft : brand.success} strokeWidth={3} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => resolveSuggestions([], [sg.setId])}
+                      disabled={resolving}
+                      accessibilityLabel={`Dismiss ${sg.exName} set ${sg.setNumber}`}
+                      className={`w-7 h-7 rounded-lg bg-surface-muted items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                    >
+                      <X size={14} color={colors.txMuted} strokeWidth={3} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              {suggestions.length > SUGGESTION_CAP && (
+                <Pressable
+                  onPress={() => setShowAllSuggestions((v) => !v)}
+                  className="flex-row items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 active:opacity-60"
+                >
+                  <AppText variant="caption" style={{ color: warningColor, fontWeight: '600' }}>
+                    {showAllSuggestions ? 'Show less' : `Show all ${suggestions.length}`}
+                  </AppText>
+                  {showAllSuggestions ? <ChevronUp size={14} color={warningColor} /> : <ChevronDown size={14} color={warningColor} />}
+                </Pressable>
+              )}
+              <View className="flex-row gap-2 px-4 py-3 border-t border-surface-border/60">
+                <Pressable
+                  onPress={() => resolveSuggestions([], suggestedSetIds)}
+                  disabled={resolving}
+                  className={`flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                >
+                  <AppText variant="bodySemibold" color="secondary">Dismiss all</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => resolveSuggestions(suggestedSetIds, [])}
+                  disabled={resolving}
+                  className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                >
+                  <AppText variant="bodySemibold" style={{ color: '#1a1400' }}>Apply all ({suggestions.length})</AppText>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           {/* Header card */}
           <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
@@ -272,7 +416,7 @@ export default function ProgramDetail() {
                     <View className="flex-row items-center gap-2 px-4 pb-4 pt-3 border-t border-surface-border/50">
                       <View className="flex-1 flex-row flex-wrap gap-1.5">
                         {sets.map((set, i) => (
-                          <SetChip key={i} set={set} isBest={set.target_weight === maxTargetLbs && maxTargetLbs > 0} unit={wUnit} />
+                          <SetChip key={i} set={set} isBest={set.target_weight === maxTargetLbs && maxTargetLbs > 0} hasSuggestion={set.suggested_reps != null} unit={wUnit} />
                         ))}
                       </View>
                       {restOn && (

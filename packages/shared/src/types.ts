@@ -62,6 +62,16 @@ export interface Workout {
   started_at: string
   created_at: string
   exercises: WorkoutExercise[]
+  // Present on the create response when finishing auto-progressed routine targets (#40).
+  progression?: ProgressionResult
+}
+
+// Summary of staged routine suggestions, used for the finish toast (#40).
+export interface ProgressionResult {
+  program_id: number
+  program_name: string
+  count: number
+  is_pr?: boolean
 }
 
 export interface WeightLog {
@@ -151,6 +161,11 @@ export interface ProgramSet {
   set_number: number
   target_reps: number
   target_weight: number
+  // Pending auto-progression suggestion (#40) — present when the last workout beat
+  // this set's target. The user approves it on the routine (copies into target_*).
+  suggested_reps?: number
+  suggested_weight?: number
+  suggested_is_pr?: boolean
 }
 
 export interface ProgramExercise {

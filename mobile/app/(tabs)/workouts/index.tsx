@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
-import { router, useFocusEffect } from 'expo-router'
-import { CheckCircle2, Dumbbell, Plus, RotateCcw } from 'lucide-react-native'
+import { router, useFocusEffect, type Href } from 'expo-router'
+import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { weightShort, type Workout } from '@lyftr/shared'
 import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
@@ -10,6 +10,10 @@ import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
+
+// Cross-tab jump (workouts → programs), same rule as programs/[id]'s handleStart:
+// router.navigate, not push, or it corrupts the native tab/back stack.
+const programHref = (id: number) => `/programs/${id}` as unknown as Href
 
 export default function Workouts() {
   const settings = useSettingsStore((s) => s.settings)
@@ -190,17 +194,32 @@ export default function Workouts() {
           (restores the exact session snapshot and drops you back into it). */}
       {outcome ? (
         outcome.kind === 'saved' ? (
-          <Toast
-            variant="success"
-            icon={CheckCircle2}
-            title="Workout saved"
-            description="Tap to view"
-            onPress={() => {
-              clearOutcome()
-              router.push(`/workouts/${outcome.workoutId}`)
-            }}
-            onDismiss={clearOutcome}
-          />
+          outcome.progression ? (
+            <Toast
+              variant={outcome.progression.is_pr ? 'warning' : 'success'}
+              icon={outcome.progression.is_pr ? Award : TrendingUp}
+              title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
+              description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
+              onPress={() => {
+                const programId = outcome.progression!.program_id
+                clearOutcome()
+                router.navigate(programHref(programId))
+              }}
+              onDismiss={clearOutcome}
+            />
+          ) : (
+            <Toast
+              variant="success"
+              icon={CheckCircle2}
+              title="Workout saved"
+              description="Tap to view"
+              onPress={() => {
+                clearOutcome()
+                router.push(`/workouts/${outcome.workoutId}`)
+              }}
+              onDismiss={clearOutcome}
+            />
+          )
         ) : (
           <Toast
             variant="default"

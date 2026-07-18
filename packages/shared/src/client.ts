@@ -162,6 +162,9 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     create: (data: any) => api.post<{ data: types.Program }>('/programs', data).then(unwrap),
     update: (id: number, data: any) => api.put<{ data: types.Program }>(`/programs/${id}`, data).then(unwrap),
     delete: (id: number) => api.delete(`/programs/${id}`),
+    // Accept/dismiss staged auto-progression suggestions (#40); returns the updated program.
+    resolveSuggestions: (id: number, data: { accept: number[]; dismiss: number[] }) =>
+      api.post<{ data: types.Program }>(`/programs/${id}/suggestions/resolve`, data).then(unwrap),
   }
 
   const weightAPI = {
