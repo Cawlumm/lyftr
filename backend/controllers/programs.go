@@ -130,6 +130,10 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
 	p, err := h.s.Program.ResolveSuggestions(uid, pid, req.Accept, req.Dismiss)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "program not found")

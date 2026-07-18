@@ -1,0 +1,58 @@
+appId: host.exp.exponent
+---
+# End-to-end check for the progressive-overload feature (#40): finish a routine
+# workout that beats a set target, confirm the finish toast, then confirm the
+# routine's review banner and approve the suggestion.
+#
+# Requires: Metro + backend running locally, an emulator/device with Expo Go
+# already logged into an account that owns "Tuesday - Pull (Back Width)" (the
+# demo seed data). Run with:
+#   maestro test mobile/.maestro/progressive_overload.yaml
+
+- pressKey: Back
+- pressKey: Home
+- openLink: "exp://127.0.0.1:8081"
+
+# openLink only resets to Home on a cold start; if Expo Go was already running it
+# just resumes wherever the app was left. Land on a known tab either way.
+- tapOn: "Workouts"
+- runFlow:
+    when:
+      visible: "Cancel Workout"
+    commands:
+      - tapOn: "Cancel Workout"
+      - tapOn:
+          text: "Cancel Workout"
+          index: 1
+
+- tapOn: "Programs"
+- tapOn: "Tuesday - Pull (Back Width)"
+- tapOn: "Start"
+
+# Beat set 1's target weight on the first exercise.
+- tapOn:
+    text: "Weight, set 1, Full Range-Of-Motion Lat Pulldown"
+- eraseText: 8
+- inputText: "500"
+- hideKeyboard
+- tapOn:
+    text: "Complete set 1, Full Range-Of-Motion Lat Pulldown"
+- tapOn: "Finish"
+- tapOn: "Finish"
+
+# Finish toast — PR or plain "new targets", either is fine. Best-effort: it's a
+# transient 4s auto-dismiss overlay racing the save+navigate round-trip, so a miss
+# here isn't a regression — the banner check below is the reliable assertion.
+- extendedWaitUntil:
+    visible: "New (PR|targets) in Tuesday - Pull \\(Back Width\\)"
+    timeout: 8000
+    optional: true
+- takeScreenshot: finish_toast
+
+# Review banner on the routine screen.
+- tapOn: "Programs"
+- tapOn: "Tuesday - Pull (Back Width)"
+- assertVisible: "New targets from your last workout"
+- takeScreenshot: review_banner
+- tapOn: "Apply all (1)"
+- assertNotVisible: "New targets from your last workout"

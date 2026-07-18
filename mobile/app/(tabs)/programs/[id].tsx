@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell, Edit2,
@@ -85,14 +85,29 @@ export default function ProgramDetail() {
     fetchSettings()
   }, [fetchSettings])
 
+  // Bumped by both the focus refetch and resolveSuggestions. "Last dispatched wins"
+  // isn't enough on its own — the GET and the PATCH are independent HTTP requests, so
+  // a focus refetch dispatched AFTER an Accept/Dismiss tap can still have its response
+  // computed from a server-side read that lands before the PATCH commits, and land
+  // either before or after the PATCH's own response. So resolveSuggestions applies its
+  // result unconditionally (only one can ever be in flight — the `resolving` guard
+  // below blocks a second tap) and bumps the seq again AFTER doing so, invalidating
+  // any refetch that was dispatched at any point up to that moment, however its
+  // response happens to be ordered.
+  const requestSeq = useRef(0)
+
   // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
   // then refresh from the returned program.
   const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
     if (!program || resolving) return
     setResolving(true)
+    ++requestSeq.current
     try {
       const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
+      // Invalidate any focus refetch still in flight from before this point — its
+      // response can't be trusted to reflect this write, whichever order it lands in.
+      ++requestSeq.current
     } catch {
       // leave the banner in place so the user can retry
     } finally {
@@ -100,21 +115,33 @@ export default function ProgramDetail() {
     }
   }
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const data = await client.programAPI.get(Number(id))
-        if (!cancelled) setProgram(data)
-      } catch (err) {
-        if (!cancelled) setError(apiErrorMessage(err, 'Failed to load program'))
-      } finally {
-        if (!cancelled) setLoading(false)
+  // Refetch on every focus (not just mount) — otherwise a routine reopened from the tab
+  // bar shows whatever it looked like when the screen was first pushed, missing targets
+  // approved elsewhere or auto-progression suggestions staged by a workout finished since
+  // (#40). `loading` only gates the very first render — later refetches update silently
+  // so revisiting the screen doesn't flash the full-screen spinner over existing content.
+  // A refetch failure only surfaces the full-screen error when nothing has loaded yet —
+  // once a program is showing, a transient refocus failure leaves it in place instead of
+  // wiping the screen (matches the dashboard's focus-refetch, which doesn't setError at all).
+  const loadedRef = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false
+      const load = async () => {
+        const seq = ++requestSeq.current
+        try {
+          const data = await client.programAPI.get(Number(id))
+          if (!cancelled && requestSeq.current === seq) { setProgram(data); setError(null); loadedRef.current = true }
+        } catch (err) {
+          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, 'Failed to load program'))
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
       }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [id])
+      load()
+      return () => { cancelled = true }
+    }, [id])
+  )
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
@@ -335,7 +362,7 @@ export default function ProgramDetail() {
                   disabled={resolving}
                   className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
                 >
-                  <AppText variant="bodySemibold" style={{ color: '#1a1400' }}>Apply all ({suggestions.length})</AppText>
+                  <AppText variant="bodySemibold" style={{ color: brand.warningText }}>Apply all ({suggestions.length})</AppText>
                 </Pressable>
               </View>
             </View>

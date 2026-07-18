@@ -71,9 +71,12 @@ type ProgressionResult struct {
 
 // ResolveSuggestionsReq accepts or dismisses staged routine suggestions (#40) by
 // program_set id. Accepted ids copy suggested_* → target_*; both clear the suggestion.
+// max=500 bounds each list well above any plausible routine's set count — the store
+// loops one UPDATE per id inside a single transaction, so an unbounded list could hold
+// SQLite's writer lock for an extended period.
 type ResolveSuggestionsReq struct {
-	Accept  []int64 `json:"accept"`
-	Dismiss []int64 `json:"dismiss"`
+	Accept  []int64 `json:"accept" validate:"max=500"`
+	Dismiss []int64 `json:"dismiss" validate:"max=500"`
 }
 
 type WorkoutExercise struct {
@@ -184,6 +187,18 @@ type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
+// MaxWorkoutSets bounds the TOTAL number of sets across every exercise in a
+// CreateWorkoutRequest (sum of len(Exercises[i].Sets), not each list's own max=500
+// below independently) — enforced by the struct-level validation registered in
+// controllers/workouts.go's init(). Exercises/Sets each also carry their own
+// max=500 as a belt-and-suspenders per-list cap, but that alone doesn't bound their
+// product (500 exercises x 500 sets = 250,000 rows), which is what actually matters
+// since issue #40's CreateWorkoutWithProgression processes the whole request inside
+// one transaction holding the process's single SQLite connection
+// (db.DB.SetMaxOpenConns(1)) — see the total-sets check for why this constant, not
+// the per-list tags, is the real bound on that transaction's worst-case duration.
+const MaxWorkoutSets = 500
+
 type CreateWorkoutRequest struct {
 	Name      string                     `json:"name" validate:"required"`
 	Notes     string                     `json:"notes"`
@@ -193,7 +208,10 @@ type CreateWorkoutRequest struct {
 	// per-set auto-progression of that routine's targets (issue #40). nil for
 	// freestyle/quick workouts, which never progress a routine.
 	ProgramID *int64                     `json:"program_id"`
-	Exercises []CreateWorkoutExerciseReq `json:"exercises"`
+	// Exercises/Sets each cap at max=500 as an outer sanity bound, but that bounds
+	// each dimension independently, not their product — see MaxWorkoutSets above for
+	// the cap that actually matters.
+	Exercises []CreateWorkoutExerciseReq `json:"exercises" validate:"max=500,dive"`
 }
 
 type CreateWorkoutExerciseReq struct {
@@ -201,7 +219,7 @@ type CreateWorkoutExerciseReq struct {
 	OrderIndex  int            `json:"order_index"`
 	Notes       string         `json:"notes"`
 	RestSeconds int            `json:"rest_seconds"`
-	Sets        []CreateSetReq `json:"sets"`
+	Sets        []CreateSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateSetReq struct {

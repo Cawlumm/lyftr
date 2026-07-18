@@ -16,6 +16,7 @@ type Stores struct {
 	Exercise      *ExerciseStore
 	Workout       *WorkoutStore
 	Program       *ProgramStore
+	db            *sql.DB // for operations that must span two stores in one transaction
 }
 
 func New(db *sql.DB) *Stores {
@@ -27,6 +28,7 @@ func New(db *sql.DB) *Stores {
 		Exercise:      NewExerciseStore(db),
 		Workout:       NewWorkoutStore(db),
 		Program:       NewProgramStore(db),
+		db:            db,
 	}
 }
 

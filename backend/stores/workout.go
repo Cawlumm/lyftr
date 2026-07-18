@@ -99,26 +99,35 @@ func (s *WorkoutStore) get(id int64) (models.Workout, error) {
 
 func (s *WorkoutStore) Create(uid int64, req models.CreateWorkoutRequest) (models.Workout, error) {
 	wid, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
-		res, err := tx.Exec(
-			`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
-			uid, req.Name, req.Notes, req.Duration, req.StartedAt,
-		)
-		if err != nil {
-			return 0, err
-		}
-		wid, err := res.LastInsertId()
-		if err != nil {
-			return 0, err
-		}
-		if err := insertWorkoutExercises(tx, wid, req.Exercises); err != nil {
-			return 0, err
-		}
-		return wid, nil
+		return createWorkoutTx(tx, uid, req)
 	})
 	if err != nil {
 		return models.Workout{}, err
 	}
 	return s.get(wid)
+}
+
+// createWorkoutTx inserts the workout + its exercises/sets within an existing
+// transaction, returning the new workout id. Factored out of Create so the
+// PR-snapshot read, the insert, and the suggestion-staging write can share one
+// transaction (see CreateWithProgression) — SQLite then serializes concurrent
+// submissions instead of letting them read the same stale prior-best (#40).
+func createWorkoutTx(tx *sql.Tx, uid int64, req models.CreateWorkoutRequest) (int64, error) {
+	res, err := tx.Exec(
+		`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
+		uid, req.Name, req.Notes, req.Duration, req.StartedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	wid, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	if err := insertWorkoutExercises(tx, wid, req.Exercises); err != nil {
+		return 0, err
+	}
+	return wid, nil
 }
 
 // Update replaces a user-owned workout and its children in one tx. sql.ErrNoRows
@@ -280,8 +289,17 @@ type ExerciseHistoryPoint struct {
 // they have no qualifying (non-warmup, weighted) set. Reads workout tables — this
 // is workout-derived analytics keyed by exercise, so it lives on WorkoutStore.
 func (s *WorkoutStore) PRForExercise(uid, exerciseID int64) (ExercisePR, error) {
+	return prForExerciseTx(s.db, uid, exerciseID)
+}
+
+// prForExerciseTx runs the PRForExercise query against anything that can QueryRow —
+// s.db for the standalone read, or an existing *sql.Tx when the read must be
+// serialized with a later write in the same transaction (see CreateWithProgression).
+func prForExerciseTx(q interface {
+	QueryRow(query string, args ...any) *sql.Row
+}, uid, exerciseID int64) (ExercisePR, error) {
 	var pr ExercisePR
-	err := s.db.QueryRow(`
+	err := q.QueryRow(`
 		SELECT s.weight, s.reps, w.started_at, w.id
 		FROM sets s
 		JOIN workout_exercises we ON we.id = s.workout_exercise_id

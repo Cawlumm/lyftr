@@ -271,6 +271,7 @@ export default function ActiveWorkout() {
                     placeholder="+ Add note…"
                     placeholderTextColor={colors.txMuted}
                     className="font-sans text-xs text-tx-secondary"
+                    accessibilityLabel={`Notes, ${ex.exercise.name}`}
                   />
                 </View>
 
@@ -304,6 +305,7 @@ export default function ActiveWorkout() {
                             placeholderTextColor={colors.txMuted}
                             className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
                             style={{ fontVariant: ['tabular-nums'] }}
+                            accessibilityLabel={`Reps, set ${set.set_number}, ${ex.exercise.name}`}
                           />
                         </View>
                         <View className="flex-1">
@@ -322,9 +324,15 @@ export default function ActiveWorkout() {
                             placeholderTextColor={colors.txMuted}
                             className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
                             style={{ fontVariant: ['tabular-nums'] }}
+                            accessibilityLabel={`Weight, set ${set.set_number}, ${ex.exercise.name}`}
                           />
                         </View>
-                        <Pressable onPress={() => handleCompleteSet(exIdx, setIdx)} className={`h-11 w-12 items-center justify-center ${set.completed ? 'bg-brand-500' : isNextSet ? 'bg-brand-500/20' : ''}`}>
+                        <Pressable
+                          onPress={() => handleCompleteSet(exIdx, setIdx)}
+                          className={`h-11 w-12 items-center justify-center ${set.completed ? 'bg-brand-500' : isNextSet ? 'bg-brand-500/20' : ''}`}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${set.completed ? 'Completed' : 'Complete'} set ${set.set_number}, ${ex.exercise.name}`}
+                        >
                           <CheckCircle2 size={24} color={set.completed ? '#ffffff' : isNextSet ? accent : colors.txMuted} />
                         </Pressable>
                         <Pressable onPress={() => removeSet(exIdx, setIdx)} hitSlop={6} accessibilityLabel="Remove set" className="w-7 items-center justify-center">

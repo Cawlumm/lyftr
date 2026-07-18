@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -253,5 +254,173 @@ func TestResolveSuggestions_OwnershipGuard(t *testing.T) {
 	}
 	if _, _, _, ok := getSuggestion(t, ids[0]); !ok {
 		t.Errorf("owner's staged suggestion should be untouched by the attacker")
+	}
+}
+
+// CreateWorkout with a program_id goes through CreateWorkoutWithProgression (the
+// merged-transaction path, issue #40 progression review) end-to-end: a beaten,
+// routine-linked set stages a suggestion and the response's progression summary
+// reflects it.
+func TestCreateWorkout_StagesProgressionSuggestion(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+	pid, ids := seedProgram(t, uid, exID, []ptTarget{{5, 100}})
+
+	body := map[string]any{
+		"name":       "Push A",
+		"duration":   1800,
+		"program_id": pid,
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets": []map[string]any{
+					{"set_number": 1, "reps": 5, "weight": 105.0, "program_set_id": ids[0]},
+				},
+			},
+		},
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	prog, ok := data["progression"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected progression in response, got %v", data["progression"])
+	}
+	if count, _ := prog["count"].(float64); count != 1 {
+		t.Errorf("progression count = %v, want 1", prog["count"])
+	}
+	if isPR, _ := prog["is_pr"].(bool); !isPR {
+		t.Errorf("progression is_pr = %v, want true", prog["is_pr"])
+	}
+	// The staged suggestion is durably persisted on program_sets, not just echoed
+	// on the response (regression: merging the snapshot/insert/staging transactions
+	// must still leave a fully-committed suggestion, not a partial one).
+	if r, wt, pr, ok := getSuggestion(t, ids[0]); !ok || r != 5 || wt != 105 || !pr {
+		t.Errorf("staged suggestion = (%d×%.1f pr=%v ok=%v), want 5×105 pr=true", r, wt, pr, ok)
+	}
+}
+
+// If suggestion-staging errors mid-transaction, CreateWorkoutWithProgression's
+// SAVEPOINT/ROLLBACK TO SAVEPOINT must undo only staging's own writes and let the
+// already-inserted workout commit (per the "best-effort" doc comment on
+// CreateWorkoutWithProgression) — never let pErr propagate up through inTxDo and
+// roll back the whole transaction, silently discarding the user's workout.
+func TestCreateWorkout_progressionStagingFailureStillSavesWorkout(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+	pid, ids := seedProgram(t, uid, exID, []ptTarget{{5, 100}})
+
+	// Force suggestion-staging to hit a real DB error (not the benign sql.ErrNoRows
+	// the code already tolerates) by pulling program_sets out from under it — the
+	// per-set SELECT in suggestTargetsTx joins that table, so this fails the staging
+	// step without touching workouts/workout_exercises/sets at all.
+	if _, err := db.DB.Exec(`ALTER TABLE program_sets RENAME TO program_sets_gone`); err != nil {
+		t.Fatalf("rename program_sets: %v", err)
+	}
+
+	body := map[string]any{
+		"name":       "Push A",
+		"duration":   1800,
+		"program_id": pid,
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets": []map[string]any{
+					{"set_number": 1, "reps": 5, "weight": 105.0, "program_set_id": ids[0]},
+				},
+			},
+		},
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201 even though staging failed, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if data["progression"] != nil {
+		t.Errorf("progression = %v, want nil — staging failed, so nothing was staged", data["progression"])
+	}
+
+	var count int
+	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM workouts WHERE user_id = ?`, uid).Scan(&count); err != nil {
+		t.Fatalf("count workouts: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("workout count = %d, want 1 — a staging failure must not roll back the outer transaction", count)
+	}
+}
+
+// CreateWorkoutRequest.Exercises carries validate:"max=500,dive" specifically so the
+// nested per-exercise Sets cap (also max=500) is enforced too — go-playground/validator
+// only recurses into a struct slice's own element tags when the outer slice is
+// `dive`-tagged. A single exercise with an oversized Sets array must be rejected before
+// it ever reaches CreateWorkoutWithProgression's single-connection transaction.
+func TestCreateWorkout_RejectsOversizedSets(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	sets := make([]map[string]any, 501)
+	for i := range sets {
+		sets[i] = map[string]any{"set_number": i + 1, "reps": 5, "weight": 100.0}
+	}
+	body := map[string]any{
+		"name":     "Push A",
+		"duration": 1800,
+		"exercises": []map[string]any{
+			{"exercise_id": exID, "sets": sets},
+		},
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for a 501-set exercise, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// Exercises and Sets each cap at max=500 independently, which doesn't bound their
+// product: many exercises with a handful of sets each can still add up to more total
+// rows than CreateWorkoutWithProgression's single-connection transaction should ever
+// process for one request. The struct-level total-sets check (models.MaxWorkoutSets)
+// must reject that even though no single list crosses its own max=500.
+func TestCreateWorkout_RejectsOversizedTotalSets(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	// 21 exercises x 25 sets = 525 total sets, over MaxWorkoutSets (500), while every
+	// individual list (21 exercises, 25 sets) stays well under its own max=500.
+	exercises := make([]map[string]any, 21)
+	for i := range exercises {
+		sets := make([]map[string]any, 25)
+		for j := range sets {
+			sets[j] = map[string]any{"set_number": j + 1, "reps": 5, "weight": 100.0}
+		}
+		exercises[i] = map[string]any{"exercise_id": exID, "sets": sets}
+	}
+	body := map[string]any{
+		"name":      "Push A",
+		"duration":  1800,
+		"exercises": exercises,
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 for 525 total sets across exercises, got %d: %s", w.Code, w.Body.String())
 	}
 }

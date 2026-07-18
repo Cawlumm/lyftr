@@ -51,4 +51,9 @@ export const brand = {
   errorSoft: '#f87171',
   warning: '#eab308',
   warningSoft: '#facc15',
+  // Near-black text for content sitting directly on a solid warning-500 fill (e.g.
+  // "Apply all") — mirrors web's ProgramDetail.tsx `text-[#1a1400]` as a named token
+  // instead of a repeated literal, and matches this screen's other warningColor
+  // usages routing through brand/useTheme() rather than a hardcoded hex.
+  warningText: '#1a1400',
 }

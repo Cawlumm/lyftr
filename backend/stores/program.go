@@ -156,61 +156,75 @@ type ProgressInput struct {
 // another user's routine by guessing set ids.
 func (s *ProgramStore) SuggestTargets(uid, programID int64, sets []ProgressInput) (string, int, bool, error) {
 	var name string
-	count, anyPR := 0, false
+	var count int
+	var anyPR bool
 	err := inTxDo(s.db, func(tx *sql.Tx) error {
-		if err := tx.QueryRow(`SELECT name FROM programs WHERE id = ? AND user_id = ?`, programID, uid).Scan(&name); err != nil {
-			return err
-		}
-		for _, in := range sets {
-			var curReps int
-			var curWeight float64
-			var sugReps sql.NullInt64
-			var sugWeight sql.NullFloat64
-			// Re-assert the set belongs to THIS (already-owned) program before touching it.
-			err := tx.QueryRow(
-				`SELECT ps.target_reps, ps.target_weight, ps.suggested_reps, ps.suggested_weight
-				 FROM program_sets ps
-				 JOIN program_exercises pe ON pe.id = ps.program_exercise_id
-				 WHERE ps.id = ? AND pe.program_id = ?`,
-				in.ProgramSetID, programID,
-			).Scan(&curReps, &curWeight, &sugReps, &sugWeight)
-			if err == sql.ErrNoRows {
-				continue // set isn't in this routine anymore (edited/deleted) — skip
-			}
-			if err != nil {
-				return err
-			}
-			// Compare against the best of (current target, any pending suggestion) so a
-			// smaller-but-still-over-target set can't downgrade an un-approved PR (#40 edge).
-			baseReps, baseWeight := curReps, curWeight
-			if sugReps.Valid {
-				baseReps = int(sugReps.Int64)
-			}
-			if sugWeight.Valid {
-				baseWeight = sugWeight.Float64
-			}
-			newWeight, newReps, improved := progressedTarget(baseWeight, baseReps, in.Weight, in.Reps)
-			if !improved {
-				continue
-			}
-			if _, err := tx.Exec(
-				`UPDATE program_sets SET suggested_weight = ?, suggested_reps = ?, suggested_is_pr = ? WHERE id = ?`,
-				newWeight, newReps, in.IsPR, in.ProgramSetID,
-			); err != nil {
-				return err
-			}
-			count++
-			if in.IsPR {
-				anyPR = true
-			}
-		}
-		return nil
+		var err error
+		name, count, anyPR, err = suggestTargetsTx(tx, uid, programID, sets)
+		return err
 	})
-	if err == sql.ErrNoRows {
-		return "", 0, false, nil // not the caller's program — no-op, not an error
-	}
 	if err != nil {
 		return "", 0, false, err
+	}
+	return name, count, anyPR, nil
+}
+
+// suggestTargetsTx is SuggestTargets' body, scoped to an existing transaction so a
+// caller can serialize it with an earlier PR-snapshot read and workout insert (see
+// WorkoutStore.CreateWithProgression) — closes a TOCTOU race where two concurrent
+// workout submissions could both compute suggested_is_pr against the same stale prior
+// best (issue #40 progression review).
+func suggestTargetsTx(tx *sql.Tx, uid, programID int64, sets []ProgressInput) (string, int, bool, error) {
+	var name string
+	count, anyPR := 0, false
+	if err := tx.QueryRow(`SELECT name FROM programs WHERE id = ? AND user_id = ?`, programID, uid).Scan(&name); err != nil {
+		if err == sql.ErrNoRows {
+			return "", 0, false, nil // not the caller's program — no-op, not an error
+		}
+		return "", 0, false, err
+	}
+	for _, in := range sets {
+		var curReps int
+		var curWeight float64
+		var sugReps sql.NullInt64
+		var sugWeight sql.NullFloat64
+		// Re-assert the set belongs to THIS (already-owned) program before touching it.
+		err := tx.QueryRow(
+			`SELECT ps.target_reps, ps.target_weight, ps.suggested_reps, ps.suggested_weight
+			 FROM program_sets ps
+			 JOIN program_exercises pe ON pe.id = ps.program_exercise_id
+			 WHERE ps.id = ? AND pe.program_id = ?`,
+			in.ProgramSetID, programID,
+		).Scan(&curReps, &curWeight, &sugReps, &sugWeight)
+		if err == sql.ErrNoRows {
+			continue // set isn't in this routine anymore (edited/deleted) — skip
+		}
+		if err != nil {
+			return "", 0, false, err
+		}
+		// Compare against the best of (current target, any pending suggestion) so a
+		// smaller-but-still-over-target set can't downgrade an un-approved PR (#40 edge).
+		baseReps, baseWeight := curReps, curWeight
+		if sugReps.Valid {
+			baseReps = int(sugReps.Int64)
+		}
+		if sugWeight.Valid {
+			baseWeight = sugWeight.Float64
+		}
+		newWeight, newReps, improved := progressedTarget(baseWeight, baseReps, in.Weight, in.Reps)
+		if !improved {
+			continue
+		}
+		if _, err := tx.Exec(
+			`UPDATE program_sets SET suggested_weight = ?, suggested_reps = ?, suggested_is_pr = ? WHERE id = ?`,
+			newWeight, newReps, in.IsPR, in.ProgramSetID,
+		); err != nil {
+			return "", 0, false, err
+		}
+		count++
+		if in.IsPR {
+			anyPR = true
+		}
 	}
 	return name, count, anyPR, nil
 }

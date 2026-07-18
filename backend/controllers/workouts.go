@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"database/sql"
-	"log"
 	"strconv"
 	"time"
 
@@ -11,7 +10,27 @@ import (
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
+
+// Exercises/Sets in CreateWorkoutRequest each cap at max=500 independently (models.go),
+// which doesn't bound their product — a request with 500 exercises x 500 sets (250,000
+// rows) still passes those tags. This struct-level check enforces the total-sets bound
+// (models.MaxWorkoutSets) that CreateWorkoutWithProgression's single-transaction
+// processing actually needs, since db.DB.SetMaxOpenConns(1) means that transaction
+// holds the process's only SQLite connection for the whole request.
+func init() {
+	validate.RegisterStructValidation(func(sl validator.StructLevel) {
+		req := sl.Current().Interface().(models.CreateWorkoutRequest)
+		total := 0
+		for _, ex := range req.Exercises {
+			total += len(ex.Sets)
+		}
+		if total > models.MaxWorkoutSets {
+			sl.ReportError(req.Exercises, "Exercises", "Exercises", "maxtotalsets", "")
+		}
+	}, models.CreateWorkoutRequest{})
+}
 
 func (h *Handler) ListWorkouts(c *gin.Context) {
 	uid := middleware.UserID(c)
@@ -61,10 +80,11 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	if req.StartedAt.IsZero() {
 		req.StartedAt = time.Now()
 	}
-	// Snapshot each exercise's all-time best BEFORE saving — so the is-PR flag reflects
-	// the prior best, not one poisoned by the set we're about to log (issue #40).
-	priors := snapshotPRs(h, uid, req)
-	w, err := h.s.Workout.Create(uid, req)
+	// Snapshot, insert, and stage routine target suggestions in one transaction (issue
+	// #40) — closes a TOCTOU race where two concurrent submissions could both read the
+	// same stale prior best. Staging is still best-effort internally: a failure there
+	// never fails the already-saved workout.
+	w, progression, err := h.s.CreateWorkoutWithProgression(uid, req)
 	if utils.IsForeignKeyViolation(err) {
 		utils.BadRequest(c, "one or more exercises do not exist")
 		return
@@ -72,76 +92,8 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	if utils.DBError(c, err) {
 		return
 	}
-	// Stage routine target suggestions (issue #40). Best-effort: a failure here must
-	// never fail the already-saved workout — log and move on.
-	if p := progressRoutine(h, uid, req, priors); p != nil {
-		w.Progression = p
-	}
+	w.Progression = progression
 	utils.Created(c, w)
-}
-
-// snapshotPRs records each routine exercise's current best (weight desc, then reps)
-// before the workout is saved, so is-PR can be judged against the prior best. Empty
-// for freestyle workouts. A missing PR (no rows) is recorded as absent.
-func snapshotPRs(h *Handler, uid int64, req models.CreateWorkoutRequest) map[int64]*stores.ExercisePR {
-	if req.ProgramID == nil {
-		return nil
-	}
-	priors := make(map[int64]*stores.ExercisePR)
-	for _, ex := range req.Exercises {
-		if _, seen := priors[ex.ExerciseID]; seen {
-			continue
-		}
-		pr, err := h.s.Workout.PRForExercise(uid, ex.ExerciseID)
-		if err != nil {
-			priors[ex.ExerciseID] = nil // no prior best (first time) or lookup failed
-			continue
-		}
-		p := pr
-		priors[ex.ExerciseID] = &p
-	}
-	return priors
-}
-
-// progressRoutine stages a target suggestion for each set the user beat, flagging
-// all-time PRs, and returns a summary for the finish toast (nil if nothing staged or
-// the workout wasn't from a routine). Only sets carrying a program_set_id count; the
-// store enforces ownership.
-func progressRoutine(h *Handler, uid int64, req models.CreateWorkoutRequest, priors map[int64]*stores.ExercisePR) *models.ProgressionResult {
-	if req.ProgramID == nil {
-		return nil
-	}
-	const eps = 1e-6
-	var inputs []stores.ProgressInput
-	for _, ex := range req.Exercises {
-		for _, s := range ex.Sets {
-			if s.ProgramSetID == nil || s.IsWarmup {
-				continue
-			}
-			prior := priors[ex.ExerciseID]
-			isPR := prior == nil ||
-				s.Weight > prior.Weight+eps ||
-				(s.Weight >= prior.Weight-eps && s.Reps > prior.Reps)
-			inputs = append(inputs, stores.ProgressInput{
-				ProgramSetID: *s.ProgramSetID,
-				Weight:       s.Weight,
-				Reps:         s.Reps,
-				IsPR:         isPR,
-			})
-		}
-	}
-	if len(inputs) == 0 {
-		return nil
-	}
-	name, count, anyPR, err := h.s.Program.SuggestTargets(uid, *req.ProgramID, inputs)
-	if err != nil {
-		log.Printf("[workouts/progress] uid=%d program=%d: %v", uid, *req.ProgramID, err)
-		return nil
-	}
-	if count == 0 {
-		return nil
-	}
-	return &models.ProgressionResult{ProgramID: *req.ProgramID, ProgramName: name, Count: count, IsPR: anyPR}
 }
 
 func (h *Handler) UpdateWorkout(c *gin.Context) {
