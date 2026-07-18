@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#00b8d9" />
+    <title>Lyfter — Offline</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon-transparent.svg" />
+    <style>
+      :root {
+        --surface-base: #f8fafc;
+        --surface-raised: #ffffff;
+        --surface-border: #e2e8f0;
+        --tx-primary: #0f172a;
+        --tx-secondary: #475569;
+        /* Icon sits on the fixed brand-cyan chip below, not the theme surface, so
+           this stays constant across light/dark rather than living in the media query. */
+        --icon-ink: #0d1629;
+        color-scheme: light dark;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --surface-base: #070d1a;
+          --surface-raised: #0d1629;
+          --surface-border: #1c2f50;
+          --tx-primary: #f8fafc;
+          --tx-secondary: #94a3b8;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: var(--surface-base);
+        color: var(--tx-primary);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      }
+      .card {
+        max-width: 360px;
+        padding: 32px 28px;
+        border-radius: 20px;
+        background: var(--surface-raised);
+        border: 1px solid var(--surface-border);
+      }
+      .icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 20px;
+        border-radius: 16px;
+        background: #00b8d9;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        margin: 0 0 8px;
+      }
+      p {
+        font-size: 14px;
+        color: var(--tx-secondary);
+        line-height: 1.5;
+        margin: 0 0 24px;
+      }
+      button {
+        appearance: none;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #ffffff;
+        background: #00b8d9;
+        cursor: pointer;
+      }
+      button:active { opacity: 0.85; }
+      .icon svg .ink-fill { fill: var(--icon-ink); }
+      .icon svg .ink-stroke { stroke: var(--icon-ink); }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="icon" aria-hidden="true">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <rect class="ink-fill" x="2.2" y="7.5" width="2.4" height="14.5" rx="0.6"></rect>
+          <rect class="ink-fill" x="4.5" y="6" width="3.2" height="17.5" rx="0.8"></rect>
+          <rect class="ink-fill" x="27.4" y="7.5" width="2.4" height="14.5" rx="0.6"></rect>
+          <rect class="ink-fill" x="24.3" y="6" width="3.2" height="17.5" rx="0.8"></rect>
+          <path class="ink-stroke" d="M8 14.5 H24" stroke-width="2" stroke-linecap="round"></path>
+        </svg>
+      </div>
+      <h1>You're offline</h1>
+      <p>Lyfter can't reach the server right now. Check your connection and try again — anything already loaded is still cached.</p>
+      <button onclick="location.reload()">Retry</button>
+    </div>
+  </body>
+</html>

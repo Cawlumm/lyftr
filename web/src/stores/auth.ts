@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as types from '../types'
-import { authAPI } from '../services/api'
+import { authAPI, clearSession } from '../services/api'
+import { useWorkoutSession } from './workoutSession'
 
 interface AuthStore {
   user: types.User | null
@@ -9,7 +10,7 @@ interface AuthStore {
   error: string | null
   login:     (email: string, password: string) => Promise<void>
   register:  (email: string, password: string) => Promise<void>
-  logout:    () => void
+  logout:    () => Promise<void>
   clearError: () => void
 }
 
@@ -28,6 +29,10 @@ export const useAuthStore = create<AuthStore>((set) => {
       set({ isLoading: true, error: null })
       try {
         const data = await authAPI.login({ email, password })
+        // A previous user on this (possibly shared) device may have left an
+        // in-progress workout in localStorage without logging out — don't let
+        // it get attributed to whoever just logged in.
+        useWorkoutSession.getState().cancelSession()
         localStorage.setItem('access_token', data.token)
         localStorage.setItem('refresh_token', data.refresh_token)
         localStorage.setItem('user', JSON.stringify(data.user))
@@ -42,6 +47,7 @@ export const useAuthStore = create<AuthStore>((set) => {
       set({ isLoading: true, error: null })
       try {
         const data = await authAPI.register({ email, password })
+        useWorkoutSession.getState().cancelSession()
         localStorage.setItem('access_token', data.token)
         localStorage.setItem('refresh_token', data.refresh_token)
         localStorage.setItem('user', JSON.stringify(data.user))
@@ -52,10 +58,8 @@ export const useAuthStore = create<AuthStore>((set) => {
       }
     },
 
-    logout: () => {
-      localStorage.removeItem('access_token')
-      localStorage.removeItem('refresh_token')
-      localStorage.removeItem('user')
+    logout: async () => {
+      await clearSession()
       set({ user: null, isAuthenticated: false, error: null })
     },
 

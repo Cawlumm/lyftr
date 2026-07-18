@@ -37,6 +37,26 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    # Service worker + its manifest must always be revalidated, or browsers can
+    # keep serving a stale sw.js/offline.html indefinitely from an immutable
+    # cache and updates never reach clients. Matched before the generic asset
+    # rule below (exact `=` locations take precedence over the regex one).
+    location = /sw.js {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+    location = /manifest.webmanifest {
+        # Safety net in case the image's bundled mime.types predates this
+        # entry (added upstream in nginx 1.19.7) — iOS Safari is picky.
+        default_type application/manifest+json;
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+    location = /offline.html {
+        add_header Cache-Control "no-cache";
+        try_files $uri =404;
+    }
+
     # Cache static assets aggressively
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
         expires 1y;

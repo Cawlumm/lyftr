@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
 import { normalizeServerUrl } from '../stores/server'
+import { useWorkoutSession } from '../stores/workoutSession'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy.
@@ -66,6 +67,21 @@ const api: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+// Clears local session state — tokens, the in-progress-workout store (which
+// persists actual_weight/actual_reps/notes to localStorage independent of which
+// user is authenticated — see workoutSession.ts), and the SW's cached navigation
+// responses (visited workout/exercise/program IDs) — so none of it outlives the
+// session on a shared device. Awaited by callers so a redirect can't race ahead of
+// the cache deletion. Shared by authStore.logout() and this file's silent-session-
+// expiry path below, since a session can end either way.
+export const clearSession = async () => {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user')
+  useWorkoutSession.getState().cancelSession()
+  if ('caches' in window) await caches.delete('lyfter-pages')
+}
+
 api.interceptors.request.use((config) => {
   config.baseURL = resolveAPIBase()
   const token = localStorage.getItem('access_token')
@@ -94,9 +110,7 @@ api.interceptors.response.use(
         }
         return api(original)
       } catch {
-        localStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        localStorage.removeItem('user')
+        await clearSession()
         window.location.href = '/login'
       }
     }

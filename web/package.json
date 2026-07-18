@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && tsc -p tsconfig.sw.json && vite build",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && tsc -p tsconfig.sw.json",
     "test:unit": "cross-env TZ=America/New_York vitest run",
     "test:unit:watch": "cross-env TZ=America/New_York vitest",
     "coverage": "cross-env TZ=America/New_York vitest run --coverage",
@@ -50,6 +50,12 @@
     "tailwindcss": "^3.4.1",
     "typescript": "^5.2.2",
     "vite": "^5.0.8",
-    "vitest": "^2.1.9"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^2.1.9",
+    "workbox-cacheable-response": "^7.4.1",
+    "workbox-expiration": "^7.4.1",
+    "workbox-precaching": "^7.4.1",
+    "workbox-routing": "^7.4.1",
+    "workbox-strategies": "^7.4.1"
   }
 }
