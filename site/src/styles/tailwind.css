@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Imported only by the landing page (src/pages/index.astro) so Tailwind's base layer
+   never leaks into Starlight's docs theme. */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-surface-base text-tx-primary font-sans antialiased;
+  }
+}

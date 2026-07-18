@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" width="160" height="48">
+  <g transform="translate(4, 4)">
+    <path d="M4 16 Q20 25 36 16" fill="none" stroke="#64748b" stroke-width="2.6" stroke-linecap="round"></path>
+    <rect x="3" y="10" width="3" height="18" rx="0.8" fill="#0891b2"></rect>
+    <rect x="6" y="8" width="4" height="22" rx="1" fill="#00b8d9"></rect>
+    <rect x="7.2" y="10.5" width="1.2" height="17" rx="0.5" fill="#7eeeff" opacity="0.55"></rect>
+    <rect x="34" y="10" width="3" height="18" rx="0.8" fill="#0891b2"></rect>
+    <rect x="30" y="8" width="4" height="22" rx="1" fill="#00b8d9"></rect>
+    <rect x="31.6" y="10.5" width="1.2" height="17" rx="0.5" fill="#7eeeff" opacity="0.55"></rect>
+  </g>
+  <text x="52" y="34" font-family="Outfit, 'Plus Jakarta Sans', sans-serif" font-weight="700" font-size="28" letter-spacing="-1" fill="#0f172a">lyftr</text>
+</svg>

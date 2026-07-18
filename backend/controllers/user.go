@@ -27,10 +27,7 @@ func (h *Handler) GetSettings(c *gin.Context) {
 	s, err := h.s.User.GetSettings(uid)
 	if err == sql.ErrNoRows {
 		// No row yet — return the defaults.
-		utils.OK(c, models.UserSettings{
-			UserID: uid, WeightUnit: "lbs",
-			CalorieTarget: 2000, ProteinTarget: 150, CarbTarget: 250, FatTarget: 65,
-		})
+		utils.OK(c, models.DefaultUserSettings(uid))
 		return
 	}
 	if utils.DBError(c, err) {
@@ -43,6 +40,13 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.UpdateSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	// Enforce the request tags (weight_unit oneof, targets gte=0) like every other
+	// controller — binding alone doesn't run them, so without this an invalid unit
+	// or a negative target would be persisted unchecked.
+	if err := validate.Struct(req); err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}

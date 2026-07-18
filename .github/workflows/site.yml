@@ -1,0 +1,70 @@
+# Landing + docs site (Astro + Starlight) → Cloudflare Pages.
+#
+# Every branch deploys: `main` → the production URL, any other branch → an automatic
+# PREVIEW deployment at https://<branch-slug>.lyftr.pages.dev — so you can review a branch
+# before merging. Path-filtered on site/**; fully separate from ci.yml + mobile-ci.yml.
+#
+# ── One-time setup (deploy is skipped until these exist) ──────────────────────────────
+#   1. Create a free Cloudflare account.
+#   2. Create a Pages project named `lyftr` (Direct Upload), production branch `main`
+#      — dashboard: Workers & Pages → Create → Pages → Direct Upload, or:
+#        wrangler pages project create lyftr --production-branch=main
+#   3. Create an API token with the "Edit Cloudflare Pages" permission; note the Account ID.
+#   4. Add both as GitHub repo secrets (keep them out of any chat/transcript):
+#        gh secret set CLOUDFLARE_API_TOKEN     # paste when prompted
+#        gh secret set CLOUDFLARE_ACCOUNT_ID    # paste when prompted
+#   Custom domain later: add lyftr.dev in the Pages project, then set SITE_URL below.
+name: Site
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'site/**'
+      - '.github/workflows/site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch supersedes an in-flight build/deploy.
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build & deploy (Cloudflare Pages)
+    runs-on: ubuntu-latest
+    # Exposed so the deploy step can gracefully skip until the secret is configured
+    # (keeps the check green instead of red before one-time setup is done).
+    env:
+      CF_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: site/package-lock.json
+      - run: cd site && npm ci
+      - name: Build
+        run: cd site && npm run build
+        env:
+          # Cloudflare Pages serves at the domain root — no '/lyftr' base path. Canonical/OG
+          # point at the stable production URL even from preview builds (avoids duplicate-content).
+          SITE_BASE: /
+          SITE_URL: https://lyftr-app.pages.dev # → https://lyftr.dev once the custom domain is added
+
+      # The Pages project is provisioned by Terraform (infra/cloudflare/ + infra.yml) — run that
+      # apply once before the first deploy. This workflow only pushes content to it.
+      # Deploy gated on SITE_DEPLOY=true (Settings → Variables) so the check stays green during
+      # setup, and "go live" is an explicit switch. main → production; other branches → previews.
+      - name: Deploy to Cloudflare Pages
+        if: ${{ env.CF_API_TOKEN != '' && vars.SITE_DEPLOY == 'true' }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # main → production; any other branch → a preview deployment with its own URL.
+          command: pages deploy site/dist --project-name=lyftr-app --branch=${{ github.ref_name }}

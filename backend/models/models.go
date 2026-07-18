@@ -19,6 +19,20 @@ type UserSettings struct {
 	FatTarget     int    `json:"fat_target" db:"fat_target"`
 }
 
+// DefaultUserSettings is the single source of truth for a brand-new user's
+// settings — returned when no row exists yet and used as the base a partial
+// update merges onto. Must stay in sync with the user_settings column defaults.
+func DefaultUserSettings(uid int64) UserSettings {
+	return UserSettings{
+		UserID:        uid,
+		WeightUnit:    "lbs",
+		CalorieTarget: 2000,
+		ProteinTarget: 150,
+		CarbTarget:    250,
+		FatTarget:     65,
+	}
+}
+
 type Exercise struct {
 	ID               int64    `json:"id" db:"id"`
 	Name             string   `json:"name" db:"name"`
@@ -237,12 +251,15 @@ type SaveFoodRequest struct {
 	Barcode     string  `json:"barcode"`
 }
 
+// UpdateSettingsRequest is a PATCH: every field is a pointer so a nil (absent
+// from the JSON) is distinguishable from an intentional 0. Only non-nil fields
+// are applied — a partial update never zeroes the fields it omits (#37).
 type UpdateSettingsRequest struct {
-	WeightUnit    string `json:"weight_unit" validate:"omitempty,oneof=lbs kg"`
-	CalorieTarget int    `json:"calorie_target" validate:"omitempty,gte=0"`
-	ProteinTarget int    `json:"protein_target" validate:"omitempty,gte=0"`
-	CarbTarget    int    `json:"carb_target" validate:"omitempty,gte=0"`
-	FatTarget     int    `json:"fat_target" validate:"omitempty,gte=0"`
+	WeightUnit    *string `json:"weight_unit" validate:"omitempty,oneof=lbs kg"`
+	CalorieTarget *int    `json:"calorie_target" validate:"omitempty,gte=0"`
+	ProteinTarget *int    `json:"protein_target" validate:"omitempty,gte=0"`
+	CarbTarget    *int    `json:"carb_target" validate:"omitempty,gte=0"`
+	FatTarget     *int    `json:"fat_target" validate:"omitempty,gte=0"`
 }
 
 type Program struct {

@@ -38,23 +38,39 @@ func (s *UserStore) GetSettings(uid int64) (models.UserSettings, error) {
 	return st, err
 }
 
-// UpsertSettings writes the settings and returns the stored row (no controller-
-// to-controller call to render the response).
+// UpsertSettings applies a partial update and returns the merged row in a single
+// atomic statement. For each field the nullable request value is COALESCEd over
+// the default (on insert) or over the existing row (on conflict), so a partial PUT
+// (e.g. weight-unit only) can never zero the fields it omitted (#37). Doing it in
+// one INSERT…ON CONFLICT…RETURNING avoids a read-modify-write window where two
+// concurrent partial updates could lose one another's change, and returns the
+// stored row without a second SELECT. A nil pointer binds as SQL NULL; a non-nil
+// pointer (incl. an explicit 0) binds as its value, so intentional zeros survive.
 func (s *UserStore) UpsertSettings(uid int64, req models.UpdateSettingsRequest) (models.UserSettings, error) {
-	if _, err := s.db.Exec(
+	d := models.DefaultUserSettings(uid)
+	var st models.UserSettings
+	err := s.db.QueryRow(
 		`INSERT INTO user_settings (user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target)
-		 VALUES (?, ?, ?, ?, ?, ?)
+		 VALUES (?, COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?))
 		 ON CONFLICT(user_id) DO UPDATE SET
-		   weight_unit    = excluded.weight_unit,
-		   calorie_target = excluded.calorie_target,
-		   protein_target = excluded.protein_target,
-		   carb_target    = excluded.carb_target,
-		   fat_target     = excluded.fat_target`,
-		uid, req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget,
-	); err != nil {
+		   weight_unit    = COALESCE(?, user_settings.weight_unit),
+		   calorie_target = COALESCE(?, user_settings.calorie_target),
+		   protein_target = COALESCE(?, user_settings.protein_target),
+		   carb_target    = COALESCE(?, user_settings.carb_target),
+		   fat_target     = COALESCE(?, user_settings.fat_target)
+		 RETURNING user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target`,
+		uid,
+		req.WeightUnit, d.WeightUnit,
+		req.CalorieTarget, d.CalorieTarget,
+		req.ProteinTarget, d.ProteinTarget,
+		req.CarbTarget, d.CarbTarget,
+		req.FatTarget, d.FatTarget,
+		req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget,
+	).Scan(&st.UserID, &st.WeightUnit, &st.CalorieTarget, &st.ProteinTarget, &st.CarbTarget, &st.FatTarget)
+	if err != nil {
 		return models.UserSettings{}, err
 	}
-	return s.GetSettings(uid)
+	return st, nil
 }
 
 // Create inserts a user and their default settings atomically (one transaction —

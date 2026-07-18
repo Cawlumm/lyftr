@@ -1,0 +1,103 @@
+# Terraform for the Cloudflare infra (the Pages project; later: lyftr.dev domain + DNS).
+# State lives in Cloudflare R2 (free tier). `plan` on PRs, `apply` on main / on-demand.
+#
+# SECURITY (public repo + cloud creds):
+#   * Uses `pull_request` (NOT pull_request_target), so fork PRs get NO secrets — an outside
+#     contributor's PR cannot authenticate to the account. Every TF step is also guarded on
+#     HAS_SECRETS and an explicit same-repo check, so plan never runs for forks.
+#   * `apply` is a separate job behind the `production-infra` Environment — add yourself as a
+#     required reviewer (repo → Settings → Environments) so no apply happens without your click.
+#   * Scope CLOUDFLARE_API_TOKEN to *only* Cloudflare Pages:Edit and the R2 token to *only* the
+#     state bucket — that caps the blast radius to free resources even in a worst case.
+#
+# ── One-time bootstrap (steps skip until the secrets exist) — see infra/cloudflare/README.md ──
+name: Infra (Cloudflare)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infra/cloudflare/**'
+      - '.github/workflows/infra.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infra/cloudflare/**'
+      - '.github/workflows/infra.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-cloudflare
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate & plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cloudflare
+    env:
+      HAS_SECRETS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' }}
+      # True only for a PR from a branch in THIS repo (not a fork). Blank/false otherwise.
+      SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+
+      # Syntax/type check only — no backend, no secrets, no account access. Safe for any PR.
+      - name: Validate
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: Write R2 backend config
+        if: env.HAS_SECRETS == 'true' && env.SAME_REPO == 'true'
+        run: printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" > backend.hcl
+
+      # Only ever runs for a same-repo PR with secrets present (forks are excluded twice over).
+      - name: Plan
+        if: env.HAS_SECRETS == 'true' && env.SAME_REPO == 'true' && github.event_name == 'pull_request'
+        run: |
+          terraform init -reconfigure -backend-config=backend.hcl
+          terraform plan -input=false -no-color
+
+  apply:
+    name: Apply
+    needs: plan
+    # Only on a real main push or a manual dispatch — never from a PR.
+    if: github.event_name == 'workflow_dispatch' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
+    runs-on: ubuntu-latest
+    # Manual-approval gate: configure `production-infra` with yourself as a required reviewer.
+    environment: production-infra
+    defaults:
+      run:
+        working-directory: infra/cloudflare
+    env:
+      HAS_SECRETS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.R2_ACCESS_KEY_ID != '' && secrets.R2_SECRET_ACCESS_KEY != '' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.10.5'
+      - name: Write R2 backend config
+        if: env.HAS_SECRETS == 'true'
+        run: printf 'endpoints = { s3 = "https://%s.r2.cloudflarestorage.com" }\n' "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}" > backend.hcl
+      - name: Apply
+        if: env.HAS_SECRETS == 'true'
+        run: |
+          terraform init -reconfigure -backend-config=backend.hcl
+          terraform apply -auto-approve -input=false

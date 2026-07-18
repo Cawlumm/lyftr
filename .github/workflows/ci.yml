@@ -1,15 +1,65 @@
-name: CI
+name: Backend + Web CI
 
+# Backend (Go) + web (Vite) tests, the integrated Playwright e2e, image builds, and the
+# Fly deploy — one workflow because build/deploy are gated on the test jobs via `needs:`.
+# Mobile has its own pipeline (mobile-ci.yml); mobile/docs/markdown-only changes don't
+# touch anything here, so `paths-ignore` skips the whole run for them.
+#
+# Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
+# the web unit job, and a web-only change skips the Go + version-smoke jobs. The image-build
+# and deploy jobs stay eligible regardless — they're guarded with `!failure() && !cancelled()`
+# so a *skipped* (not failed) test dependency doesn't cascade into skipping the build/deploy
+# gate. On main/tags every test job runs unconditionally, so filtering never weakens deploys.
 on:
   push:
     branches: ['**']
     tags: ['v*']
+    paths-ignore:
+      - 'mobile/**'
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'mobile/**'
+      - 'docs/**'
+      - '**.md'
 
 jobs:
+  # Which domains changed? Gates the fast unit-test jobs below so a backend-only PR doesn't
+  # run the web suite (and vice-versa). ci.yml is in both filters so workflow edits run all.
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read   # dorny/paths-filter reads the PR file list via the API
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'fly.toml'
+              - 'fly/**'
+              - 'docker-compose.yml'
+              - '.github/workflows/ci.yml'
+            web:
+              - 'web/**'
+              - '.github/workflows/ci.yml'
+
   test:
     name: Go unit tests
+    needs: changes
+    # Run when backend changed, or always on main/tags (never weaken the deploy gate).
+    if: >-
+      needs.changes.outputs.backend == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,6 +72,11 @@ jobs:
 
   unit:
     name: Web unit tests
+    needs: changes
+    if: >-
+      needs.changes.outputs.web == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +96,13 @@ jobs:
 
   e2e:
     name: Playwright E2E
+    needs: changes
+    # Integration test spans both images, so run it if either domain changed.
+    if: >-
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.web == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -105,6 +167,11 @@ jobs:
 
   version-smoke:
     name: Version injection smoke test
+    needs: changes
+    if: >-
+      needs.changes.outputs.backend == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -120,6 +187,9 @@ jobs:
   build-backend:
     name: Build & push backend image
     needs: [test, unit, e2e, version-smoke]
+    # Still verify the image builds even if a test dependency was *skipped* by filtering;
+    # only a genuine failure/cancel of a dependency should stop it.
+    if: ${{ !failure() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,6 +226,7 @@ jobs:
   build-frontend:
     name: Build & push frontend image
     needs: [test, unit, e2e]
+    if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -185,7 +256,9 @@ jobs:
   deploy-demo:
     name: Deploy to Fly.io
     needs: [test, unit, e2e, version-smoke]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # main pushes run every test job (their `if` includes main), so this only deploys on a
+    # clean run; the failure/cancel guard keeps a filtered skip from ever cascading here.
+    if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

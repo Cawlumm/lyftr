@@ -1,0 +1,309 @@
+---
+import { Image } from 'astro:assets';
+import '../styles/tailwind.css';
+
+import banner from '../assets/banner.png';
+import shotWorkouts from '../assets/workouts-mobile.png';
+import shotActive from '../assets/active-workout-mobile.png';
+import shotGym from '../assets/gym-mode-overview-mobile.png';
+import shotPrograms from '../assets/programs-mobile.png';
+import shotSettings from '../assets/settings-mobile.png';
+import shotGymDesktop from '../assets/gym-mode-overview-desktop.png';
+
+// Normalize to always end in '/', so `${base}getting-started/` joins correctly. Astro's
+// BASE_URL can come back without a trailing slash (e.g. '/lyftr'), which would mangle links.
+const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
+const DEMO = 'https://lyftr-demo.fly.dev';
+const REPO = 'https://github.com/Cawlumm/lyftr';
+const DISCORD = 'https://discord.gg/hfFWsrebQA';
+const APK = 'https://github.com/Cawlumm/lyftr/releases?q=mobile-v';
+
+const title = 'Lyftr — Self-Hosted Workout Tracker & Hevy / Strong Alternative (Open Source)';
+const description =
+  'Lyftr is a free, self-hosted, open-source workout & nutrition tracker — a no-subscription alternative to Hevy and Strong. Own your data. Deploy in one Docker command on a Raspberry Pi, NAS, or VPS.';
+
+const canonical = new URL(base, Astro.site).href;
+const ogImage = new URL(banner.src, Astro.site).href;
+const logoUrl = new URL('logo.svg', Astro.site).href;
+
+const proof = [
+  { label: '160+ GitHub stars', href: REPO },
+  { label: 'Featured in selfh.st', href: 'https://selfh.st/weekly/2026-04-24/' },
+  { label: 'Runs on Pi · NAS · $5 VPS' },
+  { label: 'MIT · Free · No subscription' },
+];
+
+const features = [
+  { t: '800+ exercise library', d: 'Auto-seeded on first startup from free-exercise-db — no API key, no setup.' },
+  { t: 'Program builder', d: 'Reusable workout templates you can start with one tap.' },
+  { t: 'Guided active workout', d: 'Set-by-set flow so you always know what’s next.' },
+  { t: 'Gym Mode + rest timer', d: 'Full-screen, one exercise at a time, with a built-in rest timer.' },
+  { t: 'PRs & progression charts', d: 'Personal records, progression graphs, and a muscle diagram per exercise.' },
+  { t: 'Dashboard', d: 'Volume trends, a consistency heatmap, and muscle-group balance.' },
+  { t: 'Weight tracking', d: 'Log bodyweight and watch the trend graph — lbs or kg.' },
+  { t: 'Nutrition tracking', d: 'Calories, macros, barcode scan, and food search.' },
+];
+
+// Why self-host — the value props (no competitor comparison).
+const values = [
+  { t: 'Self-hosted', d: 'Your data never leaves your server — no cloud account required.' },
+  { t: 'Open source (MIT)', d: 'No black box. Read it, fork it, audit it, extend it.' },
+  { t: 'Free forever', d: 'No subscription and no paywalled features. All of it, always.' },
+  { t: 'Own your data', d: 'Everything lives in one SQLite file you fully control.' },
+  { t: 'Mobile-first', d: 'A native Android app plus a fast, responsive web UI.' },
+  { t: 'One-command deploy', d: 'Up and running with Docker in a couple of minutes.' },
+];
+
+const runsOn = ['Raspberry Pi 4', 'Hetzner / DigitalOcean / Oracle', 'Synology NAS', 'Proxmox LXC', 'Mac · Linux · Windows'];
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'WebSite',
+      '@id': canonical + '#website',
+      url: canonical,
+      name: 'Lyftr',
+      description,
+      inLanguage: 'en',
+      publisher: { '@id': canonical + '#org' },
+    },
+    {
+      '@type': 'Organization',
+      '@id': canonical + '#org',
+      name: 'Lyftr',
+      url: canonical,
+      logo: logoUrl,
+      sameAs: [REPO, DISCORD],
+    },
+    {
+      '@type': 'SoftwareApplication',
+      name: 'Lyftr',
+      applicationCategory: 'HealthApplication',
+      operatingSystem: 'Android, Web, Docker',
+      description,
+      url: canonical,
+      license: 'https://opensource.org/licenses/MIT',
+      isAccessibleForFree: true,
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      softwareHelp: canonical + 'getting-started/',
+    },
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#070d1a" />
+    <link rel="icon" type="image/svg+xml" href={`${base}favicon.svg`} />
+    <link rel="sitemap" type="application/xml" href="/sitemap-index.xml" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content={banner.width.toString()} />
+    <meta property="og:image:height" content={banner.height.toString()} />
+    <meta property="og:image:alt" content="Lyftr — self-hosted workout tracker on phone and desktop" />
+    <meta property="og:site_name" content="Lyftr" />
+    <meta property="og:locale" content="en_US" />
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+  </head>
+
+  <body class="bg-surface-base text-tx-primary font-sans">
+    <!-- Nav -->
+    <header class="sticky top-0 z-30 border-b border-surface-border/70 bg-surface-base/80 backdrop-blur-xl">
+      <nav class="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
+        <a href={base} class="flex items-center gap-2 font-display text-lg font-extrabold tracking-tight">
+          <span class="inline-block h-5 w-5 rounded bg-gradient-brand shadow-glow-sm"></span>
+          Lyftr
+        </a>
+        <div class="flex items-center gap-2 text-sm">
+          <a href={`${base}getting-started/`} class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary sm:inline-block">Docs</a>
+          <a href={REPO} class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary sm:inline-block">GitHub</a>
+          <a href={DEMO} class="rounded-lg bg-brand-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-brand-600">Live demo</a>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <!-- Hero -->
+      <section class="relative overflow-hidden">
+        <div class="pointer-events-none absolute -top-40 left-1/2 h-96 w-[46rem] -translate-x-1/2 rounded-full bg-brand-500/20 blur-[120px]"></div>
+        <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:py-24 lg:grid-cols-2">
+          <div>
+            <span class="inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface-raised px-3 py-1 text-xs font-medium text-brand-300">
+              <span class="h-1.5 w-1.5 rounded-full bg-brand-400"></span> Open source · MIT · Self-hosted
+            </span>
+            <h1 class="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+              The self-hosted workout tracker you <span class="bg-gradient-brand bg-clip-text text-transparent">actually own</span>.
+            </h1>
+            <p class="mt-5 max-w-xl text-lg text-tx-secondary">
+              Self-hosted, mobile-first workout &amp; nutrition tracking — a free, no-subscription
+              alternative to Hevy and Strong. Your data stays on your server.
+            </p>
+            <div class="mt-8 flex flex-wrap gap-3">
+              <a href={DEMO} class="rounded-xl bg-brand-500 px-6 py-3.5 font-semibold text-white shadow-glow-sm transition hover:bg-brand-600">
+                Try the live demo →
+              </a>
+              <a href="#quick-start" class="rounded-xl border border-surface-border bg-surface-raised px-6 py-3.5 font-semibold text-tx-primary transition hover:border-tx-muted">
+                Deploy in one command
+              </a>
+            </div>
+            <p class="mt-4 text-sm text-tx-muted">
+              Demo login <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
+              <code class="font-mono text-tx-secondary">password123</code> · resets hourly
+            </p>
+          </div>
+
+          <div class="relative">
+            <div class="absolute inset-0 -z-10 rounded-3xl bg-gradient-brand opacity-20 blur-2xl"></div>
+            <Image
+              src={banner}
+              alt="Lyftr running on phone and desktop — dashboard, gym mode, and workout logging"
+              class="w-full rounded-2xl border border-surface-border shadow-glow"
+              widths={[480, 800, 1200]}
+              sizes="(max-width: 1024px) 100vw, 560px"
+              loading="eager"
+            />
+          </div>
+        </div>
+      </section>
+
+      <!-- Social proof band -->
+      <section class="border-y border-surface-border bg-surface-raised/50">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-5 text-sm font-medium text-tx-secondary">
+          {proof.map((p) => (
+            <span class="flex items-center gap-2">
+              <svg class="h-4 w-4 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+              {p.href ? <a href={p.href} class="transition hover:text-brand-300">{p.label}</a> : p.label}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <!-- Why self-host -->
+      <section class="mx-auto max-w-6xl px-5 py-20">
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Why self-host Lyftr?</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">A modern workout tracker that's yours — open, free, and running on your own server.</p>
+        <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {values.map((v) => (
+            <div class="rounded-xl border border-surface-border bg-surface-raised p-5">
+              <div class="flex items-center gap-2">
+                <svg class="h-5 w-5 shrink-0 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+                <h3 class="font-display text-base font-bold text-tx-primary">{v.t}</h3>
+              </div>
+              <p class="mt-1.5 text-sm text-tx-secondary">{v.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section class="border-t border-surface-border bg-surface-raised/30">
+        <div class="mx-auto max-w-6xl px-5 py-20">
+          <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Everything you track, in one place</h2>
+          <div class="mt-12 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
+            <div class="grid gap-4 sm:grid-cols-2">
+              {features.map((f) => (
+                <div class="rounded-xl border border-surface-border bg-surface-raised p-5">
+                  <h3 class="font-display text-base font-bold text-tx-primary">{f.t}</h3>
+                  <p class="mt-1.5 text-sm text-tx-secondary">{f.d}</p>
+                </div>
+              ))}
+            </div>
+            <div class="flex items-end justify-center gap-3">
+              <Image src={shotWorkouts} alt="Workouts screen" class="w-1/3 max-w-[180px] rounded-2xl border border-surface-border shadow-card-md" widths={[160, 320]} sizes="180px" loading="lazy" />
+              <Image src={shotGym} alt="Gym Mode screen" class="w-1/3 max-w-[190px] -translate-y-4 rounded-2xl border border-surface-border shadow-glow-sm" widths={[160, 320]} sizes="190px" loading="lazy" />
+              <Image src={shotActive} alt="Active workout screen" class="w-1/3 max-w-[180px] rounded-2xl border border-surface-border shadow-card-md" widths={[160, 320]} sizes="180px" loading="lazy" />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick start -->
+      <section id="quick-start" class="mx-auto max-w-4xl px-5 py-20">
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Self-host in one command</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">No clone. No build. No Go install. Just Docker.</p>
+        <div class="mt-8 overflow-hidden rounded-2xl border border-surface-border bg-[#050a14]">
+          <div class="flex items-center gap-2 border-b border-surface-border px-4 py-3">
+            <span class="h-3 w-3 rounded-full bg-error-500/70"></span>
+            <span class="h-3 w-3 rounded-full bg-warning-500/70"></span>
+            <span class="h-3 w-3 rounded-full bg-success-500/70"></span>
+            <span class="ml-2 font-mono text-xs text-tx-muted">bash</span>
+          </div>
+          <pre class="overflow-x-auto p-5 font-mono text-sm leading-relaxed text-tx-secondary"><code>curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
+
+<span class="text-tx-muted"># set a strong JWT_SECRET (32+ chars) in .env, then:</span>
+docker compose up -d</code></pre>
+        </div>
+        <p class="mt-4 text-center text-sm text-tx-muted">
+          Then open <code class="font-mono text-tx-secondary">http://localhost</code> and create your account.
+          Full guide in the <a href={`${base}self-hosting/`} class="text-brand-400 underline-offset-2 hover:underline">self-hosting docs</a>.
+        </p>
+      </section>
+
+      <!-- Runs on -->
+      <section class="border-t border-surface-border bg-surface-raised/30">
+        <div class="mx-auto max-w-6xl px-5 py-14">
+          <p class="text-center text-sm font-semibold uppercase tracking-wider text-tx-muted">Runs on</p>
+          <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {runsOn.map((r) => (
+              <span class="rounded-full border border-surface-border bg-surface-raised px-4 py-2 text-sm text-tx-secondary">{r}</span>
+            ))}
+          </div>
+          <p class="mt-6 text-center text-sm text-tx-muted">Single SQLite file · minimal RAM · no external services.</p>
+
+          <div class="mt-10 flex flex-col items-center gap-4">
+            <Image src={shotGymDesktop} alt="Lyftr Gym Mode on desktop" class="w-full max-w-3xl rounded-2xl border border-surface-border shadow-glow-sm" widths={[700, 1200]} sizes="(max-width: 768px) 100vw, 768px" loading="lazy" />
+          </div>
+        </div>
+      </section>
+
+      <!-- Final CTA -->
+      <section class="mx-auto max-w-4xl px-5 py-20 text-center">
+        <h2 class="font-display text-3xl font-bold tracking-tight sm:text-4xl">Own your training data.</h2>
+        <p class="mx-auto mt-3 max-w-xl text-tx-secondary">Try the demo now, or deploy your own instance in a couple of minutes.</p>
+        <div class="mt-8 flex flex-wrap justify-center gap-3">
+          <a href={DEMO} class="rounded-xl bg-brand-500 px-6 py-3.5 font-semibold text-white shadow-glow-sm transition hover:bg-brand-600">Try the live demo</a>
+          <a href={APK} class="rounded-xl border border-surface-border bg-surface-raised px-6 py-3.5 font-semibold text-tx-primary transition hover:border-tx-muted">Download Android APK</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-surface-border">
+      <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-tx-muted sm:flex-row">
+        <p>© 2026 Lyftr · MIT License</p>
+        <div class="flex flex-wrap items-center gap-5">
+          <a href={REPO} class="hover:text-tx-primary">GitHub</a>
+          <a href={DISCORD} class="hover:text-tx-primary">Discord</a>
+          <a href={DEMO} class="hover:text-tx-primary">Live demo</a>
+          <a href={`${base}getting-started/`} class="hover:text-tx-primary">Docs</a>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

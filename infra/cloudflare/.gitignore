@@ -1,0 +1,15 @@
+# Never commit Terraform state or secrets — they can contain tokens/attributes in plaintext.
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!example.tfvars
+backend.hcl
+.terraform/
+.terraform.lock.hcl
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
