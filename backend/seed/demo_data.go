@@ -139,15 +139,25 @@ func seedProgram(db *sql.DB, userID int64) error {
 	}
 	progID, _ := res.LastInsertId()
 
+	// One program day per split (Push A, Pull A, ...), so the demo program shows the
+	// real 6-day structure under the day-grouped loader instead of a flat pile.
 	for dayIdx, template := range workoutTemplates {
+		dayRes, err := db.Exec(
+			`INSERT INTO program_days (program_id, name, order_index, is_rest_day) VALUES (?, ?, ?, 0)`,
+			progID, workoutNames[dayIdx], dayIdx,
+		)
+		if err != nil {
+			continue
+		}
+		dayID, _ := dayRes.LastInsertId()
 		for exOrder, exDef := range template {
 			exID, ok := lookupExercise(db, exDef.patterns)
 			if !ok {
 				continue
 			}
 			pexRes, err := db.Exec(
-				`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, ?)`,
-				progID, exID, exOrder,
+				`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, ?)`,
+				progID, dayID, exID, exOrder,
 			)
 			if err != nil {
 				continue
@@ -159,7 +169,6 @@ func seedProgram(db *sql.DB, userID int64) error {
 					pexID, s, exDef.reps, exDef.peakWeight,
 				)
 			}
-			_ = dayIdx
 		}
 	}
 	return nil

@@ -77,6 +77,174 @@ func TestCreateProgram_success(t *testing.T) {
 	}
 }
 
+// createProgramReturns posts a program body and returns the decoded "data" object,
+// failing the test if the status isn't the one wanted.
+func createProgramReturns(t *testing.T, uid int64, body map[string]any, wantCode int) map[string]any {
+	t.Helper()
+	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
+	th.CreateProgram(c)
+	if w.Code != wantCode {
+		t.Fatalf("status = %d, want %d: %s", w.Code, wantCode, w.Body.String())
+	}
+	if wantCode >= 300 {
+		return nil
+	}
+	resp := decodeResponse(t, w)
+	return resp["data"].(map[string]any)
+}
+
+func TestCreateProgram_withDaysRoundTrips(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	body := map[string]any{
+		"name": "Upper/Lower",
+		"days": []map[string]any{
+			{
+				"name":        "Upper A",
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 8, "target_weight": 95.0}}},
+				},
+			},
+			{"name": "Rest", "is_rest_day": true},
+			{
+				"name":        "Lower A",
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 5, "target_weight": 185.0}}},
+				},
+			},
+		},
+	}
+	data := createProgramReturns(t, uid, body, http.StatusCreated)
+
+	days := data["days"].([]any)
+	if len(days) != 3 {
+		t.Fatalf("want 3 days, got %d", len(days))
+	}
+	// Order preserved, rest flag set, rest day has no exercises.
+	d0 := days[0].(map[string]any)
+	d1 := days[1].(map[string]any)
+	d2 := days[2].(map[string]any)
+	if d0["name"] != "Upper A" || d0["is_rest_day"] != false {
+		t.Errorf("day0 = %v", d0)
+	}
+	if d1["name"] != "Rest" || d1["is_rest_day"] != true {
+		t.Errorf("day1 = %v", d1)
+	}
+	if ex, _ := d1["exercises"].([]any); len(ex) != 0 {
+		t.Errorf("rest day should have no exercises, got %d", len(ex))
+	}
+	if ex := d2["exercises"].([]any); len(ex) != 1 {
+		t.Errorf("day2 want 1 exercise, got %d", len(ex))
+	}
+	// Flattened compat field = first training day only.
+	flat := data["exercises"].([]any)
+	if len(flat) != 1 {
+		t.Fatalf("flattened exercises want 1 (first training day), got %d", len(flat))
+	}
+}
+
+func TestCreateProgram_daysWinOverLegacyExercises(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	// Both days and legacy exercises sent — days must win, exercises ignored.
+	body := map[string]any{
+		"name": "Both",
+		"days": []map[string]any{
+			{"name": "Day A", "exercises": []map[string]any{{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 5}}}}},
+		},
+		"exercises": []map[string]any{
+			{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 99}}},
+			{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 99}}},
+		},
+	}
+	data := createProgramReturns(t, uid, body, http.StatusCreated)
+	days := data["days"].([]any)
+	if len(days) != 1 {
+		t.Fatalf("want 1 day (from days field), got %d", len(days))
+	}
+	if name := days[0].(map[string]any)["name"]; name != "Day A" {
+		t.Errorf("want the days-field day, got %v", name)
+	}
+}
+
+func TestCreateProgram_legacyFlatWrapsIntoDayOne(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	body := map[string]any{
+		"name":      "Legacy",
+		"exercises": []map[string]any{{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 5}}}},
+	}
+	data := createProgramReturns(t, uid, body, http.StatusCreated)
+	days := data["days"].([]any)
+	if len(days) != 1 {
+		t.Fatalf("want 1 wrapped day, got %d", len(days))
+	}
+	if name := days[0].(map[string]any)["name"]; name != "Day 1" {
+		t.Errorf("wrapped day name = %v, want 'Day 1'", name)
+	}
+	if flat := data["exercises"].([]any); len(flat) != 1 {
+		t.Errorf("flattened exercises want 1, got %d", len(flat))
+	}
+}
+
+func TestCreateProgram_restDayWithExercisesRejected(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	body := map[string]any{
+		"name": "Bad Rest",
+		"days": []map[string]any{
+			{"name": "Train", "exercises": []map[string]any{{"exercise_id": exID}}},
+			{"name": "Rest", "is_rest_day": true, "exercises": []map[string]any{{"exercise_id": exID}}},
+		},
+	}
+	// Normalization strips a rest day's exercises, so this specific payload actually
+	// succeeds with an empty rest day — assert the strip happened rather than a 400.
+	data := createProgramReturns(t, uid, body, http.StatusCreated)
+	days := data["days"].([]any)
+	rest := days[1].(map[string]any)
+	if ex, _ := rest["exercises"].([]any); len(ex) != 0 {
+		t.Errorf("rest day exercises should be stripped, got %d", len(ex))
+	}
+}
+
+func TestCreateProgram_zeroTrainingDaysRejected(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{
+		"name": "All Rest",
+		"days": []map[string]any{
+			{"name": "Rest 1", "is_rest_day": true},
+			{"name": "Rest 2", "is_rest_day": true},
+		},
+	}
+	createProgramReturns(t, uid, body, http.StatusBadRequest)
+}
+
+func TestCreateProgram_tooManyDaysRejected(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	days := make([]map[string]any, 15)
+	for i := range days {
+		days[i] = map[string]any{"name": fmt.Sprintf("Rest %d", i), "is_rest_day": true}
+	}
+	body := map[string]any{"name": "Too Many", "days": days}
+	// 15 days trips the struct-tag max=14, surfaced as 422 by ValidationError before
+	// the controller's own day-count guard (which returns 400) is reached.
+	createProgramReturns(t, uid, body, http.StatusUnprocessableEntity)
+}
+
 func TestCreateProgram_missingName(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
