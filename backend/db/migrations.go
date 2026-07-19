@@ -1,6 +1,9 @@
 package db
 
-import "log"
+import (
+	"database/sql"
+	"log"
+)
 
 func migrate() error {
 	_, err := DB.Exec(schema)
@@ -55,6 +58,60 @@ func alterMigrations() {
 	ensureColumn("program_sets", "suggested_weight", `ALTER TABLE program_sets ADD COLUMN suggested_weight REAL`)
 	ensureColumn("program_sets", "suggested_reps", `ALTER TABLE program_sets ADD COLUMN suggested_reps INTEGER`)
 	ensureColumn("program_sets", "suggested_is_pr", `ALTER TABLE program_sets ADD COLUMN suggested_is_pr INTEGER NOT NULL DEFAULT 0`)
+
+	// Program days (#program-days). Nullable FK so SQLite accepts ADD COLUMN on an
+	// existing table; every legacy exercise gets a NULL day, then backfill wraps each
+	// program's exercises into a single "Day 1" so nothing is orphaned under the new
+	// day-grouped loader.
+	ensureColumn("program_exercises", "program_day_id", `ALTER TABLE program_exercises ADD COLUMN program_day_id INTEGER REFERENCES program_days(id) ON DELETE CASCADE`)
+	if err := backfillProgramDays(DB); err != nil {
+		log.Fatalf("backfill program_days: %v", err)
+	}
+}
+
+// backfillProgramDays wraps every program's dayless exercises into one training day
+// named "Day 1". Idempotent: it only touches programs that still have exercises with a
+// NULL program_day_id, so a second boot (and a fresh DB with no such rows) is a no-op.
+// Kept a standalone, error-returning func (not inlined in alterMigrations) so tests can
+// drive it directly against a throwaway DB.
+func backfillProgramDays(db *sql.DB) error {
+	rows, err := db.Query(`SELECT DISTINCT program_id FROM program_exercises WHERE program_day_id IS NULL`)
+	if err != nil {
+		return err
+	}
+	var programIDs []int64
+	for rows.Next() {
+		var pid int64
+		if err := rows.Scan(&pid); err != nil {
+			rows.Close()
+			return err
+		}
+		programIDs = append(programIDs, pid)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close() // close before writing on the same (single) connection
+
+	for _, pid := range programIDs {
+		res, err := db.Exec(
+			`INSERT INTO program_days (program_id, name, order_index, is_rest_day) VALUES (?, 'Day 1', 0, 0)`, pid,
+		)
+		if err != nil {
+			return err
+		}
+		dayID, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if _, err := db.Exec(
+			`UPDATE program_exercises SET program_day_id = ? WHERE program_id = ? AND program_day_id IS NULL`, dayID, pid,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureColumn adds a column to a table if it's missing — idempotent on every boot.
@@ -212,12 +269,22 @@ CREATE TABLE IF NOT EXISTS programs (
 );
 CREATE INDEX IF NOT EXISTS idx_programs_user ON programs(user_id);
 
-CREATE TABLE IF NOT EXISTS program_exercises (
+CREATE TABLE IF NOT EXISTS program_days (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   program_id  INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
-  exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+  name        TEXT    NOT NULL,
   order_index INTEGER NOT NULL DEFAULT 0,
-  notes       TEXT    NOT NULL DEFAULT ''
+  is_rest_day INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_program_days_program ON program_days(program_id, order_index);
+
+CREATE TABLE IF NOT EXISTS program_exercises (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  program_id     INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+  program_day_id INTEGER REFERENCES program_days(id) ON DELETE CASCADE,
+  exercise_id    INTEGER NOT NULL REFERENCES exercises(id),
+  order_index    INTEGER NOT NULL DEFAULT 0,
+  notes          TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS program_sets (
