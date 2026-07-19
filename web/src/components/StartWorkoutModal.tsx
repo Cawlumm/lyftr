@@ -34,7 +34,7 @@ export default function StartWorkoutModal({ isOpen, onClose }: Props) {
     const exercises = activeSessionExercisesForDay(day)
     const dayCount = program.days?.length ?? 0
     const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, day.id)
     onClose()
     navigate('/workout/active')
   }

@@ -5,9 +5,9 @@ import * as types from '../types'
 export const workoutDays = (program: types.Program): types.ProgramDay[] =>
   (program.days ?? []).filter(d => !d.is_rest_day)
 
-// The Day due today per the cycle: (workouts logged against the program) mod
-// days.length, computed server-side as Program.current_day_index. Undefined for a
-// program with no days yet.
+// The Day due today per the cycle, computed server-side as
+// Program.current_day_index: the next workout day after the most recently logged
+// one (rest days are never due). Undefined for a program with no days yet.
 export const todaysDay = (program: types.Program): types.ProgramDay | undefined =>
   (program.days ?? [])[program.current_day_index]
 

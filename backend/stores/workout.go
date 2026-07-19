@@ -114,12 +114,43 @@ func (s *WorkoutStore) Create(uid int64, req models.CreateWorkoutRequest) (model
 // submissions instead of letting them read the same stale prior-best (#40).
 func createWorkoutTx(tx *sql.Tx, uid int64, req models.CreateWorkoutRequest) (int64, error) {
 	// ProgramID (nil for freestyle workouts) is persisted so ProgramStore can compute
-	// a routine's cycle position from COUNT(workouts) — see
-	// ProgramStore.currentDayIndex. No FK: deleting a program must never take
-	// workout history down with it.
+	// a routine's cycle position — see ProgramStore.currentDayIndex. No FK: deleting
+	// a program must never take workout history down with it. ProgramDayID pins WHICH
+	// day of the cycle this workout was for (day-accurate due-day tracking); its FK is
+	// ON DELETE SET NULL so deleting/editing a day only drops the linkage, never the
+	// workout.
+	//
+	// A live session can outlive its routine's day rows (an edit mid-workout can
+	// remove days, a delete takes the whole program), so a stale/foreign day id must
+	// degrade to "day unknown" (NULL) here — never fail the user's save on the FK. The same check
+	// re-scopes the id to THIS request's program AND the calling user (via the
+	// programs join), so a client can't link a workout to another program's day or
+	// probe/persist references into some other user's routine. A REST day's id
+	// degrades to NULL the same way (is_rest_day = 0 below): rest days are excluded
+	// from the due-day tracker's anchor lookup, so persisting such a link would
+	// strand the workout — neither anchoring nor advancing the tracker — where a
+	// day-less row still advances it count-based.
+	dayID := req.ProgramDayID
+	if dayID != nil {
+		if req.ProgramID == nil {
+			dayID = nil // a day without its program is meaningless
+		} else {
+			var ok int64
+			err := tx.QueryRow(
+				`SELECT pd.id FROM program_days pd
+				 JOIN programs p ON p.id = pd.program_id AND p.user_id = ?
+				 WHERE pd.id = ? AND pd.program_id = ? AND pd.is_rest_day = 0`, uid, *dayID, *req.ProgramID,
+			).Scan(&ok)
+			if err == sql.ErrNoRows {
+				dayID = nil
+			} else if err != nil {
+				return 0, err
+			}
+		}
+	}
 	res, err := tx.Exec(
-		`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id) VALUES (?, ?, ?, ?, ?, ?)`,
-		uid, req.Name, req.Notes, req.Duration, req.StartedAt, req.ProgramID,
+		`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id, program_day_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		uid, req.Name, req.Notes, req.Duration, req.StartedAt, req.ProgramID, dayID,
 	)
 	if err != nil {
 		return 0, err
@@ -143,7 +174,18 @@ func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest) (m
 		if err := tx.QueryRow(`SELECT id FROM workouts WHERE id = ? AND user_id = ?`, id, uid).Scan(&ownedID); err != nil {
 			return err // ErrNoRows = not theirs
 		}
-		if _, err := tx.Exec(
+		// started_at is only rewritten when the request carries one: a PUT omitting
+		// it (a name/notes-only patch) must not zero the stored timestamp — it's the
+		// due-day tracker's ordering key (ProgramStore.currentDayIndex), and a
+		// 0001-01-01 rewrite would silently drop this workout to oldest.
+		if req.StartedAt.IsZero() {
+			if _, err := tx.Exec(
+				`UPDATE workouts SET name = ?, notes = ?, duration = ? WHERE id = ?`,
+				req.Name, req.Notes, req.Duration, id,
+			); err != nil {
+				return err
+			}
+		} else if _, err := tx.Exec(
 			`UPDATE workouts SET name = ?, notes = ?, duration = ?, started_at = ? WHERE id = ?`,
 			req.Name, req.Notes, req.Duration, req.StartedAt, id,
 		); err != nil {

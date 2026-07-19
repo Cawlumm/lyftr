@@ -42,7 +42,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const beginSession = (day: ProgramDay) => {
     const exercises = activeSessionExercisesForDay(day)
     const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, day.id)
     setDayPickFor(null)
     router.navigate(activeHref)
   }

@@ -7,11 +7,11 @@ import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, AlertCircle, ArrowRight, BookOpen, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import {
-  displayVolume, displayWeight, weightShort,
-  type DailyStats, type WeightLog, type WeightStats, type Workout,
+  activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, todaysDay, weightShort,
+  type DailyStats, type Program, type WeightLog, type WeightStats, type Workout,
 } from '@lyftr/shared'
 import { AppText, Card, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
@@ -114,6 +114,7 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 export default function Dashboard() {
   const now = useMemo(() => new Date(), [])
   const session = useWorkoutSession((s) => s.session)
+  const startSession = useWorkoutSession((s) => s.startSession)
   const user = useAuthStore((s) => s.user)
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -133,6 +134,7 @@ export default function Dashboard() {
   }
 
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [food, setFood] = useState<DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
@@ -145,13 +147,15 @@ export default function Dashboard() {
   const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
 
   const load = useCallback(async () => {
-    const [ws, fs, wl, wst] = await Promise.all([
+    const [ws, ps, fs, wl, wst] = await Promise.all([
       client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
+      client.programAPI.list().catch(() => [] as Program[]),
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
       client.weightAPI.stats().catch(() => null),
     ])
     setWorkouts(ws || [])
+    setPrograms(ps || [])
     setFood(fs || DEFAULT_FOOD)
     setWeightLogs(wl || [])
     setWeightStats(wst)
@@ -199,6 +203,26 @@ export default function Dashboard() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
   const weekWorkouts = workouts.filter((w) => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
+
+  // "Up next": the first (most recently created) program whose due day is a
+  // startable workout day. Surfaces today's routine workout without opening the
+  // Programs tab — a routine that never shows on the dashboard never gets started.
+  const upNext = (() => {
+    for (const p of programs) {
+      const day = todaysDay(p)
+      if (day && !day.is_rest_day && (day.exercises ?? []).length > 0) return { program: p, day }
+    }
+    return null
+  })()
+
+  const startUpNext = () => {
+    if (!upNext) return
+    hImpact()
+    const { program, day } = upNext
+    const name = (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
+    startSession(name, activeSessionExercisesForDay(day), program.id, day.id)
+    router.navigate('/workouts/active')
+  }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
     date: format(new Date(w.started_at), 'M/d'),
@@ -321,6 +345,41 @@ export default function Dashboard() {
                 </View>
               </View>
               <ArrowRight size={18} color={brand.warningSoft} />
+            </Pressable>
+          ) : null}
+
+          {/* ── Up next — today's due day on the current routine. Hidden while a
+              session is live: the banner above already owns that slot. ── */}
+          {!session && upNext ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`View ${upNext.program.name} routine`}
+              onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
+              className="active:scale-[0.99]"
+            >
+              <Card className="flex-row items-center gap-3">
+                <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                  <BookOpen size={18} color={accent} />
+                </View>
+                <View className="min-w-0 flex-1">
+                  <Label>Up next · {upNext.program.name}</Label>
+                  <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
+                    {dayLabel(upNext.day, upNext.day.order_index)}
+                  </Text>
+                  <AppText variant="caption" color="muted" className="mt-0.5">
+                    {(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}
+                  </AppText>
+                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+                  onPress={startUpNext}
+                  className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2 active:scale-95"
+                >
+                  <Play size={14} color="#ffffff" />
+                  <Text className="font-sans-bold text-xs text-white">Start</Text>
+                </Pressable>
+              </Card>
             </Pressable>
           ) : null}
 

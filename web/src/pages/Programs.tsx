@@ -54,7 +54,7 @@ function ProgramCard({
     const exercises = activeSessionExercisesForDay(today)
     const dayCount = program.days?.length ?? 0
     const name = dayCount > 1 ? `${program.name} — ${dayLabel(today, today.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, today.id)
     navigate('/workout/active')
   }
   const [confirming, setConfirming] = useState(false)

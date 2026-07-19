@@ -98,7 +98,7 @@ func (s *ProgramStore) hydrate(p *models.Program) error {
 		return err
 	}
 	p.Days = days
-	idx, err := s.currentDayIndex(p.ID, days)
+	idx, err := s.currentDayIndex(p.UserID, p.ID, days)
 	if err != nil {
 		return err
 	}
@@ -106,44 +106,93 @@ func (s *ProgramStore) hydrate(p *models.Program) error {
 	return nil
 }
 
-// currentDayIndex is which Days[] entry is due today. A rest day never produces a
-// loggable workout, so it can't be counted the same way a workout day is: naively
-// taking COUNT(workouts) MOD cycleLen treats every slot (workout or rest) as equally
-// "consumed" by a log, which desyncs the moment a rest day sits between two workout
-// days (nothing ever advances the count while a rest slot is "current", and a slot
-// right after a workout gets misread once the count catches up).
+// currentDayIndex is which Days[] entry is due today. It is derived from WHICH
+// specific day the most recently started program workout was logged against
+// (workouts.program_day_id), not from a blind workout count — a count is blind to
+// repeats and out-of-order logging, silently desyncing "today's workout" from what
+// was actually done. The due day is the next workout day after the last-logged one
+// in cycle order, wrapping to the first workout day past the end; rest days are
+// never "due" and are skipped over. Repeating the same day therefore doesn't skip
+// anything (due stays the next day in sequence), and logging an out-of-cycle day
+// deliberately moves the tracker to whatever follows THAT day — no "remaining
+// incomplete days" bookkeeping, by design.
 //
-// Instead, map the count of logged workouts onto the WORKOUT-only subsequence
-// (rest days are skipped when building it — they're consumed for free by whichever
-// workout is logged around them): the Nth logged workout (1-indexed, cycling through
-// that subsequence) is read as "we've just finished the day at
-// workoutOrderIndices[(N-1) % len(workoutOrderIndices)]", so the due day is the very
-// next slot after it, wrapped into the full cycle. 0 workouts logged, or a program
-// with no workout days at all (every day is rest, or no days yet), means slot 0 is
-// due (nothing done yet / nothing to be "due").
-func (s *ProgramStore) currentDayIndex(programID int64, days []models.ProgramDay) (int, error) {
-	cycleLen := len(days)
-	if cycleLen == 0 {
-		return 0, nil
-	}
-	workoutOrderIndices := make([]int, 0, cycleLen)
-	for _, d := range days {
+// Only workouts whose program_day_id maps to one of THIS program's current non-rest
+// days can anchor the tracker to a specific day; rows carrying a day from some other
+// program are ignored outright. Rows with a NULL day and no dropped mark — clients
+// that predate day tracking — can't anchor, but each one newer than the anchor still
+// ADVANCES the tracker by one workout day, count-based: without that fallback a user
+// on an older app build would log forever while the due day stayed parked, a
+// regression from the pre-linkage COUNT-based algorithm which advanced on every
+// workout. The exception is rows marked program_day_dropped (their day was
+// deliberately deleted — or toggled into a rest day — by a routine edit): their
+// cycle position is unknowable, and counting them as advances would let one edit
+// swing the due day by the parity of an arbitrary lifetime count — deleting or
+// rest-toggling a day with 50 logged workouts must not make "today's workout"
+// depend on 50 mod cycle length. Dropped rows are ignored entirely. No qualifying
+// workout at all → the first workout day is due. A program with no workout days
+// (every day is rest, or no days yet) has nothing to be due → 0.
+func (s *ProgramStore) currentDayIndex(uid, programID int64, days []models.ProgramDay) (int, error) {
+	workoutIdx := []int{}
+	for i, d := range days {
 		if !d.IsRestDay {
-			workoutOrderIndices = append(workoutOrderIndices, d.OrderIndex)
+			workoutIdx = append(workoutIdx, i)
 		}
 	}
-	if len(workoutOrderIndices) == 0 {
+	if len(workoutIdx) == 0 {
 		return 0, nil
 	}
-	var count int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM workouts WHERE program_id = ?`, programID).Scan(&count); err != nil {
+	// Most recent = started_at (the ordering the workout list already uses), id as
+	// the tiebreak for same-timestamp rows. w.user_id guards against another user
+	// advancing this tracker by writing the raw (FK-less) program_id themselves.
+	var lastDayID, lastWID int64
+	hasAnchor := true
+	err := s.db.QueryRow(`
+		SELECT w.program_day_id, w.id
+		FROM workouts w
+		JOIN program_days pd ON pd.id = w.program_day_id
+		WHERE w.user_id = ? AND w.program_id = ? AND pd.program_id = ? AND pd.is_rest_day = 0
+		ORDER BY w.started_at DESC, w.id DESC
+		LIMIT 1`, uid, programID, programID).Scan(&lastDayID, &lastWID)
+	if err == sql.ErrNoRows {
+		hasAnchor = false
+	} else if err != nil {
 		return 0, err
 	}
-	if count == 0 {
-		return 0, nil
+	// Day-less rows newer than the anchor (all of them when there's no anchor) each
+	// advance one workout day. "Newer" mirrors the anchor's started_at DESC, id DESC
+	// ordering, compared against the anchor row itself so the stored timestamps never
+	// round-trip through Go (driver formatting differences would break the compare).
+	var unlinked int
+	if hasAnchor {
+		err = s.db.QueryRow(`
+			SELECT COUNT(*) FROM workouts w, workouts a
+			WHERE a.id = ?
+			  AND w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL
+			  AND w.program_day_dropped = 0
+			  AND (w.started_at > a.started_at OR (w.started_at = a.started_at AND w.id > a.id))`,
+			lastWID, uid, programID).Scan(&unlinked)
+	} else {
+		err = s.db.QueryRow(`
+			SELECT COUNT(*) FROM workouts w
+			WHERE w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL
+			  AND w.program_day_dropped = 0`,
+			uid, programID).Scan(&unlinked)
 	}
-	lastDone := workoutOrderIndices[(count-1)%len(workoutOrderIndices)]
-	return (lastDone + 1) % cycleLen, nil
+	if err != nil {
+		return 0, err
+	}
+	if hasAnchor {
+		for p, i := range workoutIdx {
+			if days[i].ID == lastDayID {
+				return workoutIdx[(p+1+unlinked)%len(workoutIdx)], nil
+			}
+		}
+		// Anchor day vanished between the query and hydrate — fall through as if its
+		// log were day-less too.
+		unlinked++
+	}
+	return workoutIdx[unlinked%len(workoutIdx)], nil
 }
 
 func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (models.Program, error) {
@@ -169,6 +218,34 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 
 // Update replaces a user-owned program and its days/exercises/sets in one tx.
 // sql.ErrNoRows if the program isn't theirs (nothing is mutated).
+//
+// Day rows are updated IN PLACE, matched to the request by day id (CreateProgramDayReq.ID)
+// — never deleted + recreated wholesale. workouts.program_day_id references
+// program_days ON DELETE SET NULL, so recreating every day on any edit (even a name
+// typo) would scrub the day linkage off the program's entire workout history and
+// reset the due-day tracker to Day 1 — the exact silent desync the linkage exists to
+// prevent. Id matching (not position) keeps that linkage correct across reorders and
+// mid-list removals too: position alone can't tell "renamed day 0" from "deleted
+// day 0". Request content alone can't distinguish a legacy id-less payload from a
+// modern client that deleted every existing day and added only new ones (zero ids
+// either way), so modern clients also send DayIDsKnown to force id matching for
+// that edit — the deleted days' history is dropped as residue instead of being
+// positionally re-attributed to the brand-new days. Only requests with no ids AND
+// no flag (clients predating the id round-trip) fall back to positional matching —
+// their same-position edits keep working; only their structural edits carry the old
+// positional mis-attribution.
+//
+// Only days actually absent from the request are deleted; their workouts' linkage is
+// dropped AND marked program_day_dropped so the due-day tracker ignores those rows
+// as residue instead of miscounting them as day-less logs (see currentDayIndex).
+// A day edited into a rest day sheds its workouts' linkage the same way (NULL +
+// dropped): a rest day can never be due, so keeping the link would make those
+// workouts invisible to the tracker, and counting them as day-less advances would
+// swing the due day by the parity of that day's logged history. Each day's
+// exercises/sets are still replaced wholesale: nothing persists a reference to them
+// (a logged set's program_set_id is request-only, never stored), so recreating them
+// is safe — the delete cascades to program_sets via the program_exercise_id FK,
+// same layered cascade the flat model relied on.
 func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (models.Program, error) {
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
@@ -178,17 +255,106 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 		if _, err := tx.Exec(`UPDATE programs SET name = ?, notes = ? WHERE id = ?`, req.Name, req.Notes, id); err != nil {
 			return err
 		}
-		// Deleting the Days cascades to program_exercises (program_day_id FK) which
-		// cascades to program_sets (program_exercise_id FK) — same layered cascade the
-		// flat model relied on, just one level deeper.
-		if _, err := tx.Exec(`DELETE FROM program_days WHERE program_id = ?`, id); err != nil {
+		existing, err := dayIDsInOrder(tx, id)
+		if err != nil {
 			return err
 		}
-		return insertProgramDays(tx, id, req.Days)
+		hasIDs := req.DayIDsKnown
+		for _, day := range req.Days {
+			if day.ID != 0 {
+				hasIDs = true
+				break
+			}
+		}
+		isExisting := make(map[int64]bool, len(existing))
+		for _, dayID := range existing {
+			isExisting[dayID] = true
+		}
+		kept := make(map[int64]bool, len(existing))
+		for i, day := range req.Days {
+			// Which existing row this request day is: by id when the client sends ids
+			// (an id from some other program — or a duplicate — is treated as a new
+			// day, so a crafted request can't touch rows outside this owned program),
+			// by position for legacy id-less requests. 0 = a genuinely new day.
+			var dayID int64
+			if hasIDs {
+				if day.ID != 0 && isExisting[day.ID] && !kept[day.ID] {
+					dayID = day.ID
+				}
+			} else if i < len(existing) {
+				dayID = existing[i]
+			}
+			if dayID == 0 {
+				if err := insertProgramDay(tx, id, i, day); err != nil {
+					return err
+				}
+				continue
+			}
+			kept[dayID] = true
+			if _, err := tx.Exec(
+				`UPDATE program_days SET order_index = ?, is_rest_day = ?, name = ? WHERE id = ?`,
+				i, day.IsRestDay, day.Name, dayID,
+			); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`DELETE FROM program_exercises WHERE program_day_id = ?`, dayID); err != nil {
+				return err
+			}
+			if day.IsRestDay {
+				// Un-link workouts logged against this now-rest day (also lazily scrubs
+				// any pre-existing rest-day linkage): rest days are excluded from the
+				// tracker's anchor lookup, so a kept link would strand those workouts —
+				// neither anchoring nor advancing. Marked dropped exactly like a deleted
+				// day's rows: the day's cycle position is gone either way, and counting
+				// the shed rows as day-less advances would swing the due day by the
+				// parity of the day's whole logged history (see currentDayIndex).
+				if _, err := tx.Exec(`UPDATE workouts SET program_day_id = NULL, program_day_dropped = 1 WHERE program_day_id = ?`, dayID); err != nil {
+					return err
+				}
+				continue // rest days never carry exercises, even if the client sent some
+			}
+			if err := insertProgramExercises(tx, id, dayID, day.Exercises); err != nil {
+				return err
+			}
+		}
+		for _, dayID := range existing {
+			if kept[dayID] {
+				continue
+			}
+			// Deliberately removed day: drop its workouts' linkage (per the ON DELETE
+			// SET NULL contract) but mark them dropped — their cycle position is
+			// unknowable, and counting them as day-less advances would swing the due
+			// day by the parity of an arbitrary historical count (see currentDayIndex).
+			if _, err := tx.Exec(`UPDATE workouts SET program_day_id = NULL, program_day_dropped = 1 WHERE program_day_id = ?`, dayID); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(`DELETE FROM program_days WHERE id = ?`, dayID); err != nil {
+				return err
+			}
+		}
+		return nil
 	}); err != nil {
 		return models.Program{}, err
 	}
 	return s.get(id)
+}
+
+// dayIDsInOrder returns a program's existing day row ids in cycle order, within tx.
+func dayIDsInOrder(tx *sql.Tx, programID int64) ([]int64, error) {
+	rows, err := tx.Query(`SELECT id FROM program_days WHERE program_id = ? ORDER BY order_index`, programID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	ids := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
 }
 
 // ProgressInput is one logged working set to consider for auto-progression:
@@ -359,28 +525,33 @@ func (s *ProgramStore) Delete(uid, id int64) (int64, error) {
 // ordering) plus each Day's exercises/sets within tx.
 func insertProgramDays(tx *sql.Tx, programID int64, days []models.CreateProgramDayReq) error {
 	for i, day := range days {
-		// Request array position is authoritative for ordering (same convention as
-		// insertProgramExercises' `i`, not a client-echoed value) — a client resending
-		// a stale/duplicate order_index can't scramble the cycle order.
-		dayRes, err := tx.Exec(
-			`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,
-			programID, i, day.IsRestDay, day.Name,
-		)
-		if err != nil {
-			return err
-		}
-		dayID, err := dayRes.LastInsertId()
-		if err != nil {
-			return err
-		}
-		if day.IsRestDay {
-			continue // rest days never carry exercises, even if the client sent some
-		}
-		if err := insertProgramExercises(tx, programID, dayID, day.Exercises); err != nil {
+		if err := insertProgramDay(tx, programID, i, day); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// insertProgramDay writes one Day at the given cycle position. orderIndex is the
+// request array position (same convention as insertProgramExercises' `i`, not a
+// client-echoed value) — a client resending a stale/duplicate order_index can't
+// scramble the cycle order.
+func insertProgramDay(tx *sql.Tx, programID int64, orderIndex int, day models.CreateProgramDayReq) error {
+	dayRes, err := tx.Exec(
+		`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,
+		programID, orderIndex, day.IsRestDay, day.Name,
+	)
+	if err != nil {
+		return err
+	}
+	dayID, err := dayRes.LastInsertId()
+	if err != nil {
+		return err
+	}
+	if day.IsRestDay {
+		return nil // rest days never carry exercises, even if the client sent some
+	}
+	return insertProgramExercises(tx, programID, dayID, day.Exercises)
 }
 
 func insertProgramExercises(tx *sql.Tx, programID, dayID int64, exercises []models.CreateProgramExerciseReq) error {

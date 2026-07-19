@@ -1,6 +1,10 @@
 package db
 
-import "log"
+import (
+	"log"
+	"strings"
+	"time"
+)
 
 func migrate() error {
 	_, err := DB.Exec(schema)
@@ -59,13 +63,164 @@ func alterMigrations() {
 	multiDayProgramsMigration()
 
 	// Lets a logged workout be attributed back to the routine it came from, so a
-	// program's cycle position (Program.CurrentDayIndex) can be computed as a simple
-	// COUNT(*) MOD len(days) — see ProgramStore.currentDayIndex. Best-effort/no FK:
+	// program's cycle position (Program.CurrentDayIndex) can be derived from what was
+	// actually logged — see ProgramStore.currentDayIndex. Best-effort/no FK:
 	// deleting a program must never take workout history down with it.
 	ensureColumn("workouts", "program_id", `ALTER TABLE workouts ADD COLUMN program_id INTEGER`)
 	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`); err != nil {
 		log.Fatalf("create idx_workouts_program: %v", err)
 	}
+
+	workoutProgramDayMigration()
+
+	normalizeWorkoutStartedAt()
+}
+
+// normalizeWorkoutStartedAt rewrites any workouts.started_at stored with a non-UTC
+// zone offset to its UTC equivalent. The due-day tracker compares started_at as
+// stored TEXT (ProgramStore.currentDayIndex orders by it and compares rows against
+// the anchor lexicographically), and the driver's default write format embeds the
+// zone — so a row written before the controllers' write-side UTC normalization
+// (e.g. a third-party API client sending '+08:00') compares by wall-clock text, not
+// instant, and could permanently win or lose the most-recent-anchor lookup against
+// newer UTC rows. Normalizing here also repairs reads: a fixed-offset zone with no
+// name is stored as its offset twice ('… +0800 +0800'), which the driver can't
+// parse back into a time.Time at all. The WHERE matches only offset-bearing
+// non-UTC rows, so this is idempotent and a no-op on every boot after the first;
+// a row whose text can't be parsed is logged and left as-is (retried next boot).
+func normalizeWorkoutStartedAt() {
+	rows, err := DB.Query(`
+		SELECT id, started_at FROM workouts
+		WHERE (started_at LIKE '% +%' OR started_at LIKE '% -%')
+		  AND started_at NOT LIKE '%+0000%'`)
+	if err != nil {
+		log.Printf("normalizeWorkoutStartedAt: query: %v (skipping this boot)", err)
+		return
+	}
+	type fix struct {
+		id int64
+		t  time.Time
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var v any
+		if err := rows.Scan(&id, &v); err != nil {
+			rows.Close()
+			log.Printf("normalizeWorkoutStartedAt: scan: %v (skipping this boot)", err)
+			return
+		}
+		switch tv := v.(type) {
+		case time.Time:
+			fixes = append(fixes, fix{id, tv.UTC()})
+		case string:
+			if t, ok := parseStoredTime(tv); ok {
+				fixes = append(fixes, fix{id, t.UTC()})
+			} else {
+				log.Printf("normalizeWorkoutStartedAt: workout %d: unparseable started_at %q left as-is", id, tv)
+			}
+		default:
+			log.Printf("normalizeWorkoutStartedAt: workout %d: unexpected started_at type %T left as-is", id, v)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		log.Printf("normalizeWorkoutStartedAt: rows: %v (skipping this boot)", err)
+		return
+	}
+	rows.Close() // release the process's only connection BEFORE the updates (SetMaxOpenConns(1))
+
+	for _, f := range fixes {
+		if _, err := DB.Exec(`UPDATE workouts SET started_at = ? WHERE id = ?`, f.t, f.id); err != nil {
+			log.Fatalf("normalizeWorkoutStartedAt: update workout %d: %v", f.id, err)
+		}
+	}
+	if len(fixes) > 0 {
+		log.Printf("migration: normalized %d non-UTC workouts.started_at row(s) to UTC", len(fixes))
+	}
+}
+
+// parseStoredTime parses a stored started_at the driver itself couldn't convert to
+// a time.Time. The driver's default write format is time.Time.String(); a fixed-
+// offset zone with no name (what encoding/json produces for a '+08:00' timestamp)
+// renders the offset twice ('2026-07-19 02:00:00 +0800 +0800'), which the MST
+// layout element can't match — drop the trailing zone-name token and parse
+// offset-only.
+func parseStoredTime(s string) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	if t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", s); err == nil {
+		return t, true
+	}
+	if i := strings.LastIndexByte(s, ' '); i > 0 {
+		if t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", s[:i]); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// workoutProgramDayMigration adds workouts.program_day_id: WHICH specific program Day
+// a workout was logged under, so the due-day tracker follows what was actually logged
+// instead of a blind workout count (which desyncs when a day is repeated or logged out
+// of order). ON DELETE SET NULL, not CASCADE — a workout's history must survive its
+// day later being deleted/edited; only the day linkage drops.
+//
+// The backfill runs ONLY when the column is first added: pre-existing program workouts
+// are attributed to their program's first workout day (lowest order_index, non-rest).
+// That's a best-effort default for the transitional window between the multi-day
+// migration above and this one — not expected to be exact for every historical row.
+// It must never re-run on a later boot: a NULL program_day_id can then also mean "its
+// day was deleted" (the SET NULL path), which a re-run would wrongly overwrite.
+func workoutProgramDayMigration() {
+	has, err := hasColumn("workouts", "program_day_id")
+	if err != nil {
+		// Unknown schema state: skip entirely (retried next boot) rather than risk a
+		// duplicate-column ALTER or, far worse, re-running the never-re-run backfill.
+		log.Printf("workoutProgramDayMigration: check column: %v (skipping this boot)", err)
+		return
+	}
+	if !has {
+		// ALTER + backfill must land atomically (SQLite DDL is transactional): if the
+		// backfill died after a committed ALTER, every later boot would see the column
+		// and skip the backfill forever — the transitional rows would stay NULL with
+		// no recovery path, since re-running is forbidden per above.
+		tx, err := DB.Begin()
+		if err != nil {
+			log.Fatalf("workoutProgramDayMigration: begin: %v", err)
+		}
+		if _, err := tx.Exec(`ALTER TABLE workouts ADD COLUMN program_day_id INTEGER REFERENCES program_days(id) ON DELETE SET NULL`); err != nil {
+			tx.Rollback()
+			log.Fatalf("alter workouts add program_day_id: %v", err)
+		}
+		if _, err := tx.Exec(`
+			UPDATE workouts SET program_day_id = (
+			  SELECT pd.id FROM program_days pd
+			  WHERE pd.program_id = workouts.program_id AND pd.is_rest_day = 0
+			  ORDER BY pd.order_index LIMIT 1
+			)
+			WHERE program_id IS NOT NULL AND program_day_id IS NULL`); err != nil {
+			tx.Rollback()
+			log.Fatalf("backfill workouts.program_day_id: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			log.Fatalf("workoutProgramDayMigration: commit: %v", err)
+		}
+		log.Println("migration: added workouts.program_day_id (+ first-workout-day backfill)")
+	}
+	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_workouts_program_day ON workouts(program_day_id)`); err != nil {
+		log.Fatalf("create idx_workouts_program_day: %v", err)
+	}
+
+	// program_day_dropped = 1 marks a workout whose day linkage was deliberately
+	// removed by a routine edit deleting that day (ProgramStore.Update sets it
+	// alongside the NULL). It splits the two meanings of a NULL program_day_id the
+	// due-day tracker must treat differently: an old-client day-less log advances
+	// the tracker count-based, but deletion residue must not — deleting a day with
+	// a long logged history would otherwise swing the due day by the parity of an
+	// arbitrary lifetime count (see ProgramStore.currentDayIndex). NULL rows that
+	// predate this column can't be told apart retroactively and stay count-based;
+	// acceptable for the transitional window between the column-add above and this.
+	ensureColumn("workouts", "program_day_dropped", `ALTER TABLE workouts ADD COLUMN program_day_dropped INTEGER NOT NULL DEFAULT 0`)
 }
 
 // multiDayProgramsMigration adds the program_days table + program_exercises'
@@ -132,13 +287,17 @@ func multiDayProgramsMigration() {
 	}
 }
 
-// ensureColumn adds a column to a table if it's missing — idempotent on every boot.
-func ensureColumn(table, column, alterSQL string) {
+// hasColumn reports whether a table already has a column (PRAGMA table_info).
+// A query/scan failure is returned as an error, never as "column absent" — a
+// false negative would send callers into an ALTER that dies on "duplicate
+// column name" (or worse, re-runs a never-re-run backfill).
+func hasColumn(table, column string) (bool, error) {
 	rows, err := DB.Query("PRAGMA table_info(" + table + ")")
 	if err != nil {
-		return
+		return false, err
 	}
-	has := false
+	defer rows.Close()
+	found := false
 	for rows.Next() {
 		var cid int
 		var name, typ string
@@ -146,13 +305,25 @@ func ensureColumn(table, column, alterSQL string) {
 		var dflt interface{}
 		var pk int
 		if err := rows.Scan(&cid, &name, &typ, &notnull, &dflt, &pk); err != nil {
-			continue
+			return false, err
 		}
 		if name == column {
-			has = true
+			found = true
 		}
 	}
-	rows.Close()
+	return found, rows.Err()
+}
+
+// ensureColumn adds a column to a table if it's missing — idempotent on every boot.
+// If the existence check itself fails, the alter is skipped (retried next boot),
+// matching the pre-refactor silent-skip behavior rather than risking a fatal
+// duplicate-column ALTER off an unknown schema state.
+func ensureColumn(table, column, alterSQL string) {
+	has, err := hasColumn(table, column)
+	if err != nil {
+		log.Printf("migrations: check %s.%s: %v (skipping alter this boot)", table, column, err)
+		return
+	}
 	if !has {
 		if _, err := DB.Exec(alterSQL); err != nil {
 			log.Fatalf("alter %s add %s: %v", table, column, err)

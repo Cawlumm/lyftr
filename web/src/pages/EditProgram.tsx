@@ -38,6 +38,7 @@ export default function EditProgram() {
           name: p.name,
           notes: p.notes || '',
           days: (p.days || []).map((d, i) => ({
+            id: d.id,
             order_index: d.order_index ?? i,
             is_rest_day: d.is_rest_day,
             name: d.name || '',
@@ -71,6 +72,11 @@ export default function EditProgram() {
       const payload = {
         name: formData.name,
         notes: formData.notes,
+        // Declares this client round-trips day ids: without it, deleting every
+        // existing day and adding only new (id-less) ones is indistinguishable
+        // from a legacy payload and the server would positionally re-attribute
+        // the deleted days' workout history to the new days.
+        day_ids_known: true,
         days: formData.days.map(d => ({
           ...d,
           exercises: d.exercises.map(ex => ({

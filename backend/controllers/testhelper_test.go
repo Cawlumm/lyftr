@@ -77,9 +77,12 @@ CREATE TABLE IF NOT EXISTS workouts (
   duration INTEGER NOT NULL DEFAULT 0,
   started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  program_id INTEGER
+  program_id INTEGER,
+  program_day_id INTEGER REFERENCES program_days(id) ON DELETE SET NULL,
+  program_day_dropped INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id);
+CREATE INDEX IF NOT EXISTS idx_workouts_program_day ON workouts(program_day_id);
 CREATE TABLE IF NOT EXISTS workout_exercises (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,

@@ -16,6 +16,10 @@ export interface DayExerciseDraft {
 }
 
 export interface DayDraft {
+  // Existing program_days row id, round-tripped through updates so the server can
+  // match edited days by identity instead of position — reordering/removing days
+  // must not re-attribute logged workouts to the wrong day. Absent for new days.
+  id?: number
   order_index: number
   is_rest_day: boolean
   name: string

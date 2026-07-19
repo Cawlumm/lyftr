@@ -166,7 +166,7 @@ export default function ProgramDetail() {
     if (session) { router.navigate(startHref); return }
     const exercises = activeSessionExercisesForDay(selectedDay)
     const name = days.length > 1 ? `${program.name} — ${dayLabel(selectedDay, selectedDay.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, selectedDay.id)
     router.navigate(activeHref)
   }
 
@@ -446,10 +446,14 @@ export default function ProgramDetail() {
                       ? <Moon size={14} color={isSelected ? '#ffffff' : colors.txMuted} />
                       : <Dumbbell size={14} color={isSelected ? '#ffffff' : accent} />}
                     <AppText variant="label" style={{ color: isSelected ? '#ffffff' : (day.is_rest_day ? colors.txMuted : colors.txSecondary) }} numberOfLines={1}>
-                      {dayLabel(day, i)}
+                      {dayLabel(day, day.order_index)}
                     </AppText>
+                    {/* Textual chip, not a bare dot — a color-only marker isn't
+                        distinguishable by shape/text (a11y) and reads as decoration. */}
                     {isToday ? (
-                      <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: isSelected ? '#ffffff' : accent }} />
+                      <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
+                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>TODAY</AppText>
+                      </View>
                     ) : null}
                   </Pressable>
                 )

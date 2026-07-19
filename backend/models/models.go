@@ -200,14 +200,19 @@ type RefreshRequest struct {
 const MaxWorkoutSets = 500
 
 type CreateWorkoutRequest struct {
-	Name      string                     `json:"name" validate:"required"`
-	Notes     string                     `json:"notes"`
-	Duration  int                        `json:"duration"`
-	StartedAt time.Time                  `json:"started_at"`
+	Name      string    `json:"name" validate:"required"`
+	Notes     string    `json:"notes"`
+	Duration  int       `json:"duration"`
+	StartedAt time.Time `json:"started_at"`
 	// ProgramID is set when the workout was started from a routine — it enables
 	// per-set auto-progression of that routine's targets (issue #40). nil for
 	// freestyle/quick workouts, which never progress a routine.
-	ProgramID *int64                     `json:"program_id"`
+	ProgramID *int64 `json:"program_id"`
+	// ProgramDayID is WHICH day of that routine's cycle the workout was started
+	// under (the client's day picker knows) — drives the day-accurate due-day
+	// tracker (ProgramStore.currentDayIndex). nil when not from a routine, or from
+	// an older client that predates day tracking.
+	ProgramDayID *int64 `json:"program_day_id"`
 	// Exercises/Sets each cap at max=500 as an outer sanity bound, but that bounds
 	// each dimension independently, not their product — see MaxWorkoutSets above for
 	// the cap that actually matters.
@@ -288,12 +293,13 @@ type Program struct {
 	CreatedAt time.Time    `json:"created_at"`
 	Days      []ProgramDay `json:"days"`
 	// CurrentDayIndex is which entry of Days is due today — computed, never
-	// persisted, from (workouts logged against this program) mapped onto the
-	// workout-only subsequence of Days (rest days are consumed for free, not
-	// counted) — see ProgramStore.currentDayIndex. Advancing only on an actual
-	// logged workout means there's no calendar-week alignment (a 6-day cycle
-	// repeats every 6 days regardless of which weekday it lands on). 0 when the
-	// program has no days yet, or none logged.
+	// persisted, from WHICH day the most recent program workout was logged against
+	// (workouts.program_day_id): the next workout day after it in cycle order,
+	// wrapping past rest days (rest days are never "due") — see
+	// ProgramStore.currentDayIndex. Advancing only on an actual logged workout
+	// means there's no calendar-week alignment (a 6-day cycle repeats every 6 days
+	// regardless of which weekday it lands on). Always a workout day's index when
+	// the program has any; 0 for a program with no days (or only rest days).
 	CurrentDayIndex int `json:"current_day_index"`
 }
 
@@ -349,11 +355,25 @@ type CreateProgramRequest struct {
 	Name  string                `json:"name" validate:"required"`
 	Notes string                `json:"notes"`
 	Days  []CreateProgramDayReq `json:"days" validate:"max=500,dive"`
+	// DayIDsKnown marks a client that round-trips day ids (CreateProgramDayReq.ID)
+	// on update. Update falls back to positional day matching for id-less requests
+	// (clients predating the id round-trip), but request content alone can't
+	// distinguish such a client from a modern one that deleted every existing day
+	// and added only new ones — zero ids either way. Without this flag that edit
+	// would positionally re-attribute the deleted days' workout history to the
+	// brand-new days (see ProgramStore.Update). Ignored on create.
+	DayIDsKnown bool `json:"day_ids_known"`
 }
 
 // CreateProgramDayReq is one Day in a program's cycle. Exercises is ignored (and
 // should be empty) when IsRestDay is true.
 type CreateProgramDayReq struct {
+	// ID ties this request day back to an existing program_days row on update (0 =
+	// new day). Position alone can't distinguish "renamed day 0" from "deleted day
+	// 0", so without it any reorder or mid-list removal would silently re-attribute
+	// the program's workout history (workouts.program_day_id) to the wrong days —
+	// see ProgramStore.Update. Ignored on create.
+	ID         int64                      `json:"id"`
 	OrderIndex int                        `json:"order_index"`
 	IsRestDay  bool                       `json:"is_rest_day"`
 	Name       string                     `json:"name"`

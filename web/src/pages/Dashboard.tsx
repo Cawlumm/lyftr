@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
-  Dumbbell, Flame, ArrowRight, Beef,
+  Dumbbell, Flame, ArrowRight, Beef, BookOpen,
   AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
@@ -12,13 +12,14 @@ import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
-import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
+import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
+import { activeSessionExercisesForDay, dayLabel, todaysDay } from '../utils/programUtils'
 
 const TODAY = new Date()
 
@@ -126,11 +127,12 @@ const TOOLTIP_STYLE = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { session } = useWorkoutSession()
+  const { session, startSession } = useWorkoutSession()
   const { user } = useAuthStore()
   const { settings: storedSettings } = useSettingsStore()
 
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
+  const [programs, setPrograms] = useState<types.Program[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
@@ -144,13 +146,15 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
+      programAPI.list().catch(() => []),
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       weightAPI.list({ limit: 14 }).catch(() => []),
       weightAPI.stats().catch(() => null),
       userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
     ])
-      .then(([ws, fs, wl, wst, s]) => {
+      .then(([ws, ps, fs, wl, wst, s]) => {
         setWorkouts(ws || [])
+        setPrograms(ps || [])
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
@@ -175,6 +179,25 @@ export default function Dashboard() {
   const weekStart = startOfWeek(TODAY, { weekStartsOn: 1 })
   const weekWorkouts = workouts.filter(w => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
+
+  // "Up next": the first (most recently created) program whose due day is a
+  // startable workout day. Surfaces today's routine workout without opening the
+  // Programs page — a routine that never shows on the dashboard never gets started.
+  const upNext = (() => {
+    for (const p of programs) {
+      const day = todaysDay(p)
+      if (day && !day.is_rest_day && (day.exercises ?? []).length > 0) return { program: p, day }
+    }
+    return null
+  })()
+
+  const startUpNext = () => {
+    if (!upNext) return
+    const { program, day } = upNext
+    const name = (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
+    startSession(name, activeSessionExercisesForDay(day), program.id, day.id)
+    navigate('/workout/active')
+  }
 
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
@@ -288,6 +311,38 @@ export default function Dashboard() {
           </div>
           <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
         </Link>
+      )}
+
+      {/* ── Up next — today's due day on the current routine. Hidden while a
+          session is live: the banner above already owns that slot. ── */}
+      {!session && upNext && (
+        /* The Start button is a SIBLING of the link, not a child: an <a> may not
+           contain interactive descendants (invalid HTML, and screen readers fold
+           the button into the link's accessible name). The link covers the card's
+           icon + text; the button stands alone. */
+        <div className="flex items-center gap-3 card p-3 hover:bg-surface-muted/40 transition-colors">
+          <Link
+            to={`/programs/${upNext.program.id}`}
+            aria-label={`View ${upNext.program.name} routine`}
+            className="flex items-center gap-3 flex-1 min-w-0"
+          >
+            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+              <BookOpen className="w-5 h-5 text-brand-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">Up next · {upNext.program.name}</p>
+              <p className="text-sm font-semibold text-tx-primary truncate mt-0.5">{dayLabel(upNext.day, upNext.day.order_index)}</p>
+              <p className="text-xs text-tx-muted mt-0.5">{(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}</p>
+            </div>
+          </Link>
+          <button
+            onClick={startUpNext}
+            aria-label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-colors flex-shrink-0"
+          >
+            <Play className="w-3.5 h-3.5" /> Start
+          </button>
+        </div>
       )}
 
       {/* ── KPI strip ──────────────────────────────── */}

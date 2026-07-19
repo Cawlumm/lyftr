@@ -136,9 +136,11 @@ describe('workoutSession buildPayload — auto-progression (#40)', () => {
           { set_number: 2, target_reps: 5, target_weight: 100, actual_reps: 6, actual_weight: 100, completed: true, program_set_id: 12 },
         ],
       },
-    ] as any, 7)
+    ] as any, 7, 3)
     const payload = store().buildPayload()
     expect(payload.program_id).toBe(7)
+    // WHICH cycle day this session was — the server's due-day tracker keys off it.
+    expect(payload.program_day_id).toBe(3)
     expect(payload.exercises[0].sets[0].program_set_id).toBe(11)
     expect(payload.exercises[0].sets[1].program_set_id).toBe(12)
     // logged actuals are what the backend compares against the target
@@ -154,6 +156,7 @@ describe('workoutSession buildPayload — auto-progression (#40)', () => {
     ] as any)
     const payload = store().buildPayload()
     expect(payload.program_id).toBeNull()
+    expect(payload.program_day_id).toBeNull()
     expect(payload.exercises[0].sets[0].program_set_id).toBeNull()
   })
 

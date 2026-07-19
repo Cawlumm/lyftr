@@ -198,8 +198,9 @@ export interface Program {
   notes?: string
   created_at: string
   days: ProgramDay[]
-  // Which entry of `days` is due today — computed server-side as (workouts logged
-  // against this program) mod days.length.
+  // Which entry of `days` is due today — computed server-side from WHICH day the
+  // most recent program workout was logged against: the next workout day after it
+  // in cycle order (rest days are never due; wraps to the first workout day).
   current_day_index: number
 }
 
@@ -225,6 +226,10 @@ export interface ActiveSessionExercise {
 
 export interface ActiveSession {
   program_id?: number
+  // WHICH day of the program's cycle this session was started under — persisted on
+  // the created workout so the server's due-day tracker follows what was actually
+  // logged (not a blind count). Absent for freestyle sessions.
+  program_day_id?: number
   name: string
   started_at: string
   exercises: ActiveSessionExercise[]

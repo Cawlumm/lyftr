@@ -44,7 +44,7 @@ export default function StartWorkout() {
     const exercises = activeSessionExercisesForDay(day)
     const dayCount = program.days?.length ?? 0
     const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, day.id)
     setDayPickFor(null)
     router.push('/workouts/active')
   }
@@ -137,7 +137,9 @@ export default function StartWorkout() {
                   return (
                     <Pressable
                       key={p.id}
-                      onPress={() => pickProgramDay(p, startFromProgram, setDayPickFor)}
+                      // onEmpty: a program with zero workout days has nothing to load —
+                      // open its detail page (add a day there) instead of a dead tap.
+                      onPress={() => pickProgramDay(p, startFromProgram, setDayPickFor, () => router.push(`/programs/${p.id}`))}
                       className="flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:bg-surface-muted"
                     >
                       <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">

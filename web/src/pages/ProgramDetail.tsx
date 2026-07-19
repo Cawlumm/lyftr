@@ -71,7 +71,7 @@ export default function ProgramDetail() {
     if (session) { navigate('/workout/start'); return }
     const exercises = activeSessionExercisesForDay(selectedDay)
     const name = days.length > 1 ? `${program.name} — ${dayLabel(selectedDay, selectedDay.order_index)}` : program.name
-    startSession(name, exercises, program.id)
+    startSession(name, exercises, program.id, selectedDay.id)
     navigate('/workout/active')
   }
 
@@ -355,9 +355,11 @@ export default function ProgramDetail() {
                 }`}
               >
                 {day.is_rest_day ? <Moon className="w-3.5 h-3.5" /> : <Dumbbell className="w-3.5 h-3.5" />}
-                {dayLabel(day, i)}
+                {dayLabel(day, day.order_index)}
+                {/* Textual chip, not a bare dot — a color-only marker isn't
+                    distinguishable by shape/text (a11y) and reads as decoration. */}
                 {isToday && (
-                  <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-brand-400'}`} title="Today" />
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-brand-500/15 text-brand-400'}`}>TODAY</span>
                 )}
               </button>
             )

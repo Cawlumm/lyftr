@@ -27,7 +27,10 @@ import (
 // dropped so the already-inserted workout still commits — never fail a save the
 // user is waiting on because routine bookkeeping hiccuped. Its (possibly partial)
 // writes are rolled back via a SAVEPOINT rather than left committed, so "dropped"
-// stays true even now that staging shares a transaction with the insert.
+// stays true even now that staging shares a transaction with the insert. The one
+// exception: failures of the savepoint machinery itself (creating or rolling back
+// to it) fail the whole transaction — without a working savepoint, "best-effort"
+// can't be delivered safely or observably.
 //
 // This does widen the critical section: with db.DB.SetMaxOpenConns(1), the whole
 // PR-snapshot + insert + suggestion-staging sequence now holds the process's one
@@ -54,9 +57,14 @@ func (s *Stores) CreateWorkoutWithProgression(uid int64, req models.CreateWorkou
 
 		// Run suggestion-staging under its own SAVEPOINT: a mid-loop error must only
 		// undo staging's own (possibly partial) UPDATEs, never the workout insert above.
+		// Failing to CREATE the savepoint is not a staging error — it's savepoint
+		// machinery breaking (the tx itself is almost certainly already dead), so fail
+		// the whole transaction like the ROLLBACK-failure path below does, rather than
+		// silently committing the workout with progression dropped and the caller
+		// unable to tell that apart from "nothing to stage".
 		if _, spErr := tx.Exec("SAVEPOINT suggest_targets"); spErr != nil {
 			log.Printf("[workouts/progress] uid=%d: savepoint: %v", uid, spErr)
-			return nil
+			return spErr
 		}
 		p, pErr := progressRoutineTx(tx, uid, req, priors)
 		if pErr != nil {

@@ -79,10 +79,10 @@ export function ProgramDaysEditor({
           >
             <View className="flex-row items-center gap-2 p-3">
               <View className="flex-shrink-0">
-                <Pressable onPress={() => moveDay(idx, -1)} disabled={idx === 0} hitSlop={4} className={idx === 0 ? 'opacity-20' : 'active:opacity-60'}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Move day ${idx + 1} up`} onPress={() => moveDay(idx, -1)} disabled={idx === 0} hitSlop={4} className={idx === 0 ? 'opacity-20' : 'active:opacity-60'}>
                   <ChevronUp size={16} color={colors.txMuted} />
                 </Pressable>
-                <Pressable onPress={() => moveDay(idx, 1)} disabled={idx === days.length - 1} hitSlop={4} className={idx === days.length - 1 ? 'opacity-20' : 'active:opacity-60'}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`Move day ${idx + 1} down`} onPress={() => moveDay(idx, 1)} disabled={idx === days.length - 1} hitSlop={4} className={idx === days.length - 1 ? 'opacity-20' : 'active:opacity-60'}>
                   <ChevronDown size={16} color={colors.txMuted} />
                 </Pressable>
               </View>
