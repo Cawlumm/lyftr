@@ -2,6 +2,7 @@ package stores
 
 import (
 	"database/sql"
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -446,7 +447,7 @@ func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
 func (s *ProgramStore) loadDayExercises(dayID int64) ([]models.ProgramExercise, error) {
 	rows, err := s.db.Query(
 		`SELECT pe.id, pe.program_id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
-		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
+		        e.name, e.muscle_group, e.secondary_muscles, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id
 		 WHERE pe.program_day_id = ? ORDER BY pe.order_index`,
@@ -458,13 +459,19 @@ func (s *ProgramStore) loadDayExercises(dayID int64) ([]models.ProgramExercise, 
 	var exercises []models.ProgramExercise
 	for rows.Next() {
 		var pe models.ProgramExercise
+		var secondaryRaw string
 		if err := rows.Scan(
 			&pe.ID, &pe.ProgramID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
-			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
+			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &secondaryRaw, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {
 			rows.Close()
 			return nil, err
+		}
+		// secondary_muscles is a JSON array column (same decode as stores/exercise.go).
+		json.Unmarshal([]byte(secondaryRaw), &pe.Exercise.SecondaryMuscles)
+		if pe.Exercise.SecondaryMuscles == nil {
+			pe.Exercise.SecondaryMuscles = []string{}
 		}
 		pe.Exercise.ID = pe.ExerciseID
 		exercises = append(exercises, pe)

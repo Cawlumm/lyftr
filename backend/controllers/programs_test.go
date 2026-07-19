@@ -147,6 +147,41 @@ func TestCreateProgram_withDaysRoundTrips(t *testing.T) {
 	}
 }
 
+func TestGetProgram_includesSecondaryMuscles(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	// An exercise with a JSON secondary_muscles array.
+	res, err := db.DB.Exec(
+		`INSERT INTO exercises (name, muscle_group, secondary_muscles, category) VALUES (?, ?, ?, ?)`,
+		"Bench Press", "chest", `["triceps","shoulders"]`, "strength",
+	)
+	if err != nil {
+		t.Fatalf("insert exercise: %v", err)
+	}
+	exID, _ := res.LastInsertId()
+
+	body := map[string]any{
+		"name": "Push",
+		"days": []map[string]any{
+			{"name": "Day 1", "exercises": []map[string]any{{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 5}}}}},
+		},
+	}
+	data := createProgramReturns(t, uid, body, http.StatusCreated)
+	ex := data["days"].([]any)[0].(map[string]any)["exercises"].([]any)[0].(map[string]any)
+	exercise := ex["exercise"].(map[string]any)
+	sec, ok := exercise["secondary_muscles"].([]any)
+	if !ok {
+		t.Fatalf("secondary_muscles missing/wrong type: %T = %v", exercise["secondary_muscles"], exercise["secondary_muscles"])
+	}
+	got := []string{}
+	for _, s := range sec {
+		got = append(got, s.(string))
+	}
+	if len(got) != 2 || got[0] != "triceps" || got[1] != "shoulders" {
+		t.Fatalf("secondary_muscles = %v, want [triceps shoulders]", got)
+	}
+}
+
 func TestCreateProgram_daysWinOverLegacyExercises(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

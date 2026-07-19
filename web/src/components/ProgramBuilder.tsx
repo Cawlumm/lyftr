@@ -5,6 +5,8 @@ import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
 import WeightInput from './WeightInput'
 import ExercisePicker from './ExercisePicker'
 import RestPicker from './RestPicker'
+import MuscleVolume from './MuscleVolume'
+import { tallyDay, tallyProgram } from '../utils/muscleVolume'
 import * as types from '../types'
 
 export interface BuilderSet { set_number: number; target_reps: number; target_weight: number }
@@ -229,6 +231,9 @@ export default function ProgramBuilder({ heading, submitLabel, initial, onSubmit
           />
         </div>
 
+        {/* Program-wide muscle volume — the "per week" running total across all days. */}
+        <MuscleVolume volume={tallyProgram(days)} size="md" label="Muscle volume (per week)" />
+
         <div className="space-y-4">
           {days.map((day, dayIdx) => (
             <DaySection
@@ -354,6 +359,9 @@ function DaySection(props: DaySectionProps) {
         </div>
       ) : (
         <div className="p-3 space-y-4">
+          {day.exercises.length > 0 && (
+            <MuscleVolume volume={tallyDay(day)} size="sm" />
+          )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-brand-500" />

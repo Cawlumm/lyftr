@@ -11,6 +11,8 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { buildSessionFromDay, trainingDays, sessionNameForDay } from '../utils/buildSessionFromDay'
 import DayPicker from '../components/DayPicker'
+import MuscleVolume from '../components/MuscleVolume'
+import { tallyDay, tallyProgram } from '../utils/muscleVolume'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -337,6 +339,10 @@ export default function ProgramDetail() {
         {program.notes && (
           <p className="text-sm text-tx-muted mt-3 pt-3 border-t border-surface-border">{program.notes}</p>
         )}
+
+        <div className="mt-3 pt-3 border-t border-surface-border">
+          <MuscleVolume volume={tallyProgram(days)} size="md" label="Muscle volume (per week)" />
+        </div>
       </div>
 
       {/* Exercises */}
@@ -349,14 +355,17 @@ export default function ProgramDetail() {
         {days.map((day, di) => (
           <div key={day.id ?? di} className="space-y-2">
             {isMultiDay && (
-              <div className="flex items-center gap-2 px-1 pt-1">
-                {day.is_rest_day
-                  ? <Coffee className="w-4 h-4 text-tx-muted" />
-                  : <Dumbbell className="w-4 h-4 text-brand-500" />}
-                <h3 className="text-sm font-bold text-tx-primary">{day.name}</h3>
-                <span className="text-xs text-tx-muted">
-                  {day.is_rest_day ? 'Rest day' : `${day.exercises?.length || 0} exercises`}
-                </span>
+              <div className="px-1 pt-1 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  {day.is_rest_day
+                    ? <Coffee className="w-4 h-4 text-tx-muted" />
+                    : <Dumbbell className="w-4 h-4 text-brand-500" />}
+                  <h3 className="text-sm font-bold text-tx-primary">{day.name}</h3>
+                  <span className="text-xs text-tx-muted">
+                    {day.is_rest_day ? 'Rest day' : `${day.exercises?.length || 0} exercises`}
+                  </span>
+                </div>
+                {!day.is_rest_day && <MuscleVolume volume={tallyDay(day)} size="sm" />}
               </div>
             )}
             {day.is_rest_day ? (
