@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
+import { programExerciseCount } from '@lyftr/shared'
 import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
@@ -69,7 +70,7 @@ export default function Programs() {
       label: 'Avg Exercises',
       value:
         programs.length > 0
-          ? String(Math.round(programs.reduce((s, p) => s + (p.exercises?.length || 0), 0) / programs.length))
+          ? String(Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length))
           : '0',
       unit: 'per program',
     },

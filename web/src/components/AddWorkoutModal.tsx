@@ -50,9 +50,9 @@ export default function AddWorkoutModal({ isOpen, onClose, onSuccess }: Props) {
     exercises: [],
   })
 
-  const loadFromProgram = (program: types.Program) => {
+  const loadFromProgram = (_program: types.Program, day: types.ProgramDay) => {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }
-    const newExercises = (program.exercises || []).map(ex => {
+    const newExercises = (day.exercises || []).map(ex => {
       newMap[ex.exercise_id] = ex.exercise
       return {
         exercise_id: ex.exercise_id,

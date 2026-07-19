@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { format } from 'date-fns'
-import { BookOpen, ChevronRight, Dumbbell, Layers, MoreVertical, Play } from 'lucide-react-native'
-import type { ActiveSessionExercise, Program } from '@lyftr/shared'
+import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play } from 'lucide-react-native'
+import type { Program, ProgramDay } from '@lyftr/shared'
+import { activeSessionExercisesForDay, allExercises, dayLabel, programExerciseCount, programSetCount, todaysDay } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client, useWorkoutSession } from '../../lib/lyftr'
 import { ExerciseImage } from '../workouts/ExerciseImage'
+import { DayPickerSheet, pickProgramDay } from './DayPickerSheet'
 
 interface Props {
   program: Program
@@ -25,38 +27,41 @@ const activeHref = '/workouts/active' as unknown as Href
 // (the primary Start action), a kebab (⋮) ActionSheet (Edit / Delete — same as
 // WorkoutCard), and a chevron. Delete routes through the shared ConfirmSheet.
 export function ProgramCard({ program, onPress, onDeleted }: Props) {
-  const { colors } = useTheme()
+  const { colors, accent } = useTheme()
   const { session, startSession } = useWorkoutSession()
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
 
-  const exCount = program.exercises?.length || 0
-  const totalSets = program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0
+  const exCount = programExerciseCount(program)
+  const totalSets = programSetCount(program)
+  const dayCount = program.days?.length ?? 0
+  const today = todaysDay(program)
+
+  const beginSession = (day: ProgramDay) => {
+    const exercises = activeSessionExercisesForDay(day)
+    const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
+    startSession(name, exercises, program.id)
+    setDayPickFor(null)
+    router.navigate(activeHref)
+  }
 
   // 1:1 with web: an existing session takes priority (resume/discard on the start
-  // screen); otherwise seed a session from the program's targets and open it.
+  // screen); otherwise seed a session from today's due day (or ask which day, for a
+  // multi-workout-day program) and open it.
   const handleStart = () => {
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
     if (session) { router.navigate(startHref); return }
-    const exercises: ActiveSessionExercise[] = (program.exercises || []).map((ex) => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map((s) => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id,
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
-    router.navigate(activeHref)
+    if (today && !today.is_rest_day && (today.exercises ?? []).length > 0) {
+      beginSession(today)
+      return
+    }
+    // Today's slot is a rest day (or unknown) — let them pick a day explicitly
+    // instead of silently starting nothing. A program with zero workout days has
+    // nothing to pick either, so fall back to the program detail page (web parity).
+    pickProgramDay(program, (_p, day) => beginSession(day), setDayPickFor, () => router.push(`/programs/${program.id}`))
   }
 
   const handleDelete = async () => {
@@ -74,7 +79,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
       <Card className="flex-row items-center gap-3 rounded-2xl">
-        <ExerciseImage url={program.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
+        <ExerciseImage url={allExercises(program)[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
         <View className="flex-1">
           <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
           <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
@@ -82,7 +87,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           </AppText>
           {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
               Dumbbell = exercises, Layers = sets. */}
-          <View className="mt-0.5 flex-row items-center gap-x-2">
+          <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
             <View className="flex-row items-center gap-1">
               <Dumbbell size={12} color={colors.txMuted} />
               <AppText variant="caption" color="muted" numberOfLines={1}>{exCount} exercises</AppText>
@@ -92,6 +97,21 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
               <Layers size={12} color={colors.txMuted} />
               <AppText variant="caption" color="muted" numberOfLines={1}>{totalSets} sets</AppText>
             </View>
+            {dayCount > 1 && today ? (
+              <>
+                <AppText variant="caption" color="muted">·</AppText>
+                {today.is_rest_day ? (
+                  <View className="flex-row items-center gap-1">
+                    <Moon size={12} color={colors.txMuted} />
+                    <AppText variant="caption" color="muted" numberOfLines={1}>Rest today</AppText>
+                  </View>
+                ) : (
+                  <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
+                    Today: {dayLabel(today, today.order_index)}
+                  </AppText>
+                )}
+              </>
+            ) : null}
           </View>
         </View>
         {/* Start is the card's primary action → a filled Play button on the row
@@ -121,7 +141,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         onClose={() => setMenuOpen(false)}
         header={
           <View className="flex-row items-center gap-3">
-            <ExerciseImage url={program.exercises?.[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
+            <ExerciseImage url={allExercises(program)[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
@@ -143,6 +163,8 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         onConfirm={handleDelete}
         onCancel={() => setConfirming(false)}
       />
+
+      <DayPickerSheet program={dayPickFor} onSelect={(_p, day) => beginSession(day)} onClose={() => setDayPickFor(null)} />
     </Pressable>
   )
 }

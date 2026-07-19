@@ -188,10 +188,13 @@ test.describe('Workouts', () => {
     // Routine with one working set targeting 5 × 100.
     const created = await request.post(`${API}/programs`, {
       headers,
-      data: { name: PROG_PROGRESSION_NAME, notes: '', exercises: [{ exercise_id: exId, notes: '', rest_seconds: 90, sets: [{ set_number: 1, target_reps: 5, target_weight: 100 }] }] },
+      data: {
+        name: PROG_PROGRESSION_NAME, notes: '',
+        days: [{ order_index: 0, is_rest_day: false, name: '', exercises: [{ exercise_id: exId, notes: '', rest_seconds: 90, sets: [{ set_number: 1, target_reps: 5, target_weight: 100 }] }] }],
+      },
     })
     const progId = (await created.json()).data.id
-    const psid = (await (await request.get(`${API}/programs/${progId}`, { headers })).json()).data.exercises[0].sets[0].id
+    const psid = (await (await request.get(`${API}/programs/${progId}`, { headers })).json()).data.days[0].exercises[0].sets[0].id
 
     // Seed a list-mode session where the logged set beat the target (105 > 100).
     const session = {
@@ -220,8 +223,8 @@ test.describe('Workouts', () => {
 
     // Staged, NOT applied — the routine target is still 100 until approved.
     const staged = await (await request.get(`${API}/programs/${progId}`, { headers })).json()
-    expect(staged.data.exercises[0].sets[0].target_weight).toBe(100)
-    expect(staged.data.exercises[0].sets[0].suggested_weight).toBe(105)
+    expect(staged.data.days[0].exercises[0].sets[0].target_weight).toBe(100)
+    expect(staged.data.days[0].exercises[0].sets[0].suggested_weight).toBe(105)
 
     // Approve on the routine → target becomes 105, suggestion cleared.
     await page.goto(`/programs/${progId}`)
@@ -230,8 +233,8 @@ test.describe('Workouts', () => {
     await expect(page.getByText('New targets from your last workout')).toHaveCount(0, { timeout: 5000 })
 
     const after = await (await request.get(`${API}/programs/${progId}`, { headers })).json()
-    expect(after.data.exercises[0].sets[0].target_weight).toBe(105)
-    expect(after.data.exercises[0].sets[0].suggested_weight ?? null).toBeNull()
+    expect(after.data.days[0].exercises[0].sets[0].target_weight).toBe(105)
+    expect(after.data.days[0].exercises[0].sets[0].suggested_weight ?? null).toBeNull()
 
     // Cleanup: the workout we just logged + the routine.
     const wl = await (await request.get(`${API}/workouts?limit=20`, { headers })).json()

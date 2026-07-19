@@ -109,10 +109,11 @@ func DemoData(db *sql.DB) {
 		return
 	}
 
-	if err := seedProgram(db, userID); err != nil {
+	progID, err := seedProgram(db, userID)
+	if err != nil {
 		log.Printf("seed: program: %v", err)
 	}
-	if err := seedWorkouts(db, userID); err != nil {
+	if err := seedWorkouts(db, userID, progID); err != nil {
 		log.Printf("seed: workouts: %v", err)
 	}
 	seedWeightLogs(db, userID)
@@ -131,23 +132,50 @@ func lookupExercise(db *sql.DB, patterns []string) (int64, bool) {
 	return 0, false
 }
 
-func seedProgram(db *sql.DB, userID int64) error {
+// seedProgram builds a 7-day PPL cycle (order matches weekSchedule Mon→Sun) so the
+// demo account showcases multi-day routines with a rest day baked in, not just a
+// flat exercise list. Targets seed at peakWeight (week-8 numbers) — this is the
+// routine as it stands "today", separate from the logged history in seedWorkouts,
+// which progresses from baseWeight up to it over the 8 seeded weeks.
+func seedProgram(db *sql.DB, userID int64) (int64, error) {
 	res, err := db.Exec(`INSERT INTO programs (user_id, name, notes) VALUES (?, ?, ?)`,
 		userID, "PPL — Push Pull Legs", "Classic 6-day PPL split for strength and hypertrophy.")
 	if err != nil {
-		return err
+		return 0, err
 	}
 	progID, _ := res.LastInsertId()
 
-	for dayIdx, template := range workoutTemplates {
-		for exOrder, exDef := range template {
+	// 0=PushA 1=PullA 2=LegsA 3=PushB 4=PullB 5=LegsB, -1=rest — Mon..Sun order.
+	cycle := []struct {
+		tmplIdx int
+		name    string
+	}{
+		{0, "Push A"}, {1, "Pull A"}, {2, "Legs A"},
+		{3, "Push B"}, {4, "Pull B"}, {5, "Legs B"},
+		{-1, "Rest"},
+	}
+
+	for dayIdx, day := range cycle {
+		isRest := day.tmplIdx < 0
+		dayRes, err := db.Exec(
+			`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,
+			progID, dayIdx, isRest, day.name,
+		)
+		if err != nil {
+			continue
+		}
+		dayID, _ := dayRes.LastInsertId()
+		if isRest {
+			continue
+		}
+		for exOrder, exDef := range workoutTemplates[day.tmplIdx] {
 			exID, ok := lookupExercise(db, exDef.patterns)
 			if !ok {
 				continue
 			}
 			pexRes, err := db.Exec(
-				`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, ?)`,
-				progID, exID, exOrder,
+				`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, ?)`,
+				progID, dayID, exID, exOrder,
 			)
 			if err != nil {
 				continue
@@ -159,13 +187,12 @@ func seedProgram(db *sql.DB, userID int64) error {
 					pexID, s, exDef.reps, exDef.peakWeight,
 				)
 			}
-			_ = dayIdx
 		}
 	}
-	return nil
+	return progID, nil
 }
 
-func seedWorkouts(db *sql.DB, userID int64) error {
+func seedWorkouts(db *sql.DB, userID, progID int64) error {
 	rng := rand.New(rand.NewSource(42))
 	now := time.Now()
 	// 8 weeks of workouts ending 3 days ago
@@ -198,12 +225,13 @@ func seedWorkouts(db *sql.DB, userID int64) error {
 			17+rng.Intn(3), rng.Intn(60), 0, 0, time.UTC)
 
 		res, err := db.Exec(
-			`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
+			`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id) VALUES (?, ?, ?, ?, ?, ?)`,
 			userID,
 			workoutNames[tmplIdx],
 			"",
 			workoutDurations[tmplIdx]+rng.Intn(600)-300,
 			startedAt.Format("2006-01-02T15:04:05Z"),
+			progID,
 		)
 		if err != nil {
 			return fmt.Errorf("workout insert: %w", err)

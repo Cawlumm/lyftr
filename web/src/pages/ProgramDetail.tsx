@@ -4,13 +4,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Pause, TimerOff,
-  Award, TrendingUp, Check, X, ChevronDown, ChevronUp,
+  Award, TrendingUp, Check, X, ChevronDown, ChevronUp, Moon, CalendarDays,
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
+import { allExercises, activeSessionExercisesForDay, dayLabel } from '../utils/programUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -30,6 +31,7 @@ export default function ProgramDetail() {
   const [deleting, setDeleting] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
   // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
   // then refresh from the returned program.
@@ -51,6 +53,7 @@ export default function ProgramDetail() {
       try {
         const data = await programAPI.get(Number(id))
         setProgram(data)
+        setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
         setError(err.message || 'Failed to load program')
       } finally {
@@ -60,25 +63,15 @@ export default function ProgramDetail() {
     load()
   }, [id])
 
+  const days = program?.days ?? []
+  const selectedDay = days[selectedDayIdx]
+
   const handleStart = () => {
-    if (!program) return
+    if (!program || !selectedDay || selectedDay.is_rest_day) return
     if (session) { navigate('/workout/start'); return }
-    const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map(s => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id, // link for routine target auto-progression (#40)
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
+    const exercises = activeSessionExercisesForDay(selectedDay)
+    const name = days.length > 1 ? `${program.name} — ${dayLabel(selectedDay, selectedDay.order_index)}` : program.name
+    startSession(name, exercises, program.id)
     navigate('/workout/active')
   }
 
@@ -116,14 +109,15 @@ export default function ProgramDetail() {
     )
   }
 
-  const exs = program.exercises ?? []
-  const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const allExs = allExercises(program)
+  const totalSets = allExs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
 
-  // Pending auto-progression suggestions (#40), flattened for the review banner. A
+  // Pending auto-progression suggestions (#40), flattened across every day so a
+  // suggestion is never hidden behind whichever day tab happens to be selected. A
   // suggestion exists when suggested_reps is set. Show the FULL reps×weight on both
   // sides when both changed (a heavier set can also drop the rep target — the user
   // must see that before approving), else the single changed dimension.
-  const suggestions = exs.flatMap(ex =>
+  const suggestions = allExs.flatMap(ex =>
     (ex.sets ?? [])
       .filter(s => s.id != null && s.suggested_reps != null)
       .map(s => {
@@ -165,7 +159,9 @@ export default function ProgramDetail() {
         <div className="flex items-center gap-1">
           <button
             onClick={handleStart}
-            className="flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-colors"
+            disabled={!selectedDay || selectedDay.is_rest_day}
+            title={selectedDay?.is_rest_day ? 'Rest day — nothing to start' : undefined}
+            className="flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:hover:bg-brand-500 text-white text-xs font-semibold rounded-xl transition-colors"
           >
             <Play className="w-3.5 h-3.5" /> Start Workout
           </button>
@@ -278,9 +274,9 @@ export default function ProgramDetail() {
       {/* Header */}
       <div className="card p-4">
         <div className="flex items-start gap-3">
-          {exs[0]?.exercise?.image_url ? (
+          {allExs[0]?.exercise?.image_url ? (
             <img
-              src={exs[0].exercise.image_url}
+              src={allExs[0].exercise.image_url}
               alt=""
               className="w-14 h-14 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -298,13 +294,20 @@ export default function ProgramDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-surface-border">
+        <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-surface-border">
           <div className="text-center">
+            <div className="flex items-center justify-center gap-1 mb-0.5">
+              <CalendarDays className="w-3.5 h-3.5 text-tx-muted" />
+              <p className="text-xs text-tx-muted">Cycle</p>
+            </div>
+            <p className="text-lg font-bold text-tx-primary tabular-nums">{days.length || '—'}</p>
+          </div>
+          <div className="text-center border-l border-surface-border">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <Dumbbell className="w-3.5 h-3.5 text-tx-muted" />
               <p className="text-xs text-tx-muted">Exercises</p>
             </div>
-            <p className="text-lg font-bold text-tx-primary tabular-nums">{exs.length}</p>
+            <p className="text-lg font-bold text-tx-primary tabular-nums">{allExs.length}</p>
           </div>
           <div className="text-center border-l border-surface-border">
             <div className="flex items-center justify-center gap-1 mb-0.5">
@@ -320,77 +323,134 @@ export default function ProgramDetail() {
         )}
       </div>
 
-      {/* Exercises */}
-      {!restOn && (
-        <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
-          <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+      {/* Day strip — the program's repeating cycle, in order. Selecting a day shows
+          its exercises below; it does NOT change which day is "due" (that's server-
+          computed from logged workouts). */}
+      {days.length === 0 ? (
+        <div className="card p-6 text-center">
+          <CalendarDays className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-50" />
+          <p className="text-sm text-tx-muted">No days yet</p>
+          <button
+            onClick={() => navigate(`/programs/${program.id}/edit`)}
+            className="mt-2 text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors"
+          >
+            Add a day →
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+          {days.map((day, i) => {
+            const isSelected = i === selectedDayIdx
+            const isToday = i === program.current_day_index
+            return (
+              <button
+                key={day.id ?? i}
+                onClick={() => setSelectedDayIdx(i)}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border transition-colors whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-brand-500 border-brand-500 text-white'
+                    : day.is_rest_day
+                      ? 'bg-surface-muted/40 border-surface-border text-tx-muted'
+                      : 'bg-surface-raised border-surface-border text-tx-secondary hover:bg-surface-muted'
+                }`}
+              >
+                {day.is_rest_day ? <Moon className="w-3.5 h-3.5" /> : <Dumbbell className="w-3.5 h-3.5" />}
+                {dayLabel(day, i)}
+                {isToday && (
+                  <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-brand-400'}`} title="Today" />
+                )}
+              </button>
+            )
+          })}
         </div>
       )}
-      <div className="space-y-2">
-        {exs.map((ex) => {
-          const sets = ex.sets ?? []
-          const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
-          const maxTarget = displayWeight(maxTargetLbs, wUnit)
 
-          return (
-            <button
-              key={ex.id}
-              onClick={() => navigate(`/exercises/${ex.exercise_id}`)}
-              className="card w-full overflow-hidden text-left active:scale-[0.99] transition-transform"
-            >
-              <div className="flex items-center gap-3 p-4">
-                {ex.exercise?.image_url ? (
-                  <img
-                    src={ex.exercise.image_url}
-                    alt=""
-                    className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                ) : (
-                  <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-                    <Dumbbell className="w-5 h-5 text-brand-500" strokeWidth={2} />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {ex.exercise?.muscle_group && (
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
-                        {ex.exercise.muscle_group}
-                      </span>
-                    )}
-                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
+      {/* Selected day's exercises */}
+      {selectedDay?.is_rest_day ? (
+        <div className="card p-8 text-center">
+          <Moon className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-60" />
+          <p className="text-sm font-medium text-tx-primary">Rest Day</p>
+          <p className="text-xs text-tx-muted mt-1">No exercises scheduled — recover and come back stronger.</p>
+        </div>
+      ) : selectedDay ? (
+        <>
+          {!restOn && (
+            <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
+              <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+            </div>
+          )}
+          <div className="space-y-2">
+            {(selectedDay.exercises ?? []).length === 0 ? (
+              <div className="card p-6 text-center">
+                <Dumbbell className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-tx-muted">No exercises on this day yet</p>
               </div>
+            ) : (selectedDay.exercises ?? []).map((ex) => {
+              const sets = ex.sets ?? []
+              const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
+              const maxTarget = displayWeight(maxTargetLbs, wUnit)
 
-              {sets.length > 0 && (
-                <div className="flex items-center gap-2 px-4 pb-4 border-t border-surface-border/50 pt-3">
-                  <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
-                    {sets.map((set, i) => {
-                      const isBest = set.target_weight === maxTargetLbs && maxTargetLbs > 0
-                      const hasSuggestion = set.suggested_reps != null
-                      return (
-                        <div key={i} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
-                          hasSuggestion ? 'bg-warning-500/10 text-tx-secondary ring-1 ring-warning-500/40'
-                            : isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
-                        }`}>
-                          {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
-                        </div>
-                      )
-                    })}
+              return (
+                <button
+                  key={ex.id}
+                  onClick={() => navigate(`/exercises/${ex.exercise_id}`)}
+                  className="card w-full overflow-hidden text-left active:scale-[0.99] transition-transform"
+                >
+                  <div className="flex items-center gap-3 p-4">
+                    {ex.exercise?.image_url ? (
+                      <img
+                        src={ex.exercise.image_url}
+                        alt=""
+                        className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                        <Dumbbell className="w-5 h-5 text-brand-500" strokeWidth={2} />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {ex.exercise?.muscle_group && (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
+                            {ex.exercise.muscle_group}
+                          </span>
+                        )}
+                        <span className="text-xs text-tx-muted truncate">{sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
                   </div>
-                  {restOn && (ex.rest_seconds === 0
-                    ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
-                    : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
+
+                  {sets.length > 0 && (
+                    <div className="flex items-center gap-2 px-4 pb-4 border-t border-surface-border/50 pt-3">
+                      <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                        {sets.map((set, i) => {
+                          const isBest = set.target_weight === maxTargetLbs && maxTargetLbs > 0
+                          const hasSuggestion = set.suggested_reps != null
+                          return (
+                            <div key={i} className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
+                              hasSuggestion ? 'bg-warning-500/10 text-tx-secondary ring-1 ring-warning-500/40'
+                                : isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
+                            }`}>
+                              {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
+                            </div>
+                          )
+                        })}
+                      </div>
+                      {restOn && (ex.rest_seconds === 0
+                        ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
+                        : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
-            </button>
-          )
-        })}
-      </div>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

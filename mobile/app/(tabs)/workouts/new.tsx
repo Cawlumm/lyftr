@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, weightShort, type Exercise, type Program } from '@lyftr/shared'
+import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -79,17 +79,15 @@ export default function AddWorkout() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
-  const loadFromProgram = (program: Program) => {
+  const loadFromProgram = (_program: Program, day: ProgramDay) => {
     const newMap: Record<number, Exercise> = { ...pickerExercises }
-    const newExercises = (program.exercises || []).map((ex) => {
+    const newExercises = (day.exercises || []).map((ex) => {
       newMap[ex.exercise_id] = ex.exercise
       return {
         exercise_id: ex.exercise_id,
         notes: ex.notes || '',
         rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
-        // Web parity (latent web quirk, do not fix): target_weight is server-lbs
-        // copied straight into the display-unit form — identity for lbs users.
-        sets: (ex.sets || []).map((s) => ({ set_number: s.set_number, reps: s.target_reps, weight: s.target_weight })),
+        sets: (ex.sets || []).map((s) => ({ set_number: s.set_number, reps: s.target_reps, weight: lbsToDisplay(s.target_weight, settings.weight_unit) })),
       }
     })
     setPickerExercises(newMap)

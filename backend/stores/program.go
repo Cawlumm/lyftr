@@ -7,7 +7,8 @@ import (
 	"github.com/Cawlumm/lyftr-backend/models"
 )
 
-// ProgramStore owns all SQL for programs, program_exercises and program_sets.
+// ProgramStore owns all SQL for programs, program_days, program_exercises and
+// program_sets.
 type ProgramStore struct{ db *sql.DB }
 
 func NewProgramStore(db *sql.DB) *ProgramStore { return &ProgramStore{db: db} }
@@ -57,16 +58,14 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 	rows.Close() // close the parent cursor BEFORE loading children (#36)
 
 	for i := range programs {
-		ex, err := s.loadExercises(programs[i].ID)
-		if err != nil {
+		if err := s.hydrate(&programs[i]); err != nil {
 			return nil, err
 		}
-		programs[i].Exercises = ex
 	}
 	return programs, nil
 }
 
-// Get returns a user-owned program with its exercises/sets, or sql.ErrNoRows.
+// Get returns a user-owned program with its days/exercises/sets, or sql.ErrNoRows.
 func (s *ProgramStore) Get(uid, id int64) (models.Program, error) {
 	var p models.Program
 	if err := scanProgram(
@@ -74,11 +73,9 @@ func (s *ProgramStore) Get(uid, id int64) (models.Program, error) {
 	); err != nil {
 		return models.Program{}, err
 	}
-	ex, err := s.loadExercises(id)
-	if err != nil {
+	if err := s.hydrate(&p); err != nil {
 		return models.Program{}, err
 	}
-	p.Exercises = ex
 	return p, nil
 }
 
@@ -87,12 +84,66 @@ func (s *ProgramStore) get(id int64) (models.Program, error) {
 	if err := scanProgram(s.db.QueryRow(`SELECT `+programCols+` FROM programs WHERE id = ?`, id), &p); err != nil {
 		return models.Program{}, err
 	}
-	ex, err := s.loadExercises(id)
-	if err != nil {
+	if err := s.hydrate(&p); err != nil {
 		return models.Program{}, err
 	}
-	p.Exercises = ex
 	return p, nil
+}
+
+// hydrate loads a program's Days (with their Exercises/Sets) and computes
+// CurrentDayIndex in place.
+func (s *ProgramStore) hydrate(p *models.Program) error {
+	days, err := s.loadDays(p.ID)
+	if err != nil {
+		return err
+	}
+	p.Days = days
+	idx, err := s.currentDayIndex(p.ID, days)
+	if err != nil {
+		return err
+	}
+	p.CurrentDayIndex = idx
+	return nil
+}
+
+// currentDayIndex is which Days[] entry is due today. A rest day never produces a
+// loggable workout, so it can't be counted the same way a workout day is: naively
+// taking COUNT(workouts) MOD cycleLen treats every slot (workout or rest) as equally
+// "consumed" by a log, which desyncs the moment a rest day sits between two workout
+// days (nothing ever advances the count while a rest slot is "current", and a slot
+// right after a workout gets misread once the count catches up).
+//
+// Instead, map the count of logged workouts onto the WORKOUT-only subsequence
+// (rest days are skipped when building it — they're consumed for free by whichever
+// workout is logged around them): the Nth logged workout (1-indexed, cycling through
+// that subsequence) is read as "we've just finished the day at
+// workoutOrderIndices[(N-1) % len(workoutOrderIndices)]", so the due day is the very
+// next slot after it, wrapped into the full cycle. 0 workouts logged, or a program
+// with no workout days at all (every day is rest, or no days yet), means slot 0 is
+// due (nothing done yet / nothing to be "due").
+func (s *ProgramStore) currentDayIndex(programID int64, days []models.ProgramDay) (int, error) {
+	cycleLen := len(days)
+	if cycleLen == 0 {
+		return 0, nil
+	}
+	workoutOrderIndices := make([]int, 0, cycleLen)
+	for _, d := range days {
+		if !d.IsRestDay {
+			workoutOrderIndices = append(workoutOrderIndices, d.OrderIndex)
+		}
+	}
+	if len(workoutOrderIndices) == 0 {
+		return 0, nil
+	}
+	var count int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM workouts WHERE program_id = ?`, programID).Scan(&count); err != nil {
+		return 0, err
+	}
+	if count == 0 {
+		return 0, nil
+	}
+	lastDone := workoutOrderIndices[(count-1)%len(workoutOrderIndices)]
+	return (lastDone + 1) % cycleLen, nil
 }
 
 func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (models.Program, error) {
@@ -105,7 +156,7 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 		if err != nil {
 			return 0, err
 		}
-		if err := insertProgramExercises(tx, pid, req.Exercises); err != nil {
+		if err := insertProgramDays(tx, pid, req.Days); err != nil {
 			return 0, err
 		}
 		return pid, nil
@@ -116,8 +167,8 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 	return s.get(pid)
 }
 
-// Update replaces a user-owned program and its children in one tx. sql.ErrNoRows
-// if the program isn't theirs (nothing is mutated).
+// Update replaces a user-owned program and its days/exercises/sets in one tx.
+// sql.ErrNoRows if the program isn't theirs (nothing is mutated).
 func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (models.Program, error) {
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
@@ -127,10 +178,13 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 		if _, err := tx.Exec(`UPDATE programs SET name = ?, notes = ? WHERE id = ?`, req.Name, req.Notes, id); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(`DELETE FROM program_exercises WHERE program_id = ?`, id); err != nil {
+		// Deleting the Days cascades to program_exercises (program_day_id FK) which
+		// cascades to program_sets (program_exercise_id FK) — same layered cascade the
+		// flat model relied on, just one level deeper.
+		if _, err := tx.Exec(`DELETE FROM program_days WHERE program_id = ?`, id); err != nil {
 			return err
 		}
-		return insertProgramExercises(tx, id, req.Exercises)
+		return insertProgramDays(tx, id, req.Days)
 	}); err != nil {
 		return models.Program{}, err
 	}
@@ -173,7 +227,9 @@ func (s *ProgramStore) SuggestTargets(uid, programID int64, sets []ProgressInput
 // caller can serialize it with an earlier PR-snapshot read and workout insert (see
 // WorkoutStore.CreateWithProgression) — closes a TOCTOU race where two concurrent
 // workout submissions could both compute suggested_is_pr against the same stale prior
-// best (issue #40 progression review).
+// best (issue #40 progression review). program_exercises keeps a denormalized
+// program_id column (alongside program_day_id) specifically so this join — and the
+// ownership guard below — never had to change when routines grew a day layer.
 func suggestTargetsTx(tx *sql.Tx, uid, programID int64, sets []ProgressInput) (string, int, bool, error) {
 	var name string
 	count, anyPR := 0, false
@@ -298,11 +354,40 @@ func (s *ProgramStore) Delete(uid, id int64) (int64, error) {
 	return n, nil
 }
 
-func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProgramExerciseReq) error {
+// insertProgramDays writes a program's Days (in request order — OrderIndex on the
+// request is trusted as-is, matching the pre-existing convention for exercise/set
+// ordering) plus each Day's exercises/sets within tx.
+func insertProgramDays(tx *sql.Tx, programID int64, days []models.CreateProgramDayReq) error {
+	for i, day := range days {
+		// Request array position is authoritative for ordering (same convention as
+		// insertProgramExercises' `i`, not a client-echoed value) — a client resending
+		// a stale/duplicate order_index can't scramble the cycle order.
+		dayRes, err := tx.Exec(
+			`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,
+			programID, i, day.IsRestDay, day.Name,
+		)
+		if err != nil {
+			return err
+		}
+		dayID, err := dayRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if day.IsRestDay {
+			continue // rest days never carry exercises, even if the client sent some
+		}
+		if err := insertProgramExercises(tx, programID, dayID, day.Exercises); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertProgramExercises(tx *sql.Tx, programID, dayID int64, exercises []models.CreateProgramExerciseReq) error {
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?)`,
-			pid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
+			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?, ?)`,
+			programID, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
 		)
 		if err != nil {
 			return err
@@ -327,25 +412,66 @@ func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProg
 	return nil
 }
 
-// loadExercises scans + closes the parent cursor BEFORE loading each exercise's
-// sets (#36), and surfaces scan errors.
-func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise, error) {
+// loadDays scans + closes the parent cursor BEFORE loading each day's exercises
+// (#36 — same close-then-load discipline as loadExercises/loadSets below).
+func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
 	rows, err := s.db.Query(
-		`SELECT pe.id, pe.program_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
-		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
-		 FROM program_exercises pe
-		 JOIN exercises e ON e.id = pe.exercise_id
-		 WHERE pe.program_id = ? ORDER BY pe.order_index`,
+		`SELECT id, program_id, order_index, is_rest_day, name FROM program_days WHERE program_id = ? ORDER BY order_index`,
 		programID,
 	)
 	if err != nil {
 		return nil, err
 	}
-	var exercises []models.ProgramExercise
+	days := []models.ProgramDay{}
+	for rows.Next() {
+		var d models.ProgramDay
+		var isRest int
+		if err := rows.Scan(&d.ID, &d.ProgramID, &d.OrderIndex, &isRest, &d.Name); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		d.IsRestDay = isRest != 0
+		days = append(days, d)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close()
+
+	for i := range days {
+		if days[i].IsRestDay {
+			days[i].Exercises = []models.ProgramExercise{}
+			continue
+		}
+		ex, err := s.loadExercises(days[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		days[i].Exercises = ex
+	}
+	return days, nil
+}
+
+// loadExercises scans + closes the parent cursor BEFORE loading each exercise's
+// sets (#36), and surfaces scan errors.
+func (s *ProgramStore) loadExercises(dayID int64) ([]models.ProgramExercise, error) {
+	rows, err := s.db.Query(
+		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
+		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
+		 FROM program_exercises pe
+		 JOIN exercises e ON e.id = pe.exercise_id
+		 WHERE pe.program_day_id = ? ORDER BY pe.order_index`,
+		dayID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	exercises := []models.ProgramExercise{}
 	for rows.Next() {
 		var pe models.ProgramExercise
 		if err := rows.Scan(
-			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
+			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {
@@ -382,7 +508,7 @@ func (s *ProgramStore) loadSets(programExerciseID int64) ([]models.ProgramSet, e
 		return nil, err
 	}
 	defer rows.Close()
-	var sets []models.ProgramSet
+	sets := []models.ProgramSet{}
 	for rows.Next() {
 		var st models.ProgramSet
 		var sw sql.NullFloat64

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical } from 'lucide-react'
+import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
@@ -10,7 +10,9 @@ import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import * as types from '../types'
 
-import { muscleColor } from '../utils/exerciseUtils'
+import {
+  todaysDay, dayLabel, programExerciseCount, programSetCount, activeSessionExercisesForDay, allExercises,
+} from '../utils/programUtils'
 
 function ProgramCard({
   program,
@@ -37,25 +39,22 @@ function ProgramCard({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const today = todaysDay(program)
+  const canQuickStart = !!today && !today.is_rest_day && (today.exercises ?? []).length > 0
+
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (session) { navigate('/workout/start'); return }
-    const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map(s => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id, // link for routine target auto-progression (#40)
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
+    if (!canQuickStart || !today) {
+      // Today's slot is a rest day (or the program has no days yet) — nothing to
+      // quick-start; send them to the program to pick a day manually.
+      navigate(`/programs/${program.id}`)
+      return
+    }
+    const exercises = activeSessionExercisesForDay(today)
+    const dayCount = program.days?.length ?? 0
+    const name = dayCount > 1 ? `${program.name} — ${dayLabel(today, today.order_index)}` : program.name
+    startSession(name, exercises, program.id)
     navigate('/workout/active')
   }
   const [confirming, setConfirming] = useState(false)
@@ -106,7 +105,10 @@ function ProgramCard({
     )
   }
 
-  const totalSets = program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0
+  const totalSets = programSetCount(program)
+  const totalExercises = programExerciseCount(program)
+  const thumbnail = allExercises(program)[0]?.exercise?.image_url
+  const dayCount = program.days?.length ?? 0
 
   return (
     <div className="card group active:scale-[0.99] transition-transform">
@@ -115,9 +117,9 @@ function ProgramCard({
           className="flex-1 flex items-center gap-3 min-w-0 text-left"
           onClick={() => navigate(`/programs/${program.id}`)}
         >
-          {program.exercises?.[0]?.exercise?.image_url ? (
+          {thumbnail ? (
             <img
-              src={program.exercises[0].exercise.image_url}
+              src={thumbnail}
               alt=""
               className="w-11 h-11 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -131,9 +133,19 @@ function ProgramCard({
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
             <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
-              <span className="text-xs text-tx-muted whitespace-nowrap">{program.exercises?.length || 0} exercises</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{totalExercises} exercises</span>
               <span className="text-tx-muted/40 text-xs">·</span>
               <span className="text-xs text-tx-muted whitespace-nowrap">{totalSets} sets</span>
+              {dayCount > 1 && today && (
+                <>
+                  <span className="text-tx-muted/40 text-xs">·</span>
+                  {today.is_rest_day ? (
+                    <span className="text-xs text-tx-muted whitespace-nowrap flex items-center gap-1"><Moon className="w-3 h-3" />Rest today</span>
+                  ) : (
+                    <span className="text-xs text-brand-400 font-medium whitespace-nowrap">Today: {dayLabel(today, today.order_index)}</span>
+                  )}
+                </>
+              )}
             </div>
           </div>
           <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -170,7 +182,7 @@ function ProgramCard({
                     <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
                       <Play className="w-4 h-4 text-brand-500" />
                     </div>
-                    Start Workout
+                    {canQuickStart ? 'Start Workout' : 'View Program'}
                   </button>
                   <div className="mx-4 border-t border-surface-border/30" />
                   <button
@@ -209,7 +221,7 @@ function ProgramCard({
           {/* Desktop hover icons */}
           <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button onClick={handleStart}
-              className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title="Start workout">
+              className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title={canQuickStart ? 'Start workout' : 'Rest day today — open program'}>
               <Play className="w-4 h-4 text-brand-500" />
             </button>
             <button onClick={e => { e.stopPropagation(); onEdit(program.id) }}
@@ -259,7 +271,7 @@ export default function Programs() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { label: 'Total', value: programs.length.toString(), unit: 'programs', icon: BookOpen },
-          { label: 'Avg Exercises', value: programs.length > 0 ? Math.round(programs.reduce((s, p) => s + (p.exercises?.length || 0), 0) / programs.length).toString() : '0', unit: 'per program', icon: Dumbbell },
+          { label: 'Avg Exercises', value: programs.length > 0 ? Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length).toString() : '0', unit: 'per program', icon: Dumbbell },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">

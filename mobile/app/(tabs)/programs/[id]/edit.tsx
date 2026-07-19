@@ -1,25 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Platform, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { AlertCircle, ArrowLeft, BookOpen, Dumbbell, FileText, Plus, Zap } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
-import { AppText, Button, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
-import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
-import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
+import { AppText, Button, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
+import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useTheme } from '../../../../src/theme/useTheme'
+import type { DayDraft } from '../../../../src/components/programs/types'
 
 interface ProgramFormData {
   name: string
   notes: string
-  exercises: {
-    exercise_id: number
-    notes: string
-    rest_seconds: number
-    sets: { set_number: number; reps: number; weight: number }[]
-  }[]
+  days: DayDraft[]
 }
 
 const KEYPAD_DONE_ID = 'program-edit-keypad-done'
@@ -39,14 +34,13 @@ export default function EditProgram() {
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
-  const { accent, brand, isDark } = useTheme()
+  const { brand, isDark } = useTheme()
 
-  const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
-  const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', exercises: [] })
+  const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
   const scrollRef = useRef<ScrollView>(null)
 
   useEffect(() => {
@@ -65,20 +59,25 @@ export default function EditProgram() {
       .then((p) => {
         if (cancelled) return
         const map: Record<number, Exercise> = {}
-        ;(p.exercises || []).forEach((ex) => { map[ex.exercise_id] = ex.exercise })
+        ;(p.days || []).forEach((d) => (d.exercises || []).forEach((ex) => { map[ex.exercise_id] = ex.exercise }))
         setPickerExercises(map)
         setFormData({
           name: p.name,
           notes: p.notes || '',
-          exercises: (p.exercises || []).map((ex) => ({
-            exercise_id: ex.exercise_id,
-            notes: ex.notes || '',
-            rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
-            sets: (ex.sets || []).map((s) => ({
-              set_number: s.set_number,
-              reps: s.target_reps,
-              // Web parity: unrounded prefill (kg users see long decimals).
-              weight: lbsToDisplay(s.target_weight, settings.weight_unit),
+          days: (p.days || []).map((d, i) => ({
+            order_index: d.order_index ?? i,
+            is_rest_day: d.is_rest_day,
+            name: d.name || '',
+            exercises: (d.exercises || []).map((ex) => ({
+              exercise_id: ex.exercise_id,
+              notes: ex.notes || '',
+              rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
+              sets: (ex.sets || []).map((s) => ({
+                set_number: s.set_number,
+                reps: s.target_reps,
+                // Web parity: unrounded prefill (kg users see long decimals).
+                weight: lbsToDisplay(s.target_weight, settings.weight_unit),
+              })),
             })),
           })),
         })
@@ -91,76 +90,31 @@ export default function EditProgram() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
-  const addExercise = (exercise: Exercise) => {
-    setPickerExercises((prev) => ({ ...prev, [exercise.id]: exercise }))
-    setFormData((prev) => ({
-      ...prev,
-      exercises: [
-        ...prev.exercises,
-        { exercise_id: exercise.id, notes: '', rest_seconds: settings.rest_seconds_default ?? 90, sets: [{ set_number: 1, reps: 0, weight: 0 }] },
-      ],
-    }))
-    setShowPicker(false)
-    setError('')
-  }
-
-  const removeExercise = useCallback((index: number) =>
-    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
-
-  const addSet = useCallback((exIdx: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex, i) =>
-        i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] }),
-    }))
-  }, [])
-
-  const removeSet = useCallback((exIdx: number, setIdx: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex, i) =>
-        i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) }),
-    }))
-  }, [])
-
-  const updateSet = useCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex, i) =>
-        i !== exIdx ? ex : { ...ex, sets: ex.sets.map((s, j) => (j !== setIdx ? s : { ...s, [field]: Number(value) || 0 })) }),
-    }))
-  }, [])
-
-  const updateExNotes = useCallback((exIdx: number, text: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, notes: text })),
-    }))
-  }, [])
-
-  const setExRest = useCallback((exIdx: number, secs: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })),
-    }))
-  }, [])
+  const cacheExercise = (ex: Exercise) => setPickerExercises((prev) => ({ ...prev, [ex.id]: ex }))
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Program name required'); return }
-    if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
+    if (formData.days.length === 0) { setError('Add at least one day'); return }
+    const hasAnyExercise = formData.days.some((d) => !d.is_rest_day && d.exercises.length > 0)
+    if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
     setLoading(true)
     try {
       const payload = {
         name: formData.name,
         notes: formData.notes,
-        exercises: formData.exercises.map((ex) => ({
-          exercise_id: ex.exercise_id,
-          notes: ex.notes,
-          rest_seconds: ex.rest_seconds,
-          sets: ex.sets.map((s) => ({
-            set_number: s.set_number,
-            target_reps: s.reps,
-            target_weight: displayToLbs(s.weight, settings.weight_unit),
+        days: formData.days.map((d) => ({
+          order_index: d.order_index,
+          is_rest_day: d.is_rest_day,
+          name: d.name,
+          exercises: d.exercises.map((ex) => ({
+            exercise_id: ex.exercise_id,
+            notes: ex.notes,
+            rest_seconds: ex.rest_seconds,
+            sets: ex.sets.map((s) => ({
+              set_number: s.set_number,
+              target_reps: s.reps,
+              target_weight: displayToLbs(s.weight, settings.weight_unit),
+            })),
           })),
         })),
       }
@@ -175,8 +129,8 @@ export default function EditProgram() {
 
   if (initialLoading) return <Loading />
 
-  const selectedIds = formData.exercises.map((e) => e.exercise_id)
-  const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
+  const totalExercises = formData.days.reduce((s, d) => s + d.exercises.length, 0)
+  const totalSets = formData.days.reduce((s, d) => s + d.exercises.reduce((s2, ex) => s2 + ex.sets.length, 0), 0)
 
   return (
     <Screen>
@@ -194,7 +148,7 @@ export default function EditProgram() {
             <View>
               <AppText variant="title">Edit Program</AppText>
               <AppText variant="caption" color="muted">
-                {formData.exercises.length} exercises • {totalSets} sets
+                {formData.days.length} days • {totalExercises} exercises • {totalSets} sets
               </AppText>
             </View>
           </View>
@@ -225,63 +179,20 @@ export default function EditProgram() {
           </View>
 
           <View>
-            <View className="mb-3">
-              <View className="mb-2.5 flex-row items-center gap-2">
-                <Zap size={14} color={accent} strokeWidth={2.2} />
-                <Label>Exercises</Label>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowPicker(true)}
-                className="flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
-              >
-                <Plus size={13} color="#ffffff" />
-                <Text className="font-sans-semibold text-xs text-white">Add Exercise</Text>
-              </Pressable>
+            <View className="mb-3 flex-row items-center gap-2">
+              <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
+              <Label>Days</Label>
+              <AppText variant="caption" color="muted">(repeats in this order)</AppText>
             </View>
-
-            {formData.exercises.length === 0 && (
-              <View className="rounded-2xl border border-dashed border-surface-border">
-                <EmptyState
-                  compact
-                  icon={Dumbbell}
-                  title="No exercises yet"
-                  subtitle="Add an exercise to build your program"
-                />
-              </View>
-            )}
-
-            <View className="gap-4">
-              {formData.exercises.map((programEx, exIdx) => (
-                <ExerciseFormCard
-                  key={exIdx}
-                  index={exIdx}
-                  exercise={pickerExercises[programEx.exercise_id]}
-                  notes={programEx.notes}
-                  sets={programEx.sets}
-                  restSeconds={programEx.rest_seconds ?? 90}
-                  unit={wUnit}
-                  onRemove={removeExercise}
-                  onNotesChange={updateExNotes}
-                  onAddSet={addSet}
-                  onRemoveSet={removeSet}
-                  onUpdateSet={updateSet}
-                  onRestChange={setExRest}
-                  inputAccessoryViewID={KEYPAD_DONE_ID}
-                />
-              ))}
-              {formData.exercises.length > 0 && (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Add exercise"
-                  onPress={() => setShowPicker(true)}
-                  className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
-                >
-                  <Plus size={14} color={accent} />
-                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>Add Exercise</Text>
-                </Pressable>
-              )}
-            </View>
+            <ProgramDaysEditor
+              days={formData.days}
+              onChange={(days) => setFormData((prev) => ({ ...prev, days }))}
+              pickerExercises={pickerExercises}
+              onCacheExercise={cacheExercise}
+              unit={wUnit}
+              restSecondsDefault={settings.rest_seconds_default ?? 90}
+              inputAccessoryViewID={KEYPAD_DONE_ID}
+            />
           </View>
         </View>
       </ScrollView>
@@ -292,10 +203,6 @@ export default function EditProgram() {
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
-
-      {showPicker && (
-        <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />
-      )}
     </Screen>
   )
 }

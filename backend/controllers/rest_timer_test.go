@@ -35,8 +35,13 @@ func TestProgramRestSecondsRoundTrips(t *testing.T) {
 
 	body := map[string]any{
 		"name": "Rest RT",
-		"exercises": []map[string]any{
-			{"exercise_id": exID, "rest_seconds": 0, "sets": []map[string]any{{"target_reps": 5, "target_weight": 100}}},
+		"days": []map[string]any{
+			{
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{"exercise_id": exID, "rest_seconds": 0, "sets": []map[string]any{{"target_reps": 5, "target_weight": 100}}},
+				},
+			},
 		},
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
@@ -45,7 +50,8 @@ func TestProgramRestSecondsRoundTrips(t *testing.T) {
 		t.Fatalf("create program: %d (%s)", w.Code, w.Body.String())
 	}
 	// 0 = "off" must round-trip as 0, not get defaulted away.
-	exs := decodeResponse(t, w)["data"].(map[string]any)["exercises"].([]any)
+	days := decodeResponse(t, w)["data"].(map[string]any)["days"].([]any)
+	exs := days[0].(map[string]any)["exercises"].([]any)
 	if rest := exs[0].(map[string]any)["rest_seconds"].(float64); rest != 0 {
 		t.Errorf("program exercise rest_seconds = %v, want 0", rest)
 	}

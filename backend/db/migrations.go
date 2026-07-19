@@ -55,6 +55,81 @@ func alterMigrations() {
 	ensureColumn("program_sets", "suggested_weight", `ALTER TABLE program_sets ADD COLUMN suggested_weight REAL`)
 	ensureColumn("program_sets", "suggested_reps", `ALTER TABLE program_sets ADD COLUMN suggested_reps INTEGER`)
 	ensureColumn("program_sets", "suggested_is_pr", `ALTER TABLE program_sets ADD COLUMN suggested_is_pr INTEGER NOT NULL DEFAULT 0`)
+
+	multiDayProgramsMigration()
+
+	// Lets a logged workout be attributed back to the routine it came from, so a
+	// program's cycle position (Program.CurrentDayIndex) can be computed as a simple
+	// COUNT(*) MOD len(days) — see ProgramStore.currentDayIndex. Best-effort/no FK:
+	// deleting a program must never take workout history down with it.
+	ensureColumn("workouts", "program_id", `ALTER TABLE workouts ADD COLUMN program_id INTEGER`)
+	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`); err != nil {
+		log.Fatalf("create idx_workouts_program: %v", err)
+	}
+}
+
+// multiDayProgramsMigration adds the program_days table + program_exercises'
+// program_day_id FK (multi-day routines w/ rest days). Non-destructive: every
+// program that predates this migration gets wrapped in exactly one auto-created
+// workout Day (order_index 0) that takes over its existing program_exercises rows —
+// no data loss, and the routine keeps behaving exactly as a single-session template
+// until the user edits it into multiple days.
+func multiDayProgramsMigration() {
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS program_days (
+		  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		  program_id  INTEGER NOT NULL REFERENCES programs(id) ON DELETE CASCADE,
+		  order_index INTEGER NOT NULL DEFAULT 0,
+		  is_rest_day INTEGER NOT NULL DEFAULT 0,
+		  name        TEXT    NOT NULL DEFAULT ''
+		)`); err != nil {
+		log.Fatalf("create program_days: %v", err)
+	}
+	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_program_days_program ON program_days(program_id, order_index)`); err != nil {
+		log.Fatalf("create idx_program_days_program: %v", err)
+	}
+
+	ensureColumn("program_exercises", "program_day_id",
+		`ALTER TABLE program_exercises ADD COLUMN program_day_id INTEGER REFERENCES program_days(id) ON DELETE CASCADE`)
+	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_program_exercises_day ON program_exercises(program_day_id)`); err != nil {
+		log.Fatalf("create idx_program_exercises_day: %v", err)
+	}
+
+	// Backfill: every pre-existing program (whether or not it has any exercises yet —
+	// an empty routine was a valid state under the old flat model) gets a single
+	// wrapper Day. Idempotent — a program only ever lacks a Day once.
+	rows, err := DB.Query(`
+		SELECT p.id
+		FROM programs p
+		WHERE NOT EXISTS (SELECT 1 FROM program_days pd WHERE pd.program_id = p.id)`)
+	if err != nil {
+		log.Fatalf("multiDayProgramsMigration: query orphaned programs: %v", err)
+	}
+	var programIDs []int64
+	for rows.Next() {
+		var pid int64
+		if err := rows.Scan(&pid); err != nil {
+			rows.Close()
+			log.Fatalf("multiDayProgramsMigration: scan: %v", err)
+		}
+		programIDs = append(programIDs, pid)
+	}
+	rows.Close()
+
+	for _, pid := range programIDs {
+		res, err := DB.Exec(`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, 0, 0, '')`, pid)
+		if err != nil {
+			log.Fatalf("multiDayProgramsMigration: insert wrapper day for program %d: %v", pid, err)
+		}
+		dayID, err := res.LastInsertId()
+		if err != nil {
+			log.Fatalf("multiDayProgramsMigration: wrapper day id for program %d: %v", pid, err)
+		}
+		if _, err := DB.Exec(`UPDATE program_exercises SET program_day_id = ? WHERE program_id = ? AND program_day_id IS NULL`, dayID, pid); err != nil {
+			log.Fatalf("multiDayProgramsMigration: backfill program_day_id for program %d: %v", pid, err)
+		}
+		log.Printf("migration: wrapped program %d in a single Day", pid)
+	}
 }
 
 // ensureColumn adds a column to a table if it's missing — idempotent on every boot.

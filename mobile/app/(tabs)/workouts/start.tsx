@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
-import type { ActiveSessionExercise, Program } from '@lyftr/shared'
+import type { Program, ProgramDay } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel } from '@lyftr/shared'
 import { AppText, IconButton, Screen } from '../../../src/components/ui'
+import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -19,6 +21,7 @@ export default function StartWorkout() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -37,23 +40,12 @@ export default function StartWorkout() {
     router.push('/workouts/active')
   }
 
-  const startFromProgram = (program: Program) => {
-    const exercises: ActiveSessionExercise[] = (program.exercises || []).map((ex) => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map((s) => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id,
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
+  const startFromProgram = (program: Program, day: ProgramDay) => {
+    const exercises = activeSessionExercisesForDay(day)
+    const dayCount = program.days?.length ?? 0
+    const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
+    startSession(name, exercises, program.id)
+    setDayPickFor(null)
     router.push('/workouts/active')
   }
 
@@ -140,27 +132,34 @@ export default function StartWorkout() {
               </View>
             ) : (
               <View className="gap-2">
-                {programs.map((p) => (
-                  <Pressable
-                    key={p.id}
-                    onPress={() => startFromProgram(p)}
-                    className="flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:bg-surface-muted"
-                  >
-                    <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
-                      <BookOpen size={20} color={accent} />
-                    </View>
-                    <View className="flex-1">
-                      <AppText variant="bodySemibold" numberOfLines={1}>{p.name}</AppText>
-                      <AppText variant="caption" color="muted" className="mt-0.5">{p.exercises?.length || 0} exercises</AppText>
-                    </View>
-                    <Play size={16} color={accent} />
-                  </Pressable>
-                ))}
+                {programs.map((p) => {
+                  const dayCount = p.days?.length ?? 0
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => pickProgramDay(p, startFromProgram, setDayPickFor)}
+                      className="flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:bg-surface-muted"
+                    >
+                      <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                        <BookOpen size={20} color={accent} />
+                      </View>
+                      <View className="flex-1">
+                        <AppText variant="bodySemibold" numberOfLines={1}>{p.name}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-0.5">
+                          {dayCount > 0 ? `${dayCount} day${dayCount === 1 ? '' : 's'}` : 'No days yet'}
+                        </AppText>
+                      </View>
+                      <Play size={16} color={accent} />
+                    </Pressable>
+                  )
+                })}
               </View>
             )}
           </View>
         </View>
       </ScrollView>
+
+      <DayPickerSheet program={dayPickFor} onSelect={startFromProgram} onClose={() => setDayPickFor(null)} />
     </Screen>
   )
 }

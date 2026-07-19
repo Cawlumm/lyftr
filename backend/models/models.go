@@ -281,23 +281,43 @@ type UpdateSettingsRequest struct {
 }
 
 type Program struct {
-	ID        int64             `json:"id"`
-	UserID    int64             `json:"user_id,omitempty"`
-	Name      string            `json:"name"`
-	Notes     string            `json:"notes"`
-	CreatedAt time.Time         `json:"created_at"`
-	Exercises []ProgramExercise `json:"exercises"`
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id,omitempty"`
+	Name      string       `json:"name"`
+	Notes     string       `json:"notes"`
+	CreatedAt time.Time    `json:"created_at"`
+	Days      []ProgramDay `json:"days"`
+	// CurrentDayIndex is which entry of Days is due today — computed, never
+	// persisted, from (workouts logged against this program) mapped onto the
+	// workout-only subsequence of Days (rest days are consumed for free, not
+	// counted) — see ProgramStore.currentDayIndex. Advancing only on an actual
+	// logged workout means there's no calendar-week alignment (a 6-day cycle
+	// repeats every 6 days regardless of which weekday it lands on). 0 when the
+	// program has no days yet, or none logged.
+	CurrentDayIndex int `json:"current_day_index"`
+}
+
+// ProgramDay is one slot in a program's repeating cycle: either a workout day (its
+// own ordered Exercises/Sets) or a rest day (Exercises always empty). Days repeat in
+// OrderIndex order once the sequence is exhausted — see Program.CurrentDayIndex.
+type ProgramDay struct {
+	ID         int64             `json:"id,omitempty"`
+	ProgramID  int64             `json:"program_id,omitempty"`
+	OrderIndex int               `json:"order_index"`
+	IsRestDay  bool              `json:"is_rest_day"`
+	Name       string            `json:"name"`
+	Exercises  []ProgramExercise `json:"exercises"`
 }
 
 type ProgramExercise struct {
-	ID          int64        `json:"id,omitempty"`
-	ProgramID   int64        `json:"program_id,omitempty"`
-	ExerciseID  int64        `json:"exercise_id"`
-	OrderIndex  int          `json:"order_index,omitempty"`
-	Notes       string       `json:"notes"`
-	RestSeconds int          `json:"rest_seconds"`
-	Exercise    Exercise     `json:"exercise"`
-	Sets        []ProgramSet `json:"sets"`
+	ID           int64        `json:"id,omitempty"`
+	ProgramDayID int64        `json:"program_day_id,omitempty"`
+	ExerciseID   int64        `json:"exercise_id"`
+	OrderIndex   int          `json:"order_index,omitempty"`
+	Notes        string       `json:"notes"`
+	RestSeconds  int          `json:"rest_seconds"`
+	Exercise     Exercise     `json:"exercise"`
+	Sets         []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -314,17 +334,37 @@ type ProgramSet struct {
 	SuggestedIsPR   bool     `json:"suggested_is_pr,omitempty"`
 }
 
+// MaxProgramRows bounds the TOTAL number of rows (days + exercises + sets combined)
+// a CreateProgramRequest can insert in one transaction — enforced by the
+// struct-level validation registered in controllers/programs.go's init(). Days/
+// Exercises/Sets each also carry their own max=500 per-list cap below as a
+// belt-and-suspenders bound, but a program nests three levels (Days x Exercises x
+// Sets), so those alone don't bound the product (500 x 500 x 500 rows) — see
+// MaxWorkoutSets above for the two-level version of this same reasoning.
+// insertProgramDays (program.go) issues one tx.Exec per row inside a single
+// transaction holding the process's only SQLite connection (db.DB.SetMaxOpenConns(1)).
+const MaxProgramRows = 2000
+
 type CreateProgramRequest struct {
-	Name      string                     `json:"name" validate:"required"`
-	Notes     string                     `json:"notes"`
-	Exercises []CreateProgramExerciseReq `json:"exercises"`
+	Name  string                `json:"name" validate:"required"`
+	Notes string                `json:"notes"`
+	Days  []CreateProgramDayReq `json:"days" validate:"max=500,dive"`
+}
+
+// CreateProgramDayReq is one Day in a program's cycle. Exercises is ignored (and
+// should be empty) when IsRestDay is true.
+type CreateProgramDayReq struct {
+	OrderIndex int                        `json:"order_index"`
+	IsRestDay  bool                       `json:"is_rest_day"`
+	Name       string                     `json:"name"`
+	Exercises  []CreateProgramExerciseReq `json:"exercises" validate:"max=500,dive"`
 }
 
 type CreateProgramExerciseReq struct {
 	ExerciseID  int64                 `json:"exercise_id" validate:"required"`
 	Notes       string                `json:"notes"`
 	RestSeconds int                   `json:"rest_seconds"`
-	Sets        []CreateProgramSetReq `json:"sets"`
+	Sets        []CreateProgramSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateProgramSetReq struct {

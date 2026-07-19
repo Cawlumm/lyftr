@@ -21,7 +21,12 @@ func seedProgram(t *testing.T, uid, exID int64, targets []ptTarget) (int64, []in
 		t.Fatalf("seed program: %v", err)
 	}
 	pid, _ := res.LastInsertId()
-	peRes, err := db.DB.Exec(`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, 0)`, pid, exID)
+	dayRes, err := db.DB.Exec(`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, 0, 0, '')`, pid)
+	if err != nil {
+		t.Fatalf("seed program day: %v", err)
+	}
+	dayID, _ := dayRes.LastInsertId()
+	peRes, err := db.DB.Exec(`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, 0)`, pid, dayID, exID)
 	if err != nil {
 		t.Fatalf("seed program exercise: %v", err)
 	}
@@ -213,8 +218,8 @@ func TestResolveSuggestions_AcceptAndDismiss(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveSuggestions: %v", err)
 	}
-	if len(prog.Exercises) != 1 {
-		t.Fatalf("expected 1 exercise, got %d", len(prog.Exercises))
+	if len(prog.Days) != 1 || len(prog.Days[0].Exercises) != 1 {
+		t.Fatalf("expected 1 day with 1 exercise, got %d days", len(prog.Days))
 	}
 	// set0: target applied to 105, suggestion cleared.
 	if r, w := getTarget(t, ids[0]); r != 5 || w != 105 {

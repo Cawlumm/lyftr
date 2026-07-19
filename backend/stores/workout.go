@@ -113,9 +113,13 @@ func (s *WorkoutStore) Create(uid int64, req models.CreateWorkoutRequest) (model
 // transaction (see CreateWithProgression) — SQLite then serializes concurrent
 // submissions instead of letting them read the same stale prior-best (#40).
 func createWorkoutTx(tx *sql.Tx, uid int64, req models.CreateWorkoutRequest) (int64, error) {
+	// ProgramID (nil for freestyle workouts) is persisted so ProgramStore can compute
+	// a routine's cycle position from COUNT(workouts) — see
+	// ProgramStore.currentDayIndex. No FK: deleting a program must never take
+	// workout history down with it.
 	res, err := tx.Exec(
-		`INSERT INTO workouts (user_id, name, notes, duration, started_at) VALUES (?, ?, ?, ?, ?)`,
-		uid, req.Name, req.Notes, req.Duration, req.StartedAt,
+		`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		uid, req.Name, req.Notes, req.Duration, req.StartedAt, req.ProgramID,
 	)
 	if err != nil {
 		return 0, err
