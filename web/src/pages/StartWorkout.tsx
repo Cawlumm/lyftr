@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Zap, BookOpen, ChevronRight, Dumbbell, AlertCircle, Play, Timer, Trash2 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { buildSessionFromDay, trainingDays, sessionNameForDay } from '../utils/buildSessionFromDay'
+import DayPicker from '../components/DayPicker'
 import * as types from '../types'
 
 export default function StartWorkout() {
@@ -11,6 +13,7 @@ export default function StartWorkout() {
   const [programs, setPrograms] = useState<types.Program[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [dayPickerProgram, setDayPickerProgram] = useState<types.Program | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -26,24 +29,19 @@ export default function StartWorkout() {
     navigate('/workout/active')
   }
 
-  const startFromProgram = (program: types.Program) => {
-    const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map(s => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id, // link for routine target auto-progression (#40)
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
+  const startDay = (program: types.Program, day: types.ProgramDay) => {
+    startSession(sessionNameForDay(program, day), buildSessionFromDay(day), program.id)
     navigate('/workout/active')
+  }
+
+  // Single training day starts directly; multi-day opens the day picker first.
+  const startFromProgram = (program: types.Program) => {
+    const training = trainingDays(program)
+    if (training.length <= 1) {
+      startDay(program, training[0] ?? program.days?.[0] ?? { name: program.name, order_index: 0, is_rest_day: false, exercises: program.exercises || [] })
+      return
+    }
+    setDayPickerProgram(program)
   }
 
   return (
@@ -145,9 +143,7 @@ export default function StartWorkout() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-tx-primary truncate">{p.name}</p>
-                  <p className="text-xs text-tx-muted mt-0.5">
-                    {p.exercises?.length || 0} exercises
-                  </p>
+                  <p className="text-xs text-tx-muted mt-0.5">{programSummary(p)}</p>
                 </div>
                 <Play className="w-4 h-4 text-brand-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
               </button>
@@ -155,6 +151,23 @@ export default function StartWorkout() {
           </div>
         )}
       </div>
+
+      {dayPickerProgram && (
+        <DayPicker
+          program={dayPickerProgram}
+          onPick={day => { const p = dayPickerProgram; setDayPickerProgram(null); startDay(p, day) }}
+          onClose={() => setDayPickerProgram(null)}
+        />
+      )}
     </div>
   )
+}
+
+// programSummary describes a program in the list: day count when multi-day, else a
+// plain exercise count so a simple routine reads the same as before.
+function programSummary(p: types.Program): string {
+  const training = trainingDays(p)
+  const exercises = training.reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+  if (training.length > 1) return `${training.length} days • ${exercises} exercises`
+  return `${(p.exercises?.length ?? exercises) || 0} exercises`
 }

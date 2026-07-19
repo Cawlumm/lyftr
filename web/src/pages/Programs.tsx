@@ -8,6 +8,8 @@ import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
+import { buildSessionFromDay, trainingDays, sessionNameForDay } from '../utils/buildSessionFromDay'
+import DayPicker from '../components/DayPicker'
 import * as types from '../types'
 
 import { muscleColor } from '../utils/exerciseUtils'
@@ -37,26 +39,22 @@ function ProgramCard({
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const [showDayPicker, setShowDayPicker] = useState(false)
+
+  const startDay = (day: types.ProgramDay) => {
+    startSession(sessionNameForDay(program, day), buildSessionFromDay(day), program.id)
+    navigate('/workout/active')
+  }
+
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (session) { navigate('/workout/start'); return }
-    const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map(s => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id, // link for routine target auto-progression (#40)
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
-    navigate('/workout/active')
+    const training = trainingDays(program)
+    if (training.length <= 1) {
+      startDay(training[0] ?? program.days?.[0] ?? { name: program.name, order_index: 0, is_rest_day: false, exercises: program.exercises || [] })
+      return
+    }
+    setShowDayPicker(true)
   }
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -106,7 +104,14 @@ function ProgramCard({
     )
   }
 
-  const totalSets = program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0
+  const training = trainingDays(program)
+  const isMultiDay = training.length > 1
+  const exerciseCount = isMultiDay
+    ? training.reduce((sum, d) => sum + (d.exercises?.length || 0), 0)
+    : (program.exercises?.length || 0)
+  const totalSets = isMultiDay
+    ? training.reduce((sum, d) => sum + (d.exercises || []).reduce((ss, e) => ss + (e.sets?.length || 0), 0), 0)
+    : (program.exercises?.reduce((s, e) => s + (e.sets?.length || 0), 0) || 0)
 
   return (
     <div className="card group active:scale-[0.99] transition-transform">
@@ -131,7 +136,13 @@ function ProgramCard({
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
             <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
-              <span className="text-xs text-tx-muted whitespace-nowrap">{program.exercises?.length || 0} exercises</span>
+              {isMultiDay && (
+                <>
+                  <span className="text-xs text-tx-muted whitespace-nowrap">{training.length} days</span>
+                  <span className="text-tx-muted/40 text-xs">·</span>
+                </>
+              )}
+              <span className="text-xs text-tx-muted whitespace-nowrap">{exerciseCount} exercises</span>
               <span className="text-tx-muted/40 text-xs">·</span>
               <span className="text-xs text-tx-muted whitespace-nowrap">{totalSets} sets</span>
             </div>
@@ -223,6 +234,14 @@ function ProgramCard({
           </div>
         </div>
       </div>
+
+      {showDayPicker && (
+        <DayPicker
+          program={program}
+          onPick={day => { setShowDayPicker(false); startDay(day) }}
+          onClose={() => setShowDayPicker(false)}
+        />
+      )}
     </div>
   )
 }

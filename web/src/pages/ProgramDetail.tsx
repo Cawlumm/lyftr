@@ -4,13 +4,22 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
   ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Pause, TimerOff,
-  Award, TrendingUp, Check, X, ChevronDown, ChevronUp,
+  Award, TrendingUp, Check, X, ChevronDown, ChevronUp, Coffee,
 } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
+import { buildSessionFromDay, trainingDays, sessionNameForDay } from '../utils/buildSessionFromDay'
+import DayPicker from '../components/DayPicker'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
+
+// programDays returns a program's days, wrapping a legacy flat program (days absent)
+// into a single training day so the rest of the view has one shape to render.
+function programDays(p: types.Program): types.ProgramDay[] {
+  if (p.days && p.days.length > 0) return p.days
+  return [{ name: 'Day 1', order_index: 0, is_rest_day: false, exercises: p.exercises || [] }]
+}
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -30,6 +39,7 @@ export default function ProgramDetail() {
   const [deleting, setDeleting] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+  const [showDayPicker, setShowDayPicker] = useState(false)
 
   // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
   // then refresh from the returned program.
@@ -60,26 +70,21 @@ export default function ProgramDetail() {
     load()
   }, [id])
 
+  const startDay = (day: types.ProgramDay) => {
+    if (!program) return
+    startSession(sessionNameForDay(program, day), buildSessionFromDay(day), program.id)
+    navigate('/workout/active')
+  }
+
   const handleStart = () => {
     if (!program) return
     if (session) { navigate('/workout/start'); return }
-    const exercises: types.ActiveSessionExercise[] = (program.exercises || []).map(ex => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map(s => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id, // link for routine target auto-progression (#40)
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
-    navigate('/workout/active')
+    const training = trainingDays(program)
+    if (training.length <= 1) {
+      startDay(training[0] ?? programDays(program)[0])
+      return
+    }
+    setShowDayPicker(true)
   }
 
   const handleDelete = async () => {
@@ -116,8 +121,13 @@ export default function ProgramDetail() {
     )
   }
 
-  const exs = program.exercises ?? []
+  const days = programDays(program)
+  const training = days.filter(d => !d.is_rest_day)
+  // All exercises across every training day — the suggestions banner and header stats
+  // must span the whole program, not just the flattened first-day compat field.
+  const exs = training.flatMap(d => d.exercises ?? [])
   const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const isMultiDay = training.length > 1
 
   // Pending auto-progression suggestions (#40), flattened for the review banner. A
   // suggestion exists when suggested_reps is set. Show the FULL reps×weight on both
@@ -298,8 +308,17 @@ export default function ProgramDetail() {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-surface-border">
-          <div className="text-center">
+        <div className={`grid ${isMultiDay ? 'grid-cols-3' : 'grid-cols-2'} gap-3 mt-4 pt-4 border-t border-surface-border`}>
+          {isMultiDay && (
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <BookOpen className="w-3.5 h-3.5 text-tx-muted" />
+                <p className="text-xs text-tx-muted">Training Days</p>
+              </div>
+              <p className="text-lg font-bold text-tx-primary tabular-nums">{training.length}</p>
+            </div>
+          )}
+          <div className={`text-center ${isMultiDay ? 'border-l border-surface-border' : ''}`}>
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <Dumbbell className="w-3.5 h-3.5 text-tx-muted" />
               <p className="text-xs text-tx-muted">Exercises</p>
@@ -326,8 +345,27 @@ export default function ProgramDetail() {
           <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
         </div>
       )}
-      <div className="space-y-2">
-        {exs.map((ex) => {
+      <div className="space-y-4">
+        {days.map((day, di) => (
+          <div key={day.id ?? di} className="space-y-2">
+            {isMultiDay && (
+              <div className="flex items-center gap-2 px-1 pt-1">
+                {day.is_rest_day
+                  ? <Coffee className="w-4 h-4 text-tx-muted" />
+                  : <Dumbbell className="w-4 h-4 text-brand-500" />}
+                <h3 className="text-sm font-bold text-tx-primary">{day.name}</h3>
+                <span className="text-xs text-tx-muted">
+                  {day.is_rest_day ? 'Rest day' : `${day.exercises?.length || 0} exercises`}
+                </span>
+              </div>
+            )}
+            {day.is_rest_day ? (
+              isMultiDay && (
+                <div className="card px-4 py-5 text-center text-sm text-tx-muted opacity-70">
+                  <Coffee className="w-5 h-5 mx-auto mb-1 opacity-60" /> Rest day
+                </div>
+              )
+            ) : (day.exercises ?? []).map((ex) => {
           const sets = ex.sets ?? []
           const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
           const maxTarget = displayWeight(maxTargetLbs, wUnit)
@@ -390,7 +428,17 @@ export default function ProgramDetail() {
             </button>
           )
         })}
+          </div>
+        ))}
       </div>
+
+      {showDayPicker && (
+        <DayPicker
+          program={program}
+          onPick={day => { setShowDayPicker(false); startDay(day) }}
+          onClose={() => setShowDayPicker(false)}
+        />
+      )}
     </div>
   )
 }

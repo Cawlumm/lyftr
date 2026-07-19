@@ -170,6 +170,7 @@ export interface ProgramSet {
 export interface ProgramExercise {
   id?: number
   exercise_id: number
+  program_day_id?: number
   order_index?: number
   notes?: string
   exercise: Exercise
@@ -177,11 +178,22 @@ export interface ProgramExercise {
   sets: ProgramSet[]
 }
 
+export interface ProgramDay {
+  id?: number
+  name: string
+  order_index: number
+  is_rest_day: boolean
+  exercises: ProgramExercise[]
+}
+
 export interface Program {
   id: number
   name: string
   notes?: string
   created_at: string
+  days: ProgramDay[]
+  // Flattened, read-only: the first training day's exercises. The backend sends this
+  // for backward compatibility; prefer `days` for anything day-aware.
   exercises: ProgramExercise[]
 }
 
