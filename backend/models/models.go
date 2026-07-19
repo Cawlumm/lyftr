@@ -281,23 +281,39 @@ type UpdateSettingsRequest struct {
 }
 
 type Program struct {
-	ID        int64             `json:"id"`
-	UserID    int64             `json:"user_id,omitempty"`
-	Name      string            `json:"name"`
-	Notes     string            `json:"notes"`
-	CreatedAt time.Time         `json:"created_at"`
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id,omitempty"`
+	Name      string       `json:"name"`
+	Notes     string       `json:"notes"`
+	CreatedAt time.Time    `json:"created_at"`
+	Days      []ProgramDay `json:"days"`
+	// Exercises is a READ-ONLY flattened convenience field carrying the FIRST
+	// training day's exercises (not all days concatenated). It keeps the untouched
+	// mobile client's "start workout" flow (which maps program.exercises) behaving
+	// as "start day 1" instead of launching every day at once. Never read from
+	// requests. See docs/superpowers/specs/2026-07-19-program-days-design.md (B5).
 	Exercises []ProgramExercise `json:"exercises"`
 }
 
+type ProgramDay struct {
+	ID         int64             `json:"id,omitempty"`
+	ProgramID  int64             `json:"program_id,omitempty"`
+	Name       string            `json:"name"`
+	OrderIndex int               `json:"order_index"`
+	IsRestDay  bool              `json:"is_rest_day"`
+	Exercises  []ProgramExercise `json:"exercises"`
+}
+
 type ProgramExercise struct {
-	ID          int64        `json:"id,omitempty"`
-	ProgramID   int64        `json:"program_id,omitempty"`
-	ExerciseID  int64        `json:"exercise_id"`
-	OrderIndex  int          `json:"order_index,omitempty"`
-	Notes       string       `json:"notes"`
-	RestSeconds int          `json:"rest_seconds"`
-	Exercise    Exercise     `json:"exercise"`
-	Sets        []ProgramSet `json:"sets"`
+	ID           int64        `json:"id,omitempty"`
+	ProgramID    int64        `json:"program_id,omitempty"`
+	ProgramDayID int64        `json:"program_day_id,omitempty"`
+	ExerciseID   int64        `json:"exercise_id"`
+	OrderIndex   int          `json:"order_index,omitempty"`
+	Notes        string       `json:"notes"`
+	RestSeconds  int          `json:"rest_seconds"`
+	Exercise     Exercise     `json:"exercise"`
+	Sets         []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -315,9 +331,19 @@ type ProgramSet struct {
 }
 
 type CreateProgramRequest struct {
-	Name      string                     `json:"name" validate:"required"`
-	Notes     string                     `json:"notes"`
-	Exercises []CreateProgramExerciseReq `json:"exercises"`
+	Name  string                `json:"name" validate:"required"`
+	Notes string                `json:"notes"`
+	Days  []CreateProgramDayReq `json:"days" validate:"max=14,dive"`
+	// Exercises is the legacy flat field. When Days is empty it is wrapped into a
+	// single "Day 1" training day (mobile compat); when Days is non-empty it is
+	// ignored (days wins). Normalized in the store before validation.
+	Exercises []CreateProgramExerciseReq `json:"exercises" validate:"omitempty,max=500,dive"`
+}
+
+type CreateProgramDayReq struct {
+	Name      string                     `json:"name"`
+	IsRestDay bool                       `json:"is_rest_day"`
+	Exercises []CreateProgramExerciseReq `json:"exercises" validate:"omitempty,max=500,dive"`
 }
 
 type CreateProgramExerciseReq struct {

@@ -21,7 +21,12 @@ func seedProgram(t *testing.T, uid, exID int64, targets []ptTarget) (int64, []in
 		t.Fatalf("seed program: %v", err)
 	}
 	pid, _ := res.LastInsertId()
-	peRes, err := db.DB.Exec(`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, 0)`, pid, exID)
+	dayRes, err := db.DB.Exec(`INSERT INTO program_days (program_id, name, order_index, is_rest_day) VALUES (?, 'Day 1', 0, 0)`, pid)
+	if err != nil {
+		t.Fatalf("seed program day: %v", err)
+	}
+	dayID, _ := dayRes.LastInsertId()
+	peRes, err := db.DB.Exec(`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, 0)`, pid, dayID, exID)
 	if err != nil {
 		t.Fatalf("seed program exercise: %v", err)
 	}

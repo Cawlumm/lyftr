@@ -45,6 +45,29 @@ func (h *Handler) GetProgram(c *gin.Context) {
 	utils.OK(c, p)
 }
 
+// validateProgramDays enforces the day-layer rules that struct tags can't express.
+// It runs on the NORMALIZED request (legacy flat exercises already wrapped into a
+// Day 1) so the checks see the same shape the store will persist.
+func validateProgramDays(req models.CreateProgramRequest) string {
+	if len(req.Days) > 14 {
+		return "a program can have at most 14 days"
+	}
+	trainingDays := 0
+	for _, d := range req.Days {
+		if d.IsRestDay {
+			if len(d.Exercises) > 0 {
+				return "a rest day cannot contain exercises"
+			}
+			continue
+		}
+		trainingDays++
+	}
+	if trainingDays == 0 {
+		return "a program needs at least one training day"
+	}
+	return ""
+}
+
 func (h *Handler) CreateProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.CreateProgramRequest
@@ -54,6 +77,11 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 	}
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+	req = stores.NormalizeProgramReq(req)
+	if msg := validateProgramDays(req); msg != "" {
+		utils.BadRequest(c, msg)
 		return
 	}
 	p, err := h.s.Program.Create(uid, req)
@@ -81,6 +109,11 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	}
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+	req = stores.NormalizeProgramReq(req)
+	if msg := validateProgramDays(req); msg != "" {
+		utils.BadRequest(c, msg)
 		return
 	}
 	p, err := h.s.Program.Update(uid, pid, req)

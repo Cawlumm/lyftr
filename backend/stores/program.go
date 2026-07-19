@@ -2,6 +2,7 @@ package stores
 
 import (
 	"database/sql"
+	"strconv"
 	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -57,13 +58,23 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 	rows.Close() // close the parent cursor BEFORE loading children (#36)
 
 	for i := range programs {
-		ex, err := s.loadExercises(programs[i].ID)
-		if err != nil {
+		if err := s.hydrate(&programs[i]); err != nil {
 			return nil, err
 		}
-		programs[i].Exercises = ex
 	}
 	return programs, nil
+}
+
+// hydrate loads a program's day layer and populates both Days and the flattened
+// Exercises compat field (first training day only).
+func (s *ProgramStore) hydrate(p *models.Program) error {
+	days, err := s.loadDays(p.ID)
+	if err != nil {
+		return err
+	}
+	p.Days = days
+	p.Exercises = firstTrainingDayExercises(days)
+	return nil
 }
 
 // Get returns a user-owned program with its exercises/sets, or sql.ErrNoRows.
@@ -74,11 +85,9 @@ func (s *ProgramStore) Get(uid, id int64) (models.Program, error) {
 	); err != nil {
 		return models.Program{}, err
 	}
-	ex, err := s.loadExercises(id)
-	if err != nil {
+	if err := s.hydrate(&p); err != nil {
 		return models.Program{}, err
 	}
-	p.Exercises = ex
 	return p, nil
 }
 
@@ -87,15 +96,14 @@ func (s *ProgramStore) get(id int64) (models.Program, error) {
 	if err := scanProgram(s.db.QueryRow(`SELECT `+programCols+` FROM programs WHERE id = ?`, id), &p); err != nil {
 		return models.Program{}, err
 	}
-	ex, err := s.loadExercises(id)
-	if err != nil {
+	if err := s.hydrate(&p); err != nil {
 		return models.Program{}, err
 	}
-	p.Exercises = ex
 	return p, nil
 }
 
 func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (models.Program, error) {
+	req = NormalizeProgramReq(req)
 	pid, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
 		res, err := tx.Exec(`INSERT INTO programs (user_id, name, notes) VALUES (?, ?, ?)`, uid, req.Name, req.Notes)
 		if err != nil {
@@ -105,7 +113,7 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 		if err != nil {
 			return 0, err
 		}
-		if err := insertProgramExercises(tx, pid, req.Exercises); err != nil {
+		if err := insertProgramDays(tx, pid, req.Days); err != nil {
 			return 0, err
 		}
 		return pid, nil
@@ -119,6 +127,7 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 // Update replaces a user-owned program and its children in one tx. sql.ErrNoRows
 // if the program isn't theirs (nothing is mutated).
 func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (models.Program, error) {
+	req = NormalizeProgramReq(req)
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
 		if err := tx.QueryRow(`SELECT id FROM programs WHERE id = ? AND user_id = ?`, id, uid).Scan(&ownedID); err != nil {
@@ -127,10 +136,17 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 		if _, err := tx.Exec(`UPDATE programs SET name = ?, notes = ? WHERE id = ?`, req.Name, req.Notes, id); err != nil {
 			return err
 		}
+		// Clear the whole child tree before re-inserting. Deleting program_days
+		// cascades to day-owned exercises, but we also delete program_exercises
+		// directly so any legacy dayless row (program_day_id IS NULL, pre-backfill)
+		// is removed too — a full replace regardless of how the rows got there.
 		if _, err := tx.Exec(`DELETE FROM program_exercises WHERE program_id = ?`, id); err != nil {
 			return err
 		}
-		return insertProgramExercises(tx, id, req.Exercises)
+		if _, err := tx.Exec(`DELETE FROM program_days WHERE program_id = ?`, id); err != nil {
+			return err
+		}
+		return insertProgramDays(tx, id, req.Days)
 	}); err != nil {
 		return models.Program{}, err
 	}
@@ -298,11 +314,61 @@ func (s *ProgramStore) Delete(uid, id int64) (int64, error) {
 	return n, nil
 }
 
-func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProgramExerciseReq) error {
+// NormalizeProgramReq reconciles the two request shapes into a canonical Days list
+// BEFORE validation runs. If Days is empty and the legacy flat Exercises is set, the
+// exercises are wrapped into a single "Day 1" training day (mobile compat). If Days is
+// non-empty, the legacy Exercises is dropped so the two can't disagree (days wins).
+// Blank day names default to "Day N" by position.
+func NormalizeProgramReq(req models.CreateProgramRequest) models.CreateProgramRequest {
+	if len(req.Days) == 0 {
+		day := models.CreateProgramDayReq{Name: "Day 1", IsRestDay: false, Exercises: req.Exercises}
+		req.Days = []models.CreateProgramDayReq{day}
+	}
+	req.Exercises = nil // never persisted directly once normalized
+	for i := range req.Days {
+		if strings.TrimSpace(req.Days[i].Name) == "" {
+			req.Days[i].Name = "Day " + strconv.Itoa(i+1)
+		}
+		// A rest day carries no exercises regardless of what the client sent.
+		if req.Days[i].IsRestDay {
+			req.Days[i].Exercises = nil
+		}
+	}
+	return req
+}
+
+// insertProgramDays writes the day layer for a program: each day row (day-local
+// order_index) then its exercises (carrying both program_id and program_day_id) then
+// their sets. Assumes req has already been normalized.
+func insertProgramDays(tx *sql.Tx, pid int64, days []models.CreateProgramDayReq) error {
+	for dayIdx, day := range days {
+		isRest := 0
+		if day.IsRestDay {
+			isRest = 1
+		}
+		dayRes, err := tx.Exec(
+			`INSERT INTO program_days (program_id, name, order_index, is_rest_day) VALUES (?, ?, ?, ?)`,
+			pid, day.Name, dayIdx, isRest,
+		)
+		if err != nil {
+			return err
+		}
+		dayID, err := dayRes.LastInsertId()
+		if err != nil {
+			return err
+		}
+		if err := insertDayExercises(tx, pid, dayID, day.Exercises); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func insertDayExercises(tx *sql.Tx, pid, dayID int64, exercises []models.CreateProgramExerciseReq) error {
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?)`,
-			pid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
+			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?, ?)`,
+			pid, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
 		)
 		if err != nil {
 			return err
@@ -327,16 +393,64 @@ func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProg
 	return nil
 }
 
-// loadExercises scans + closes the parent cursor BEFORE loading each exercise's
-// sets (#36), and surfaces scan errors.
-func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise, error) {
+// firstTrainingDayExercises returns the exercises of the first non-rest day, or nil.
+// This populates the flattened Program.Exercises compat field (see models.Program).
+func firstTrainingDayExercises(days []models.ProgramDay) []models.ProgramExercise {
+	for _, d := range days {
+		if !d.IsRestDay {
+			return d.Exercises
+		}
+	}
+	return nil
+}
+
+// loadDays loads a program's days ordered by order_index, then each day's exercises,
+// then each exercise's sets. Every parent cursor is fully scanned and closed BEFORE
+// loading its children at all three levels (#36) — mandatory under SetMaxOpenConns(1).
+func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
 	rows, err := s.db.Query(
-		`SELECT pe.id, pe.program_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
+		`SELECT id, program_id, name, order_index, is_rest_day
+		 FROM program_days WHERE program_id = ? ORDER BY order_index`,
+		programID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	var days []models.ProgramDay
+	for rows.Next() {
+		var d models.ProgramDay
+		if err := rows.Scan(&d.ID, &d.ProgramID, &d.Name, &d.OrderIndex, &d.IsRestDay); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		days = append(days, d)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, err
+	}
+	rows.Close() // close the parent cursor BEFORE loading children (#36)
+
+	for i := range days {
+		ex, err := s.loadDayExercises(days[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		days[i].Exercises = ex
+	}
+	return days, nil
+}
+
+// loadDayExercises scans + closes the exercise cursor BEFORE loading each exercise's
+// sets (#36), and surfaces scan errors.
+func (s *ProgramStore) loadDayExercises(dayID int64) ([]models.ProgramExercise, error) {
+	rows, err := s.db.Query(
+		`SELECT pe.id, pe.program_id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
 		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id
-		 WHERE pe.program_id = ? ORDER BY pe.order_index`,
-		programID,
+		 WHERE pe.program_day_id = ? ORDER BY pe.order_index`,
+		dayID,
 	)
 	if err != nil {
 		return nil, err
@@ -345,7 +459,7 @@ func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise,
 	for rows.Next() {
 		var pe models.ProgramExercise
 		if err := rows.Scan(
-			&pe.ID, &pe.ProgramID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
+			&pe.ID, &pe.ProgramID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {

@@ -85,8 +85,15 @@ func TestListProgramsConcurrentDoesNotExhaustPool(t *testing.T) {
 		t.Fatalf("insert program: %v", err)
 	}
 	pid, _ := res.LastInsertId()
+	dayRes, err := db.DB.Exec(
+		`INSERT INTO program_days (program_id, name, order_index, is_rest_day) VALUES (?, 'Day 1', 0, 0)`, pid,
+	)
+	if err != nil {
+		t.Fatalf("insert program_day: %v", err)
+	}
+	dayID, _ := dayRes.LastInsertId()
 	peRes, err := db.DB.Exec(
-		`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, 0)`, pid, exID,
+		`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, 0)`, pid, dayID, exID,
 	)
 	if err != nil {
 		t.Fatalf("insert program_exercise: %v", err)
