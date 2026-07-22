@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { activeSessionExercisesForDay, dayLabel } from '@lyftr/shared'
+import { activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
 import { AppText, IconButton, Screen } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -41,10 +41,7 @@ export default function StartWorkout() {
   }
 
   const startFromProgram = (program: Program, day: ProgramDay) => {
-    const exercises = activeSessionExercisesForDay(day)
-    const dayCount = program.days?.length ?? 0
-    const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id, day.id)
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
     setDayPickFor(null)
     router.push('/workouts/active')
   }

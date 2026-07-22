@@ -19,7 +19,7 @@ import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
-import { activeSessionExercisesForDay, dayLabel, todaysDay } from '../utils/programUtils'
+import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '../utils/programUtils'
 
 const TODAY = new Date()
 
@@ -186,7 +186,7 @@ export default function Dashboard() {
   const upNext = (() => {
     for (const p of programs) {
       const day = todaysDay(p)
-      if (day && !day.is_rest_day && (day.exercises ?? []).length > 0) return { program: p, day }
+      if (isDayStartable(day)) return { program: p, day }
     }
     return null
   })()
@@ -194,8 +194,7 @@ export default function Dashboard() {
   const startUpNext = () => {
     if (!upNext) return
     const { program, day } = upNext
-    const name = (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, activeSessionExercisesForDay(day), program.id, day.id)
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
     navigate('/workout/active')
   }
 
@@ -314,21 +313,34 @@ export default function Dashboard() {
       )}
 
       {/* ── Up next — today's due day on the current routine. Hidden while a
-          session is live: the banner above already owns that slot. ── */}
+          session is live: the banner above already owns that slot. Thumbnail is
+          the due day's own first exercise (same pattern as Programs.tsx's card
+          and the Last-workout list below), not a generic program glyph — makes
+          the card read as "this is what you're about to do." Start is icon-only,
+          not a labeled pill: the header above already has a text "Start"/"Resume"
+          button, and two buttons both saying "Start" stacked this close reads as
+          noise, not choice. The Start button stays a SIBLING of the link, not a
+          child: an <a> may not contain interactive descendants (invalid HTML, and
+          screen readers fold the button into the link's accessible name). ── */}
       {!session && upNext && (
-        /* The Start button is a SIBLING of the link, not a child: an <a> may not
-           contain interactive descendants (invalid HTML, and screen readers fold
-           the button into the link's accessible name). The link covers the card's
-           icon + text; the button stands alone. */
         <div className="flex items-center gap-3 card p-3 hover:bg-surface-muted/40 transition-colors">
           <Link
             to={`/programs/${upNext.program.id}`}
             aria-label={`View ${upNext.program.name} routine`}
             className="flex items-center gap-3 flex-1 min-w-0"
           >
-            <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
-              <BookOpen className="w-5 h-5 text-brand-500" />
-            </div>
+            {upNext.day.exercises?.[0]?.exercise?.image_url ? (
+              <img
+                src={upNext.day.exercises[0].exercise.image_url}
+                alt=""
+                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-brand-500" />
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">Up next · {upNext.program.name}</p>
               <p className="text-sm font-semibold text-tx-primary truncate mt-0.5">{dayLabel(upNext.day, upNext.day.order_index)}</p>
@@ -338,9 +350,9 @@ export default function Dashboard() {
           <button
             onClick={startUpNext}
             aria-label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-colors flex-shrink-0"
+            className="flex items-center justify-center w-9 h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors flex-shrink-0"
           >
-            <Play className="w-3.5 h-3.5" /> Start
+            <Play className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -591,12 +603,18 @@ export default function Dashboard() {
           <div className="card p-4 flex flex-col items-center justify-center min-h-36 gap-2">
             <Dumbbell className="w-7 h-7 text-tx-muted opacity-40" />
             <p className="text-sm text-tx-muted">No workouts logged yet</p>
-            <button
-              onClick={() => navigate('/workout/start')}
-              className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
-            >
-              Start your first workout →
-            </button>
+            {/* Suppressed when the Up Next card is already showing above — that
+                card is its own "start something" CTA; a second "start your first
+                workout" link right under it is the redundant-buttons clutter this
+                card exists to avoid. */}
+            {!upNext && (
+              <button
+                onClick={() => navigate('/workout/start')}
+                className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
+              >
+                Start your first workout →
+              </button>
+            )}
           </div>
         )}
 

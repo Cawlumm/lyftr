@@ -2,8 +2,8 @@
 // copy of programUtils until it migrates to @lyftr/shared, so it keeps its own test.
 import { describe, it, expect } from 'vitest'
 import {
-  activeSessionExercisesForDay, allExercises, dayLabel, programExerciseCount, programSetCount,
-  todaysDay, workoutDays,
+  activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
+  sessionNameForDay, todaysDay, workoutDays,
 } from './programUtils'
 import * as types from '../types'
 
@@ -121,5 +121,38 @@ describe('activeSessionExercisesForDay', () => {
   it('a rest/empty day yields no exercises', () => {
     expect(activeSessionExercisesForDay(day({ is_rest_day: true }))).toEqual([])
     expect(activeSessionExercisesForDay({ ...day(), exercises: undefined as any })).toEqual([])
+  })
+})
+
+describe('isDayStartable', () => {
+  const withExercise = day({ exercises: [{ exercise_id: 1 }] as any })
+
+  it('true only for a workout day with at least one exercise', () => {
+    expect(isDayStartable(withExercise)).toBe(true)
+  })
+
+  it('false for a rest day, even with exercises somehow present', () => {
+    expect(isDayStartable({ ...withExercise, is_rest_day: true })).toBe(false)
+  })
+
+  it('false for a workout day with no exercises', () => {
+    expect(isDayStartable(day({ exercises: [] }))).toBe(false)
+  })
+
+  it('false for undefined (as todaysDay() returns for a dayless program)', () => {
+    expect(isDayStartable(undefined)).toBe(false)
+  })
+})
+
+describe('sessionNameForDay', () => {
+  it('is just the program name for a single-day program', () => {
+    const p = program([day({ order_index: 0 })])
+    expect(sessionNameForDay(p, p.days![0])).toBe('PPL')
+  })
+
+  it('appends the day label once a program has more than one day', () => {
+    const d = day({ order_index: 1, name: 'Pull A' })
+    const p = program([day({ order_index: 0 }), d])
+    expect(sessionNameForDay(p, d)).toBe('PPL — Pull A')
   })
 })

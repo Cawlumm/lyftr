@@ -67,9 +67,7 @@ func alterMigrations() {
 	// actually logged — see ProgramStore.currentDayIndex. Best-effort/no FK:
 	// deleting a program must never take workout history down with it.
 	ensureColumn("workouts", "program_id", `ALTER TABLE workouts ADD COLUMN program_id INTEGER`)
-	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`); err != nil {
-		log.Fatalf("create idx_workouts_program: %v", err)
-	}
+	ensureIndex("idx_workouts_program", `CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`)
 
 	workoutProgramDayMigration()
 
@@ -207,9 +205,7 @@ func workoutProgramDayMigration() {
 		}
 		log.Println("migration: added workouts.program_day_id (+ first-workout-day backfill)")
 	}
-	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_workouts_program_day ON workouts(program_day_id)`); err != nil {
-		log.Fatalf("create idx_workouts_program_day: %v", err)
-	}
+	ensureIndex("idx_workouts_program_day", `CREATE INDEX IF NOT EXISTS idx_workouts_program_day ON workouts(program_day_id)`)
 
 	// program_day_dropped = 1 marks a workout whose day linkage was deliberately
 	// removed by a routine edit deleting that day (ProgramStore.Update sets it
@@ -240,15 +236,11 @@ func multiDayProgramsMigration() {
 		)`); err != nil {
 		log.Fatalf("create program_days: %v", err)
 	}
-	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_program_days_program ON program_days(program_id, order_index)`); err != nil {
-		log.Fatalf("create idx_program_days_program: %v", err)
-	}
+	ensureIndex("idx_program_days_program", `CREATE INDEX IF NOT EXISTS idx_program_days_program ON program_days(program_id, order_index)`)
 
 	ensureColumn("program_exercises", "program_day_id",
 		`ALTER TABLE program_exercises ADD COLUMN program_day_id INTEGER REFERENCES program_days(id) ON DELETE CASCADE`)
-	if _, err := DB.Exec(`CREATE INDEX IF NOT EXISTS idx_program_exercises_day ON program_exercises(program_day_id)`); err != nil {
-		log.Fatalf("create idx_program_exercises_day: %v", err)
-	}
+	ensureIndex("idx_program_exercises_day", `CREATE INDEX IF NOT EXISTS idx_program_exercises_day ON program_exercises(program_day_id)`)
 
 	// Backfill: every pre-existing program (whether or not it has any exercises yet —
 	// an empty routine was a valid state under the old flat model) gets a single
@@ -329,6 +321,16 @@ func ensureColumn(table, column, alterSQL string) {
 			log.Fatalf("alter %s add %s: %v", table, column, err)
 		}
 		log.Printf("migration: added %s.%s", table, column)
+	}
+}
+
+// ensureIndex creates an index if it's missing — IF NOT EXISTS already makes this
+// idempotent at the SQL level, so unlike ensureColumn there's no existence check to
+// get wrong; this just gives the 3-line "Exec + Fatalf" shape a name instead of
+// repeating it at every call site.
+func ensureIndex(name, createSQL string) {
+	if _, err := DB.Exec(createSQL); err != nil {
+		log.Fatalf("create %s: %v", name, err)
 	}
 }
 

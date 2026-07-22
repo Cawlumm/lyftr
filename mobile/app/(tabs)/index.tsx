@@ -7,13 +7,13 @@ import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, BookOpen, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import {
-  activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, todaysDay, weightShort,
-  type DailyStats, type Program, type WeightLog, type WeightStats, type Workout,
+  activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, isDayStartable, sessionNameForDay,
+  todaysDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout,
 } from '@lyftr/shared'
-import { AppText, Card, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -210,7 +210,7 @@ export default function Dashboard() {
   const upNext = (() => {
     for (const p of programs) {
       const day = todaysDay(p)
-      if (day && !day.is_rest_day && (day.exercises ?? []).length > 0) return { program: p, day }
+      if (isDayStartable(day)) return { program: p, day }
     }
     return null
   })()
@@ -219,8 +219,7 @@ export default function Dashboard() {
     if (!upNext) return
     hImpact()
     const { program, day } = upNext
-    const name = (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, activeSessionExercisesForDay(day), program.id, day.id)
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
     router.navigate('/workouts/active')
   }
 
@@ -349,18 +348,22 @@ export default function Dashboard() {
           ) : null}
 
           {/* ── Up next — today's due day on the current routine. Hidden while a
-              session is live: the banner above already owns that slot. ── */}
+              session is live: the banner above already owns that slot. Thumbnail is
+              the due day's own first exercise (ProgramCard/WorkoutCard convention),
+              not a generic program glyph — makes the card feel like "this is what
+              you're about to do," not a bookmark. Start is a compact icon button
+              (ProgramCard's Play IconButton), not a labeled pill — the header above
+              already has a text "Start"/"Resume" button, and two buttons both saying
+              "Start" stacked this close reads as noise, not choice. ── */}
           {!session && upNext ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`View ${upNext.program.name} routine`}
-              onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
-              className="active:scale-[0.99]"
-            >
-              <Card className="flex-row items-center gap-3">
-                <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
-                  <BookOpen size={18} color={accent} />
-                </View>
+            <Card className="flex-row items-center gap-3">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View ${upNext.program.name} routine`}
+                onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
+                className="min-w-0 flex-1 flex-row items-center gap-3 active:opacity-70"
+              >
+                <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
                 <View className="min-w-0 flex-1">
                   <Label>Up next · {upNext.program.name}</Label>
                   <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
@@ -370,17 +373,16 @@ export default function Dashboard() {
                     {(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}
                   </AppText>
                 </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
-                  onPress={startUpNext}
-                  className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-3.5 py-2 active:scale-95"
-                >
-                  <Play size={14} color="#ffffff" />
-                  <Text className="font-sans-bold text-xs text-white">Start</Text>
-                </Pressable>
-              </Card>
-            </Pressable>
+                <ChevronRight size={16} color={colors.txMuted} />
+              </Pressable>
+              <IconButton
+                icon={Play}
+                label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+                variant="solid"
+                size="sm"
+                onPress={startUpNext}
+              />
+            </Card>
           ) : null}
 
           {/* ── This Week (sessions + current-week dots) ── */}
@@ -556,9 +558,15 @@ export default function Dashboard() {
             <Card className="items-center justify-center gap-2" style={{ minHeight: 148 }}>
               <Dumbbell size={30} color={colors.txMuted} style={{ opacity: 0.4 }} />
               <AppText variant="body" color="muted">No workouts logged yet</AppText>
-              <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
-                <AppText variant="caption" color="brand">Start your first workout →</AppText>
-              </Pressable>
+              {/* Suppressed when the Up Next card is already showing above — that
+                  card is its own "start something" CTA, and stacking a second
+                  "start your first workout" link right under it is the exact
+                  redundant-buttons clutter this card exists to avoid. */}
+              {!upNext ? (
+                <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
+                  <AppText variant="caption" color="brand">Start your first workout →</AppText>
+                </Pressable>
+              ) : null}
             </Card>
           )}
 

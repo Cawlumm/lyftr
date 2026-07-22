@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical, Moon } from 'lucide-react'
+import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical, Moon, Sun } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
@@ -11,7 +11,8 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import * as types from '../types'
 
 import {
-  todaysDay, dayLabel, programExerciseCount, programSetCount, activeSessionExercisesForDay, allExercises,
+  todaysDay, dayLabel, isDayStartable, programExerciseCount, programSetCount, sessionNameForDay,
+  activeSessionExercisesForDay, allExercises,
 } from '../utils/programUtils'
 
 function ProgramCard({
@@ -40,21 +41,18 @@ function ProgramCard({
   }, [])
 
   const today = todaysDay(program)
-  const canQuickStart = !!today && !today.is_rest_day && (today.exercises ?? []).length > 0
+  const canQuickStart = isDayStartable(today)
 
   const handleStart = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (session) { navigate('/workout/start'); return }
-    if (!canQuickStart || !today) {
+    if (!canQuickStart) {
       // Today's slot is a rest day (or the program has no days yet) — nothing to
       // quick-start; send them to the program to pick a day manually.
       navigate(`/programs/${program.id}`)
       return
     }
-    const exercises = activeSessionExercisesForDay(today)
-    const dayCount = program.days?.length ?? 0
-    const name = dayCount > 1 ? `${program.name} — ${dayLabel(today, today.order_index)}` : program.name
-    startSession(name, exercises, program.id, today.id)
+    startSession(sessionNameForDay(program, today), activeSessionExercisesForDay(today), program.id, today.id)
     navigate('/workout/active')
   }
   const [confirming, setConfirming] = useState(false)
@@ -142,7 +140,9 @@ function ProgramCard({
                   {today.is_rest_day ? (
                     <span className="text-xs text-tx-muted whitespace-nowrap flex items-center gap-1"><Moon className="w-3 h-3" />Rest today</span>
                   ) : (
-                    <span className="text-xs text-brand-400 font-medium whitespace-nowrap">Today: {dayLabel(today, today.order_index)}</span>
+                    // Sun, not Dumbbell — Dumbbell already means "exercises" earlier on
+                    // this same row; Sun/Moon reads as a natural due/rest pair instead.
+                    <span className="text-xs text-brand-400 font-medium whitespace-nowrap flex items-center gap-1"><Sun className="w-3 h-3" />Today: {dayLabel(today, today.order_index)}</span>
                   )}
                 </>
               )}

@@ -4,7 +4,7 @@ import { X, Play, BookOpen, Zap, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkoutSession } from '../stores/workoutSession'
 import ProgramPicker from './ProgramPicker'
-import { activeSessionExercisesForDay, dayLabel } from '../utils/programUtils'
+import { activeSessionExercisesForDay, sessionNameForDay } from '../utils/programUtils'
 import * as types from '../types'
 
 type Mode = 'pick' | 'from-program'
@@ -31,10 +31,7 @@ export default function StartWorkoutModal({ isOpen, onClose }: Props) {
   }
 
   const startFromProgram = (program: types.Program, day: types.ProgramDay) => {
-    const exercises = activeSessionExercisesForDay(day)
-    const dayCount = program.days?.length ?? 0
-    const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id, day.id)
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
     onClose()
     navigate('/workout/active')
   }

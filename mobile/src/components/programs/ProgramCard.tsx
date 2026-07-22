@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { format } from 'date-fns'
-import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play } from 'lucide-react-native'
+import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play, Sun } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { activeSessionExercisesForDay, allExercises, dayLabel, programExerciseCount, programSetCount, todaysDay } from '@lyftr/shared'
+import {
+  activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
+  sessionNameForDay, todaysDay,
+} from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client, useWorkoutSession } from '../../lib/lyftr'
@@ -40,9 +43,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const today = todaysDay(program)
 
   const beginSession = (day: ProgramDay) => {
-    const exercises = activeSessionExercisesForDay(day)
-    const name = dayCount > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
-    startSession(name, exercises, program.id, day.id)
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
     setDayPickFor(null)
     router.navigate(activeHref)
   }
@@ -54,7 +55,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
     if (session) { router.navigate(startHref); return }
-    if (today && !today.is_rest_day && (today.exercises ?? []).length > 0) {
+    if (isDayStartable(today)) {
       beginSession(today)
       return
     }
@@ -106,9 +107,15 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
                     <AppText variant="caption" color="muted" numberOfLines={1}>Rest today</AppText>
                   </View>
                 ) : (
-                  <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
-                    Today: {dayLabel(today, today.order_index)}
-                  </AppText>
+                  <View className="flex-row items-center gap-1">
+                    {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
+                        earlier on this same row; reusing it here would mean two different
+                        things next to each other. Sun/Moon reads as a natural due/rest pair. */}
+                    <Sun size={12} color={accent} />
+                    <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
+                      Today: {dayLabel(today, today.order_index)}
+                    </AppText>
+                  </View>
                 )}
               </>
             ) : null}

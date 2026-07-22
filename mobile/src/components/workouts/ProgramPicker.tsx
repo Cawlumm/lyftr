@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
 import { AlertCircle, BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { workoutDays, dayLabel } from '@lyftr/shared'
+import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
 import { AppText, EmptyState, Field, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
+import { pickProgramDay } from '../programs/DayPickerSheet'
 
 interface Props {
   onSelect: (program: Program, day: ProgramDay) => void
@@ -36,12 +37,9 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
     return q ? programs.filter((p) => p.name.toLowerCase().includes(q)) : programs
   }, [programs, query])
 
-  const pickProgram = (p: Program) => {
-    const days = workoutDays(p)
-    if (days.length === 0) return
-    if (days.length === 1) { onSelect(p, days[0]); return }
-    setDayPickFor(p)
-  }
+  // Decision logic (auto-select the lone day vs. open the day list) lives once in
+  // DayPickerSheet.tsx's pickProgramDay — reused here instead of re-branching it.
+  const pickProgram = (p: Program) => pickProgramDay(p, onSelect, setDayPickFor)
 
   const title = dayPickFor ? dayPickFor.name : 'Load from Program'
   const subtitle = dayPickFor ? 'Pick a day to pre-fill exercises' : 'Pick a program to pre-fill exercises'
@@ -71,7 +69,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
               keyExtractor={(d, i) => String(d.id ?? i)}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item: day }) => {
-                const isToday = (dayPickFor.days ?? [])[dayPickFor.current_day_index]?.id === day.id
+                const isToday = todaysDay(dayPickFor)?.id === day.id
                 return (
                   <Pressable
                     accessibilityRole="button"

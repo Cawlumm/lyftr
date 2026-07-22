@@ -14,6 +14,19 @@ export const todaysDay = (program: types.Program): types.ProgramDay | undefined 
 export const dayLabel = (day: types.ProgramDay, idx: number): string =>
   day.name?.trim() || (day.is_rest_day ? 'Rest Day' : `Day ${idx + 1}`)
 
+// A day is startable/loadable only if it's a workout day that actually has
+// exercises — a rest day or an empty day is never "due" and can't seed a session.
+// Takes `undefined` directly (as `todaysDay()` returns) so callers don't need a
+// separate null-guard before calling this.
+export const isDayStartable = (day: types.ProgramDay | undefined): day is types.ProgramDay =>
+  !!day && !day.is_rest_day && (day.exercises ?? []).length > 0
+
+// Display name for a session started from a specific program day: the plain
+// program name for a single-day program (nothing to disambiguate), or
+// "Program — Day Label" once there's more than one day to distinguish between.
+export const sessionNameForDay = (program: types.Program, day: types.ProgramDay): string =>
+  (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
+
 export const programExerciseCount = (program: types.Program): number =>
   (program.days ?? []).reduce((s, d) => s + (d.exercises ?? []).length, 0)
 

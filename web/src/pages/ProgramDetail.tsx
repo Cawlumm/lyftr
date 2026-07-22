@@ -11,7 +11,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
-import { allExercises, activeSessionExercisesForDay, dayLabel } from '../utils/programUtils'
+import { allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay } from '../utils/programUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -70,8 +70,7 @@ export default function ProgramDetail() {
     if (!program || !selectedDay || selectedDay.is_rest_day) return
     if (session) { navigate('/workout/start'); return }
     const exercises = activeSessionExercisesForDay(selectedDay)
-    const name = days.length > 1 ? `${program.name} — ${dayLabel(selectedDay, selectedDay.order_index)}` : program.name
-    startSession(name, exercises, program.id, selectedDay.id)
+    startSession(sessionNameForDay(program, selectedDay), exercises, program.id, selectedDay.id)
     navigate('/workout/active')
   }
 

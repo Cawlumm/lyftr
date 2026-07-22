@@ -132,6 +132,11 @@ func (s *ProgramStore) hydrate(p *models.Program) error {
 // depend on 50 mod cycle length. Dropped rows are ignored entirely. No qualifying
 // workout at all → the first workout day is due. A program with no workout days
 // (every day is rest, or no days yet) has nothing to be due → 0.
+
+// unlinkedWhere is the shared predicate for "this user's day-less, non-dropped
+// workouts on this program" — used by both currentDayIndex query branches below
+// (with vs. without an anchor row), kept in one place so the two don't drift.
+const unlinkedWhere = `w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL AND w.program_day_dropped = 0`
 func (s *ProgramStore) currentDayIndex(uid, programID int64, days []models.ProgramDay) (int, error) {
 	workoutIdx := []int{}
 	for i, d := range days {
@@ -168,16 +173,11 @@ func (s *ProgramStore) currentDayIndex(uid, programID int64, days []models.Progr
 		err = s.db.QueryRow(`
 			SELECT COUNT(*) FROM workouts w, workouts a
 			WHERE a.id = ?
-			  AND w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL
-			  AND w.program_day_dropped = 0
+			  AND `+unlinkedWhere+`
 			  AND (w.started_at > a.started_at OR (w.started_at = a.started_at AND w.id > a.id))`,
 			lastWID, uid, programID).Scan(&unlinked)
 	} else {
-		err = s.db.QueryRow(`
-			SELECT COUNT(*) FROM workouts w
-			WHERE w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL
-			  AND w.program_day_dropped = 0`,
-			uid, programID).Scan(&unlinked)
+		err = s.db.QueryRow(`SELECT COUNT(*) FROM workouts w WHERE `+unlinkedWhere, uid, programID).Scan(&unlinked)
 	}
 	if err != nil {
 		return 0, err
@@ -308,7 +308,7 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 				// day's rows: the day's cycle position is gone either way, and counting
 				// the shed rows as day-less advances would swing the due day by the
 				// parity of the day's whole logged history (see currentDayIndex).
-				if _, err := tx.Exec(`UPDATE workouts SET program_day_id = NULL, program_day_dropped = 1 WHERE program_day_id = ?`, dayID); err != nil {
+				if err := dropDayLinkage(tx, dayID); err != nil {
 					return err
 				}
 				continue // rest days never carry exercises, even if the client sent some
@@ -325,7 +325,7 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 			// SET NULL contract) but mark them dropped — their cycle position is
 			// unknowable, and counting them as day-less advances would swing the due
 			// day by the parity of an arbitrary historical count (see currentDayIndex).
-			if _, err := tx.Exec(`UPDATE workouts SET program_day_id = NULL, program_day_dropped = 1 WHERE program_day_id = ?`, dayID); err != nil {
+			if err := dropDayLinkage(tx, dayID); err != nil {
 				return err
 			}
 			if _, err := tx.Exec(`DELETE FROM program_days WHERE id = ?`, dayID); err != nil {
@@ -337,6 +337,16 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 		return models.Program{}, err
 	}
 	return s.get(id)
+}
+
+// dropDayLinkage severs workouts.program_day_id for a day that's being deleted or
+// rest-toggled, marking them program_day_dropped so currentDayIndex's "unlinked rows
+// advance the tracker" fallback skips them — their cycle position became unknowable
+// the moment the day went away, so counting them would swing the due day by the
+// parity of an arbitrary historical count (see currentDayIndex's own comment).
+func dropDayLinkage(tx *sql.Tx, dayID int64) error {
+	_, err := tx.Exec(`UPDATE workouts SET program_day_id = NULL, program_day_dropped = 1 WHERE program_day_id = ?`, dayID)
+	return err
 }
 
 // dayIDsInOrder returns a program's existing day row ids in cycle order, within tx.

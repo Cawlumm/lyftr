@@ -7,8 +7,8 @@ import {
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
 import {
-  activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, weightShort,
-  type Program, type ProgramSet,
+  activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
+  weightShort, type Program, type ProgramSet,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
@@ -164,9 +164,7 @@ export default function ProgramDetail() {
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
     if (session) { router.navigate(startHref); return }
-    const exercises = activeSessionExercisesForDay(selectedDay)
-    const name = days.length > 1 ? `${program.name} — ${dayLabel(selectedDay, selectedDay.order_index)}` : program.name
-    startSession(name, exercises, program.id, selectedDay.id)
+    startSession(sessionNameForDay(program, selectedDay), activeSessionExercisesForDay(selectedDay), program.id, selectedDay.id)
     router.navigate(activeHref)
   }
 
