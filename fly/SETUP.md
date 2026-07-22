@@ -49,8 +49,14 @@ The first deploy will:
 Once exercises and demo data are fully seeded (~60s after first deploy):
 
 ```bash
-fly ssh console --app lyftr-demo -C "cp /app/data/lyftr.db /app/data/lyftr.seed.db"
+fly ssh console --app lyftr-demo -C "/app/snapshot.sh"
 ```
+
+The DB runs in WAL mode, so recent writes can still be sitting in `lyftr.db-wal`
+rather than folded into `lyftr.db` — `snapshot.sh` stops the backend first (it
+restarts on its own within seconds, same as `reset.sh`) and copies the
+`-wal`/`-shm` side files too, when present, so the snapshot doesn't silently
+miss whatever hasn't been checkpointed yet.
 
 From this point the hourly cron (`reset.sh`) will restore this snapshot every hour,
 keeping the demo clean regardless of what visitors do.
@@ -70,6 +76,9 @@ Update `CORS_ORIGIN` in `fly.toml` and redeploy.
 # Check logs
 fly logs --app lyftr-demo
 
+# Check the reset job's own log (persists across restarts/redeploys)
+fly ssh console --app lyftr-demo -C "cat /app/data/reset.log"
+
 # Manual reset
 fly ssh console --app lyftr-demo -C "/app/reset.sh"
 
@@ -77,7 +86,7 @@ fly ssh console --app lyftr-demo -C "/app/reset.sh"
 fly deploy --app lyftr-demo
 
 # Update seed snapshot after improving demo data
-fly ssh console --app lyftr-demo -C "cp /app/data/lyftr.db /app/data/lyftr.seed.db"
+fly ssh console --app lyftr-demo -C "/app/snapshot.sh"
 ```
 
 ## Architecture
