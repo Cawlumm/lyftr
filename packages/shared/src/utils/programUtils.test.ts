@@ -1,6 +1,6 @@
 import {
-  activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
-  sessionNameForDay, todaysDay, workoutDays,
+  activeSessionExercisesForDay, allExercises, dayLabel, hasWorkoutExercises, isDayStartable, programExerciseCount,
+  programSetCount, sessionNameForDay, todaysDay, workoutDays,
 } from './programUtils'
 import type { Program, ProgramDay } from '../types'
 
@@ -151,5 +151,22 @@ describe('sessionNameForDay', () => {
     const d = day({ order_index: 1, name: 'Pull A' })
     const p = program([day({ order_index: 0 }), d])
     expect(sessionNameForDay(p, d)).toBe('PPL — Pull A')
+  })
+})
+
+describe('hasWorkoutExercises', () => {
+  it('true when some workout day has an exercise', () => {
+    expect(hasWorkoutExercises([
+      day({ exercises: [] }),
+      day({ exercises: [{ exercise_id: 1 }] as any }),
+    ])).toBe(true)
+  })
+
+  it('false when every day is empty or a rest day', () => {
+    expect(hasWorkoutExercises([day({ exercises: [] }), day({ is_rest_day: true, exercises: [{ exercise_id: 1 }] as any })])).toBe(false)
+  })
+
+  it('false for an empty list', () => {
+    expect(hasWorkoutExercises([])).toBe(false)
   })
 })

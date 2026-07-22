@@ -3,7 +3,7 @@ import { Platform, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
+import { apiErrorMessage, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
 import { AppText, Button, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
@@ -96,7 +96,7 @@ export default function EditProgram() {
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Program name required'); return }
     if (formData.days.length === 0) { setError('Add at least one day'); return }
-    const hasAnyExercise = formData.days.some((d) => !d.is_rest_day && d.exercises.length > 0)
+    const hasAnyExercise = hasWorkoutExercises(formData.days)
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
     setLoading(true)
     try {
@@ -155,7 +155,7 @@ export default function EditProgram() {
             <View>
               <AppText variant="title">Edit Program</AppText>
               <AppText variant="caption" color="muted">
-                {formData.days.length} days • {totalExercises} exercises • {totalSets} sets
+                {formData.days.length} day{formData.days.length === 1 ? '' : 's'} • {totalExercises} exercise{totalExercises === 1 ? '' : 's'} • {totalSets} set{totalSets === 1 ? '' : 's'}
               </AppText>
             </View>
           </View>

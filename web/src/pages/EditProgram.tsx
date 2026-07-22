@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, BookOpen, FileText, Dumbbell, CalendarDays } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
+import { hasWorkoutExercises } from '../utils/programUtils'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
 import * as types from '../types'
 import type { DayDraft } from '../components/programs/types'
@@ -65,7 +66,7 @@ export default function EditProgram() {
     e.preventDefault()
     if (!formData.name.trim()) { setError('Program name required'); return }
     if (formData.days.length === 0) { setError('Add at least one day'); return }
-    const hasAnyExercise = formData.days.some(d => !d.is_rest_day && d.exercises.length > 0)
+    const hasAnyExercise = hasWorkoutExercises(formData.days)
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
     setLoading(true)
     try {
@@ -113,7 +114,9 @@ export default function EditProgram() {
         </button>
         <div>
           <h1 className="font-display font-bold text-2xl text-tx-primary">Edit Program</h1>
-          <p className="text-xs text-tx-muted">{formData.days.length} days • {totalExercises} exercises • {totalSets} sets</p>
+          <p className="text-xs text-tx-muted">
+            {formData.days.length} day{formData.days.length === 1 ? '' : 's'} • {totalExercises} exercise{totalExercises === 1 ? '' : 's'} • {totalSets} set{totalSets === 1 ? '' : 's'}
+          </p>
         </div>
       </div>
 

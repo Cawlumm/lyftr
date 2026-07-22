@@ -29,17 +29,23 @@ export const isDayStartable = (day: ProgramDay | undefined): day is ProgramDay =
 export const sessionNameForDay = (program: Program, day: ProgramDay): string =>
   (program.days?.length ?? 0) > 1 ? `${program.name} — ${dayLabel(day, day.order_index)}` : program.name
 
-export const programExerciseCount = (program: Program): number =>
-  (program.days ?? []).reduce((s, d) => s + (d.exercises ?? []).length, 0)
-
-export const programSetCount = (program: Program): number =>
-  (program.days ?? []).reduce((s, d) => s + (d.exercises ?? []).reduce((s2, e) => s2 + (e.sets ?? []).length, 0), 0)
-
 // Flattened, so the auto-progression review banner surfaces a suggestion no matter
 // which day it landed on (the user may not have that day selected/expanded when it
 // lands).
 export const allExercises = (program: Program): ProgramExercise[] =>
   (program.days ?? []).flatMap((d) => d.exercises ?? [])
+
+// Whether any day in a list has at least one exercise on a workout (non-rest)
+// day — the "is there anything to actually run" check the create/edit-program
+// forms use before letting the user submit. Structural rather than typed to
+// ProgramDay so it also accepts the day/exercise editors' local draft shape.
+export const hasWorkoutExercises = (days: { is_rest_day: boolean; exercises: unknown[] }[]): boolean =>
+  days.some((d) => !d.is_rest_day && d.exercises.length > 0)
+
+export const programExerciseCount = (program: Program): number => allExercises(program).length
+
+export const programSetCount = (program: Program): number =>
+  allExercises(program).reduce((s, e) => s + (e.sets ?? []).length, 0)
 
 // Builds a live ActiveSession's exercises from one program Day, linking each set
 // back to its ProgramSet id so finishing the workout can auto-progress that

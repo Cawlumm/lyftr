@@ -69,7 +69,7 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 		}
 		programs[i].Days = days
 	}
-	idxByID, err := s.currentDayIndexBatch(uid, programs)
+	idxByID, err := s.currentDayIndex(uid, programs)
 	if err != nil {
 		return nil, err
 	}
@@ -112,24 +112,27 @@ func (s *ProgramStore) hydrate(p *models.Program) error {
 		return err
 	}
 	p.Days = days
-	idx, err := s.currentDayIndex(p.UserID, p.ID, days)
+	idxByID, err := s.currentDayIndex(p.UserID, []models.Program{{ID: p.ID, Days: days}})
 	if err != nil {
 		return err
 	}
-	p.CurrentDayIndex = idx
+	p.CurrentDayIndex = idxByID[p.ID]
 	return nil
 }
 
-// currentDayIndex is which Days[] entry is due today. It is derived from WHICH
-// specific day the most recently started program workout was logged against
-// (workouts.program_day_id), not from a blind workout count — a count is blind to
-// repeats and out-of-order logging, silently desyncing "today's workout" from what
-// was actually done. The due day is the next workout day after the last-logged one
-// in cycle order, wrapping to the first workout day past the end; rest days are
-// never "due" and are skipped over. Repeating the same day therefore doesn't skip
-// anything (due stays the next day in sequence), and logging an out-of-cycle day
-// deliberately moves the tracker to whatever follows THAT day — no "remaining
-// incomplete days" bookkeeping, by design.
+// currentDayIndex computes, for every given program, which Days[] entry is due
+// today, in a small constant number of queries regardless of how many programs
+// are passed (a single query via a CTE, whether called with one program from
+// hydrate or a whole page of them from List — see ProgramStore.List). The due day
+// is derived from WHICH specific day the most recently started program workout
+// was logged against (workouts.program_day_id), not from a blind workout count —
+// a count is blind to repeats and out-of-order logging, silently desyncing
+// "today's workout" from what was actually done. The due day is the next workout
+// day after the last-logged one in cycle order, wrapping to the first workout day
+// past the end; rest days are never "due" and are skipped over. Repeating the
+// same day therefore doesn't skip anything (due stays the next day in sequence),
+// and logging an out-of-cycle day deliberately moves the tracker to whatever
+// follows THAT day — no "remaining incomplete days" bookkeeping, by design.
 //
 // Only workouts whose program_day_id maps to one of THIS program's current non-rest
 // days can anchor the tracker to a specific day; rows carrying a day from some other
@@ -146,75 +149,7 @@ func (s *ProgramStore) hydrate(p *models.Program) error {
 // depend on 50 mod cycle length. Dropped rows are ignored entirely. No qualifying
 // workout at all → the first workout day is due. A program with no workout days
 // (every day is rest, or no days yet) has nothing to be due → 0.
-
-// unlinkedWhere is the shared predicate for "this user's day-less, non-dropped
-// workouts on this program" — used by both currentDayIndex query branches below
-// (with vs. without an anchor row), kept in one place so the two don't drift.
-const unlinkedWhere = `w.user_id = ? AND w.program_id = ? AND w.program_day_id IS NULL AND w.program_day_dropped = 0`
-func (s *ProgramStore) currentDayIndex(uid, programID int64, days []models.ProgramDay) (int, error) {
-	workoutIdx := []int{}
-	for i, d := range days {
-		if !d.IsRestDay {
-			workoutIdx = append(workoutIdx, i)
-		}
-	}
-	if len(workoutIdx) == 0 {
-		return 0, nil
-	}
-	// Most recent = started_at (the ordering the workout list already uses), id as
-	// the tiebreak for same-timestamp rows. w.user_id guards against another user
-	// advancing this tracker by writing the raw (FK-less) program_id themselves.
-	var lastDayID, lastWID int64
-	hasAnchor := true
-	err := s.db.QueryRow(`
-		SELECT w.program_day_id, w.id
-		FROM workouts w
-		JOIN program_days pd ON pd.id = w.program_day_id
-		WHERE w.user_id = ? AND w.program_id = ? AND pd.program_id = ? AND pd.is_rest_day = 0
-		ORDER BY w.started_at DESC, w.id DESC
-		LIMIT 1`, uid, programID, programID).Scan(&lastDayID, &lastWID)
-	if err == sql.ErrNoRows {
-		hasAnchor = false
-	} else if err != nil {
-		return 0, err
-	}
-	// Day-less rows newer than the anchor (all of them when there's no anchor) each
-	// advance one workout day. "Newer" mirrors the anchor's started_at DESC, id DESC
-	// ordering, compared against the anchor row itself so the stored timestamps never
-	// round-trip through Go (driver formatting differences would break the compare).
-	var unlinked int
-	if hasAnchor {
-		err = s.db.QueryRow(`
-			SELECT COUNT(*) FROM workouts w, workouts a
-			WHERE a.id = ?
-			  AND `+unlinkedWhere+`
-			  AND (w.started_at > a.started_at OR (w.started_at = a.started_at AND w.id > a.id))`,
-			lastWID, uid, programID).Scan(&unlinked)
-	} else {
-		err = s.db.QueryRow(`SELECT COUNT(*) FROM workouts w WHERE `+unlinkedWhere, uid, programID).Scan(&unlinked)
-	}
-	if err != nil {
-		return 0, err
-	}
-	if hasAnchor {
-		for p, i := range workoutIdx {
-			if days[i].ID == lastDayID {
-				return workoutIdx[(p+1+unlinked)%len(workoutIdx)], nil
-			}
-		}
-		// Anchor day vanished between the query and hydrate — fall through as if its
-		// log were day-less too.
-		unlinked++
-	}
-	return workoutIdx[unlinked%len(workoutIdx)], nil
-}
-
-// currentDayIndexBatch computes CurrentDayIndex for every given program in a
-// constant small number of queries, instead of currentDayIndex's 2 round trips
-// PER program (see ProgramStore.List) — same semantics as currentDayIndex (see its
-// doc comment above), just evaluated for every program_id in one query via a CTE
-// instead of one query per program_id.
-func (s *ProgramStore) currentDayIndexBatch(uid int64, programs []models.Program) (map[int64]int, error) {
+func (s *ProgramStore) currentDayIndex(uid int64, programs []models.Program) (map[int64]int, error) {
 	result := make(map[int64]int, len(programs))
 	workoutIdx := make(map[int64][]int, len(programs))
 	progByID := make(map[int64]models.Program, len(programs))

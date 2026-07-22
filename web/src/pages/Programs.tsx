@@ -131,9 +131,9 @@ function ProgramCard({
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
             <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
-              <span className="text-xs text-tx-muted whitespace-nowrap">{totalExercises} exercises</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{totalExercises} exercise{totalExercises === 1 ? '' : 's'}</span>
               <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="text-xs text-tx-muted whitespace-nowrap">{totalSets} sets</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{totalSets} set{totalSets === 1 ? '' : 's'}</span>
               {dayCount > 1 && today && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>

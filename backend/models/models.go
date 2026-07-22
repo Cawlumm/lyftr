@@ -373,11 +373,10 @@ type CreateProgramDayReq struct {
 	// 0", so without it any reorder or mid-list removal would silently re-attribute
 	// the program's workout history (workouts.program_day_id) to the wrong days —
 	// see ProgramStore.Update. Ignored on create.
-	ID         int64                      `json:"id"`
-	OrderIndex int                        `json:"order_index"`
-	IsRestDay  bool                       `json:"is_rest_day"`
-	Name       string                     `json:"name"`
-	Exercises  []CreateProgramExerciseReq `json:"exercises" validate:"max=500,dive"`
+	ID        int64                      `json:"id"`
+	IsRestDay bool                       `json:"is_rest_day"`
+	Name      string                     `json:"name"`
+	Exercises []CreateProgramExerciseReq `json:"exercises" validate:"max=500,dive"`
 }
 
 type CreateProgramExerciseReq struct {

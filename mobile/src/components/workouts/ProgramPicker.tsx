@@ -89,7 +89,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                         ) : null}
                       </View>
                       <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                        {(day.exercises ?? []).length} exercises
+                        {(day.exercises ?? []).length} exercise{(day.exercises ?? []).length === 1 ? '' : 's'}
                       </AppText>
                     </View>
                     <ChevronRight size={16} color={colors.txMuted} />

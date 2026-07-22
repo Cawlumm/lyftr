@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 	"strconv"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -77,15 +76,12 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	if req.StartedAt.IsZero() {
-		req.StartedAt = time.Now()
-	}
 	// The due-day tracker orders workouts by started_at as stored TEXT, and the
 	// driver stores a time.Time with its zone suffix — a non-UTC offset would
 	// compare by wall-clock text, not instant, mis-ordering the anchor lookup
-	// (ProgramStore.currentDayIndex). Normalize every write to UTC so
-	// lexicographic order stays chronological.
-	req.StartedAt = req.StartedAt.UTC()
+	// (ProgramStore.currentDayIndex). normalizeLoggedAt both defaults a zero time
+	// to now and forces UTC, same as weight logs.
+	req.StartedAt = normalizeLoggedAt(req.StartedAt)
 	// Snapshot, insert, and stage routine target suggestions in one transaction (issue
 	// #40) — closes a TOCTOU race where two concurrent submissions could both read the
 	// same stale prior best. Staging is still best-effort internally: a failure there

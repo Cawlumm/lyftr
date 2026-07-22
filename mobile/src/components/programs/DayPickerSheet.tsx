@@ -61,7 +61,7 @@ export function DayPickerSheet({ program, onSelect, onClose }: Props) {
                   ) : null}
                 </View>
               }
-              secondary={`${(day.exercises ?? []).length} exercises`}
+              secondary={`${(day.exercises ?? []).length} exercise${(day.exercises ?? []).length === 1 ? '' : 's'}`}
               right={<Dumbbell size={16} color={accent} />}
               onPress={() => onSelect(program, day)}
             />

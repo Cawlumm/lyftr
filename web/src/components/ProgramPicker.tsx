@@ -86,7 +86,9 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
                           {dayLabel(day, day.order_index)}
                           {isToday && <span className="text-[10px] font-bold text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded-full">TODAY</span>}
                         </p>
-                        <span className="text-xs text-tx-muted">{(day.exercises ?? []).length} exercises</span>
+                        <span className="text-xs text-tx-muted">
+                          {(day.exercises ?? []).length} exercise{(day.exercises ?? []).length === 1 ? '' : 's'}
+                        </span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </button>

@@ -266,7 +266,19 @@ func multiDayProgramsMigration() {
 
 	// Backfill: every pre-existing program (whether or not it has any exercises yet —
 	// an empty routine was a valid state under the old flat model) gets a single
-	// wrapper Day. Idempotent — a program only ever lacks a Day once.
+	// wrapper Day. Idempotent — a program only ever lacks a Day once. Gated behind a
+	// migration_flags row (same pattern as normalizeWorkoutStartedAt) once a boot
+	// finds zero orphaned programs, so this anti-join isn't rescanning the whole
+	// programs table on every single startup forever — every program gets a Day
+	// right here or at Create time from now on, so "zero orphans" is permanent.
+	done, err := hasMigrationFlag("multi_day_programs_backfilled")
+	if err != nil {
+		log.Printf("multiDayProgramsMigration: check flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
 	rows, err := DB.Query(`
 		SELECT p.id
 		FROM programs p
@@ -298,6 +310,9 @@ func multiDayProgramsMigration() {
 			log.Fatalf("multiDayProgramsMigration: backfill program_day_id for program %d: %v", pid, err)
 		}
 		log.Printf("migration: wrapped program %d in a single Day", pid)
+	}
+	if len(programIDs) == 0 {
+		setMigrationFlag("multi_day_programs_backfilled")
 	}
 }
 

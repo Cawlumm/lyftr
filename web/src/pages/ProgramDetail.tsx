@@ -288,7 +288,7 @@ export default function ProgramDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{program.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              Created {format(new Date(program.created_at), 'MMMM d, yyyy')}
+              Created {format(new Date(program.created_at), 'MMM d, yyyy')}
             </p>
           </div>
         </div>

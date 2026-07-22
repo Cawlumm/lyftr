@@ -41,6 +41,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const totalSets = programSetCount(program)
   const dayCount = program.days?.length ?? 0
   const today = todaysDay(program)
+  const thumbnailUrl = allExercises(program)[0]?.exercise?.image_url
 
   const beginSession = (day: ProgramDay) => {
     startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
@@ -80,7 +81,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
       <Card className="flex-row items-center gap-3 rounded-2xl">
-        <ExerciseImage url={allExercises(program)[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
+        <ExerciseImage url={thumbnailUrl} fallbackIcon={BookOpen} />
         <View className="flex-1">
           <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
           <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
@@ -91,12 +92,12 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
             <View className="flex-row items-center gap-1">
               <Dumbbell size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{exCount} exercises</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1}>{exCount} exercise{exCount === 1 ? '' : 's'}</AppText>
             </View>
             <AppText variant="caption" color="muted">·</AppText>
             <View className="flex-row items-center gap-1">
               <Layers size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{totalSets} sets</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1}>{totalSets} set{totalSets === 1 ? '' : 's'}</AppText>
             </View>
             {dayCount > 1 && today ? (
               <>
@@ -148,11 +149,11 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         onClose={() => setMenuOpen(false)}
         header={
           <View className="flex-row items-center gap-3">
-            <ExerciseImage url={allExercises(program)[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
+            <ExerciseImage url={thumbnailUrl} size="hero" fallbackIcon={BookOpen} />
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                {exCount} exercises · {totalSets} sets
+                {exCount} exercise{exCount === 1 ? '' : 's'} · {totalSets} set{totalSets === 1 ? '' : 's'}
               </AppText>
             </View>
           </View>

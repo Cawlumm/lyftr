@@ -230,7 +230,7 @@ func seedWorkouts(db *sql.DB, userID, progID int64) error {
 			workoutNames[tmplIdx],
 			"",
 			workoutDurations[tmplIdx]+rng.Intn(600)-300,
-			startedAt.Format("2006-01-02T15:04:05Z"),
+			startedAt,
 			progID,
 		)
 		if err != nil {
@@ -296,7 +296,7 @@ func seedWeightLogs(db *sql.DB, userID int64) {
 		loggedAt := time.Date(day.Year(), day.Month(), day.Day(), 7, 30, 0, 0, time.UTC)
 		db.Exec(
 			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-			userID, fmt.Sprintf("%.1f", w), "", loggedAt.Format("2006-01-02T15:04:05Z"),
+			userID, fmt.Sprintf("%.1f", w), "", loggedAt,
 		)
 	}
 }
@@ -341,7 +341,7 @@ func seedFoodLogs(db *sql.DB, userID int64) {
 			db.Exec(
 				`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 				userID, m.name, m.meal, m.calories, m.protein, m.carbs, m.fat,
-				loggedAt.Format("2006-01-02T15:04:05Z"),
+				loggedAt,
 			)
 		}
 	}
