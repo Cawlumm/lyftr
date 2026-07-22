@@ -44,7 +44,7 @@ interface WorkoutSessionStore {
   gymPhase: GymPhase
   gymExIdx: number
   gymSetIdx: number
-  startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number) => void
+  startSession: (name: string, exercises: types.ActiveSessionExercise[], programId?: number, programDayId?: number) => void
   updateSet: (exIdx: number, setIdx: number, field: 'actual_reps' | 'actual_weight', val: number) => void
   completeSet: (exIdx: number, setIdx: number) => void
   updateExerciseNotes: (exIdx: number, notes: string) => void
@@ -130,12 +130,13 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
     set({ gymPhase, gymExIdx, gymSetIdx })
   },
 
-  startSession: (name, exercises, programId) => {
+  startSession: (name, exercises, programId, programDayId) => {
     const session: types.ActiveSession = {
       name,
       started_at: new Date().toISOString(),
       exercises,
       program_id: programId,
+      program_day_id: programDayId,
     }
     saveLocal(session)
     set({ session })
@@ -255,6 +256,7 @@ export const useWorkoutSession = create<WorkoutSessionStore>((set, get) => ({
       duration: durationSec,
       started_at: session.started_at,
       program_id: session.program_id ?? null, // lets the backend auto-progress the routine (#40)
+      program_day_id: session.program_day_id ?? null, // which cycle day this was — drives the due-day tracker
       exercises: session.exercises.map(ex => ({
         exercise_id: ex.exercise_id,
         notes: ex.notes,

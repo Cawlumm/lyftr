@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen, CalendarDays, Timer } from 'lucide-react'
 import { workoutAPI } from '../services/api'
-import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
+import { useSettingsStore, weightShort, displayToLbs, lbsToDisplay } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
@@ -30,11 +30,11 @@ export default function AddWorkout() {
 
   useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
-  const loadFromProgram = (program: types.Program) => {
+  const loadFromProgram = (_program: types.Program, day: types.ProgramDay) => {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }
-    const newExercises = (program.exercises || []).map(ex => {
+    const newExercises = (day.exercises || []).map(ex => {
       newMap[ex.exercise_id] = ex.exercise
-      return { exercise_id: ex.exercise_id, notes: ex.notes || '', rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90), sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.target_reps, weight: s.target_weight })) }
+      return { exercise_id: ex.exercise_id, notes: ex.notes || '', rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90), sets: (ex.sets || []).map(s => ({ set_number: s.set_number, reps: s.target_reps, weight: lbsToDisplay(s.target_weight, settings.weight_unit) })) }
     })
     setPickerExercises(newMap)
     setFormData(prev => ({ ...prev, exercises: newExercises }))

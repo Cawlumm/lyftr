@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
-  Dumbbell, Flame, ArrowRight, Beef,
+  Dumbbell, Flame, ArrowRight, Beef, BookOpen,
   AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
@@ -12,13 +12,14 @@ import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
-import { workoutAPI, foodAPI, weightAPI, userAPI } from '../services/api'
+import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
+import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '../utils/programUtils'
 
 const TODAY = new Date()
 
@@ -126,11 +127,12 @@ const TOOLTIP_STYLE = {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { session } = useWorkoutSession()
+  const { session, startSession } = useWorkoutSession()
   const { user } = useAuthStore()
   const { settings: storedSettings } = useSettingsStore()
 
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
+  const [programs, setPrograms] = useState<types.Program[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
@@ -144,13 +146,15 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
+      programAPI.list({ limit: 100 }).catch(() => []), // backend's max — Up Next must see every program
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       weightAPI.list({ limit: 14 }).catch(() => []),
       weightAPI.stats().catch(() => null),
       userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
     ])
-      .then(([ws, fs, wl, wst, s]) => {
+      .then(([ws, ps, fs, wl, wst, s]) => {
         setWorkouts(ws || [])
+        setPrograms(ps || [])
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
@@ -175,6 +179,24 @@ export default function Dashboard() {
   const weekStart = startOfWeek(TODAY, { weekStartsOn: 1 })
   const weekWorkouts = workouts.filter(w => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
+
+  // "Up next": the first (most recently created) program whose due day is a
+  // startable workout day. Surfaces today's routine workout without opening the
+  // Programs page — a routine that never shows on the dashboard never gets started.
+  const upNext = (() => {
+    for (const p of programs) {
+      const day = todaysDay(p)
+      if (isDayStartable(day)) return { program: p, day }
+    }
+    return null
+  })()
+
+  const startUpNext = () => {
+    if (!upNext) return
+    const { program, day } = upNext
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
+    navigate('/workout/active')
+  }
 
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
@@ -288,6 +310,51 @@ export default function Dashboard() {
           </div>
           <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
         </Link>
+      )}
+
+      {/* ── Up next — today's due day on the current routine. Hidden while a
+          session is live: the banner above already owns that slot. Thumbnail is
+          the due day's own first exercise (same pattern as Programs.tsx's card
+          and the Last-workout list below), not a generic program glyph — makes
+          the card read as "this is what you're about to do." Start is icon-only,
+          not a labeled pill: the header above already has a text "Start"/"Resume"
+          button, and two buttons both saying "Start" stacked this close reads as
+          noise, not choice. The Start button stays a SIBLING of the link, not a
+          child: an <a> may not contain interactive descendants (invalid HTML, and
+          screen readers fold the button into the link's accessible name). ── */}
+      {!session && upNext && (
+        <div className="flex items-center gap-3 card p-3 hover:bg-surface-muted/40 transition-colors">
+          <Link
+            to={`/programs/${upNext.program.id}`}
+            aria-label={`View ${upNext.program.name} routine`}
+            className="flex items-center gap-3 flex-1 min-w-0"
+          >
+            {upNext.day.exercises?.[0]?.exercise?.image_url ? (
+              <img
+                src={upNext.day.exercises[0].exercise.image_url}
+                alt=""
+                className="w-10 h-10 rounded-xl object-cover flex-shrink-0 bg-surface-muted"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+                <BookOpen className="w-5 h-5 text-brand-500" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">Up next · {upNext.program.name}</p>
+              <p className="text-sm font-semibold text-tx-primary truncate mt-0.5">{dayLabel(upNext.day, upNext.day.order_index)}</p>
+              <p className="text-xs text-tx-muted mt-0.5">{(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}</p>
+            </div>
+          </Link>
+          <button
+            onClick={startUpNext}
+            aria-label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+            className="flex items-center justify-center w-9 h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors flex-shrink-0"
+          >
+            <Play className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
       {/* ── KPI strip ──────────────────────────────── */}
@@ -536,12 +603,18 @@ export default function Dashboard() {
           <div className="card p-4 flex flex-col items-center justify-center min-h-36 gap-2">
             <Dumbbell className="w-7 h-7 text-tx-muted opacity-40" />
             <p className="text-sm text-tx-muted">No workouts logged yet</p>
-            <button
-              onClick={() => navigate('/workout/start')}
-              className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
-            >
-              Start your first workout →
-            </button>
+            {/* Suppressed when the Up Next card is already showing above — that
+                card is its own "start something" CTA; a second "start your first
+                workout" link right under it is the redundant-buttons clutter this
+                card exists to avoid. */}
+            {!upNext && (
+              <button
+                onClick={() => navigate('/workout/start')}
+                className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
+              >
+                Start your first workout →
+              </button>
+            )}
           </div>
         )}
 

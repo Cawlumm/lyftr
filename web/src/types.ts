@@ -169,6 +169,7 @@ export interface ProgramSet {
 
 export interface ProgramExercise {
   id?: number
+  program_day_id?: number
   exercise_id: number
   order_index?: number
   notes?: string
@@ -177,12 +178,29 @@ export interface ProgramExercise {
   sets: ProgramSet[]
 }
 
+// One slot in a program's repeating cycle: a workout day (its own ordered
+// exercises/sets) or a rest day (exercises always empty). Days repeat in
+// order_index order once the sequence is exhausted — NOT locked to a calendar week
+// (a 6-day cycle repeats every 6 days regardless of which weekday it lands on).
+export interface ProgramDay {
+  id?: number
+  program_id?: number
+  order_index: number
+  is_rest_day: boolean
+  name?: string
+  exercises: ProgramExercise[]
+}
+
 export interface Program {
   id: number
   name: string
   notes?: string
   created_at: string
-  exercises: ProgramExercise[]
+  days: ProgramDay[]
+  // Which entry of `days` is due today — computed server-side from WHICH day the
+  // most recent program workout was logged against: the next workout day after it
+  // in cycle order (rest days are never due; wraps to the first workout day).
+  current_day_index: number
 }
 
 export interface ActiveSessionSet {
@@ -207,6 +225,10 @@ export interface ActiveSessionExercise {
 
 export interface ActiveSession {
   program_id?: number
+  // WHICH day of the program's cycle this session was started under — persisted on
+  // the created workout so the server's due-day tracker follows what was actually
+  // logged (not a blind count). Absent for freestyle sessions.
+  program_day_id?: number
   name: string
   started_at: string
   exercises: ActiveSessionExercise[]

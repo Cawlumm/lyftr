@@ -7,13 +7,13 @@ import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import {
-  displayVolume, displayWeight, weightShort,
-  type DailyStats, type WeightLog, type WeightStats, type Workout,
+  activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, isDayStartable, sessionNameForDay,
+  todaysDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout,
 } from '@lyftr/shared'
-import { AppText, Card, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -114,6 +114,7 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 export default function Dashboard() {
   const now = useMemo(() => new Date(), [])
   const session = useWorkoutSession((s) => s.session)
+  const startSession = useWorkoutSession((s) => s.startSession)
   const user = useAuthStore((s) => s.user)
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -133,6 +134,7 @@ export default function Dashboard() {
   }
 
   const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
   const [food, setFood] = useState<DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
@@ -145,13 +147,15 @@ export default function Dashboard() {
   const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
 
   const load = useCallback(async () => {
-    const [ws, fs, wl, wst] = await Promise.all([
+    const [ws, ps, fs, wl, wst] = await Promise.all([
       client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
+      client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
       client.weightAPI.stats().catch(() => null),
     ])
     setWorkouts(ws || [])
+    setPrograms(ps || [])
     setFood(fs || DEFAULT_FOOD)
     setWeightLogs(wl || [])
     setWeightStats(wst)
@@ -199,6 +203,25 @@ export default function Dashboard() {
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
   const weekWorkouts = workouts.filter((w) => new Date(w.started_at) >= weekStart)
   const lastWorkout = workouts[0] ?? null
+
+  // "Up next": the first (most recently created) program whose due day is a
+  // startable workout day. Surfaces today's routine workout without opening the
+  // Programs tab — a routine that never shows on the dashboard never gets started.
+  const upNext = (() => {
+    for (const p of programs) {
+      const day = todaysDay(p)
+      if (isDayStartable(day)) return { program: p, day }
+    }
+    return null
+  })()
+
+  const startUpNext = () => {
+    if (!upNext) return
+    hImpact()
+    const { program, day } = upNext
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
+    router.navigate('/workouts/active')
+  }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
     date: format(new Date(w.started_at), 'M/d'),
@@ -322,6 +345,44 @@ export default function Dashboard() {
               </View>
               <ArrowRight size={18} color={brand.warningSoft} />
             </Pressable>
+          ) : null}
+
+          {/* ── Up next — today's due day on the current routine. Hidden while a
+              session is live: the banner above already owns that slot. Thumbnail is
+              the due day's own first exercise (ProgramCard/WorkoutCard convention),
+              not a generic program glyph — makes the card feel like "this is what
+              you're about to do," not a bookmark. Start is a compact icon button
+              (ProgramCard's Play IconButton), not a labeled pill — the header above
+              already has a text "Start"/"Resume" button, and two buttons both saying
+              "Start" stacked this close reads as noise, not choice. ── */}
+          {!session && upNext ? (
+            <Card className="flex-row items-center gap-3">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`View ${upNext.program.name} routine`}
+                onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
+                className="min-w-0 flex-1 flex-row items-center gap-3 active:opacity-70"
+              >
+                <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
+                <View className="min-w-0 flex-1">
+                  <Label>Up next · {upNext.program.name}</Label>
+                  <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
+                    {dayLabel(upNext.day, upNext.day.order_index)}
+                  </Text>
+                  <AppText variant="caption" color="muted" className="mt-0.5">
+                    {(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}
+                  </AppText>
+                </View>
+                <ChevronRight size={16} color={colors.txMuted} />
+              </Pressable>
+              <IconButton
+                icon={Play}
+                label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+                variant="solid"
+                size="sm"
+                onPress={startUpNext}
+              />
+            </Card>
           ) : null}
 
           {/* ── This Week (sessions + current-week dots) ── */}
@@ -497,9 +558,15 @@ export default function Dashboard() {
             <Card className="items-center justify-center gap-2" style={{ minHeight: 148 }}>
               <Dumbbell size={30} color={colors.txMuted} style={{ opacity: 0.4 }} />
               <AppText variant="body" color="muted">No workouts logged yet</AppText>
-              <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
-                <AppText variant="caption" color="brand">Start your first workout →</AppText>
-              </Pressable>
+              {/* Suppressed when the Up Next card is already showing above — that
+                  card is its own "start something" CTA, and stacking a second
+                  "start your first workout" link right under it is the exact
+                  redundant-buttons clutter this card exists to avoid. */}
+              {!upNext ? (
+                <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
+                  <AppText variant="caption" color="brand">Start your first workout →</AppText>
+                </Pressable>
+              ) : null}
             </Card>
           )}
 

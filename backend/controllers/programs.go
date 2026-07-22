@@ -9,7 +9,32 @@ import (
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
+
+// Days/Exercises/Sets in CreateProgramRequest each cap at max=500 independently
+// (models.go), which doesn't bound their product across three nested levels — a
+// request with 500 days x 500 exercises x 500 sets still passes those tags. This
+// struct-level check enforces the total-rows bound (models.MaxProgramRows) that
+// insertProgramDays's single-transaction processing actually needs, since
+// db.DB.SetMaxOpenConns(1) means that transaction holds the process's only SQLite
+// connection for the whole request. Mirrors controllers/workouts.go's init().
+func init() {
+	validate.RegisterStructValidation(func(sl validator.StructLevel) {
+		req := sl.Current().Interface().(models.CreateProgramRequest)
+		total := 0
+		for _, d := range req.Days {
+			total++
+			for _, ex := range d.Exercises {
+				total++
+				total += len(ex.Sets)
+			}
+		}
+		if total > models.MaxProgramRows {
+			sl.ReportError(req.Days, "Days", "Days", "maxtotalrows", "")
+		}
+	}, models.CreateProgramRequest{})
+}
 
 func (h *Handler) ListPrograms(c *gin.Context) {
 	uid := middleware.UserID(c)

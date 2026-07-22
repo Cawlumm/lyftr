@@ -200,14 +200,19 @@ type RefreshRequest struct {
 const MaxWorkoutSets = 500
 
 type CreateWorkoutRequest struct {
-	Name      string                     `json:"name" validate:"required"`
-	Notes     string                     `json:"notes"`
-	Duration  int                        `json:"duration"`
-	StartedAt time.Time                  `json:"started_at"`
+	Name      string    `json:"name" validate:"required"`
+	Notes     string    `json:"notes"`
+	Duration  int       `json:"duration"`
+	StartedAt time.Time `json:"started_at"`
 	// ProgramID is set when the workout was started from a routine — it enables
 	// per-set auto-progression of that routine's targets (issue #40). nil for
 	// freestyle/quick workouts, which never progress a routine.
-	ProgramID *int64                     `json:"program_id"`
+	ProgramID *int64 `json:"program_id"`
+	// ProgramDayID is WHICH day of that routine's cycle the workout was started
+	// under (the client's day picker knows) — drives the day-accurate due-day
+	// tracker (ProgramStore.currentDayIndex). nil when not from a routine, or from
+	// an older client that predates day tracking.
+	ProgramDayID *int64 `json:"program_day_id"`
 	// Exercises/Sets each cap at max=500 as an outer sanity bound, but that bounds
 	// each dimension independently, not their product — see MaxWorkoutSets above for
 	// the cap that actually matters.
@@ -281,23 +286,44 @@ type UpdateSettingsRequest struct {
 }
 
 type Program struct {
-	ID        int64             `json:"id"`
-	UserID    int64             `json:"user_id,omitempty"`
-	Name      string            `json:"name"`
-	Notes     string            `json:"notes"`
-	CreatedAt time.Time         `json:"created_at"`
-	Exercises []ProgramExercise `json:"exercises"`
+	ID        int64        `json:"id"`
+	UserID    int64        `json:"user_id,omitempty"`
+	Name      string       `json:"name"`
+	Notes     string       `json:"notes"`
+	CreatedAt time.Time    `json:"created_at"`
+	Days      []ProgramDay `json:"days"`
+	// CurrentDayIndex is which entry of Days is due today — computed, never
+	// persisted, from WHICH day the most recent program workout was logged against
+	// (workouts.program_day_id): the next workout day after it in cycle order,
+	// wrapping past rest days (rest days are never "due") — see
+	// ProgramStore.currentDayIndex. Advancing only on an actual logged workout
+	// means there's no calendar-week alignment (a 6-day cycle repeats every 6 days
+	// regardless of which weekday it lands on). Always a workout day's index when
+	// the program has any; 0 for a program with no days (or only rest days).
+	CurrentDayIndex int `json:"current_day_index"`
+}
+
+// ProgramDay is one slot in a program's repeating cycle: either a workout day (its
+// own ordered Exercises/Sets) or a rest day (Exercises always empty). Days repeat in
+// OrderIndex order once the sequence is exhausted — see Program.CurrentDayIndex.
+type ProgramDay struct {
+	ID         int64             `json:"id,omitempty"`
+	ProgramID  int64             `json:"program_id,omitempty"`
+	OrderIndex int               `json:"order_index"`
+	IsRestDay  bool              `json:"is_rest_day"`
+	Name       string            `json:"name"`
+	Exercises  []ProgramExercise `json:"exercises"`
 }
 
 type ProgramExercise struct {
-	ID          int64        `json:"id,omitempty"`
-	ProgramID   int64        `json:"program_id,omitempty"`
-	ExerciseID  int64        `json:"exercise_id"`
-	OrderIndex  int          `json:"order_index,omitempty"`
-	Notes       string       `json:"notes"`
-	RestSeconds int          `json:"rest_seconds"`
-	Exercise    Exercise     `json:"exercise"`
-	Sets        []ProgramSet `json:"sets"`
+	ID           int64        `json:"id,omitempty"`
+	ProgramDayID int64        `json:"program_day_id,omitempty"`
+	ExerciseID   int64        `json:"exercise_id"`
+	OrderIndex   int          `json:"order_index,omitempty"`
+	Notes        string       `json:"notes"`
+	RestSeconds  int          `json:"rest_seconds"`
+	Exercise     Exercise     `json:"exercise"`
+	Sets         []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -314,17 +340,50 @@ type ProgramSet struct {
 	SuggestedIsPR   bool     `json:"suggested_is_pr,omitempty"`
 }
 
+// MaxProgramRows bounds the TOTAL number of rows (days + exercises + sets combined)
+// a CreateProgramRequest can insert in one transaction — enforced by the
+// struct-level validation registered in controllers/programs.go's init(). Days/
+// Exercises/Sets each also carry their own max=500 per-list cap below as a
+// belt-and-suspenders bound, but a program nests three levels (Days x Exercises x
+// Sets), so those alone don't bound the product (500 x 500 x 500 rows) — see
+// MaxWorkoutSets above for the two-level version of this same reasoning.
+// insertProgramDays (program.go) issues one tx.Exec per row inside a single
+// transaction holding the process's only SQLite connection (db.DB.SetMaxOpenConns(1)).
+const MaxProgramRows = 2000
+
 type CreateProgramRequest struct {
-	Name      string                     `json:"name" validate:"required"`
-	Notes     string                     `json:"notes"`
-	Exercises []CreateProgramExerciseReq `json:"exercises"`
+	Name  string                `json:"name" validate:"required"`
+	Notes string                `json:"notes"`
+	Days  []CreateProgramDayReq `json:"days" validate:"max=500,dive"`
+	// DayIDsKnown marks a client that round-trips day ids (CreateProgramDayReq.ID)
+	// on update. Update falls back to positional day matching for id-less requests
+	// (clients predating the id round-trip), but request content alone can't
+	// distinguish such a client from a modern one that deleted every existing day
+	// and added only new ones — zero ids either way. Without this flag that edit
+	// would positionally re-attribute the deleted days' workout history to the
+	// brand-new days (see ProgramStore.Update). Ignored on create.
+	DayIDsKnown bool `json:"day_ids_known"`
+}
+
+// CreateProgramDayReq is one Day in a program's cycle. Exercises is ignored (and
+// should be empty) when IsRestDay is true.
+type CreateProgramDayReq struct {
+	// ID ties this request day back to an existing program_days row on update (0 =
+	// new day). Position alone can't distinguish "renamed day 0" from "deleted day
+	// 0", so without it any reorder or mid-list removal would silently re-attribute
+	// the program's workout history (workouts.program_day_id) to the wrong days —
+	// see ProgramStore.Update. Ignored on create.
+	ID        int64                      `json:"id"`
+	IsRestDay bool                       `json:"is_rest_day"`
+	Name      string                     `json:"name"`
+	Exercises []CreateProgramExerciseReq `json:"exercises" validate:"max=500,dive"`
 }
 
 type CreateProgramExerciseReq struct {
 	ExerciseID  int64                 `json:"exercise_id" validate:"required"`
 	Notes       string                `json:"notes"`
 	RestSeconds int                   `json:"rest_seconds"`
-	Sets        []CreateProgramSetReq `json:"sets"`
+	Sets        []CreateProgramSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateProgramSetReq struct {

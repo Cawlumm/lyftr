@@ -3,7 +3,6 @@ package controllers
 import (
 	"database/sql"
 	"strconv"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -77,9 +76,12 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	if req.StartedAt.IsZero() {
-		req.StartedAt = time.Now()
-	}
+	// The due-day tracker orders workouts by started_at as stored TEXT, and the
+	// driver stores a time.Time with its zone suffix — a non-UTC offset would
+	// compare by wall-clock text, not instant, mis-ordering the anchor lookup
+	// (ProgramStore.currentDayIndex). normalizeLoggedAt both defaults a zero time
+	// to now and forces UTC, same as weight logs.
+	req.StartedAt = normalizeLoggedAt(req.StartedAt)
 	// Snapshot, insert, and stage routine target suggestions in one transaction (issue
 	// #40) — closes a TOCTOU race where two concurrent submissions could both read the
 	// same stale prior best. Staging is still best-effort internally: a failure there
@@ -112,6 +114,11 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	// Same UTC normalization as CreateWorkout — stored started_at text ordering is
+	// load-bearing for the due-day tracker. A zero StartedAt (request omitted it)
+	// stays zero: the store then preserves the stored timestamp instead of
+	// rewriting it to 0001-01-01 (WorkoutStore.Update).
+	req.StartedAt = req.StartedAt.UTC()
 	w, err := h.s.Workout.Update(uid, wid, req)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "workout not found")

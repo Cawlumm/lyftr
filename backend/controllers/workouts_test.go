@@ -203,6 +203,48 @@ func TestUpdateWorkout_preservesStartedAt(t *testing.T) {
 	}
 }
 
+// TestUpdateWorkout_OmittedStartedAtKeepsStoredValue: a PUT that omits started_at
+// (name/notes-only patch) must not rewrite the stored timestamp to the zero time —
+// stored started_at ordering is the due-day tracker's anchor
+// (ProgramStore.currentDayIndex), so a 0001-01-01 rewrite would silently drop the
+// workout to oldest and rewire which row anchors the tracker.
+func TestUpdateWorkout_OmittedStartedAtKeepsStoredValue(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	originalTime := "2024-03-01T08:00:00Z"
+	res, _ := db.DB.Exec(
+		`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, ?)`,
+		uid, "Original Name", originalTime,
+	)
+	wid, _ := res.LastInsertId()
+
+	body := map[string]any{ // no started_at
+		"name": "Renamed",
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets":        []map[string]any{{"set_number": 1, "reps": 10, "weight": 50.0}},
+			},
+		},
+	}
+	c, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+fmt.Sprint(wid), body)
+	setParam(c, "id", fmt.Sprint(wid))
+	th.UpdateWorkout(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var stored string
+	if err := db.DB.QueryRow(`SELECT CAST(started_at AS TEXT) FROM workouts WHERE id = ?`, wid).Scan(&stored); err != nil {
+		t.Fatalf("read stored started_at: %v", err)
+	}
+	if stored != originalTime {
+		t.Fatalf("started_at rewritten by an update that omitted it: got %q, want %q", stored, originalTime)
+	}
+}
+
 func TestListWorkouts_limitCap(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

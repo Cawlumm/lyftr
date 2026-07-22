@@ -3,12 +3,12 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
-  AlertCircle, ArrowLeft, Award, BookOpen, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell, Edit2,
-  Layers, Pause, Play, TimerOff, TrendingUp, Trash2, X,
+  AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
+  Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
 import {
-  apiErrorMessage, displayWeight, weightShort,
-  type ActiveSessionExercise, type Program, type ProgramSet,
+  activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
+  weightShort, type Program, type ProgramSet,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
@@ -80,6 +80,7 @@ export default function ProgramDetail() {
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
   useEffect(() => {
     fetchSettings()
@@ -105,12 +106,14 @@ export default function ProgramDetail() {
     try {
       const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
-      // Invalidate any focus refetch still in flight from before this point — its
-      // response can't be trusted to reflect this write, whichever order it lands in.
-      ++requestSeq.current
     } catch {
       // leave the banner in place so the user can retry
     } finally {
+      // Invalidate any focus refetch still in flight from before this point — its
+      // response can't be trusted to reflect this write, whichever order it lands in.
+      // Must run on failure too, not just success, or a refetch dispatched during a
+      // failed PATCH can still pass the seq check and apply stale data.
+      ++requestSeq.current
       setResolving(false)
     }
   }
@@ -131,7 +134,15 @@ export default function ProgramDetail() {
         const seq = ++requestSeq.current
         try {
           const data = await client.programAPI.get(Number(id))
-          if (!cancelled && requestSeq.current === seq) { setProgram(data); setError(null); loadedRef.current = true }
+          if (!cancelled && requestSeq.current === seq) {
+            setProgram(data)
+            setError(null)
+            // Only seed the day selection from the server's "due today" on the FIRST
+            // load — later focus refetches must not yank the user off a day they
+            // deliberately picked to look at.
+            if (!loadedRef.current) setSelectedDayIdx(data.current_day_index || 0)
+            loadedRef.current = true
+          }
         } catch (err) {
           if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, 'Failed to load program'))
         } finally {
@@ -145,27 +156,15 @@ export default function ProgramDetail() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
+  const days = program?.days ?? []
+  const selectedDay = days[selectedDayIdx]
+
   const handleStart = () => {
-    if (!program) return
+    if (!program || !selectedDay || selectedDay.is_rest_day) return
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
     if (session) { router.navigate(startHref); return }
-    const exercises: ActiveSessionExercise[] = (program.exercises || []).map((ex) => ({
-      exercise_id: ex.exercise_id,
-      exercise: ex.exercise,
-      notes: ex.notes || '',
-      rest_seconds: ex.rest_seconds,
-      sets: (ex.sets || []).map((s) => ({
-        set_number: s.set_number,
-        target_reps: s.target_reps,
-        target_weight: s.target_weight,
-        actual_reps: s.target_reps,
-        actual_weight: s.target_weight,
-        completed: false,
-        program_set_id: s.id,
-      })),
-    }))
-    startSession(program.name, exercises, program.id)
+    startSession(sessionNameForDay(program, selectedDay), activeSessionExercisesForDay(selectedDay), program.id, selectedDay.id)
     router.navigate(activeHref)
   }
 
@@ -199,14 +198,14 @@ export default function ProgramDetail() {
     )
   }
 
-  const exs = program.exercises ?? []
-  const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const allExs = allExercises(program)
+  const totalSets = allExs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
 
   // Pending auto-progression suggestions (#40). A suggestion exists when suggested_reps
   // is set. Show the FULL reps×weight on both sides when both changed (a heavier set can
   // also drop the rep target — the user must see that before approving), else the single
   // changed dimension.
-  const suggestions: Suggestion[] = exs.flatMap((ex) =>
+  const suggestions: Suggestion[] = allExs.flatMap((ex) =>
     (ex.sets ?? [])
       .filter((s) => s.id != null && s.suggested_reps != null)
       .map((s) => {
@@ -256,8 +255,9 @@ export default function ProgramDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Start workout"
                 onPress={handleStart}
+                disabled={!selectedDay || selectedDay.is_rest_day}
                 hitSlop={6}
-                className="h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95"
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''}`}
               >
                 <Play size={14} color="#ffffff" strokeWidth={2.2} />
                 <AppText variant="label" color="white">Start</AppText>
@@ -371,7 +371,7 @@ export default function ProgramDetail() {
           {/* Header card */}
           <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
             <View className="flex-row items-start gap-3">
-              <ExerciseImage url={exs[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
+              <ExerciseImage url={allExs[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
               <View className="flex-1">
                 <AppText variant="heading">{program.name}</AppText>
                 <AppText variant="body" color="muted" className="mt-0.5">
@@ -380,14 +380,21 @@ export default function ProgramDetail() {
               </View>
             </View>
 
-            {/* Stats strip: Exercises / Total Sets */}
+            {/* Stats strip: Cycle / Exercises / Total Sets */}
             <View className="flex-row mt-4 pt-4 border-t border-surface-border">
               <View className="flex-1 items-center">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <CalendarDays size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">Cycle</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{days.length || '—'}</AppText>
+              </View>
+              <View className="flex-1 items-center border-l border-surface-border">
                 <View className="flex-row items-center gap-1 mb-0.5">
                   <Dumbbell size={13} color={colors.txMuted} />
                   <AppText variant="caption" color="muted">Exercises</AppText>
                 </View>
-                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{exs.length}</AppText>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{allExs.length}</AppText>
               </View>
               <View className="flex-1 items-center border-l border-surface-border">
                 <View className="flex-row items-center gap-1 mb-0.5">
@@ -405,15 +412,77 @@ export default function ProgramDetail() {
             ) : null}
           </View>
 
-          {/* Exercises */}
-          {!restOn && (
-            <View className="flex-row items-center gap-1.5 px-1">
-              <TimerOff size={13} color={colors.txMuted} />
-              <AppText variant="caption" color="muted">Rest timer is off — turn it on in Settings</AppText>
+          {/* Day strip — the program's repeating cycle, in order. Selecting a day
+              shows its exercises below; it does NOT change which day is "due"
+              (that's server-computed from logged workouts). */}
+          {days.length === 0 ? (
+            <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-6">
+              <CalendarDays size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
+              <AppText variant="body" color="muted" className="mt-2">No days yet</AppText>
+              <Pressable onPress={() => router.push(`/programs/${program.id}/edit`)} className="mt-2 active:opacity-60">
+                <AppText variant="caption" style={{ color: accent }}>Add a day →</AppText>
+              </Pressable>
             </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+              {days.map((day, i) => {
+                const isSelected = i === selectedDayIdx
+                const isToday = i === program.current_day_index
+                return (
+                  <Pressable
+                    key={day.id ?? i}
+                    onPress={() => setSelectedDayIdx(i)}
+                    className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 active:scale-95 ${
+                      isSelected
+                        ? 'bg-brand-500 border-brand-500'
+                        : day.is_rest_day
+                          ? 'bg-surface-muted/40 border-surface-border'
+                          : 'bg-surface-raised border-surface-border'
+                    }`}
+                  >
+                    {day.is_rest_day
+                      ? <Moon size={14} color={isSelected ? '#ffffff' : colors.txMuted} />
+                      : <Dumbbell size={14} color={isSelected ? '#ffffff' : accent} />}
+                    <AppText variant="label" style={{ color: isSelected ? '#ffffff' : (day.is_rest_day ? colors.txMuted : colors.txSecondary) }} numberOfLines={1}>
+                      {dayLabel(day, day.order_index)}
+                    </AppText>
+                    {/* Textual chip, not a bare dot — a color-only marker isn't
+                        distinguishable by shape/text (a11y) and reads as decoration. */}
+                    {isToday ? (
+                      <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
+                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>TODAY</AppText>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                )
+              })}
+            </ScrollView>
           )}
-          <View className="gap-3">
-            {exs.map((ex) => {
+
+          {/* Selected day's exercises */}
+          {selectedDay?.is_rest_day ? (
+            <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
+              <Moon size={28} color={colors.txMuted} style={{ opacity: 0.6 }} />
+              <AppText variant="bodySemibold" className="mt-2">Rest Day</AppText>
+              <AppText variant="caption" color="muted" className="mt-1 text-center px-6">
+                No exercises scheduled — recover and come back stronger.
+              </AppText>
+            </View>
+          ) : selectedDay ? (
+            <>
+              {!restOn && (
+                <View className="flex-row items-center gap-1.5 px-1">
+                  <TimerOff size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">Rest timer is off — turn it on in Settings</AppText>
+                </View>
+              )}
+              <View className="gap-3">
+                {(selectedDay.exercises ?? []).length === 0 ? (
+                  <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-8">
+                    <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
+                    <AppText variant="body" color="muted" className="mt-2">No exercises on this day yet</AppText>
+                  </View>
+                ) : (selectedDay.exercises ?? []).map((ex) => {
               const sets = ex.sets ?? []
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
@@ -432,7 +501,7 @@ export default function ProgramDetail() {
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
                         <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
-                          {sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
+                          {sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
                         </AppText>
                       </View>
                     </View>
@@ -460,8 +529,10 @@ export default function ProgramDetail() {
                   )}
                 </Pressable>
               )
-            })}
-          </View>
+                })}
+              </View>
+            </>
+          ) : null}
         </View>
       </ScrollView>
     </Screen>

@@ -21,7 +21,7 @@ test.describe('Programs', () => {
       p => p.name === SEED_PROGRAM_NAME || p.name === SEED_SEARCH_PROGRAM_NAME)
 
     const createProgram = async (name: string, notes: string): Promise<number> => {
-      const r = await request.post(`${API}/programs`, { headers, data: { name, notes, exercises: [] } })
+      const r = await request.post(`${API}/programs`, { headers, data: { name, notes, days: [] } })
       const rb = await r.json()
       if (!rb.data?.id) throw new Error(`Failed to create seed program "${name}": ${JSON.stringify(rb)}`)
       return rb.data.id
@@ -69,7 +69,8 @@ test.describe('Programs', () => {
     await page.getByPlaceholder(/push pull legs, upper lower/i).fill(E2E_PROGRAM_NAME)
     await page.getByPlaceholder(/description or goals/i).fill('Test description')
 
-    // Add exercise
+    // Programs are day-nested now — add a workout day before its exercise editor appears.
+    await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).click()
     await expect(page.getByPlaceholder(/search name/i)).toBeVisible()
     await page.getByPlaceholder(/search name/i).fill('squat')
@@ -128,6 +129,7 @@ test.describe('Programs', () => {
 
   test('target weight unit shown correctly in program add form', async ({ page }) => {
     await page.goto('/programs/new')
+    await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).click()
     await page.getByPlaceholder(/search name/i).fill('deadlift')
     await page.getByText(/deadlift/i).first().click()

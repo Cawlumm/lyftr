@@ -36,14 +36,19 @@ func TestCreateProgram_success(t *testing.T) {
 	body := map[string]any{
 		"name":  "PPL Program",
 		"notes": "Push Pull Legs 6 days",
-		"exercises": []map[string]any{
+		"days": []map[string]any{
 			{
-				"exercise_id": exID,
-				"notes":       "Focus on form",
-				"sets": []map[string]any{
-					{"set_number": 1, "target_reps": 5, "target_weight": 100.0},
-					{"set_number": 2, "target_reps": 5, "target_weight": 100.0},
-					{"set_number": 3, "target_reps": 5, "target_weight": 100.0},
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{
+						"exercise_id": exID,
+						"notes":       "Focus on form",
+						"sets": []map[string]any{
+							{"set_number": 1, "target_reps": 5, "target_weight": 100.0},
+							{"set_number": 2, "target_reps": 5, "target_weight": 100.0},
+							{"set_number": 3, "target_reps": 5, "target_weight": 100.0},
+						},
+					},
 				},
 			},
 		},
@@ -60,9 +65,14 @@ func TestCreateProgram_success(t *testing.T) {
 	if data["name"] != "PPL Program" {
 		t.Errorf("expected name 'PPL Program', got %v", data["name"])
 	}
-	exercises, ok := data["exercises"].([]any)
+	days, ok := data["days"].([]any)
+	if !ok || len(days) != 1 {
+		t.Fatalf("days field missing or wrong shape: %T = %v", data["days"], data["days"])
+	}
+	day0 := days[0].(map[string]any)
+	exercises, ok := day0["exercises"].([]any)
 	if !ok {
-		t.Fatalf("exercises field missing or wrong type: %T = %v", data["exercises"], data["exercises"])
+		t.Fatalf("exercises field missing or wrong type: %T = %v", day0["exercises"], day0["exercises"])
 	}
 	if len(exercises) != 1 {
 		t.Fatalf("expected 1 exercise, got %d", len(exercises))
@@ -82,8 +92,8 @@ func TestCreateProgram_missingName(t *testing.T) {
 	uid := createTestUser(t)
 
 	body := map[string]any{
-		"name":      "",
-		"exercises": []map[string]any{},
+		"name": "",
+		"days": []map[string]any{},
 	}
 	c, w := newContext(uid, http.MethodPost, "/api/v1/programs", body)
 	th.CreateProgram(c)
@@ -144,10 +154,12 @@ func TestUpdateProgram_replacesExercises(t *testing.T) {
 	res, _ := db.DB.Exec(`INSERT INTO exercises (name, muscle_group, category) VALUES (?, ?, ?)`, "Test Exercise 2", "back", "strength")
 	exID2, _ := res.LastInsertId()
 
-	// Create program with 1 exercise
+	// Create program with 1 day, 1 exercise
 	progRes, _ := db.DB.Exec(`INSERT INTO programs (user_id, name) VALUES (?, ?)`, uid, "Original")
 	pid, _ := progRes.LastInsertId()
-	exRes, _ := db.DB.Exec(`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (?, ?, 0)`, pid, exID)
+	dayRes, _ := db.DB.Exec(`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, 0, 0, '')`, pid)
+	dayID, _ := dayRes.LastInsertId()
+	exRes, _ := db.DB.Exec(`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, 0)`, pid, dayID, exID)
 	peid, _ := exRes.LastInsertId()
 	db.DB.Exec(`INSERT INTO program_sets (program_exercise_id, set_number, target_reps) VALUES (?, 1, 5)`, peid)
 
@@ -155,11 +167,16 @@ func TestUpdateProgram_replacesExercises(t *testing.T) {
 	body := map[string]any{
 		"name":  "Updated Program",
 		"notes": "",
-		"exercises": []map[string]any{
+		"days": []map[string]any{
 			{
-				"exercise_id": exID2,
-				"notes":       "",
-				"sets":        []map[string]any{{"set_number": 1, "target_reps": 8, "target_weight": 60.0}},
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{
+						"exercise_id": exID2,
+						"notes":       "",
+						"sets":        []map[string]any{{"set_number": 1, "target_reps": 8, "target_weight": 60.0}},
+					},
+				},
 			},
 		},
 	}
@@ -194,10 +211,15 @@ func TestCreateProgram_setNumberNormalized(t *testing.T) {
 	// Send set_number: 0 — backend should normalize to 1
 	body := map[string]any{
 		"name": "Norm Test",
-		"exercises": []map[string]any{
+		"days": []map[string]any{
 			{
-				"exercise_id": exID,
-				"sets":        []map[string]any{{"set_number": 0, "target_reps": 10, "target_weight": 50.0}},
+				"is_rest_day": false,
+				"exercises": []map[string]any{
+					{
+						"exercise_id": exID,
+						"sets":        []map[string]any{{"set_number": 0, "target_reps": 10, "target_weight": 50.0}},
+					},
+				},
 			},
 		},
 	}
@@ -211,7 +233,8 @@ func TestCreateProgram_setNumberNormalized(t *testing.T) {
 
 	resp := decodeResponse(t, w)
 	data := resp["data"].(map[string]any)
-	exercises := data["exercises"].([]any)
+	days := data["days"].([]any)
+	exercises := days[0].(map[string]any)["exercises"].([]any)
 	sets := exercises[0].(map[string]any)["sets"].([]any)
 	setNum := sets[0].(map[string]any)["set_number"].(float64)
 	if setNum != 1 {
