@@ -165,10 +165,16 @@ func normalizeWorkoutStartedAt() {
 // offset zone with no name (what encoding/json produces for a '+08:00' timestamp)
 // renders the offset twice ('2026-07-19 02:00:00 +0800 +0800'), which the MST
 // layout element can't match — drop the trailing zone-name token and parse
-// offset-only.
+// offset-only. Tried before that: the offset-only layout against the untouched
+// string, for rows that are already plain "date time -0700" with no name to
+// strip — chopping the last token there would eat the offset itself and always
+// fail.
 func parseStoredTime(s string) (time.Time, bool) {
 	s = strings.TrimSpace(s)
 	if t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", s); err == nil {
+		return t, true
+	}
+	if t, err := time.Parse("2006-01-02 15:04:05.999999999 -0700", s); err == nil {
 		return t, true
 	}
 	if i := strings.LastIndexByte(s, ' '); i > 0 {
