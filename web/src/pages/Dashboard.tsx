@@ -146,7 +146,7 @@ export default function Dashboard() {
   useEffect(() => {
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
-      programAPI.list().catch(() => []),
+      programAPI.list({ limit: 100 }).catch(() => []), // backend's max — Up Next must see every program
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       weightAPI.list({ limit: 14 }).catch(() => []),
       weightAPI.stats().catch(() => null),

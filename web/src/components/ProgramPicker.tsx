@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { workoutDays, dayLabel } from '../utils/programUtils'
+import { workoutDays, dayLabel, todaysDay } from '../utils/programUtils'
 import * as types from '../types'
 
 interface Props {
@@ -70,7 +70,7 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
               </button>
               <div className="divide-y divide-surface-border">
                 {workoutDays(dayPickFor).map((day, i) => {
-                  const isToday = (dayPickFor.days ?? [])[dayPickFor.current_day_index]?.id === day.id
+                  const isToday = todaysDay(dayPickFor)?.id === day.id
                   return (
                     <button
                       key={day.id ?? i}

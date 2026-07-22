@@ -57,10 +57,24 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 	}
 	rows.Close() // close the parent cursor BEFORE loading children (#36)
 
+	// loadDays (exercises/sets) stays a per-program call — pre-existing N+1, out of
+	// scope here. currentDayIndex is batched below instead of called per-program:
+	// unlike loadDays it added 2 brand-new sequential round trips per program on top
+	// of that, and SetMaxOpenConns(1) serializes every one of them on the process's
+	// single connection.
 	for i := range programs {
-		if err := s.hydrate(&programs[i]); err != nil {
+		days, err := s.loadDays(programs[i].ID)
+		if err != nil {
 			return nil, err
 		}
+		programs[i].Days = days
+	}
+	idxByID, err := s.currentDayIndexBatch(uid, programs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range programs {
+		programs[i].CurrentDayIndex = idxByID[programs[i].ID]
 	}
 	return programs, nil
 }
@@ -193,6 +207,117 @@ func (s *ProgramStore) currentDayIndex(uid, programID int64, days []models.Progr
 		unlinked++
 	}
 	return workoutIdx[unlinked%len(workoutIdx)], nil
+}
+
+// currentDayIndexBatch computes CurrentDayIndex for every given program in a
+// constant small number of queries, instead of currentDayIndex's 2 round trips
+// PER program (see ProgramStore.List) — same semantics as currentDayIndex (see its
+// doc comment above), just evaluated for every program_id in one query via a CTE
+// instead of one query per program_id.
+func (s *ProgramStore) currentDayIndexBatch(uid int64, programs []models.Program) (map[int64]int, error) {
+	result := make(map[int64]int, len(programs))
+	workoutIdx := make(map[int64][]int, len(programs))
+	progByID := make(map[int64]models.Program, len(programs))
+	var ids []int64
+	for _, p := range programs {
+		progByID[p.ID] = p
+		var idx []int
+		for i, d := range p.Days {
+			if !d.IsRestDay {
+				idx = append(idx, i)
+			}
+		}
+		if len(idx) == 0 {
+			result[p.ID] = 0 // no workout days at all — nothing to be due
+			continue
+		}
+		workoutIdx[p.ID] = idx
+		ids = append(ids, p.ID)
+	}
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	idSelects := make([]string, len(ids))
+	inPlaceholders := make([]string, len(ids))
+	for i := range ids {
+		idSelects[i] = "SELECT ? AS program_id"
+		inPlaceholders[i] = "?"
+	}
+	idsCSV := strings.Join(inPlaceholders, ",")
+
+	query := `
+		WITH ids(program_id) AS (` + strings.Join(idSelects, " UNION ALL ") + `),
+		anchors AS (
+			SELECT w.program_id AS program_id, w.program_day_id AS anchor_day_id,
+			       w.id AS anchor_wid, w.started_at AS anchor_started_at
+			FROM workouts w
+			JOIN program_days pd ON pd.id = w.program_day_id
+			WHERE w.user_id = ? AND pd.is_rest_day = 0 AND w.program_id IN (` + idsCSV + `)
+			  AND NOT EXISTS (
+				SELECT 1 FROM workouts w2
+				JOIN program_days pd2 ON pd2.id = w2.program_day_id
+				WHERE w2.user_id = w.user_id AND w2.program_id = w.program_id AND pd2.is_rest_day = 0
+				  AND (w2.started_at > w.started_at OR (w2.started_at = w.started_at AND w2.id > w.id))
+			  )
+		)
+		SELECT ids.program_id, a.anchor_day_id, a.anchor_wid, a.anchor_started_at,
+			(SELECT COUNT(*) FROM workouts w
+			 WHERE w.user_id = ? AND w.program_id = ids.program_id
+			   AND w.program_day_id IS NULL AND w.program_day_dropped = 0
+			   AND (a.anchor_started_at IS NULL
+			        OR w.started_at > a.anchor_started_at
+			        OR (w.started_at = a.anchor_started_at AND w.id > a.anchor_wid))
+			) AS unlinked
+		FROM ids
+		LEFT JOIN anchors a ON a.program_id = ids.program_id`
+
+	args := make([]any, 0, 2*len(ids)+2)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	args = append(args, uid)
+	for _, id := range ids {
+		args = append(args, id)
+	}
+	args = append(args, uid)
+
+	rows, err := s.db.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var pid int64
+		var anchorDayID sql.NullInt64
+		var anchorWID sql.NullInt64
+		var anchorStarted sql.NullString
+		var unlinked int
+		if err := rows.Scan(&pid, &anchorDayID, &anchorWID, &anchorStarted, &unlinked); err != nil {
+			return nil, err
+		}
+		idx := workoutIdx[pid]
+		if !anchorDayID.Valid {
+			result[pid] = idx[unlinked%len(idx)]
+			continue
+		}
+		p := progByID[pid]
+		found := false
+		for pos, wi := range idx {
+			if p.Days[wi].ID == anchorDayID.Int64 {
+				result[pid] = idx[(pos+1+unlinked)%len(idx)]
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Anchor day vanished between the query and here — fall through as if its
+			// log were day-less too (mirrors currentDayIndex's own fallback).
+			result[pid] = idx[(unlinked+1)%len(idx)]
+		}
+	}
+	return result, rows.Err()
 }
 
 func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (models.Program, error) {

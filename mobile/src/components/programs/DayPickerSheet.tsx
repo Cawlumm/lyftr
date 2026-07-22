@@ -1,7 +1,7 @@
 import { ScrollView, View } from 'react-native'
 import { Dumbbell } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { workoutDays, dayLabel } from '@lyftr/shared'
+import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
 import { AppText, ListRow, Sheet } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -36,7 +36,7 @@ export function DayPickerSheet({ program, onSelect, onClose }: Props) {
   const { accent } = useTheme()
   if (!program) return null
   const days = workoutDays(program)
-  const todayId = (program.days ?? [])[program.current_day_index]?.id
+  const todayId = todaysDay(program)?.id
 
   return (
     <Sheet open onClose={onClose} haptic="selection">

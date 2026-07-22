@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"log"
 	"strings"
 	"time"
@@ -86,7 +87,23 @@ func alterMigrations() {
 // parse back into a time.Time at all. The WHERE matches only offset-bearing
 // non-UTC rows, so this is idempotent and a no-op on every boot after the first;
 // a row whose text can't be parsed is logged and left as-is (retried next boot).
+//
+// The WHERE's leading-wildcard LIKEs can't use an index, so once a boot finds zero
+// matching rows (every offending row fixed — new rows are already written UTC by
+// the controllers' write-side normalization), a migration_flags row records that so
+// every later boot skips the scan entirely instead of re-running it forever. The
+// flag is deliberately keyed off the MATCH count, not len(fixes): a boot can match
+// rows yet fix none of them (all unparseable), and flagging done there would break
+// the retry-next-boot this function promises above.
 func normalizeWorkoutStartedAt() {
+	done, err := hasMigrationFlag("normalize_workout_started_at")
+	if err != nil {
+		log.Printf("normalizeWorkoutStartedAt: check flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
 	rows, err := DB.Query(`
 		SELECT id, started_at FROM workouts
 		WHERE (started_at LIKE '% +%' OR started_at LIKE '% -%')
@@ -100,7 +117,9 @@ func normalizeWorkoutStartedAt() {
 		t  time.Time
 	}
 	var fixes []fix
+	matched := 0
 	for rows.Next() {
+		matched++
 		var id int64
 		var v any
 		if err := rows.Scan(&id, &v); err != nil {
@@ -135,6 +154,9 @@ func normalizeWorkoutStartedAt() {
 	}
 	if len(fixes) > 0 {
 		log.Printf("migration: normalized %d non-UTC workouts.started_at row(s) to UTC", len(fixes))
+	}
+	if matched == 0 {
+		setMigrationFlag("normalize_workout_started_at")
 	}
 }
 
@@ -331,6 +353,32 @@ func ensureColumn(table, column, alterSQL string) {
 func ensureIndex(name, createSQL string) {
 	if _, err := DB.Exec(createSQL); err != nil {
 		log.Fatalf("create %s: %v", name, err)
+	}
+}
+
+// migration_flags records one-off migrations that must run at most once total,
+// never again per boot — distinct from ensureColumn/ensureIndex, whose underlying
+// SQL is already idempotent and safe to re-issue every boot. hasMigrationFlag creates
+// the table lazily (rather than via the schema/alterMigrations startup path) so a
+// caller can check it standalone.
+func hasMigrationFlag(name string) (bool, error) {
+	if _, err := DB.Exec(`CREATE TABLE IF NOT EXISTS migration_flags (name TEXT PRIMARY KEY)`); err != nil {
+		return false, err
+	}
+	var n string
+	err := DB.QueryRow(`SELECT name FROM migration_flags WHERE name = ?`, name).Scan(&n)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func setMigrationFlag(name string) {
+	if _, err := DB.Exec(`INSERT OR IGNORE INTO migration_flags (name) VALUES (?)`, name); err != nil {
+		log.Printf("setMigrationFlag(%s): %v", name, err)
 	}
 }
 

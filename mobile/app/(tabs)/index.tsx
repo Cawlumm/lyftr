@@ -149,7 +149,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     const [ws, ps, fs, wl, wst] = await Promise.all([
       client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
-      client.programAPI.list().catch(() => [] as Program[]),
+      client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
       client.weightAPI.stats().catch(() => null),
