@@ -45,7 +45,8 @@ COPY fly/nginx.fly.conf /etc/nginx/conf.d/default.conf
 # sed strips Windows \r\n → \n so the #!/bin/sh shebang works on Linux
 COPY fly/entrypoint.sh /app/entrypoint.sh
 COPY fly/reset.sh      /app/reset.sh
-RUN sed -i 's/\r$//' /app/entrypoint.sh /app/reset.sh && chmod +x /app/entrypoint.sh /app/reset.sh
+COPY fly/snapshot.sh   /app/snapshot.sh
+RUN sed -i 's/\r$//' /app/entrypoint.sh /app/reset.sh /app/snapshot.sh && chmod +x /app/entrypoint.sh /app/reset.sh /app/snapshot.sh
 
 # /app/data is a Fly volume mount — this mkdir is a fallback for local testing
 RUN mkdir -p /app/data
