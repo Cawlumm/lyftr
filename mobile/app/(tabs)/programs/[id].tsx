@@ -501,7 +501,7 @@ export default function ProgramDetail() {
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
                         <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
-                          {sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
+                          {sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
                         </AppText>
                       </View>
                     </View>

@@ -418,7 +418,7 @@ export default function ProgramDetail() {
                             {ex.exercise.muscle_group}
                           </span>
                         )}
-                        <span className="text-xs text-tx-muted truncate">{sets.length} sets{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
+                        <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
