@@ -19,6 +19,7 @@ import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
 import { clampStep, clampValue } from '../utils/number'
 import { nextIncompleteSet } from '../utils/workoutSets'
+import { calculateTUT, calculateActualRest } from '../utils/trainingMetrics'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
@@ -491,15 +492,22 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
   const handleCompleteSetGym = (setIdx: number) => {
     const wasCompleted = ex.sets[setIdx].completed
+    
+    if (!wasCompleted) {
+      updateSet(activeIdx, setIdx, 'timestamp_completed', new Date().toISOString())
+    } else {
+      updateSet(activeIdx, setIdx, 'timestamp_completed', undefined)
+    }
+
     completeSet(activeIdx, setIdx)
     if (wasCompleted) {
       // Un-completing: cancel the running rest only if it belongs to this set.
       if (restExIdx === activeIdx && restSetIdx === setIdx) clearRest()
       return
     }
-    // Completing: start rest (per-exercise value, else the global default; 0 = off).
+    // Completing: start rest (per-set value, else per-exercise value, else global default; 0 = off).
     if (settings.rest_enabled) {
-      const r = ex.rest_seconds ?? settings.rest_seconds_default ?? 90
+      const r = (ex.sets[setIdx].rest_seconds || ex.rest_seconds) ?? settings.rest_seconds_default ?? 90
       if (r > 0) startRest(r, activeIdx, setIdx)
     }
     // Auto-advance to next incomplete set
@@ -574,6 +582,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             // the timer keeps a subtle brand ring so it reads as "resting after
             // this one" even though focus auto-advanced to the next set.
             const resting = restingHere && restSetIdx === i
+            const visualNum = ex.sets.slice(0, i + 1).filter(st => !st.is_warmup).length
             return (
               <button
                 key={i}
@@ -587,22 +596,54 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                 }`}
               >
                 {s.completed && <Check className="w-3.5 h-3.5" />}
-                {i + 1}
+                {s.is_warmup ? 'W' : visualNum}
               </button>
             )
           })}
         </div>
 
         {/* Target reference for this set (the goal to hit) */}
-        {(set.target_reps > 0 || set.target_weight > 0) && (
-          <p className="text-sm text-tx-muted text-center">
-            Target{' '}
-            <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? set.target_reps : '—'} reps</span>
-            {set.target_weight > 0 && (
-              <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
-            )}
-          </p>
-        )}
+        <div className="flex items-center justify-between w-full">
+          <button
+            onClick={() => updateSet(activeIdx, clampedSetIdx, 'is_warmup', !set.is_warmup)}
+            disabled={set.completed}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+              set.is_warmup ? 'bg-orange-500/10 text-orange-500' : 'bg-surface-muted text-tx-muted hover:text-tx-secondary'
+            }`}
+          >
+            {set.is_warmup ? 'Warm-up Set' : 'Working Set'}
+          </button>
+
+          {(set.target_reps > 0 || set.target_weight > 0) && (
+            <p className="text-sm text-tx-muted">
+              Target{' '}
+              <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? set.target_reps : '—'} reps</span>
+              {set.target_weight > 0 && (
+                <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* Set-Level Rest Override */}
+        <div className="w-full flex justify-end -mb-2">
+           <button
+             onClick={() => {
+               // In a real app we'd open a modal, but for now we'll just prompt to keep it simple,
+               // or we can implement the RestPicker directly. Let's just use window.prompt for this MVP override.
+               const val = window.prompt("Enter rest time in seconds for this set:", String(set.rest_seconds || ''))
+               if (val !== null) {
+                 const secs = parseInt(val, 10)
+                 if (!isNaN(secs)) {
+                   updateSet(activeIdx, clampedSetIdx, 'rest_seconds', secs)
+                 }
+               }
+             }}
+             className="text-xs font-bold text-brand-400 bg-brand-500/10 px-3 py-1 rounded-full hover:bg-brand-500/20 transition-colors shadow-sm"
+           >
+             Timer: {set.rest_seconds ? `${Math.floor(set.rest_seconds / 60)}:${(set.rest_seconds % 60).toString().padStart(2, '0')}` : 'Default'}
+           </button>
+        </div>
 
         {/* Reps + Weight — a tile per metric: icon header, big value, split ⊖/⊕ footer.
             Value spans the full tile (buttons are below, not flanking) so long
@@ -639,6 +680,62 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               aria-label="Weight"
             />
           </StepperTile>
+        </div>
+
+        {/* Clinical Metrics (RIR, Tempo, Isohold) */}
+        <div className="w-full bg-surface-muted/30 border border-surface-border rounded-2xl p-4 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-1 block">RIR (Reps in Reserve)</label>
+              <select 
+                disabled={set.completed}
+                className="input w-full"
+                value={set.rpe ?? 3} // Defaulting to 3
+                onChange={e => updateSet(activeIdx, clampedSetIdx, 'rpe', parseInt(e.target.value, 10))}
+              >
+                {[0, 1, 2, 3, 4, 5, 6].map(rir => (
+                  <option key={rir} value={rir}>{rir} RIR {rir >= 3 && rir <= 4 ? '(Target)' : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-1 block">Tempo</label>
+              <input 
+                type="text" 
+                placeholder="e.g. 4-1-2-1" 
+                className="input w-full" 
+                disabled={set.completed}
+                value={set.tempo || ''}
+                onChange={e => updateSet(activeIdx, clampedSetIdx, 'tempo', e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-tx-secondary flex items-center gap-2">
+              <input 
+                type="checkbox" 
+                className="rounded border-surface-border text-brand-500 focus:ring-brand-500/30"
+                disabled={set.completed}
+                checked={set.isohold_seconds === 5}
+                onChange={e => updateSet(activeIdx, clampedSetIdx, 'isohold_seconds', e.target.checked ? 5 : 0)}
+              />
+              Terminal 5-Sec Iso-Hold
+            </label>
+            <div className="text-right">
+              <p className="text-xs text-tx-muted uppercase tracking-wider">Expected TUT</p>
+              <p className="text-sm font-bold text-tx-primary tabular-nums">
+                {calculateTUT(set.actual_reps || 0, set.tempo || '', set.isohold_seconds || 0)}s
+              </p>
+            </div>
+          </div>
+          {set.completed && set.timestamp_completed && clampedSetIdx > 0 && ex.sets[clampedSetIdx - 1].timestamp_completed && (
+            <div className="pt-3 border-t border-surface-border/50 text-center">
+               <p className="text-xs text-tx-muted uppercase tracking-wider">Actual Rest Taken</p>
+               <p className="text-sm font-bold text-brand-400 tabular-nums">
+                 {calculateActualRest(ex.sets[clampedSetIdx - 1].timestamp_completed, set.timestamp_completed, calculateTUT(set.actual_reps || 0, set.tempo || '', set.isohold_seconds || 0))}s
+               </p>
+            </div>
+          )}
         </div>
 
         {/* While resting before this set, collapse + fade the Complete Set / Remove

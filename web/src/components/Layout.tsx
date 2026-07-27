@@ -13,6 +13,7 @@ import { fmtClock } from '../utils/workoutSets'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
+import RestCompleteModal from './RestCompleteModal'
 import Logo from './Logo'
 
 const NAV = [
@@ -201,6 +202,9 @@ export default function Layout() {
           and when the workout is minimized the countdown shows as a chip in the session
           pill (ActiveSessionBar) rather than a panel following you around the app. */}
       {gymOpen && gymPhase !== 'exercise' && <RestTimerBanner />}
+
+      {/* Global Rest Complete Modal (Applies to both Active and Gym mode) */}
+      <RestCompleteModal />
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">

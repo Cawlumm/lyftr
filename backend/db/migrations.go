@@ -48,6 +48,16 @@ func alterMigrations() {
 	// Per-exercise rest timer (#33). Existing rows seed to 90s (on); 0 = off.
 	ensureColumn("program_exercises", "rest_seconds", `ALTER TABLE program_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
 	ensureColumn("workout_exercises", "rest_seconds", `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
+
+	// Custom fields for clinical metrics
+	ensureColumn("sets", "tempo", `ALTER TABLE sets ADD COLUMN tempo TEXT NOT NULL DEFAULT ''`)
+	ensureColumn("sets", "isohold_seconds", `ALTER TABLE sets ADD COLUMN isohold_seconds INTEGER NOT NULL DEFAULT 0`)
+	ensureColumn("sets", "timestamp_completed", `ALTER TABLE sets ADD COLUMN timestamp_completed DATETIME`)
+
+	// Per-set rest timers and warm-ups
+	ensureColumn("program_sets", "is_warmup", `ALTER TABLE program_sets ADD COLUMN is_warmup INTEGER NOT NULL DEFAULT 0`)
+	ensureColumn("program_sets", "rest_seconds", `ALTER TABLE program_sets ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 0`)
+	ensureColumn("sets", "rest_seconds", `ALTER TABLE sets ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 0`)
 }
 
 // ensureColumn adds a column to a table if it's missing — idempotent on every boot.
@@ -140,7 +150,11 @@ CREATE TABLE IF NOT EXISTS sets (
   duration            INTEGER NOT NULL DEFAULT 0,
   distance            REAL    NOT NULL DEFAULT 0,
   rpe                 REAL    NOT NULL DEFAULT 0,
-  is_warmup           INTEGER NOT NULL DEFAULT 0
+  is_warmup           INTEGER NOT NULL DEFAULT 0,
+  rest_seconds        INTEGER NOT NULL DEFAULT 0,
+  tempo               TEXT    NOT NULL DEFAULT '',
+  isohold_seconds     INTEGER NOT NULL DEFAULT 0,
+  timestamp_completed DATETIME
 );
 
 CREATE TABLE IF NOT EXISTS weight_logs (
@@ -218,6 +232,8 @@ CREATE TABLE IF NOT EXISTS program_sets (
   program_exercise_id INTEGER NOT NULL REFERENCES program_exercises(id) ON DELETE CASCADE,
   set_number          INTEGER NOT NULL DEFAULT 1,
   target_reps         INTEGER NOT NULL DEFAULT 0,
-  target_weight       REAL    NOT NULL DEFAULT 0
+  target_weight       REAL    NOT NULL DEFAULT 0,
+  is_warmup           INTEGER NOT NULL DEFAULT 0,
+  rest_seconds        INTEGER NOT NULL DEFAULT 0
 );
 `

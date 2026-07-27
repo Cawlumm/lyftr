@@ -66,6 +66,70 @@ func TestCreateWorkout_success(t *testing.T) {
 	}
 }
 
+func TestCreateWorkout_withClinicalMetrics(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	ts := "2024-01-15T09:35:00Z"
+
+	body := map[string]any{
+		"name":     "Clinical Tracking",
+		"duration": 3600,
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets": []map[string]any{
+					{
+						"set_number":          1,
+						"reps":                8,
+						"weight":              100.0,
+						"rpe":                 3.0,
+						"tempo":               "4-1-2-1",
+						"isohold_seconds":     5,
+						"timestamp_completed": ts,
+					},
+				},
+			},
+		},
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	
+	// Re-fetch to verify it saved to DB
+	wid := int64(data["id"].(float64))
+	c2, w2 := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", wid), nil)
+	setParam(c2, "id", fmt.Sprintf("%d", wid))
+	th.GetWorkout(c2)
+
+	resp2 := decodeResponse(t, w2)
+	data2 := resp2["data"].(map[string]any)
+	exs := data2["exercises"].([]any)
+	sets := exs[0].(map[string]any)["sets"].([]any)
+	st := sets[0].(map[string]any)
+
+	if st["rpe"] != 3.0 {
+		t.Errorf("expected rpe 3.0, got %v", st["rpe"])
+	}
+	if st["tempo"] != "4-1-2-1" {
+		t.Errorf("expected tempo 4-1-2-1, got %v", st["tempo"])
+	}
+	if st["isohold_seconds"] != float64(5) {
+		t.Errorf("expected isohold_seconds 5, got %v", st["isohold_seconds"])
+	}
+	if st["timestamp_completed"] != ts {
+		t.Errorf("expected timestamp_completed %v, got %v", ts, st["timestamp_completed"])
+	}
+}
+
 func TestCreateWorkout_missingName(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

@@ -172,9 +172,9 @@ func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWork
 		}
 		for j, st := range ex.Sets {
 			if _, err := tx.Exec(
-				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup)
-				 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-				weid, j+1, st.Reps, st.Weight, st.Duration, st.Distance, st.RPE, st.IsWarmup,
+				`INSERT INTO sets (workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup, rest_seconds, tempo, isohold_seconds, timestamp_completed)
+				 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				weid, j+1, st.Reps, st.Weight, st.Duration, st.Distance, st.RPE, st.IsWarmup, st.RestSeconds, st.Tempo, st.IsoholdSeconds, st.TimestampCompleted,
 			); err != nil {
 				return err
 			}
@@ -230,7 +230,7 @@ func (s *WorkoutStore) loadExercises(workoutID int64) ([]models.WorkoutExercise,
 
 func (s *WorkoutStore) loadSets(workoutExerciseID int64) ([]models.Set, error) {
 	rows, err := s.db.Query(
-		`SELECT id, workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup
+		`SELECT id, workout_exercise_id, set_number, reps, weight, duration, distance, rpe, is_warmup, COALESCE(rest_seconds, 0), COALESCE(tempo, ''), COALESCE(isohold_seconds, 0), timestamp_completed
 		 FROM sets WHERE workout_exercise_id = ? ORDER BY set_number`,
 		workoutExerciseID,
 	)
@@ -241,7 +241,7 @@ func (s *WorkoutStore) loadSets(workoutExerciseID int64) ([]models.Set, error) {
 	var sets []models.Set
 	for rows.Next() {
 		var st models.Set
-		if err := rows.Scan(&st.ID, &st.WorkoutExerciseID, &st.SetNumber, &st.Reps, &st.Weight, &st.Duration, &st.Distance, &st.RPE, &st.IsWarmup); err != nil {
+		if err := rows.Scan(&st.ID, &st.WorkoutExerciseID, &st.SetNumber, &st.Reps, &st.Weight, &st.Duration, &st.Distance, &st.RPE, &st.IsWarmup, &st.RestSeconds, &st.Tempo, &st.IsoholdSeconds, &st.TimestampCompleted); err != nil {
 			return nil, err
 		}
 		sets = append(sets, st)

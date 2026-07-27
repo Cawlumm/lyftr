@@ -39,6 +39,10 @@ export interface Set {
   distance?: number
   rpe?: number
   is_warmup?: boolean
+  rest_seconds?: number
+  tempo?: string
+  isohold_seconds?: number
+  timestamp_completed?: string
 }
 
 export interface WorkoutExercise {
@@ -150,6 +154,8 @@ export interface ProgramSet {
   set_number: number
   target_reps: number
   target_weight: number
+  is_warmup?: boolean
+  rest_seconds?: number
 }
 
 export interface ProgramExercise {
@@ -177,6 +183,12 @@ export interface ActiveSessionSet {
   actual_reps: number
   actual_weight: number
   completed: boolean
+  is_warmup?: boolean
+  rest_seconds?: number
+  tempo?: string
+  isohold_seconds?: number
+  timestamp_completed?: string
+  rpe?: number
 }
 
 export interface ActiveSessionExercise {

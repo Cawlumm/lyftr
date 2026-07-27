@@ -194,16 +194,6 @@ export default function Login() {
             )}
           </form>
 
-          {/* Sign up link */}
-          <p className="mt-8 text-center text-sm text-tx-muted">
-            New here?{' '}
-            <Link
-              to="/register"
-              className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
-            >
-              Create account
-            </Link>
-          </p>
         </div>
       </div>
     </div>

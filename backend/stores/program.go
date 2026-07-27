@@ -165,8 +165,8 @@ func insertProgramExercises(tx *sql.Tx, pid int64, exercises []models.CreateProg
 				sn = j + 1
 			}
 			if _, err := tx.Exec(
-				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
-				peid, sn, st.TargetReps, st.TargetWeight,
+				`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight, is_warmup, rest_seconds) VALUES (?, ?, ?, ?, ?, ?)`,
+				peid, sn, st.TargetReps, st.TargetWeight, st.IsWarmup, st.RestSeconds,
 			); err != nil {
 				return err
 			}
@@ -221,7 +221,7 @@ func (s *ProgramStore) loadExercises(programID int64) ([]models.ProgramExercise,
 
 func (s *ProgramStore) loadSets(programExerciseID int64) ([]models.ProgramSet, error) {
 	rows, err := s.db.Query(
-		`SELECT id, program_exercise_id, set_number, target_reps, target_weight
+		`SELECT id, program_exercise_id, set_number, target_reps, target_weight, is_warmup, rest_seconds
 		 FROM program_sets WHERE program_exercise_id = ? ORDER BY set_number`,
 		programExerciseID,
 	)
@@ -232,7 +232,7 @@ func (s *ProgramStore) loadSets(programExerciseID int64) ([]models.ProgramSet, e
 	var sets []models.ProgramSet
 	for rows.Next() {
 		var st models.ProgramSet
-		if err := rows.Scan(&st.ID, &st.ProgramExerciseID, &st.SetNumber, &st.TargetReps, &st.TargetWeight); err != nil {
+		if err := rows.Scan(&st.ID, &st.ProgramExerciseID, &st.SetNumber, &st.TargetReps, &st.TargetWeight, &st.IsWarmup, &st.RestSeconds); err != nil {
 			return nil, err
 		}
 		sets = append(sets, st)

@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"database/sql"
+	"os"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/utils"
@@ -20,6 +22,25 @@ func (h *Handler) Register(c *gin.Context) {
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return
+	}
+
+	allowedEmailsStr := os.Getenv("ALLOWED_EMAILS")
+	if allowedEmailsStr != "*" {
+		allowed := false
+		emails := strings.Split(allowedEmailsStr, ",")
+		reqEmail := strings.ToLower(strings.TrimSpace(req.Email))
+		
+		for _, e := range emails {
+			if strings.ToLower(strings.TrimSpace(e)) == reqEmail {
+				allowed = true
+				break
+			}
+		}
+
+		if !allowed {
+			utils.Forbidden(c, "This application is currently in private beta and your email is not on the allowlist.")
+			return
+		}
 	}
 
 	hash, err := utils.HashPassword(req.Password)

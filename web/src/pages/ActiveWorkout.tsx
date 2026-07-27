@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
+import { useRestTimer } from '../hooks/useRestTimer'
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import * as types from '../types'
@@ -57,8 +58,9 @@ function formatElapsed(seconds: number) {
 
 export default function ActiveWorkout() {
   const navigate = useNavigate()
-  const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession, openGym } =
+  const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession, openGym, startRest, restExIdx, restSetIdx } =
     useWorkoutSession()
+  const { active: resting, left: restLeft } = useRestTimer()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
@@ -115,7 +117,15 @@ export default function ActiveWorkout() {
   }
 
   const handleCompleteSet = (exIdx: number, setIdx: number) => {
+    const isNowComplete = !session?.exercises[exIdx].sets[setIdx].completed
     completeSet(exIdx, setIdx)
+    
+    if (isNowComplete && settings.rest_enabled) {
+      const ex = session?.exercises[exIdx]
+      const r = (ex?.sets[setIdx].rest_seconds || ex?.rest_seconds) ?? settings.rest_seconds_default ?? 90
+      if (r > 0) startRest(r, exIdx, setIdx)
+    }
+    
     if (exIdx !== activeExIdx) setActiveExIdx(exIdx)
   }
 
@@ -317,69 +327,105 @@ export default function ActiveWorkout() {
 
                   {ex.sets.map((set, setIdx) => {
                     const isNextSet = isActive && !set.completed && ex.sets.slice(0, setIdx).every(s => s.completed)
+                    const visualNum = ex.sets.slice(0, setIdx + 1).filter(st => !st.is_warmup).length
+                    const isRestingHere = resting && restExIdx === exIdx && restSetIdx === setIdx
                     return (
-                      <div
-                        key={setIdx}
-                        className={`grid grid-cols-[2rem_1fr_1fr_3.5rem_2rem] gap-2 items-stretch rounded-xl border transition-all duration-200 ${
-                          set.completed
-                            ? 'bg-brand-500/10 border-brand-500/20'
-                            : isNextSet
-                              ? 'bg-surface-muted/50 border-brand-500/35 shadow-sm shadow-brand-500/10'
-                              : 'bg-surface-muted/30 border-surface-border/60'
-                        }`}
-                      >
-                        {/* Set number */}
-                        <div className="flex items-center justify-center py-3 rounded-l-xl">
-                          <span className={`text-sm font-bold tabular-nums ${
-                            set.completed ? 'text-brand-400' : isNextSet ? 'text-brand-300' : 'text-tx-muted'
-                          }`}>{set.set_number}</span>
-                        </div>
-
-                        {/* Reps */}
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={set.actual_reps || ''}
-                          onChange={e => updateSet(exIdx, setIdx, 'actual_reps', Number(e.target.value) || 0)}
-                          placeholder={set.target_reps > 0 ? String(set.target_reps) : '—'}
-                          className={`input text-base text-center py-3 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
-                          disabled={set.completed}
-                        />
-
-                        {/* Weight */}
-                        <WeightInput
-                          stepper={false}
-                          value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
-                          onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
-                          unit={wUnit}
-                          placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
-                          disabled={set.completed}
-                        />
-
-                        {/* Complete toggle */}
-                        <button
-                          onClick={() => handleCompleteSet(exIdx, setIdx)}
-                          className={`flex items-center justify-center transition-colors min-h-[3rem] ${
+                      <div key={setIdx} className="flex flex-col mb-1">
+                        <div
+                          className={`grid grid-cols-[2rem_1fr_1fr_3.5rem_2rem] gap-2 items-stretch rounded-xl border transition-all duration-200 z-0 ${
                             set.completed
-                              ? 'bg-brand-500 hover:bg-brand-600'
+                              ? 'bg-brand-500/10 border-brand-500/20'
                               : isNextSet
-                                ? 'bg-brand-500/20 hover:bg-brand-500/30'
-                                : 'hover:bg-brand-500/10'
+                                ? 'bg-surface-muted/50 border-brand-500/35 shadow-sm shadow-brand-500/10'
+                                : 'bg-surface-muted/30 border-surface-border/60'
                           }`}
                         >
-                          <CheckCircle2 className={`w-6 h-6 transition-colors ${
-                            set.completed ? 'text-white' : isNextSet ? 'text-brand-400' : 'text-tx-muted/40'
-                          }`} />
-                        </button>
+                          {/* Set number / Warm-up toggle */}
+                          <div 
+                            className="flex items-center justify-center py-3 rounded-l-xl cursor-pointer"
+                            onClick={() => updateSet(exIdx, setIdx, 'is_warmup', !set.is_warmup)}
+                          >
+                            <span className={`text-sm font-bold tabular-nums px-1.5 py-0.5 rounded transition-colors ${
+                              set.is_warmup ? 'bg-orange-500/20 text-orange-500' : set.completed ? 'text-brand-400' : isNextSet ? 'text-brand-300' : 'text-tx-muted'
+                            }`}>
+                              {set.is_warmup ? 'W' : visualNum}
+                            </span>
+                          </div>
 
-                        {/* Remove set */}
-                        <button
-                          onClick={() => removeSet(exIdx, setIdx)}
-                          className="flex items-center justify-center rounded-r-xl hover:bg-error-500/10 transition-colors group/del"
-                          aria-label="Remove set"
-                        >
-                          <X className="w-3.5 h-3.5 text-tx-muted/40 group-hover/del:text-error-400 transition-colors" />
-                        </button>
+                          {/* Reps */}
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={set.actual_reps || ''}
+                            onChange={e => updateSet(exIdx, setIdx, 'actual_reps', Number(e.target.value) || 0)}
+                            placeholder={set.target_reps > 0 ? String(set.target_reps) : '—'}
+                            className={`input text-base text-center py-3 transition-opacity ${set.completed ? 'opacity-40' : ''}`}
+                            disabled={set.completed}
+                          />
+
+                          {/* Weight */}
+                          <WeightInput
+                            stepper={false}
+                            value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
+                            onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
+                            unit={wUnit}
+                            placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
+                            disabled={set.completed}
+                          />
+
+                          {/* Complete toggle */}
+                          <button
+                            onClick={() => handleCompleteSet(exIdx, setIdx)}
+                            className={`flex items-center justify-center transition-colors min-h-[3rem] ${
+                              set.completed
+                                ? 'bg-brand-500 hover:bg-brand-600'
+                                : isNextSet
+                                  ? 'bg-brand-500/20 hover:bg-brand-500/30'
+                                  : 'hover:bg-brand-500/10'
+                            }`}
+                          >
+                            <CheckCircle2 className={`w-6 h-6 transition-colors ${
+                              set.completed ? 'text-white' : isNextSet ? 'text-brand-400' : 'text-tx-muted/40'
+                            }`} />
+                          </button>
+
+                          {/* Remove set */}
+                          <button
+                            onClick={() => removeSet(exIdx, setIdx)}
+                            className="flex items-center justify-center rounded-r-xl hover:bg-error-500/10 transition-colors group/del"
+                            aria-label="Remove set"
+                          >
+                            <X className="w-3.5 h-3.5 text-tx-muted/40 group-hover/del:text-error-400 transition-colors" />
+                          </button>
+                        </div>
+                        {/* Inline Rest Timer */}
+                        <div className="flex justify-center -mt-2.5 relative z-10">
+                           <button
+                             type="button"
+                             onClick={() => {
+                               if (isRestingHere) return // don't allow edit while ticking? or allow it?
+                               const val = window.prompt("Enter rest time in seconds for this set:", String(set.rest_seconds || ''))
+                               if (val !== null) {
+                                 const secs = parseInt(val, 10)
+                                 if (!isNaN(secs)) {
+                                   updateSet(exIdx, setIdx, 'rest_seconds', secs)
+                                 }
+                               }
+                             }}
+                             className={`border rounded-full px-3 py-0.5 text-[10px] font-bold shadow-sm transition-all duration-300 ${
+                               isRestingHere
+                                 ? 'bg-brand-500 text-white border-brand-500 cursor-default scale-105 shadow-brand-500/30'
+                                 : set.completed
+                                   ? 'bg-surface-muted/30 border-surface-border/40 text-brand-400/50 cursor-pointer'
+                                   : 'bg-surface-raised border-surface-border text-brand-400 hover:bg-surface-muted cursor-pointer'
+                             }`}
+                             disabled={set.completed && !isRestingHere}
+                           >
+                             {isRestingHere
+                               ? formatElapsed(restLeft)
+                               : set.rest_seconds ? `${Math.floor(set.rest_seconds / 60)}:${(set.rest_seconds % 60).toString().padStart(2, '0')}` : 'Default'}
+                           </button>
+                        </div>
                       </div>
                     )
                   })}

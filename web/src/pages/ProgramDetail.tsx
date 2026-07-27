@@ -53,6 +53,8 @@ export default function ProgramDetail() {
         target_weight: s.target_weight,
         actual_reps: s.target_reps,
         actual_weight: s.target_weight,
+        is_warmup: s.is_warmup,
+        rest_seconds: s.rest_seconds,
         completed: false,
       })),
     }))
