@@ -10,7 +10,7 @@
 <p align="center">
   <a href="https://lyftr-demo.fly.dev">Live demo</a> ·
   <a href="https://lyftr-app.pages.dev">Docs</a> ·
-  <a href="https://github.com/Cawlumm/lyftr/releases?q=mobile-v">Download APK</a> ·
+  <a href="https://github.com/Cawlumm/lyftr/releases/latest">Download APK</a> ·
   <a href="https://discord.gg/hfFWsrebQA">Discord</a>
 </p>
 
@@ -18,7 +18,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT License" /></a>
   <img src="https://img.shields.io/badge/status-beta-orange" alt="Beta" />
   <a href="https://selfh.st/weekly/2026-04-24/"><img src="https://img.shields.io/badge/Featured%20in-selfh.st-6366f1" alt="Featured in selfh.st" /></a>
-  <a href="https://github.com/Cawlumm/lyftr/releases?q=mobile-v"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?filter=mobile-v*&label=Android&logo=android&logoColor=white&color=3ddc84" alt="Android APK" /></a>
+  <a href="https://github.com/Cawlumm/lyftr/releases/latest"><img src="https://img.shields.io/github/v/release/Cawlumm/lyftr?label=Android&logo=android&logoColor=white&color=3ddc84" alt="Android APK" /></a>
   <img src="https://img.shields.io/badge/iOS-planned-black?logo=apple&logoColor=white" alt="iOS planned" />
 </p>
 
@@ -72,7 +72,7 @@ Open `http://localhost` and create your account.
 ## Try it
 
 - **Live demo** — [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly)
-- **Android** — [download the APK](https://github.com/Cawlumm/lyftr/releases?q=mobile-v), then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
+- **Android** — [download the APK](https://github.com/Cawlumm/lyftr/releases/latest), then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
 
 ## Roadmap
 

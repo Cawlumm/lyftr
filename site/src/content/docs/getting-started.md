@@ -22,9 +22,9 @@ change anything — or register your own throwaway account.
 ## Get the app
 
 - **Android** — download the latest signed APK from the
-  [Releases](https://github.com/Cawlumm/lyftr/releases?q=mobile-v) page, install it, and point it at
+  [Releases](https://github.com/Cawlumm/lyftr/releases/latest) page, install it, and point it at
   your server. Side-loaded builds don't auto-update — reinstall over the old one when a new
-  `mobile-v*` release drops.
+  release drops.
 - **Web** — served by your self-hosted instance (see [Self-Hosting](../self-hosting/)).
 - **iOS** — planned, shipping via TestFlight / the App Store once the Apple Developer account is set up.
 
