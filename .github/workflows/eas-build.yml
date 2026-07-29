@@ -3,11 +3,13 @@
 # Two paths (matching how OSS Expo apps ship):
 #   • TESTERS  → run this workflow manually (Actions → Run workflow). EAS builds an
 #     Android APK; you install it from the build's expo.dev page (download link + QR).
-#   • PUBLIC   → push a `mobile-v*` tag. EAS builds the APK, and CI attaches it to a
-#     GitHub Release (a permanent, public "Download for Android" asset).
+#   • PUBLIC   → push a `v*` tag (the same single tag namespace ci.yml uses for the
+#     web/backend release — one tag now covers every platform). EAS builds the APK, and
+#     CI attaches it to the GitHub Release for that tag (a permanent, public "Download
+#     for Android" asset) alongside the web/backend notes. See RELEASING.md.
 #
-# Native builds are slow + consume EAS quota, so this is SEPARATE from mobile-ci.yml and
-# never runs per-PR.
+# Native builds are slow + consume EAS quota, so this stays a separate workflow from
+# ci.yml's fast test jobs and never runs per-PR.
 #
 # ── One-time setup (required before the first run) ────────────────────────────────────
 #   1. `cd mobile && npx eas login` then `npx eas init`   (links an EAS project; writes
@@ -34,7 +36,7 @@ on:
         options: [preview, production]
   push:
     tags:
-      - 'mobile-v*' # mobile releases use their own tag namespace (web/backend use v*)
+      - 'v*' # unified tag namespace — same tags ci.yml builds/pushes web+backend images on
 
 # Don't run overlapping builds for the same ref — queue them instead of burning quota.
 concurrency:
@@ -144,9 +146,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: lyftr-${{ github.ref_name }}.apk
-          make_latest: false # separate release train; keep mobile out of the repo-wide Latest
+          make_latest: false # everything currently ships as a prerelease; revisit once a stable tag lands
           prerelease: true # Android betas ship as prereleases (like the web betas)
           generate_release_notes: true
+          # append_body — this release is shared with the web/backend notes (one tag, one
+          # release now). Whichever of "gh release create" (manual notes) or this job runs
+          # first, appending means neither overwrites the other's content.
+          append_body: true
           body: |
             ### Android (side-load)
             Download `lyftr-${{ github.ref_name }}.apk` below. On your phone, open it and
