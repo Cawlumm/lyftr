@@ -9,12 +9,12 @@ talking to **your** server.
 ## Android
 
 1. Download the latest signed APK from the
-   [Releases](https://github.com/Cawlumm/lyftr/releases?q=mobile-v) page.
+   [Releases](https://github.com/Cawlumm/lyftr/releases/latest) page.
 2. Open the `.apk` on your phone and allow **"install from unknown sources"** if prompted.
 3. Launch Lyftr and enter your server URL when asked.
 
 :::note[Side-loaded builds don't auto-update]
-When a new `mobile-v*` release drops, download and install it over the old one. Store builds with
+When a new release drops, download and install it over the old one. Store builds with
 auto-update are on the roadmap.
 :::
 

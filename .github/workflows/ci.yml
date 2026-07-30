@@ -1,33 +1,42 @@
-name: Backend + Web CI
+name: CI
 
-# Backend (Go) + web (Vite) tests, the integrated Playwright e2e, image builds, and the
-# Fly deploy — one workflow because build/deploy are gated on the test jobs via `needs:`.
-# Mobile has its own pipeline (mobile-ci.yml); mobile/docs/markdown-only changes don't
-# touch anything here, so `paths-ignore` skips the whole run for them.
+# Backend (Go) + web (Vite) + mobile (Expo) + shared package tests, the integrated
+# Playwright e2e, image builds, and the Fly deploy — one workflow, gated by a shared
+# `changes` job so it never skips itself the way a top-level `paths:` trigger filter
+# would (that's the mobile-ci.yml pattern this replaced — see git history — and it has
+# a real GH Actions trap: a workflow that's skipped-at-the-trigger-level rather than
+# skipped-at-the-job-level can leave a required check permanently "waiting for status"
+# on PRs that don't touch its paths). docs/markdown-only changes still skip the whole
+# run via `paths-ignore`, since nothing here depends on them.
 #
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
-# the web unit job, and a web-only change skips the Go + version-smoke jobs. The image-build
-# and deploy jobs stay eligible regardless — they're guarded with `!failure() && !cancelled()`
-# so a *skipped* (not failed) test dependency doesn't cascade into skipping the build/deploy
-# gate. On main/tags every test job runs unconditionally, so filtering never weakens deploys.
+# the web/mobile unit jobs, a web-only change skips the Go + version-smoke + mobile jobs,
+# and so on. The image-build and deploy jobs stay eligible regardless — they're guarded
+# with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
+# cascade into skipping the build/deploy gate. On main/tags every test job runs
+# unconditionally, so filtering never weakens deploys.
 on:
   push:
     branches: ['**']
     tags: ['v*']
     paths-ignore:
-      - 'mobile/**'
       - 'docs/**'
       - '**.md'
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'mobile/**'
       - 'docs/**'
       - '**.md'
 
+# Least privilege — nothing in this workflow needs to write via GITHUB_TOKEN (image pushes and
+# the Fly deploy use their own secrets). Matches mobile-ci.yml's prior explicit read-only scope,
+# now applied workflow-wide since mobile checks run here too.
+permissions:
+  contents: read
+
 jobs:
   # Which domains changed? Gates the fast unit-test jobs below so a backend-only PR doesn't
-  # run the web suite (and vice-versa). ci.yml is in both filters so workflow edits run all.
+  # run the web/mobile suites (and vice-versa). ci.yml is in both filters so workflow edits run all.
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
@@ -36,6 +45,7 @@ jobs:
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       web: ${{ steps.filter.outputs.web }}
+      mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -50,6 +60,12 @@ jobs:
               - '.github/workflows/ci.yml'
             web:
               - 'web/**'
+              - '.github/workflows/ci.yml'
+            mobile:
+              - 'mobile/**'
+              - 'packages/shared/**'
+              - 'package.json'
+              - 'package-lock.json'
               - '.github/workflows/ci.yml'
 
   test:
@@ -93,6 +109,44 @@ jobs:
           name: web-coverage
           path: web/coverage/
           retention-days: 7
+
+  mobile:
+    name: Mobile + shared checks
+    needs: changes
+    if: >-
+      needs.changes.outputs.mobile == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Job-level (not workflow-level) so a superseded mobile run gets canceled on rapid pushes —
+    # mobile-ci.yml had this at the workflow level; scoping it to just this job here avoids ever
+    # risking cancellation of the build-backend/build-frontend/deploy-demo jobs on a main push.
+    concurrency:
+      group: ci-mobile-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          # Root workspace lockfile — installs mobile + packages/shared together. (The
+          # web job above keys on web/package-lock.json, a deliberately separate install.)
+          cache-dependency-path: package-lock.json
+
+      # One workspace install covers mobile + packages/shared.
+      - run: npm ci
+
+      # --- packages/shared (jest + tsc) ---
+      - run: npm run shared:type-check
+      - run: npm run shared:test
+
+      # --- mobile (Expo app) ---
+      - run: npm run type-check -w @lyftr/mobile
+      - run: npm run lint -w @lyftr/mobile
+      - run: npm run test -w @lyftr/mobile -- --ci
 
   e2e:
     name: Playwright E2E
