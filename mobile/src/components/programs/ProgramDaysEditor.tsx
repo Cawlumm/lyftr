@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, Field, IconButton, SegmentedControl } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { DayExercisesEditor } from './DayExercisesEditor'
-import type { DayDraft } from './types'
+import type { DayDraft, DayExerciseDraft } from './types'
 
 interface Props {
   days: DayDraft[]
@@ -27,6 +27,28 @@ export function ProgramDaysEditor({
 }: Props) {
   const { colors, accent } = useTheme()
   const [expanded, setExpanded] = useState<number | null>(() => days.findIndex((d) => !d.is_rest_day))
+
+  // Stable per-day exercises-onChange handlers, cached by day index (never
+  // recreated). Without this, DayExercisesEditor got a fresh onChange closure every
+  // render — which, chained through its own latest-ref handlers, still invalidated
+  // ExerciseFormCard's memo for every exercise card on every keystroke.
+  const daysRef = useRef(days)
+  daysRef.current = days
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const exercisesOnChangeCache = useRef(new Map<number, (exercises: DayExerciseDraft[]) => void>()).current
+  const getExercisesOnChange = (idx: number) => {
+    let fn = exercisesOnChangeCache.get(idx)
+    if (!fn) {
+      fn = (exercises) => {
+        const next = [...daysRef.current]
+        next[idx] = { ...next[idx], exercises }
+        onChangeRef.current(next)
+      }
+      exercisesOnChangeCache.set(idx, fn)
+    }
+    return fn
+  }
 
   const addDay = (isRest: boolean) => {
     const next = reindex([...days, { order_index: days.length, is_rest_day: isRest, name: '', exercises: [] }])
@@ -128,7 +150,7 @@ export function ProgramDaysEditor({
               <View className="border-t border-surface-border/60 p-3">
                 <DayExercisesEditor
                   exercises={day.exercises}
-                  onChange={(exercises) => updateDay(idx, { exercises })}
+                  onChange={getExercisesOnChange(idx)}
                   pickerExercises={pickerExercises}
                   onCacheExercise={onCacheExercise}
                   unit={unit}
