@@ -3,10 +3,9 @@ import { Pressable, View } from 'react-native'
 import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, Field, IconButton, SegmentedControl } from '../ui'
-import { useIndexedCallback } from '../../hooks/useIndexedCallback'
 import { useTheme } from '../../theme/useTheme'
 import { DayExercisesEditor } from './DayExercisesEditor'
-import type { DayDraft, DayExerciseDraft } from './types'
+import type { DayDraft } from './types'
 
 interface Props {
   days: DayDraft[]
@@ -28,16 +27,6 @@ export function ProgramDaysEditor({
 }: Props) {
   const { colors, accent } = useTheme()
   const [expanded, setExpanded] = useState<number | null>(() => days.findIndex((d) => !d.is_rest_day))
-
-  // Stable per-day exercises-onChange handlers (see useIndexedCallback). Without
-  // this, DayExercisesEditor got a fresh onChange closure every render — which,
-  // chained through its own stable handlers, still invalidated ExerciseFormCard's
-  // memo for every exercise card on every keystroke.
-  const getExercisesOnChange = useIndexedCallback<[DayExerciseDraft[]]>((idx) => (exercises) => {
-    const next = [...days]
-    next[idx] = { ...next[idx], exercises }
-    onChange(next)
-  })
 
   const addDay = (isRest: boolean) => {
     const next = reindex([...days, { order_index: days.length, is_rest_day: isRest, name: '', exercises: [] }])
@@ -139,7 +128,7 @@ export function ProgramDaysEditor({
               <View className="border-t border-surface-border/60 p-3">
                 <DayExercisesEditor
                   exercises={day.exercises}
-                  onChange={getExercisesOnChange(idx)}
+                  onChange={(exercises) => updateDay(idx, { exercises })}
                   pickerExercises={pickerExercises}
                   onCacheExercise={onCacheExercise}
                   unit={unit}
