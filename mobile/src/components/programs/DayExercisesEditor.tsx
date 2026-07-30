@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { EmptyState } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
+import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
 import type { DayExerciseDraft } from './types'
 
@@ -39,29 +40,37 @@ export function DayExercisesEditor({
     setShowPicker(false)
   }
 
-  // Stable + immutable handlers so the memoized ExerciseFormCard only re-renders the
-  // edited card (same rationale as the pre-multi-day screens).
-  const removeExercise = useCallback((index: number) => onChange(exercises.filter((_, i) => i !== index)), [exercises, onChange])
+  // useStableCallback (not plain useCallback): these read `exercises`/`onChange`
+  // straight from props, but must keep a permanently stable identity — otherwise
+  // every edit (any set/notes/rest change anywhere) hands ExerciseFormCard a new
+  // handler prop, which invalidates its memo for every card, not just the edited
+  // one (the visible lag when a program has many exercises).
+  const removeExercise = useStableCallback((index: number) =>
+    onChange(exercises.filter((_, i) => i !== index)))
 
-  const addSet = useCallback((exIdx: number) => {
-    onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] })))
-  }, [exercises, onChange])
+  const addSet = useStableCallback((exIdx: number) => {
+    onChange(exercises.map((ex, i) => {
+      if (i !== exIdx) return ex
+      const last = ex.sets[ex.sets.length - 1]
+      return { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: last?.reps ?? 0, weight: last?.weight ?? 0 }] }
+    }))
+  })
 
-  const removeSet = useCallback((exIdx: number, setIdx: number) => {
+  const removeSet = useStableCallback((exIdx: number, setIdx: number) => {
     onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) })))
-  }, [exercises, onChange])
+  })
 
-  const updateSet = useCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
+  const updateSet = useStableCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
     onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, sets: ex.sets.map((s, j) => (j !== setIdx ? s : { ...s, [field]: Number(value) || 0 })) })))
-  }, [exercises, onChange])
+  })
 
-  const updateExNotes = useCallback((exIdx: number, text: string) => {
+  const updateExNotes = useStableCallback((exIdx: number, text: string) => {
     onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, notes: text })))
-  }, [exercises, onChange])
+  })
 
-  const setExRest = useCallback((exIdx: number, secs: number) => {
+  const setExRest = useStableCallback((exIdx: number, secs: number) => {
     onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })))
-  }, [exercises, onChange])
+  })
 
   const selectedIds = exercises.map((e) => e.exercise_id)
 

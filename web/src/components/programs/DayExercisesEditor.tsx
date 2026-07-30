@@ -36,8 +36,12 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
 
   const addSet = (exIdx: number) => {
     const next = [...exercises]
-    const count = next[exIdx].sets.length + 1
-    next[exIdx] = { ...next[exIdx], sets: [...next[exIdx].sets, { set_number: count, target_reps: 0, target_weight: 0 }] }
+    const sets = next[exIdx].sets
+    const last = sets[sets.length - 1]
+    next[exIdx] = {
+      ...next[exIdx],
+      sets: [...sets, { set_number: sets.length + 1, target_reps: last?.target_reps ?? 0, target_weight: last?.target_weight ?? 0 }],
+    }
     onChange(next)
   }
 
