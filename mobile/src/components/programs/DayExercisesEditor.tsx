@@ -44,7 +44,11 @@ export function DayExercisesEditor({
   const removeExercise = useCallback((index: number) => onChange(exercises.filter((_, i) => i !== index)), [exercises, onChange])
 
   const addSet = useCallback((exIdx: number) => {
-    onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] })))
+    onChange(exercises.map((ex, i) => {
+      if (i !== exIdx) return ex
+      const last = ex.sets[ex.sets.length - 1]
+      return { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: last?.reps ?? 0, weight: last?.weight ?? 0 }] }
+    }))
   }, [exercises, onChange])
 
   const removeSet = useCallback((exIdx: number, setIdx: number) => {

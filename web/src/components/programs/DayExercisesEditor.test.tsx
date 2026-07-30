@@ -43,12 +43,19 @@ describe('DayExercisesEditor', () => {
     expect(screen.getByText('1 sets')).toBeTruthy()
   })
 
-  it('Add Set appends a set with the next set_number', () => {
-    const onChange = renderEditor([draft()])
+  it('Add Set appends a set copying the previous set\'s reps/weight', () => {
+    const onChange = renderEditor([draft()]) // draft's one set: { set_number: 1, target_reps: 5, target_weight: 135 }
     fireEvent.click(screen.getByText('Add Set'))
     const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
     expect(next[0].sets).toHaveLength(2)
-    expect(next[0].sets[1]).toEqual({ set_number: 2, target_reps: 0, target_weight: 0 })
+    expect(next[0].sets[1]).toEqual({ set_number: 2, target_reps: 5, target_weight: 135 })
+  })
+
+  it('Add Set on the first set (no prior set) falls back to 0/0', () => {
+    const onChange = renderEditor([draft({ sets: [] })])
+    fireEvent.click(screen.getByText('Add Set'))
+    const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
+    expect(next[0].sets).toEqual([{ set_number: 1, target_reps: 0, target_weight: 0 }])
   })
 
   it('editing target reps coerces to a number (garbage → 0)', () => {
