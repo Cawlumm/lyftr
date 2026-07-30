@@ -1,22 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { router, type Href } from 'expo-router'
-import {
-  CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flag, Plus, Timer, X,
-} from 'lucide-react-native'
-import { displayToLbs, displayWeight, weightShort, type Exercise } from '@lyftr/shared'
-import { AppText, ConfirmSheet, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen } from '../../../src/components/ui'
-import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
+import { router } from 'expo-router'
+import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
+import { weightShort, type Exercise } from '@lyftr/shared'
+import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
+import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
+import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
-import { muscleColor } from '../../../src/utils/exerciseUtils'
-
-// Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
-const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
 function formatElapsed(seconds: number) {
   const h = Math.floor(seconds / 3600)
@@ -25,8 +20,6 @@ function formatElapsed(seconds: number) {
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
-
-const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
 export default function ActiveWorkout() {
   const session = useWorkoutSession((s) => s.session)
@@ -99,7 +92,16 @@ export default function ActiveWorkout() {
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, (cardY.current[idx] ?? 0) - 8), animated: true }))
   }, [])
 
-  const handleCompleteSet = (exIdx: number, setIdx: number) => {
+  const handleCardLayout = useStableCallback((idx: number, y: number) => { cardY.current[idx] = y })
+
+  const requestFinish = useCallback(() => setConfirmFinish(true), [])
+
+  // useStableCallback (not plain closure): this is passed to the memoized
+  // ActiveExerciseCard for every exercise, so it must keep a permanently stable
+  // identity — the per-second `elapsed` tick re-renders this screen every second,
+  // and a fresh closure here (it reads `session`/`activeExIdx`) would invalidate
+  // every card's memo on every tick, not just the touched one.
+  const handleCompleteSet = useStableCallback((exIdx: number, setIdx: number) => {
     // Tapping the check means you're done typing this set — drop the keyboard so the row
     // settles and nothing reflows later (e.g. a rest timer starting under a raised board).
     Keyboard.dismiss()
@@ -109,7 +111,7 @@ export default function ActiveWorkout() {
     }
     completeSet(exIdx, setIdx)
     if (exIdx !== activeExIdx) setActiveExIdx(exIdx)
-  }
+  })
 
   // Mid-session add: web routes to a picker page, but the gym overlay would cover a
   // routed page — so both modes open the ExercisePicker modal (1 blank set, web parity).
@@ -229,147 +231,26 @@ export default function ActiveWorkout() {
             <AppText variant="caption" color="muted">Add exercises below</AppText>
           </View>
         ) : (
-          session.exercises.map((ex, exIdx) => {
-            const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
-            const isActive = exIdx === activeExIdx
-            const completedHere = ex.sets.filter((s) => s.completed).length
-            const tint = muscleColor(ex.exercise.muscle_group)
-            return (
-              <View
-                key={exIdx}
-                onLayout={(e: LayoutChangeEvent) => { cardY.current[exIdx] = e.nativeEvent.layout.y }}
-                className={`overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
-              >
-                {/* Header */}
-                <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
-                  <ExerciseImage url={ex.exercise.image_url} />
-                  <Pressable className="min-w-0 flex-1" onPress={() => router.push(exerciseHref(ex.exercise_id))}>
-                    <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
-                    <View className="mt-1 flex-row items-center gap-2">
-                      <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-                        <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{ex.exercise.muscle_group}</AppText>
-                      </View>
-                      <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{completedHere}/{ex.sets.length} sets</AppText>
-                    </View>
-                  </Pressable>
-                  {allSetsComplete ? (
-                    <View className="h-8 w-8 items-center justify-center rounded-full bg-brand-500">
-                      <CheckCircle2 size={18} color="#ffffff" />
-                    </View>
-                  ) : (
-                    <Pressable onPress={() => removeExercise(exIdx)} hitSlop={6} accessibilityLabel="Remove exercise" className="h-9 w-9 items-center justify-center rounded-xl active:bg-error-500/10">
-                      <X size={16} color={colors.txMuted} />
-                    </Pressable>
-                  )}
-                </View>
-
-                {/* Notes */}
-                <View className="px-4 pb-2">
-                  <TextInput
-                    defaultValue={ex.notes}
-                    onEndEditing={(e) => updateExerciseNotes(exIdx, e.nativeEvent.text)}
-                    placeholder="+ Add note…"
-                    placeholderTextColor={colors.txMuted}
-                    className="font-sans text-xs text-tx-secondary"
-                    accessibilityLabel={`Notes, ${ex.exercise.name}`}
-                  />
-                </View>
-
-                {/* Sets */}
-                <View className="gap-2 px-3 pb-3">
-                  <View className="flex-row items-center gap-2 px-1">
-                    <View className="w-8 items-center"><AppText variant="caption" color="muted">Set</AppText></View>
-                    <View className="flex-1 items-center"><AppText variant="caption" color="muted">Reps</AppText></View>
-                    <View className="flex-1 items-center"><AppText variant="caption" color="muted">Weight ({wUnit})</AppText></View>
-                    <View className="w-12 items-center"><AppText variant="caption" color="muted">Done</AppText></View>
-                    <View className="w-7" />
-                  </View>
-                  {ex.sets.map((set, setIdx) => {
-                    const isNextSet = isActive && !set.completed && ex.sets.slice(0, setIdx).every((s) => s.completed)
-                    return (
-                      <View
-                        key={setIdx}
-                        className={`flex-row items-center gap-2 rounded-xl border ${set.completed ? 'border-brand-500/20 bg-brand-500/10' : isNextSet ? 'border-brand-500/35 bg-surface-muted/50' : 'border-surface-border/60 bg-surface-muted/30'}`}
-                      >
-                        <View className="w-8 items-center py-3">
-                          <Text className="font-sans-bold text-sm" style={{ color: set.completed ? accent : colors.txMuted, fontVariant: ['tabular-nums'] }}>{set.set_number}</Text>
-                        </View>
-                        <View className="flex-1">
-                          <TextInput
-                            editable={!set.completed}
-                            value={set.actual_reps ? String(set.actual_reps) : ''}
-                            onChangeText={(t) => updateSet(exIdx, setIdx, 'actual_reps', Number(t.replace(/[^0-9]/g, '')) || 0)}
-                            keyboardType="number-pad"
-                            inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
-                            placeholder={set.target_reps > 0 ? String(set.target_reps) : '—'}
-                            placeholderTextColor={colors.txMuted}
-                            className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
-                            style={{ fontVariant: ['tabular-nums'] }}
-                            accessibilityLabel={`Reps, set ${set.set_number}, ${ex.exercise.name}`}
-                          />
-                        </View>
-                        <View className="flex-1">
-                          <TextInput
-                            editable={!set.completed}
-                            value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
-                            onChangeText={(t) => {
-                              let v = t.replace(/[^0-9.]/g, '')
-                              const i = v.indexOf('.')
-                              if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
-                              updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, settings.weight_unit))
-                            }}
-                            keyboardType="decimal-pad"
-                            inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
-                            placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
-                            placeholderTextColor={colors.txMuted}
-                            className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
-                            style={{ fontVariant: ['tabular-nums'] }}
-                            accessibilityLabel={`Weight, set ${set.set_number}, ${ex.exercise.name}`}
-                          />
-                        </View>
-                        <Pressable
-                          onPress={() => handleCompleteSet(exIdx, setIdx)}
-                          className={`h-11 w-12 items-center justify-center ${set.completed ? 'bg-brand-500' : isNextSet ? 'bg-brand-500/20' : ''}`}
-                          accessibilityRole="button"
-                          accessibilityLabel={`${set.completed ? 'Completed' : 'Complete'} set ${set.set_number}, ${ex.exercise.name}`}
-                        >
-                          <CheckCircle2 size={24} color={set.completed ? '#ffffff' : isNextSet ? accent : colors.txMuted} />
-                        </Pressable>
-                        <Pressable onPress={() => removeSet(exIdx, setIdx)} hitSlop={6} accessibilityLabel="Remove set" className="w-7 items-center justify-center">
-                          <X size={14} color={colors.txMuted} />
-                        </Pressable>
-                      </View>
-                    )
-                  })}
-
-                  {/* Add Set / Prev / Next / Finish */}
-                  <View className="mt-1 flex-row gap-2">
-                    {isActive && exIdx > 0 ? (
-                      <Pressable onPress={() => jumpToExercise(exIdx - 1)} accessibilityLabel="Previous exercise" className="items-center justify-center rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95">
-                        <ChevronLeft size={16} color={colors.txSecondary} />
-                      </Pressable>
-                    ) : null}
-                    <Pressable onPress={() => addSet(exIdx)} className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-border py-2.5 active:opacity-60">
-                      <Plus size={14} color={colors.txMuted} />
-                      <Text className="font-sans-semibold text-xs text-tx-muted">Add Set</Text>
-                    </Pressable>
-                    {isActive && exIdx < session.exercises.length - 1 ? (
-                      <Pressable onPress={() => jumpToExercise(exIdx + 1)} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'}`}>
-                        <Text className={`font-sans-semibold text-xs ${allSetsComplete ? 'text-white' : 'text-tx-secondary'}`}>Next</Text>
-                        <ChevronRight size={14} color={allSetsComplete ? '#ffffff' : colors.txSecondary} />
-                      </Pressable>
-                    ) : null}
-                    {isActive && exIdx === session.exercises.length - 1 ? (
-                      <Pressable onPress={() => setConfirmFinish(true)} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'}`}>
-                        <Flag size={14} color={allSetsComplete ? '#ffffff' : colors.txSecondary} />
-                        <Text className={`font-sans-semibold text-xs ${allSetsComplete ? 'text-white' : 'text-tx-secondary'}`}>Finish</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                </View>
-              </View>
-            )
-          })
+          session.exercises.map((ex, exIdx) => (
+            <ActiveExerciseCard
+              key={exIdx}
+              index={exIdx}
+              ex={ex}
+              isActive={exIdx === activeExIdx}
+              isLast={exIdx === session.exercises.length - 1}
+              wUnit={wUnit}
+              weightUnit={settings.weight_unit}
+              onCardLayout={handleCardLayout}
+              onRemoveExercise={removeExercise}
+              onNotesChange={updateExerciseNotes}
+              onAddSet={addSet}
+              onRemoveSet={removeSet}
+              onUpdateSet={updateSet}
+              onCompleteSet={handleCompleteSet}
+              onJumpToExercise={jumpToExercise}
+              onRequestFinish={requestFinish}
+            />
+          ))
         )}
 
         {/* Footer */}
