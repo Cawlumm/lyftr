@@ -47,12 +47,13 @@ A native app sends no `Origin` header, so the backend never applies CORS to it. 
 app says it can't reach the server but the same URL works in the phone's **browser**, the
 device is blocking the connection, not the server. The two common causes:
 
-- **Plain `http://`** — blocked by Android's defaults. Needs Android app **v0.3.0+**.
+- **Plain `http://`** — blocked by Android's defaults. The app opts back in.
 - **A private or self-signed CA** — apps ignore the user-installed CA store unless they opt
-  in. Needs **v0.3.0+**, plus the CA installed on the device. See
+  in. The app does, but the CA still has to be installed on the device. See
   [HTTPS & Reverse Proxy](../https/).
 
-v0.3.0+ names the specific cause in the error message instead of guessing.
+Both need a current build, which also names the specific cause in the error message instead
+of guessing. If you get a generic message mentioning CORS, update the app first.
 :::
 
 ## No exercises show up

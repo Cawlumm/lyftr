@@ -24,12 +24,12 @@ The app connects to your self-hosted instance, so it needs a URL it can actually
 
 - **`localhost` won't work** from a phone — it refers to the phone itself.
 - On the same network, use your server's **LAN IP** (e.g. `http://192.168.1.10:8080`).
-  Plain `http://` needs Android app **v0.3.0 or newer** — older builds cannot open it at all,
-  because Android blocks unencrypted traffic by default.
+  Android blocks unencrypted traffic by default; the app opts back in, so plain `http://`
+  works. If it fails outright, update to the latest build.
 - Best: a **real hostname over HTTPS** so it works anywhere — see [HTTPS & Reverse Proxy](../https/).
   A LAN-only hostname can still get a genuine certificate via DNS-01; no ports need opening.
-- Using a **private or self-signed CA**? Install it on the phone and use **v0.3.0+** — see
-  [HTTPS & Reverse Proxy](../https/).
+- Using a **private or self-signed CA**? Install it on the phone — the app trusts the
+  device's user-installed CA store. See [HTTPS & Reverse Proxy](../https/).
 - Make sure your server URL is in `CORS_ORIGIN` (see [Configuration](../configuration/)).
   Note this only matters for the **web** app; native apps aren't subject to CORS.
 

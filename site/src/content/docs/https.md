@@ -77,14 +77,14 @@ are rules that trip people up:
   been accepted for years. If you connect by IP, the IP must be in the SAN as an
   `IP Address` entry — a `DNS` entry will not match.
 - Use RSA ≥ 2048 or EC ≥ 256, SHA-256 or better, and TLS 1.2+.
-- **Android app v0.3.0 or newer is required.** Earlier builds ignore the device's
-  user-installed CA store entirely, so a private CA can never work on them — the app
-  reports that it can't reach the server even though the server is fine.
+- **Use a current Android build.** The app trusts the device's user-installed CA store;
+  older builds ignored it entirely and reported that they couldn't reach the server even
+  though the server was fine. If a private CA isn't working, update the app first.
 
 :::caution[Plain HTTP on Android]
-Android blocks unencrypted HTTP by default. Lyftr's Android app **v0.3.0+** permits it so
-that `http://<lan-ip>:8080` works for a standard `docker compose` install. On older builds
-plain HTTP fails no matter what the server does.
+Android blocks unencrypted HTTP by default. The Lyftr Android app opts back in, so
+`http://<lan-ip>:8080` works for a standard `docker compose` install. If plain HTTP fails
+no matter what the server does, you're on a build from before that was added — update.
 :::
 
 ## Point Lyftr at your public origin
