@@ -42,6 +42,19 @@ If host port 80 is taken (another web server, or a reverse proxy), move Lyftr to
 - Add that origin to `CORS_ORIGIN` (comma-separated), or use `*` to allow any (the API is
   Bearer-token based, so there are no cookies to protect).
 
+:::note[On mobile this is usually not CORS]
+A native app sends no `Origin` header, so the backend never applies CORS to it. If the phone
+app says it can't reach the server but the same URL works in the phone's **browser**, the
+device is blocking the connection, not the server. The two common causes:
+
+- **Plain `http://`** — blocked by Android's defaults. Needs Android app **v0.3.0+**.
+- **A private or self-signed CA** — apps ignore the user-installed CA store unless they opt
+  in. Needs **v0.3.0+**, plus the CA installed on the device. See
+  [HTTPS & Reverse Proxy](../https/).
+
+v0.3.0+ names the specific cause in the error message instead of guessing.
+:::
+
 ## No exercises show up
 
 They seed in the background on first startup and appear within a few seconds. If the list is empty,

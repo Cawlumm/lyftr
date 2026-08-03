@@ -142,7 +142,7 @@ export default function SettingsScreen() {
     // Warn-but-save: the choice is authoritative right away; the probe is advisory.
     await setServerUrl(base)
     const result = await testServerConnection(base)
-    setServerMsg(result.ok ? `Connected · ${result.info.name} v${result.info.version}` : `Saved, but ${result.message}`)
+    setServerMsg(result.ok ? `Connected · ${result.info.name} v${result.info.version}` : `Saved — ${result.message}`)
     setTesting(false)
   }
 

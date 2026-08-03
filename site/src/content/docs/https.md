@@ -46,6 +46,47 @@ Then issue a certificate with [Certbot](https://certbot.eff.org):
 sudo certbot --nginx -d lyftr.example.com
 ```
 
+## LAN-only? Get a real certificate anyway (recommended)
+
+If Lyftr never leaves your network, you can still have a genuine, publicly-trusted
+certificate — no ports open to the internet. Use a domain you own, point a record at a
+private address, and let Caddy prove ownership over DNS instead of HTTP:
+
+```caddyfile
+lyftr.home.example.com {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    reverse_proxy localhost:8080
+}
+```
+
+This is the best option by a distance: every device trusts it out of the box, nothing is
+exposed, and renewal is automatic. It needs a domain you control and a DNS provider with an
+API — [Caddy's DNS provider modules](https://github.com/caddy-dns) cover most of them.
+
+## Private CA / self-signed certificates
+
+If you have no domain and must use your own CA, the mobile app can work with it, but there
+are rules that trip people up:
+
+- **Install the CA on the device**, not just the server. On Android: *Settings → Security →
+  Encryption & credentials → Install a certificate → CA certificate*. On iOS: install the
+  profile, then enable it under *Settings → General → About → Certificate Trust Settings*.
+- **The certificate must carry a Subject Alternative Name.** A Common Name alone has not
+  been accepted for years. If you connect by IP, the IP must be in the SAN as an
+  `IP Address` entry — a `DNS` entry will not match.
+- Use RSA ≥ 2048 or EC ≥ 256, SHA-256 or better, and TLS 1.2+.
+- **Android app v0.3.0 or newer is required.** Earlier builds ignore the device's
+  user-installed CA store entirely, so a private CA can never work on them — the app
+  reports that it can't reach the server even though the server is fine.
+
+:::caution[Plain HTTP on Android]
+Android blocks unencrypted HTTP by default. Lyftr's Android app **v0.3.0+** permits it so
+that `http://<lan-ip>:8080` works for a standard `docker compose` install. On older builds
+plain HTTP fails no matter what the server does.
+:::
+
 ## Point Lyftr at your public origin
 
 After the proxy is up, set `CORS_ORIGIN` to your HTTPS URL so browser and mobile clients are

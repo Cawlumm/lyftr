@@ -39,7 +39,7 @@ export default function ServerSettings() {
     setStatus(
       result.ok
         ? { kind: 'ok', message: `Connected · ${result.info.name} ${result.info.version}` }
-        : { kind: 'warn', message: `Saved, but ${result.message}` },
+        : { kind: 'warn', message: `Saved — ${result.message}` },
     )
   }
 

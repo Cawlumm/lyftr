@@ -234,15 +234,17 @@ export function ServerRow() {
       setTesting(false)
       return
     }
+    // Warn-but-save, matching Settings: gating the save on a successful probe means a user
+    // whose server is unreachable for any reason can never store a URL from this screen —
+    // exactly the dead end hit when the device itself blocks the connection (issue #79).
+    await setServerUrl(base)
     const result = await testServerConnection(base)
-    if (result.ok) {
-      await setServerUrl(url)
-      setOk(true)
-      setMsg(`Connected to ${result.info.name} v${result.info.version}`)
-    } else {
-      setOk(false)
-      setMsg(result.message)
-    }
+    setOk(result.ok)
+    setMsg(
+      result.ok
+        ? `Connected to ${result.info.name} v${result.info.version}`
+        : `Saved — ${result.message}`,
+    )
     setTesting(false)
   }
 

@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios'
 import * as types from './types'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 import { normalizeServerUrl } from './utils/serverUrl'
+import { networkFailureMessage } from './utils/networkError'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy (web).
@@ -22,9 +23,11 @@ export interface ClientOptions {
   baseUrlOverride?: string
 }
 
-// Turn an axios error into an actionable message. Network/CORS/connection failures
-// (no response) and proxy misconfig (404/405) are distinguished from real auth and
-// server errors, so connectivity problems don't masquerade as "Registration failed."
+// Turn an axios error into an actionable message. Proxy misconfig (404/405) is
+// distinguished from real auth and server errors, so connectivity problems don't
+// masquerade as "Registration failed." Response-less failures go to the classifier,
+// which separates a blocked-cleartext or untrusted-certificate failure from a genuinely
+// unreachable server — they are indistinguishable from the axios error alone.
 export const apiErrorMessage = (err: any, fallback: string): string => {
   if (err?.response) {
     const serverError = err.response.data?.error
@@ -36,7 +39,7 @@ export const apiErrorMessage = (err: any, fallback: string): string => {
     if (status >= 500) return 'Server error. Please try again shortly.'
     return fallback
   }
-  return "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS)."
+  return networkFailureMessage(err)
 }
 
 // Probe a server's public /info endpoint to confirm it's reachable and is a Lyftr
@@ -70,8 +73,11 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     return apiUrl(base)
   }
 
+  // Without an explicit timeout axios waits forever (default 0), so a silently dropped
+  // or policy-blocked request hangs the UI instead of surfacing an error.
   const api: AxiosInstance = axios.create({
     headers: { 'Content-Type': 'application/json' },
+    timeout: 20000,
   })
 
   api.interceptors.request.use(async (config) => {
