@@ -35,13 +35,16 @@ The **Server URL** field in the Settings tab configures the backend origin (vali
 the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login:
 `demo@lyftr.local` / `password123`.
 
-## Native networking config (`plugins/`)
-`plugins/withNetworkSecurityConfig.js` ships an Android
+## Native networking config
+`network_security_config.xml` is an Android
 [network security config](https://developer.android.com/privacy-and-security/security-config)
 permitting cleartext HTTP and trusting the user-installed CA store (issue #79). The file's
-own header explains why and what it deliberately does *not* do.
+own header explains why and what it deliberately does *not* do. It's copied into the build
+by [`expo-network-security-config`](https://github.com/pchalupa/expo-network-security-config),
+wired up in `app.json` — a maintained plugin rather than a hand-rolled one, so tracking
+Expo SDK changes to the underlying dangerous mod isn't our job.
 
-What matters when working on it: it runs at prebuild, so changes only take effect in a
+What matters when working on it: it's applied at prebuild, so changes only take effect in a
 **new build** — EAS Update cannot deliver them. To inspect the generated output:
 ```bash
 npx expo prebuild -p android --clean --no-install

@@ -60,7 +60,13 @@
       ],
       "expo-font",
       "@react-native-community/datetimepicker",
-      "./plugins/withNetworkSecurityConfig"
+      [
+        "expo-network-security-config",
+        {
+          "enable": true,
+          "networkSecurityConfig": "./network_security_config.xml"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
