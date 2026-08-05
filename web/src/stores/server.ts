@@ -45,6 +45,32 @@ export const isInsecureServerUrl = (serverUrl: string): boolean => {
 export const INSECURE_SERVER_WARNING =
   'Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.'
 
+// True when the browser will refuse this URL outright as active mixed content: an HTTPS
+// page cannot call an http:// origin, and no header, CSP directive or fetch option lets
+// the page opt out (upgrade-insecure-requests rewrites to https rather than permitting
+// http). Only the user can override it, per-site, in their own browser settings.
+//
+// This is a hard failure, not a privacy risk, so it takes precedence over
+// INSECURE_SERVER_WARNING at the call site — different problem, different fix.
+//
+// Loopback is exempt because it is a "potentially trustworthy" origin under the Secure
+// Contexts spec, so mixed-content checks let http://localhost and http://127.0.0.1
+// through even from an HTTPS page.
+export const isMixedContentBlocked = (serverUrl: string): boolean => {
+  if (!serverUrl) return false // same origin — never mixed
+  if (typeof window === 'undefined') return false
+  if (window.location.protocol !== 'https:') return false
+  try {
+    const u = new URL(serverUrl)
+    return u.protocol === 'http:' && !LOOPBACK.test(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+export const MIXED_CONTENT_WARNING =
+  "This browser will block it — an HTTPS page can't call an http:// server. Use https:// for the server too, or leave this blank to use this site's own backend."
+
 interface ServerStore {
   serverUrl: string // '' = same origin (reverse proxy)
   setServerUrl: (url: string) => void

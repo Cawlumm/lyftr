@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { normalizeServerUrl, useServerStore } from './server'
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import {
+  normalizeServerUrl,
+  useServerStore,
+  isInsecureServerUrl,
+  isMixedContentBlocked,
+} from './server'
 
 describe('normalizeServerUrl', () => {
   it('returns empty for blank or whitespace-only input', () => {
@@ -67,5 +72,80 @@ describe('useServerStore', () => {
   it('getServerUrl reflects the current value', () => {
     useServerStore.getState().setServerUrl('https://example.com')
     expect(useServerStore.getState().getServerUrl()).toBe('https://example.com')
+  })
+})
+
+describe('isInsecureServerUrl', () => {
+  it('flags plain http:// to a network address', () => {
+    expect(isInsecureServerUrl('http://192.168.1.10:8080')).toBe(true)
+    expect(isInsecureServerUrl('http://lyftr.lan')).toBe(true)
+  })
+
+  it('does not flag https://', () => {
+    expect(isInsecureServerUrl('https://lyftr.example.com')).toBe(false)
+  })
+
+  // Loopback traffic never reaches a network, so there is nobody to intercept it.
+  it('does not flag loopback over http', () => {
+    expect(isInsecureServerUrl('http://localhost:3000')).toBe(false)
+    expect(isInsecureServerUrl('http://127.0.0.1:3000')).toBe(false)
+    expect(isInsecureServerUrl('http://[::1]:3000')).toBe(false)
+  })
+
+  // A host that merely starts with "localhost" is a different host entirely.
+  it('flags lookalike hostnames', () => {
+    expect(isInsecureServerUrl('http://localhost.evil.com')).toBe(true)
+    expect(isInsecureServerUrl('http://127.0.0.1.evil.com')).toBe(true)
+  })
+
+  it('empty (same origin) and garbage are not flagged', () => {
+    expect(isInsecureServerUrl('')).toBe(false)
+    expect(isInsecureServerUrl('not a url')).toBe(false)
+  })
+})
+
+describe('isMixedContentBlocked', () => {
+  const setPageProtocol = (protocol: 'http:' | 'https:') => {
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, protocol },
+      writable: true,
+      configurable: true,
+    })
+  }
+  const original = window.location
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { value: original, writable: true, configurable: true })
+  })
+
+  it('blocks http:// server from an https:// page', () => {
+    setPageProtocol('https:')
+    expect(isMixedContentBlocked('http://192.168.1.10:8080')).toBe(true)
+    expect(isMixedContentBlocked('http://lyftr.lan')).toBe(true)
+  })
+
+  // Loopback is "potentially trustworthy", so mixed-content checks let it through.
+  it('allows loopback over http even from an https:// page', () => {
+    setPageProtocol('https:')
+    expect(isMixedContentBlocked('http://localhost:3000')).toBe(false)
+    expect(isMixedContentBlocked('http://127.0.0.1:3000')).toBe(false)
+    expect(isMixedContentBlocked('http://[::1]:3000')).toBe(false)
+  })
+
+  it('allows https:// server from an https:// page', () => {
+    setPageProtocol('https:')
+    expect(isMixedContentBlocked('https://lyftr.example.com')).toBe(false)
+  })
+
+  // Upgrading from an http page to an https server is never mixed content.
+  it('never blocks from an http:// page', () => {
+    setPageProtocol('http:')
+    expect(isMixedContentBlocked('http://192.168.1.10:8080')).toBe(false)
+    expect(isMixedContentBlocked('https://lyftr.example.com')).toBe(false)
+  })
+
+  it('empty (same origin) and garbage are never blocked', () => {
+    setPageProtocol('https:')
+    expect(isMixedContentBlocked('')).toBe(false)
+    expect(isMixedContentBlocked('not a url')).toBe(false)
   })
 })

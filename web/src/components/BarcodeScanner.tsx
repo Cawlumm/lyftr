@@ -12,6 +12,13 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
   const resolvedRef = useRef(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
 
+  // getUserMedia is a secure-context API, so on a plain-http origin navigator.mediaDevices
+  // is undefined and ZXing fails with a raw internal error. Detect it up front and explain
+  // the actual cause — the raw message ("Cannot read properties of undefined") tells a
+  // self-hoster nothing about what to change. Checked, not caught, because the failure
+  // shape varies by browser.
+  const insecureContext = typeof window !== 'undefined' && !window.isSecureContext
+
   const { ref } = useZxing({
     constraints: {
       audio: false,
@@ -53,7 +60,7 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
       </div>
 
       <div className="flex-1 flex items-center justify-center relative">
-        {!cameraError && (
+        {!cameraError && !insecureContext && (
           <video
             // react-zxing ref type doesn't match HTMLVideoElement exactly; cast is safe as useZxing always returns a video ref
             ref={ref as React.RefObject<HTMLVideoElement>}
@@ -63,7 +70,7 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
           />
         )}
 
-        {!cameraError && (
+        {!cameraError && !insecureContext && (
           <div className="absolute pointer-events-none" style={{ width: 260, height: 160 }}>
             <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-brand-400 rounded-tl" />
             <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-brand-400 rounded-tr" />
@@ -77,7 +84,20 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
         )}
       </div>
 
-      {cameraError ? (
+      {insecureContext ? (
+        <div className="flex flex-col items-center gap-3 px-6 pb-10 text-center">
+          <AlertCircle className="w-8 h-8 text-error-400" />
+          <p className="text-white text-sm font-medium">Camera needs HTTPS</p>
+          <p className="text-white/60 text-xs leading-relaxed">
+            Browsers only allow camera access on secure pages. This site is served over
+            plain <span className="font-mono">http://</span> — put it behind a reverse proxy
+            with HTTPS to scan barcodes.
+          </p>
+          <button onClick={onClose} className="btn-primary btn-sm mt-2">
+            Search by name instead
+          </button>
+        </div>
+      ) : cameraError ? (
         <div className="flex flex-col items-center gap-3 px-6 pb-10 text-center">
           <AlertCircle className="w-8 h-8 text-error-400" />
           <p className="text-white text-sm font-medium">Camera unavailable</p>

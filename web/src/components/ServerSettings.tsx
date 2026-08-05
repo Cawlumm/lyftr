@@ -5,6 +5,8 @@ import {
   normalizeServerUrl,
   isInsecureServerUrl,
   INSECURE_SERVER_WARNING,
+  isMixedContentBlocked,
+  MIXED_CONTENT_WARNING,
 } from '../stores/server'
 import { testServerConnection } from '../services/api'
 
@@ -25,7 +27,10 @@ export default function ServerSettings() {
   const [input, setInput] = useState(serverUrl)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
   // Reflects what's saved, not what's being typed — a half-typed "http" shouldn't flash a warning.
-  const insecure = isInsecureServerUrl(serverUrl)
+  // Blocked wins over insecure: both are true for http-from-https, but one is a hard
+  // failure the user must fix and the other is a risk they may knowingly accept.
+  const blocked = isMixedContentBlocked(serverUrl)
+  const insecure = !blocked && isInsecureServerUrl(serverUrl)
 
   const handleSave = async () => {
     const raw = input.trim()
@@ -59,7 +64,13 @@ export default function ServerSettings() {
       >
         <Server className="w-3.5 h-3.5" />
         <span>Server settings</span>
-        {/* Stays visible while the panel is collapsed — the risk outlives the moment of entry. */}
+        {/* Stays visible while the panel is collapsed — the problem outlives the moment of entry. */}
+        {blocked && (
+          <span className="flex items-center gap-1 text-error-400" title={MIXED_CONTENT_WARNING}>
+            <AlertTriangle className="w-3 h-3" />
+            Blocked
+          </span>
+        )}
         {insecure && (
           <span className="flex items-center gap-1 text-warning-400" title={INSECURE_SERVER_WARNING}>
             <AlertTriangle className="w-3 h-3" />
@@ -87,6 +98,12 @@ export default function ServerSettings() {
             Full URL, e.g. <span className="font-mono text-tx-secondary">https://lyftr.example.com</span>
           </p>
 
+          {blocked && (
+            <p className="flex items-start gap-1.5 text-xs text-error-400">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>{MIXED_CONTENT_WARNING}</span>
+            </p>
+          )}
           {insecure && (
             <p className="flex items-start gap-1.5 text-xs text-warning-400">
               <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
