@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -73,6 +74,7 @@ func alterMigrations() {
 	workoutProgramDayMigration()
 
 	normalizeWorkoutStartedAt()
+	normalizeFoodLoggedAt()
 }
 
 // normalizeWorkoutStartedAt rewrites any workouts.started_at stored with a non-UTC
@@ -82,9 +84,19 @@ func alterMigrations() {
 // zone — so a row written before the controllers' write-side UTC normalization
 // (e.g. a third-party API client sending '+08:00') compares by wall-clock text, not
 // instant, and could permanently win or lose the most-recent-anchor lookup against
-// newer UTC rows. Normalizing here also repairs reads: a fixed-offset zone with no
-// name is stored as its offset twice ('… +0800 +0800'), which the driver can't
-// parse back into a time.Time at all. The WHERE matches only offset-bearing
+// newer UTC rows.
+func normalizeWorkoutStartedAt() {
+	normalizeUTCTimestamps("normalize_workout_started_at", "workouts", "started_at")
+}
+
+func normalizeFoodLoggedAt() {
+	normalizeUTCTimestamps("normalize_food_logged_at", "food_logs", "logged_at")
+}
+
+// normalizeUTCTimestamps rewrites any table.column value stored with a non-UTC zone
+// offset to its UTC equivalent. Normalizing also repairs reads: a fixed-offset zone
+// with no name is stored as its offset twice ('… +0800 +0800'), which the driver
+// can't parse back into a time.Time at all. The WHERE matches only offset-bearing
 // non-UTC rows, so this is idempotent and a no-op on every boot after the first;
 // a row whose text can't be parsed is logged and left as-is (retried next boot).
 //
@@ -95,21 +107,21 @@ func alterMigrations() {
 // flag is deliberately keyed off the MATCH count, not len(fixes): a boot can match
 // rows yet fix none of them (all unparseable), and flagging done there would break
 // the retry-next-boot this function promises above.
-func normalizeWorkoutStartedAt() {
-	done, err := hasMigrationFlag("normalize_workout_started_at")
+func normalizeUTCTimestamps(flag, table, column string) {
+	done, err := hasMigrationFlag(flag)
 	if err != nil {
-		log.Printf("normalizeWorkoutStartedAt: check flag: %v (skipping this boot)", err)
+		log.Printf("normalizeUTCTimestamps(%s.%s): check flag: %v (skipping this boot)", table, column, err)
 		return
 	}
 	if done {
 		return
 	}
-	rows, err := DB.Query(`
-		SELECT id, started_at FROM workouts
-		WHERE (started_at LIKE '% +%' OR started_at LIKE '% -%')
-		  AND started_at NOT LIKE '%+0000%'`)
+	rows, err := DB.Query(fmt.Sprintf(`
+		SELECT id, %[2]s FROM %[1]s
+		WHERE (%[2]s LIKE '%% +%%' OR %[2]s LIKE '%% -%%')
+		  AND %[2]s NOT LIKE '%%+0000%%'`, table, column))
 	if err != nil {
-		log.Printf("normalizeWorkoutStartedAt: query: %v (skipping this boot)", err)
+		log.Printf("normalizeUTCTimestamps(%s.%s): query: %v (skipping this boot)", table, column, err)
 		return
 	}
 	type fix struct {
@@ -124,7 +136,7 @@ func normalizeWorkoutStartedAt() {
 		var v any
 		if err := rows.Scan(&id, &v); err != nil {
 			rows.Close()
-			log.Printf("normalizeWorkoutStartedAt: scan: %v (skipping this boot)", err)
+			log.Printf("normalizeUTCTimestamps(%s.%s): scan: %v (skipping this boot)", table, column, err)
 			return
 		}
 		switch tv := v.(type) {
@@ -134,29 +146,29 @@ func normalizeWorkoutStartedAt() {
 			if t, ok := parseStoredTime(tv); ok {
 				fixes = append(fixes, fix{id, t.UTC()})
 			} else {
-				log.Printf("normalizeWorkoutStartedAt: workout %d: unparseable started_at %q left as-is", id, tv)
+				log.Printf("normalizeUTCTimestamps(%s.%s): row %d: unparseable value %q left as-is", table, column, id, tv)
 			}
 		default:
-			log.Printf("normalizeWorkoutStartedAt: workout %d: unexpected started_at type %T left as-is", id, v)
+			log.Printf("normalizeUTCTimestamps(%s.%s): row %d: unexpected type %T left as-is", table, column, id, v)
 		}
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		log.Printf("normalizeWorkoutStartedAt: rows: %v (skipping this boot)", err)
+		log.Printf("normalizeUTCTimestamps(%s.%s): rows: %v (skipping this boot)", table, column, err)
 		return
 	}
 	rows.Close() // release the process's only connection BEFORE the updates (SetMaxOpenConns(1))
 
 	for _, f := range fixes {
-		if _, err := DB.Exec(`UPDATE workouts SET started_at = ? WHERE id = ?`, f.t, f.id); err != nil {
-			log.Fatalf("normalizeWorkoutStartedAt: update workout %d: %v", f.id, err)
+		if _, err := DB.Exec(fmt.Sprintf(`UPDATE %s SET %s = ? WHERE id = ?`, table, column), f.t, f.id); err != nil {
+			log.Fatalf("normalizeUTCTimestamps(%s.%s): update row %d: %v", table, column, f.id, err)
 		}
 	}
 	if len(fixes) > 0 {
-		log.Printf("migration: normalized %d non-UTC workouts.started_at row(s) to UTC", len(fixes))
+		log.Printf("migration: normalized %d non-UTC %s.%s row(s) to UTC", len(fixes), table, column)
 	}
 	if matched == 0 {
-		setMigrationFlag("normalize_workout_started_at")
+		setMigrationFlag(flag)
 	}
 }
 
