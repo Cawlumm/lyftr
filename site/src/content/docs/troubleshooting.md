@@ -58,6 +58,15 @@ Both need a current build, which also names the specific cause in the error mess
 of guessing. If you get a generic message mentioning CORS, update the app first.
 :::
 
+## Barcode scanner won't open in the web app
+
+It says **Camera needs HTTPS** because your instance is served over plain `http://`. No
+Lyftr setting changes this — put it behind [HTTPS](../https/) and the scanner works. Your
+own private CA is enough.
+
+Unaffected: `http://localhost` **on the server itself**, and the Android app, which uses
+the phone's camera rather than the browser's.
+
 ## No exercises show up
 
 They seed in the background on first startup and appear within a few seconds. If the list is empty,

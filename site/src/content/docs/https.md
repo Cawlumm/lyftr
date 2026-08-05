@@ -85,6 +85,11 @@ are rules that trip people up:
   older builds ignored it entirely and reported that they couldn't reach the server even
   though the server was fine. If a private CA isn't working, update the app first.
 
+Your own CA is enough for the web app's barcode scanner too — browsers grant camera access
+based on the page being `https://`, not on who issued the certificate. You don't need a
+publicly-trusted certificate for that, though you do need the CA installed so the browser
+stops warning.
+
 :::caution[Plain HTTP is an escape hatch, not a setup]
 Android blocks unencrypted HTTP by default. The Lyftr Android app opts back in, so
 `http://<lan-ip>:8080` works for a standard `docker compose` install — otherwise the
@@ -95,6 +100,11 @@ on that network can read it and stay signed in as you** — on a home LAN that i
 and any compromised device. Captured tokens stay valid until they expire and cannot be
 revoked; the only way to invalidate them is to change `JWT_SECRET`, which signs out every
 user on the instance.
+
+**Barcode scanning stops working in the web app.** Browsers only allow camera access on a
+secure page, so on plain HTTP the scanner can't open. This is a browser rule, not a Lyftr
+setting — no configuration turns it back on. The Android app is unaffected: it uses the
+phone's camera directly.
 
 Use it to get running, then move to HTTPS. If you own a domain, the DNS-01 route above gets
 you a real certificate on a LAN-only hostname with no ports open — that is the fix, not a

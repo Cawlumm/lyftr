@@ -42,13 +42,11 @@ update to the latest build.
 
 :::caution[What plain HTTP costs you]
 Nothing is encrypted. Every request carries your login token in the clear, so **anyone
-else on that network can read it and stay signed in as you** — on a home LAN that includes
-guests and any compromised device. Captured tokens stay valid until they expire and cannot
-be revoked; the only way to invalidate them is to change `JWT_SECRET`, which signs out
-every user on the instance.
+else on that network can read it and stay signed in as you**, and a captured token can't
+be revoked. The app shows an amber **Not encrypted** marker while this is in effect.
 
-The app shows an amber **Not encrypted** marker on the server row while this is in effect.
-Treat it as a temporary state, not a setup.
+Full detail and the fix: [HTTPS & Reverse Proxy](../https/). Treat plain HTTP as a
+temporary state, not a setup.
 :::
 
 ## iOS

@@ -80,7 +80,6 @@ export default function SettingsScreen() {
 
   // Server repoint (same warn-but-save flow as the sign-in screens / web ServerSettings).
   const [urlInput, setUrlInput] = useState(serverUrl)
-  // Reflects what's saved, not what's being typed — a half-typed "http" shouldn't flash a warning.
   const insecureServer = isInsecureServerUrl(serverUrl)
   const [serverMsg, setServerMsg] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)

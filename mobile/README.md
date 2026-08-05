@@ -36,15 +36,13 @@ the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login
 `demo@lyftr.local` / `password123`.
 
 ## Native networking config (`plugins/`)
-`plugins/withNetworkSecurityConfig.js` is a local Expo config plugin that ships an Android
+`plugins/withNetworkSecurityConfig.js` ships an Android
 [network security config](https://developer.android.com/privacy-and-security/security-config)
-permitting **cleartext HTTP** and trusting the **user-installed CA store**. Both are needed
-because self-hosters run plain-HTTP LAN boxes or their own CA, and Android's release
-defaults block both (issue #79). Certificates are still fully validated — this is not
-"ignore TLS errors".
+permitting cleartext HTTP and trusting the user-installed CA store (issue #79). The file's
+own header explains why and what it deliberately does *not* do.
 
-It runs at prebuild, so changes only take effect in a **new build**; EAS Update cannot
-deliver them. To inspect the generated output:
+What matters when working on it: it runs at prebuild, so changes only take effect in a
+**new build** — EAS Update cannot deliver them. To inspect the generated output:
 ```bash
 npx expo prebuild -p android --clean --no-install
 cat android/app/src/main/res/xml/network_security_config.xml

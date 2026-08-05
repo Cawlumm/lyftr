@@ -26,7 +26,6 @@ export default function ServerSettings() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState(serverUrl)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
-  // Reflects what's saved, not what's being typed — a half-typed "http" shouldn't flash a warning.
   // Blocked wins over insecure: both are true for http-from-https, but one is a hard
   // failure the user must fix and the other is a risk they may knowingly accept.
   const blocked = isMixedContentBlocked(serverUrl)

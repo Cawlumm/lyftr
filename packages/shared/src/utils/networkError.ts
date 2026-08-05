@@ -65,13 +65,17 @@ const isWeb = (): boolean => typeof document !== 'undefined'
 
 export const networkFailureMessage = (err: any): string => {
   switch (classifyNetworkError(err)) {
+    // Deliberately does NOT say "update the app". This build already permits cleartext, so
+    // if the OS still blocked it the cause is something an update can't fix — most likely
+    // iOS, where NSAllowsLocalNetworking covers LAN IPs, `.local` and unqualified names but
+    // NOT a custom TLD like `.lan`. Promising an update would send that user in circles.
     case 'cleartext-blocked':
-      return "This device blocked the connection because the URL uses plain http://. Use https://, or update to the latest Lyftr app, which allows plain HTTP to local servers."
+      return 'This device blocked the connection because the URL uses plain http://. Switch the server to https:// — a reverse proxy can issue a certificate for a LAN-only hostname with no ports open.'
     // Leads with the real-certificate path on purpose. Installing a CA is a device-wide
     // action — it affects every app that trusts the user store, not just Lyftr — so it is
     // offered as the fallback it is, not as the headline fix.
     case 'certificate-untrusted':
-      return "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — Caddy can issue one for a LAN-only hostname over DNS-01 with no ports open. Otherwise, if you run your own CA, you can install it on this device (Settings → Security → Encryption & credentials → Install a certificate → CA certificate) — note that trusts it for every app, not just Lyftr."
+      return "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — a reverse proxy can issue one for a LAN-only hostname with no ports open. Or install your own CA under Settings → Security → Encryption & credentials, which trusts it for every app on the device, not just Lyftr."
     case 'hostname-mismatch':
       return "The server's certificate doesn't cover this address. Reissue it with this hostname or IP listed in the certificate's Subject Alternative Name (SAN)."
     case 'timeout':

@@ -21,17 +21,12 @@ export const normalizeServerUrl = (raw: string): string => {
   }
 }
 
-// Loopback never leaves the machine, so http:// to it carries none of the on-network
-// exposure below. Everything else on http:// does.
+// Loopback never leaves the machine, so http:// to it is not exposed on any network.
 const LOOPBACK = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
 
-// True when this server URL sends traffic unencrypted over a network. On plain http://
-// every request carries the `Authorization: Bearer` token in the clear and the refresh
-// token crosses the wire on login, so anyone sharing the network can capture a credential
-// that stays valid until it expires — there is no revocation list.
-//
-// Mirrors isInsecureServerUrl in @lyftr/shared; the two converge when web moves onto the
-// shared package (#67).
+// Mirrors isInsecureServerUrl in @lyftr/shared — see there for why unencrypted traffic
+// costs what it does. Duplicated only because web doesn't consume the shared package
+// yet; the two converge under #67.
 export const isInsecureServerUrl = (serverUrl: string): boolean => {
   if (!serverUrl) return false // '' = same origin, not a user choice
   try {
@@ -42,20 +37,18 @@ export const isInsecureServerUrl = (serverUrl: string): boolean => {
   }
 }
 
+// Kept identical to the shared copy so the risk reads the same on every surface.
 export const INSECURE_SERVER_WARNING =
   'Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.'
 
 // True when the browser will refuse this URL outright as active mixed content: an HTTPS
-// page cannot call an http:// origin, and no header, CSP directive or fetch option lets
-// the page opt out (upgrade-insecure-requests rewrites to https rather than permitting
-// http). Only the user can override it, per-site, in their own browser settings.
+// page cannot call an http:// origin, and the page cannot opt out — no header, CSP
+// directive or fetch option grants an exception (upgrade-insecure-requests rewrites to
+// https rather than permitting http). Only the user can override it, per-site, in their
+// own browser settings.
 //
-// This is a hard failure, not a privacy risk, so it takes precedence over
-// INSECURE_SERVER_WARNING at the call site — different problem, different fix.
-//
-// Loopback is exempt because it is a "potentially trustworthy" origin under the Secure
-// Contexts spec, so mixed-content checks let http://localhost and http://127.0.0.1
-// through even from an HTTPS page.
+// Loopback is exempt: it is a "potentially trustworthy" origin under the Secure Contexts
+// spec, so mixed-content checks let it through even from an HTTPS page.
 export const isMixedContentBlocked = (serverUrl: string): boolean => {
   if (!serverUrl) return false // same origin — never mixed
   if (typeof window === 'undefined') return false

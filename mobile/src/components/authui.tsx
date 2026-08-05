@@ -228,7 +228,6 @@ export function ServerRow() {
   const [msg, setMsg] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
   const [testing, setTesting] = useState(false)
-  // Reflects what's saved, not what's being typed — a half-typed "http" shouldn't flash a warning.
   const insecure = isInsecureServerUrl(serverUrl)
 
   const save = async () => {

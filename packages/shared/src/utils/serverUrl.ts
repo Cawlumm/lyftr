@@ -24,15 +24,16 @@ export const normalizeServerUrl = (raw: string): string => {
 // none of the on-network exposure below. Everything else on http:// does.
 const LOOPBACK = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
 
-// True when this server URL sends traffic unencrypted over a network. Drives the
-// warning + indicator that keep the risk visible: on plain http:// every request
-// carries the `Authorization: Bearer` token in the clear, and the refresh token
-// crosses the wire on login, so anyone sharing the network can capture a credential
-// that stays valid until it expires — the backend has no revocation list.
+// True when this server URL sends traffic unencrypted over a network: every request
+// carries the `Authorization: Bearer` token in the clear and the refresh token crosses
+// the wire on login, so anyone sharing the network can capture a credential that stays
+// valid until it expires — the backend has no revocation list.
 //
-// Android blocks cleartext by default; Lyftr opts back in so a LAN install works at
-// all (#79). That opt-in is why the app has to surface the risk itself — the platform
-// no longer does it for us.
+// Android blocks cleartext by default; Lyftr opts back in so a LAN install works at all
+// (#79), which is why the app has to surface this itself — the platform no longer does.
+//
+// Pass the *saved* server URL, not an input buffer: a half-typed "http" would otherwise
+// flash a warning while the user is still typing.
 // One wording for every surface (login server row, Settings, web) so the risk reads the
 // same wherever it appears. Names the concrete consequence rather than "not secure" —
 // a vague warning is the kind users learn to scroll past.
