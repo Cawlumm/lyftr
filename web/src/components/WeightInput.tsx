@@ -1,6 +1,6 @@
 import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
-import { clampStep } from '../utils/number'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 
 interface Props {
   value: string
@@ -21,10 +21,11 @@ interface Props {
 }
 
 // The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
-// by `step` — a larger, ergonomic increment — so gym mode can jump by 2.5 while you
-// can still type an exact 0.1 value. Bodyweight keeps the original 0.5 button feel.
+// by `step`, so gym mode can jump by a plate-sized 2.5 while you can still type an
+// exact 0.1 value. Bodyweight takes the default — the smallest step the field can
+// hold, since a day's change is often under half a pound (#80).
 const INPUT_STEP = 0.1
-const STEP_DEFAULT = 0.5
+const STEP_DEFAULT = BODYWEIGHT_STEP
 
 // Single component for every weight input in the app. Conversion-agnostic: the
 // caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`

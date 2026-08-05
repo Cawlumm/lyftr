@@ -42,11 +42,20 @@ describe('WeightInput', () => {
     expect(screen.getByText('kg')).toBeTruthy()
   })
 
-  it('default + button steps by 0.5 (locks STEP_DEFAULT — bodyweight ergonomics)', () => {
+  it('default + button steps by 0.1 (locks STEP_DEFAULT — bodyweight moves in tenths)', () => {
     const onChange = vi.fn()
     render(<WeightInput value="100" onChange={onChange} unit="lbs" />) // no step prop
     fireEvent.click(screen.getByLabelText(/increase/i))
-    expect(onChange).toHaveBeenCalledWith('100.5')
+    expect(onChange).toHaveBeenCalledWith('100.1')
+  })
+
+  it('repeated default steps stay exact — no float dust', () => {
+    const onChange = vi.fn()
+    render(<WeightInput value="183.6" onChange={onChange} unit="lbs" />)
+    fireEvent.click(screen.getByLabelText(/increase/i))
+    expect(onChange).toHaveBeenCalledWith('183.7')
+    fireEvent.click(screen.getByLabelText(/decrease/i))
+    expect(onChange).toHaveBeenLastCalledWith('183.6')
   })
 
   it('the field always accepts 0.1 precision regardless of the button step', () => {

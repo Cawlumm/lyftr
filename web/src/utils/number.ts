@@ -1,3 +1,7 @@
+// Bodyweight +/- increment. Day-to-day bodyweight moves less than the old 0.5 step
+// could express (#80); the field itself accepts 0.1 typed regardless.
+export const BODYWEIGHT_STEP = 0.1
+
 // Step a numeric value by `delta`, round to the app's 0.1 precision, and clamp to
 // [min, max]. Single source for the +/- stepper math shared by WeightInput and the
 // gym StepperTile (default min 0 also serves as the "no negatives" guard).
