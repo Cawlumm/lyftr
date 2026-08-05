@@ -26,6 +26,7 @@ export type TextColor =
   | 'inverse'
   | 'brand'
   | 'success'
+  | 'warning'
   | 'error'
   | 'white'
 
@@ -48,6 +49,7 @@ const COLOR: Record<TextColor, string> = {
   inverse: 'text-tx-inverse',
   brand: 'text-brand-500',
   success: 'text-success-500',
+  warning: 'text-warning-400',
   error: 'text-error-400',
   white: 'text-white',
 }

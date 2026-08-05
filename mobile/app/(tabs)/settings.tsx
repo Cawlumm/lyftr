@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CalendarDays,
   Clock,
+  AlertTriangle,
   Dumbbell,
   LogOut,
   Mail,
@@ -16,7 +17,12 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react-native'
-import { normalizeServerUrl, testServerConnection } from '@lyftr/shared'
+import {
+  normalizeServerUrl,
+  testServerConnection,
+  isInsecureServerUrl,
+  INSECURE_SERVER_WARNING,
+} from '@lyftr/shared'
 import {
   AppText,
   Button,
@@ -61,7 +67,7 @@ export default function SettingsScreen() {
   const setRestEnabled = useSettingsStore((s) => s.setRestEnabled)
   const setRestSeconds = useSettingsStore((s) => s.setRestSeconds)
 
-  const { mode, setMode, colors } = useTheme()
+  const { mode, setMode, colors, brand } = useTheme()
 
   const [toast, setToast] = useState<ToastState | null>(null)
 
@@ -74,6 +80,8 @@ export default function SettingsScreen() {
 
   // Server repoint (same warn-but-save flow as the sign-in screens / web ServerSettings).
   const [urlInput, setUrlInput] = useState(serverUrl)
+  // Reflects what's saved, not what's being typed — a half-typed "http" shouldn't flash a warning.
+  const insecureServer = isInsecureServerUrl(serverUrl)
   const [serverMsg, setServerMsg] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
 
@@ -340,8 +348,11 @@ export default function SettingsScreen() {
               label="Backend"
               right={
                 <View className="max-w-[60%] flex-row items-center gap-2">
-                  <View className="h-1.5 w-1.5 rounded-full bg-success-500" />
-                  <AppText variant="body" color="muted" numberOfLines={1}>
+                  {/* Amber, not green, whenever traffic leaves the device unencrypted (#79). */}
+                  {insecureServer
+                    ? <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} />
+                    : <View className="h-1.5 w-1.5 rounded-full bg-success-500" />}
+                  <AppText variant="body" color={insecureServer ? 'warning' : 'muted'} numberOfLines={1}>
                     {serverUrl || 'Default backend'}
                   </AppText>
                 </View>
@@ -358,6 +369,14 @@ export default function SettingsScreen() {
                 placeholder="https://your-server.example.com"
               />
               {serverMsg ? <AppText variant="caption" className="mt-2 text-brand-400">{serverMsg}</AppText> : null}
+              {insecureServer ? (
+                <View className="mt-2 flex-row items-start gap-1.5">
+                  <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
+                  <AppText variant="caption" color="warning" className="flex-1">
+                    {INSECURE_SERVER_WARNING}
+                  </AppText>
+                </View>
+              ) : null}
               <Button title="Test & save" variant="secondary" onPress={saveServer} loading={testing} className="mt-3" />
             </View>
           </SettingsGroup>

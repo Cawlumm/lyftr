@@ -37,8 +37,9 @@ If host port 80 is taken (another web server, or a reverse proxy), move Lyftr to
 
 ## The mobile app or another device can't connect
 
-- The app needs a reachable server URL — `localhost` won't work from a phone. Use your server's LAN
-  IP or, better, a real hostname over HTTPS ([reverse proxy](../https/)).
+- The app needs a reachable server URL. Use a real hostname over HTTPS
+  ([reverse proxy](../https/)) — `localhost` won't work from a phone, and plain HTTP exposes
+  your login token to everyone on the network.
 - Add that origin to `CORS_ORIGIN` (comma-separated), or use `*` to allow any (the API is
   Bearer-token based, so there are no cookies to protect).
 
@@ -47,7 +48,8 @@ A native app sends no `Origin` header, so the backend never applies CORS to it. 
 app says it can't reach the server but the same URL works in the phone's **browser**, the
 device is blocking the connection, not the server. The two common causes:
 
-- **Plain `http://`** — blocked by Android's defaults. The app opts back in.
+- **Plain `http://`** — blocked by Android's defaults. The app opts back in, at the cost of
+  sending your login token unencrypted; prefer HTTPS. See [HTTPS & Reverse Proxy](../https/).
 - **A private or self-signed CA** — apps ignore the user-installed CA store unless they opt
   in. The app does, but the CA still has to be installed on the device. See
   [HTTPS & Reverse Proxy](../https/).

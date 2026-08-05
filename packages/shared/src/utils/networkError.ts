@@ -67,8 +67,11 @@ export const networkFailureMessage = (err: any): string => {
   switch (classifyNetworkError(err)) {
     case 'cleartext-blocked':
       return "This device blocked the connection because the URL uses plain http://. Use https://, or update to the latest Lyftr app, which allows plain HTTP to local servers."
+    // Leads with the real-certificate path on purpose. Installing a CA is a device-wide
+    // action — it affects every app that trusts the user store, not just Lyftr — so it is
+    // offered as the fallback it is, not as the headline fix.
     case 'certificate-untrusted':
-      return "The server's certificate isn't trusted by this device. If you use a private or self-signed CA, install it on the device — on Android: Settings → Security → Encryption & credentials → Install a certificate → CA certificate."
+      return "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — Caddy can issue one for a LAN-only hostname over DNS-01 with no ports open. Otherwise, if you run your own CA, you can install it on this device (Settings → Security → Encryption & credentials → Install a certificate → CA certificate) — note that trusts it for every app, not just Lyftr."
     case 'hostname-mismatch':
       return "The server's certificate doesn't cover this address. Reissue it with this hostname or IP listed in the certificate's Subject Alternative Name (SAN)."
     case 'timeout':

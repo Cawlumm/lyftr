@@ -21,6 +21,30 @@ export const normalizeServerUrl = (raw: string): string => {
   }
 }
 
+// Loopback never leaves the machine, so http:// to it carries none of the on-network
+// exposure below. Everything else on http:// does.
+const LOOPBACK = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
+
+// True when this server URL sends traffic unencrypted over a network. On plain http://
+// every request carries the `Authorization: Bearer` token in the clear and the refresh
+// token crosses the wire on login, so anyone sharing the network can capture a credential
+// that stays valid until it expires — there is no revocation list.
+//
+// Mirrors isInsecureServerUrl in @lyftr/shared; the two converge when web moves onto the
+// shared package (#67).
+export const isInsecureServerUrl = (serverUrl: string): boolean => {
+  if (!serverUrl) return false // '' = same origin, not a user choice
+  try {
+    const u = new URL(serverUrl)
+    return u.protocol === 'http:' && !LOOPBACK.test(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+export const INSECURE_SERVER_WARNING =
+  'Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.'
+
 interface ServerStore {
   serverUrl: string // '' = same origin (reverse proxy)
   setServerUrl: (url: string) => void

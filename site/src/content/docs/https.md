@@ -3,8 +3,12 @@ title: HTTPS & Reverse Proxy
 description: Put Lyftr behind Caddy or nginx with automatic HTTPS (Let's Encrypt) for a public, secure instance.
 ---
 
-Lyftr's container serves plain HTTP on a host port. To expose it publicly — and to use the **mobile
-app**, which needs a real hostname — put it behind a reverse proxy that terminates HTTPS.
+Lyftr's container serves plain HTTP on a host port. Put it behind a reverse proxy that terminates
+HTTPS — **this is the recommended setup for every install, not just public ones.** Your login token
+travels on every request, and on plain HTTP anyone else on the network can read it.
+
+If Lyftr never leaves your LAN you can still have a genuine, publicly-trusted certificate with no
+ports open to the internet — see [LAN-only](#lan-only-get-a-real-certificate-anyway-recommended) below.
 
 :::caution[Port conflict]
 By default the compose file publishes Lyftr on host port **80** (`PORT=80`). A reverse proxy also
@@ -81,10 +85,20 @@ are rules that trip people up:
   older builds ignored it entirely and reported that they couldn't reach the server even
   though the server was fine. If a private CA isn't working, update the app first.
 
-:::caution[Plain HTTP on Android]
+:::caution[Plain HTTP is an escape hatch, not a setup]
 Android blocks unencrypted HTTP by default. The Lyftr Android app opts back in, so
-`http://<lan-ip>:8080` works for a standard `docker compose` install. If plain HTTP fails
-no matter what the server does, you're on a build from before that was added — update.
+`http://<lan-ip>:8080` works for a standard `docker compose` install — otherwise the
+documented quick-start would be unusable on a phone. But understand what you're accepting:
+
+Nothing is encrypted. Every request carries your login token in the clear, so **anyone else
+on that network can read it and stay signed in as you** — on a home LAN that includes guests
+and any compromised device. Captured tokens stay valid until they expire and cannot be
+revoked; the only way to invalidate them is to change `JWT_SECRET`, which signs out every
+user on the instance.
+
+Use it to get running, then move to HTTPS. If you own a domain, the DNS-01 route above gets
+you a real certificate on a LAN-only hostname with no ports open — that is the fix, not a
+workaround. The app shows an amber **Not encrypted** marker while plain HTTP is in effect.
 :::
 
 ## Point Lyftr at your public origin
