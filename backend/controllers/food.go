@@ -152,7 +152,7 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		utils.BadRequest(c, "image_url exceeds 500 characters")
 		return
 	}
-	req.LoggedAt = req.LoggedAt.UTC()
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
