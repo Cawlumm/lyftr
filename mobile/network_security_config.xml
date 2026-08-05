@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android network security config, applied by expo-network-security-config (see app.json).
+
+  Lyftr is self-hosted: the backend is usually a LAN box on plain HTTP, or HTTPS with a
+  certificate from the owner's own CA installed on their device. Android's release defaults
+  block both — cleartext since API 28, user-installed CAs since API 24 — so the documented
+  "point the app at http://<lan-ip>:8080" setup could not work at all (issue #79).
+
+  This opts into exactly those two things and nothing else. HTTPS is still fully validated
+  (chain, expiry, hostname/SAN); the only change is that roots the device owner deliberately
+  installed also count. It is NOT "ignore certificate errors".
+
+  base-config applies app-wide rather than being scoped to a <domain-config>, which is NOT
+  what Android recommends. We can't follow that guidance: the server URL is entered by the
+  user at runtime and this file is resolved at build time, so there is no hostname to
+  enumerate. Scoping trust to the configured host needs a runtime X509TrustManager /
+  NSURLSession delegate — tracked in #81. Until then the app compensates with visibility:
+  isInsecureServerUrl in @lyftr/shared drives an amber "Not encrypted" marker on every
+  server-URL surface, and the docs lead with HTTPS.
+
+  Changes here only take effect in a NEW build — EAS Update cannot deliver them.
+-->
+<network-security-config>
+  <base-config cleartextTrafficPermitted="true">
+    <trust-anchors>
+      <certificates src="system" />
+      <certificates src="user" />
+    </trust-anchors>
+  </base-config>
+</network-security-config>

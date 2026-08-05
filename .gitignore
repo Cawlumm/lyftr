@@ -62,3 +62,17 @@ web/playwright-report/
 
 # Local Fable/Sonnet porting specs (working artifacts, not committed)
 .workouts-port/
+
+# Built mobile APKs — pulled from EAS for local testing, ~107MB each. Releases are
+# distributed as GitHub release assets, never committed.
+/releases/
+
+# Ad-hoc screenshots dropped at the repo root during local testing. Scoped to the
+# root only — mobile/assets, web/public and README screenshots stay tracked.
+/*.png
+
+# Design-system export (fonts, ui_kits, raw asset dumps) — local working material.
+/design/
+
+# MCP server config: machine-specific absolute paths, not portable across checkouts.
+.mcp.json

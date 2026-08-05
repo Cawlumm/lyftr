@@ -20,12 +20,34 @@ auto-update are on the roadmap.
 
 ## Pointing the app at your server
 
-The app connects to your self-hosted instance, so it needs a URL it can actually reach:
+The app connects to your self-hosted instance, so it needs a URL it can actually reach.
+**Use `https://`.** Everything below assumes that; plain HTTP is covered after, as the
+exception it should be.
 
-- **`localhost` won't work** from a phone — it refers to the phone itself.
-- On the same network, use your server's **LAN IP** (e.g. `http://192.168.1.10:8080`).
-- Best: a **real hostname over HTTPS** so it works anywhere — see [HTTPS & Reverse Proxy](../https/).
-- Make sure your server URL is in `CORS_ORIGIN` (see [Configuration](../configuration/)).
+- **Point it at a real hostname over HTTPS** — see [HTTPS & Reverse Proxy](../https/).
+  This works from anywhere, not just your home network. A LAN-only hostname can still get
+  a genuine, publicly-trusted certificate via DNS-01, with no ports open to the internet.
+- **`localhost` won't work** from a phone — it refers to the phone itself. Use a hostname
+  or your server's LAN IP.
+- Running your own CA instead? Install it on the phone — the app trusts the device's
+  user-installed CA store. See [HTTPS & Reverse Proxy](../https/).
+- `CORS_ORIGIN` only matters for the **web** app (see [Configuration](../configuration/)).
+  Native apps send no `Origin` header and are never subject to CORS.
+
+### If you must use plain HTTP
+
+`http://192.168.1.10:8080` works — Android blocks unencrypted traffic by default and the
+app opts back in, so a bare `docker compose` install is usable. If it fails outright,
+update to the latest build.
+
+:::caution[What plain HTTP costs you]
+Nothing is encrypted. Every request carries your login token in the clear, so **anyone
+else on that network can read it and stay signed in as you**, and a captured token can't
+be revoked. The app shows an amber **Not encrypted** marker while this is in effect.
+
+Full detail and the fix: [HTTPS & Reverse Proxy](../https/). Treat plain HTTP as a
+temporary state, not a setup.
+:::
 
 ## iOS
 

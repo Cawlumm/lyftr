@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from 'axios'
 import * as types from './types'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 import { normalizeServerUrl } from './utils/serverUrl'
+import { networkFailureMessage } from './utils/networkError'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy (web).
@@ -22,9 +23,11 @@ export interface ClientOptions {
   baseUrlOverride?: string
 }
 
-// Turn an axios error into an actionable message. Network/CORS/connection failures
-// (no response) and proxy misconfig (404/405) are distinguished from real auth and
-// server errors, so connectivity problems don't masquerade as "Registration failed."
+// Turn an axios error into an actionable message. Proxy misconfig (404/405) is
+// distinguished from real auth and server errors, so connectivity problems don't
+// masquerade as "Registration failed." Response-less failures go to the classifier,
+// which separates a blocked-cleartext or untrusted-certificate failure from a genuinely
+// unreachable server — they are indistinguishable from the axios error alone.
 export const apiErrorMessage = (err: any, fallback: string): string => {
   if (err?.response) {
     const serverError = err.response.data?.error
@@ -36,7 +39,7 @@ export const apiErrorMessage = (err: any, fallback: string): string => {
     if (status >= 500) return 'Server error. Please try again shortly.'
     return fallback
   }
-  return "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS)."
+  return networkFailureMessage(err)
 }
 
 // Probe a server's public /info endpoint to confirm it's reachable and is a Lyftr
@@ -70,8 +73,18 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     return apiUrl(base)
   }
 
+  // Without an explicit timeout axios waits forever (default 0), so a silently dropped or
+  // policy-blocked request hangs the UI instead of surfacing an error. A timeout is the
+  // floor, not the whole answer — see BULK_TIMEOUT below for where one global value breaks.
+  //
+  // 20s rather than the 5s often quoted for web: the server here is someone's home box,
+  // possibly a Pi waking a cold SQLite cache over wifi, and a false timeout is worse than a
+  // slow response — it sends a self-hoster debugging a server that is actually fine, which
+  // is the failure mode this whole change exists to stop. The /info probe in
+  // testServerConnection stays at 8s because there the whole point is to fail fast.
   const api: AxiosInstance = axios.create({
     headers: { 'Content-Type': 'application/json' },
+    timeout: 20000,
   })
 
   api.interceptors.request.use(async (config) => {
@@ -133,6 +146,13 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     delete: (id: number) => api.delete(`/workouts/${id}`),
   }
 
+  // axios maps `timeout` to xhr.timeout, which bounds the WHOLE request, not just the
+  // connect — so a large body on a slow link trips the global 20s even though nothing is
+  // wrong. The seeded exercise list measures ~820 KB, which needs roughly 33s at 200 kbps;
+  // every other endpoint returns a few KB. It's fetched once and cached below, so the
+  // longer bound costs nothing and removes the one place the global value is too tight.
+  const BULK_TIMEOUT = 60000
+
   let exerciseCache: types.Exercise[] | null = null
   let exerciseCachePromise: Promise<types.Exercise[]> | null = null
   const exerciseAPI = {
@@ -142,7 +162,7 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
       }
       if (exerciseCache) return Promise.resolve(exerciseCache)
       if (exerciseCachePromise) return exerciseCachePromise
-      exerciseCachePromise = api.get<{ data: types.Exercise[] }>('/exercises', { params: { limit: 1000 } })
+      exerciseCachePromise = api.get<{ data: types.Exercise[] }>('/exercises', { params: { limit: 1000 }, timeout: BULK_TIMEOUT })
         .then((res) => {
           exerciseCache = unwrap(res)
           exerciseCachePromise = null
