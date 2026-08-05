@@ -38,7 +38,7 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 
 	date := c.Query("date")
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = time.Now().UTC().Format("2006-01-02")
 	}
 
 	logs, err := h.s.Food.ListByDay(uid, date)
@@ -107,9 +107,7 @@ func (h *Handler) LogFood(c *gin.Context) {
 		return
 	}
 
-	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
-	}
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -154,6 +152,7 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		utils.BadRequest(c, "image_url exceeds 500 characters")
 		return
 	}
+	req.LoggedAt = req.LoggedAt.UTC()
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -192,7 +191,7 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 	uid := middleware.UserID(c)
 	date := c.Query("date")
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = time.Now().UTC().Format("2006-01-02")
 	}
 
 	if from, to, ok := queryRange(c); ok {
