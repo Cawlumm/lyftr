@@ -40,16 +40,34 @@ const XML = `<?xml version="1.0" encoding="utf-8"?>
 </network-security-config>
 `
 
-// @expo/config-plugins has no first-class mod for arbitrary Android resource XML, so the
-// file has to be written with a dangerous mod. These run before the regular platform mods,
-// so the resource exists by the time the manifest references it.
+// Written with a dangerous mod because @expo/config-plugins@54 has no standard mod for
+// arbitrary Android resource XML — its only resource writer is withStringsXml, and
+// AndroidConfig.Resources exposes no equivalent. Expo's guidance is to prefer standard
+// mods and treat dangerous ones as experimental, so the exposure is kept minimal: only
+// this file write is dangerous, while the manifest attribute below goes through the
+// standard withAndroidManifest. Re-verify the generated output after every SDK upgrade
+// (mobile/README.md has the command).
+//
+// Not using the community expo-network-security-config plugin (~26k downloads/month, MIT,
+// actively maintained — a reasonable package). It wraps the same dangerous mod, so it
+// removes none of the risk above, and it takes the XML as an external file path, so we
+// would still author and own the security-critical content — only the file copy would be
+// delegated. Against that: one more dependency, on a single maintainer, sitting on the
+// file that governs this app's TLS trust, plus an XML file to keep in sync with app.json.
+// Its one genuine improvement over a hand-rolled version is resolving the resource folder
+// through the public API instead of hardcoding the path, which is adopted below.
 const withConfigFile = (config) =>
   withDangerousMod(config, [
     'android',
     async (cfg) => {
-      const xmlDir = path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'res', 'xml')
-      await fs.promises.mkdir(xmlDir, { recursive: true })
-      await fs.promises.writeFile(path.join(xmlDir, `${RES_NAME}.xml`), XML, 'utf8')
+      // Resolve via the public API rather than joining 'app/src/main/res' by hand — that
+      // layout is a Gradle convention Expo could change, and this tracks it.
+      const xmlPath = await AndroidConfig.Paths.getResourceXMLPathAsync(
+        cfg.modRequest.projectRoot,
+        { kind: 'xml', name: RES_NAME },
+      )
+      await fs.promises.mkdir(path.dirname(xmlPath), { recursive: true })
+      await fs.promises.writeFile(xmlPath, XML, 'utf8')
       return cfg
     },
   ])
@@ -64,8 +82,8 @@ const withManifestAttribute = (config) =>
 
 const withNetworkSecurityConfig = (config) => withManifestAttribute(withConfigFile(config))
 
-module.exports = createRunOncePlugin(
-  withNetworkSecurityConfig,
-  'lyftr-network-security-config',
-  '1.0.0',
-)
+// No version argument: createRunOncePlugin's dedupe keys on the name alone
+// (withRunOnce.js — `getHistoryItem(config, name)`); the version is only recorded in the
+// config history and never read. A hardcoded one would be a constant that looks meaningful
+// and isn't. The third arg exists for published plugins, which pass their package version.
+module.exports = createRunOncePlugin(withNetworkSecurityConfig, 'lyftr-network-security-config')
