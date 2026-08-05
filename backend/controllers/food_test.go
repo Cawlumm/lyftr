@@ -321,6 +321,57 @@ func TestUpdateFoodLog_success(t *testing.T) {
 	}
 }
 
+func TestUpdateFoodLog_omittedLoggedAtDefaultsToNow(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	id := insertFoodLog(t, uid, "Old name", "breakfast", 300, 20, 40, 10, time.Now())
+
+	body := map[string]any{
+		"name": "New name", "meal": "lunch",
+		"calories": 450.0, "protein": 35.0, "carbs": 55.0, "fat": 12.0,
+	}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
+	setParam(c, "id", fmt.Sprint(id))
+	th.UpdateFoodLog(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	loggedAt, err := time.Parse(time.RFC3339, data["logged_at"].(string))
+	if err != nil {
+		t.Fatalf("parse logged_at %v: %v", data["logged_at"], err)
+	}
+	if age := time.Since(loggedAt); age < 0 || age > time.Minute {
+		t.Fatalf("expected omitted logged_at to default to now, got %v (%v old)", loggedAt, age)
+	}
+}
+
+func TestUpdateFoodLog_suppliedLoggedAtStoredAsUTC(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	id := insertFoodLog(t, uid, "Old name", "breakfast", 300, 20, 40, 10, time.Now())
+
+	body := map[string]any{
+		"name": "New name", "meal": "lunch",
+		"calories": 450.0, "protein": 35.0, "carbs": 55.0, "fat": 12.0,
+		"logged_at": "2026-07-16T20:00:00-05:00",
+	}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
+	setParam(c, "id", fmt.Sprint(id))
+	th.UpdateFoodLog(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if got := data["logged_at"].(string); got != "2026-07-17T01:00:00Z" {
+		t.Fatalf("expected logged_at stored as UTC, got %q", got)
+	}
+}
+
 func TestUpdateFoodLog_ownershipEnforced(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

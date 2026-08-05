@@ -255,6 +255,76 @@ func TestNormalizeWorkoutStartedAt_RewritesPreFixOffsetRows(t *testing.T) {
 	}
 }
 
+func TestNormalizeFoodLoggedAt_RewritesPreFixOffsetRows(t *testing.T) {
+	setupMigrationTestDB(t)
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('tz@food', 'x')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	insert := func(name, loggedAt string) int64 {
+		t.Helper()
+		res, err := DB.Exec(`INSERT INTO food_logs (user_id, name, logged_at) VALUES (1, ?, ?)`, name, loggedAt)
+		if err != nil {
+			t.Fatalf("seed food log %s: %v", name, err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+	storedText := func(id int64) string {
+		t.Helper()
+		var s string
+		if err := DB.QueryRow(`SELECT CAST(logged_at AS TEXT) FROM food_logs WHERE id = ?`, id).Scan(&s); err != nil {
+			t.Fatalf("read logged_at of %d: %v", id, err)
+		}
+		return s
+	}
+
+	fixedOffset := insert("fixed-offset", "2026-07-19 02:00:00 +0800 +0800")
+	utc := insert("utc", "2026-07-18 20:00:00 +0000 UTC")
+	namedZone := insert("named-zone", "2026-07-18 21:00:00 -0500 EST")
+	plain := insert("plain", "2026-07-10 08:00:00")
+
+	normalizeFoodLoggedAt()
+
+	if got := storedText(fixedOffset); got != "2026-07-18 18:00:00 +0000 UTC" {
+		t.Fatalf("fixed-offset row not normalized: %q", got)
+	}
+	if got := storedText(namedZone); got != "2026-07-19 02:00:00 +0000 UTC" {
+		t.Fatalf("named-zone row not normalized: %q", got)
+	}
+	if got := storedText(utc); got != "2026-07-18 20:00:00 +0000 UTC" {
+		t.Fatalf("UTC row must be untouched: %q", got)
+	}
+	if got := storedText(plain); got != "2026-07-10 08:00:00" {
+		t.Fatalf("zoneless row must be untouched: %q", got)
+	}
+	var inRange int
+	if err := DB.QueryRow(
+		`SELECT COUNT(*) FROM food_logs WHERE logged_at >= ? AND logged_at < ?`,
+		"2026-07-18 00:00:00 +0000 UTC", "2026-07-19 00:00:00 +0000 UTC",
+	).Scan(&inRange); err != nil {
+		t.Fatalf("range query: %v", err)
+	}
+	if inRange != 2 {
+		t.Fatalf("expected 2 rows in the July 18 UTC window after normalization, got %d", inRange)
+	}
+
+	normalizeFoodLoggedAt()
+	if got := storedText(fixedOffset); got != "2026-07-18 18:00:00 +0000 UTC" {
+		t.Fatalf("second run changed an already-normalized row: %q", got)
+	}
+
+	done, err := hasMigrationFlag("normalize_food_logged_at")
+	if err != nil {
+		t.Fatalf("check flag: %v", err)
+	}
+	if !done {
+		t.Fatalf("expected normalize_food_logged_at flag set once a run finds nothing to rewrite")
+	}
+	if wDone, err := hasMigrationFlag("normalize_workout_started_at"); err != nil || wDone {
+		t.Fatalf("food normalization must not touch the workouts flag (done=%v, err=%v)", wDone, err)
+	}
+}
+
 // TestProgramDayBackfillTransitionalWindow simulates the deployment window that ran
 // the multi-day release (program_days + workouts.program_id exist) but predates the
 // program_day_id fix: its program workouts carry program_id and no day linkage. The
