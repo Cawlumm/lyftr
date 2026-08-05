@@ -60,6 +60,32 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
       </div>
 
       <div className="flex-1 flex items-center justify-center relative">
+        {/* Failure states live inside the flex-1 area so they centre. Rendering them below
+            it left an empty stretched container that pushed the text onto the tab bar. */}
+        {insecureContext ? (
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
+            <AlertCircle className="w-8 h-8 text-error-400" />
+            <p className="text-white text-sm font-medium">Camera needs HTTPS</p>
+            <p className="text-white/60 text-xs leading-relaxed">
+              Browsers only allow camera access on secure pages. This site is served over
+              plain <span className="font-mono">http://</span> — put it behind a reverse proxy
+              with HTTPS to scan barcodes.
+            </p>
+            <button onClick={onClose} className="btn-primary btn-sm mt-2">
+              Search by name instead
+            </button>
+          </div>
+        ) : cameraError ? (
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
+            <AlertCircle className="w-8 h-8 text-error-400" />
+            <p className="text-white text-sm font-medium">Camera unavailable</p>
+            <p className="text-white/50 text-xs font-mono break-all">{cameraError}</p>
+            <button onClick={onClose} className="btn-primary btn-sm mt-2">
+              Search by name instead
+            </button>
+          </div>
+        ) : null}
+
         {!cameraError && !insecureContext && (
           <video
             // react-zxing ref type doesn't match HTMLVideoElement exactly; cast is safe as useZxing always returns a video ref
@@ -84,29 +110,7 @@ export default function BarcodeScanner({ onResult, onClose }: Props) {
         )}
       </div>
 
-      {insecureContext ? (
-        <div className="flex flex-col items-center gap-3 px-6 pb-10 text-center">
-          <AlertCircle className="w-8 h-8 text-error-400" />
-          <p className="text-white text-sm font-medium">Camera needs HTTPS</p>
-          <p className="text-white/60 text-xs leading-relaxed">
-            Browsers only allow camera access on secure pages. This site is served over
-            plain <span className="font-mono">http://</span> — put it behind a reverse proxy
-            with HTTPS to scan barcodes.
-          </p>
-          <button onClick={onClose} className="btn-primary btn-sm mt-2">
-            Search by name instead
-          </button>
-        </div>
-      ) : cameraError ? (
-        <div className="flex flex-col items-center gap-3 px-6 pb-10 text-center">
-          <AlertCircle className="w-8 h-8 text-error-400" />
-          <p className="text-white text-sm font-medium">Camera unavailable</p>
-          <p className="text-white/50 text-xs font-mono break-all">{cameraError}</p>
-          <button onClick={onClose} className="btn-primary btn-sm mt-2">
-            Search by name instead
-          </button>
-        </div>
-      ) : (
+      {!insecureContext && !cameraError && (
         <p className="text-center text-white/60 text-xs pb-8 px-4">
           Point camera at barcode — it will scan automatically
         </p>
