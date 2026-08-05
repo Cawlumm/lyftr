@@ -931,3 +931,70 @@ func TestDeleteSavedFood_ownershipEnforced(t *testing.T) {
 		t.Fatal("saved food was deleted by wrong user")
 	}
 }
+
+func insertFoodLogAt(t *testing.T, uid int64, name string, calories float64, loggedAt time.Time) int64 {
+	t.Helper()
+	res, err := db.DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at)
+		 VALUES (?, ?, 'dinner', ?, 0, 0, 0, 0, 1, '', '', '', ?)`,
+		uid, name, calories, loggedAt,
+	)
+	if err != nil {
+		t.Fatalf("insertFoodLogAt: %v", err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+func TestListFoodLogs_localDayRangeWestTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	insertFoodLogAt(t, uid, "Late dinner", 800, time.Date(2026, 4, 25, 3, 0, 0, 0, time.UTC))
+	insertFoodLogAt(t, uid, "Next local day", 500, time.Date(2026, 4, 25, 8, 0, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food?from=2026-04-24T07:00:00Z&to=2026-04-25T07:00:00Z", nil)
+	th.ListFoodLogs(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 entry inside local-day window, got %d", len(data))
+	}
+	if data[0].(map[string]any)["name"].(string) != "Late dinner" {
+		t.Errorf("expected the local-evening entry, got %v", data[0].(map[string]any)["name"])
+	}
+}
+
+func TestGetDailyStats_localDayRangeWestTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	insertFoodLogAt(t, uid, "Late dinner", 800, time.Date(2026, 4, 25, 3, 0, 0, 0, time.UTC))
+	insertFoodLogAt(t, uid, "Next local day", 500, time.Date(2026, 4, 25, 8, 0, 0, 0, time.UTC))
+	if _, err := db.DB.Exec(
+		`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, ?)`,
+		uid, "Evening lift", time.Date(2026, 4, 25, 3, 30, 0, 0, time.UTC),
+	); err != nil {
+		t.Fatalf("insert workout: %v", err)
+	}
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-04-24&from=2026-04-24T07:00:00Z&to=2026-04-25T07:00:00Z", nil)
+	th.GetDailyStats(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if data["total_calories"].(float64) != 800 {
+		t.Errorf("expected total_calories=800 (local day only), got %v", data["total_calories"])
+	}
+	if data["workout_count"].(float64) != 1 {
+		t.Errorf("expected workout_count=1 within local-day window, got %v", data["workout_count"])
+	}
+	if data["date"].(string) != "2026-04-24" {
+		t.Errorf("expected date label 2026-04-24, got %v", data["date"])
+	}
+}

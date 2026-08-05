@@ -3,6 +3,7 @@ package stores
 import (
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -311,6 +312,15 @@ func (s *WorkoutStore) CountOn(uid int64, date string) (int, error) {
 	err := s.db.QueryRow(
 		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND substr(started_at, 1, 10) = ?`,
 		uid, date,
+	).Scan(&n)
+	return n, err
+}
+
+func (s *WorkoutStore) CountBetween(uid int64, from, to time.Time) (int, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND started_at >= ? AND started_at < ?`,
+		uid, from, to,
 	).Scan(&n)
 	return n, err
 }

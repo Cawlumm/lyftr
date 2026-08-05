@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
 import { normalizeServerUrl } from '../stores/server'
+import { localDayRange } from '../utils/dateUtils'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy.
@@ -178,12 +179,12 @@ export const weightAPI = {
 }
 
 export const foodAPI = {
-  list:    (date?: string) => api.get<{ data: types.FoodLog[] }>('/food', { params: { date } }).then(res => unwrap(res)),
+  list:    (date?: string) => api.get<{ data: types.FoodLog[] }>('/food', { params: date ? { date, ...localDayRange(date) } : {} }).then(res => unwrap(res)),
   log:     (data: any) => api.post<{ data: types.FoodLog }>('/food', data).then(res => unwrap(res)),
   get:     (id: number) => api.get<{ data: types.FoodLog }>(`/food/${id}`).then(res => unwrap(res)),
   update:  (id: number, data: any) => api.patch<{ data: types.FoodLog }>(`/food/${id}`, data).then(res => unwrap(res)),
   delete:  (id: number) => api.delete(`/food/${id}`),
-  stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(res => unwrap(res)),
+  stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: date ? { date, ...localDayRange(date) } : {} }).then(res => unwrap(res)),
   history: (days = 30) => api.get<{ data: types.FoodHistoryPoint[] }>('/food/history', { params: { days } }).then(res => unwrap(res)),
   search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit } }).then(res => unwrap(res)),
   barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`).then(res => unwrap(res)),

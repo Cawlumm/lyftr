@@ -27,6 +27,15 @@ const offUserAgent = "Lyftr/1.0 (https://lyftr.app; nutrition-tracker)"
 func (h *Handler) ListFoodLogs(c *gin.Context) {
 	uid := middleware.UserID(c)
 
+	if from, to, ok := queryRange(c); ok {
+		logs, err := h.s.Food.ListRange(uid, from, to)
+		if utils.DBError(c, err) {
+			return
+		}
+		utils.OK(c, logs)
+		return
+	}
+
 	date := c.Query("date")
 	if date == "" {
 		date = time.Now().Format("2006-01-02")
@@ -37,6 +46,18 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 		return
 	}
 	utils.OK(c, logs)
+}
+
+func queryRange(c *gin.Context) (time.Time, time.Time, bool) {
+	from, _, fromOK := parseDayOrTime(c.Query("from"))
+	to, toExact, toOK := parseDayOrTime(c.Query("to"))
+	if !fromOK || !toOK {
+		return time.Time{}, time.Time{}, false
+	}
+	if !toExact {
+		to = to.Add(24 * time.Hour)
+	}
+	return from, to, true
 }
 
 func (h *Handler) GetFoodLog(c *gin.Context) {
@@ -172,6 +193,19 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 	date := c.Query("date")
 	if date == "" {
 		date = time.Now().Format("2006-01-02")
+	}
+
+	if from, to, ok := queryRange(c); ok {
+		stats, err := h.s.Food.DailyMacrosRange(uid, from, to)
+		if utils.DBError(c, err) {
+			return
+		}
+		stats.Date = date
+		if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
+			return
+		}
+		utils.OK(c, stats)
+		return
 	}
 
 	stats, err := h.s.Food.DailyMacros(uid, date)
