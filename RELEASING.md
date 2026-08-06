@@ -40,11 +40,14 @@ ship a mismatched APK — but the repo shouldn't be lying either.
 Immich uses (`3.1.0+3057`). Android upgrades are gated on this number, not on the
 version name. Don't hand-edit it to bump a release.
 
-The `versionCode` still in `app.json` is only a seed: EAS initializes the remote
+The `versionCode` still in `app.json` was only a seed: EAS initializes the remote
 counter from the app config the first time it builds under `remote`, and this
-project had no remote version configured. It's set to `4`, the highest already
-published, so the first remote build lands on `5`. Once that's happened the field
-is ignored — the EAS CLI will tell you so on every build. To inspect or correct it:
+project had no remote version configured. It was set to `4`, the highest already
+published. **That initialization has already happened** — the counter now lives on
+EAS and stands at `5`, so the field is inert and the CLI says so on every build.
+Note that dry runs share the counter, so release numbers will have gaps.
+
+To inspect or correct it:
 
 ```bash
 cd mobile

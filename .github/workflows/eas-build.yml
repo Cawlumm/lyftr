@@ -159,7 +159,11 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json', 'mobile/app.json') }}
+          # Keyed on the lockfile alone. app.json used to be in here, but RELEASING.md has
+          # you bump expo.version before every tag — so the release build, the one run that
+          # most needs the cache, was guaranteed to miss and then save a fresh multi-hundred-MB
+          # entry against the repo's cache budget. The app version doesn't affect the graph.
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: gradle-${{ runner.os }}-
 
       # The tag is the version, for every platform — #77 unified the namespace, and this
@@ -171,9 +175,18 @@ jobs:
       # version at all), so it falls back to app.json and the stamp is a no-op.
       - name: Resolve the release version
         id: ver
+        env:
+          EVENT: ${{ github.event_name }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "$EVENT" = "push" ]; then
             V="${GITHUB_REF_NAME#v}"
+            # The `v*` trigger matches anything — `vnext` would stamp expo.version="next",
+            # sail past the versionName check (which compares against this same string, so
+            # it can't disagree), and publish lyftr-vnext.apk. Only a real version ships.
+            case "$V" in
+              [0-9]*.[0-9]*.[0-9]*) ;;
+              *) echo "::error::Tag '$GITHUB_REF_NAME' isn't a version — expected vMAJOR.MINOR.PATCH[-suffix]"; exit 1 ;;
+            esac
           else
             V="$(node -p "require('./mobile/app.json').expo.version")"
           fi
@@ -183,14 +196,21 @@ jobs:
       # Runner-only edit; never committed. app.json in the repo should be bumped to match
       # the tag in the release commit anyway (see RELEASING.md) — this is the backstop that
       # makes a forgotten bump impossible to ship.
+      #
+      # VERSION comes in through env, not ${{ }} interpolation: it derives from a tag name,
+      # and tag text expanded straight into a `run:` script is arbitrary code in a job that
+      # holds contents:write and EXPO_TOKEN. Needs push access to exploit, but the safe form
+      # costs nothing.
       - name: Stamp the version into app.json
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
         run: |
           node -e '
             const fs = require("fs"), p = "mobile/app.json";
             const j = JSON.parse(fs.readFileSync(p, "utf8"));
-            j.expo.version = process.argv[1];
+            j.expo.version = process.env.VERSION;
             fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
-          ' "${{ steps.ver.outputs.version }}"
+          '
           node -p "'app.json version is now ' + require('./mobile/app.json').expo.version"
 
       # `preview` profile: distribution:internal → a signed, installable APK (production
@@ -199,25 +219,35 @@ jobs:
       # is the same one previous releases used.
       - name: Build the APK on this runner
         working-directory: mobile
+        env:
+          APK_NAME: ${{ steps.ver.outputs.name }} # via env, same reasoning as the stamp step
         run: |
           eas build \
             --platform android \
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/${{ steps.ver.outputs.name }}"
+            --output "$GITHUB_WORKSPACE/$APK_NAME"
 
       - name: Verify the APK is real and correctly configured
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          APK_NAME: ${{ steps.ver.outputs.name }}
         run: |
-          APK="$GITHUB_WORKSPACE/${{ steps.ver.outputs.name }}"
+          APK="$GITHUB_WORKSPACE/$APK_NAME"
           test -s "$APK" || { echo "::error::No APK at $APK"; exit 1; }
-          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort | tail -1)"
+          test -n "$ANDROID_HOME" || { echo "::error::ANDROID_HOME is unset — can't locate aapt2"; exit 1; }
+          # sort -V, not sort: a lexicographic sort would pick 19.x over a future 9.x and
+          # silently hand us an ancient aapt2 whose dump output can fail these greps on a
+          # perfectly good APK.
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)"
+          test -x "$AAPT" || { echo "::error::No aapt2 under $ANDROID_HOME/build-tools"; exit 1; }
           BADGING="$("$AAPT" dump badging "$APK")"
           echo "$BADGING" | head -1
           # The whole point of stamping: an APK whose versionName doesn't match the tag it
           # ships under is the bug this replaced. Never let one out again.
-          echo "$BADGING" | grep -q "versionName='${{ steps.ver.outputs.version }}'" \
-            || { echo "::error::APK versionName is not ${{ steps.ver.outputs.version }}"; exit 1; }
+          echo "$BADGING" | grep -q "versionName='$VERSION'" \
+            || { echo "::error::APK versionName is not $VERSION"; exit 1; }
           # The user-CA / cleartext policy from #79 is a native config: if the plugin
           # silently stops applying, self-hosted servers break and only a device test
           # would catch it. Fail the release here instead.
