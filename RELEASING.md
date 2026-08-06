@@ -35,10 +35,16 @@ The tag is the version, on every platform. Before tagging, bump `expo.version` i
 `0.4.0`). CI also stamps it from the tag at build time, so a forgotten bump can't
 ship a mismatched APK — but the repo shouldn't be lying either.
 
-`versionCode` is **not** in `app.json` and shouldn't be re-added. It's a separate
-monotonic counter tracked on EAS (`appVersionSource: remote`), bumped per build and
-never reset — the same split Immich uses (`3.1.0+3057`). Android upgrades are gated
-on this number, not on the version name. To inspect or correct it:
+`versionCode` is a separate monotonic counter tracked on EAS
+(`appVersionSource: remote`), bumped per build and never reset — the same split
+Immich uses (`3.1.0+3057`). Android upgrades are gated on this number, not on the
+version name. Don't hand-edit it to bump a release.
+
+The `versionCode` still in `app.json` is only a seed: EAS initializes the remote
+counter from the app config the first time it builds under `remote`, and this
+project had no remote version configured. It's set to `4`, the highest already
+published, so the first remote build lands on `5`. Once that's happened the field
+is ignored — the EAS CLI will tell you so on every build. To inspect or correct it:
 
 ```bash
 cd mobile
