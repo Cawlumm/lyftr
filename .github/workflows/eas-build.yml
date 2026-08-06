@@ -39,19 +39,21 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: Platform to build
+        description: 'Platform to build (tester builds only — ignored by dry_run_release)'
         type: choice
         default: android
         options: [android, ios, all]
       profile:
-        description: EAS build profile
+        description: 'EAS build profile (tester builds only — ignored by dry_run_release)'
         type: choice
         default: preview
         options: [preview, production]
       dry_run_release:
         description: >-
-          Rehearse the release build instead: build the APK on the runner exactly as a
-          tag would, upload it as a workflow artifact, and touch no GitHub Release.
+          Rehearse the release build instead: build the Android preview APK on the runner
+          exactly as a tag would, upload it as a workflow artifact, and touch no GitHub
+          Release. Ignores the two inputs above — a release is Android/preview by
+          definition, and rehearsing anything else would not be a rehearsal.
         type: boolean
         default: false
   push:
@@ -122,6 +124,15 @@ jobs:
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
             exit 1
           fi
+      # A dispatch form can't hide inputs that don't apply to the path you picked, so say
+      # so in the log rather than failing: the values are harmless here (this job is
+      # Android/preview by definition) and losing a 20-minute build over a dropdown would
+      # be worse than the confusion it prevents.
+      - name: Note ignored inputs
+        if: github.event_name == 'workflow_dispatch' && (inputs.platform != 'android' || inputs.profile != 'preview')
+        run: |
+          echo "::warning::dry_run_release rehearses the release build, which is always \
+          android/preview — ignoring platform=${{ inputs.platform }} profile=${{ inputs.profile }}."
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
