@@ -30,22 +30,24 @@ Pushing the tag triggers two workflows:
 
 ## Mobile version numbers
 
-The tag is the version, on every platform. Before tagging, bump `expo.version` in
-`mobile/app.json` to match the tag you're about to push (tag `v0.4.0` → version
-`0.4.0`). CI also stamps it from the tag at build time, so a forgotten bump can't
-ship a mismatched APK — but the repo shouldn't be lying either.
+The tag is the version, on every platform. **There is nothing to bump** — the release
+job passes the tag to the build as `LYFTR_VERSION`, and `mobile/app.config.js` reads
+it, so the tag is the only place a release version exists.
+
+`expo.version` in `mobile/app.json` is a dev placeholder (`0.0.0-dev`) used when
+`LYFTR_VERSION` isn't set — local `expo start`, dev builds, dry runs. Leave it alone;
+it is never what ships.
 
 `versionCode` is a separate monotonic counter tracked on EAS
 (`appVersionSource: remote`), bumped per build and never reset — the same split
 Immich uses (`3.1.0+3057`). Android upgrades are gated on this number, not on the
 version name. Don't hand-edit it to bump a release.
 
-The `versionCode` still in `app.json` was only a seed: EAS initializes the remote
-counter from the app config the first time it builds under `remote`, and this
-project had no remote version configured. It was set to `4`, the highest already
-published. **That initialization has already happened** — the counter now lives on
-EAS and stands at `5`, so the field is inert and the CLI says so on every build.
-Note that dry runs share the counter, so release numbers will have gaps.
+It's no longer in `app.json` at all. The field was briefly kept as a seed — EAS
+initializes the remote counter from the app config the first time it builds under
+`remote`, and this project had none — set to `4`, the highest already published. That
+initialization has happened, so the field was inert and is now gone. Note that dry
+runs share the counter, so release numbers will have gaps.
 
 To inspect or correct it:
 
