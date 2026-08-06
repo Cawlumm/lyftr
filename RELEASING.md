@@ -20,8 +20,44 @@ Pushing the tag triggers two workflows:
 
 - **`ci.yml`** — builds and pushes the backend/frontend Docker images tagged
   with this version (`git describe --tags`).
-- **`eas-build.yml`** — builds the Android APK on EAS and attaches it to the
-  GitHub Release for this tag (takes a while; EAS build + APK download).
+- **`eas-build.yml`** — builds the Android APK on the runner (`eas build --local`,
+  so there's no hosted-EAS queue to wait behind) and attaches it to the GitHub
+  Release for this tag. Budget ~30-45 min; it's a full Gradle build.
+
+  To rehearse that build without publishing anything — after touching the mobile
+  native config, say — run the workflow manually with **dry_run_release** checked.
+  It builds the same APK and leaves it as a workflow artifact, touching no Release.
+
+## Mobile version numbers
+
+The tag is the version, on every platform. Before tagging, bump `expo.version` in
+`mobile/app.json` to match the tag you're about to push (tag `v0.4.0` → version
+`0.4.0`). CI also stamps it from the tag at build time, so a forgotten bump can't
+ship a mismatched APK — but the repo shouldn't be lying either.
+
+`versionCode` is a separate monotonic counter tracked on EAS
+(`appVersionSource: remote`), bumped per build and never reset — the same split
+Immich uses (`3.1.0+3057`). Android upgrades are gated on this number, not on the
+version name. Don't hand-edit it to bump a release.
+
+The `versionCode` still in `app.json` was only a seed: EAS initializes the remote
+counter from the app config the first time it builds under `remote`, and this
+project had no remote version configured. It was set to `4`, the highest already
+published. **That initialization has already happened** — the counter now lives on
+EAS and stands at `5`, so the field is inert and the CLI says so on every build.
+Note that dry runs share the counter, so release numbers will have gaps.
+
+To inspect or correct it:
+
+```bash
+cd mobile
+npx eas-cli build:version:get -p android
+npx eas-cli build:version:set -p android   # only to repair drift
+```
+
+Note the version *name* may move backwards if the unified tag is below the mobile
+app's old independent numbering — that's cosmetic. What must never go backwards is
+`versionCode`, or Android will refuse the upgrade.
 
 Neither workflow deploys the demo off a tag — that already happens on every
 push to `main` (see `deploy-demo` in `ci.yml`). Tags exist purely to version
