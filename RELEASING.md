@@ -28,6 +28,28 @@ Pushing the tag triggers two workflows:
   native config, say — run the workflow manually with **dry_run_release** checked.
   It builds the same APK and leaves it as a workflow artifact, touching no Release.
 
+## Mobile version numbers
+
+The tag is the version, on every platform. Before tagging, bump `expo.version` in
+`mobile/app.json` to match the tag you're about to push (tag `v0.4.0` → version
+`0.4.0`). CI also stamps it from the tag at build time, so a forgotten bump can't
+ship a mismatched APK — but the repo shouldn't be lying either.
+
+`versionCode` is **not** in `app.json` and shouldn't be re-added. It's a separate
+monotonic counter tracked on EAS (`appVersionSource: remote`), bumped per build and
+never reset — the same split Immich uses (`3.1.0+3057`). Android upgrades are gated
+on this number, not on the version name. To inspect or correct it:
+
+```bash
+cd mobile
+npx eas-cli build:version:get -p android
+npx eas-cli build:version:set -p android   # only to repair drift
+```
+
+Note the version *name* may move backwards if the unified tag is below the mobile
+app's old independent numbering — that's cosmetic. What must never go backwards is
+`versionCode`, or Android will refuse the upgrade.
+
 Neither workflow deploys the demo off a tag — that already happens on every
 push to `main` (see `deploy-demo` in `ci.yml`). Tags exist purely to version
 the images and cut the GitHub Release.

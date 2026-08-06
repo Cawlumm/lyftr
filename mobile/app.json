@@ -31,8 +31,7 @@
       },
       "permissions": [
         "android.permission.CAMERA"
-      ],
-      "versionCode": 3
+      ]
     },
     "web": {
       "bundler": "metro",

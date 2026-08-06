@@ -151,11 +151,36 @@ jobs:
           key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json', 'mobile/app.json') }}
           restore-keys: gradle-${{ runner.os }}-
 
-      # Name the asset after the app version, not the git ref — the ref is a branch name
-      # on a dry run (and can contain slashes, which aren't valid in a filename).
-      - name: Resolve the APK filename
-        id: apk
-        run: echo "name=lyftr-mobile-v$(node -p "require('./mobile/app.json').expo.version").apk" >> "$GITHUB_OUTPUT"
+      # The tag is the version, for every platform — #77 unified the namespace, and this
+      # is what comparable self-hosted projects do (Immich tags v3.1.0 and its mobile app
+      # reports 3.1.0). Stamping it here means the APK's versionName can never drift from
+      # the release it's attached to, whatever app.json happens to say.
+      #
+      # A dry run has no tag (the ref is a branch, which can contain slashes and isn't a
+      # version at all), so it falls back to app.json and the stamp is a no-op.
+      - name: Resolve the release version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="$(node -p "require('./mobile/app.json').expo.version")"
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "name=lyftr-v$V.apk" >> "$GITHUB_OUTPUT"
+
+      # Runner-only edit; never committed. app.json in the repo should be bumped to match
+      # the tag in the release commit anyway (see RELEASING.md) — this is the backstop that
+      # makes a forgotten bump impossible to ship.
+      - name: Stamp the version into app.json
+        run: |
+          node -e '
+            const fs = require("fs"), p = "mobile/app.json";
+            const j = JSON.parse(fs.readFileSync(p, "utf8"));
+            j.expo.version = process.argv[1];
+            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
+          ' "${{ steps.ver.outputs.version }}"
+          node -p "'app.json version is now ' + require('./mobile/app.json').expo.version"
 
       # `preview` profile: distribution:internal → a signed, installable APK (production
       # builds an AAB store bundle, which isn't directly side-loadable). --local keeps the
@@ -169,14 +194,19 @@ jobs:
             --profile preview \
             --local \
             --non-interactive \
-            --output "$GITHUB_WORKSPACE/${{ steps.apk.outputs.name }}"
+            --output "$GITHUB_WORKSPACE/${{ steps.ver.outputs.name }}"
 
       - name: Verify the APK is real and correctly configured
         run: |
-          APK="$GITHUB_WORKSPACE/${{ steps.apk.outputs.name }}"
+          APK="$GITHUB_WORKSPACE/${{ steps.ver.outputs.name }}"
           test -s "$APK" || { echo "::error::No APK at $APK"; exit 1; }
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort | tail -1)"
-          "$AAPT" dump badging "$APK" | head -1
+          BADGING="$("$AAPT" dump badging "$APK")"
+          echo "$BADGING" | head -1
+          # The whole point of stamping: an APK whose versionName doesn't match the tag it
+          # ships under is the bug this replaced. Never let one out again.
+          echo "$BADGING" | grep -q "versionName='${{ steps.ver.outputs.version }}'" \
+            || { echo "::error::APK versionName is not ${{ steps.ver.outputs.version }}"; exit 1; }
           # The user-CA / cleartext policy from #79 is a native config: if the plugin
           # silently stops applying, self-hosted servers break and only a device test
           # would catch it. Fail the release here instead.
@@ -187,8 +217,8 @@ jobs:
       # and on a real release it's a fallback if the upload below fails.
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.apk.outputs.name }}
-          path: ${{ steps.apk.outputs.name }}
+          name: ${{ steps.ver.outputs.name }}
+          path: ${{ steps.ver.outputs.name }}
           retention-days: 14
           if-no-files-found: error
 
@@ -196,7 +226,7 @@ jobs:
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ steps.apk.outputs.name }}
+          files: ${{ steps.ver.outputs.name }}
           make_latest: false # everything currently ships as a prerelease; revisit once a stable tag lands
           prerelease: true # Android betas ship as prereleases (like the web betas)
           generate_release_notes: true
@@ -206,7 +236,7 @@ jobs:
           append_body: true
           body: |
             ### Android (side-load)
-            Download `lyftr-${{ github.ref_name }}.apk` below. On your phone, open it and
+            Download `${{ steps.ver.outputs.name }}` below. On your phone, open it and
             allow "install from unknown sources" if prompted.
 
             > iOS is distributed via TestFlight / the App Store (Apple doesn't allow
