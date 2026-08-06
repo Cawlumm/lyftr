@@ -172,7 +172,8 @@ jobs:
       # only place a release version exists: nothing to bump, nothing to drift.
       #
       # A dry run has no tag (the ref is a branch, which can contain slashes and isn't a
-      # version at all). It leaves LYFTR_VERSION unset and takes app.json's dev placeholder.
+      # version at all), so it invents a run-specific one — see below for why that beats
+      # reusing app.json's placeholder.
       - name: Resolve the release version
         id: ver
         env:
@@ -188,7 +189,13 @@ jobs:
               *) echo "::error::Tag '$GITHUB_REF_NAME' isn't a version — expected vMAJOR.MINOR.PATCH[-suffix]"; exit 1 ;;
             esac
           else
-            V="$(node -p "require('./mobile/app.json').expo.version")"
+            # Deliberately NOT app.json's version. That value is also app.config.js's
+            # fallback, so a dry run using it would compare the fallback against itself
+            # and pass whether or not LYFTR_VERSION ever reached the build — a check that
+            # cannot fail. A run-specific value can only appear in the APK if the variable
+            # actually flowed through EAS's config evaluation, which is the thing worth
+            # proving before a tag depends on it.
+            V="0.0.0-dryrun.$GITHUB_RUN_NUMBER"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "name=lyftr-v$V.apk" >> "$GITHUB_OUTPUT"
@@ -205,7 +212,7 @@ jobs:
         working-directory: mobile
         env:
           APK_NAME: ${{ steps.ver.outputs.name }}
-          LYFTR_VERSION: ${{ github.event_name == 'push' && steps.ver.outputs.version || '' }}
+          LYFTR_VERSION: ${{ steps.ver.outputs.version }} # set on both paths — see the resolve step
         run: |
           eas build \
             --platform android \
