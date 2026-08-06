@@ -2,14 +2,28 @@
 #
 # Two paths (matching how OSS Expo apps ship):
 #   • TESTERS  → run this workflow manually (Actions → Run workflow). EAS builds an
-#     Android APK; you install it from the build's expo.dev page (download link + QR).
+#     Android APK on Expo's servers; you install it from the build's expo.dev page
+#     (download link + QR). Queued with --no-wait, per Expo's CI guidance.
 #   • PUBLIC   → push a `v*` tag (the same single tag namespace ci.yml uses for the
-#     web/backend release — one tag now covers every platform). EAS builds the APK, and
-#     CI attaches it to the GitHub Release for that tag (a permanent, public "Download
-#     for Android" asset) alongside the web/backend notes. See RELEASING.md.
+#     web/backend release — one tag now covers every platform). The APK is built **on the
+#     runner** and attached to the GitHub Release for that tag (a permanent, public
+#     "Download for Android" asset) alongside the web/backend notes. See RELEASING.md.
 #
-# Native builds are slow + consume EAS quota, so this stays a separate workflow from
-# ci.yml's fast test jobs and never runs per-PR.
+# ── Why the release build runs on the runner (`eas build --local`) ────────────────────
+# It used to submit to hosted EAS and block on the result. That broke for v0.1.0-beta.4:
+# the build spent 3h09m in the free-tier queue, the job hit its 45-minute cap and was
+# cancelled, and the finished APK was never attached — the release shipped assetless
+# while the artifact sat on expo.dev. Raising the cap only widens the window; the queue
+# is unbounded and not ours to control.
+#
+# `--local` runs the same EAS build recipe on the runner: no queue, no EAS build quota,
+# and the artifact lands on disk where the upload step can reach it. Signing is
+# unchanged — credentials still come from the EAS server (`credentialsSource: remote`
+# by default), so releases stay signed with the same keystore and installed apps keep
+# upgrading in place. This is what OSS projects that ship a side-loadable APK do.
+#
+# Native builds are slow, so this stays a separate workflow from ci.yml's fast test jobs
+# and never runs per-PR.
 #
 # ── One-time setup (required before the first run) ────────────────────────────────────
 #   1. `cd mobile && npx eas login` then `npx eas init`   (links an EAS project; writes
@@ -34,6 +48,12 @@ on:
         type: choice
         default: preview
         options: [preview, production]
+      dry_run_release:
+        description: >-
+          Rehearse the release build instead: build the APK on the runner exactly as a
+          tag would, upload it as a workflow artifact, and touch no GitHub Release.
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*' # unified tag namespace — same tags ci.yml builds/pushes web+backend images on
@@ -50,7 +70,7 @@ permissions:
 jobs:
   # On-demand tester build → the APK lives on the EAS build page (install link + QR).
   tester-build:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run_release
     name: EAS ${{ github.event.inputs.profile }} (${{ github.event.inputs.platform }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -83,18 +103,20 @@ jobs:
             --non-interactive \
             --no-wait
 
-  # Tagged release → wait for the Android APK, then attach it to a GitHub Release.
+  # Tagged release → build the Android APK on this runner, then attach it to the Release.
+  # Also runs on a manual dispatch with dry_run_release, which stops after the artifact
+  # upload — that's how you rehearse a release build without publishing anything.
   release-apk:
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || inputs.dry_run_release
     name: Release Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45 # waits for the full EAS build, then attaches the APK
+    timeout-minutes: 60 # the whole Gradle build now happens here — no external queue
     permissions:
       contents: write # create/update the GitHub Release + upload the asset
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # eas needs this for credentials, not just login
     steps:
       - name: Require EXPO_TOKEN
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
@@ -106,46 +128,75 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
+      # Local Android builds compile with Gradle on this runner, so the JDK is ours to
+      # pin rather than EAS's image's. 17 is what AGP 8 / RN 0.81 expect.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci
 
-      # Build with the `preview` profile: distribution:internal → a signed, installable
-      # APK (production builds an AAB store bundle, which isn't directly side-loadable).
-      # No --no-wait here: we need the finished artifact to attach to the Release.
-      - name: Build APK on EAS and capture the artifact URL
+      # A cold Gradle build re-downloads the whole Android dependency graph (~10 min of
+      # the run). The lockfile keys it: native deps only change when they do.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json', 'mobile/app.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # Name the asset after the app version, not the git ref — the ref is a branch name
+      # on a dry run (and can contain slashes, which aren't valid in a filename).
+      - name: Resolve the APK filename
+        id: apk
+        run: echo "name=lyftr-mobile-v$(node -p "require('./mobile/app.json').expo.version").apk" >> "$GITHUB_OUTPUT"
+
+      # `preview` profile: distribution:internal → a signed, installable APK (production
+      # builds an AAB store bundle, which isn't directly side-loadable). --local keeps the
+      # build on this runner; credentials are still fetched from EAS, so the signing key
+      # is the same one previous releases used.
+      - name: Build the APK on this runner
         working-directory: mobile
         run: |
-          eas build -p android --profile preview --non-interactive --json > build.json
-          node -e '
-            const fs = require("fs");
-            const raw = JSON.parse(fs.readFileSync("build.json", "utf8"));
-            const b = Array.isArray(raw) ? raw[0] : raw;
-            // Robust to EAS CLI field renames: deep-scan the build object for any https URL
-            // whose path ends in .apk, and fall back to the known artifact fields.
-            const found = [];
-            (function walk(v) {
-              if (typeof v === "string") { if (/^https:\/\/\S+\.apk(\?|$)/i.test(v)) found.push(v); }
-              else if (v && typeof v === "object") { for (const k of Object.keys(v)) walk(v[k]); }
-            })(b);
-            const url = found[0] || b?.artifacts?.applicationArchiveUrl || b?.artifacts?.buildUrl;
-            if (!url) {
-              console.error("No APK URL found. Full build object:\n" + JSON.stringify(b, null, 2));
-              process.exit(1);
-            }
-            fs.appendFileSync(process.env.GITHUB_ENV, `APK_URL=${url}\n`);
-            console.log("APK URL:", url);
-          '
+          eas build \
+            --platform android \
+            --profile preview \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/${{ steps.apk.outputs.name }}"
 
-      - name: Download the APK
-        run: curl -fL -o "lyftr-${{ github.ref_name }}.apk" "$APK_URL"
+      - name: Verify the APK is real and correctly configured
+        run: |
+          APK="$GITHUB_WORKSPACE/${{ steps.apk.outputs.name }}"
+          test -s "$APK" || { echo "::error::No APK at $APK"; exit 1; }
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort | tail -1)"
+          "$AAPT" dump badging "$APK" | head -1
+          # The user-CA / cleartext policy from #79 is a native config: if the plugin
+          # silently stops applying, self-hosted servers break and only a device test
+          # would catch it. Fail the release here instead.
+          "$AAPT" dump xmltree --file AndroidManifest.xml "$APK" | grep -q networkSecurityConfig \
+            || { echo "::error::APK has no networkSecurityConfig — see issue #79"; exit 1; }
+
+      # Always keep a copy on the run itself: it's the only artifact a dry run produces,
+      # and on a real release it's a fallback if the upload below fails.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.name }}
+          path: ${{ steps.apk.outputs.name }}
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Attach APK to the GitHub Release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          files: lyftr-${{ github.ref_name }}.apk
+          files: ${{ steps.apk.outputs.name }}
           make_latest: false # everything currently ships as a prerelease; revisit once a stable tag lands
           prerelease: true # Android betas ship as prereleases (like the web betas)
           generate_release_notes: true

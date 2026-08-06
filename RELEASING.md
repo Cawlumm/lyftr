@@ -20,8 +20,13 @@ Pushing the tag triggers two workflows:
 
 - **`ci.yml`** — builds and pushes the backend/frontend Docker images tagged
   with this version (`git describe --tags`).
-- **`eas-build.yml`** — builds the Android APK on EAS and attaches it to the
-  GitHub Release for this tag (takes a while; EAS build + APK download).
+- **`eas-build.yml`** — builds the Android APK on the runner (`eas build --local`,
+  so there's no hosted-EAS queue to wait behind) and attaches it to the GitHub
+  Release for this tag. Budget ~30-45 min; it's a full Gradle build.
+
+  To rehearse that build without publishing anything — after touching the mobile
+  native config, say — run the workflow manually with **dry_run_release** checked.
+  It builds the same APK and leaves it as a workflow artifact, touching no Release.
 
 Neither workflow deploys the demo off a tag — that already happens on every
 push to `main` (see `deploy-demo` in `ci.yml`). Tags exist purely to version
