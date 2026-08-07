@@ -19,7 +19,7 @@ import { RestTimerBanner } from './RestTimerBanner'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
-import { clampStep, clampValue } from '../../utils/number'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../../utils/number'
 import { nextIncompleteSet } from '../../utils/workoutSets'
 import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 
@@ -520,12 +520,12 @@ export function GymModeWorkout() {
           {/* reps + weight steppers */}
           <View className="w-full flex-row gap-3">
             <View className="flex-1">
-              <StepperTile icon={Repeat} label="Reps" name="reps" step={1} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}>
+              <StepperTile icon={Repeat} label="Reps" name="reps" step={REP_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}>
                 <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel="Reps" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
               </StepperTile>
             </View>
             <View className="flex-1">
-              <StepperTile icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={2.5} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
+              <StepperTile icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
                 <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel="Weight" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
               </StepperTile>
             </View>

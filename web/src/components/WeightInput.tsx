@@ -20,10 +20,15 @@ interface Props {
   max?: number
 }
 
-// The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
-// by `step`, so gym mode can jump by a plate-sized 2.5 while you can still type an
-// exact 0.1 value. Bodyweight takes the default — the smallest step the field can
-// hold, since a day's change is often under half a pound (#80).
+// Two different granularities that happen to be the same number right now, and must
+// not be collapsed into one: INPUT_STEP is what the field accepts typed (the #39
+// feature — always tenths, whatever the buttons do), STEP_DEFAULT is how far one
+// +/- tap moves. They coincide because bodyweight, the only caller that shows the
+// buttons, wants the finest step the field can hold (#80).
+//
+// Nothing overrides `step` today: the sets tables pass stepper={false}, and gym mode
+// builds its own tiles from StepperTile + NumberField (see PLATE_STEP). The prop
+// stays for a caller that wants a coarser jump.
 const INPUT_STEP = 0.1
 const STEP_DEFAULT = BODYWEIGHT_STEP
 
