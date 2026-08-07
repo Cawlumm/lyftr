@@ -7,8 +7,13 @@
 // multi-hour cleanup before anything could be gated, or a permanently red build.
 // Warnings keep them visible; tighten rule by rule as they're worked through.
 //
-// The count is pinned in package.json (`--max-warnings=80`), so the backlog is a
-// ratchet: it can shrink, never grow. Lower the number as they're cleared.
+// The count is pinned in package.json (`--max-warnings=79` — 69 `any` + 10
+// exhaustive-deps), so the backlog is a ratchet: it can shrink, never grow.
+//
+// That is deliberately zero slack: adding a warning fails CI, which is the point —
+// no new debt. The cost is that a PR introducing one `any` goes red on a budget
+// error rather than a defect, so fix the warning rather than raise the ceiling.
+// Lower the number whenever you clear some.
 import js from '@eslint/js'
 import globals from 'globals'
 import tseslint from 'typescript-eslint'

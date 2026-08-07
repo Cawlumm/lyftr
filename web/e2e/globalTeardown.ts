@@ -34,6 +34,5 @@ export default async function globalTeardown(): Promise<void> {
   }
   await api.dispose()
   rmSync(REGISTRY_FILE, { force: true })
-  // eslint-disable-next-line no-console
   console.log(`[globalTeardown] swept ${deleted}/${tokens.length} e2e accounts`)
 }

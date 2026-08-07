@@ -221,16 +221,13 @@ export default function Weight() {
 
   // Chart data — re-fetched when period changes
   const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
-  const [, setChartLoading] = useState(true)
 
   useEffect(() => {
-    setChartLoading(true)
     const days = PERIOD_DAYS[period]
     const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
     weightAPI.list({ limit: 1000, from })
       .then(data => setChartLogs(data || []))
-      .catch(() => {})
-      .finally(() => setChartLoading(false))
+      .catch(() => { /* chart keeps the previous series rather than blanking on a failed refetch */ })
   }, [period])
 
   useEffect(() => {
