@@ -18,7 +18,7 @@ export interface MuscleTint {
   text: string
 }
 
-export const MUSCLE_COLORS: Record<string, MuscleTint> = {
+const MUSCLE_COLORS: Record<string, MuscleTint> = {
   chest:      { chip: 'bg-red-500/20',    border: 'border-red-500/30',    text: '#f87171' },
   back:       { chip: 'bg-blue-500/20',   border: 'border-blue-500/30',   text: '#60a5fa' },
   shoulders:  { chip: 'bg-orange-500/20', border: 'border-orange-500/30', text: '#fb923c' },

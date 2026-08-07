@@ -98,26 +98,12 @@ export function AppText({
 // Convenience wrappers so call sites read like a type scale, not a prop soup.
 type VariantlessProps = Omit<AppTextProps, 'variant'>
 
-export function Heading(props: VariantlessProps) {
-  return <AppText variant="heading" {...props} />
-}
-
 export function Body(props: VariantlessProps) {
   return <AppText variant="body" {...props} />
 }
 
 export function Label(props: VariantlessProps) {
   return <AppText variant="label" {...props} />
-}
-
-export function Numeric(props: VariantlessProps) {
-  return <AppText variant="numeric" {...props} />
-}
-
-// Pre-existing exports, preserved verbatim in API but re-based on the brand fonts
-// (this is the fix for tab screens rendering headings in the system font).
-export function H1({ children }: { children: ReactNode }) {
-  return <AppText variant="title">{children}</AppText>
 }
 
 // Muted deliberately does NOT set a font size: existing callers size it via
