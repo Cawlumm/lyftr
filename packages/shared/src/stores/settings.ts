@@ -93,8 +93,14 @@ export function createSettingsStore(
       const prefs = await clientPrefs(storage)
       try {
         const s = await client.userAPI.getSettings()
-        const synced = await syncTimezone(s)
-        set({ settings: { ...synced, ...prefs }, loaded: true })
+        // Render on what we already have, then reconcile the zone in the background.
+        // Awaiting the PATCH would put a write on the critical path of loading
+        // settings — on a stalled connection every screen that gates on `loaded`
+        // waits for a socket timeout instead of showing data already in hand.
+        set({ settings: { ...s, ...prefs }, loaded: true })
+        void syncTimezone(s).then((synced) => {
+          if (synced !== s) set({ settings: { ...synced, ...prefs } })
+        })
       } catch {
         set({ settings: { ...get().settings, ...prefs }, loaded: true })
       }

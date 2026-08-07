@@ -84,12 +84,17 @@ func alterMigrations() {
 	ensureColumn("weight_logs", "logged_on", `ALTER TABLE weight_logs ADD COLUMN logged_on TEXT NOT NULL DEFAULT ''`)
 	ensureIndex("idx_food_logs_day", `CREATE INDEX IF NOT EXISTS idx_food_logs_day ON food_logs(user_id, logged_on)`)
 	ensureIndex("idx_weight_logs_day", `CREATE INDEX IF NOT EXISTS idx_weight_logs_day ON weight_logs(user_id, logged_on)`)
-	backfillLoggedOn()
 
 	workoutProgramDayMigration()
 
 	normalizeWorkoutStartedAt()
 	normalizeFoodLoggedAt()
+
+	// After the normalizers, deliberately: the day is derived from logged_at's text,
+	// and normalizeUTCTimestamps rewrites offset-bearing rows to UTC. Running first
+	// would freeze the day from the pre-normalization wall clock — permanently, since
+	// the backfill only fills rows still holding the empty default.
+	backfillLoggedOn()
 }
 
 // normalizeWorkoutStartedAt rewrites any workouts.started_at stored with a non-UTC
@@ -598,6 +603,15 @@ func backfillLoggedOn() {
 		}
 		if n, _ := res.RowsAffected(); n > 0 {
 			log.Printf("backfillLoggedOn(%s): set %d rows", table, n)
+		}
+	}
+	// A row still holding the empty default matches no day query, so it is invisible
+	// in the diary while the server looks perfectly healthy. Count what's left and
+	// say so loudly — the retry-next-boot above only helps if someone notices.
+	for _, table := range []string{"food_logs", "weight_logs"} {
+		var left int
+		if err := DB.QueryRow(`SELECT COUNT(*) FROM ` + table + ` WHERE logged_on = ''`).Scan(&left); err == nil && left > 0 {
+			log.Printf("WARNING: %s has %d rows with no logged_on — they will not appear in any day view until a later boot backfills them", table, left)
 		}
 	}
 }

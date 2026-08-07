@@ -29,13 +29,6 @@ export const dayToIsoNoon = (yyyyMmDd: string): string => {
   return new Date(y, m - 1, d, 12, 0, 0, 0).toISOString()
 }
 
-export const localDayRange = (yyyyMmDd: string): { from: string; to: string } => {
-  const [y, m, d] = yyyyMmDd.split('-').map(Number)
-  return {
-    from: new Date(y, m - 1, d, 0, 0, 0, 0).toISOString(),
-    to: new Date(y, m - 1, d + 1, 0, 0, 0, 0).toISOString(),
-  }
-}
 
 /**
  * Extract a YYYY-MM-DD string in the browser's local timezone from any ISO

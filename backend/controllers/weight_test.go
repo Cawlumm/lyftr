@@ -3,10 +3,12 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/gin-gonic/gin"
 )
 
 func insertWeightLog(t *testing.T, uid int64, weight float64, loggedAt time.Time) int64 {
@@ -473,5 +475,74 @@ func TestGetWeightStats_noData(t *testing.T) {
 	}
 	if data["change_7d"].(float64) != 0 {
 		t.Errorf("expected change_7d=0 with no data, got %v", data["change_7d"])
+	}
+}
+
+// Regression: Update rewrote logged_at but not logged_on, while the same-day dedup
+// DELETE that follows keys on the *new* day — so moving an entry to another date
+// deleted the real entry already on that date and left the edited row on its old
+// day. Both halves are asserted because either alone would have passed.
+func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
+		"weight": 200, "logged_at": "2026-08-05T16:00:00Z", // noon local, Aug 5
+	})
+	th.LogWeight(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("seed Aug 5: %d %s", w.Code, w.Body.String())
+	}
+	movedID := int64(decodeResponse(t, w)["data"].(map[string]any)["id"].(float64))
+
+	c, w = newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
+		"weight": 201, "logged_at": "2026-08-06T16:00:00Z", // noon local, Aug 6
+	})
+	th.LogWeight(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("seed Aug 6: %d %s", w.Code, w.Body.String())
+	}
+
+	// Move the Aug 5 entry onto Aug 6, the way the edit form does.
+	c, w = newContext(uid, http.MethodPatch, "/api/v1/weight/"+strconv.FormatInt(movedID, 10),
+		map[string]any{"weight": 200, "logged_at": "2026-08-06T16:00:00Z"})
+	c.Params = gin.Params{{Key: "id", Value: strconv.FormatInt(movedID, 10)}}
+	th.UpdateWeightLog(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("update: %d %s", w.Code, w.Body.String())
+	}
+	if day := decodeResponse(t, w)["data"].(map[string]any)["logged_on"].(string); day != "2026-08-06" {
+		t.Errorf("edited row should now be filed on 2026-08-06, got %q", day)
+	}
+
+	// Exactly one entry survives on the target day, and none is stranded on the old.
+	var onTarget, onOld int
+	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ? AND logged_on = '2026-08-06'`, uid).Scan(&onTarget); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ? AND logged_on = '2026-08-05'`, uid).Scan(&onOld); err != nil {
+		t.Fatal(err)
+	}
+	if onTarget != 1 {
+		t.Errorf("expected one entry on the target day, got %d", onTarget)
+	}
+	if onOld != 0 {
+		t.Errorf("expected nothing left on the old day, got %d", onOld)
+	}
+}
+
+// A malformed day would be stored verbatim, hiding the entry from every read and —
+// for weight — aiming the dedup DELETE at an arbitrary value.
+func TestLogWeight_rejectsMalformedLoggedOn(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
+		"weight": 180, "logged_on": "08/05/2026",
+	})
+	th.LogWeight(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for a malformed logged_on, got %d: %s", w.Code, w.Body.String())
 	}
 }

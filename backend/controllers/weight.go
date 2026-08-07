@@ -22,25 +22,26 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 		f.Offset = o
 	}
 
-	// Date params are calendar days in the user's local timezone. We don't know
-	// the client's UTC offset, so for bare YYYY-MM-DD we widen the window by ±12h
-	// to cover any plausible client TZ. A full RFC3339 timestamp is used exactly.
+	// A bare YYYY-MM-DD filters the stored day directly. This used to widen the
+	// window by -12h/+36h on logged_at because the server had no way to know which
+	// day a row belonged to; it does now, and the guess would overlap neighbours.
+	// A full RFC3339 timestamp still means an exact instant.
 	if from := c.Query("from"); from != "" {
 		if t, exact, ok := parseDayOrTime(from); ok {
-			lo := t
-			if !exact {
-				lo = t.Add(-12 * time.Hour)
+			if exact {
+				f.From = &t
+			} else {
+				f.FromDay = t.Format("2006-01-02")
 			}
-			f.From = &lo
 		}
 	}
 	if to := c.Query("to"); to != "" {
 		if t, exact, ok := parseDayOrTime(to); ok {
-			hi := t
-			if !exact {
-				hi = t.Add(36 * time.Hour)
+			if exact {
+				f.To = &t
+			} else {
+				f.ToDay = t.Format("2006-01-02")
 			}
-			f.To = &hi
 		}
 	}
 
@@ -63,7 +64,12 @@ func (h *Handler) LogWeight(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	if err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	req.LoggedOn = loggedOn
 
 	log, err := h.s.Weight.UpsertForDay(uid, req)
 	if utils.DBError(c, err) {
@@ -107,7 +113,12 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	if err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	req.LoggedOn = loggedOn
 
 	log, err := h.s.Weight.Update(uid, lid, req)
 	if err == sql.ErrNoRows {

@@ -27,15 +27,6 @@ const offUserAgent = "Lyftr/1.0 (https://lyftr.app; nutrition-tracker)"
 func (h *Handler) ListFoodLogs(c *gin.Context) {
 	uid := middleware.UserID(c)
 
-	if from, to, ok := queryRange(c); ok {
-		logs, err := h.s.Food.ListRange(uid, from, to)
-		if utils.DBError(c, err) {
-			return
-		}
-		utils.OK(c, logs)
-		return
-	}
-
 	// A bare `date=` is the user's *local* day, not the UTC day. Resolving it here
 	// rather than making each client send a range is what lets already-installed
 	// apps get correct bucketing without an update (see user_settings.timezone).
@@ -53,17 +44,6 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 	utils.OK(c, logs)
 }
 
-func queryRange(c *gin.Context) (time.Time, time.Time, bool) {
-	from, _, fromOK := parseDayOrTime(c.Query("from"))
-	to, toExact, toOK := parseDayOrTime(c.Query("to"))
-	if !fromOK || !toOK {
-		return time.Time{}, time.Time{}, false
-	}
-	if !toExact {
-		to = to.Add(24 * time.Hour)
-	}
-	return from, to, true
-}
 
 func (h *Handler) GetFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
@@ -113,7 +93,12 @@ func (h *Handler) LogFood(c *gin.Context) {
 	}
 
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	if err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	req.LoggedOn = loggedOn
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -159,7 +144,12 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
+	if err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	req.LoggedOn = loggedOn
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -202,19 +192,6 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 		date = time.Now().In(loc).Format("2006-01-02")
 	}
 
-	if from, to, ok := queryRange(c); ok {
-		stats, err := h.s.Food.DailyMacrosRange(uid, from, to)
-		if utils.DBError(c, err) {
-			return
-		}
-		stats.Date = date
-		if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
-			return
-		}
-		utils.OK(c, stats)
-		return
-	}
-
 	stats, err := h.s.Food.DailyMacros(uid, date)
 	if utils.DBError(c, err) {
 		return
@@ -224,6 +201,12 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 	// has no stored day — so "workouts on this date" is still a zone question and
 	// resolves through a local-day range. CountOn's substr(started_at) would count
 	// the UTC day and disagree with the macros beside it.
+	//
+	// The two halves of this payload therefore answer via different mechanisms, and
+	// after a user changes zones the workout count re-buckets while the macros stay
+	// on the day stored at write time. Closing that gap means giving workouts a day
+	// of their own, which is a decision about whether a workout is an event or a
+	// diary entry — not something to settle in passing here.
 	if from, to, ok := localDayRange(date, loc); ok {
 		if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
 			return

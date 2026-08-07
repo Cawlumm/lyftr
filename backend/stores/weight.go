@@ -16,7 +16,10 @@ func NewWeightStore(db *sql.DB) *WeightStore { return &WeightStore{db: db} }
 // owns the calendar-day → UTC-window widening and passes the resolved bounds.
 type WeightFilter struct {
 	Limit, Offset int
-	From, To      *time.Time // nil = unbounded
+	From, To      *time.Time // instant bounds, for an exact RFC3339 range
+	// Calendar-day bounds (YYYY-MM-DD, inclusive), matched against logged_on. A
+	// caller asking in days gets days: no widening, no guess at their offset.
+	FromDay, ToDay string
 }
 
 // WeightStats is the computed summary for GetWeightStats.
@@ -31,6 +34,14 @@ const weightCols = `id, user_id, weight, notes, logged_at, logged_on, created_at
 func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error) {
 	q := `SELECT ` + weightCols + ` FROM weight_logs WHERE user_id = ?`
 	args := []any{uid}
+	if f.FromDay != "" {
+		q += ` AND logged_on >= ?`
+		args = append(args, f.FromDay)
+	}
+	if f.ToDay != "" {
+		q += ` AND logged_on <= ?`
+		args = append(args, f.ToDay)
+	}
 	if f.From != nil {
 		q += ` AND logged_at >= ?`
 		args = append(args, *f.From)
@@ -124,8 +135,8 @@ func (s *WeightStore) Update(uid, id int64, req models.LogWeightRequest) (models
 	// Atomic: the row update + the same-day dedup delete must commit together.
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		res, err := tx.Exec(
-			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
-			req.Weight, req.Notes, req.LoggedAt, id, uid,
+			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ?, logged_on = ? WHERE id = ? AND user_id = ?`,
+			req.Weight, req.Notes, req.LoggedAt, req.LoggedOn, id, uid,
 		)
 		if err != nil {
 			return err

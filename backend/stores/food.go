@@ -2,7 +2,6 @@ package stores
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -43,25 +42,6 @@ func (s *FoodStore) ListByDay(uid int64, date string) ([]models.FoodLog, error) 
 	return logs, rows.Err()
 }
 
-func (s *FoodStore) ListRange(uid int64, from, to time.Time) ([]models.FoodLog, error) {
-	rows, err := s.db.Query(
-		foodLogSelect+` WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY logged_at ASC`,
-		uid, from, to,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	logs := []models.FoodLog{}
-	for rows.Next() {
-		var f models.FoodLog
-		if err := scanFoodLog(rows, &f); err != nil {
-			return nil, err
-		}
-		logs = append(logs, f)
-	}
-	return logs, rows.Err()
-}
 
 // Get returns one user-owned food log, or sql.ErrNoRows.
 func (s *FoodStore) Get(uid, id int64) (models.FoodLog, error) {
@@ -125,16 +105,6 @@ func (s *FoodStore) DailyMacros(uid int64, date string) (models.DailyStats, erro
 	return stats, err
 }
 
-func (s *FoodStore) DailyMacrosRange(uid int64, from, to time.Time) (models.DailyStats, error) {
-	var stats models.DailyStats
-	err := s.db.QueryRow(
-		`SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
-		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
-		 FROM food_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?`,
-		uid, from, to,
-	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber)
-	return stats, err
-}
 
 // History returns per-day macro totals for the last `days` days.
 //

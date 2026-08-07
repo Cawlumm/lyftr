@@ -71,8 +71,12 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (get().loaded) return
     try {
       const s = await userAPI.getSettings()
-      const synced = await syncTimezone(s)
-      set({ settings: { ...synced, ...clientPrefs() }, loaded: true })
+      // Render on what we already have; reconcile the zone in the background so a
+      // stalled PATCH can't hold every settings-gated screen on its loading state.
+      set({ settings: { ...s, ...clientPrefs() }, loaded: true })
+      void syncTimezone(s).then(synced => {
+        if (synced !== s) set({ settings: { ...synced, ...clientPrefs() } })
+      })
     } catch {
       set({ loaded: true })
     }

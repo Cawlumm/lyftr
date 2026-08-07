@@ -2,6 +2,7 @@ package stores
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -96,4 +97,57 @@ func (s *UserStore) Create(email, hash string) (int64, error) {
 func (s *UserStore) Delete(uid int64) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, uid)
 	return err
+}
+
+// RederiveLoggedOn recomputes logged_on for a user's day-scoped rows from
+// logged_at in loc, and reports how many rows moved.
+//
+// This exists to reconcile the one place the two day-derivation rules disagree.
+// The boot backfill can only take logged_at's UTC date prefix — it runs before any
+// client has reported a zone — while every write after that derives the day in the
+// user's actual zone. For offsets within ±12h those agree, because entries are
+// written anchored at local noon. Beyond that (UTC+13/+14) they do not, and
+// UpsertForDay would then compare a backfilled row against a freshly derived day
+// and silently overwrite the wrong entry.
+//
+// Called once, when a user's zone stops being the UTC default — not on later
+// changes. A first report is new information about rows already written; a later
+// change is the user travelling, and re-filing their history every time they land
+// somewhere is not what anyone means by moving.
+func (s *UserStore) RederiveLoggedOn(uid int64, loc *time.Location) (int64, error) {
+	var moved int64
+	for _, table := range []string{"food_logs", "weight_logs"} {
+		rows, err := s.db.Query(`SELECT id, logged_at, logged_on FROM `+table+` WHERE user_id = ?`, uid)
+		if err != nil {
+			return moved, err
+		}
+		type fix struct {
+			id  int64
+			day string
+		}
+		fixes := []fix{}
+		for rows.Next() {
+			var id int64
+			var at time.Time
+			var day string
+			if err := rows.Scan(&id, &at, &day); err != nil {
+				rows.Close()
+				return moved, err
+			}
+			if want := at.In(loc).Format("2006-01-02"); want != day {
+				fixes = append(fixes, fix{id, want})
+			}
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return moved, err
+		}
+		for _, f := range fixes {
+			if _, err := s.db.Exec(`UPDATE `+table+` SET logged_on = ? WHERE id = ?`, f.day, f.id); err != nil {
+				return moved, err
+			}
+			moved++
+		}
+	}
+	return moved, nil
 }

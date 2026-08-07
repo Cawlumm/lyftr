@@ -998,33 +998,60 @@ func insertFoodLogAt(t *testing.T, uid int64, name string, calories float64, log
 	return id
 }
 
-func TestListFoodLogs_localDayRangeWestTimezone(t *testing.T) {
+// A west-of-UTC user's late-evening entry belongs to their day, not the UTC day.
+// Originally written against an explicit from/to range; the range is gone, so this
+// now asserts the same user-visible outcome through the stored zone — which is the
+// only path a client actually takes.
+func TestListFoodLogs_localDayWestTimezone(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	insertFoodLogAt(t, uid, "Late dinner", 800, time.Date(2026, 4, 25, 3, 0, 0, 0, time.UTC))
-	insertFoodLogAt(t, uid, "Next local day", 500, time.Date(2026, 4, 25, 8, 0, 0, 0, time.UTC))
+	setUserTimezone(t, uid, "America/Los_Angeles") // UTC-7 in April
 
-	c, w := newContext(uid, http.MethodGet, "/api/v1/food?from=2026-04-24T07:00:00Z&to=2026-04-25T07:00:00Z", nil)
+	// 03:00 UTC on the 25th is 20:00 on the 24th in Los Angeles.
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Late dinner", "meal": "dinner", "calories": 800,
+		"logged_at": "2026-04-25T03:00:00Z",
+	})
+	th.LogFood(c)
+	// 08:00 UTC on the 25th is 01:00 on the 25th — the next local day.
+	c2, _ := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Next local day", "meal": "snacks", "calories": 500,
+		"logged_at": "2026-04-25T08:00:00Z",
+	})
+	th.LogFood(c2)
+
+	c, w = newContext(uid, http.MethodGet, "/api/v1/food?date=2026-04-24", nil)
 	th.ListFoodLogs(c)
-
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	resp := decodeResponse(t, w)
-	data := resp["data"].([]any)
+	data := decodeResponse(t, w)["data"].([]any)
 	if len(data) != 1 {
-		t.Fatalf("expected 1 entry inside local-day window, got %d", len(data))
+		t.Fatalf("expected 1 entry on the local day, got %d", len(data))
 	}
-	if data[0].(map[string]any)["name"].(string) != "Late dinner" {
-		t.Errorf("expected the local-evening entry, got %v", data[0].(map[string]any)["name"])
+	if name := data[0].(map[string]any)["name"].(string); name != "Late dinner" {
+		t.Errorf("expected the local-evening entry, got %v", name)
 	}
 }
 
-func TestGetDailyStats_localDayRangeWestTimezone(t *testing.T) {
+// Macros come from the stored day; the workout count still resolves through the
+// zone, because a workout is an instant with no day of its own. Both halves of the
+// payload must describe the same date.
+func TestGetDailyStats_localDayWestTimezone(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	insertFoodLogAt(t, uid, "Late dinner", 800, time.Date(2026, 4, 25, 3, 0, 0, 0, time.UTC))
-	insertFoodLogAt(t, uid, "Next local day", 500, time.Date(2026, 4, 25, 8, 0, 0, 0, time.UTC))
+	setUserTimezone(t, uid, "America/Los_Angeles")
+
+	c, _ := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Late dinner", "meal": "dinner", "calories": 800,
+		"logged_at": "2026-04-25T03:00:00Z",
+	})
+	th.LogFood(c)
+	c, _ = newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Next local day", "meal": "snacks", "calories": 500,
+		"logged_at": "2026-04-25T08:00:00Z",
+	})
+	th.LogFood(c)
 	if _, err := db.DB.Exec(
 		`INSERT INTO workouts (user_id, name, started_at) VALUES (?, ?, ?)`,
 		uid, "Evening lift", time.Date(2026, 4, 25, 3, 30, 0, 0, time.UTC),
@@ -1032,22 +1059,20 @@ func TestGetDailyStats_localDayRangeWestTimezone(t *testing.T) {
 		t.Fatalf("insert workout: %v", err)
 	}
 
-	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-04-24&from=2026-04-24T07:00:00Z&to=2026-04-25T07:00:00Z", nil)
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-04-24", nil)
 	th.GetDailyStats(c)
-
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	resp := decodeResponse(t, w)
-	data := resp["data"].(map[string]any)
-	if data["total_calories"].(float64) != 800 {
-		t.Errorf("expected total_calories=800 (local day only), got %v", data["total_calories"])
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if got := data["total_calories"].(float64); got != 800 {
+		t.Errorf("expected total_calories=800 (local day only), got %v", got)
 	}
-	if data["workout_count"].(float64) != 1 {
-		t.Errorf("expected workout_count=1 within local-day window, got %v", data["workout_count"])
+	if got := data["workout_count"].(float64); got != 1 {
+		t.Errorf("expected workout_count=1 on the same local day, got %v", got)
 	}
-	if data["date"].(string) != "2026-04-24" {
-		t.Errorf("expected date label 2026-04-24, got %v", data["date"])
+	if got := data["date"].(string); got != "2026-04-24" {
+		t.Errorf("expected date label 2026-04-24, got %v", got)
 	}
 }
 

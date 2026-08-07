@@ -21,25 +21,21 @@ const captureClient = () => {
 }
 
 describe('foodAPI day windowing', () => {
-  it('list sends the date plus its local-day from/to range', async () => {
+  it('list sends only the day — the server buckets it in the user timezone', async () => {
     const { client, calls } = captureClient()
     await client.foodAPI.list('2026-06-15')
     expect(calls[0].url).toBe('/food')
     expect(calls[0].params).toEqual({
       date: '2026-06-15',
-      from: '2026-06-15T04:00:00.000Z',
-      to: '2026-06-16T04:00:00.000Z',
     })
   })
 
-  it('stats sends the date plus its local-day from/to range', async () => {
+  it('stats sends only the day — the server buckets it in the user timezone', async () => {
     const { client, calls } = captureClient()
     await client.foodAPI.stats('2026-11-01')
     expect(calls[0].url).toBe('/food/stats')
     expect(calls[0].params).toEqual({
       date: '2026-11-01',
-      from: '2026-11-01T04:00:00.000Z',
-      to: '2026-11-02T05:00:00.000Z',
     })
   })
 
