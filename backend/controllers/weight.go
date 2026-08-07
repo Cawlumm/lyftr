@@ -63,6 +63,7 @@ func (h *Handler) LogWeight(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
+	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
 
 	log, err := h.s.Weight.UpsertForDay(uid, req)
 	if utils.DBError(c, err) {
@@ -106,6 +107,7 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
+	req.LoggedOn = h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
 
 	log, err := h.s.Weight.Update(uid, lid, req)
 	if err == sql.ErrNoRows {

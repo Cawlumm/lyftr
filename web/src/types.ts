@@ -82,6 +82,9 @@ export interface WeightLog {
   notes?: string
   logged_at: string
   created_at?: string
+  /** Calendar day this entry belongs to (YYYY-MM-DD). The server derives it from
+   *  logged_at in the user's timezone when a client doesn't send one. */
+  logged_on: string
 }
 
 export interface FoodLog {
@@ -100,6 +103,9 @@ export interface FoodLog {
   image_url?: string
   logged_at: string
   created_at?: string
+  /** Calendar day this entry belongs to (YYYY-MM-DD). The server derives it from
+   *  logged_at in the user's timezone when a client doesn't send one. */
+  logged_on: string
 }
 
 export interface DailyStats {

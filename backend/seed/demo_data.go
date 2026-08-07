@@ -295,8 +295,8 @@ func seedWeightLogs(db *sql.DB, userID int64) {
 		w += (rng.Float64()*3 - 1.5)
 		loggedAt := time.Date(day.Year(), day.Month(), day.Day(), 7, 30, 0, 0, time.UTC)
 		db.Exec(
-			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-			userID, fmt.Sprintf("%.1f", w), "", loggedAt,
+			`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, ?, ?, ?)`,
+			userID, fmt.Sprintf("%.1f", w), "", loggedAt, loggedAt.Format("2006-01-02"),
 		)
 	}
 }
@@ -339,9 +339,9 @@ func seedFoodLogs(db *sql.DB, userID int64) {
 		for _, m := range pattern {
 			loggedAt := time.Date(day.Year(), day.Month(), day.Day(), 12, 0, 0, 0, time.UTC)
 			db.Exec(
-				`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, logged_at, logged_on) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				userID, m.name, m.meal, m.calories, m.protein, m.carbs, m.fat,
-				loggedAt,
+				loggedAt, loggedAt.Format("2006-01-02"),
 			)
 		}
 	}

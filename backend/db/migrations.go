@@ -76,6 +76,16 @@ func alterMigrations() {
 	// column changes nothing until a client reports a real zone.
 	ensureColumn("user_settings", "timezone", `ALTER TABLE user_settings ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`)
 
+	// The calendar day a diary entry belongs to, as the user meant it — distinct
+	// from logged_at, which is the instant it was written. Food and weight are
+	// day-scoped ("my Tuesday weigh-in"); workouts are not, so started_at stays a
+	// pure instant.
+	ensureColumn("food_logs", "logged_on", `ALTER TABLE food_logs ADD COLUMN logged_on TEXT NOT NULL DEFAULT ''`)
+	ensureColumn("weight_logs", "logged_on", `ALTER TABLE weight_logs ADD COLUMN logged_on TEXT NOT NULL DEFAULT ''`)
+	ensureIndex("idx_food_logs_day", `CREATE INDEX IF NOT EXISTS idx_food_logs_day ON food_logs(user_id, logged_on)`)
+	ensureIndex("idx_weight_logs_day", `CREATE INDEX IF NOT EXISTS idx_weight_logs_day ON weight_logs(user_id, logged_on)`)
+	backfillLoggedOn()
+
 	workoutProgramDayMigration()
 
 	normalizeWorkoutStartedAt()
@@ -563,3 +573,31 @@ CREATE TABLE IF NOT EXISTS program_sets (
   target_weight       REAL    NOT NULL DEFAULT 0
 );
 `
+
+
+// backfillLoggedOn fills logged_on for rows written before the column existed.
+//
+// It takes the UTC date prefix of logged_at, which is correct because every client
+// writes these entries anchored at local noon (dayToIsoNoon): noon ±12h stays
+// inside the same UTC date, so the prefix already *is* the day the user meant.
+// Zones beyond ±12h (UTC+13/+14) and rows written by a third-party client sending a
+// real instant are the exceptions, and can land a day out.
+//
+// It cannot use user_settings.timezone: this runs at boot, before any client has
+// reported a zone, so every user would still read as UTC and the wrong day would be
+// baked in permanently.
+//
+// Keyed off the empty default rather than a migration flag, so it is naturally
+// idempotent and also repairs any row that later arrives without a day set.
+func backfillLoggedOn() {
+	for _, table := range []string{"food_logs", "weight_logs"} {
+		res, err := DB.Exec(`UPDATE ` + table + ` SET logged_on = substr(logged_at, 1, 10) WHERE logged_on = ''`)
+		if err != nil {
+			log.Printf("backfillLoggedOn(%s): %v (retried next boot)", table, err)
+			continue
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			log.Printf("backfillLoggedOn(%s): set %d rows", table, n)
+		}
+	}
+}

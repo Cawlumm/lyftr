@@ -115,6 +115,10 @@ type WeightLog struct {
 	Weight    float64   `json:"weight" db:"weight"` // raw value in user's preferred unit (lbs or kg)
 	Notes     string    `json:"notes,omitempty" db:"notes"`
 	LoggedAt  time.Time `json:"logged_at" db:"logged_at"`
+	// LoggedOn is the calendar day this entry belongs to (YYYY-MM-DD), as the user
+	// meant it. LoggedAt stays the instant it was recorded. Day-scoped reads group
+	// on this, so they need no timezone math and can't drift with travel or DST.
+	LoggedOn  string    `json:"logged_on" db:"logged_on"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
@@ -133,6 +137,10 @@ type FoodLog struct {
 	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
 	ImageURL    string    `json:"image_url,omitempty" db:"image_url"`
 	LoggedAt    time.Time `json:"logged_at" db:"logged_at"`
+	// LoggedOn is the calendar day this entry belongs to (YYYY-MM-DD), as the user
+	// meant it. LoggedAt stays the instant it was recorded. Day-scoped reads group
+	// on this, so they need no timezone math and can't drift with travel or DST.
+	LoggedOn    string    `json:"logged_on" db:"logged_on"`
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
 
@@ -252,6 +260,10 @@ type LogWeightRequest struct {
 	Weight   float64   `json:"weight" validate:"required,gt=0,lte=2000"`
 	Notes    string    `json:"notes"`
 	LoggedAt time.Time `json:"logged_at"`
+	// Optional. Clients that know the calendar day the user picked may send it
+	// directly; when empty the server derives it from LoggedAt in the user's zone.
+	// Accepting it means a client never has to fake a noon timestamp to pin a day.
+	LoggedOn string    `json:"logged_on"`
 }
 
 type LogFoodRequest struct {
@@ -267,6 +279,10 @@ type LogFoodRequest struct {
 	Barcode     string    `json:"barcode"`
 	ImageURL    string    `json:"image_url"`
 	LoggedAt    time.Time `json:"logged_at"`
+	// Optional. Clients that know the calendar day the user picked may send it
+	// directly; when empty the server derives it from LoggedAt in the user's zone.
+	// Accepting it means a client never has to fake a noon timestamp to pin a day.
+	LoggedOn    string    `json:"logged_on"`
 }
 
 type SaveFoodRequest struct {

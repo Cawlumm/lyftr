@@ -62,3 +62,17 @@ func localDayRange(day string, loc *time.Location) (time.Time, time.Time, bool) 
 	// nothing. Normalizing here keeps every comparison in one representation.
 	return t.UTC(), t.AddDate(0, 0, 1).UTC(), true
 }
+
+// resolveLoggedOn returns the calendar day a day-scoped entry belongs to.
+//
+// A client-supplied day wins: it knows which date the user actually picked, and
+// no amount of timestamp arithmetic can recover that intent better than the user
+// stating it. Otherwise the day is derived from the instant in the user's zone,
+// which is what makes this work for clients that only send logged_at — including
+// every build shipped before this existed.
+func (h *Handler) resolveLoggedOn(uid int64, supplied string, at time.Time) string {
+	if supplied != "" {
+		return supplied
+	}
+	return at.In(h.userLocation(uid)).Format("2006-01-02")
+}

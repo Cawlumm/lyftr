@@ -12,8 +12,8 @@ import (
 func insertWeightLog(t *testing.T, uid int64, weight float64, loggedAt time.Time) int64 {
 	t.Helper()
 	res, err := db.DB.Exec(
-		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, '', ?)`,
-		uid, weight, loggedAt,
+		`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, '', ?, ?)`,
+		uid, weight, loggedAt, loggedAt.Format("2006-01-02"),
 	)
 	if err != nil {
 		t.Fatalf("insert weight log: %v", err)
