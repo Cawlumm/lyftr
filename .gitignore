@@ -46,8 +46,12 @@ tmp/
 temp/
 *.tmp
 
-# design docs (keep screenshots for README)
+# design docs (keep screenshots for README). Pre-build planning notes — wireframes,
+# MVP scope, stack bake-offs — stay local: they described intentions, and the code is
+# now the truth. docs/TESTING.md is the exception: it documents how to run the suite
+# and CONTRIBUTING.md links to it, so it stays tracked.
 docs/*.md
+!docs/TESTING.md
 docs/*.txt
 
 # Local Claude context

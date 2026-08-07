@@ -89,8 +89,9 @@ Astro · Starlight (docs) — Docker · nginx.
 
 ## Contributing
 
-Bug reports, feature requests, and PRs are welcome — open an issue before large changes. Development
-setup and architecture notes live in [`docs/`](docs/).
+Bug reports, feature requests, and PRs are welcome — open an issue before large changes. Start with
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and conventions, and [docs/TESTING.md](docs/TESTING.md)
+for how the test suite is organised.
 
 > **Beta** — actively built, expect rough edges and frequent updates. The software equivalent of
 > going to the gym for the first time.
