@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, Target, Gauge, BookOpen, CalendarDays, Timer } from 'lucide-react'
+import { Plus, ArrowLeft, Trash2, AlertCircle, Dumbbell, Clock, FileText, Zap, BookOpen, CalendarDays, Timer } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs, lbsToDisplay } from '../stores/settings'
 import WeightInput from '../components/WeightInput'

@@ -9,7 +9,6 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
-import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {

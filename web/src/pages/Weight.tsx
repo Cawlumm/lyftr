@@ -221,7 +221,7 @@ export default function Weight() {
 
   // Chart data — re-fetched when period changes
   const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
-  const [chartLoading, setChartLoading] = useState(true)
+  const [, setChartLoading] = useState(true)
 
   useEffect(() => {
     setChartLoading(true)
