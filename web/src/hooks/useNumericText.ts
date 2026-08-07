@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react'
 // wipe a "0." mid-type.
 //
 // NOTE: we intentionally do NOT skip re-sync while focused — autofocus + a deferred
-// prefill (EditWeightModal, QuickWeighInSheet) must still populate the field. The
+// prefill (QuickWeighInSheet, the weight-detail edit tile) must still populate the
+// field. The
 // residual sub-0.1 mid-type snap is a limit of the 0.1-precision design (#39) + the
 // underlying type=number field, not something to work around here.
 export function useNumericText(value: string): [string, (next: string) => void] {
