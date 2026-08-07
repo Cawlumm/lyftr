@@ -71,6 +71,11 @@ func alterMigrations() {
 	ensureColumn("workouts", "program_id", `ALTER TABLE workouts ADD COLUMN program_id INTEGER`)
 	ensureIndex("idx_workouts_program", `CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`)
 
+	// The zone the server buckets this user's day-scoped data in. Defaults to UTC,
+	// which is exactly the behaviour every existing row was written under, so this
+	// column changes nothing until a client reports a real zone.
+	ensureColumn("user_settings", "timezone", `ALTER TABLE user_settings ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`)
+
 	workoutProgramDayMigration()
 
 	normalizeWorkoutStartedAt()
@@ -430,7 +435,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
   calorie_target INTEGER NOT NULL DEFAULT 2000,
   protein_target INTEGER NOT NULL DEFAULT 150,
   carb_target    INTEGER NOT NULL DEFAULT 250,
-  fat_target     INTEGER NOT NULL DEFAULT 65
+  fat_target     INTEGER NOT NULL DEFAULT 65,
+  timezone       TEXT    NOT NULL DEFAULT 'UTC'
 );
 
 CREATE TABLE IF NOT EXISTS exercises (

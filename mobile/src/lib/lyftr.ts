@@ -1,6 +1,7 @@
 // App-wide singletons: one API client + the Zustand stores, all bound to the mobile
 // SecureStore/AsyncStorage adapter. Import these hooks anywhere in the app.
 import { router } from 'expo-router'
+import * as Localization from 'expo-localization'
 import {
   createClient,
   createAuthStore,
@@ -24,7 +25,12 @@ export const client = createClient(storage, {
 
 export const useAuthStore = createAuthStore(client, storage)
 export const useServerStore = createServerStore(storage)
-export const useSettingsStore = createSettingsStore(client, storage)
+// Ask the OS, not Intl: Hermes doesn't expose the device zone to JavaScript, so a
+// polyfilled Intl.DateTimeFormat().resolvedOptions().timeZone reports "UTC" on
+// every phone — which would look like the feature worked while doing nothing.
+const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
+
+export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
 // Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.
 export const useThemeStore = createThemeStore(storage, 'light')
 // Workout session state (active workout + gym UI position) — device-local via

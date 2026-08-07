@@ -39,7 +39,7 @@ const DEFAULT_FOOD: types.DailyStats = {
 }
 const DEFAULT_SETTINGS: types.UserSettings = {
   user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
-  protein_target: 150, carb_target: 250, fat_target: 65,
+  protein_target: 150, carb_target: 250, fat_target: 65, timezone: 'UTC',
 }
 
 // Hex colors for recharts (can't use Tailwind classes)

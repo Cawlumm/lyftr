@@ -17,6 +17,12 @@ type UserSettings struct {
 	ProteinTarget int    `json:"protein_target" db:"protein_target"`
 	CarbTarget    int    `json:"carb_target" db:"carb_target"`
 	FatTarget     int    `json:"fat_target" db:"fat_target"`
+	// IANA zone name (e.g. "America/New_York"). The server buckets day-scoped data
+	// — food diary, daily macros, nutrition history — against this, so a client
+	// asking for "2026-08-07" gets that user's local day rather than the UTC day.
+	// "UTC" is the default and keeps the pre-existing behaviour for anyone who
+	// never sets one.
+	Timezone string `json:"timezone" db:"timezone"`
 }
 
 // DefaultUserSettings is the single source of truth for a brand-new user's
@@ -30,6 +36,7 @@ func DefaultUserSettings(uid int64) UserSettings {
 		ProteinTarget: 150,
 		CarbTarget:    250,
 		FatTarget:     65,
+		Timezone:      "UTC",
 	}
 }
 
@@ -283,6 +290,9 @@ type UpdateSettingsRequest struct {
 	ProteinTarget *int    `json:"protein_target" validate:"omitempty,gte=0"`
 	CarbTarget    *int    `json:"carb_target" validate:"omitempty,gte=0"`
 	FatTarget     *int    `json:"fat_target" validate:"omitempty,gte=0"`
+	// Validated by loading it, not by a pattern: the only definition of a usable
+	// zone is one the runtime can resolve (see controllers.ParseLocation).
+	Timezone *string `json:"timezone"`
 }
 
 type Program struct {

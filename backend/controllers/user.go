@@ -50,6 +50,16 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	// A zone name is only valid if the runtime can load it, so check it here rather
+	// than with a struct tag. Storing an unloadable name would be quietly corrosive:
+	// every later food query falls back to UTC, so the diary would look subtly wrong
+	// with nothing pointing at the cause.
+	if req.Timezone != nil {
+		if _, err := ParseLocation(*req.Timezone); err != nil {
+			utils.BadRequest(c, "unknown timezone: "+*req.Timezone)
+			return
+		}
+	}
 	s, err := h.s.User.UpsertSettings(uid, req)
 	if utils.DBError(c, err) {
 		return

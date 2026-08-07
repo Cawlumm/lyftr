@@ -3,6 +3,7 @@ package stores
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -137,29 +138,68 @@ func (s *FoodStore) DailyMacrosRange(uid int64, from, to time.Time) (models.Dail
 	return stats, err
 }
 
-func (s *FoodStore) History(uid int64, days int) ([]models.FoodHistoryPoint, error) {
+// History returns per-day macro totals for the last `days` days, bucketed by the
+// calendar day in loc.
+//
+// The grouping is done in Go rather than SQL. SQLite has no IANA tz support, so
+// the old `substr(logged_at, 1, 10)` grouped by the *UTC* date — which meant this
+// chart and the daily totals above it could disagree about which day an entry
+// belonged to, for the same user, on the same screen. Fixing it with a fixed hour
+// offset would break twice a year at the DST boundary; only a real zone lookup
+// per row is correct, and that has to happen here.
+//
+// The row count is bounded by `days` (30 by default), so materializing them is
+// cheap next to the correctness.
+func (s *FoodStore) History(uid int64, days int, loc *time.Location) ([]models.FoodHistoryPoint, error) {
+	// Widen the SQL window by a day on each side: a local day can start up to 14h
+	// before, and end up to 12h after, the UTC day of the same name, so the naive
+	// window would clip entries at both ends. Bucketing below discards anything
+	// that falls outside the requested local range.
 	rows, err := s.db.Query(
-		`SELECT substr(logged_at, 1, 10) as d,
-		        COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
-		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0)
+		`SELECT logged_at, calories, protein, carbs, fat
 		 FROM food_logs
 		 WHERE user_id = ? AND logged_at >= date('now', ?)
-		 GROUP BY d ORDER BY d ASC`,
-		uid, fmt.Sprintf("-%d days", days),
+		 ORDER BY logged_at ASC`,
+		uid, fmt.Sprintf("-%d days", days+1),
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	points := []models.FoodHistoryPoint{}
+
+	cutoff := time.Now().In(loc).AddDate(0, 0, -days).Format("2006-01-02")
+	byDay := map[string]*models.FoodHistoryPoint{}
+	order := []string{}
 	for rows.Next() {
-		var p models.FoodHistoryPoint
-		if err := rows.Scan(&p.Date, &p.Calories, &p.Protein, &p.Carbs, &p.Fat); err != nil {
+		var at time.Time
+		var cal, pro, carb, fat float64
+		if err := rows.Scan(&at, &cal, &pro, &carb, &fat); err != nil {
 			return nil, err
 		}
-		points = append(points, p)
+		d := at.In(loc).Format("2006-01-02")
+		if d < cutoff {
+			continue
+		}
+		p, ok := byDay[d]
+		if !ok {
+			p = &models.FoodHistoryPoint{Date: d}
+			byDay[d] = p
+			order = append(order, d)
+		}
+		p.Calories += cal
+		p.Protein += pro
+		p.Carbs += carb
+		p.Fat += fat
 	}
-	return points, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Strings(order)
+	points := []models.FoodHistoryPoint{}
+	for _, d := range order {
+		points = append(points, *byDay[d])
+	}
+	return points, nil
 }
 
 const savedFoodSelect = `SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode, created_at FROM saved_foods`

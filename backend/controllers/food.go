@@ -36,9 +36,21 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 		return
 	}
 
+	// A bare `date=` is the user's *local* day, not the UTC day. Resolving it here
+	// rather than making each client send a range is what lets already-installed
+	// apps get correct bucketing without an update (see user_settings.timezone).
+	loc := h.userLocation(uid)
 	date := c.Query("date")
 	if date == "" {
-		date = time.Now().UTC().Format("2006-01-02")
+		date = time.Now().In(loc).Format("2006-01-02")
+	}
+	if from, to, ok := localDayRange(date, loc); ok {
+		logs, err := h.s.Food.ListRange(uid, from, to)
+		if utils.DBError(c, err) {
+			return
+		}
+		utils.OK(c, logs)
+		return
 	}
 
 	logs, err := h.s.Food.ListByDay(uid, date)
@@ -189,12 +201,26 @@ func (h *Handler) DeleteFoodLog(c *gin.Context) {
 
 func (h *Handler) GetDailyStats(c *gin.Context) {
 	uid := middleware.UserID(c)
+	loc := h.userLocation(uid)
 	date := c.Query("date")
 	if date == "" {
-		date = time.Now().UTC().Format("2006-01-02")
+		date = time.Now().In(loc).Format("2006-01-02")
 	}
 
 	if from, to, ok := queryRange(c); ok {
+		stats, err := h.s.Food.DailyMacrosRange(uid, from, to)
+		if utils.DBError(c, err) {
+			return
+		}
+		stats.Date = date
+		if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
+			return
+		}
+		utils.OK(c, stats)
+		return
+	}
+
+	if from, to, ok := localDayRange(date, loc); ok {
 		stats, err := h.s.Food.DailyMacrosRange(uid, from, to)
 		if utils.DBError(c, err) {
 			return
@@ -226,7 +252,7 @@ func (h *Handler) GetFoodHistory(c *gin.Context) {
 		days = d
 	}
 
-	points, err := h.s.Food.History(uid, days)
+	points, err := h.s.Food.History(uid, days, h.userLocation(uid))
 	if utils.DBError(c, err) {
 		return
 	}

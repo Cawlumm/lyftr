@@ -35,6 +35,32 @@ const DEFAULTS: types.UserSettings = {
   carb_target: 250,
   fat_target: 65,
   ...clientPrefs(),
+  timezone: 'UTC',
+}
+
+// Browsers expose the device zone through Intl reliably (unlike Hermes on mobile,
+// which needs expo-localization). Guarded anyway: a null return sends nothing and
+// leaves whatever the server already has.
+const detectTimezone = (): string | null => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null
+  } catch {
+    return null
+  }
+}
+
+// Push the device zone up when it differs from the server's. Runs on every settings
+// fetch — which App.tsx already does on load — so moving or travelling is picked up
+// without an explicit sync step. Failures are swallowed: a stale zone shifts day
+// boundaries, but throwing here would break settings loading entirely.
+const syncTimezone = async (current: types.UserSettings): Promise<types.UserSettings> => {
+  const detected = detectTimezone()
+  if (!detected || detected === current.timezone) return current
+  try {
+    return await userAPI.updateSettings({ timezone: detected })
+  } catch {
+    return current
+  }
 }
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
@@ -45,7 +71,8 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     if (get().loaded) return
     try {
       const s = await userAPI.getSettings()
-      set({ settings: { ...s, ...clientPrefs() }, loaded: true })
+      const synced = await syncTimezone(s)
+      set({ settings: { ...synced, ...clientPrefs() }, loaded: true })
     } catch {
       set({ loaded: true })
     }

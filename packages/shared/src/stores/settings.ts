@@ -35,6 +35,7 @@ const BASE_DEFAULTS: types.UserSettings = {
   workout_layout: 'list',
   rest_enabled: true,
   rest_seconds_default: 90,
+  timezone: 'UTC',
 }
 
 export interface SettingsStore {
@@ -48,7 +49,41 @@ export interface SettingsStore {
   reset: () => void
 }
 
-export function createSettingsStore(client: LyftrClient, storage: StorageAdapter) {
+// Reports the device's IANA zone, or null when it can't be determined. Injected
+// per platform because the two runtimes disagree: browsers answer through Intl,
+// but Hermes does not expose the device zone to JS at all (a polyfilled Intl
+// reports "UTC" everywhere), so mobile has to ask the OS via expo-localization.
+// Returning null is the honest answer when detection fails — the store then sends
+// nothing and the server keeps whatever it has.
+export type TimezoneDetector = () => string | null
+
+export function createSettingsStore(
+  client: LyftrClient,
+  storage: StorageAdapter,
+  detectTimezone?: TimezoneDetector,
+) {
+  // Push the device zone up if it differs from what the server has. Runs after
+  // every settings fetch, which both apps already do on launch, so travel and a
+  // moved device are picked up without any explicit "sync timezone" step.
+  //
+  // Failures are swallowed: a wrong timezone degrades the day boundaries, but a
+  // throw here would break loading settings entirely, which is far worse.
+  const syncTimezone = async (current: types.UserSettings) => {
+    if (!detectTimezone) return current
+    let detected: string | null = null
+    try {
+      detected = detectTimezone()
+    } catch {
+      return current
+    }
+    if (!detected || detected === current.timezone) return current
+    try {
+      return await client.userAPI.updateSettings({ timezone: detected })
+    } catch {
+      return current
+    }
+  }
+
   return create<SettingsStore>((set, get) => ({
     settings: BASE_DEFAULTS,
     loaded: false,
@@ -58,7 +93,8 @@ export function createSettingsStore(client: LyftrClient, storage: StorageAdapter
       const prefs = await clientPrefs(storage)
       try {
         const s = await client.userAPI.getSettings()
-        set({ settings: { ...s, ...prefs }, loaded: true })
+        const synced = await syncTimezone(s)
+        set({ settings: { ...synced, ...prefs }, loaded: true })
       } catch {
         set({ settings: { ...get().settings, ...prefs }, loaded: true })
       }

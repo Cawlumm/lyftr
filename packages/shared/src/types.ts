@@ -17,6 +17,8 @@ export interface UserSettings {
   // Client-only (device storage, not persisted server-side):
   rest_enabled?: boolean        // master rest-timer on/off
   rest_seconds_default?: number // default rest seconds, seeds new exercises
+  /** IANA zone the server buckets this user's day-scoped data in. */
+  timezone: string
 }
 
 export interface Exercise {
