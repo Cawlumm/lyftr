@@ -29,6 +29,14 @@ interface Props {
 // Nothing overrides `step` today: the sets tables pass stepper={false}, and gym mode
 // builds its own tiles from StepperTile + NumberField (see PLATE_STEP). The prop
 // stays for a caller that wants a coarser jump.
+//
+// That gym mode uses a different component for the same job is the inconsistency
+// tracked in #91: web is the only place a stepper flanks the field instead of
+// sitting in a tile footer, and mobile's bodyweight screens already use the tile.
+// Converging the four web bodyweight inputs onto StepperTile deletes the stepper
+// half of this component outright — both buttons, `stepper`, `step`, STEP_DEFAULT —
+// since the remaining callers all pass stepper={false}. Deliberately a follow-up,
+// not part of #80: it is a visual change to four screens, not a constant.
 const INPUT_STEP = 0.1
 const STEP_DEFAULT = BODYWEIGHT_STEP
 
