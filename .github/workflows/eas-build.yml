@@ -168,11 +168,12 @@ jobs:
 
       # The tag is the version, for every platform — #77 unified the namespace, and this
       # is what comparable self-hosted projects do (Immich tags v3.1.0 and its mobile app
-      # reports 3.1.0). Stamping it here means the APK's versionName can never drift from
-      # the release it's attached to, whatever app.json happens to say.
+      # reports 3.1.0). mobile/app.config.js reads it from LYFTR_VERSION, so the tag is the
+      # only place a release version exists: nothing to bump, nothing to drift.
       #
       # A dry run has no tag (the ref is a branch, which can contain slashes and isn't a
-      # version at all), so it falls back to app.json and the stamp is a no-op.
+      # version at all), so it invents a run-specific one — see below for why that beats
+      # reusing app.json's placeholder.
       - name: Resolve the release version
         id: ver
         env:
@@ -180,47 +181,38 @@ jobs:
         run: |
           if [ "$EVENT" = "push" ]; then
             V="${GITHUB_REF_NAME#v}"
-            # The `v*` trigger matches anything — `vnext` would stamp expo.version="next",
-            # sail past the versionName check (which compares against this same string, so
-            # it can't disagree), and publish lyftr-vnext.apk. Only a real version ships.
+            # The `v*` trigger matches anything — `vnext` would build an app versioned
+            # "next", sail past the versionName check (which compares against this same
+            # string, so it can't disagree), and publish lyftr-vnext.apk.
             case "$V" in
               [0-9]*.[0-9]*.[0-9]*) ;;
               *) echo "::error::Tag '$GITHUB_REF_NAME' isn't a version — expected vMAJOR.MINOR.PATCH[-suffix]"; exit 1 ;;
             esac
           else
-            V="$(node -p "require('./mobile/app.json').expo.version")"
+            # Deliberately NOT app.json's version. That value is also app.config.js's
+            # fallback, so a dry run using it would compare the fallback against itself
+            # and pass whether or not LYFTR_VERSION ever reached the build — a check that
+            # cannot fail. A run-specific value can only appear in the APK if the variable
+            # actually flowed through EAS's config evaluation, which is the thing worth
+            # proving before a tag depends on it.
+            V="0.0.0-dryrun.$GITHUB_RUN_NUMBER"
           fi
           echo "version=$V" >> "$GITHUB_OUTPUT"
           echo "name=lyftr-v$V.apk" >> "$GITHUB_OUTPUT"
-
-      # Runner-only edit; never committed. app.json in the repo should be bumped to match
-      # the tag in the release commit anyway (see RELEASING.md) — this is the backstop that
-      # makes a forgotten bump impossible to ship.
-      #
-      # VERSION comes in through env, not ${{ }} interpolation: it derives from a tag name,
-      # and tag text expanded straight into a `run:` script is arbitrary code in a job that
-      # holds contents:write and EXPO_TOKEN. Needs push access to exploit, but the safe form
-      # costs nothing.
-      - name: Stamp the version into app.json
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          node -e '
-            const fs = require("fs"), p = "mobile/app.json";
-            const j = JSON.parse(fs.readFileSync(p, "utf8"));
-            j.expo.version = process.env.VERSION;
-            fs.writeFileSync(p, JSON.stringify(j, null, 2) + "\n");
-          '
-          node -p "'app.json version is now ' + require('./mobile/app.json').expo.version"
 
       # `preview` profile: distribution:internal → a signed, installable APK (production
       # builds an AAB store bundle, which isn't directly side-loadable). --local keeps the
       # build on this runner; credentials are still fetched from EAS, so the signing key
       # is the same one previous releases used.
+      # Both values arrive through env rather than ${{ }} interpolation: they derive from a
+      # tag name, and tag text expanded straight into a `run:` script is arbitrary code in a
+      # job holding contents:write and EXPO_TOKEN. Exploiting it needs push access, but the
+      # safe form costs nothing. LYFTR_VERSION is what app.config.js reads.
       - name: Build the APK on this runner
         working-directory: mobile
         env:
-          APK_NAME: ${{ steps.ver.outputs.name }} # via env, same reasoning as the stamp step
+          APK_NAME: ${{ steps.ver.outputs.name }}
+          LYFTR_VERSION: ${{ steps.ver.outputs.version }} # set on both paths — see the resolve step
         run: |
           eas build \
             --platform android \
