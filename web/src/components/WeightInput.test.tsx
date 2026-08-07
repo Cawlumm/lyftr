@@ -16,11 +16,13 @@ describe('WeightInput', () => {
     expect(screen.getByLabelText(/increase/i)).toBeTruthy()
   })
 
-  it('+ adjusts by step and emits a string', () => {
+  // 2.5, not 0.1: an explicit step equal to STEP_DEFAULT would pass whether or not
+  // the prop is honoured at all. Doubles as the gym-mode plate increment.
+  it('+ adjusts by an explicit step and emits a string', () => {
     const onChange = vi.fn()
-    render(<WeightInput value="100" onChange={onChange} unit="lbs" step={0.1} />)
+    render(<WeightInput value="100" onChange={onChange} unit="lbs" step={2.5} />)
     fireEvent.click(screen.getByLabelText(/increase/i))
-    expect(onChange).toHaveBeenCalledWith('100.1')
+    expect(onChange).toHaveBeenCalledWith('102.5')
   })
 
   it('clamps at 0 — never goes negative', () => {
@@ -42,11 +44,20 @@ describe('WeightInput', () => {
     expect(screen.getByText('kg')).toBeTruthy()
   })
 
-  it('default + button steps by 0.5 (locks STEP_DEFAULT — bodyweight ergonomics)', () => {
+  it('default + button steps by 0.1 (locks STEP_DEFAULT — bodyweight moves in tenths)', () => {
     const onChange = vi.fn()
     render(<WeightInput value="100" onChange={onChange} unit="lbs" />) // no step prop
     fireEvent.click(screen.getByLabelText(/increase/i))
-    expect(onChange).toHaveBeenCalledWith('100.5')
+    expect(onChange).toHaveBeenCalledWith('100.1')
+  })
+
+  it('repeated default steps stay exact — no float dust', () => {
+    const onChange = vi.fn()
+    render(<WeightInput value="183.6" onChange={onChange} unit="lbs" />)
+    fireEvent.click(screen.getByLabelText(/increase/i))
+    expect(onChange).toHaveBeenCalledWith('183.7')
+    fireEvent.click(screen.getByLabelText(/decrease/i))
+    expect(onChange).toHaveBeenLastCalledWith('183.6')
   })
 
   it('the field always accepts 0.1 precision regardless of the button step', () => {

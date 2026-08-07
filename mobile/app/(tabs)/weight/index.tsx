@@ -20,7 +20,7 @@ import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { clampStep } from '../../../src/utils/number'
+import { BODYWEIGHT_STEP, clampStep } from '../../../src/utils/number'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -250,7 +250,7 @@ export default function Weight() {
                   icon={Scale}
                   label={`Weight (${wUnit})`}
                   name="weight"
-                  step={0.5}
+                  step={BODYWEIGHT_STEP}
                   onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
                 >
                   <NumberField

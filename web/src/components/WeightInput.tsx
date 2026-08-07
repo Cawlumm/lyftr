@@ -1,6 +1,6 @@
 import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
-import { clampStep } from '../utils/number'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 
 interface Props {
   value: string
@@ -20,11 +20,25 @@ interface Props {
   max?: number
 }
 
-// The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
-// by `step` — a larger, ergonomic increment — so gym mode can jump by 2.5 while you
-// can still type an exact 0.1 value. Bodyweight keeps the original 0.5 button feel.
+// Two different granularities that happen to be the same number right now, and must
+// not be collapsed into one: INPUT_STEP is what the field accepts typed (the #39
+// feature — always tenths, whatever the buttons do), STEP_DEFAULT is how far one
+// +/- tap moves. They coincide because bodyweight, the only caller that shows the
+// buttons, wants the finest step the field can hold (#80).
+//
+// Nothing overrides `step` today: the sets tables pass stepper={false}, and gym mode
+// builds its own tiles from StepperTile + NumberField (see PLATE_STEP). The prop
+// stays for a caller that wants a coarser jump.
+//
+// That gym mode uses a different component for the same job is the inconsistency
+// tracked in #91: web is the only place a stepper flanks the field instead of
+// sitting in a tile footer, and mobile's bodyweight screens already use the tile.
+// Converging the four web bodyweight inputs onto StepperTile deletes the stepper
+// half of this component outright — both buttons, `stepper`, `step`, STEP_DEFAULT —
+// since the remaining callers all pass stepper={false}. Deliberately a follow-up,
+// not part of #80: it is a visual change to four screens, not a constant.
 const INPUT_STEP = 0.1
-const STEP_DEFAULT = 0.5
+const STEP_DEFAULT = BODYWEIGHT_STEP
 
 // Single component for every weight input in the app. Conversion-agnostic: the
 // caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`

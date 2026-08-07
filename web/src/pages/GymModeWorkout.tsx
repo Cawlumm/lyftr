@@ -17,7 +17,7 @@ import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
-import { clampStep, clampValue } from '../utils/number'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../utils/number'
 import { nextIncompleteSet } from '../utils/workoutSets'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
@@ -611,7 +611,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         <div className="w-full grid grid-cols-2 gap-3">
           {/* Reps — key by set so a half-typed value can't bleed to the next set */}
           <StepperTile
-            icon={Repeat} label="Reps" name="reps" step={1} disabled={set.completed}
+            icon={Repeat} label="Reps" name="reps" step={REP_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}
           >
             <NumberField
@@ -627,7 +627,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
           {/* Weight */}
           <StepperTile
-            icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={2.5} disabled={set.completed}
+            icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={PLATE_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
           >
             <NumberField
