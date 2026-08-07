@@ -235,7 +235,7 @@ export default function EditWorkout() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
-                          <WeightInput stepper={false} size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
+                          <WeightInput size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
                         </div>
                         <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                           <Trash2 className="w-4 h-4 text-error-400" />

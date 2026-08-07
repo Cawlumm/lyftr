@@ -7,7 +7,9 @@ import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
-import WeightInput from '../components/WeightInput'
+import StepperTile from '../components/ui/StepperTile'
+import NumberField from '../components/ui/NumberField'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
@@ -377,13 +379,15 @@ export default function Weight() {
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
-          <WeightInput
-            value={newWeight}
-            onChange={setNewWeight}
-            unit={wUnit}
-            max={maxWeight(settings.weight_unit)}
-            size="lg"
-          />
+          <StepperTile
+            icon={Scale}
+            label={`Weight (${wUnit})`}
+            name="weight"
+            step={BODYWEIGHT_STEP}
+            onStep={d => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
+          >
+            <NumberField value={newWeight} onChange={setNewWeight} aria-label="Weight" />
+          </StepperTile>
 
           {showNotes ? (
             <div className="space-y-2 bg-surface-overlay border border-surface-border rounded-xl p-3">

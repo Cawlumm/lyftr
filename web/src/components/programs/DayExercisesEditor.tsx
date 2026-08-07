@@ -157,7 +157,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                       </div>
                       <div className="flex-1 min-w-0">
                         <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Weight</label>
-                        <WeightInput stepper={false} size="sm" value={set.target_weight ? String(set.target_weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'target_weight', v)} unit={wUnit} placeholder="135" />
+                        <WeightInput size="sm" value={set.target_weight ? String(set.target_weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'target_weight', v)} unit={wUnit} placeholder="135" />
                       </div>
                       <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                         <Trash2 className="w-4 h-4 text-error-400" />

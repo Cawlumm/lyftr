@@ -399,7 +399,7 @@ export default function EditWorkoutModal({ isOpen, onClose, onSuccess, workoutId
                           {/* Weight */}
                           <div className="flex-1 min-w-0">
                             <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
-                            <WeightInput stepper={false} size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
+                            <WeightInput size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
                           </div>
 
                           {/* Remove set button */}

@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom'
 import { X, Scale, AlertCircle, Save } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
-import WeightInput from './WeightInput'
+import StepperTile from './ui/StepperTile'
+import NumberField from './ui/NumberField'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { dayToIsoNoon, isoToDayInput, todayStr } from '../utils/dateUtils'
@@ -97,12 +99,15 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
             </div>
           )}
 
-          <div>
-            <label className="label">Weight</label>
-            <div className="mt-1">
-              <WeightInput value={weight} onChange={setWeight} unit={wUnit} max={maxWeight(settings.weight_unit)} autoFocus />
-            </div>
-          </div>
+          <StepperTile
+            icon={Scale}
+            label={`Weight (${wUnit})`}
+            name="weight"
+            step={BODYWEIGHT_STEP}
+            onStep={d => setWeight(String(clampStep(parseFloat(weight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
+          >
+            <NumberField value={weight} onChange={setWeight} autoFocus aria-label="Weight" />
+          </StepperTile>
 
           <div>
             <label className="label">Date</label>
