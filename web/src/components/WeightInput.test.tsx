@@ -16,11 +16,13 @@ describe('WeightInput', () => {
     expect(screen.getByLabelText(/increase/i)).toBeTruthy()
   })
 
-  it('+ adjusts by step and emits a string', () => {
+  // 2.5, not 0.1: an explicit step equal to STEP_DEFAULT would pass whether or not
+  // the prop is honoured at all. Doubles as the gym-mode plate increment.
+  it('+ adjusts by an explicit step and emits a string', () => {
     const onChange = vi.fn()
-    render(<WeightInput value="100" onChange={onChange} unit="lbs" step={0.1} />)
+    render(<WeightInput value="100" onChange={onChange} unit="lbs" step={2.5} />)
     fireEvent.click(screen.getByLabelText(/increase/i))
-    expect(onChange).toHaveBeenCalledWith('100.1')
+    expect(onChange).toHaveBeenCalledWith('102.5')
   })
 
   it('clamps at 0 — never goes negative', () => {
