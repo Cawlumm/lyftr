@@ -103,6 +103,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: cd web && npm ci
       - run: cd web && npm run coverage   # runs the unit suite + prints a coverage report (not gated)
+      # After the tests, deliberately: lint is a hard gate, and the warning budget has
+      # no slack, so putting it first would let a single new `any` abort the job before
+      # any test ran — turning a style nit into "no test signal at all".
+      - run: cd web && npm run lint       # gates on errors; the `any`/deps backlog is warnings (see eslint.config.mjs)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
