@@ -1,4 +1,4 @@
-export const MUSCLE_COLORS: Record<string, string> = {
+const MUSCLE_COLORS: Record<string, string> = {
   chest:      'bg-red-500/20 text-red-400 border-red-500/30',
   back:       'bg-blue-500/20 text-blue-400 border-blue-500/30',
   shoulders:  'bg-orange-500/20 text-orange-400 border-orange-500/30',

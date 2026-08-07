@@ -31,4 +31,3 @@ export const useThemeStore = createThemeStore(storage, 'light')
 // AsyncStorage; rest-timer state is in-memory only (see the store).
 export const useWorkoutSession = createWorkoutSession(storage)
 
-export { storage }

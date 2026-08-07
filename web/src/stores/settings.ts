@@ -75,7 +75,6 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
   reset: () => set({ settings: DEFAULTS, loaded: false }),
 }))
 
-export const weightLabel = (unit: string) => unit === 'kg' ? 'kg' : 'lbs'
 export const weightShort = (unit: string) => unit === 'kg' ? 'kg' : 'lb'
 
 // Backend always stores lbs. Use these helpers everywhere weight values are read/written.
@@ -101,7 +100,7 @@ export const displayVolume = (lbs: number, unit: string): number => Math.round(l
 // Bodyweight bounds — mirror the backend (LogWeightRequest: gt=0, lte=2000 lbs)
 // so the user gets instant feedback instead of a round-trip 400. Defined once
 // here; the weight-logging forms validate through weightError/isValidWeight.
-export const MAX_WEIGHT_LBS = 2000
+const MAX_WEIGHT_LBS = 2000
 
 // The max in the user's display unit (2000 lb ≈ 907 kg).
 export const maxWeight = (unit: string): number => round1(lbsToDisplay(MAX_WEIGHT_LBS, unit))

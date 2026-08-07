@@ -17,7 +17,6 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.28.0",
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.6.2",
     "date-fns": "^3.0.0",

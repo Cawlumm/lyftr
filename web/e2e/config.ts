@@ -28,5 +28,3 @@ const base = getBase()
 export const API_BASE = process.env.API_URL ?? (
   process.env.E2E_DOCKER ? `${base}/api/v1` : 'http://localhost:3000/api/v1'
 )
-export const TEST_EMAIL = process.env.TEST_EMAIL ?? 'demo@lyftr.local'
-export const TEST_PASSWORD = process.env.TEST_PASSWORD ?? 'password123'

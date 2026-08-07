@@ -76,7 +76,7 @@ export function Skeleton({ width, height = 14, radius = 8, style, className }: P
 
 // A stack of text-line placeholders: a heavier "title" line then lighter meta lines.
 // widths cycle so successive lines look naturally ragged.
-export function SkeletonText({ lines = 2, widths, style }: {
+function SkeletonText({ lines = 2, widths, style }: {
   lines?: number
   widths?: (number | string)[]
   style?: ViewStyle
@@ -93,7 +93,7 @@ export function SkeletonText({ lines = 2, widths, style }: {
 
 // A generic list-row placeholder inside a Card: optional leading square (thumbnail),
 // text lines, optional trailing glyph — the shape of the app's card list rows.
-export function SkeletonListRow({ avatar = 44, lines = 3, trailing = true }: {
+function SkeletonListRow({ avatar = 44, lines = 3, trailing = true }: {
   avatar?: number | false
   lines?: number
   trailing?: boolean
@@ -123,7 +123,7 @@ export function SkeletonList({ count = 6, ...row }: {
 
 // A single summary-stat card placeholder (label + big value), and a row of them — the
 // shape used by the Workouts/Weight/Dashboard stat grids.
-export function SkeletonStat() {
+function SkeletonStat() {
   return (
     <Card className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
       <Skeleton width={40} height={10} radius={4} />
