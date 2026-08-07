@@ -349,7 +349,6 @@ export default function ActiveWorkout() {
 
                         {/* Weight */}
                         <WeightInput
-                          stepper={false}
                           value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                           onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                           unit={wUnit}

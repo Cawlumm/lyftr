@@ -6,7 +6,9 @@ import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } 
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
-import WeightInput from './WeightInput'
+import StepperTile from './ui/StepperTile'
+import NumberField from './ui/NumberField'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import * as types from '../types'
 
 interface Props {
@@ -147,14 +149,15 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             </div>
           )}
 
-          <WeightInput
-            value={value}
-            onChange={setValue}
-            unit={wUnit}
-            max={maxWeight(settings.weight_unit)}
-            autoFocus
-            size="lg"
-          />
+          <StepperTile
+            icon={Scale}
+            label={`Weight (${wUnit})`}
+            name="weight"
+            step={BODYWEIGHT_STEP}
+            onStep={d => setValue(String(clampStep(parseFloat(value) || 0, d, { max: maxWeight(settings.weight_unit) })))}
+          >
+            <NumberField value={value} onChange={setValue} autoFocus aria-label="Weight" />
+          </StepperTile>
 
           {!showExtras ? (
             <button

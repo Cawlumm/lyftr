@@ -8,7 +8,9 @@ import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, r
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
-import WeightInput from '../components/WeightInput'
+import StepperTile from '../components/ui/StepperTile'
+import NumberField from '../components/ui/NumberField'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import * as types from '../types'
 
 export default function WeightDetail() {
@@ -185,18 +187,15 @@ export default function WeightDetail() {
               </div>
             )}
 
-            <div>
-              <label className="label">Weight</label>
-              <div className="mt-1">
-                <WeightInput
-                  value={editWeight}
-                  onChange={setEditWeight}
-                  unit={wUnit}
-                  max={maxWeight(settings.weight_unit)}
-                  size="lg"
-                />
-              </div>
-            </div>
+            <StepperTile
+              icon={Scale}
+              label={`Weight (${wUnit})`}
+              name="weight"
+              step={BODYWEIGHT_STEP}
+              onStep={d => setEditWeight(String(clampStep(parseFloat(editWeight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
+            >
+              <NumberField value={editWeight} onChange={setEditWeight} aria-label="Weight" />
+            </StepperTile>
 
             <div>
               <label className="label">Date</label>
