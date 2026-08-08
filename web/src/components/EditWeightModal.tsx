@@ -6,7 +6,7 @@ import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, r
 import WeightInput from './WeightInput'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { dayToInstant, isoToDayInput, todayStr } from '../utils/dateUtils'
+import { dayToInstant, instantToDay, todayStr } from '../utils/dateUtils'
 import * as types from '../types'
 
 interface Props {
@@ -29,7 +29,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
   useEffect(() => {
     if (!isOpen || !log) return
     setWeight(String(displayWeight(log.weight, settings.weight_unit)))
-    setLoggedAt(isoToDayInput(log.logged_at))
+    setLoggedAt(instantToDay(log.logged_at))
     setNotes(log.notes ?? '')
     setError('')
   }, [isOpen, log])

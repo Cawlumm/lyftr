@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import WeightInput from './WeightInput'
 import * as types from '../types'
 
@@ -60,7 +60,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       return
     }
 
-    if (!duplicateWarningDismissedRef.current && lastLog && isoToDayInput(lastLog.logged_at) === date) {
+    if (!duplicateWarningDismissedRef.current && lastLog && instantToDay(lastLog.logged_at) === date) {
       setShowDuplicateWarning(true)
       return
     }

@@ -7,7 +7,7 @@ import {
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import BarcodeScanner from './BarcodeScanner'
 import * as types from '../types'
 
@@ -89,7 +89,7 @@ export default function FoodLogModal({
       setSelected(entryToResult(editEntry))
       setServings(editEntry.servings)
       setMeal(editEntry.meal)
-      setDate(isoToDayInput(editEntry.logged_at))
+      setDate(instantToDay(editEntry.logged_at))
     } else {
       setPhase('search')
       setQuery('')

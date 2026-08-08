@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 import * as types from '../types'
@@ -274,7 +274,7 @@ export default function Weight() {
       return
     }
 
-    if (!duplicateWarningDismissedRef.current && items.length > 0 && isoToDayInput(items[0].logged_at) === newDate) {
+    if (!duplicateWarningDismissedRef.current && items.length > 0 && instantToDay(items[0].logged_at) === newDate) {
       setShowDuplicateWarning(true)
       return
     }

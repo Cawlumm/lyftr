@@ -23,14 +23,15 @@ export const todayStr = (): string => {
  * an existing entry so the displayed date matches what the user originally
  * picked.
  */
-export const isoToDayInput = (iso: string): string => {
+export const instantToDay = (iso: string): string => {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /**
- * The instant to store for a user-picked calendar day.
+ * The instant to store for a user-picked calendar day. The inverse of
+ * `instantToDay`.
  *
  * One rule for every date the user chooses, replacing the four this codebase grew:
  * a fake noon anchor, a bare `new Date(ymd)` (which parses as UTC midnight and put

@@ -7,7 +7,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import WeightInput from '../components/WeightInput'
 import * as types from '../types'
 
@@ -42,7 +42,7 @@ export default function WeightDetail() {
       .then(data => {
         setLog(data)
         setEditWeight(String(displayWeight(data.weight, settings.weight_unit)))
-        setEditDate(isoToDayInput(data.logged_at))
+        setEditDate(instantToDay(data.logged_at))
         setEditNotes(data.notes ?? '')
       })
       .catch(err => setError(err?.response?.data?.error || 'Failed to load entry'))
@@ -52,7 +52,7 @@ export default function WeightDetail() {
   const startEdit = () => {
     if (!log) return
     setEditWeight(String(displayWeight(log.weight, settings.weight_unit)))
-    setEditDate(isoToDayInput(log.logged_at))
+    setEditDate(instantToDay(log.logged_at))
     setEditNotes(log.notes ?? '')
     setEditError('')
     setEditing(true)

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToInstant, isoToDayInput, displayToLbs, lbsToDisplay, weightShort, type Exercise,
+  apiErrorMessage, dayToInstant, instantToDay, displayToLbs, lbsToDisplay, weightShort, type Exercise,
 } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
@@ -94,7 +94,7 @@ export default function EditWorkout() {
         setFormData({
           name: workout.name,
           notes: workout.notes || '',
-          date: isoToDayInput(startedAt),
+          date: instantToDay(startedAt),
           duration: Math.round(workout.duration / 60),
           exercises: (workout.exercises || []).map((ex) => ({
             exercise_id: ex.exercise_id,

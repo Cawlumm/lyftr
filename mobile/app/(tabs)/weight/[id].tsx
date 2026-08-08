@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToInstant, displayWeight, isoToDayInput, maxWeight, resolveWeightLbs,
+  apiErrorMessage, dayToInstant, displayWeight, instantToDay, maxWeight, resolveWeightLbs,
   weightError, weightShort, type WeightLog,
 } from '@lyftr/shared'
 import {
@@ -46,7 +46,7 @@ export default function WeightDetail() {
       .then((data) => {
         setLog(data)
         setEditWeight(String(displayWeight(data.weight, unit)))
-        setEditDate(isoToDayInput(data.logged_at))
+        setEditDate(instantToDay(data.logged_at))
         setEditNotes(data.notes ?? '')
         // Deep-link from the list kebab's Edit action opens straight into edit mode.
         if (edit) setEditing(true)
@@ -59,7 +59,7 @@ export default function WeightDetail() {
   const startEdit = () => {
     if (!log) return
     setEditWeight(String(displayWeight(log.weight, unit)))
-    setEditDate(isoToDayInput(log.logged_at))
+    setEditDate(instantToDay(log.logged_at))
     setEditNotes(log.notes ?? '')
     setEditError('')
     setEditing(true)

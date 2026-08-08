@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToInstant, displayToLbs, isoToDayInput, maxWeight, todayStr,
+  apiErrorMessage, dayToInstant, displayToLbs, instantToDay, maxWeight, todayStr,
   weightError, weightShort, type WeightLog,
 } from '@lyftr/shared'
 import {
@@ -63,7 +63,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       setError(wErr)
       return
     }
-    if (!(forceDismissed || dupDismissed) && lastLog && isoToDayInput(lastLog.logged_at) === date) {
+    if (!(forceDismissed || dupDismissed) && lastLog && instantToDay(lastLog.logged_at) === date) {
       setShowDuplicateWarning(true)
       return
     }
