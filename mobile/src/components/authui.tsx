@@ -11,10 +11,15 @@ import {
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from 'react-native-reanimated'
-import { AlertCircle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from 'lucide-react-native'
+import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from 'lucide-react-native'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
-import { testServerConnection, normalizeServerUrl } from '@lyftr/shared'
+import {
+  testServerConnection,
+  normalizeServerUrl,
+  isInsecureServerUrl,
+  INSECURE_SERVER_WARNING,
+} from '@lyftr/shared'
 
 const FONT = {
   label: 'PlusJakartaSans_800ExtraBold',
@@ -223,6 +228,7 @@ export function ServerRow() {
   const [msg, setMsg] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
   const [testing, setTesting] = useState(false)
+  const insecure = isInsecureServerUrl(serverUrl)
 
   const save = async () => {
     setTesting(true)
@@ -234,15 +240,17 @@ export function ServerRow() {
       setTesting(false)
       return
     }
+    // Warn-but-save, matching Settings: gating the save on a successful probe means a user
+    // whose server is unreachable for any reason can never store a URL from this screen —
+    // exactly the dead end hit when the device itself blocks the connection (issue #79).
+    await setServerUrl(base)
     const result = await testServerConnection(base)
-    if (result.ok) {
-      await setServerUrl(url)
-      setOk(true)
-      setMsg(`Connected to ${result.info.name} v${result.info.version}`)
-    } else {
-      setOk(false)
-      setMsg(result.message)
-    }
+    setOk(result.ok)
+    setMsg(
+      result.ok
+        ? `Connected to ${result.info.name} v${result.info.version}`
+        : `Saved — ${result.message}`,
+    )
     setTesting(false)
   }
 
@@ -264,7 +272,9 @@ export function ServerRow() {
       >
         <Server size={16} color={brand.violet} strokeWidth={2} />
         <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 13, color: colors.txPrimary }}>Server settings</Text>
-        <Text style={{ fontFamily: FONT.body, fontSize: 12, color: colors.txSecondary }}>
+        {/* Stays visible while the row is collapsed — the risk outlives the moment of entry. */}
+        {insecure ? <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} /> : null}
+        <Text style={{ fontFamily: FONT.body, fontSize: 12, color: insecure ? brand.warning : colors.txSecondary }}>
           {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : 'default'}
         </Text>
         <ChevronDown size={14} color={colors.txMuted} strokeWidth={2.4} />
@@ -274,7 +284,7 @@ export function ServerRow() {
           <TextInput
             value={url}
             onChangeText={(t) => { setMsg(null); setUrl(t) }}
-            placeholder="http://your-server:3000"
+            placeholder="https://your-server.example.com"
             placeholderTextColor={colors.txMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -293,6 +303,14 @@ export function ServerRow() {
           />
           {msg ? (
             <Text style={{ fontFamily: FONT.body, fontSize: 12, color: ok ? brand.success : brand.error }}>{msg}</Text>
+          ) : null}
+          {insecure ? (
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+              <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 12, color: brand.warning }}>
+                {INSECURE_SERVER_WARNING}
+              </Text>
+            </View>
           ) : null}
           <Pressable
             onPress={save}

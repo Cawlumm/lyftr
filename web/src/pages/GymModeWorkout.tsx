@@ -17,7 +17,7 @@ import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
-import { clampStep, clampValue } from '../utils/number'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../utils/number'
 import { nextIncompleteSet } from '../utils/workoutSets'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
@@ -86,6 +86,17 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
   useEffect(() => { setImgFailed(false) }, [activeIdx])
 
+  // Jump to a newly added exercise. Must sit above the `!session` early return with
+  // every other hook: when a session ends, `session` goes null and React would see
+  // fewer hooks than the previous render — the "rendered fewer hooks than expected"
+  // crash. Reads through `?.` because it now also runs on the session-less render.
+  const exerciseCount = session?.exercises.length ?? 0
+  const prevLenRef = useRef(exerciseCount)
+  useEffect(() => {
+    if (exerciseCount > prevLenRef.current) onSetActiveIdx(exerciseCount - 1)
+    prevLenRef.current = exerciseCount
+  }, [exerciseCount])
+
   if (!session) return null
 
   const handleFinish = async () => {
@@ -110,15 +121,6 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     // Navigate away from /workout/active so list mode doesn't show underneath
     if (window.location.pathname === '/workout/active') navigate('/')
   }
-
-  // Jump to newly added exercise
-  const prevLenRef = useRef(session.exercises.length)
-  useEffect(() => {
-    if (session.exercises.length > prevLenRef.current) {
-      onSetActiveIdx(session.exercises.length - 1)
-    }
-    prevLenRef.current = session.exercises.length
-  }, [session.exercises.length])
 
   const totalSets = session.exercises.reduce((s, ex) => s + ex.sets.length, 0)
   const completedSets = session.exercises.reduce((s, ex) => s + ex.sets.filter(st => st.completed).length, 0)
@@ -611,7 +613,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         <div className="w-full grid grid-cols-2 gap-3">
           {/* Reps — key by set so a half-typed value can't bleed to the next set */}
           <StepperTile
-            icon={Repeat} label="Reps" name="reps" step={1} disabled={set.completed}
+            icon={Repeat} label="Reps" name="reps" step={REP_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}
           >
             <NumberField
@@ -627,7 +629,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
           {/* Weight */}
           <StepperTile
-            icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={2.5} disabled={set.completed}
+            icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={PLATE_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
           >
             <NumberField

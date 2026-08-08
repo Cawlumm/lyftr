@@ -3,7 +3,7 @@
     "name": "Lyftr",
     "slug": "lyftr",
     "scheme": "lyftr",
-    "version": "0.1.0",
+    "version": "0.0.0-dev",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +16,11 @@
       "supportsTablet": true,
       "bundleIdentifier": "local.lyftr.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Lyftr uses the camera to scan food barcodes so you can log nutrition quickly."
+        "NSCameraUsageDescription": "Lyftr uses the camera to scan food barcodes so you can log nutrition quickly.",
+        "NSLocalNetworkUsageDescription": "Lyftr connects to your self-hosted Lyftr server on your local network.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
@@ -55,7 +59,14 @@
       ],
       "expo-font",
       "@react-native-community/datetimepicker",
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-network-security-config",
+        {
+          "enable": true,
+          "networkSecurityConfig": "./network_security_config.xml"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

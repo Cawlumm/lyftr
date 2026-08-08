@@ -11,7 +11,7 @@ import {
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
-import { clampStep } from '../../utils/number'
+import { BODYWEIGHT_STEP, clampStep } from '../../utils/number'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {
@@ -134,7 +134,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
             icon={Scale}
             label={`Weight (${wUnit})`}
             name="weight"
-            step={0.5}
+            step={BODYWEIGHT_STEP}
             onStep={(d) => setValue(String(clampStep(parseFloat(value) || 0, d, { min: 0, max: maxWeight(unit) })))}
           >
             <NumberField

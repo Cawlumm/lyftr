@@ -21,6 +21,49 @@ export const normalizeServerUrl = (raw: string): string => {
   }
 }
 
+// Loopback never leaves the machine, so http:// to it is not exposed on any network.
+const LOOPBACK = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
+
+// Mirrors isInsecureServerUrl in @lyftr/shared — see there for why unencrypted traffic
+// costs what it does. Duplicated only because web doesn't consume the shared package
+// yet; the two converge under #67.
+export const isInsecureServerUrl = (serverUrl: string): boolean => {
+  if (!serverUrl) return false // '' = same origin, not a user choice
+  try {
+    const u = new URL(serverUrl)
+    return u.protocol === 'http:' && !LOOPBACK.test(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+// Kept identical to the shared copy so the risk reads the same on every surface.
+export const INSECURE_SERVER_WARNING =
+  'Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.'
+
+// True when the browser will refuse this URL outright as active mixed content: an HTTPS
+// page cannot call an http:// origin, and the page cannot opt out — no header, CSP
+// directive or fetch option grants an exception (upgrade-insecure-requests rewrites to
+// https rather than permitting http). Only the user can override it, per-site, in their
+// own browser settings.
+//
+// Loopback is exempt: it is a "potentially trustworthy" origin under the Secure Contexts
+// spec, so mixed-content checks let it through even from an HTTPS page.
+export const isMixedContentBlocked = (serverUrl: string): boolean => {
+  if (!serverUrl) return false // same origin — never mixed
+  if (typeof window === 'undefined') return false
+  if (window.location.protocol !== 'https:') return false
+  try {
+    const u = new URL(serverUrl)
+    return u.protocol === 'http:' && !LOOPBACK.test(u.hostname)
+  } catch {
+    return false
+  }
+}
+
+export const MIXED_CONTENT_WARNING =
+  "This browser will block it — an HTTPS page can't call an http:// server. Use https:// for the server too, or leave this blank to use this site's own backend."
+
 interface ServerStore {
   serverUrl: string // '' = same origin (reverse proxy)
   setServerUrl: (url: string) => void

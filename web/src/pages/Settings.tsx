@@ -5,13 +5,11 @@ import { useServerInfo } from '../hooks/useServerInfo'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
-import * as types from '../types'
-import { HelpTip } from '../components/Tooltip'
 import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
 import {
-  User, Shield, Target, Moon, Sun, Server, LogOut, Trash2, ChevronRight, Check, AlertCircle, Loader,
-  Dumbbell, RefreshCw, Pencil, Clock, Minus, Plus,
+  Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
+  RefreshCw, Pencil, Clock, Minus, Plus,
 } from 'lucide-react'
 
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
@@ -68,7 +66,7 @@ export default function Settings() {
       const s = await exerciseAPI.seedStatus()
       setSeedStatus(s)
       return s
-    } catch {}
+    } catch { /* seeding status is a best-effort probe; absence just hides the banner */ }
   }, [])
 
   useEffect(() => {
@@ -122,7 +120,7 @@ export default function Settings() {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
     try {
       await updateSettings({ ...formData, weight_unit: unit })
-    } catch {}
+    } catch { /* local state already switched; the next save retries the write */ }
   }
 
   const handleSave = async () => {

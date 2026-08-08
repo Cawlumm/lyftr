@@ -29,7 +29,7 @@ export default function WorkoutExercisePicker() {
     try {
       const data = await exerciseAPI.list(q ? { q } : undefined)
       setExercises(data || [])
-    } catch {}
+    } catch { /* a failed search keeps the previous list rather than blanking it */ }
     finally { setLoading(false) }
   }
 

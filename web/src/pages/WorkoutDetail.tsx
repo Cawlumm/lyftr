@@ -198,7 +198,7 @@ export default function WorkoutDetail() {
         </div>
       )}
       <div className="space-y-3">
-        {exs.map((ex, idx) => {
+        {exs.map((ex) => {
           const sets = ex.sets ?? []
           const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map(s => s.weight || 0)) : 0
           const maxWeight = displayWeight(maxWeightLbs, wUnit)

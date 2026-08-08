@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Home, Dumbbell, Apple, Scale, BookOpen,
   LogOut, Moon, Sun, User,
-  Shield, Timer, ChevronRight,
+  Timer, ChevronRight,
 } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'

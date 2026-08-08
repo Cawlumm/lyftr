@@ -7,7 +7,9 @@ import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
-import WeightInput from '../components/WeightInput'
+import StepperTile from '../components/ui/StepperTile'
+import NumberField from '../components/ui/NumberField'
+import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
@@ -219,16 +221,13 @@ export default function Weight() {
 
   // Chart data — re-fetched when period changes
   const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
-  const [chartLoading, setChartLoading] = useState(true)
 
   useEffect(() => {
-    setChartLoading(true)
     const days = PERIOD_DAYS[period]
     const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
     weightAPI.list({ limit: 1000, from })
       .then(data => setChartLogs(data || []))
-      .catch(() => {})
-      .finally(() => setChartLoading(false))
+      .catch(() => { /* chart keeps the previous series rather than blanking on a failed refetch */ })
   }, [period])
 
   useEffect(() => {
@@ -377,13 +376,15 @@ export default function Weight() {
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
-          <WeightInput
-            value={newWeight}
-            onChange={setNewWeight}
-            unit={wUnit}
-            max={maxWeight(settings.weight_unit)}
-            size="lg"
-          />
+          <StepperTile
+            icon={Scale}
+            label={`Weight (${wUnit})`}
+            name="weight"
+            step={BODYWEIGHT_STEP}
+            onStep={d => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
+          >
+            <NumberField value={newWeight} onChange={setNewWeight} aria-label="Weight" />
+          </StepperTile>
 
           {showNotes ? (
             <div className="space-y-2 bg-surface-overlay border border-surface-border rounded-xl p-3">

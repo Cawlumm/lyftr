@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { Dumbbell, Plus, Clock, Search, AlertCircle, Edit2, Trash2, TrendingUp, Award, ChevronRight, MoreVertical } from 'lucide-react'
+import { Dumbbell, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Loading from '../components/Loading'
 import EmptyState from '../components/ui/EmptyState'
@@ -11,7 +11,6 @@ import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
 import * as types from '../types'
-import { muscleColor } from '../utils/exerciseUtils'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
@@ -205,7 +204,6 @@ export default function Workouts() {
   const location = useLocation()
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [error, setError] = useState<string | null>(null)
 
   // Auto-progression toast (#40): the finish flow navigates here with the summary
   // in router state. Capture it once, then wipe history state so it can't replay on
@@ -232,15 +230,6 @@ export default function Workouts() {
   })
 
   if (initialLoading) return <Loading />
-
-  if (error) {
-    return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
-    )
-  }
 
   return (
     <div className="space-y-5 animate-slide-up">

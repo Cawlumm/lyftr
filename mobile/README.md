@@ -5,7 +5,7 @@ Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). U
 (SwiftUI/Kotlin-backed RN primitives), styled with NativeWind.
 
 ## Stack
-- **Expo (SDK 52)** + **expo-router** (file-based routes in `app/`)
+- **Expo (SDK 54)** + **expo-router** (file-based routes in `app/`)
 - **NativeWind** (Tailwind for RN) — tokens ported from the web `tailwind.config.ts`
 - **@lyftr/shared** — the platform-agnostic core (storage-injected)
 - **expo-secure-store** (tokens → Keychain) + **AsyncStorage** (prefs)
@@ -34,6 +34,24 @@ The **Server URL** field in the Settings tab configures the backend origin (vali
 `GET /api/v1/info`). Leave blank for the default. For the VM dev backend use the LAN IP or
 the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login:
 `demo@lyftr.local` / `password123`.
+
+## Native networking config
+`network_security_config.xml` is an Android
+[network security config](https://developer.android.com/privacy-and-security/security-config)
+permitting cleartext HTTP and trusting the user-installed CA store (issue #79). The file's
+own header explains why and what it deliberately does *not* do. It's copied into the build
+by [`expo-network-security-config`](https://github.com/pchalupa/expo-network-security-config),
+wired up in `app.json` — a maintained plugin rather than a hand-rolled one, so tracking
+Expo SDK changes to the underlying dangerous mod isn't our job.
+
+What matters when working on it: it's applied at prebuild, so changes only take effect in a
+**new build** — EAS Update cannot deliver them. To inspect the generated output:
+```bash
+npx expo prebuild -p android --clean --no-install
+cat android/app/src/main/res/xml/network_security_config.xml
+rm -rf android           # generated, gitignored — don't commit it
+```
+Note `expo prebuild` rewrites the `android`/`ios` npm scripts to `expo run:*`; revert that.
 
 ## MVP scope (this PR)
 Auth (login/register) → Dashboard summary → Weight (log / list / delete + trend chart).

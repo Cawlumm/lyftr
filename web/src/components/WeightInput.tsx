@@ -1,102 +1,62 @@
-import { Minus, Plus } from 'lucide-react'
 import { useNumericText } from '../hooks/useNumericText'
-import { clampStep } from '../utils/number'
 
 interface Props {
   value: string
   onChange: (next: string) => void
   unit: string
-  /** Increment for the +/- stepper buttons. Typing is always 0.1-precision regardless. */
-  step?: number
   autoFocus?: boolean
   size?: 'sm' | 'md' | 'lg'
-  /** Show the +/- stepper buttons (prominent inputs). Off = bare field for compact rows. */
-  stepper?: boolean
   placeholder?: string
   disabled?: boolean
-  /** Optional upper bound (display units) — clamps the +/- stepper. Submit-time
-   *  validation/messaging is the caller's job (an html max would preempt it with
-   *  a native browser tooltip). */
-  max?: number
 }
 
-// The field always accepts 0.1 precision (the #39 feature); the +/- buttons step
-// by `step` — a larger, ergonomic increment — so gym mode can jump by 2.5 while you
-// can still type an exact 0.1 value. Bodyweight keeps the original 0.5 button feel.
+// Typing is always 0.1-precision (the #39 feature), whatever the caller does with
+// the value afterwards.
 const INPUT_STEP = 0.1
-const STEP_DEFAULT = 0.5
 
-// Single component for every weight input in the app. Conversion-agnostic: the
-// caller owns lbs↔display unit (pass display-unit strings in/out). `stepper`
-// toggles the prominent +/- layout (bodyweight, gym mode) vs a bare field for
-// compact sets-table rows. (Gym set tiles use the borderless NumberField instead.)
+// A bordered number field with the unit rendered inside it, for the compact rows of
+// the sets tables (add/edit workout, program day editor, active workout).
+//
+// It used to carry an optional +/- stepper too, but every prominent input that
+// wanted buttons has moved to StepperTile — bodyweight in #91, gym mode long before
+// that — and the callers left here all opted out of it. Reach for StepperTile if you
+// need buttons; this component is the bare field on purpose.
 export default function WeightInput({
   value,
   onChange,
   unit,
-  step = STEP_DEFAULT,
   autoFocus = false,
   size = 'md',
-  stepper = true,
   placeholder = '0.0',
   disabled = false,
-  max,
 }: Props) {
   // Raw typed text (see useNumericText) so in-progress entry isn't clobbered by the
   // parent re-deriving `value` from a rounded/0→'' number on every keystroke.
   const [text, setText] = useNumericText(value)
-
-  const emit = (next: string) => {
-    setText(next)
-    onChange(next)
-  }
-
-  const adjust = (delta: number) => emit(String(clampStep(parseFloat(text), delta, { max })))
 
   const inputSize = size === 'lg'
     ? 'text-3xl py-4 font-display font-bold'
     : size === 'sm'
       ? 'text-sm py-2.5'
       : 'text-base py-2.5'
-  const compact = !stepper || size === 'sm'
-  const pad = compact ? 'pr-7' : 'pr-12'
-  const unitPos = compact ? 'right-2' : 'right-3.5'
 
-  const field = (
+  return (
     <div className="relative flex-1 min-w-0">
       <input
         type="number"
         inputMode="decimal"
         enterKeyHint="done"
         value={text}
-        onChange={e => emit(e.target.value.replace(/-/g, ''))}
+        onChange={e => { const v = e.target.value.replace(/-/g, ''); setText(v); onChange(v) }}
         onKeyDown={e => { if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault() }}
         step={INPUT_STEP}
         min="0"
         autoFocus={autoFocus}
         disabled={disabled}
-        className={`input ${inputSize} ${pad} text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
+        className={`input ${inputSize} pr-7 text-center w-full tabular-nums ${disabled ? 'opacity-40' : ''}`}
         placeholder={placeholder}
       />
-      <span className={`absolute ${unitPos} top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none`}>{unit}</span>
-    </div>
-  )
-
-  if (!stepper) return field
-
-  const buttonSize = size === 'lg' ? 'p-4' : 'p-2.5'
-  const iconSize = size === 'lg' ? 'w-6 h-6' : 'w-4 h-4'
-  const btn = `${buttonSize} bg-surface-overlay border border-surface-border rounded-lg text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all flex items-center justify-center flex-shrink-0 disabled:opacity-30`
-
-  return (
-    <div className="flex items-stretch gap-2">
-      <button type="button" onClick={() => adjust(-step)} disabled={disabled} className={btn} aria-label={`Decrease by ${step}`}>
-        <Minus className={iconSize} />
-      </button>
-      {field}
-      <button type="button" onClick={() => adjust(step)} disabled={disabled} className={btn} aria-label={`Increase by ${step}`}>
-        <Plus className={iconSize} />
-      </button>
+      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{unit}</span>
     </div>
   )
 }

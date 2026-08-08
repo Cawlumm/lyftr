@@ -9,7 +9,6 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
-import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
@@ -349,7 +348,6 @@ export default function ActiveWorkout() {
 
                         {/* Weight */}
                         <WeightInput
-                          stepper={false}
                           value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                           onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                           unit={wUnit}

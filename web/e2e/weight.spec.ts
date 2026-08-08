@@ -85,9 +85,11 @@ test.describe('Weight', () => {
     await page.locator('input[type="date"]').fill(testDate)
     await page.locator('input[placeholder*="morning"]').fill(FORM_WEIGHT_NOTE)
 
-    // Fill weight
+    // A decimal on purpose: type=number defaults to step=1, so a field missing an
+    // explicit step rejects tenths and the browser blocks submit before any request
+    // is made. An integer here passes whether or not that's set (#91).
     const weightInput = page.locator('input[inputmode="decimal"]').first()
-    await weightInput.fill('170')
+    await weightInput.fill('170.4')
 
     // Wait for the actual save (POST /weight) instead of a fixed sleep.
     await Promise.all([

@@ -13,7 +13,7 @@ import {
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { clampStep } from '../../../src/utils/number'
+import { BODYWEIGHT_STEP, clampStep } from '../../../src/utils/number'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function WeightDetail() {
@@ -204,7 +204,7 @@ export default function WeightDetail() {
                   icon={Scale}
                   label={`Weight (${wUnit})`}
                   name="weight"
-                  step={0.5}
+                  step={BODYWEIGHT_STEP}
                   onStep={(d) => setEditWeight(String(clampStep(parseFloat(editWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
                 >
                   <NumberField

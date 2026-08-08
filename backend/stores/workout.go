@@ -98,18 +98,8 @@ func (s *WorkoutStore) get(id int64) (models.Workout, error) {
 	return w, nil
 }
 
-func (s *WorkoutStore) Create(uid int64, req models.CreateWorkoutRequest) (models.Workout, error) {
-	wid, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
-		return createWorkoutTx(tx, uid, req)
-	})
-	if err != nil {
-		return models.Workout{}, err
-	}
-	return s.get(wid)
-}
-
 // createWorkoutTx inserts the workout + its exercises/sets within an existing
-// transaction, returning the new workout id. Factored out of Create so the
+// transaction, returning the new workout id. Factored out so the
 // PR-snapshot read, the insert, and the suggestion-staging write can share one
 // transaction (see CreateWithProgression) — SQLite then serializes concurrent
 // submissions instead of letting them read the same stale prior-best (#40).

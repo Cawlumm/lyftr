@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { ChevronDown, Server, CheckCircle2, AlertTriangle, Loader } from 'lucide-react'
-import { useServerStore, normalizeServerUrl } from '../stores/server'
+import {
+  useServerStore,
+  normalizeServerUrl,
+  isInsecureServerUrl,
+  INSECURE_SERVER_WARNING,
+  isMixedContentBlocked,
+  MIXED_CONTENT_WARNING,
+} from '../stores/server'
 import { testServerConnection } from '../services/api'
 
 type Status =
@@ -19,6 +26,10 @@ export default function ServerSettings() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState(serverUrl)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  // Blocked wins over insecure: both are true for http-from-https, but one is a hard
+  // failure the user must fix and the other is a risk they may knowingly accept.
+  const blocked = isMixedContentBlocked(serverUrl)
+  const insecure = !blocked && isInsecureServerUrl(serverUrl)
 
   const handleSave = async () => {
     const raw = input.trim()
@@ -39,7 +50,7 @@ export default function ServerSettings() {
     setStatus(
       result.ok
         ? { kind: 'ok', message: `Connected · ${result.info.name} ${result.info.version}` }
-        : { kind: 'warn', message: `Saved, but ${result.message}` },
+        : { kind: 'warn', message: `Saved — ${result.message}` },
     )
   }
 
@@ -52,6 +63,19 @@ export default function ServerSettings() {
       >
         <Server className="w-3.5 h-3.5" />
         <span>Server settings</span>
+        {/* Stays visible while the panel is collapsed — the problem outlives the moment of entry. */}
+        {blocked && (
+          <span className="flex items-center gap-1 text-error-400" title={MIXED_CONTENT_WARNING}>
+            <AlertTriangle className="w-3 h-3" />
+            Blocked
+          </span>
+        )}
+        {insecure && (
+          <span className="flex items-center gap-1 text-warning-400" title={INSECURE_SERVER_WARNING}>
+            <AlertTriangle className="w-3 h-3" />
+            Not encrypted
+          </span>
+        )}
         <ChevronDown className={`w-3 h-3 ml-auto transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
@@ -70,8 +94,21 @@ export default function ServerSettings() {
           />
 
           <p className="text-[11px] leading-relaxed text-tx-muted">
-            Full URL, e.g. <span className="font-mono text-tx-secondary">http://192.168.1.10:3000</span>
+            Full URL, e.g. <span className="font-mono text-tx-secondary">https://lyftr.example.com</span>
           </p>
+
+          {blocked && (
+            <p className="flex items-start gap-1.5 text-xs text-error-400">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>{MIXED_CONTENT_WARNING}</span>
+            </p>
+          )}
+          {insecure && (
+            <p className="flex items-start gap-1.5 text-xs text-warning-400">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+              <span>{INSECURE_SERVER_WARNING}</span>
+            </p>
+          )}
 
           {status.kind === 'error' && <p className="text-xs text-error-400">{status.message}</p>}
           {status.kind === 'warn' && (

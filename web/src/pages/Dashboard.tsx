@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  LineChart, Line, PieChart, Pie, Legend,
+  LineChart, Line, PieChart, Pie,
 } from 'recharts'
 import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
