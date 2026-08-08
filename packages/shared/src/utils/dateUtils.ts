@@ -61,3 +61,18 @@ export const dayToInstant = (yyyyMmDd: string, previousIso?: string): string => 
     0,
   ).toISOString()
 }
+
+/**
+ * The local calendar day `n` days before today.
+ *
+ * Exists so range queries build their day the same way everything else does. The
+ * weight chart previously used date-fns `format(subDays(new Date(), n), 'yyyy-MM-dd')`,
+ * which is a fourth path to a day string and drifts from the server's idea of one:
+ * the server resolves a bare day through the *stored* zone, so a device-derived day
+ * silently clips the oldest point whenever the two disagree.
+ */
+export const daysAgoStr = (n: number): string => {
+  const d = new Date()
+  d.setDate(d.getDate() - n)
+  return instantToDay(d.toISOString())
+}

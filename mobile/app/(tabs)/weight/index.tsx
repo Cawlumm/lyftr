@@ -8,7 +8,7 @@ import {
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToInstant, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr,
+  apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr,
   weightError, weightShort, type WeightLog, type WeightStats,
 } from '@lyftr/shared'
 import {
@@ -50,7 +50,7 @@ export default function Weight() {
   // Returns the fetch promise so pull-to-refresh can await a full refresh.
   const refetchChart = useCallback(() => {
     const days = PERIOD_DAYS[period]
-    const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+    const from = days != null ? daysAgoStr(days) : undefined
     return client.weightAPI.list({ limit: 1000, from }).then((data) => setChartLogs(data || [])).catch(() => {})
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])

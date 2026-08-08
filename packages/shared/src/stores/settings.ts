@@ -99,7 +99,13 @@ export function createSettingsStore(
         // waits for a socket timeout instead of showing data already in hand.
         set({ settings: { ...s, ...prefs }, loaded: true })
         void syncTimezone(s).then((synced) => {
-          if (synced !== s) set({ settings: { ...synced, ...prefs } })
+          // Only the timezone is written back. Splatting the whole response would
+          // undo anything the user changed while the PATCH was in flight — flipping
+          // to kg mid-sync would silently revert, because the response carries the
+          // pre-edit values for every other field.
+          if (synced !== s) {
+            set((state) => ({ settings: { ...state.settings, timezone: synced.timezone } }))
+          }
         })
       } catch {
         set({ settings: { ...get().settings, ...prefs }, loaded: true })

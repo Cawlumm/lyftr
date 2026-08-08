@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TrendingDown, TrendingUp, Minus, Plus, Calendar, Sunrise, AlertCircle, ChevronRight, Scale, Activity, ArrowDown, ArrowUp, X } from 'lucide-react'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
@@ -11,7 +11,7 @@ import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { todayStr, dayToInstant, instantToDay } from '../utils/dateUtils'
+import { todayStr, daysAgoStr, dayToInstant, instantToDay } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 import * as types from '../types'
@@ -224,7 +224,7 @@ export default function Weight() {
 
   useEffect(() => {
     const days = PERIOD_DAYS[period]
-    const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+    const from = days != null ? daysAgoStr(days) : undefined
     weightAPI.list({ limit: 1000, from })
       .then(data => setChartLogs(data || []))
       .catch(() => { /* chart keeps the previous series rather than blanking on a failed refetch */ })
@@ -296,7 +296,7 @@ export default function Weight() {
       reload()
       weightAPI.stats().then(setStats).catch(() => {})
       const days = PERIOD_DAYS[period]
-      const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+      const from = days != null ? daysAgoStr(days) : undefined
       weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to log weight')

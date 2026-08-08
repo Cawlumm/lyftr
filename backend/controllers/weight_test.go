@@ -513,15 +513,22 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 		t.Fatalf("update: %d %s", w.Code, w.Body.String())
 	}
 
-	countOnLocalDay := func(day string) int {
+	// Bounds are hard-coded, not re-derived through localDayRange. Verifying with the
+	// function under test means a wrong day window agrees with itself and the test
+	// passes anyway. New York in August is UTC-4, so the local day runs 04:00 UTC to
+	// 04:00 UTC the next morning.
+	// Bound as time.Time, not as strings: the driver encodes a DATETIME column its
+	// own way, and a string literal doesn't compare against it — the same trap that
+	// made these range queries silently match nothing earlier in this branch.
+	countBetween := func(fromUTC, toUTC string) int {
 		t.Helper()
-		loc, err := ParseLocation("America/New_York")
+		from, err := time.Parse(time.RFC3339, fromUTC)
 		if err != nil {
 			t.Fatal(err)
 		}
-		from, to, ok := localDayRange(day, loc)
-		if !ok {
-			t.Fatalf("bad day %s", day)
+		to, err := time.Parse(time.RFC3339, toUTC)
+		if err != nil {
+			t.Fatal(err)
 		}
 		var n int
 		if err := db.DB.QueryRow(
@@ -533,11 +540,84 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 		return n
 	}
 
-	if n := countOnLocalDay("2026-08-06"); n != 1 {
+	if n := countBetween("2026-08-06T04:00:00Z", "2026-08-07T04:00:00Z"); n != 1 {
 		t.Errorf("expected exactly one entry on the target day, got %d", n)
 	}
-	if n := countOnLocalDay("2026-08-05"); n != 0 {
+	if n := countBetween("2026-08-05T04:00:00Z", "2026-08-06T04:00:00Z"); n != 0 {
 		t.Errorf("expected nothing left on the old day, got %d", n)
 	}
 }
 
+
+// The bare-day from/to filter resolves through the user's stored zone now that the
+// -12h/+36h widening is gone. TestListWeightLogs_dateRange covers the UTC default;
+// this covers a real zone, where a device-derived day and a UTC day disagree.
+func TestListWeightLogs_bareDayRangeUsesStoredTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "Pacific/Auckland") // UTC+12/+13
+
+	// 2026-04-24 local noon in Auckland is 2026-04-24T00:00:00Z. A UTC-bucketed
+	// filter for the 24th would still include it, so the discriminating entry is the
+	// one at 23:00Z on the 23rd — local 11:00 on the 24th.
+	insertWeightLog(t, uid, 180.0, time.Date(2026, 4, 23, 23, 0, 0, 0, time.UTC))
+	// Local 11:00 on the 25th — outside the requested day either way.
+	insertWeightLog(t, uid, 181.0, time.Date(2026, 4, 24, 23, 0, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight?from=2026-04-24&to=2026-04-24", nil)
+	th.ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected the entry on the user's local 24th, got %d", len(data))
+	}
+	if got := data[0].(map[string]any)["weight"].(float64); got != 180.0 {
+		t.Errorf("expected the 11:00-local entry (180), got %v", got)
+	}
+}
+
+// One-entry-per-day on the CREATE path. The update path is covered above; this is
+// UpsertForDay's dedup, which replaced dayBounds' UTC window with zone-resolved
+// bounds and had no test over a non-UTC day.
+func TestLogWeight_oneEntryPerLocalDayOnCreate(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	// Both are the same New York day (Aug 7): 20:00 local and 23:00 local. They are
+	// also the same UTC day, so this alone wouldn't discriminate — the second pair
+	// below does.
+	for _, at := range []string{"2026-08-08T00:00:00Z", "2026-08-08T03:00:00Z"} {
+		c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{"weight": 200, "logged_at": at})
+		th.LogWeight(c)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("log at %s: %d %s", at, w.Code, w.Body.String())
+		}
+	}
+
+	var n int
+	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Fatalf("both entries are on the user's Aug 7; expected one row, got %d", n)
+	}
+
+	// A different local day that shares a UTC day with the first: 2026-08-07T20:00Z
+	// is Aug 7 in UTC but 16:00 on Aug 7 local... and 2026-08-08T00:00Z (already
+	// logged) is Aug 8 in UTC. A UTC-bucketed dedup would treat these as different
+	// days and leave two rows; the local-day rule collapses them.
+	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{"weight": 202, "logged_at": "2026-08-07T20:00:00Z"})
+	th.LogWeight(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("log the same local day from a different UTC day: %d %s", w.Code, w.Body.String())
+	}
+	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ?`, uid).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 1 {
+		t.Errorf("all three instants fall on the user's Aug 7; expected one row, got %d", n)
+	}
+}

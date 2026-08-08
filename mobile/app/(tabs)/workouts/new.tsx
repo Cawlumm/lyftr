@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant } from '@lyftr/shared'
+import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -63,7 +63,7 @@ export default function AddWorkout() {
     name: '',
     notes: '',
     duration: 0,
-    date: new Date().toISOString().slice(0, 10),
+    date: todayStr(),
     exercises: [],
   })
   const scrollRef = useRef<ScrollView>(null)

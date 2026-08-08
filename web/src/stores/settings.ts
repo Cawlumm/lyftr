@@ -75,7 +75,11 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
       // stalled PATCH can't hold every settings-gated screen on its loading state.
       set({ settings: { ...s, ...clientPrefs() }, loaded: true })
       void syncTimezone(s).then(synced => {
-        if (synced !== s) set({ settings: { ...synced, ...clientPrefs() } })
+        // Only the timezone is written back — see the note in the shared store: a
+        // full splat would revert a settings edit made while the PATCH was in flight.
+        if (synced !== s) {
+          set(state => ({ settings: { ...state.settings, timezone: synced.timezone } }))
+        }
       })
     } catch {
       set({ loaded: true })
