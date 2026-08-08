@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToIsoNoon, displayWeight, isoToDayInput, maxWeight, resolveWeightLbs,
+  apiErrorMessage, dayToInstant, displayWeight, isoToDayInput, maxWeight, resolveWeightLbs,
   weightError, weightShort, type WeightLog,
 } from '@lyftr/shared'
 import {
@@ -81,7 +81,7 @@ export default function WeightDetail() {
         // (avoids kg round-trip drift); only converts when the user actually edited it.
         weight: resolveWeightLbs(editWeight, log.weight, unit),
         notes: editNotes.trim(),
-        logged_at: dayToIsoNoon(editDate),
+        logged_at: dayToInstant(editDate, log.logged_at),
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       setLog(updated)

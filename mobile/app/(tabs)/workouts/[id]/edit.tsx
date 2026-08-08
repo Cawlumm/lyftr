@@ -6,7 +6,7 @@ import {
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import {
-  apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise,
+  apiErrorMessage, dayToInstant, isoToDayInput, displayToLbs, lbsToDisplay, weightShort, type Exercise,
 } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
@@ -38,16 +38,6 @@ const KEYPAD_DONE_ID = 'workout-edit-keypad-done'
 // started_at (full ISO timestamp) ⇄ the DateInput's local calendar date. Editing the
 // date should only move the *day* — the original time-of-day is preserved so a
 // workout logged at 6pm doesn't jump to midnight just because the date was touched.
-const pad = (n: number) => String(n).padStart(2, '0')
-const startedAtToDate = (iso: string): string => {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
-const applyDateKeepTime = (iso: string, ymd: string): string => {
-  const orig = new Date(iso)
-  const [y, m, d] = ymd.split('-').map(Number)
-  return new Date(y, (m ?? 1) - 1, d ?? 1, orig.getHours(), orig.getMinutes(), orig.getSeconds()).toISOString()
-}
 
 function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
   // Muted (not accent) field icons — matches new.tsx: with every header cyan the
@@ -104,7 +94,7 @@ export default function EditWorkout() {
         setFormData({
           name: workout.name,
           notes: workout.notes || '',
-          date: startedAtToDate(startedAt),
+          date: isoToDayInput(startedAt),
           duration: Math.round(workout.duration / 60),
           exercises: (workout.exercises || []).map((ex) => ({
             exercise_id: ex.exercise_id,
@@ -201,7 +191,7 @@ export default function EditWorkout() {
         duration: formData.duration * 60,
         // Move only the day; keep the logged time-of-day from the original timestamp.
         started_at: formData.date
-          ? applyDateKeepTime(originalStartedAt || new Date().toISOString(), formData.date)
+          ? dayToInstant(formData.date, originalStartedAt || undefined)
           : originalStartedAt || new Date().toISOString(),
         exercises: formData.exercises.map((ex) => ({
           ...ex,

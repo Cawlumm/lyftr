@@ -17,9 +17,6 @@ func NewWeightStore(db *sql.DB) *WeightStore { return &WeightStore{db: db} }
 type WeightFilter struct {
 	Limit, Offset int
 	From, To      *time.Time // instant bounds, for an exact RFC3339 range
-	// Calendar-day bounds (YYYY-MM-DD, inclusive), matched against logged_on. A
-	// caller asking in days gets days: no widening, no guess at their offset.
-	FromDay, ToDay string
 }
 
 // WeightStats is the computed summary for GetWeightStats.
@@ -29,19 +26,11 @@ type WeightStats struct {
 	Change7d, Change30d             float64
 }
 
-const weightCols = `id, user_id, weight, notes, logged_at, logged_on, created_at`
+const weightCols = `id, user_id, weight, notes, logged_at, created_at`
 
 func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error) {
 	q := `SELECT ` + weightCols + ` FROM weight_logs WHERE user_id = ?`
 	args := []any{uid}
-	if f.FromDay != "" {
-		q += ` AND logged_on >= ?`
-		args = append(args, f.FromDay)
-	}
-	if f.ToDay != "" {
-		q += ` AND logged_on <= ?`
-		args = append(args, f.ToDay)
-	}
 	if f.From != nil {
 		q += ` AND logged_at >= ?`
 		args = append(args, *f.From)
@@ -61,7 +50,7 @@ func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error
 	logs := []models.WeightLog{}
 	for rows.Next() {
 		var w models.WeightLog
-		if err := rows.Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.LoggedOn, &w.CreatedAt); err != nil {
+		if err := rows.Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.CreatedAt); err != nil {
 			return nil, err
 		}
 		logs = append(logs, w)
@@ -73,7 +62,7 @@ func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error
 func (s *WeightStore) get(id int64) (models.WeightLog, error) {
 	var w models.WeightLog
 	err := s.db.QueryRow(`SELECT `+weightCols+` FROM weight_logs WHERE id = ?`, id).
-		Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.LoggedOn, &w.CreatedAt)
+		Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.CreatedAt)
 	return w, err
 }
 
@@ -81,16 +70,16 @@ func (s *WeightStore) get(id int64) (models.WeightLog, error) {
 func (s *WeightStore) Get(uid, id int64) (models.WeightLog, error) {
 	var w models.WeightLog
 	err := s.db.QueryRow(`SELECT `+weightCols+` FROM weight_logs WHERE id = ? AND user_id = ?`, id, uid).
-		Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.LoggedOn, &w.CreatedAt)
+		Scan(&w.ID, &w.UserID, &w.Weight, &w.Notes, &w.LoggedAt, &w.CreatedAt)
 	return w, err
 }
 
 // UpsertForDay enforces one entry per calendar day: update the day's existing
 // entry if present, else insert. req.LoggedAt must already be normalized to UTC.
-func (s *WeightStore) UpsertForDay(uid int64, req models.LogWeightRequest) (models.WeightLog, error) {
-	// Keyed on the stored day rather than a UTC timestamp window: "one entry per
-	// day" is a question about the user's calendar, and dayBounds could only ever
-	// answer it for UTC.
+func (s *WeightStore) UpsertForDay(uid int64, req models.LogWeightRequest, dayStart, dayEnd time.Time) (models.WeightLog, error) {
+	// dayStart/dayEnd are the user's local day resolved to instants by the
+	// controller — "one entry per day" is a question about their calendar, and the
+	// old dayBounds could only ever answer it for UTC.
 	//
 	// Atomic check-then-write: without the transaction the connection is released
 	// between the SELECT and the write, so two same-day logs could both miss the
@@ -98,21 +87,21 @@ func (s *WeightStore) UpsertForDay(uid int64, req models.LogWeightRequest) (mode
 	id, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
 		var id int64
 		err := tx.QueryRow(
-			`SELECT id FROM weight_logs WHERE user_id = ? AND logged_on = ? ORDER BY id DESC LIMIT 1`,
-			uid, req.LoggedOn,
+			`SELECT id FROM weight_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY id DESC LIMIT 1`,
+			uid, dayStart, dayEnd,
 		).Scan(&id)
 		switch err {
 		case nil:
 			if _, e := tx.Exec(
-				`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ?, logged_on = ? WHERE id = ?`,
-				req.Weight, req.Notes, req.LoggedAt, req.LoggedOn, id,
+				`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ?`,
+				req.Weight, req.Notes, req.LoggedAt, id,
 			); e != nil {
 				return 0, e
 			}
 		case sql.ErrNoRows:
 			res, e := tx.Exec(
-				`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, ?, ?, ?)`,
-				uid, req.Weight, req.Notes, req.LoggedAt, req.LoggedOn,
+				`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
+				uid, req.Weight, req.Notes, req.LoggedAt,
 			)
 			if e != nil {
 				return 0, e
@@ -131,12 +120,12 @@ func (s *WeightStore) UpsertForDay(uid int64, req models.LogWeightRequest) (mode
 
 // Update edits an entry the user owns (sql.ErrNoRows if not theirs), then drops
 // any other same-day entry so the day keeps a single entry. req.LoggedAt UTC.
-func (s *WeightStore) Update(uid, id int64, req models.LogWeightRequest) (models.WeightLog, error) {
+func (s *WeightStore) Update(uid, id int64, req models.LogWeightRequest, dayStart, dayEnd time.Time) (models.WeightLog, error) {
 	// Atomic: the row update + the same-day dedup delete must commit together.
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		res, err := tx.Exec(
-			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ?, logged_on = ? WHERE id = ? AND user_id = ?`,
-			req.Weight, req.Notes, req.LoggedAt, req.LoggedOn, id, uid,
+			`UPDATE weight_logs SET weight = ?, notes = ?, logged_at = ? WHERE id = ? AND user_id = ?`,
+			req.Weight, req.Notes, req.LoggedAt, id, uid,
 		)
 		if err != nil {
 			return err
@@ -144,11 +133,10 @@ func (s *WeightStore) Update(uid, id int64, req models.LogWeightRequest) (models
 		if n, _ := res.RowsAffected(); n == 0 {
 			return sql.ErrNoRows
 		}
-		// Same day, same column as the upsert above — a UTC timestamp window can't
-		// express "the user's Tuesday", which is what one-entry-per-day means.
+		// Same day, same range as the upsert — one entry per the *user's* day.
 		_, err = tx.Exec(
-			`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_on = ?`,
-			uid, id, req.LoggedOn,
+			`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_at >= ? AND logged_at < ?`,
+			uid, id, dayStart, dayEnd,
 		)
 		return err
 	}); err != nil {

@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay } from '@lyftr/shared'
+import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -173,7 +173,7 @@ export default function AddWorkout() {
       const payload = {
         ...formData,
         duration: formData.duration * 60,
-        started_at: new Date(formData.date).toISOString(),
+        started_at: dayToInstant(formData.date),
         exercises: formData.exercises.map((ex) => ({
           ...ex,
           sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),

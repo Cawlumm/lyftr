@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"log"
 	"database/sql"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -69,31 +68,10 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 			return
 		}
 	}
-	// Capture the stored zone before the write so we can tell a first report from a
-	// later change (see RederiveLoggedOn).
-	prev := "UTC"
-	if before, err := h.s.User.GetSettings(uid); err == nil && before.Timezone != "" {
-		prev = before.Timezone
-	}
 
 	s, err := h.s.User.UpsertSettings(uid, req)
 	if utils.DBError(c, err) {
 		return
-	}
-
-	// The boot backfill had to assume UTC. Now that this user's real zone is known
-	// for the first time, re-file their existing entries on it so backfilled rows
-	// and new writes agree about what day they are on. Best effort: a failure here
-	// leaves the rows as the backfill wrote them, which is the pre-existing state,
-	// and must not fail the settings write the user actually asked for.
-	if prev == "UTC" && s.Timezone != "UTC" {
-		if loc, lerr := ParseLocation(s.Timezone); lerr == nil {
-			if moved, rerr := h.s.User.RederiveLoggedOn(uid, loc); rerr != nil {
-				log.Printf("rederive logged_on for uid=%d in %s: %v", uid, s.Timezone, rerr)
-			} else if moved > 0 {
-				log.Printf("rederived logged_on for uid=%d in %s: %d rows", uid, s.Timezone, moved)
-			}
-		}
 	}
 
 	utils.OK(c, s)

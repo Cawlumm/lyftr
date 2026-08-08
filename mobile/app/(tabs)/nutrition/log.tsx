@@ -6,7 +6,7 @@ import {
   AlertCircle, ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Minus, Plus, Scan, Utensils, Zap,
 } from 'lucide-react-native'
 import {
-  dayToIsoNoon, todayStr,
+  dayToInstant, todayStr,
   type FoodLog, type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
@@ -219,7 +219,7 @@ export default function LogFood() {
         servings,
         serving_size: selected.serving_size ?? '',
         image_url: selected.image_url ?? '',
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       }
       if (editId) {
         await client.foodAPI.update(editId, payload)

@@ -22,16 +22,17 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 		f.Offset = o
 	}
 
-	// A bare YYYY-MM-DD filters the stored day directly. This used to widen the
-	// window by -12h/+36h on logged_at because the server had no way to know which
-	// day a row belonged to; it does now, and the guess would overlap neighbours.
-	// A full RFC3339 timestamp still means an exact instant.
+	// A bare YYYY-MM-DD is a calendar day in the user's zone, resolved to instants
+	// like every other day query. This used to widen by -12h/+36h to guess at an
+	// offset the server had no way to know; it knows now, and the guess overlapped
+	// neighbouring days. A full RFC3339 timestamp still means an exact instant.
+	loc := h.userLocation(uid)
 	if from := c.Query("from"); from != "" {
 		if t, exact, ok := parseDayOrTime(from); ok {
 			if exact {
 				f.From = &t
-			} else {
-				f.FromDay = t.Format("2006-01-02")
+			} else if lo, _, ok := localDayRange(t.Format("2006-01-02"), loc); ok {
+				f.From = &lo
 			}
 		}
 	}
@@ -39,8 +40,9 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 		if t, exact, ok := parseDayOrTime(to); ok {
 			if exact {
 				f.To = &t
-			} else {
-				f.ToDay = t.Format("2006-01-02")
+			} else if _, hi, ok := localDayRange(t.Format("2006-01-02"), loc); ok {
+				// Exclusive end of the *to* day, so the whole day is included.
+				f.To = &hi
 			}
 		}
 	}
@@ -64,14 +66,13 @@ func (h *Handler) LogWeight(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
-	if err != nil {
-		utils.BadRequest(c, err.Error())
+
+	dayStart, dayEnd, ok := localDayRange(req.LoggedAt.In(h.userLocation(uid)).Format("2006-01-02"), h.userLocation(uid))
+	if !ok {
+		utils.BadRequest(c, "invalid logged_at")
 		return
 	}
-	req.LoggedOn = loggedOn
-
-	log, err := h.s.Weight.UpsertForDay(uid, req)
+	log, err := h.s.Weight.UpsertForDay(uid, req, dayStart, dayEnd)
 	if utils.DBError(c, err) {
 		return
 	}
@@ -113,14 +114,14 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
-	if err != nil {
-		utils.BadRequest(c, err.Error())
+
+	loc := h.userLocation(uid)
+	dayStart, dayEnd, ok := localDayRange(req.LoggedAt.In(loc).Format("2006-01-02"), loc)
+	if !ok {
+		utils.BadRequest(c, "invalid logged_at")
 		return
 	}
-	req.LoggedOn = loggedOn
-
-	log, err := h.s.Weight.Update(uid, lid, req)
+	log, err := h.s.Weight.Update(uid, lid, req, dayStart, dayEnd)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "log entry not found")
 		return

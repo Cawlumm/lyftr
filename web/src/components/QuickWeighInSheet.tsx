@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
 import WeightInput from './WeightInput'
 import * as types from '../types'
 
@@ -72,7 +72,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       const log = await weightAPI.log({
         weight: displayToLbs(w, settings.weight_unit),
         notes: notes.trim(),
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       })
       onSuccess(log)
       onClose()

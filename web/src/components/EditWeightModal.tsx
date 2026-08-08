@@ -6,7 +6,7 @@ import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, r
 import WeightInput from './WeightInput'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { dayToIsoNoon, isoToDayInput, todayStr } from '../utils/dateUtils'
+import { dayToInstant, isoToDayInput, todayStr } from '../utils/dateUtils'
 import * as types from '../types'
 
 interface Props {
@@ -54,7 +54,7 @@ export default function EditWeightModal({ isOpen, onClose, onSuccess, log }: Pro
       await weightAPI.update(log.id, {
         weight: resolveWeightLbs(weight, log.weight, settings.weight_unit),
         notes: notes.trim(),
-        logged_at: dayToIsoNoon(loggedAt),
+        logged_at: dayToInstant(loggedAt, log.logged_at),
       })
       onSuccess()
       onClose()

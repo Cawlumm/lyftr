@@ -1,18 +1,35 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { todayStr, dayToIsoNoon, isoToDayInput } from './dateUtils'
+import { todayStr, dayToInstant, isoToDayInput } from './dateUtils'
 
 // Runs under TZ=America/New_York (set in the npm script) so these local<->UTC
 // assertions are deterministic and exercise a real, DST-aware non-UTC offset.
 
-describe('dayToIsoNoon', () => {
-  it('anchors a calendar day at local noon, expressed in UTC (EDT, summer)', () => {
-    // Noon EDT (UTC-4) = 16:00 UTC
-    expect(dayToIsoNoon('2026-04-25')).toBe('2026-04-25T16:00:00.000Z')
+describe('dayToInstant', () => {
+  it('defaults to local noon, expressed in UTC', () => {
+    expect(dayToInstant('2026-06-15')).toBe('2026-06-15T16:00:00.000Z')
   })
 
-  it('accounts for daylight saving (EST, winter)', () => {
-    // Noon EST (UTC-5) = 17:00 UTC
-    expect(dayToIsoNoon('2026-01-15')).toBe('2026-01-15T17:00:00.000Z')
+  it('round-trips through isoToDayInput', () => {
+    expect(isoToDayInput(dayToInstant('2026-01-31'))).toBe('2026-01-31')
+    expect(isoToDayInput(dayToInstant('2026-11-01'))).toBe('2026-11-01')
+  })
+
+  // The bug this replaced: `new Date('2026-06-15')` parses as UTC midnight, which is
+  // the previous evening for anyone west of UTC, so the entry landed a day early.
+  it('never lands on the previous day west of UTC', () => {
+    expect(isoToDayInput(dayToInstant('2026-06-15'))).toBe('2026-06-15')
+  })
+
+  it('keeps the original time-of-day when moving an existing entry', () => {
+    const original = new Date(2026, 5, 15, 18, 30, 0).toISOString()
+    const moved = dayToInstant('2026-06-20', original)
+    expect(isoToDayInput(moved)).toBe('2026-06-20')
+    expect(new Date(moved).getHours()).toBe(18)
+    expect(new Date(moved).getMinutes()).toBe(30)
+  })
+
+  it('falls back to noon when the previous timestamp is unusable', () => {
+    expect(dayToInstant('2026-06-15', 'not-a-date')).toBe(dayToInstant('2026-06-15'))
   })
 })
 
@@ -25,9 +42,9 @@ describe('isoToDayInput', () => {
     expect(isoToDayInput('2026-04-25T00:00:00.000Z')).toBe('2026-04-24')
   })
 
-  it('round-trips with dayToIsoNoon across the year', () => {
+  it('round-trips with dayToInstant across the year', () => {
     for (const day of ['2026-01-15', '2026-04-25', '2026-07-04', '2026-12-31']) {
-      expect(isoToDayInput(dayToIsoNoon(day))).toBe(day)
+      expect(isoToDayInput(dayToInstant(day))).toBe(day)
     }
   })
 })

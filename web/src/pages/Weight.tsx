@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import WeightInput from '../components/WeightInput'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 import * as types from '../types'
@@ -287,7 +287,7 @@ export default function Weight() {
       const real = await weightAPI.log({
         weight: displayToLbs(w, settings.weight_unit),
         notes: newNotes.trim(),
-        logged_at: dayToIsoNoon(newDate),
+        logged_at: dayToInstant(newDate),
       })
       setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
       setNewNotes('')

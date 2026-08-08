@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"fmt"
 	"time"
 
 	// Embeds the IANA tz database in the binary. The production image is
@@ -64,23 +63,3 @@ func localDayRange(day string, loc *time.Location) (time.Time, time.Time, bool) 
 	return t.UTC(), t.AddDate(0, 0, 1).UTC(), true
 }
 
-// resolveLoggedOn returns the calendar day a day-scoped entry belongs to.
-//
-// A client-supplied day wins: it knows which date the user actually picked, and
-// no amount of timestamp arithmetic can recover that intent better than the user
-// stating it. Otherwise the day is derived from the instant in the user's zone,
-// which is what makes this work for clients that only send logged_at — including
-// every build shipped before this existed.
-func (h *Handler) resolveLoggedOn(uid int64, supplied string, at time.Time) (string, error) {
-	if supplied != "" {
-		// Validated, not trusted. This value is compared for equality on every read
-		// and — for weight — decides which rows the one-per-day dedup DELETEs, so an
-		// unparseable string would both hide the entry from the diary forever and
-		// point a delete at a day nobody asked about.
-		if _, err := time.Parse("2006-01-02", supplied); err != nil {
-			return "", fmt.Errorf("logged_on must be YYYY-MM-DD, got %q", supplied)
-		}
-		return supplied, nil
-	}
-	return at.In(h.userLocation(uid)).Format("2006-01-02"), nil
-}

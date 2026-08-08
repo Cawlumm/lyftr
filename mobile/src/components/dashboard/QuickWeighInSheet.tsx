@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToIsoNoon, displayToLbs, isoToDayInput, maxWeight, todayStr,
+  apiErrorMessage, dayToInstant, displayToLbs, isoToDayInput, maxWeight, todayStr,
   weightError, weightShort, type WeightLog,
 } from '@lyftr/shared'
 import {
@@ -74,7 +74,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       const log = await client.weightAPI.log({
         weight: displayToLbs(w, unit),
         notes: notes.trim(),
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       onSuccess(log)

@@ -7,7 +7,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
 import WeightInput from '../components/WeightInput'
 import * as types from '../types'
 
@@ -73,7 +73,7 @@ export default function WeightDetail() {
       const updated = await weightAPI.update(log.id, {
         weight: resolveWeightLbs(editWeight, log.weight, settings.weight_unit),
         notes: editNotes.trim(),
-        logged_at: dayToIsoNoon(editDate),
+        logged_at: dayToInstant(editDate, log.logged_at),
       })
       setLog(updated)
       setEditing(false)

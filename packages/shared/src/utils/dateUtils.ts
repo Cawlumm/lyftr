@@ -14,19 +14,6 @@ export const todayStr = (): string => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-/**
- * Convert a YYYY-MM-DD calendar date to an ISO timestamp anchored at the user's
- * local noon, then expressed in UTC. Noon-anchoring keeps the entry on the intended
- * calendar day for every timezone within ±12h.
- *
- * Built without `new Date('YYYY-MM-DDTHH:MM:SS')` because old mobile Safari
- * (pre-iOS 14.5) parsed that as UTC instead of local; the explicit-component
- * constructor is locale-safe everywhere.
- */
-export const dayToIsoNoon = (yyyyMmDd: string): string => {
-  const [y, m, d] = yyyyMmDd.split('-').map(Number)
-  return new Date(y, m - 1, d, 12, 0, 0, 0).toISOString()
-}
 
 
 /**
@@ -38,4 +25,35 @@ export const isoToDayInput = (iso: string): string => {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/**
+ * The instant to store for a user-picked calendar day.
+ *
+ * One rule for every date the user chooses, replacing the four this codebase grew:
+ * a fake noon anchor, a bare `new Date(ymd)` (which parses as UTC midnight and put
+ * west-of-UTC users on the previous day), a real `new Date()`, and a local
+ * keep-the-time helper that existed in exactly one screen.
+ *
+ * `previousIso` is the entry's current timestamp when editing: the day moves and the
+ * time-of-day is preserved, so re-dating an entry doesn't silently restamp when it
+ * happened. Without it the time defaults to local noon — furthest from either
+ * midnight, so the entry stays on the intended day under any offset the server might
+ * later resolve it in.
+ *
+ * Built from explicit components rather than `new Date('YYYY-MM-DDTHH:MM:SS')`:
+ * pre-iOS 14.5 Safari parsed that string form as UTC, the same class of bug this
+ * function exists to remove.
+ */
+export const dayToInstant = (yyyyMmDd: string, previousIso?: string): string => {
+  const [y, m, d] = yyyyMmDd.split('-').map(Number)
+  const prev = previousIso ? new Date(previousIso) : null
+  const valid = prev && !Number.isNaN(prev.getTime())
+  return new Date(
+    y, (m ?? 1) - 1, d ?? 1,
+    valid ? prev.getHours() : 12,
+    valid ? prev.getMinutes() : 0,
+    valid ? prev.getSeconds() : 0,
+    0,
+  ).toISOString()
 }

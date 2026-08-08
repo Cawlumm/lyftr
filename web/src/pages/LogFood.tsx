@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToIsoNoon } from '../utils/dateUtils'
+import { todayStr, dayToInstant } from '../utils/dateUtils'
 import { MACRO_COLORS } from '../utils/macroColors'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
@@ -202,7 +202,7 @@ export default function LogFood() {
         servings,
         serving_size: selected.serving_size ?? '',
         image_url: selected.image_url ?? '',
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       }
       if (editId) {
         await foodAPI.update(editId, payload)

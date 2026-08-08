@@ -8,7 +8,7 @@ import {
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import {
-  apiErrorMessage, dayToIsoNoon, displayToLbs, displayWeight, isoToDayInput, maxWeight, todayStr,
+  apiErrorMessage, dayToInstant, displayToLbs, displayWeight, isoToDayInput, maxWeight, todayStr,
   weightError, weightShort, type WeightLog, type WeightStats,
 } from '@lyftr/shared'
 import {
@@ -139,7 +139,7 @@ export default function Weight() {
       const real = await client.weightAPI.log({
         weight: displayToLbs(w, unit),
         notes: newNotes.trim(),
-        logged_at: dayToIsoNoon(newDate),
+        logged_at: dayToInstant(newDate),
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       setNewWeight(String(displayWeight(real.weight, unit)))

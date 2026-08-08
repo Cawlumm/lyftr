@@ -14,8 +14,8 @@ import (
 func insertWeightLog(t *testing.T, uid int64, weight float64, loggedAt time.Time) int64 {
 	t.Helper()
 	res, err := db.DB.Exec(
-		`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, '', ?, ?)`,
-		uid, weight, loggedAt, loggedAt.Format("2006-01-02"),
+		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, '', ?)`,
+		uid, weight, loggedAt,
 	)
 	if err != nil {
 		t.Fatalf("insert weight log: %v", err)
@@ -478,17 +478,17 @@ func TestGetWeightStats_noData(t *testing.T) {
 	}
 }
 
-// Regression: Update rewrote logged_at but not logged_on, while the same-day dedup
-// DELETE that follows keys on the *new* day — so moving an entry to another date
-// deleted the real entry already on that date and left the edited row on its old
-// day. Both halves are asserted because either alone would have passed.
+// Regression: moving an entry's date must move that entry and leave the day it
+// moves onto intact. The one-entry-per-day rule is evaluated over the user's local
+// day, so both halves are asserted — either alone would pass a broken version.
 func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 	setUserTimezone(t, uid, "America/New_York")
 
+	// Local noon on each day, the anchor every client writes.
 	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
-		"weight": 200, "logged_at": "2026-08-05T16:00:00Z", // noon local, Aug 5
+		"weight": 200, "logged_at": "2026-08-05T16:00:00Z",
 	})
 	th.LogWeight(c)
 	if w.Code != http.StatusCreated {
@@ -497,7 +497,7 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 	movedID := int64(decodeResponse(t, w)["data"].(map[string]any)["id"].(float64))
 
 	c, w = newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
-		"weight": 201, "logged_at": "2026-08-06T16:00:00Z", // noon local, Aug 6
+		"weight": 201, "logged_at": "2026-08-06T16:00:00Z",
 	})
 	th.LogWeight(c)
 	if w.Code != http.StatusCreated {
@@ -512,37 +512,32 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 	if w.Code != http.StatusOK {
 		t.Fatalf("update: %d %s", w.Code, w.Body.String())
 	}
-	if day := decodeResponse(t, w)["data"].(map[string]any)["logged_on"].(string); day != "2026-08-06" {
-		t.Errorf("edited row should now be filed on 2026-08-06, got %q", day)
+
+	countOnLocalDay := func(day string) int {
+		t.Helper()
+		loc, err := ParseLocation("America/New_York")
+		if err != nil {
+			t.Fatal(err)
+		}
+		from, to, ok := localDayRange(day, loc)
+		if !ok {
+			t.Fatalf("bad day %s", day)
+		}
+		var n int
+		if err := db.DB.QueryRow(
+			`SELECT COUNT(*) FROM weight_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?`,
+			uid, from, to,
+		).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
 	}
 
-	// Exactly one entry survives on the target day, and none is stranded on the old.
-	var onTarget, onOld int
-	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ? AND logged_on = '2026-08-06'`, uid).Scan(&onTarget); err != nil {
-		t.Fatal(err)
+	if n := countOnLocalDay("2026-08-06"); n != 1 {
+		t.Errorf("expected exactly one entry on the target day, got %d", n)
 	}
-	if err := db.DB.QueryRow(`SELECT COUNT(*) FROM weight_logs WHERE user_id = ? AND logged_on = '2026-08-05'`, uid).Scan(&onOld); err != nil {
-		t.Fatal(err)
-	}
-	if onTarget != 1 {
-		t.Errorf("expected one entry on the target day, got %d", onTarget)
-	}
-	if onOld != 0 {
-		t.Errorf("expected nothing left on the old day, got %d", onOld)
+	if n := countOnLocalDay("2026-08-05"); n != 0 {
+		t.Errorf("expected nothing left on the old day, got %d", n)
 	}
 }
 
-// A malformed day would be stored verbatim, hiding the entry from every read and —
-// for weight — aiming the dedup DELETE at an arbitrary value.
-func TestLogWeight_rejectsMalformedLoggedOn(t *testing.T) {
-	setupTestDB(t)
-	uid := createTestUser(t)
-
-	c, w := newContext(uid, http.MethodPost, "/api/v1/weight", map[string]any{
-		"weight": 180, "logged_on": "08/05/2026",
-	})
-	th.LogWeight(c)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for a malformed logged_on, got %d: %s", w.Code, w.Body.String())
-	}
-}

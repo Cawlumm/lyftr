@@ -8,7 +8,7 @@ import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import RestPicker from '../components/RestPicker'
 import * as types from '../types'
-import { todayStr, dayToIsoNoon } from '../utils/dateUtils'
+import { todayStr, dayToInstant } from '../utils/dateUtils'
 
 interface WorkoutFormData {
   name: string
@@ -93,7 +93,7 @@ export default function AddWorkout() {
       const payload = {
         ...formData,
         duration: formData.duration * 60,
-        started_at: dayToIsoNoon(formData.date),
+        started_at: dayToInstant(formData.date),
         exercises: formData.exercises.map(ex => ({
           ...ex,
           sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),

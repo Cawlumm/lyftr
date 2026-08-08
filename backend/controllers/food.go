@@ -35,9 +35,12 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 	if date == "" {
 		date = time.Now().In(loc).Format("2006-01-02")
 	}
-	// No range, no timezone math: the day is stored on the row. The zone above is
-	// only used to answer "what is today?" when the client omits a date.
-	logs, err := h.s.Food.ListByDay(uid, date)
+	from, to, ok := localDayRange(date, loc)
+	if !ok {
+		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		return
+	}
+	logs, err := h.s.Food.ListByDay(uid, from, to)
 	if utils.DBError(c, err) {
 		return
 	}
@@ -93,12 +96,6 @@ func (h *Handler) LogFood(c *gin.Context) {
 	}
 
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
-	if err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	req.LoggedOn = loggedOn
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -144,12 +141,6 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
-	loggedOn, err := h.resolveLoggedOn(uid, req.LoggedOn, req.LoggedAt)
-	if err != nil {
-		utils.BadRequest(c, err.Error())
-		return
-	}
-	req.LoggedOn = loggedOn
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
@@ -192,26 +183,19 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 		date = time.Now().In(loc).Format("2006-01-02")
 	}
 
-	stats, err := h.s.Food.DailyMacros(uid, date)
+	from, to, ok := localDayRange(date, loc)
+	if !ok {
+		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		return
+	}
+	stats, err := h.s.Food.DailyMacros(uid, from, to)
 	if utils.DBError(c, err) {
 		return
 	}
 	stats.Date = date
-	// Food came from logged_on, but a workout is an instant, not a diary entry — it
-	// has no stored day — so "workouts on this date" is still a zone question and
-	// resolves through a local-day range. CountOn's substr(started_at) would count
-	// the UTC day and disagree with the macros beside it.
-	//
-	// The two halves of this payload therefore answer via different mechanisms, and
-	// after a user changes zones the workout count re-buckets while the macros stay
-	// on the day stored at write time. Closing that gap means giving workouts a day
-	// of their own, which is a decision about whether a workout is an event or a
-	// diary entry — not something to settle in passing here.
-	if from, to, ok := localDayRange(date, loc); ok {
-		if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
-			return
-		}
-	} else if stats.WorkoutCount, err = h.s.Workout.CountOn(uid, date); utils.DBError(c, err) {
+	// Macros and the workout count now come from the same range, so the two halves
+	// of this payload can't describe different days.
+	if stats.WorkoutCount, err = h.s.Workout.CountBetween(uid, from, to); utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, stats)
@@ -225,9 +209,7 @@ func (h *Handler) GetFoodHistory(c *gin.Context) {
 		days = d
 	}
 
-	// Cutoff is a calendar day in the user's zone, matching the stored logged_on.
-	cutoff := time.Now().In(h.userLocation(uid)).AddDate(0, 0, -days).Format("2006-01-02")
-	points, err := h.s.Food.History(uid, cutoff)
+	points, err := h.s.Food.History(uid, days, h.userLocation(uid))
 	if utils.DBError(c, err) {
 		return
 	}

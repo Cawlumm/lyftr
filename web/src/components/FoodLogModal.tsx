@@ -7,7 +7,7 @@ import {
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, isoToDayInput } from '../utils/dateUtils'
 import BarcodeScanner from './BarcodeScanner'
 import * as types from '../types'
 
@@ -185,7 +185,7 @@ export default function FoodLogModal({
         fiber: +((selected.fiber ?? 0) * servings).toFixed(1),
         servings,
         serving_size: selected.serving_size ?? '',
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       }
       const entry = editEntry
         ? await foodAPI.update(editEntry.id, payload)
