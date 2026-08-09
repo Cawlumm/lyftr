@@ -36,10 +36,26 @@ maestro test "$FLOWS/day-labels.yaml"
 maestro test "$FLOWS/log-weight.yaml"
 
 # Reformat to the app's display form: "Aug 9, 2026".
-EXPECTED_DAY="$(date -d "$DAY_BEFORE" '+%b %-d, %Y' 2>/dev/null || date -j -f %Y-%m-%d "$DAY_BEFORE" '+%b %-d, %Y')"
+display_day() {
+  date -d "$1" '+%b %-d, %Y' 2>/dev/null || date -j -f %Y-%m-%d "$1" '+%b %-d, %Y'
+}
+EXPECTED_DAY="$(display_day "$DAY_BEFORE")"
 echo "── expecting the entry to stay on: $EXPECTED_DAY"
 
 set_tz "Asia/Tokyo"
-maestro test -e EXPECTED_DAY="$EXPECTED_DAY" "$FLOWS/assert-day-after-travel.yaml"
+
+# The day the device now thinks it is, which is the day the entry would drift to if a
+# screen went back to deriving its label from the device. Asserting its ABSENCE is what
+# separates a real fix from a list that renders both days — passing only EXPECTED_DAY
+# would go green on a half-fixed screen.
+DAY_AFTER="$(current_day)"
+UNEXPECTED_DAY="$(display_day "$DAY_AFTER")"
+if [ "$EXPECTED_DAY" = "$UNEXPECTED_DAY" ]; then
+  echo "── the hop did not cross midnight ($EXPECTED_DAY both sides); nothing to prove, run it at a different hour" >&2
+  exit 1
+fi
+echo "── device now thinks it is: $UNEXPECTED_DAY"
+
+maestro test -e EXPECTED_DAY="$EXPECTED_DAY" -e UNEXPECTED_DAY="$UNEXPECTED_DAY" "$FLOWS/assert-day-after-travel.yaml"
 
 echo "── entry held its day across a 13-hour move"

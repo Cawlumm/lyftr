@@ -5,13 +5,15 @@
 # itself and fail. On a physical device over Tailscale, pass SERVER_URL instead:
 #   maestro test -e SERVER_URL=http://100.x.y.z:3000 .maestro/login.yaml
 #
+# The defaults are inline rather than in an `env:` block on purpose. A variable
+# declared there cannot be overridden by `-e` — the default silently wins and the flow
+# runs against the wrong server while reporting success. `typeof` is what makes an
+# unset variable readable instead of a ReferenceError, so this pattern gives a working
+# default AND a working override.
+#
 # Selectors are text, because the app has no testIDs — mobile/CONVENTIONS.md puts
 # accessibilityLabel in their place, and Maestro matches those too.
 appId: local.lyftr.app
-env:
-  SERVER_URL: http://10.0.2.2:3000
-  EMAIL: demo@lyftr.local
-  PASSWORD: password123
 ---
 - launchApp:
     clearState: true
@@ -23,20 +25,20 @@ env:
 # The URL field is collapsed behind a summary row until the row is tapped.
 - tapOn: "Server settings"
 - tapOn: "https://your-server.example.com"
-- inputText: ${SERVER_URL}
+- inputText: "${typeof SERVER_URL !== 'undefined' ? SERVER_URL : 'http://10.0.2.2:3000'}"
 - hideKeyboard
 - tapOn: "Test & save"
 # Proves the app reached *our* backend, not just that a field was filled.
 - assertVisible: "Connected to.*"
 
 - tapOn: "you@example.com"
-- inputText: ${EMAIL}
+- inputText: "${typeof EMAIL !== 'undefined' ? EMAIL : 'demo@lyftr.local'}"
 # The soft keyboard covers the lower half of the form, so "below PASSWORD" resolves
 # to nothing until it is dismissed.
 - hideKeyboard
 - tapOn:
     below: "PASSWORD"
-- inputText: ${PASSWORD}
+- inputText: "${typeof PASSWORD !== 'undefined' ? PASSWORD : 'password123'}"
 - hideKeyboard
 - tapOn: "Sign in"
 

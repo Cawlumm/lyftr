@@ -3,8 +3,15 @@
 #
 # The runner flips the emulator's zone between log-weight.yaml and this flow, so the
 # app relaunches somewhere else entirely. EXPECTED_DAY is the day the entry was
-# written under, passed in by the runner; UNEXPECTED_DAY is the day it would drift to
-# if a screen went back to deriving the label from the device.
+# written under; UNEXPECTED_DAY is the day it would drift to if a screen went back to
+# deriving the label from the device. Both are required:
+#
+#   maestro test .maestro/assert-day-after-travel.yaml \
+#     -e EXPECTED_DAY="Aug 9, 2026" -e UNEXPECTED_DAY="Aug 10, 2026"
+#
+# Deliberately no `env:` defaults for those two. A variable declared there cannot be
+# overridden by `-e` — the default silently wins — so declaring them with `""` made
+# every run assert against an empty selector while looking like a product failure.
 #
 # Asserting both directions matters. EXPECTED_DAY alone passes on a list that renders
 # *both* days, which is exactly what a partial fix looks like — the history row
@@ -14,10 +21,14 @@
 # logged_on 2026-08-09 rendered "Aug 10, 2026", because the row formatted logged_at
 # (the instant) instead of the stored day.
 appId: local.lyftr.app
-env:
-  EXPECTED_DAY: ""
-  UNEXPECTED_DAY: ""
 ---
+# An empty selector is a regex that matches everything, so a missing -e would make
+# assertNotVisible fail against any screen at all — a runner misconfiguration wearing
+# the costume of a product bug. Fail on the real reason instead.
+- assertTrue:
+    condition: ${typeof EXPECTED_DAY !== 'undefined' && EXPECTED_DAY.length > 0 && typeof UNEXPECTED_DAY !== 'undefined' && UNEXPECTED_DAY.length > 0}
+    label: "EXPECTED_DAY and UNEXPECTED_DAY must both be passed with -e"
+
 - runFlow: login.yaml
 
 - tapOn:
