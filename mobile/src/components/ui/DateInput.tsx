@@ -41,6 +41,17 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
   const date = toLocalDate(value)
   const isIOS = Platform.OS === 'ios'
 
+  // A bound must never exclude the value it is currently showing. The native dialog
+  // clamps its initial selection into range, and Android reports that clamped date as
+  // a normal 'set' — so a value past the bound gets rewritten to the bound by merely
+  // opening the picker and confirming, with the user having chosen nothing.
+  //
+  // Callers pass `new Date()` ("no future entries"), and an entry *can* sit past the
+  // device's today without being in the future: log in UTC+14, fly to UTC-11, and
+  // yesterday's entry is dated tomorrow. Silently moving it is the exact day-drift
+  // this codebase stores logged_on to prevent.
+  const effectiveMax = maximumDate && date > maximumDate ? date : maximumDate
+
   const handleChange = (event: DateTimePickerEvent, selected?: Date) => {
     // Android fires exactly once (set|dismissed) and the dialog is already gone.
     // On iOS the inline picker stays up (it's in our Modal) — emit on 'set', keep
@@ -68,7 +79,7 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
           value={date}
           mode="date"
           display="default"
-          maximumDate={maximumDate}
+          maximumDate={effectiveMax}
           onChange={handleChange}
         />
       )}
@@ -102,7 +113,7 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
                     value={date}
                     mode="date"
                     display="inline"
-                    maximumDate={maximumDate}
+                    maximumDate={effectiveMax}
                     onChange={handleChange}
                     themeVariant={isDark ? 'dark' : 'light'}
                     // Tint the selection to brand so it reads on-theme.
