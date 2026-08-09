@@ -149,13 +149,15 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
         ...data,
         tz_offset_minutes: utcOffsetMinutes(data?.started_at),
       }).then(unwrap),
-    // Same stamp as create: an edit can move the day, and the offset has to move with
-    // it. Sending the instant alone leaves the row's original offset applied to a new
-    // moment, so the day the user picked is not the day anything renders.
+    // The offset must describe the instant being sent, so it is stamped only when the
+    // caller derived that instant here and now. The mobile edit screen re-picks the date
+    // through dayToInstant in this zone and omits the offset, so it gets this device's.
+    // A caller that resends the timestamp it loaded passes the stored offset through,
+    // because stamping there would move the day on an edit that never touched the date.
     update: (id: number, data: any) =>
       api.put<{ data: types.Workout }>(`/workouts/${id}`, {
         ...data,
-        tz_offset_minutes: utcOffsetMinutes(data?.started_at),
+        tz_offset_minutes: data?.tz_offset_minutes ?? utcOffsetMinutes(data?.started_at),
       }).then(unwrap),
     delete: (id: number) => api.delete(`/workouts/${id}`),
   }
