@@ -32,13 +32,15 @@ func ParseLocation(name string) (*time.Location, error) {
 // shouldn't make the food diary return 500. Both cases degrade to the pre-feature
 // behaviour instead of breaking the request.
 //
-// Every day query buckets by the zone the account holds *now*, so changing zones
-// re-buckets history. The blast radius is wider than "entries near midnight": a
-// back-dated entry is anchored at local noon, so read from an account at offset b
-// it sits at 12-a+b local and only keeps its day while |b-a| < 12. New York to
-// Tokyo is 13 hours, which moves every entry a day — measured, not theoretical.
-// This is the Fitbit/Oura trade-off (one zone on the account, none on the row);
-// the alternative is storing an offset per record, which is a schema change.
+// The zone is no longer what decides which day an entry belongs to — each row
+// records that itself (food_logs/weight_logs.logged_on, workouts.tz_offset_minutes),
+// so history does not move when the account's zone changes. What remains here are
+// the two questions a stored day genuinely cannot answer:
+//
+//	1. "What is today?" — for a read with no date parameter.
+//	2. "What day is this?" — for a write from a client too old to send one.
+//
+// Both are questions about *now*, where the current zone is the right answer.
 func (h *Handler) userLocation(uid int64) *time.Location {
 	st, err := h.s.User.GetSettings(uid)
 	if err != nil {
@@ -51,23 +53,46 @@ func (h *Handler) userLocation(uid int64) *time.Location {
 	return loc
 }
 
-// localDayRange turns a YYYY-MM-DD day into the half-open instant range
-// [local midnight, next local midnight) for loc.
+// resolveDay is the single place a write decides which calendar day an entry belongs
+// to. Every create/update path goes through it, so there is one rule rather than one
+// per handler.
 //
-// The end is derived with AddDate(0, 0, 1) rather than Add(24*time.Hour) so it
-// lands on the next local midnight even when the day is 23 or 25 hours long. On a
-// DST spring-forward day the naive version would end an hour early and drop the
-// last hour's entries; on fall-back it would end an hour late and borrow the next
-// day's first hour.
-func localDayRange(day string, loc *time.Location) (time.Time, time.Time, bool) {
-	t, err := time.ParseInLocation("2006-01-02", day, loc)
-	if err != nil {
-		return time.Time{}, time.Time{}, false
+// A client-supplied day wins. The device knows its own zone with certainty; the
+// account zone is a cached copy that may not have synced yet, so preferring it would
+// mean a user who just crossed a border files entries under the day they left. When
+// no day is sent — every already-installed client — it falls back to deriving one
+// from the account zone, which is exactly what the server did before this column
+// existed. That fallback is what keeps old clients correct rather than blank.
+func (h *Handler) resolveDay(uid int64, supplied string, instant time.Time) (string, bool) {
+	if supplied != "" {
+		if _, err := time.Parse("2006-01-02", supplied); err != nil {
+			return "", false
+		}
+		return supplied, true
 	}
-	// Returned in UTC. The instants are identical either way, but the SQLite driver
-	// serializes a time.Time's zone into the value it binds, so a boundary carrying
-	// "-0400 EDT" compares as text against UTC-stored rows and silently matches
-	// nothing. Normalizing here keeps every comparison in one representation.
-	return t.UTC(), t.AddDate(0, 0, 1).UTC(), true
+	return instant.In(h.userLocation(uid)).Format("2006-01-02"), true
 }
+
+// resolveQueryDay picks the day a read is asking about: the supplied YYYY-MM-DD, or
+// today in the user's zone when the parameter is omitted. "Today" is the one question
+// that still needs a zone after this change — a stored day cannot tell you which day
+// is the current one.
+func (h *Handler) resolveQueryDay(uid int64, supplied string) (string, bool) {
+	if supplied == "" {
+		return time.Now().In(h.userLocation(uid)).Format("2006-01-02"), true
+	}
+	if _, err := time.Parse("2006-01-02", supplied); err != nil {
+		return "", false
+	}
+	return supplied, true
+}
+
+// tzOffsetMinutes is the user's UTC offset at a given instant, for stamping onto a
+// workout. Resolved through the zone at that instant rather than a fixed number, so
+// a summer workout gets the summer offset.
+func (h *Handler) tzOffsetMinutes(uid int64, instant time.Time) int {
+	_, seconds := instant.In(h.userLocation(uid)).Zone()
+	return seconds / 60
+}
+
 

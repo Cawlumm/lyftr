@@ -12,6 +12,22 @@ import (
 
 var DB *sql.DB
 
+// BuildSchema brings an already-open DB to the current schema: base tables, then
+// every migration, in the same order Connect uses.
+//
+// Exists so tests outside this package build their database the way production does
+// instead of keeping a copy of the DDL. The controller tests used to carry a
+// hand-maintained 138-line schema, which had already drifted — it created
+// program_days (a migration artifact, not a base table) and omitted active_sessions
+// entirely — so a column added to a migration compiled fine and failed at runtime.
+func BuildSchema() error {
+	if err := migrate(); err != nil {
+		return err
+	}
+	alterMigrations()
+	return nil
+}
+
 func Connect() {
 	dbPath := config.C.DBPath
 

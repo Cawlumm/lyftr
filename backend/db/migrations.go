@@ -6,6 +6,11 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	// The backfill resolves stored zones, and the production image (alpine) ships no
+	// /usr/share/zoneinfo. controllers blank-imports this too; both are needed, since
+	// relying on another package's import would break silently if that one moved.
+	_ "time/tzdata"
 )
 
 func migrate() error {
@@ -80,6 +85,199 @@ func alterMigrations() {
 
 	normalizeWorkoutStartedAt()
 	normalizeFoodLoggedAt()
+
+	// The day a diary entry belongs to, and the offset a workout started at, stored
+	// ON THE ROW instead of derived from the account's current zone at read time.
+	//
+	// This is the split Fitbit and wger arrived at independently. Fitbit's food log
+	// entry is `logDate: "2019-03-21"` with no time component at all, and its weight
+	// entry carries separate local `date` and `time`; its *activity* keeps a real
+	// instant with the offset inline (`2019-01-03T12:08:29.000-08:00`). wger stores
+	// WorkoutSession.date as a plain DateField while its log rows stay timestamps.
+	//
+	// Why a date for the diary but an offset for the workout, rather than one shape
+	// for both: a back-dated meal has no real instant — we invent local noon for it —
+	// so an offset on that invented instant would be invented too. The date is the
+	// honest primitive there. A workout genuinely happened at a moment, and duration
+	// and ordering depend on that moment, so it keeps the instant and gains the
+	// offset that makes its local day recoverable forever.
+	//
+	// These run AFTER the normalize* calls above: the backfill derives days from
+	// logged_at/started_at, so those must already be UTC or the derived day inherits
+	// the stale zone.
+	ensureColumn("food_logs", "logged_on", `ALTER TABLE food_logs ADD COLUMN logged_on TEXT NOT NULL DEFAULT ''`)
+	ensureColumn("weight_logs", "logged_on", `ALTER TABLE weight_logs ADD COLUMN logged_on TEXT NOT NULL DEFAULT ''`)
+	ensureColumn("workouts", "tz_offset_minutes", `ALTER TABLE workouts ADD COLUMN tz_offset_minutes INTEGER`)
+	ensureIndex("idx_food_logs_user_day", `CREATE INDEX IF NOT EXISTS idx_food_logs_user_day ON food_logs(user_id, logged_on)`)
+	ensureIndex("idx_weight_logs_user_day", `CREATE INDEX IF NOT EXISTS idx_weight_logs_user_day ON weight_logs(user_id, logged_on)`)
+	backfillLocalDays()
+}
+
+// backfillLocalDays fills the stored day/offset for rows written before those
+// columns existed.
+//
+// Deliberately behaviour-preserving: it derives each row's day with exactly the rule
+// the read path used before this change — the instant, resolved in that user's stored
+// zone. So upgrading an existing server moves nothing. What changes is that the answer
+// is now frozen on the row instead of recomputed against a zone that can change.
+//
+// That also means the backfill inherits whatever the account zone says today. For a
+// user who already travelled before upgrading, their old entries are pinned to the
+// day their *current* zone implies, which may not be the day they lived through. That
+// is not recoverable — the write-time zone was never stored, which is the whole reason
+// for this change — and it is strictly no worse than the derive-every-time behaviour
+// it replaces.
+func backfillLocalDays() {
+	done, err := hasMigrationFlag("backfill_local_days")
+	if err != nil {
+		log.Printf("backfillLocalDays: check flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
+	locs := map[string]*time.Location{}
+	loadLoc := func(name string) *time.Location {
+		if l, ok := locs[name]; ok {
+			return l
+		}
+		l, err := time.LoadLocation(name)
+		if err != nil {
+			log.Printf("backfillLocalDays: unknown zone %q, using UTC for those rows", name)
+			l = time.UTC
+		}
+		locs[name] = l
+		return l
+	}
+
+	for _, t := range []struct{ table, column string }{
+		{"food_logs", "logged_at"},
+		{"weight_logs", "logged_at"},
+	} {
+		if err := backfillDayColumn(t.table, t.column, loadLoc); err != nil {
+			log.Printf("backfillLocalDays(%s): %v (skipping this boot, will retry)", t.table, err)
+			return
+		}
+	}
+	if err := backfillWorkoutOffsets(loadLoc); err != nil {
+		log.Printf("backfillLocalDays(workouts): %v (skipping this boot, will retry)", err)
+		return
+	}
+	setMigrationFlag("backfill_local_days")
+}
+
+// backfillDayColumn sets table.logged_on from table.<column> resolved in the owning
+// user's zone. Users with no settings row fall back to UTC, matching userLocation.
+func backfillDayColumn(table, column string, loadLoc func(string) *time.Location) error {
+	rows, err := DB.Query(fmt.Sprintf(`
+		SELECT t.id, t.%[2]s, COALESCE(s.timezone, 'UTC')
+		FROM %[1]s t LEFT JOIN user_settings s ON s.user_id = t.user_id
+		WHERE t.logged_on = ''`, table, column))
+	if err != nil {
+		return err
+	}
+	type fix struct {
+		id  int64
+		day string
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var at time.Time
+		var zone string
+		if err := rows.Scan(&id, &at, &zone); err != nil {
+			rows.Close()
+			return err
+		}
+		fixes = append(fixes, fix{id, at.In(loadLoc(zone)).Format("2006-01-02")})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(fixes) == 0 {
+		return nil
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(fmt.Sprintf(`UPDATE %s SET logged_on = ? WHERE id = ?`, table))
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, f := range fixes {
+		if _, err := stmt.Exec(f.day, f.id); err != nil {
+			stmt.Close()
+			tx.Rollback()
+			return err
+		}
+	}
+	stmt.Close()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	log.Printf("migration: backfilled %s.logged_on for %d rows", table, len(fixes))
+	return nil
+}
+
+// backfillWorkoutOffsets sets workouts.tz_offset_minutes from the owning user's zone
+// at that workout's instant — .Zone() rather than a fixed offset, so a workout logged
+// in July gets the summer offset and one logged in January gets the winter one.
+func backfillWorkoutOffsets(loadLoc func(string) *time.Location) error {
+	rows, err := DB.Query(`
+		SELECT w.id, w.started_at, COALESCE(s.timezone, 'UTC')
+		FROM workouts w LEFT JOIN user_settings s ON s.user_id = w.user_id
+		WHERE w.tz_offset_minutes IS NULL`)
+	if err != nil {
+		return err
+	}
+	type fix struct {
+		id      int64
+		minutes int
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var at time.Time
+		var zone string
+		if err := rows.Scan(&id, &at, &zone); err != nil {
+			rows.Close()
+			return err
+		}
+		_, offsetSeconds := at.In(loadLoc(zone)).Zone()
+		fixes = append(fixes, fix{id, offsetSeconds / 60})
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(fixes) == 0 {
+		return nil
+	}
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare(`UPDATE workouts SET tz_offset_minutes = ? WHERE id = ?`)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, f := range fixes {
+		if _, err := stmt.Exec(f.minutes, f.id); err != nil {
+			stmt.Close()
+			tx.Rollback()
+			return err
+		}
+	}
+	stmt.Close()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	log.Printf("migration: backfilled workouts.tz_offset_minutes for %d rows", len(fixes))
+	return nil
 }
 
 // normalizeWorkoutStartedAt rewrites any workouts.started_at stored with a non-UTC

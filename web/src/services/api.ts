@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios'
 import * as types from '../types'
 import { normalizeServerUrl } from '../stores/server'
+import { withLoggedOn, utcOffsetMinutes } from '../utils/dateUtils'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy.
@@ -122,7 +123,13 @@ export const workoutAPI = {
   list:   (params?: { limit?: number; offset?: number; q?: string }) =>
     api.get<{ data: types.Workout[] }>('/workouts', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.Workout }>(`/workouts/${id}`).then(res => unwrap(res)),
-  create: (data: any) => api.post<{ data: types.Workout }>('/workouts', data).then(res => unwrap(res)),
+  // A workout keeps its instant and records the offset it happened at, rather than
+  // flattening to a day like the diary does — duration and ordering need the moment.
+  create: (data: any) =>
+    api.post<{ data: types.Workout }>('/workouts', {
+      ...data,
+      tz_offset_minutes: utcOffsetMinutes(data?.started_at),
+    }).then(res => unwrap(res)),
   update: (id: number, data: any) => api.put<{ data: types.Workout }>(`/workouts/${id}`, data).then(res => unwrap(res)),
   delete: (id: number) => api.delete(`/workouts/${id}`),
 }
@@ -170,18 +177,18 @@ export const weightAPI = {
     api.get<{ data: types.WeightLog[] }>('/weight', { params }).then(res => unwrap(res)),
   get:    (id: number) => api.get<{ data: types.WeightLog }>(`/weight/${id}`).then(res => unwrap(res)),
   log:    (data: { weight: number; notes?: string; logged_at?: string }) =>
-    api.post<{ data: types.WeightLog }>('/weight', data).then(res => unwrap(res)),
+    api.post<{ data: types.WeightLog }>('/weight', withLoggedOn(data)).then(res => unwrap(res)),
   update: (id: number, data: { weight: number; notes?: string; logged_at?: string }) =>
-    api.patch<{ data: types.WeightLog }>(`/weight/${id}`, data).then(res => unwrap(res)),
+    api.patch<{ data: types.WeightLog }>(`/weight/${id}`, withLoggedOn(data)).then(res => unwrap(res)),
   delete: (id: number) => api.delete(`/weight/${id}`),
   stats:  () => api.get<{ data: types.WeightStats }>('/weight/stats').then(res => unwrap(res)),
 }
 
 export const foodAPI = {
   list:    (date?: string) => api.get<{ data: types.FoodLog[] }>('/food', { params: { date } }).then(res => unwrap(res)),
-  log:     (data: any) => api.post<{ data: types.FoodLog }>('/food', data).then(res => unwrap(res)),
+  log:     (data: any) => api.post<{ data: types.FoodLog }>('/food', withLoggedOn(data)).then(res => unwrap(res)),
   get:     (id: number) => api.get<{ data: types.FoodLog }>(`/food/${id}`).then(res => unwrap(res)),
-  update:  (id: number, data: any) => api.patch<{ data: types.FoodLog }>(`/food/${id}`, data).then(res => unwrap(res)),
+  update:  (id: number, data: any) => api.patch<{ data: types.FoodLog }>(`/food/${id}`, withLoggedOn(data)).then(res => unwrap(res)),
   delete:  (id: number) => api.delete(`/food/${id}`),
   stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(res => unwrap(res)),
   history: (days = 30) => api.get<{ data: types.FoodHistoryPoint[] }>('/food/history', { params: { days } }).then(res => unwrap(res)),

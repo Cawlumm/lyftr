@@ -2,9 +2,6 @@ package stores
 
 import (
 	"database/sql"
-	"fmt"
-	"sort"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -14,23 +11,26 @@ type FoodStore struct{ db *sql.DB }
 
 func NewFoodStore(db *sql.DB) *FoodStore { return &FoodStore{db: db} }
 
-const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, created_at FROM food_logs`
+const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
 
 func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
 	return row.Scan(
 		&f.ID, &f.UserID, &f.Name, &f.Meal,
 		&f.Calories, &f.Protein, &f.Carbs, &f.Fat, &f.Fiber,
 		&f.Servings, &f.ServingSize, &f.Barcode, &f.ImageURL,
-		&f.LoggedAt, &f.CreatedAt,
+		&f.LoggedAt, &f.LoggedOn, &f.CreatedAt,
 	)
 }
 
-// ListByDay returns the entries inside [from, to) — the caller's local day resolved
-// to instants. Half-open so an entry exactly at midnight belongs to one day only.
-func (s *FoodStore) ListByDay(uid int64, from, to time.Time) ([]models.FoodLog, error) {
+// ListByDay returns the entries the user filed under `day` (YYYY-MM-DD).
+//
+// A plain equality on the stored day, not an instant range: the day was decided when
+// the entry was written, so reading it needs no zone and cannot move. Ordered by the
+// instant so entries still read in the order they happened within the day.
+func (s *FoodStore) ListByDay(uid int64, day string) ([]models.FoodLog, error) {
 	rows, err := s.db.Query(
-		foodLogSelect+` WHERE user_id = ? AND logged_at >= ? AND logged_at < ? ORDER BY logged_at ASC, id ASC`,
-		uid, from, to,
+		foodLogSelect+` WHERE user_id = ? AND logged_on = ? ORDER BY logged_at ASC, id ASC`,
+		uid, day,
 	)
 	if err != nil {
 		return nil, err
@@ -55,12 +55,14 @@ func (s *FoodStore) Get(uid, id int64) (models.FoodLog, error) {
 	return f, err
 }
 
-func (s *FoodStore) Create(uid int64, req models.LogFoodRequest) (models.FoodLog, error) {
+// Create inserts an entry. day is the calendar day the user files it under, resolved
+// by the controller (client-supplied when sent, else from the account zone).
+func (s *FoodStore) Create(uid int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
-		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
+		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
 	)
 	if err != nil {
 		return models.FoodLog{}, err
@@ -69,13 +71,13 @@ func (s *FoodStore) Create(uid int64, req models.LogFoodRequest) (models.FoodLog
 	return s.Get(uid, id)
 }
 
-func (s *FoodStore) Update(uid, id int64, req models.LogFoodRequest) (models.FoodLog, error) {
+func (s *FoodStore) Update(uid, id int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
 		`UPDATE food_logs SET name=?, meal=?, calories=?, protein=?, carbs=?, fat=?, fiber=?,
-		 servings=?, serving_size=?, barcode=?, image_url=?, logged_at=?
+		 servings=?, serving_size=?, barcode=?, image_url=?, logged_at=?, logged_on=?
 		 WHERE id=? AND user_id=?`,
 		req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt,
+		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
 		id, uid,
 	)
 	if err != nil {
@@ -99,75 +101,50 @@ func (s *FoodStore) Delete(uid, id int64) (int64, error) {
 // DailyMacros returns the day's summed macros (WorkoutCount/Date are filled by
 // the caller, which composes a WorkoutStore count — cross-entity stays in the
 // controller, not in a store).
-func (s *FoodStore) DailyMacros(uid int64, from, to time.Time) (models.DailyStats, error) {
+func (s *FoodStore) DailyMacros(uid int64, day string) (models.DailyStats, error) {
 	var stats models.DailyStats
 	err := s.db.QueryRow(
 		`SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
-		 FROM food_logs WHERE user_id = ? AND logged_at >= ? AND logged_at < ?`,
-		uid, from, to,
+		 FROM food_logs WHERE user_id = ? AND logged_on = ?`,
+		uid, day,
 	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber)
 	return stats, err
 }
 
 
-// History returns per-day macro totals for the last `days` days, bucketed by the
-// calendar day in loc.
+// History returns per-day macro totals from sinceDay (YYYY-MM-DD) onward.
 //
-// Grouped in Go rather than SQL: SQLite has no IANA timezone support, and a fixed
-// hour offset would be wrong on either side of a DST switch. Bucketing here means
-// the chart groups entries exactly the way the daily totals filter them, so the two
-// can't disagree about which day an entry belongs to. Row count is bounded by
-// `days`, so materializing them is cheap next to that.
-func (s *FoodStore) History(uid int64, days int, loc *time.Location) ([]models.FoodHistoryPoint, error) {
-	// Widen by a day on each side: a local day can begin up to 14h before, and end
-	// up to 12h after, the UTC day of the same name. Bucketing below discards
-	// anything outside the requested local window.
+// Grouped in SQL now that the day is a stored column. The previous version read every
+// row in the window and bucketed it in Go, because the day had to be derived through
+// an IANA zone that SQLite cannot represent. Nothing needs deriving any more, so the
+// chart totals and the daily totals are the same GROUP BY over the same column and
+// cannot disagree about which day an entry belongs to.
+func (s *FoodStore) History(uid int64, sinceDay string) ([]models.FoodHistoryPoint, error) {
 	rows, err := s.db.Query(
-		`SELECT logged_at, calories, protein, carbs, fat
+		`SELECT logged_on,
+		        COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
+		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0)
 		 FROM food_logs
-		 WHERE user_id = ? AND logged_at >= date('now', ?)
-		 ORDER BY logged_at ASC`,
-		uid, fmt.Sprintf("-%d days", days+1),
+		 WHERE user_id = ? AND logged_on >= ?
+		 GROUP BY logged_on
+		 ORDER BY logged_on ASC`,
+		uid, sinceDay,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	cutoff := time.Now().In(loc).AddDate(0, 0, -days).Format("2006-01-02")
-	byDay := map[string]*models.FoodHistoryPoint{}
-	days_ := []string{}
+	points := []models.FoodHistoryPoint{}
 	for rows.Next() {
-		var at time.Time
-		var cal, pro, carb, fat float64
-		if err := rows.Scan(&at, &cal, &pro, &carb, &fat); err != nil {
+		var p models.FoodHistoryPoint
+		if err := rows.Scan(&p.Date, &p.Calories, &p.Protein, &p.Carbs, &p.Fat); err != nil {
 			return nil, err
 		}
-		d := at.In(loc).Format("2006-01-02")
-		if d < cutoff {
-			continue
-		}
-		p, ok := byDay[d]
-		if !ok {
-			p = &models.FoodHistoryPoint{Date: d}
-			byDay[d] = p
-			days_ = append(days_, d)
-		}
-		p.Calories += cal
-		p.Protein += pro
-		p.Carbs += carb
-		p.Fat += fat
+		points = append(points, p)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	sort.Strings(days_)
-	points := []models.FoodHistoryPoint{}
-	for _, d := range days_ {
-		points = append(points, *byDay[d])
-	}
-	return points, nil
+	return points, rows.Err()
 }
 
 const savedFoodSelect = `SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode, created_at FROM saved_foods`

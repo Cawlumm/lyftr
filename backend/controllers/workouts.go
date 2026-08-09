@@ -82,6 +82,14 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	// (ProgramStore.currentDayIndex). normalizeLoggedAt both defaults a zero time
 	// to now and forces UTC, same as weight logs.
 	req.StartedAt = normalizeLoggedAt(req.StartedAt)
+	// Record where the workout happened, not just when. The client sends its own
+	// offset; older clients send none, so fall back to the account zone at that
+	// instant. Either way the row can name its own local day forever without asking
+	// what zone the account is set to today.
+	if req.TZOffsetMinutes == nil {
+		off := h.tzOffsetMinutes(uid, req.StartedAt)
+		req.TZOffsetMinutes = &off
+	}
 	// Snapshot, insert, and stage routine target suggestions in one transaction (issue
 	// #40) — closes a TOCTOU race where two concurrent submissions could both read the
 	// same stale prior best. Staging is still best-effort internally: a failure there

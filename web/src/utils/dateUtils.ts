@@ -75,3 +75,28 @@ export const daysAgoStr = (n: number): string => {
   d.setDate(d.getDate() - n)
   return instantToDay(d.toISOString())
 }
+
+/**
+ * The device's UTC offset in minutes at `iso` (default: now). New York in summer is
+ * -240.
+ *
+ * Sign is flipped from `Date.getTimezoneOffset()`, which counts minutes *behind* UTC
+ * (+240 for New York) — the opposite of every other convention, including the one the
+ * server stores. Resolved at the given instant rather than now, so a workout logged
+ * in July keeps the summer offset even if it is saved in December.
+ */
+export const utcOffsetMinutes = (iso?: string): number =>
+  -(iso ? new Date(iso) : new Date()).getTimezoneOffset()
+
+/**
+ * Attach the calendar day an entry belongs to, for diary writes (food, weight).
+ *
+ * The day is what the server files the entry under, permanently — it is never
+ * re-derived from the account's zone afterwards, so travelling cannot move it. Doing
+ * this once in the API layer rather than at each call site means no screen can forget
+ * it: a missing `logged_on` silently falls back to the server's guess.
+ */
+export const withLoggedOn = <T extends { logged_at?: string }>(data: T): T & { logged_on: string } => ({
+  ...data,
+  logged_on: instantToDay(data.logged_at ?? new Date().toISOString()),
+})

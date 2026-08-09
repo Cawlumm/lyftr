@@ -14,8 +14,8 @@ import (
 func insertWeightLog(t *testing.T, uid int64, weight float64, loggedAt time.Time) int64 {
 	t.Helper()
 	res, err := db.DB.Exec(
-		`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, '', ?)`,
-		uid, weight, loggedAt,
+		`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, '', ?, ?)`,
+		uid, weight, loggedAt, localDayFor(t, uid, loggedAt),
 	)
 	if err != nil {
 		t.Fatalf("insert weight log: %v", err)
@@ -47,7 +47,7 @@ func TestListWeightLogs_orderedDescAndScopedByUser(t *testing.T) {
 	other, _ := db.DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, "x@x.com", "x")
 	otherUID, _ := other.LastInsertId()
 
-	now := time.Now()
+	now := time.Now().UTC()
 	insertWeightLog(t, uid, 180.0, now.AddDate(0, 0, -2))
 	insertWeightLog(t, uid, 181.5, now.AddDate(0, 0, -1))
 	insertWeightLog(t, uid, 179.0, now)
@@ -121,7 +121,7 @@ func TestGetWeightStats_latestPrefersNewestSameDay(t *testing.T) {
 func TestListWeightLogs_dateRange(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	now := time.Now()
+	now := time.Now().UTC()
 	insertWeightLog(t, uid, 180.0, now.AddDate(0, 0, -10))
 	insertWeightLog(t, uid, 181.0, now.AddDate(0, 0, -5))
 	insertWeightLog(t, uid, 182.0, now)
@@ -418,7 +418,7 @@ func TestDeleteWeightLog_ownershipEnforced(t *testing.T) {
 func TestGetWeightStats_richFields(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	now := time.Now()
+	now := time.Now().UTC()
 	insertWeightLog(t, uid, 180.0, now.AddDate(0, 0, -40))
 	insertWeightLog(t, uid, 178.0, now.AddDate(0, 0, -20))
 	insertWeightLog(t, uid, 176.0, now.AddDate(0, 0, -5))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	_ "modernc.org/sqlite"
 )
@@ -380,5 +381,111 @@ func TestProgramDayBackfillTransitionalWindow(t *testing.T) {
 	workoutProgramDayMigration()
 	if n := countRow(t, `SELECT COUNT(*) FROM workouts WHERE program_day_id IS NULL`); n != 2 {
 		t.Fatalf("backfill re-ran on an already-migrated DB and overwrote SET NULL rows")
+	}
+}
+
+// An existing server upgrading to stored days must not move anything a user can see.
+//
+// This is the one property no fresh-database test can check: the app worked before by
+// deriving each day from the account's zone at read time, and works after by reading a
+// day off the row. The upgrade is only safe if the backfill reproduces the old answer
+// exactly — so the assertion is against the *old* rule, computed independently here.
+func TestBackfillLocalDays_reproducesThePreMigrationDay(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('old@user', 'x')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	// A user already living west of UTC, the case the whole feature exists for.
+	if _, err := DB.Exec(`INSERT INTO user_settings (user_id, timezone) VALUES (1, 'America/New_York')`); err != nil {
+		t.Fatalf("seed settings: %v", err)
+	}
+
+	// Instants chosen to straddle both midnights: 03:00Z is the previous day in New
+	// York, 16:00Z is the same day, and 23:30Z is still the same day there.
+	instants := []time.Time{
+		time.Date(2026, 8, 5, 3, 0, 0, 0, time.UTC),
+		time.Date(2026, 8, 5, 16, 0, 0, 0, time.UTC),
+		time.Date(2026, 8, 5, 23, 30, 0, 0, time.UTC),
+	}
+	for i, at := range instants {
+		if _, err := DB.Exec(
+			`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, servings, logged_at)
+			 VALUES (1, ?, 'dinner', 100, 0, 0, 0, 1, ?)`, fmt.Sprintf("meal-%d", i), at); err != nil {
+			t.Fatalf("seed food %d: %v", i, err)
+		}
+		if _, err := DB.Exec(`INSERT INTO weight_logs (user_id, weight, logged_at) VALUES (1, 180, ?)`, at); err != nil {
+			t.Fatalf("seed weight %d: %v", i, err)
+		}
+		if _, err := DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (1, ?, ?)`,
+			fmt.Sprintf("lift-%d", i), at); err != nil {
+			t.Fatalf("seed workout %d: %v", i, err)
+		}
+	}
+
+	alterMigrations()
+
+	// The pre-migration rule, spelled out rather than reused, so a bug in the
+	// migration's helper cannot also define what "correct" means here.
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatalf("load zone: %v", err)
+	}
+	for i, at := range instants {
+		want := at.In(ny).Format("2006-01-02")
+
+		var foodDay, weightDay string
+		if err := DB.QueryRow(`SELECT logged_on FROM food_logs WHERE name = ?`, fmt.Sprintf("meal-%d", i)).Scan(&foodDay); err != nil {
+			t.Fatalf("read food day %d: %v", i, err)
+		}
+		if foodDay != want {
+			t.Errorf("food %d (%s): backfilled %q, pre-migration read gave %q", i, at.Format(time.RFC3339), foodDay, want)
+		}
+		if err := DB.QueryRow(`SELECT logged_on FROM weight_logs WHERE logged_at = ?`, at).Scan(&weightDay); err != nil {
+			t.Fatalf("read weight day %d: %v", i, err)
+		}
+		if weightDay != want {
+			t.Errorf("weight %d: backfilled %q, want %q", i, weightDay, want)
+		}
+
+		// The workout stores an offset instead of a day; applying it must name the
+		// same day. -240 in August (EDT), -300 in winter.
+		var offset int
+		if err := DB.QueryRow(`SELECT tz_offset_minutes FROM workouts WHERE name = ?`, fmt.Sprintf("lift-%d", i)).Scan(&offset); err != nil {
+			t.Fatalf("read workout offset %d: %v", i, err)
+		}
+		if got := at.Add(time.Duration(offset) * time.Minute).Format("2006-01-02"); got != want {
+			t.Errorf("workout %d: offset %d puts it on %q, want %q", i, offset, got, want)
+		}
+	}
+}
+
+// The backfill must not run twice, and must leave already-filled rows alone — a
+// second boot re-deriving days would undo any day a client had since corrected.
+func TestBackfillLocalDays_isIdempotent(t *testing.T) {
+	setupMigrationTestDB(t)
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('old@user', 'x')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, servings, logged_at)
+		 VALUES (1, 'meal', 'dinner', 100, 0, 0, 0, 1, ?)`,
+		time.Date(2026, 8, 5, 16, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatalf("seed food: %v", err)
+	}
+	alterMigrations()
+
+	// Stand in for a client that has since filed this entry under a different day.
+	if _, err := DB.Exec(`UPDATE food_logs SET logged_on = '1999-01-01' WHERE name = 'meal'`); err != nil {
+		t.Fatalf("overwrite day: %v", err)
+	}
+	alterMigrations()
+
+	var day string
+	if err := DB.QueryRow(`SELECT logged_on FROM food_logs WHERE name = 'meal'`).Scan(&day); err != nil {
+		t.Fatalf("read day: %v", err)
+	}
+	if day != "1999-01-01" {
+		t.Errorf("second migration pass rewrote a filled day to %q", day)
 	}
 }

@@ -64,3 +64,42 @@ describe('todayStr', () => {
     expect(todayStr()).toBe('2026-04-24')
   })
 })
+
+describe('todayStr — the date a form prefills', () => {
+  // The mobile New Workout screen seeded its date with
+  // `new Date().toISOString().slice(0, 10)`, the UTC day. West of UTC those differ
+  // for the last hours of every evening, so the form offered tomorrow and the entry
+  // was saved there. Suites run under America/New_York (see jest.config / the web
+  // test script), so 23:00 local is already tomorrow in UTC.
+  const at = (iso: string, fn: () => string) => {
+    const RealDate = Date
+    // @ts-expect-error — narrow stub, only the no-arg constructor is used here
+    globalThis.Date = class extends RealDate {
+      constructor(...args: unknown[]) {
+        // @ts-expect-error — passthrough
+        super(...(args.length ? args : [iso]))
+      }
+      static now() { return new RealDate(iso).getTime() }
+    }
+    try { return fn() } finally { globalThis.Date = RealDate }
+  }
+
+  it('returns the local day, not the UTC day, late in the evening', () => {
+    // 2026-08-08T23:30 in New York is 2026-08-09T03:30Z.
+    const local = at('2026-08-09T03:30:00.000Z', () => todayStr())
+    expect(local).toBe('2026-08-08')
+  })
+
+  it('differs from the UTC slice the regression used', () => {
+    const iso = '2026-08-09T03:30:00.000Z'
+    const utcSlice = iso.slice(0, 10)
+    const local = at(iso, () => todayStr())
+    expect(utcSlice).toBe('2026-08-09')
+    expect(local).not.toBe(utcSlice)
+  })
+
+  it('round-trips into an instant that stays on the same local day', () => {
+    const local = at('2026-08-09T03:30:00.000Z', () => todayStr())
+    expect(instantToDay(dayToInstant(local))).toBe(local)
+  })
+})

@@ -61,6 +61,8 @@ export interface Workout {
   notes?: string
   duration: number
   started_at: string
+  /** UTC offset in minutes when the workout started, e.g. -240. Absent on pre-migration rows. */
+  tz_offset_minutes?: number
   created_at: string
   exercises: WorkoutExercise[]
   // Present on the create response when finishing auto-progressed routine targets (#40).
@@ -81,6 +83,8 @@ export interface WeightLog {
   weight: number
   notes?: string
   logged_at: string
+  /** Calendar day the entry is filed under, YYYY-MM-DD. Stored server-side, never re-derived. */
+  logged_on: string
   created_at?: string
 }
 
@@ -99,6 +103,8 @@ export interface FoodLog {
   barcode?: string
   image_url?: string
   logged_at: string
+  /** Calendar day the entry is filed under, YYYY-MM-DD. Stored server-side, never re-derived. */
+  logged_on: string
   created_at?: string
 }
 
@@ -233,6 +239,8 @@ export interface ActiveSession {
   program_day_id?: number
   name: string
   started_at: string
+  /** UTC offset in minutes when the workout started, e.g. -240. Absent on pre-migration rows. */
+  tz_offset_minutes?: number
   exercises: ActiveSessionExercise[]
   device_id?: string
 }
