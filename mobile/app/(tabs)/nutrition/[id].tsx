@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import type { FoodLog } from '@lyftr/shared'
+import { entryDay, type FoodLog } from '@lyftr/shared'
 import {
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -87,7 +87,7 @@ export default function NutritionDetail() {
     ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
     { label: 'Servings', value: String(entry.servings), tabular: true },
     { label: 'Meal', value: MEAL_LABELS[meal] },
-    { label: 'Logged', value: format(parseISO(entry.logged_at), 'EEE, MMM d, yyyy') },
+    { label: 'Logged', value: format(new Date(entryDay(entry) + 'T12:00:00'), 'EEE, MMM d, yyyy') },
   ]
 
   return (

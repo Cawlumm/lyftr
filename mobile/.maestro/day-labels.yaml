@@ -1,0 +1,34 @@
+# Every screen that names a day must name the day the row was filed under.
+#
+# The dashboard header is the one place the *device* zone is still the right answer
+# ("what is today"). Everything below it reads a stored value: diary rows carry
+# logged_on, workouts carry tz_offset_minutes. If a screen ever goes back to deriving
+# a day from the device, this fails on the screen that regressed.
+appId: local.lyftr.app
+---
+- runFlow: login.yaml
+
+# "What is today" — device zone, formatted like the dashboard header ("SUNDAY, AUGUST 9").
+- evalScript: |
+    ${output.todayHeader = new Date()
+      .toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+      .toUpperCase()}
+- assertVisible: ${output.todayHeader}
+
+# Workout rows render their day from the offset recorded when the workout started,
+# never from where the phone is now.
+- tapOn:
+    text: "Workouts"
+    index: 0
+- assertVisible: "Track and review your training sessions"
+- assertVisible: "[A-Z][a-z]{2} \\d{1,2}, \\d{4}"
+
+# Weight rows render logged_on verbatim.
+- tapOn:
+    text: "Weight"
+    index: 0
+- assertVisible: "Track your body weight over time"
+- scrollUntilVisible:
+    element: "History"
+    direction: DOWN
+- assertVisible: "[A-Z][a-z]{2} \\d{1,2}, \\d{4}"

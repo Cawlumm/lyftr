@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
-import { weightShort, type Workout } from '@lyftr/shared'
+import { format } from 'date-fns'
+import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
 import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
@@ -82,7 +83,9 @@ export default function Workouts() {
     { label: 'Total', value: String(workouts.length), unit: 'logged' },
     {
       label: 'This Month',
-      value: String(workouts.filter((w) => new Date(w.started_at).getMonth() === now.getMonth()).length),
+      // The month the workout was logged in, not the month its UTC instant lands in —
+      // a session near a month boundary belongs to the month the lifter trained in.
+      value: String(workouts.filter((w) => workoutDay(w).startsWith(format(now, 'yyyy-MM'))).length),
       unit: 'sessions',
     },
     {

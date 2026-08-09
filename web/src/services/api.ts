@@ -130,7 +130,16 @@ export const workoutAPI = {
       ...data,
       tz_offset_minutes: utcOffsetMinutes(data?.started_at),
     }).then(res => unwrap(res)),
-  update: (id: number, data: any) => api.put<{ data: types.Workout }>(`/workouts/${id}`, data).then(res => unwrap(res)),
+  // The offset must describe the instant being sent, so it is stamped only when the
+  // caller derived that instant here and now. A screen that re-picks the date omits it
+  // and gets this device's offset; one that resends the timestamp it loaded passes the
+  // stored offset through, because stamping there would move the day on an edit that
+  // never touched the date.
+  update: (id: number, data: any) =>
+    api.put<{ data: types.Workout }>(`/workouts/${id}`, {
+      ...data,
+      tz_offset_minutes: data?.tz_offset_minutes ?? utcOffsetMinutes(data?.started_at),
+    }).then(res => unwrap(res)),
   delete: (id: number) => api.delete(`/workouts/${id}`),
 }
 

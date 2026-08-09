@@ -87,6 +87,17 @@ func (h *Handler) resolveQueryDay(uid int64, supplied string) (string, bool) {
 	return supplied, true
 }
 
+// daysAgoDay is the calendar day `days` before the user's today, for the windows a
+// chart or a rolling stat asks for.
+//
+// Named rather than inlined so every "N days back" bound in the app is the same
+// subtraction against the same today. The history endpoint used to compute this
+// expression by hand, which made it a fourth day-derivation rule living outside this
+// file — the exact drift this file exists to prevent.
+func (h *Handler) daysAgoDay(uid int64, days int) string {
+	return time.Now().In(h.userLocation(uid)).AddDate(0, 0, -days).Format("2006-01-02")
+}
+
 // tzOffsetMinutes is the user's UTC offset at a given instant, for stamping onto a
 // workout. Resolved through the zone at that instant rather than a fixed number, so
 // a summer workout gets the summer offset.

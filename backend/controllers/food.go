@@ -213,8 +213,7 @@ func (h *Handler) GetFoodHistory(c *gin.Context) {
 
 	// The window is counted back from the user's today — the one question a stored
 	// day still cannot answer on its own.
-	since := time.Now().In(h.userLocation(uid)).AddDate(0, 0, -days).Format("2006-01-02")
-	points, err := h.s.Food.History(uid, since)
+	points, err := h.s.Food.History(uid, h.daysAgoDay(uid, days))
 	if utils.DBError(c, err) {
 		return
 	}

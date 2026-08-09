@@ -141,17 +141,14 @@ func TestListWeightLogs_dateRange(t *testing.T) {
 	}
 }
 
-// Regression: a YYYY-MM-DD `to` should include entries logged late on that
-// day for users in west-of-UTC timezones. Their `${date}T12:00:00` local
-// stored as UTC ends up several hours after UTC midnight, which a naive
-// "parse as UTC + 24h" would have excluded.
+// A day range matches on the day the entry was filed under, not on where its instant
+// falls in UTC. A UTC-7 user logging noon on the 25th stores 2026-04-25T19:00:00Z;
+// every previous version of this filter had to widen the UTC window to catch it, and
+// each widening was a guess about how far the user might have been from UTC. Matching
+// logged_on needs no guess.
 func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	// Simulate a user in UTC-7 logging "2026-04-25 noon local" — stored as
-	// 2026-04-25T19:00:00Z. A naive parser interpreting `to=2026-04-25` as
-	// UTC midnight + 24h would treat the cutoff as 2026-04-25T00:00:00Z
-	// and miss this entry.
 	loggedAt := time.Date(2026, 4, 25, 19, 0, 0, 0, time.UTC)
 	insertWeightLog(t, uid, 175.0, loggedAt)
 
@@ -168,26 +165,23 @@ func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
 	}
 }
 
-// Regression: an RFC3339 timestamp must be honored exactly without any TZ
-// padding. Callers that pass precise bounds expect exclusive control.
-func TestListWeightLogs_dateRangeExactRFC3339(t *testing.T) {
+// A range bound that isn't a day is rejected rather than silently dropped. Ignoring it
+// would answer a narrow question with the whole history, which reads as data loss in
+// reverse — a chart that quietly shows more than it was asked for.
+func TestListWeightLogs_dateRangeRejectsNonDayBound(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 	insertWeightLog(t, uid, 175.0, time.Date(2026, 4, 25, 10, 0, 0, 0, time.UTC))
-	insertWeightLog(t, uid, 176.0, time.Date(2026, 4, 25, 14, 0, 0, 0, time.UTC))
 
-	c, w := newContext(uid, http.MethodGet,
-		"/api/v1/weight?from=2026-04-25T12:00:00Z&to=2026-04-25T15:00:00Z", nil)
-	th.ListWeightLogs(c)
-
-	resp := decodeResponse(t, w)
-	data := resp["data"].([]any)
-	if len(data) != 1 {
-		t.Fatalf("expected 1 entry within exact window, got %d", len(data))
-	}
-	first := data[0].(map[string]any)
-	if first["weight"].(float64) != 176.0 {
-		t.Errorf("expected the 14:00 entry, got %v", first["weight"])
+	for _, q := range []string{
+		"/api/v1/weight?from=2026-04-25T12:00:00Z",
+		"/api/v1/weight?to=not-a-date",
+	} {
+		c, w := newContext(uid, http.MethodGet, q, nil)
+		th.ListWeightLogs(c)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected 400, got %d", q, w.Code)
+		}
 	}
 }
 
@@ -548,7 +542,6 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 	}
 }
 
-
 // The bare-day from/to filter resolves through the user's stored zone now that the
 // -12h/+36h widening is gone. TestListWeightLogs_dateRange covers the UTC default;
 // this covers a real zone, where a device-derived day and a UTC day disagree.
@@ -619,5 +612,41 @@ func TestLogWeight_oneEntryPerLocalDayOnCreate(t *testing.T) {
 	}
 	if n != 1 {
 		t.Errorf("all three instants fall on the user's Aug 7; expected one row, got %d", n)
+	}
+}
+
+// Newest day first, even when the newest day is not the newest instant. Once a row's
+// day comes from logged_on, the two orderings part company: an entry filed for the 10th
+// from UTC+14 happened at an earlier moment than one filed for the 9th from UTC-11, so
+// ordering by the timestamp alone renders the list out of the order it appears to be in.
+func TestListWeightLogs_ordersByStoredDayNotInstant(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	insertWeightLogOn(t, uid, 180.0, "2026-08-10", "2026-08-09T22:00:00Z") // later day, earlier instant
+	insertWeightLogOn(t, uid, 170.0, "2026-08-09", "2026-08-09T23:00:00Z") // earlier day, later instant
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight?limit=2", nil)
+	th.ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(data))
+	}
+	if day := data[0].(map[string]any)["logged_on"]; day != "2026-08-10" {
+		t.Fatalf("newest day not first: got %v, want 2026-08-10", day)
+	}
+}
+
+func insertWeightLogOn(t *testing.T, uid int64, weight float64, day, loggedAt string) {
+	t.Helper()
+	if _, err := db.DB.Exec(
+		`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, '', ?, ?)`,
+		uid, weight, loggedAt, day,
+	); err != nil {
+		t.Fatalf("insert weight log: %v", err)
 	}
 }

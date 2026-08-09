@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant } from '../utils/dateUtils'
+import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
 import { MACRO_COLORS } from '../utils/macroColors'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
@@ -124,7 +124,7 @@ export default function LogFood() {
       setSelected(entryToResult(entry))
       setServings(entry.servings || 1)
       setMeal(entry.meal)
-      setDate(entry.logged_at.slice(0, 10))
+      setDate(entryDay(entry))
       setPhase('detail')
     }).catch(() => navigate('/food', { replace: true }))
   }, [editId, navigate])

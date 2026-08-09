@@ -176,8 +176,13 @@ func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest) (m
 				return err
 			}
 		} else if _, err := tx.Exec(
-			`UPDATE workouts SET name = ?, notes = ?, duration = ?, started_at = ? WHERE id = ?`,
-			req.Name, req.Notes, req.Duration, req.StartedAt, id,
+			// The offset travels with the instant. Rewriting started_at without it leaves
+			// the row describing a moment in one zone and a day in another, so the day the
+			// edit screen showed and the day every reader derives disagree — the entry
+			// silently lands a day off. Only rewritten alongside started_at: the branch
+			// above is a name/notes patch, where the original offset is still the true one.
+			`UPDATE workouts SET name = ?, notes = ?, duration = ?, started_at = ?, tz_offset_minutes = ? WHERE id = ?`,
+			req.Name, req.Notes, req.Duration, req.StartedAt, req.TZOffsetMinutes, id,
 		); err != nil {
 			return err
 		}

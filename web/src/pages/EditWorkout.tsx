@@ -26,6 +26,10 @@ export default function EditWorkout() {
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
+  // This form has no date field, so it resends the instant it loaded. The offset has to
+  // travel with it unchanged: stamping the editing device's offset onto an untouched
+  // timestamp would move the workout's day on a rep-count fix made from another zone.
+  const [originalTZOffset, setOriginalTZOffset] = useState<number | undefined>(undefined)
 
   useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
@@ -38,6 +42,7 @@ export default function EditWorkout() {
         ;(workout.exercises || []).forEach(ex => { map[ex.exercise_id] = ex.exercise })
         setPickerExercises(map)
         setOriginalStartedAt(workout.started_at || new Date().toISOString())
+        setOriginalTZOffset(workout.tz_offset_minutes)
         setFormData({
           name: workout.name,
           notes: workout.notes || '',
@@ -96,6 +101,7 @@ export default function EditWorkout() {
         ...formData,
         duration: formData.duration * 60,
         started_at: originalStartedAt || new Date().toISOString(),
+        tz_offset_minutes: originalTZOffset,
         exercises: formData.exercises.map(ex => ({
           ...ex,
           sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),

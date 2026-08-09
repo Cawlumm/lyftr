@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { format, parseISO, subDays } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -106,7 +106,7 @@ export default function Weight() {
   const chartData: ChartPoint[] = useMemo(
     () =>
       [...chartLogs].reverse().map((l) => {
-        const d = parseISO(l.logged_at)
+        const d = new Date(entryDay(l) + 'T12:00:00')
         return { date: format(d, 'M/d'), weight: displayWeight(l.weight, unit), sub: format(d, 'MMM d, yyyy') }
       }),
     [chartLogs, unit]
@@ -291,7 +291,7 @@ export default function Weight() {
                     <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
                     <View className="min-w-0 flex-1">
                       <Text className="font-sans-semibold text-sm text-warning-400">
-                        Already logged on {format(parseISO(items[0].logged_at), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                        Already logged on {format(new Date(entryDay(items[0]) + 'T12:00:00'), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
                       </Text>
                       <View className="mt-2 flex-row gap-2">
                         <Pressable

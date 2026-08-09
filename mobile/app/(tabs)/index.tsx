@@ -198,7 +198,11 @@ export default function Dashboard() {
 
   // ── Derived data (unchanged from the 1:1 port) ─────────────────────────────
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
-  const weekWorkouts = workouts.filter((w) => new Date(w.started_at) >= weekStart)
+  // Compared as days, not instants: the dot strip below buckets by workoutDay, so a
+  // count taken from the raw timestamp can disagree with the dots it sits above for a
+  // workout logged near the week boundary in another zone.
+  const weekStartDay = format(weekStart, 'yyyy-MM-dd')
+  const weekWorkouts = workouts.filter((w) => workoutDay(w) >= weekStartDay)
   const lastWorkout = workouts[0] ?? null
 
   // "Up next": the first (most recently created) program whose due day is a
@@ -221,7 +225,7 @@ export default function Dashboard() {
   }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
-    date: format(new Date(w.started_at), 'M/d'),
+    date: format(new Date(workoutDay(w) + 'T12:00:00'), 'M/d'),
     volume: displayVolume(calcVolume(w), unit),
     name: w.name,
   }))
@@ -704,8 +708,15 @@ export default function Dashboard() {
         lastLog={weightLogs[0] ?? null}
         onClose={() => setSheetOpen(false)}
         onSuccess={(log) => {
+          // Same order the server returns (logged_on DESC, logged_at DESC), so the
+          // optimistic row sits where the next refetch will put it. Sorting by the
+          // instant alone can place a cross-zone entry above or below its own label.
           setWeightLogs((prev) =>
-            [log, ...prev].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+            [log, ...prev].sort(
+              (a, b) =>
+                entryDay(b).localeCompare(entryDay(a)) ||
+                new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+            )
           )
           client.weightAPI.stats().then(setWeightStats).catch(() => {})
         }}

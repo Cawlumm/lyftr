@@ -298,3 +298,87 @@ func TestListWorkouts_filtersBySearchQuery(t *testing.T) {
 		t.Errorf("expected 'Morning Push', got %v", name)
 	}
 }
+
+// An edit that moves the day also moves the instant, so the offset stored beside it
+// must be the one that instant was chosen in. Leaving the creation-time offset on a
+// rewritten timestamp makes every reader derive a different day than the edit screen
+// showed: logged from UTC+14, edited from UTC-11, the workout lands a day early.
+func TestUpdateWorkout_carriesTZOffsetWithMovedInstant(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	// Created far east: noon local on the 9th is 22:00Z on the 8th.
+	res, _ := db.DB.Exec(
+		`INSERT INTO workouts (user_id, name, started_at, tz_offset_minutes) VALUES (?, ?, ?, ?)`,
+		uid, "Created east", "2026-08-08T22:00:00Z", 840,
+	)
+	wid, _ := res.LastInsertId()
+
+	// Re-dated from far west: noon local on the 5th is 23:00Z the same day.
+	body := map[string]any{
+		"name":              "Edited west",
+		"duration":          1800,
+		"started_at":        "2026-08-05T23:00:00Z",
+		"tz_offset_minutes": -660,
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets":        []map[string]any{{"set_number": 1, "reps": 10, "weight": 50.0}},
+			},
+		},
+	}
+	c, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+fmt.Sprint(wid), body)
+	setParam(c, "id", fmt.Sprint(wid))
+	th.UpdateWorkout(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var off int
+	if err := db.DB.QueryRow(`SELECT tz_offset_minutes FROM workouts WHERE id = ?`, wid).Scan(&off); err != nil {
+		t.Fatalf("read offset: %v", err)
+	}
+	if off != -660 {
+		t.Fatalf("offset not carried with the moved instant: got %d, want -660 (stale 840 means the day drifts)", off)
+	}
+}
+
+// A name/notes-only patch carries no instant, so it must leave the offset alone —
+// the workout still happened where it happened.
+func TestUpdateWorkout_omittedStartedAtKeepsTZOffset(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	exID := createTestExercise(t)
+
+	res, _ := db.DB.Exec(
+		`INSERT INTO workouts (user_id, name, started_at, tz_offset_minutes) VALUES (?, ?, ?, ?)`,
+		uid, "Original", "2026-08-08T22:00:00Z", 840,
+	)
+	wid, _ := res.LastInsertId()
+
+	body := map[string]any{
+		"name":     "Renamed only",
+		"duration": 1800,
+		"exercises": []map[string]any{
+			{
+				"exercise_id": exID,
+				"sets":        []map[string]any{{"set_number": 1, "reps": 10, "weight": 50.0}},
+			},
+		},
+	}
+	c, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+fmt.Sprint(wid), body)
+	setParam(c, "id", fmt.Sprint(wid))
+	th.UpdateWorkout(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var off int
+	if err := db.DB.QueryRow(`SELECT tz_offset_minutes FROM workouts WHERE id = ?`, wid).Scan(&off); err != nil {
+		t.Fatalf("read offset: %v", err)
+	}
+	if off != 840 {
+		t.Fatalf("rename rewrote the offset: got %d, want 840", off)
+	}
+}

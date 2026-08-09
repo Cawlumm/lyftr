@@ -1237,15 +1237,6 @@ func TestGetFoodHistory_agreesWithDailyTotals(t *testing.T) {
 	t.Errorf("history has no bucket for %s, but the daily total is %v", day, dailyCals)
 }
 
-func mustLoad(t *testing.T, name string) *time.Location {
-	t.Helper()
-	loc, err := ParseLocation(name)
-	if err != nil {
-		t.Fatalf("load %s: %v", name, err)
-	}
-	return loc
-}
-
 // An unloadable zone must be rejected at write time rather than silently making
 // every later query fall back to UTC.
 func TestUpdateSettings_rejectsUnknownTimezone(t *testing.T) {
