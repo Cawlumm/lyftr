@@ -85,6 +85,7 @@ func alterMigrations() {
 
 	normalizeWorkoutStartedAt()
 	normalizeFoodLoggedAt()
+	normalizeWeightLoggedAt()
 
 	// The day a diary entry belongs to, and the offset a workout started at, stored
 	// ON THE ROW instead of derived from the account's current zone at read time.
@@ -183,11 +184,32 @@ func backfillDayColumn(table, column string, loadLoc func(string) *time.Location
 	var fixes []fix
 	for rows.Next() {
 		var id int64
-		var at time.Time
+		var v any
 		var zone string
-		if err := rows.Scan(&id, &at, &zone); err != nil {
+		if err := rows.Scan(&id, &v, &zone); err != nil {
 			rows.Close()
 			return err
+		}
+		// Scanned as any, not time.Time, so one unrepairable row cannot take the rest
+		// with it. Scanning straight into time.Time made a single legacy value the
+		// driver can't parse abort the whole run — and because the caller returns on
+		// error, it also skipped the workout-offset backfill and never set the flag, so
+		// every subsequent boot retried and failed identically. A row that can't be read
+		// is logged and left for a human; the other rows still get their day.
+		var at time.Time
+		switch tv := v.(type) {
+		case time.Time:
+			at = tv
+		case string:
+			t, ok := parseStoredTime(tv)
+			if !ok {
+				log.Printf("backfillDayColumn(%s.%s): row %d: unparseable value %q left unset", table, column, id, tv)
+				continue
+			}
+			at = t
+		default:
+			log.Printf("backfillDayColumn(%s.%s): row %d: unexpected type %T left unset", table, column, id, v)
+			continue
 		}
 		fixes = append(fixes, fix{id, at.In(loadLoc(zone)).Format("2006-01-02")})
 	}
@@ -294,6 +316,12 @@ func normalizeWorkoutStartedAt() {
 
 func normalizeFoodLoggedAt() {
 	normalizeUTCTimestamps("normalize_food_logged_at", "food_logs", "logged_at")
+}
+
+// weight_logs was the one day-scoped table left without this pass, which is exactly
+// where an unrepaired non-UTC value could sit and stall the day backfill.
+func normalizeWeightLoggedAt() {
+	normalizeUTCTimestamps("normalize_weight_logged_at", "weight_logs", "logged_at")
 }
 
 // normalizeUTCTimestamps rewrites any table.column value stored with a non-UTC zone
@@ -761,5 +789,3 @@ CREATE TABLE IF NOT EXISTS program_sets (
   target_weight       REAL    NOT NULL DEFAULT 0
 );
 `
-
-

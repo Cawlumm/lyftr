@@ -489,3 +489,62 @@ func TestBackfillLocalDays_isIdempotent(t *testing.T) {
 		t.Errorf("second migration pass rewrote a filled day to %q", day)
 	}
 }
+
+// One unreadable legacy timestamp must not take the rest of the upgrade with it.
+//
+// backfillDayColumn used to scan straight into time.Time, so a value the driver cannot
+// parse failed the scan, returned an error, and made backfillLocalDays bail — before
+// the workout-offset backfill and before the completion flag. Every later boot retried
+// and failed identically, leaving logged_on unset and tz_offset_minutes null forever.
+// A row that cannot be read is now skipped and reported; everything else still lands.
+func TestBackfillLocalDays_oneUnreadableRowDoesNotBlockTheRest(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('old@user', 'x')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO user_settings (user_id, timezone) VALUES (1, 'America/New_York')`); err != nil {
+		t.Fatalf("seed settings: %v", err)
+	}
+
+	good := time.Date(2026, 8, 5, 16, 0, 0, 0, time.UTC)
+	// Written as raw text the driver cannot turn back into a time.Time — the shape
+	// normalizeUTCTimestamps exists to repair, which is why it now covers weight_logs.
+	if _, err := DB.Exec(`INSERT INTO weight_logs (user_id, weight, logged_at) VALUES (1, 180, 'not-a-timestamp')`); err != nil {
+		t.Fatalf("seed unreadable weight: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO weight_logs (user_id, weight, logged_at) VALUES (1, 181, ?)`, good); err != nil {
+		t.Fatalf("seed good weight: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (1, 'lift', ?)`, good); err != nil {
+		t.Fatalf("seed workout: %v", err)
+	}
+
+	alterMigrations()
+
+	var day string
+	if err := DB.QueryRow(`SELECT logged_on FROM weight_logs WHERE weight = 181`).Scan(&day); err != nil {
+		t.Fatalf("read good weight day: %v", err)
+	}
+	if want := "2026-08-05"; day != want {
+		t.Errorf("readable row was not backfilled: got %q, want %q", day, want)
+	}
+
+	// The offset backfill runs after the day backfill, so it is the first casualty of
+	// an early return and the clearest signal the run completed.
+	var offset sql.NullInt64
+	if err := DB.QueryRow(`SELECT tz_offset_minutes FROM workouts WHERE name = 'lift'`).Scan(&offset); err != nil {
+		t.Fatalf("read workout offset: %v", err)
+	}
+	if !offset.Valid {
+		t.Error("workout offset never backfilled — the run stopped at the unreadable row")
+	}
+
+	done, err := hasMigrationFlag("backfill_local_days")
+	if err != nil {
+		t.Fatalf("check flag: %v", err)
+	}
+	if !done {
+		t.Error("completion flag never set — every boot will retry this forever")
+	}
+}
