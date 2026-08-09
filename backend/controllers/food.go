@@ -27,17 +27,21 @@ const offUserAgent = "Lyftr/1.0 (https://lyftr.app; nutrition-tracker)"
 func (h *Handler) ListFoodLogs(c *gin.Context) {
 	uid := middleware.UserID(c)
 
-	date := c.Query("date")
-	if date == "" {
-		date = time.Now().Format("2006-01-02")
+	// `date=` names a day in the diary, and entries carry the day they were filed
+	// under, so this is a lookup rather than a zone conversion. The zone is consulted
+	// only to answer "what is today" when the parameter is omitted.
+	date, ok := h.resolveQueryDay(uid, c.Query("date"))
+	if !ok {
+		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		return
 	}
-
 	logs, err := h.s.Food.ListByDay(uid, date)
 	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, logs)
 }
+
 
 func (h *Handler) GetFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
@@ -86,14 +90,18 @@ func (h *Handler) LogFood(c *gin.Context) {
 		return
 	}
 
-	if req.LoggedAt.IsZero() {
-		req.LoggedAt = time.Now()
-	}
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
 
-	f, err := h.s.Food.Create(uid, req)
+	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
+	if !ok {
+		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		return
+	}
+
+	f, err := h.s.Food.Create(uid, req, day)
 	if utils.DBError(c, err) {
 		return
 	}
@@ -133,11 +141,18 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		utils.BadRequest(c, "image_url exceeds 500 characters")
 		return
 	}
+	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 	if req.Servings == 0 {
 		req.Servings = 1
 	}
 
-	f, err := h.s.Food.Update(uid, lid, req)
+	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
+	if !ok {
+		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		return
+	}
+
+	f, err := h.s.Food.Update(uid, lid, req, day)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "log entry not found")
 		return
@@ -169,17 +184,20 @@ func (h *Handler) DeleteFoodLog(c *gin.Context) {
 
 func (h *Handler) GetDailyStats(c *gin.Context) {
 	uid := middleware.UserID(c)
-	date := c.Query("date")
-	if date == "" {
-		date = time.Now().Format("2006-01-02")
+	date, ok := h.resolveQueryDay(uid, c.Query("date"))
+	if !ok {
+		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		return
 	}
-
 	stats, err := h.s.Food.DailyMacros(uid, date)
 	if utils.DBError(c, err) {
 		return
 	}
 	stats.Date = date
-	if stats.WorkoutCount, err = h.s.Workout.CountOn(uid, date); utils.DBError(c, err) {
+	// Both halves answer for the same named day: macros from the diary's stored day,
+	// the workout count from each workout's own recorded offset. Neither is resolved
+	// through the account's current zone, so they cannot drift apart.
+	if stats.WorkoutCount, err = h.s.Workout.CountOnLocalDay(uid, date); utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, stats)
@@ -193,7 +211,10 @@ func (h *Handler) GetFoodHistory(c *gin.Context) {
 		days = d
 	}
 
-	points, err := h.s.Food.History(uid, days)
+	// The window is counted back from the user's today — the one question a stored
+	// day still cannot answer on its own.
+	since := time.Now().In(h.userLocation(uid)).AddDate(0, 0, -days).Format("2006-01-02")
+	points, err := h.s.Food.History(uid, since)
 	if utils.DBError(c, err) {
 		return
 	}

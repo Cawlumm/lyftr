@@ -17,6 +17,12 @@ type UserSettings struct {
 	ProteinTarget int    `json:"protein_target" db:"protein_target"`
 	CarbTarget    int    `json:"carb_target" db:"carb_target"`
 	FatTarget     int    `json:"fat_target" db:"fat_target"`
+	// IANA zone name (e.g. "America/New_York"). The server buckets day-scoped data
+	// — food diary, daily macros, nutrition history — against this, so a client
+	// asking for "2026-08-07" gets that user's local day rather than the UTC day.
+	// "UTC" is the default and keeps the pre-existing behaviour for anyone who
+	// never sets one.
+	Timezone string `json:"timezone" db:"timezone"`
 }
 
 // DefaultUserSettings is the single source of truth for a brand-new user's
@@ -30,6 +36,7 @@ func DefaultUserSettings(uid int64) UserSettings {
 		ProteinTarget: 150,
 		CarbTarget:    250,
 		FatTarget:     65,
+		Timezone:      "UTC",
 	}
 }
 
@@ -52,8 +59,14 @@ type Workout struct {
 	Notes     string            `json:"notes,omitempty" db:"notes"`
 	Duration  int               `json:"duration" db:"duration"` // seconds
 	StartedAt time.Time         `json:"started_at" db:"started_at"`
-	CreatedAt time.Time         `json:"created_at" db:"created_at"`
-	Exercises []WorkoutExercise `json:"exercises,omitempty"`
+	// TZOffsetMinutes is the user's UTC offset when the workout started, e.g. -240
+	// for New York in summer. StartedAt plus this offset gives the local day and the
+	// local clock time, permanently — a workout is a real moment, so unlike the
+	// diary it keeps the instant and records where it happened rather than flattening
+	// to a date. Nil for rows older than the column whose zone could not be resolved.
+	TZOffsetMinutes *int              `json:"tz_offset_minutes,omitempty" db:"tz_offset_minutes"`
+	CreatedAt       time.Time         `json:"created_at" db:"created_at"`
+	Exercises       []WorkoutExercise `json:"exercises,omitempty"`
 	// Progression is set in-memory on the create response when finishing this
 	// workout auto-progressed routine targets (issue #40). Never persisted.
 	Progression *ProgressionResult `json:"progression,omitempty"`
@@ -108,6 +121,9 @@ type WeightLog struct {
 	Weight    float64   `json:"weight" db:"weight"` // raw value in user's preferred unit (lbs or kg)
 	Notes     string    `json:"notes,omitempty" db:"notes"`
 	LoggedAt  time.Time `json:"logged_at" db:"logged_at"`
+	// LoggedOn is the calendar day this weigh-in belongs to (see FoodLog.LoggedOn).
+	// It is also what "one entry per day" is enforced against.
+	LoggedOn  string    `json:"logged_on" db:"logged_on"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
@@ -126,7 +142,12 @@ type FoodLog struct {
 	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
 	ImageURL    string    `json:"image_url,omitempty" db:"image_url"`
 	LoggedAt    time.Time `json:"logged_at" db:"logged_at"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	// LoggedOn is the calendar day this entry belongs to, YYYY-MM-DD, in the user's
+	// zone at the moment they logged it. It is the day the diary groups by — stored,
+	// never re-derived, so it survives the user changing zones. LoggedAt remains the
+	// instant, for time-of-day display and ordering within a day.
+	LoggedOn  string    `json:"logged_on" db:"logged_on"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 type SavedFood struct {
@@ -204,6 +225,10 @@ type CreateWorkoutRequest struct {
 	Notes     string    `json:"notes"`
 	Duration  int       `json:"duration"`
 	StartedAt time.Time `json:"started_at"`
+	// TZOffsetMinutes is the client's UTC offset when the workout started, e.g. -240.
+	// Optional: nil from clients older than the stored-offset change, in which case
+	// the server derives it from the account zone at StartedAt.
+	TZOffsetMinutes *int `json:"tz_offset_minutes"`
 	// ProgramID is set when the workout was started from a routine — it enables
 	// per-set auto-progression of that routine's targets (issue #40). nil for
 	// freestyle/quick workouts, which never progress a routine.
@@ -245,6 +270,9 @@ type LogWeightRequest struct {
 	Weight   float64   `json:"weight" validate:"required,gt=0,lte=2000"`
 	Notes    string    `json:"notes"`
 	LoggedAt time.Time `json:"logged_at"`
+	// LoggedOn is the calendar day this weigh-in belongs to, YYYY-MM-DD. Optional —
+	// see LogFoodRequest.LoggedOn.
+	LoggedOn string `json:"logged_on"`
 }
 
 type LogFoodRequest struct {
@@ -260,6 +288,10 @@ type LogFoodRequest struct {
 	Barcode     string    `json:"barcode"`
 	ImageURL    string    `json:"image_url"`
 	LoggedAt    time.Time `json:"logged_at"`
+	// LoggedOn is the calendar day the client files this under, YYYY-MM-DD. Optional:
+	// omitted by clients older than the stored-day change, in which case the server
+	// derives it from the account zone (see Handler.resolveDay).
+	LoggedOn string `json:"logged_on"`
 }
 
 type SaveFoodRequest struct {
@@ -283,6 +315,9 @@ type UpdateSettingsRequest struct {
 	ProteinTarget *int    `json:"protein_target" validate:"omitempty,gte=0"`
 	CarbTarget    *int    `json:"carb_target" validate:"omitempty,gte=0"`
 	FatTarget     *int    `json:"fat_target" validate:"omitempty,gte=0"`
+	// Validated by loading it, not by a pattern: the only definition of a usable
+	// zone is one the runtime can resolve (see controllers.ParseLocation).
+	Timezone *string `json:"timezone"`
 }
 
 type Program struct {

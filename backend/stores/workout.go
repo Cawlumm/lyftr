@@ -19,10 +19,10 @@ type WorkoutFilter struct {
 	Query         string
 }
 
-const workoutCols = `id, user_id, name, notes, duration, started_at, created_at`
+const workoutCols = `id, user_id, name, notes, duration, started_at, tz_offset_minutes, created_at`
 
 func scanWorkout(row interface{ Scan(...any) error }, w *models.Workout) error {
-	return row.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.CreatedAt)
+	return row.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.TZOffsetMinutes, &w.CreatedAt)
 }
 
 func (s *WorkoutStore) List(uid int64, f WorkoutFilter) ([]models.Workout, error) {
@@ -139,8 +139,8 @@ func createWorkoutTx(tx *sql.Tx, uid int64, req models.CreateWorkoutRequest) (in
 		}
 	}
 	res, err := tx.Exec(
-		`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id, program_day_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		uid, req.Name, req.Notes, req.Duration, req.StartedAt, req.ProgramID, dayID,
+		`INSERT INTO workouts (user_id, name, notes, duration, started_at, tz_offset_minutes, program_id, program_day_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		uid, req.Name, req.Notes, req.Duration, req.StartedAt, req.TZOffsetMinutes, req.ProgramID, dayID,
 	)
 	if err != nil {
 		return 0, err
@@ -294,13 +294,26 @@ func (s *WorkoutStore) loadSets(workoutExerciseID int64) ([]models.Set, error) {
 	return sets, rows.Err()
 }
 
-// CountOn returns how many workouts the user started on the given calendar day
-// (YYYY-MM-DD). Used by the food daily-stats view (cross-entity composition).
-func (s *WorkoutStore) CountOn(uid int64, date string) (int, error) {
+
+// CountOnLocalDay counts workouts whose own recorded offset puts them on `day`.
+//
+// Shifting the instant by the row's stored offset is exact and needs no zone: a
+// workout at 2026-08-04T16:00Z with offset -240 was 12:00 on the 4th where it
+// happened, and always will be. Rows predating the column have a NULL offset and are
+// counted as UTC, which is the day they were counted under before it existed.
+func (s *WorkoutStore) CountOnLocalDay(uid int64, day string) (int, error) {
 	var n int
+	// substr(...,1,19) takes the "YYYY-MM-DD HH:MM:SS" prefix. The driver writes a
+	// time.Time in Go's String() form — "2026-04-25 03:30:00 +0000 UTC" — which
+	// SQLite's date() cannot parse at all, returning NULL and matching nothing. The
+	// prefix is a format it does accept, and is UTC because every write path
+	// normalizes to UTC before storing (normalizeLoggedAt, plus the boot-time
+	// normalizeUTCTimestamps for older rows).
 	err := s.db.QueryRow(
-		`SELECT COUNT(*) FROM workouts WHERE user_id = ? AND substr(started_at, 1, 10) = ?`,
-		uid, date,
+		`SELECT COUNT(*) FROM workouts
+		 WHERE user_id = ?
+		   AND date(substr(started_at, 1, 19), CAST(COALESCE(tz_offset_minutes, 0) AS TEXT) || ' minutes') = ?`,
+		uid, day,
 	).Scan(&n)
 	return n, err
 }

@@ -59,6 +59,7 @@
       ],
       "expo-font",
       "@react-native-community/datetimepicker",
+      "expo-localization",
       [
         "expo-network-security-config",
         {

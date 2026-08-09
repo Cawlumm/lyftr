@@ -225,12 +225,14 @@ func seedWorkouts(db *sql.DB, userID, progID int64) error {
 			17+rng.Intn(3), rng.Intn(60), 0, 0, time.UTC)
 
 		res, err := db.Exec(
-			`INSERT INTO workouts (user_id, name, notes, duration, started_at, program_id) VALUES (?, ?, ?, ?, ?, ?)`,
+			`INSERT INTO workouts (user_id, name, notes, duration, started_at, tz_offset_minutes, program_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			userID,
 			workoutNames[tmplIdx],
 			"",
 			workoutDurations[tmplIdx]+rng.Intn(600)-300,
 			startedAt,
+			// startedAt is built in UTC, so UTC is the offset it actually happened at.
+			0,
 			progID,
 		)
 		if err != nil {
@@ -295,8 +297,8 @@ func seedWeightLogs(db *sql.DB, userID int64) {
 		w += (rng.Float64()*3 - 1.5)
 		loggedAt := time.Date(day.Year(), day.Month(), day.Day(), 7, 30, 0, 0, time.UTC)
 		db.Exec(
-			`INSERT INTO weight_logs (user_id, weight, notes, logged_at) VALUES (?, ?, ?, ?)`,
-			userID, fmt.Sprintf("%.1f", w), "", loggedAt,
+			`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, ?, ?, ?)`,
+			userID, fmt.Sprintf("%.1f", w), "", loggedAt, loggedAt.Format("2006-01-02"),
 		)
 	}
 }
@@ -339,9 +341,14 @@ func seedFoodLogs(db *sql.DB, userID int64) {
 		for _, m := range pattern {
 			loggedAt := time.Date(day.Year(), day.Month(), day.Day(), 12, 0, 0, 0, time.UTC)
 			db.Exec(
-				`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, logged_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+				`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, logged_at, logged_on) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 				userID, m.name, m.meal, m.calories, m.protein, m.carbs, m.fat,
 				loggedAt,
+				// Seeded rows must carry their own day like every other write. The
+				// boot-time backfill cannot cover them — it is flag-guarded and runs
+				// once, while accounts are seeded long after. Without this the diary
+				// filters them out entirely.
+				loggedAt.Format("2006-01-02"),
 			)
 		}
 	}

@@ -7,10 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import {
-  apiErrorMessage, dayToIsoNoon, displayToLbs, displayWeight, isoToDayInput, maxWeight, todayStr,
-  weightError, weightShort, type WeightLog, type WeightStats,
-} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -50,7 +47,7 @@ export default function Weight() {
   // Returns the fetch promise so pull-to-refresh can await a full refresh.
   const refetchChart = useCallback(() => {
     const days = PERIOD_DAYS[period]
-    const from = days != null ? format(subDays(new Date(), days), 'yyyy-MM-dd') : undefined
+    const from = days != null ? daysAgoStr(days) : undefined
     return client.weightAPI.list({ limit: 1000, from }).then((data) => setChartLogs(data || [])).catch(() => {})
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])
@@ -126,7 +123,7 @@ export default function Weight() {
     }
 
     // Guard against a same-day double-log (unless already waved through).
-    if (!duplicateWarningDismissedRef.current && items.length > 0 && isoToDayInput(items[0].logged_at) === newDate) {
+    if (!duplicateWarningDismissedRef.current && items.length > 0 && entryDay(items[0]) === newDate) {
       setShowDuplicateWarning(true)
       return
     }
@@ -139,7 +136,7 @@ export default function Weight() {
       const real = await client.weightAPI.log({
         weight: displayToLbs(w, unit),
         notes: newNotes.trim(),
-        logged_at: dayToIsoNoon(newDate),
+        logged_at: dayToInstant(newDate),
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       setNewWeight(String(displayWeight(real.weight, unit)))

@@ -22,25 +22,28 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 		f.Offset = o
 	}
 
-	// Date params are calendar days in the user's local timezone. We don't know
-	// the client's UTC offset, so for bare YYYY-MM-DD we widen the window by ±12h
-	// to cover any plausible client TZ. A full RFC3339 timestamp is used exactly.
+	// Two kinds of bound, matching the two kinds of question. A bare YYYY-MM-DD asks
+	// about the user's calendar and compares against the day stored on the row — no
+	// zone, no conversion, nothing that can move later. A full RFC3339 timestamp asks
+	// about instants and still compares against logged_at.
 	if from := c.Query("from"); from != "" {
 		if t, exact, ok := parseDayOrTime(from); ok {
-			lo := t
-			if !exact {
-				lo = t.Add(-12 * time.Hour)
+			if exact {
+				f.From = &t
+			} else {
+				day := t.Format("2006-01-02")
+				f.FromDay = &day
 			}
-			f.From = &lo
 		}
 	}
 	if to := c.Query("to"); to != "" {
 		if t, exact, ok := parseDayOrTime(to); ok {
-			hi := t
-			if !exact {
-				hi = t.Add(36 * time.Hour)
+			if exact {
+				f.To = &t
+			} else {
+				day := t.Format("2006-01-02")
+				f.ToDay = &day
 			}
-			f.To = &hi
 		}
 	}
 
@@ -64,7 +67,12 @@ func (h *Handler) LogWeight(c *gin.Context) {
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 
-	log, err := h.s.Weight.UpsertForDay(uid, req)
+	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
+	if !ok {
+		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		return
+	}
+	log, err := h.s.Weight.UpsertForDay(uid, req, day)
 	if utils.DBError(c, err) {
 		return
 	}
@@ -107,7 +115,12 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
 
-	log, err := h.s.Weight.Update(uid, lid, req)
+	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
+	if !ok {
+		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		return
+	}
+	log, err := h.s.Weight.Update(uid, lid, req, day)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "log entry not found")
 		return

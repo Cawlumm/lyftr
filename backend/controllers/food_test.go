@@ -17,16 +17,38 @@ import (
 func insertFoodLog(t *testing.T, uid int64, name, meal string, calories, protein, carbs, fat float64, loggedAt time.Time) int64 {
 	t.Helper()
 	res, err := db.DB.Exec(
-		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, '', '', '', ?)`,
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, '', '', '', ?, ?)`,
 		uid, name, meal, calories, protein, carbs, fat,
-		loggedAt.Format("2006-01-02T15:04:05Z"),
+		// Bound as time.Time, the way the stores do. Formatting to a string here
+		// wrote a row shape production never creates, which hid exactly the class of
+		// bug where a range comparison depends on the stored encoding.
+		loggedAt,
+		localDayFor(t, uid, loggedAt),
 	)
 	if err != nil {
 		t.Fatalf("insertFoodLog: %v", err)
 	}
 	id, _ := res.LastInsertId()
 	return id
+}
+
+// localDayFor is the day a fixture row files itself under: the instant resolved in
+// the user's stored zone, which is exactly what the handlers do for a client that
+// sends no logged_on. Fixtures must derive it the same way production does — writing
+// a day the app would never write is how a test ends up asserting a behaviour that
+// does not exist.
+func localDayFor(t *testing.T, uid int64, instant time.Time) string {
+	t.Helper()
+	var zone string
+	if err := db.DB.QueryRow(`SELECT timezone FROM user_settings WHERE user_id = ?`, uid).Scan(&zone); err != nil {
+		zone = "UTC" // no settings row is normal for a freshly created test user
+	}
+	loc, err := time.LoadLocation(zone)
+	if err != nil {
+		loc = time.UTC
+	}
+	return instant.In(loc).Format("2006-01-02")
 }
 
 func insertSavedFood(t *testing.T, uid int64, name string) int64 {
@@ -99,7 +121,7 @@ func TestListFoodLogs_scopedByDateAndUser(t *testing.T) {
 	uid := createTestUser(t)
 	other := otherUser(t)
 
-	today := time.Now()
+	today := time.Now().UTC()
 	yesterday := today.AddDate(0, 0, -1)
 
 	insertFoodLog(t, uid, "Breakfast today", "breakfast", 400, 30, 50, 10, today)
@@ -321,6 +343,57 @@ func TestUpdateFoodLog_success(t *testing.T) {
 	}
 }
 
+func TestUpdateFoodLog_omittedLoggedAtDefaultsToNow(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	id := insertFoodLog(t, uid, "Old name", "breakfast", 300, 20, 40, 10, time.Now())
+
+	body := map[string]any{
+		"name": "New name", "meal": "lunch",
+		"calories": 450.0, "protein": 35.0, "carbs": 55.0, "fat": 12.0,
+	}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
+	setParam(c, "id", fmt.Sprint(id))
+	th.UpdateFoodLog(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	loggedAt, err := time.Parse(time.RFC3339, data["logged_at"].(string))
+	if err != nil {
+		t.Fatalf("parse logged_at %v: %v", data["logged_at"], err)
+	}
+	if age := time.Since(loggedAt); age < 0 || age > time.Minute {
+		t.Fatalf("expected omitted logged_at to default to now, got %v (%v old)", loggedAt, age)
+	}
+}
+
+func TestUpdateFoodLog_suppliedLoggedAtStoredAsUTC(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	id := insertFoodLog(t, uid, "Old name", "breakfast", 300, 20, 40, 10, time.Now())
+
+	body := map[string]any{
+		"name": "New name", "meal": "lunch",
+		"calories": 450.0, "protein": 35.0, "carbs": 55.0, "fat": 12.0,
+		"logged_at": "2026-07-16T20:00:00-05:00",
+	}
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/food/"+fmt.Sprint(id), body)
+	setParam(c, "id", fmt.Sprint(id))
+	th.UpdateFoodLog(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	resp := decodeResponse(t, w)
+	data := resp["data"].(map[string]any)
+	if got := data["logged_at"].(string); got != "2026-07-17T01:00:00Z" {
+		t.Fatalf("expected logged_at stored as UTC, got %q", got)
+	}
+}
+
 func TestUpdateFoodLog_ownershipEnforced(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
@@ -409,7 +482,7 @@ func TestGetDailyStats_empty(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 
-	date := time.Now().Format("2006-01-02")
+	date := time.Now().UTC().Format("2006-01-02")
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+date, nil)
 	th.GetDailyStats(c)
 
@@ -427,7 +500,7 @@ func TestGetDailyStats_sumsMacrosCorrectly(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 
-	today := time.Now()
+	today := time.Now().UTC()
 	insertFoodLog(t, uid, "Breakfast", "breakfast", 500, 30, 60, 15, today)
 	insertFoodLog(t, uid, "Lunch", "lunch", 700, 50, 80, 20, today)
 	// Different date — must be excluded
@@ -460,7 +533,7 @@ func TestGetDailyStats_scopedByUser(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 	other := otherUser(t)
-	today := time.Now()
+	today := time.Now().UTC()
 
 	insertFoodLog(t, uid, "Mine", "breakfast", 400, 25, 50, 10, today)
 	insertFoodLog(t, other, "Theirs", "lunch", 9999, 999, 999, 999, today)
@@ -498,7 +571,7 @@ func TestGetFoodHistory_empty(t *testing.T) {
 func TestGetFoodHistory_groupsByDay(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// Two entries on same day → should be one aggregated point
 	insertFoodLog(t, uid, "A", "breakfast", 400, 20, 50, 10, now.AddDate(0, 0, -1))
@@ -929,5 +1002,328 @@ func TestDeleteSavedFood_ownershipEnforced(t *testing.T) {
 	db.DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE id = ?`, id).Scan(&count)
 	if count != 1 {
 		t.Fatal("saved food was deleted by wrong user")
+	}
+}
+
+// insertFoodLogAt is the common case of insertFoodLog: a dinner entry with only
+// calories set. One insert path, so a change to the row shape can't leave a second
+// fixture stale.
+func insertFoodLogAt(t *testing.T, uid int64, name string, calories float64, loggedAt time.Time) int64 {
+	t.Helper()
+	return insertFoodLog(t, uid, name, "dinner", calories, 0, 0, 0, loggedAt)
+}
+
+// A west-of-UTC user's late-evening entry belongs to their day, not the UTC day.
+// Originally written against an explicit from/to range; the range is gone, so this
+// now asserts the same user-visible outcome through the stored zone — which is the
+// only path a client actually takes.
+func TestListFoodLogs_localDayWestTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/Los_Angeles") // UTC-7 in April
+
+	// 03:00 UTC on the 25th is 20:00 on the 24th in Los Angeles.
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Late dinner", "meal": "dinner", "calories": 800,
+		"logged_at": "2026-04-25T03:00:00Z",
+	})
+	th.LogFood(c)
+	// 08:00 UTC on the 25th is 01:00 on the 25th — the next local day.
+	// The recorder is checked, not discarded: if this seed fails the "excluded from
+	// the local day" assertion below passes for the wrong reason — the entry was
+	// never there to leak in.
+	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Next local day", "meal": "snacks", "calories": 500,
+		"logged_at": "2026-04-25T08:00:00Z",
+	})
+	th.LogFood(c2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("seed the next-local-day entry: %d %s", w2.Code, w2.Body.String())
+	}
+
+	c, w = newContext(uid, http.MethodGet, "/api/v1/food?date=2026-04-24", nil)
+	th.ListFoodLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("expected 1 entry on the local day, got %d", len(data))
+	}
+	if name := data[0].(map[string]any)["name"].(string); name != "Late dinner" {
+		t.Errorf("expected the local-evening entry, got %v", name)
+	}
+}
+
+// Macros come from the stored day; the workout count still resolves through the
+// zone, because a workout is an instant with no day of its own. Both halves of the
+// payload must describe the same date.
+func TestGetDailyStats_localDayWestTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/Los_Angeles")
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Late dinner", "meal": "dinner", "calories": 800,
+		"logged_at": "2026-04-25T03:00:00Z",
+	})
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("seed the local-evening entry: %d %s", w.Code, w.Body.String())
+	}
+	// Checked for the same reason as above — an unseeded boundary entry cannot leak.
+	c, w = newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Next local day", "meal": "snacks", "calories": 500,
+		"logged_at": "2026-04-25T08:00:00Z",
+	})
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("seed the next-local-day entry: %d %s", w.Code, w.Body.String())
+	}
+	// -420 = Los Angeles in April. 03:30Z minus 7h is 20:30 on the 24th, so the
+	// workout names the 24th itself rather than being resolved through a zone.
+	if _, err := db.DB.Exec(
+		`INSERT INTO workouts (user_id, name, started_at, tz_offset_minutes) VALUES (?, ?, ?, ?)`,
+		uid, "Evening lift", time.Date(2026, 4, 25, 3, 30, 0, 0, time.UTC), -420,
+	); err != nil {
+		t.Fatalf("insert workout: %v", err)
+	}
+
+	c, w = newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-04-24", nil)
+	th.GetDailyStats(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if got := data["total_calories"].(float64); got != 800 {
+		t.Errorf("expected total_calories=800 (local day only), got %v", got)
+	}
+	if got := data["workout_count"].(float64); got != 1 {
+		t.Errorf("expected workout_count=1 on the same local day, got %v", got)
+	}
+	if got := data["date"].(string); got != "2026-04-24" {
+		t.Errorf("expected date label 2026-04-24, got %v", got)
+	}
+}
+
+// setUserTimezone stores an IANA zone for the user, the way a client's settings
+// PATCH would.
+func setUserTimezone(t *testing.T, uid int64, tz string) {
+	t.Helper()
+	if _, err := db.DB.Exec(
+		`INSERT INTO user_settings (user_id, timezone) VALUES (?, ?)
+		 ON CONFLICT(user_id) DO UPDATE SET timezone = excluded.timezone`,
+		uid, tz,
+	); err != nil {
+		t.Fatalf("set timezone: %v", err)
+	}
+}
+
+// An entry's day is decided by the user's zone at read time — so a client that only
+// ever sends an instant (every build shipped) lands on the right day.
+func TestListFoodLogs_bucketsByUserTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	// 01:00 UTC on the 25th is 21:00 on the 24th in New York.
+	insertFoodLogAt(t, uid, "Late dinner", 800, time.Date(2026, 4, 25, 1, 0, 0, 0, time.UTC))
+	// 05:00 UTC on the 25th is 01:00 on the 25th — the next local day.
+	insertFoodLogAt(t, uid, "Midnight snack", 200, time.Date(2026, 4, 25, 5, 0, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food?date=2026-04-24", nil)
+	th.ListFoodLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	logs := decodeResponse(t, w)["data"].([]any)
+	if len(logs) != 1 {
+		t.Fatalf("expected only the 24th's local entry, got %d", len(logs))
+	}
+	if name := logs[0].(map[string]any)["name"].(string); name != "Late dinner" {
+		t.Errorf("expected the 21:00-local entry, got %q", name)
+	}
+}
+
+// UTC+14 is the case noon-anchoring alone cannot survive: local noon on the 24th is
+// 22:00 UTC on the *23rd*, so a UTC date prefix files it a day early. This is the
+// whole reason the server needs to know the zone.
+func TestListFoodLogs_farEastTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "Pacific/Kiritimati") // UTC+14
+
+	insertFoodLogAt(t, uid, "Local noon", 600, time.Date(2026, 4, 23, 22, 0, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food?date=2026-04-24", nil)
+	th.ListFoodLogs(c)
+	if n := len(decodeResponse(t, w)["data"].([]any)); n != 1 {
+		t.Fatalf("expected the entry on its local day 2026-04-24, got %d", n)
+	}
+}
+
+// Spring forward: 2026-03-08 is 23 hours long in New York, so the day must end at
+// the next local midnight rather than 24h after the first.
+func TestGetDailyStats_dstSpringForwardDayIs23Hours(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	// 2026-03-08 is 23 hours long in New York: the day starts at 05:00 UTC (EST) and
+	// ends at 04:00 UTC on the 9th (EDT), because the clocks jump at 02:00 local.
+	//
+	// The fixture that matters is the one in [04:00, 05:00) UTC on the 9th. That hour
+	// is *outside* the real day but *inside* a naive start+24h window, so it is the
+	// only entry that can tell the two apart. Without it this test passes whether
+	// localDayRange uses AddDate(0, 0, 1) or Add(24 * time.Hour).
+	insertFoodLogAt(t, uid, "Inside, 23:00 local on the 8th", 400, time.Date(2026, 3, 9, 3, 0, 0, 0, time.UTC))
+	insertFoodLogAt(t, uid, "The 24th hour that does not exist", 900, time.Date(2026, 3, 9, 4, 30, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-03-08", nil)
+	th.GetDailyStats(c)
+	if got := decodeResponse(t, w)["data"].(map[string]any)["total_calories"].(float64); got != 400 {
+		t.Errorf("expected 400 — the 23h day ends at 04:00 UTC, so the 04:30 entry belongs to the 9th; got %v", got)
+	}
+}
+
+// The mirror case: 2026-11-01 is 25 hours long in New York, so the day must not end
+// an hour early. An entry in [04:00, 05:00) UTC on the 2nd is inside the real day and
+// outside a naive start+24h window — the opposite failure from spring forward.
+func TestGetDailyStats_dstFallBackDayIs25Hours(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	insertFoodLogAt(t, uid, "The 25th hour", 400, time.Date(2026, 11, 2, 4, 30, 0, 0, time.UTC))
+	insertFoodLogAt(t, uid, "Next local day", 900, time.Date(2026, 11, 2, 5, 30, 0, 0, time.UTC))
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date=2026-11-01", nil)
+	th.GetDailyStats(c)
+	if got := decodeResponse(t, w)["data"].(map[string]any)["total_calories"].(float64); got != 400 {
+		t.Errorf("expected 400 — the 25h day runs to 05:00 UTC on the 2nd; got %v", got)
+	}
+}
+
+// The chart and the totals above it must agree about which day an entry is on —
+// they now resolve it the same way, which is the point of having one mechanism.
+func TestGetFoodHistory_agreesWithDailyTotals(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	setUserTimezone(t, uid, "America/New_York")
+
+	// A fixed instant with a hard-coded expected day, rather than deriving the day
+	// with the same zone lookup the endpoints use — that would let a wrong lookup
+	// agree with itself. 01:00 UTC on Aug 8 is 21:00 on Aug 7 in New York.
+	insertFoodLogAt(t, uid, "Late dinner", 700, time.Date(2026, 8, 8, 1, 0, 0, 0, time.UTC))
+	const day = "2026-08-07"
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+day, nil)
+	th.GetDailyStats(c)
+	dailyCals := decodeResponse(t, w)["data"].(map[string]any)["total_calories"].(float64)
+	if dailyCals != 700 {
+		t.Fatalf("daily totals put the 21:00-local entry somewhere else: got %v for %s", dailyCals, day)
+	}
+
+	c, w = newContext(uid, http.MethodGet, "/api/v1/food/history?days=400", nil)
+	th.GetFoodHistory(c)
+	for _, p := range decodeResponse(t, w)["data"].([]any) {
+		if pt := p.(map[string]any); pt["date"].(string) == day {
+			if pt["calories"].(float64) != dailyCals {
+				t.Errorf("history says %v for %s, daily totals say %v", pt["calories"], day, dailyCals)
+			}
+			return
+		}
+	}
+	t.Errorf("history has no bucket for %s, but the daily total is %v", day, dailyCals)
+}
+
+func mustLoad(t *testing.T, name string) *time.Location {
+	t.Helper()
+	loc, err := ParseLocation(name)
+	if err != nil {
+		t.Fatalf("load %s: %v", name, err)
+	}
+	return loc
+}
+
+// An unloadable zone must be rejected at write time rather than silently making
+// every later query fall back to UTC.
+func TestUpdateSettings_rejectsUnknownTimezone(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/settings", map[string]any{"timezone": "Mars/Olympus_Mons"})
+	th.UpdateSettings(c)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an unknown zone, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestUpdateSettings_acceptsIANAZoneAndPreservesOtherFields(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPatch, "/api/v1/settings", map[string]any{"calorie_target": 2500})
+	th.UpdateSettings(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("seed settings: %d %s", w.Code, w.Body.String())
+	}
+
+	c, w = newContext(uid, http.MethodPatch, "/api/v1/settings", map[string]any{"timezone": "Europe/Berlin"})
+	th.UpdateSettings(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if data["timezone"].(string) != "Europe/Berlin" {
+		t.Errorf("expected stored zone, got %v", data["timezone"])
+	}
+	// The COALESCE merge must not let a timezone-only PATCH reset the target.
+	if data["calorie_target"].(float64) != 2500 {
+		t.Errorf("timezone-only update clobbered calorie_target: %v", data["calorie_target"])
+	}
+}
+
+// Changing zones must NOT move an entry, at any distance.
+//
+// This is the inverse of the test it replaces. While the day was derived from the
+// account's zone at read time, a New York entry read from Tokyo — 13 hours away —
+// landed on the following day, because a noon anchor only absorbs a shift while
+// |offset delta| < 12. Now the day is stored on the row, so no distance is far
+// enough. Tokyo is kept as a case precisely because it is the one that used to fail.
+func TestListFoodLogs_zoneChangeDoesNotMoveStoredDay(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	setUserTimezone(t, uid, "America/New_York")
+	// Local noon on the 4th for a New York account (UTC-4 in August).
+	insertFoodLogAt(t, uid, "Lunch", 600, time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC))
+
+	countOn := func(zone, date string) int {
+		t.Helper()
+		setUserTimezone(t, uid, zone)
+		c, w := newContext(uid, http.MethodGet, "/api/v1/food?date="+date, nil)
+		th.ListFoodLogs(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s %s: expected 200, got %d: %s", zone, date, w.Code, w.Body.String())
+		}
+		return len(decodeResponse(t, w)["data"].([]any))
+	}
+
+	for _, tc := range []struct {
+		zone, date string
+		want       int
+		why        string
+	}{
+		{"America/New_York", "2026-08-04", 1, "the day it was filed under"},
+		{"Pacific/Honolulu", "2026-08-04", 1, "6h away, still the 4th"},
+		{"Pacific/Honolulu", "2026-08-05", 0, "and not also on the 5th"},
+		{"Asia/Tokyo", "2026-08-04", 1, "13h away — this is the case that used to move"},
+		{"Asia/Tokyo", "2026-08-05", 0, "it must not appear on the 5th any more"},
+		{"Pacific/Kiritimati", "2026-08-04", 1, "UTC+14, the widest gap there is"},
+	} {
+		if got := countOn(tc.zone, tc.date); got != tc.want {
+			t.Errorf("%s on %s: got %d entries, want %d (%s)", tc.zone, tc.date, got, tc.want, tc.why)
+		}
 	}
 }

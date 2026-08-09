@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToIsoNoon, isoToDayInput } from '../utils/dateUtils'
+import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
 import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
@@ -62,7 +62,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       return
     }
 
-    if (!duplicateWarningDismissedRef.current && lastLog && isoToDayInput(lastLog.logged_at) === date) {
+    if (!duplicateWarningDismissedRef.current && lastLog && entryDay(lastLog) === date) {
       setShowDuplicateWarning(true)
       return
     }
@@ -74,7 +74,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       const log = await weightAPI.log({
         weight: displayToLbs(w, settings.weight_unit),
         notes: notes.trim(),
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       })
       onSuccess(log)
       onClose()

@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { todayStr, dayToInstant, instantToDay } from './dateUtils'
+import { todayStr, dayToInstant, instantToDay, entryDay, workoutDay } from './dateUtils'
 
-// Runs under TZ=America/New_York (set in the npm script) so these local<->UTC
-// assertions are deterministic and exercise a real, DST-aware non-UTC offset.
+const hours = (from: string, to: string) =>
+  (new Date(to).getTime() - new Date(from).getTime()) / 3_600_000
+
 
 describe('dayToInstant', () => {
   it('defaults to local noon, expressed in UTC', () => {
@@ -33,35 +33,9 @@ describe('dayToInstant', () => {
   })
 })
 
-describe('instantToDay', () => {
-  it('returns the local calendar day for an instant', () => {
-    expect(instantToDay('2026-04-25T16:00:00.000Z')).toBe('2026-04-25')
-  })
-
-  it('maps a UTC-midnight instant to the previous local day (what noon-anchoring avoids)', () => {
-    expect(instantToDay('2026-04-25T00:00:00.000Z')).toBe('2026-04-24')
-  })
-
-  it('round-trips with dayToInstant across the year', () => {
-    for (const day of ['2026-01-15', '2026-04-25', '2026-07-04', '2026-12-31']) {
-      expect(instantToDay(dayToInstant(day))).toBe(day)
-    }
-  })
-})
-
 describe('todayStr', () => {
-  afterEach(() => vi.useRealTimers())
-
-  it('returns the local calendar date', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-25T16:00:00.000Z')) // noon EDT
-    expect(todayStr()).toBe('2026-04-25')
-  })
-
-  it('reflects local time, not UTC, near midnight', () => {
-    vi.useFakeTimers()
-    vi.setSystemTime(new Date('2026-04-25T01:00:00.000Z')) // 21:00 EDT the prior day
-    expect(todayStr()).toBe('2026-04-24')
+  it('formats as YYYY-MM-DD', () => {
+    expect(todayStr()).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })
 
@@ -101,5 +75,58 @@ describe('todayStr — the date a form prefills', () => {
   it('round-trips into an instant that stays on the same local day', () => {
     const local = at('2026-08-09T03:30:00.000Z', () => todayStr())
     expect(instantToDay(dayToInstant(local))).toBe(local)
+  })
+})
+
+describe('entryDay — the server is the source of truth', () => {
+  it('uses the stored day even when the device would derive another one', () => {
+    // Filed on the 4th in New York (16:00Z). A device in Tokyo puts that instant on
+    // the 5th. Before the day was stored, that re-derivation is what moved entries —
+    // and on the edit screens it got saved back.
+    expect(entryDay({ logged_on: '2026-08-04', logged_at: '2026-08-04T16:00:00.000Z' }))
+      .toBe('2026-08-04')
+  })
+
+  it('falls back to the instant when the server sent no day', () => {
+    // A response from a server older than the column. Suites run in America/New_York.
+    expect(entryDay({ logged_at: '2026-08-04T16:00:00.000Z' })).toBe('2026-08-04')
+  })
+
+  it('treats an empty stored day as absent rather than as a day', () => {
+    expect(entryDay({ logged_on: '', logged_at: '2026-08-04T16:00:00.000Z' })).toBe('2026-08-04')
+  })
+})
+
+describe('workoutDay — recovered from the recorded offset', () => {
+  it('applies the offset rather than the device zone', () => {
+    // 16:00Z at -240 is noon on the 4th. Correct from any device, anywhere.
+    expect(workoutDay({ started_at: '2026-08-04T16:00:00.000Z', tz_offset_minutes: -240 }))
+      .toBe('2026-08-04')
+  })
+
+  it('keeps the day the workout happened on across the UTC boundary', () => {
+    // 02:00Z on the 5th, logged at -240, was 22:00 on the 4th where it happened.
+    expect(workoutDay({ started_at: '2026-08-05T02:00:00.000Z', tz_offset_minutes: -240 }))
+      .toBe('2026-08-04')
+  })
+
+  it('handles a positive offset past midnight the other way', () => {
+    // 16:00Z at +540 (Tokyo) is 01:00 on the 5th.
+    expect(workoutDay({ started_at: '2026-08-04T16:00:00.000Z', tz_offset_minutes: 540 }))
+      .toBe('2026-08-05')
+  })
+
+  it('supports a half-hour offset', () => {
+    // Kathmandu, +5:45. 20:00Z on the 4th is 01:45 on the 5th.
+    expect(workoutDay({ started_at: '2026-08-04T20:00:00.000Z', tz_offset_minutes: 345 }))
+      .toBe('2026-08-05')
+  })
+
+  it('falls back to the device zone for a row written before the offset existed', () => {
+    expect(workoutDay({ started_at: '2026-08-04T16:00:00.000Z' })).toBe('2026-08-04')
+  })
+
+  it('does not throw on an unparseable instant', () => {
+    expect(() => workoutDay({ started_at: 'nonsense', tz_offset_minutes: -240 })).not.toThrow()
   })
 })

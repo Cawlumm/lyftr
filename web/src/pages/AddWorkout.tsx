@@ -8,6 +8,7 @@ import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import RestPicker from '../components/RestPicker'
 import * as types from '../types'
+import { todayStr, dayToInstant } from '../utils/dateUtils'
 
 interface WorkoutFormData {
   name: string
@@ -26,7 +27,7 @@ export default function AddWorkout() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
-  const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, date: new Date().toISOString().slice(0, 10), exercises: [] })
+  const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, date: todayStr(), exercises: [] })
 
   useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
@@ -92,7 +93,7 @@ export default function AddWorkout() {
       const payload = {
         ...formData,
         duration: formData.duration * 60,
-        started_at: new Date(formData.date).toISOString(),
+        started_at: dayToInstant(formData.date),
         exercises: formData.exercises.map(ex => ({
           ...ex,
           sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
@@ -145,7 +146,7 @@ export default function AddWorkout() {
             <CalendarDays className="w-4 h-4 text-brand-500" />
             <label className="label">Date</label>
           </div>
-          <input type="date" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} className="input" max={new Date().toISOString().slice(0, 10)} />
+          <input type="date" value={formData.date} onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))} className="input" max={todayStr()} />
         </div>
 
         <div>

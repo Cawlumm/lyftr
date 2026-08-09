@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
-import {
-  apiErrorMessage, dayToIsoNoon, displayToLbs, isoToDayInput, maxWeight, todayStr,
-  weightError, weightShort, type WeightLog,
-} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayToLbs, instantToDay, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay } from '@lyftr/shared'
 import {
   AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
@@ -63,7 +60,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       setError(wErr)
       return
     }
-    if (!(forceDismissed || dupDismissed) && lastLog && isoToDayInput(lastLog.logged_at) === date) {
+    if (!(forceDismissed || dupDismissed) && lastLog && entryDay(lastLog) === date) {
       setShowDuplicateWarning(true)
       return
     }
@@ -74,7 +71,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       const log = await client.weightAPI.log({
         weight: displayToLbs(w, unit),
         notes: notes.trim(),
-        logged_at: dayToIsoNoon(date),
+        logged_at: dayToInstant(date),
       })
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       onSuccess(log)
