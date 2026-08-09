@@ -22,29 +22,30 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 		f.Offset = o
 	}
 
-	// Two kinds of bound, matching the two kinds of question. A bare YYYY-MM-DD asks
-	// about the user's calendar and compares against the day stored on the row — no
-	// zone, no conversion, nothing that can move later. A full RFC3339 timestamp asks
-	// about instants and still compares against logged_at.
+	// `from`/`to` name days in the user's diary, and every row carries the day it was
+	// filed under, so this is a range over stored days: no zone, no conversion, nothing
+	// that can move later. Validated through resolveQueryDay so a range bound and a
+	// single-day lookup cannot disagree about what a day string is.
+	//
+	// Day-only is also what every peer range API takes (Fitbit's food log `date`,
+	// Garmin's `calendarDate`). An instant-bounded RFC3339 variant used to live here
+	// for exact windows; no client ever sent one, and it was a second way to ask the
+	// same question through a different column.
 	if from := c.Query("from"); from != "" {
-		if t, exact, ok := parseDayOrTime(from); ok {
-			if exact {
-				f.From = &t
-			} else {
-				day := t.Format("2006-01-02")
-				f.FromDay = &day
-			}
+		day, ok := h.resolveQueryDay(uid, from)
+		if !ok {
+			utils.BadRequest(c, "from must be YYYY-MM-DD")
+			return
 		}
+		f.FromDay = &day
 	}
 	if to := c.Query("to"); to != "" {
-		if t, exact, ok := parseDayOrTime(to); ok {
-			if exact {
-				f.To = &t
-			} else {
-				day := t.Format("2006-01-02")
-				f.ToDay = &day
-			}
+		day, ok := h.resolveQueryDay(uid, to)
+		if !ok {
+			utils.BadRequest(c, "to must be YYYY-MM-DD")
+			return
 		}
+		f.ToDay = &day
 	}
 
 	logs, err := h.s.Weight.List(uid, f)
@@ -151,7 +152,7 @@ func (h *Handler) DeleteWeightLog(c *gin.Context) {
 
 func (h *Handler) GetWeightStats(c *gin.Context) {
 	uid := middleware.UserID(c)
-	stats, err := h.s.Weight.Stats(uid)
+	stats, err := h.s.Weight.Stats(uid, h.daysAgoDay(uid, 7), h.daysAgoDay(uid, 30))
 	if utils.DBError(c, err) {
 		return
 	}
@@ -175,16 +176,4 @@ func normalizeLoggedAt(t time.Time) time.Time {
 		t = time.Now()
 	}
 	return t.UTC()
-}
-
-// parseDayOrTime accepts a full RFC3339 timestamp or a bare YYYY-MM-DD. Returns
-// the parsed time, whether it was an exact timestamp (don't widen), and success.
-func parseDayOrTime(s string) (t time.Time, exact bool, ok bool) {
-	if v, err := time.Parse(time.RFC3339, s); err == nil {
-		return v, true, true
-	}
-	if v, err := time.Parse("2006-01-02", s); err == nil {
-		return v, false, true
-	}
-	return time.Time{}, false, false
 }

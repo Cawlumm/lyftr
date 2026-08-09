@@ -2,7 +2,6 @@ package stores
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -14,13 +13,12 @@ func NewWeightStore(db *sql.DB) *WeightStore { return &WeightStore{db: db} }
 
 // WeightFilter holds resolved query bounds.
 //
-// Two kinds, because the API accepts two kinds. A bare YYYY-MM-DD is a question about
-// the user's calendar and filters on the stored day; a full RFC3339 timestamp is a
-// question about instants and filters on logged_at. Neither consults a zone.
+// Days, not instants. "Show me last month" is a question about the user's calendar,
+// answered against the day each row was filed under — so it consults no zone and the
+// answer cannot move later.
 type WeightFilter struct {
-	Limit, Offset int
-	From, To      *time.Time // instant bounds, for an exact RFC3339 range
-	FromDay, ToDay *string   // inclusive day bounds, for a bare YYYY-MM-DD range
+	Limit, Offset  int
+	FromDay, ToDay *string // inclusive day bounds, YYYY-MM-DD
 }
 
 // WeightStats is the computed summary for GetWeightStats.
@@ -35,14 +33,6 @@ const weightCols = `id, user_id, weight, notes, logged_at, logged_on, created_at
 func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error) {
 	q := `SELECT ` + weightCols + ` FROM weight_logs WHERE user_id = ?`
 	args := []any{uid}
-	if f.From != nil {
-		q += ` AND logged_at >= ?`
-		args = append(args, *f.From)
-	}
-	if f.To != nil {
-		q += ` AND logged_at < ?`
-		args = append(args, *f.To)
-	}
 	if f.FromDay != nil {
 		q += ` AND logged_on >= ?`
 		args = append(args, *f.FromDay)
@@ -169,7 +159,10 @@ func (s *WeightStore) Delete(uid, id int64) (int64, error) {
 	return n, nil
 }
 
-func (s *WeightStore) Stats(uid int64) (WeightStats, error) {
+// Stats summarizes a user's weight history. since7d/since30d are the window bounds
+// as calendar days, resolved by the controller through the same helper every other
+// day query uses.
+func (s *WeightStore) Stats(uid int64, since7d, since30d string) (WeightStats, error) {
 	var latest, oldest, minW, maxW, avgW sql.NullFloat64
 	var count int
 	err := s.db.QueryRow(
@@ -188,25 +181,28 @@ func (s *WeightStore) Stats(uid int64) (WeightStats, error) {
 		Min: minW.Float64, Max: maxW.Float64, Avg: avgW.Float64,
 		TotalEntries: count,
 	}
-	if stats.Change7d, err = s.changeOver(uid, 7); err != nil {
+	if stats.Change7d, err = s.changeOver(uid, since7d); err != nil {
 		return WeightStats{}, err
 	}
-	if stats.Change30d, err = s.changeOver(uid, 30); err != nil {
+	if stats.Change30d, err = s.changeOver(uid, since30d); err != nil {
 		return WeightStats{}, err
 	}
 	return stats, nil
 }
 
-// changeOver returns latest minus earliest weight within the last `days` days,
-// or 0 with fewer than two entries in the window.
-func (s *WeightStore) changeOver(uid int64, days int) (float64, error) {
-	cutoff := time.Now().UTC().AddDate(0, 0, -days)
+// changeOver returns latest minus earliest weight on or after sinceDay, or 0 with
+// fewer than two entries in the window.
+//
+// Bounded by the stored day rather than an instant `now - N*24h`. "The last 7 days"
+// is a question about the user's calendar, and answering it in UTC made it the one
+// window in the app resolved by a different rule than every other day query.
+func (s *WeightStore) changeOver(uid int64, sinceDay string) (float64, error) {
 	var latest, earliest sql.NullFloat64
 	if err := s.db.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_at >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
-		uid, cutoff, uid, cutoff,
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
+		uid, sinceDay, uid, sinceDay,
 	).Scan(&latest, &earliest); err != nil {
 		return 0, err
 	}

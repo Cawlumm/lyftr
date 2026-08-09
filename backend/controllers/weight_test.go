@@ -141,17 +141,14 @@ func TestListWeightLogs_dateRange(t *testing.T) {
 	}
 }
 
-// Regression: a YYYY-MM-DD `to` should include entries logged late on that
-// day for users in west-of-UTC timezones. Their `${date}T12:00:00` local
-// stored as UTC ends up several hours after UTC midnight, which a naive
-// "parse as UTC + 24h" would have excluded.
+// A day range matches on the day the entry was filed under, not on where its instant
+// falls in UTC. A UTC-7 user logging noon on the 25th stores 2026-04-25T19:00:00Z;
+// every previous version of this filter had to widen the UTC window to catch it, and
+// each widening was a guess about how far the user might have been from UTC. Matching
+// logged_on needs no guess.
 func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
-	// Simulate a user in UTC-7 logging "2026-04-25 noon local" — stored as
-	// 2026-04-25T19:00:00Z. A naive parser interpreting `to=2026-04-25` as
-	// UTC midnight + 24h would treat the cutoff as 2026-04-25T00:00:00Z
-	// and miss this entry.
 	loggedAt := time.Date(2026, 4, 25, 19, 0, 0, 0, time.UTC)
 	insertWeightLog(t, uid, 175.0, loggedAt)
 
@@ -168,26 +165,23 @@ func TestListWeightLogs_dateRangeWestTimezone(t *testing.T) {
 	}
 }
 
-// Regression: an RFC3339 timestamp must be honored exactly without any TZ
-// padding. Callers that pass precise bounds expect exclusive control.
-func TestListWeightLogs_dateRangeExactRFC3339(t *testing.T) {
+// A range bound that isn't a day is rejected rather than silently dropped. Ignoring it
+// would answer a narrow question with the whole history, which reads as data loss in
+// reverse — a chart that quietly shows more than it was asked for.
+func TestListWeightLogs_dateRangeRejectsNonDayBound(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 	insertWeightLog(t, uid, 175.0, time.Date(2026, 4, 25, 10, 0, 0, 0, time.UTC))
-	insertWeightLog(t, uid, 176.0, time.Date(2026, 4, 25, 14, 0, 0, 0, time.UTC))
 
-	c, w := newContext(uid, http.MethodGet,
-		"/api/v1/weight?from=2026-04-25T12:00:00Z&to=2026-04-25T15:00:00Z", nil)
-	th.ListWeightLogs(c)
-
-	resp := decodeResponse(t, w)
-	data := resp["data"].([]any)
-	if len(data) != 1 {
-		t.Fatalf("expected 1 entry within exact window, got %d", len(data))
-	}
-	first := data[0].(map[string]any)
-	if first["weight"].(float64) != 176.0 {
-		t.Errorf("expected the 14:00 entry, got %v", first["weight"])
+	for _, q := range []string{
+		"/api/v1/weight?from=2026-04-25T12:00:00Z",
+		"/api/v1/weight?to=not-a-date",
+	} {
+		c, w := newContext(uid, http.MethodGet, q, nil)
+		th.ListWeightLogs(c)
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected 400, got %d", q, w.Code)
+		}
 	}
 }
 

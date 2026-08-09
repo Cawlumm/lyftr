@@ -1,14 +1,24 @@
-/**
- * Date helpers for the local-time write / UTC-store pattern used by the
- * weight feature.
- *
- * Storage convention: timestamps are persisted as UTC ISO strings.
- * Display convention: rendered in the browser's local timezone.
- * Date-only fields ("the date this entry is *for*"): we anchor at local noon
- * so the entry's calendar day is robust across all plausible timezone offsets.
- */
+// The one place a calendar day is produced or read on the client.
+//
+// The model, which is the one Fitbit, Garmin, Strava and Health Connect all use: a
+// row stores the instant it happened *plus* enough to name its own day, and that day
+// is never re-derived from wherever the reader happens to be standing.
+//
+//   diary entries (food, weight) — instant `logged_at` + stored day `logged_on`
+//   workouts                     — instant `started_at` + offset `tz_offset_minutes`
+//
+// Two shapes because the two questions differ. A diary entry is *about* a day and the
+// user picks it; a workout happened at a moment and its day follows from where that
+// moment was. Fitbit splits them identically — a food log carries `logDate` with no
+// time at all, an activity carries an offset inline on `startTime`.
+//
+// The device zone still answers exactly one question, "what day is it now", for
+// `todayStr` and `daysAgoStr`. Everywhere else read the stored answer: `entryDay` and
+// `workoutDay` exist so no screen has to remember which of the two shapes it holds.
+//
+// Instants are persisted as UTC ISO strings and rendered in the device's zone.
 
-/** Today's calendar date as YYYY-MM-DD in the browser's local timezone. */
+/** Today's calendar date as YYYY-MM-DD in the device's local timezone. */
 export const todayStr = (): string => {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -18,10 +28,12 @@ export const todayStr = (): string => {
 
 
 /**
- * Extract a YYYY-MM-DD string in the browser's local timezone from any ISO
- * timestamp. Use this to populate `<input type="date">` fields when editing
- * an existing entry so the displayed date matches what the user originally
- * picked.
+ * The calendar day an instant falls on, in the device's local timezone.
+ *
+ * The inverse of `dayToInstant`, and the read half of the same loop: load an entry,
+ * show its day in a date field, save the picked day back as an instant. The pair is
+ * lossy in one direction only — this discards the time, which is why the other one
+ * takes the previous timestamp to put it back.
  */
 export const instantToDay = (iso: string): string => {
   const d = new Date(iso)
@@ -64,11 +76,13 @@ export const dayToInstant = (yyyyMmDd: string, previousIso?: string): string => 
 /**
  * The local calendar day `n` days before today.
  *
- * Exists so range queries build their day the same way everything else does. The
- * weight chart previously used date-fns `format(subDays(new Date(), n), 'yyyy-MM-dd')`,
- * which is a fourth path to a day string and drifts from the server's idea of one:
- * the server resolves a bare day through the *stored* zone, so a device-derived day
- * silently clips the oldest point whenever the two disagree.
+ * One of the only two functions here that consults the device zone, and legitimately:
+ * a window bound is a question about *now*, which no stored row can answer.
+ *
+ * Named so range queries build their day the same way `todayStr` does. The weight
+ * chart previously used date-fns `format(subDays(new Date(), n), 'yyyy-MM-dd')`, a
+ * fourth path to a day string that drifts the moment anything about the other three
+ * changes.
  */
 export const daysAgoStr = (n: number): string => {
   const d = new Date()
