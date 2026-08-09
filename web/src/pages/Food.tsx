@@ -14,7 +14,7 @@ import {
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, userAPI } from '../services/api'
-import { todayStr } from '../utils/dateUtils'
+import { todayStr, dayToLocalDate} from '../utils/dateUtils'
 import { MACRO_COLORS } from '../utils/macroColors'
 import * as types from '../types'
 
@@ -155,7 +155,7 @@ export default function Food() {
   const calPct = Math.min(100, (totalCals / calTarget) * 100)
 
   const isToday = selectedDate === todayStr()
-  const selectedDateObj = new Date(selectedDate + 'T12:00:00')
+  const selectedDateObj = dayToLocalDate(selectedDate)
   const prevDate = format(subDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()
@@ -423,7 +423,7 @@ export default function Food() {
               </defs>
               <XAxis
                 dataKey="date"
-                tickFormatter={d => format(new Date(d + 'T12:00:00'), 'M/d')}
+                tickFormatter={d => format(dayToLocalDate(d), 'M/d')}
                 tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
                 axisLine={false}
                 tickLine={false}
@@ -444,7 +444,7 @@ export default function Food() {
                   fontSize: '12px',
                   color: 'var(--color-tx-primary)',
                 }}
-                labelFormatter={d => format(new Date(d + 'T12:00:00'), 'MMM d')}
+                labelFormatter={d => format(dayToLocalDate(d), 'MMM d')}
                 formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
                 cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
               />

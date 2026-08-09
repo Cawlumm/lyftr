@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay } from '../utils/dateUtils'
+import { workoutDay, entryDay, dayToLocalDate} from '../utils/dateUtils'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -205,7 +205,7 @@ export default function Dashboard() {
 
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
-    date: format(new Date(workoutDay(w) + 'T12:00:00'), 'M/d'),
+    date: format(dayToLocalDate(workoutDay(w)), 'M/d'),
     volume: displayVolume(calcVolume(w), settings.weight_unit),
     name: w.name,
   }))
@@ -272,7 +272,7 @@ export default function Dashboard() {
 
   // Weight sparkline
   const sparkData = [...weightLogs].reverse().map(l => ({
-    date: format(new Date(entryDay(l) + 'T12:00:00'), 'M/d'),
+    date: format(dayToLocalDate(entryDay(l)), 'M/d'),
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
@@ -551,7 +551,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
                   <p className="text-xs text-tx-muted mt-0.5">
-                    {format(new Date(workoutDay(lastWorkout) + 'T12:00:00'), 'MMM d')}
+                    {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
                     {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
