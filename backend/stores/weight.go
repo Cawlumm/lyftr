@@ -42,7 +42,11 @@ func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error
 		q += ` AND logged_on <= ?`
 		args = append(args, *f.ToDay)
 	}
-	q += ` ORDER BY logged_at DESC, id DESC LIMIT ? OFFSET ?`
+	// Newest day first, and only then newest instant within it. Every reader labels a
+	// row with logged_on, so ordering by the instant alone puts the list out of the order
+	// it appears to be in: an entry filed for the 10th from UTC+14 is an earlier *moment*
+	// than one filed for the 9th from UTC-11, and sorted by instant it renders below it.
+	q += ` ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, f.Limit, f.Offset)
 
 	rows, err := s.db.Query(q, args...)
@@ -167,8 +171,10 @@ func (s *WeightStore) Stats(uid int64, since7d, since30d string) (WeightStats, e
 	var count int
 	err := s.db.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_at ASC, id ASC LIMIT 1),
+		  -- "Latest" means the most recent day weighed, not the most recent instant: those
+		  -- part company once a row's day comes from logged_on. Same ordering as List.
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_on ASC, logged_at ASC, id ASC LIMIT 1),
 		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
 		 FROM weight_logs WHERE user_id = ?`,
 		uid, uid, uid,
@@ -200,8 +206,8 @@ func (s *WeightStore) changeOver(uid int64, sinceDay string) (float64, error) {
 	var latest, earliest sql.NullFloat64
 	if err := s.db.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_at ASC, id ASC LIMIT 1)`,
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_on ASC, logged_at ASC, id ASC LIMIT 1)`,
 		uid, sinceDay, uid, sinceDay,
 	).Scan(&latest, &earliest); err != nil {
 		return 0, err

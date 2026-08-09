@@ -542,7 +542,6 @@ func TestUpdateWeightLog_movingTheDayDoesNotDeleteTheTargetDaysEntry(t *testing.
 	}
 }
 
-
 // The bare-day from/to filter resolves through the user's stored zone now that the
 // -12h/+36h widening is gone. TestListWeightLogs_dateRange covers the UTC default;
 // this covers a real zone, where a device-derived day and a UTC day disagree.
@@ -613,5 +612,41 @@ func TestLogWeight_oneEntryPerLocalDayOnCreate(t *testing.T) {
 	}
 	if n != 1 {
 		t.Errorf("all three instants fall on the user's Aug 7; expected one row, got %d", n)
+	}
+}
+
+// Newest day first, even when the newest day is not the newest instant. Once a row's
+// day comes from logged_on, the two orderings part company: an entry filed for the 10th
+// from UTC+14 happened at an earlier moment than one filed for the 9th from UTC-11, so
+// ordering by the timestamp alone renders the list out of the order it appears to be in.
+func TestListWeightLogs_ordersByStoredDayNotInstant(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	insertWeightLogOn(t, uid, 180.0, "2026-08-10", "2026-08-09T22:00:00Z") // later day, earlier instant
+	insertWeightLogOn(t, uid, 170.0, "2026-08-09", "2026-08-09T23:00:00Z") // earlier day, later instant
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight?limit=2", nil)
+	th.ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(data))
+	}
+	if day := data[0].(map[string]any)["logged_on"]; day != "2026-08-10" {
+		t.Fatalf("newest day not first: got %v, want 2026-08-10", day)
+	}
+}
+
+func insertWeightLogOn(t *testing.T, uid int64, weight float64, day, loggedAt string) {
+	t.Helper()
+	if _, err := db.DB.Exec(
+		`INSERT INTO weight_logs (user_id, weight, notes, logged_at, logged_on) VALUES (?, ?, '', ?, ?)`,
+		uid, weight, loggedAt, day,
+	); err != nil {
+		t.Fatalf("insert weight log: %v", err)
 	}
 }
