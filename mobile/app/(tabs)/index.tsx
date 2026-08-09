@@ -198,7 +198,11 @@ export default function Dashboard() {
 
   // ── Derived data (unchanged from the 1:1 port) ─────────────────────────────
   const weekStart = startOfWeek(now, { weekStartsOn: 1 })
-  const weekWorkouts = workouts.filter((w) => new Date(w.started_at) >= weekStart)
+  // Compared as days, not instants: the dot strip below buckets by workoutDay, so a
+  // count taken from the raw timestamp can disagree with the dots it sits above for a
+  // workout logged near the week boundary in another zone.
+  const weekStartDay = format(weekStart, 'yyyy-MM-dd')
+  const weekWorkouts = workouts.filter((w) => workoutDay(w) >= weekStartDay)
   const lastWorkout = workouts[0] ?? null
 
   // "Up next": the first (most recently created) program whose due day is a
@@ -221,7 +225,7 @@ export default function Dashboard() {
   }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
-    date: format(new Date(w.started_at), 'M/d'),
+    date: format(new Date(workoutDay(w) + 'T12:00:00'), 'M/d'),
     volume: displayVolume(calcVolume(w), unit),
     name: w.name,
   }))

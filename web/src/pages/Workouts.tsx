@@ -248,7 +248,9 @@ export default function Workouts() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Total', value: workouts.length.toString(), unit: 'logged' },
-          { label: 'This Month', value: workouts.filter(w => new Date(w.started_at).getMonth() === new Date().getMonth()).length.toString(), unit: 'sessions' },
+          // The month the workout was logged in, not the month its UTC instant lands in —
+          // a session near a month boundary belongs to the month the lifter trained in.
+          { label: 'This Month', value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: 'sessions' },
           { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min' },
         ].map(s => (
           <div key={s.label} className="card p-4">
