@@ -31,6 +31,14 @@ func ParseLocation(name string) (*time.Location, error) {
 // for a new account, and a zone that no longer exists in a newer tz database
 // shouldn't make the food diary return 500. Both cases degrade to the pre-feature
 // behaviour instead of breaking the request.
+//
+// Every day query buckets by the zone the account holds *now*, so changing zones
+// re-buckets history. The blast radius is wider than "entries near midnight": a
+// back-dated entry is anchored at local noon, so read from an account at offset b
+// it sits at 12-a+b local and only keeps its day while |b-a| < 12. New York to
+// Tokyo is 13 hours, which moves every entry a day — measured, not theoretical.
+// This is the Fitbit/Oura trade-off (one zone on the account, none on the row);
+// the alternative is storing an offset per record, which is a schema change.
 func (h *Handler) userLocation(uid int64) *time.Location {
 	st, err := h.s.User.GetSettings(uid)
 	if err != nil {

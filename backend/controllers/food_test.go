@@ -1262,3 +1262,47 @@ func TestUpdateSettings_acceptsIANAZoneAndPreservesOtherFields(t *testing.T) {
 		t.Errorf("timezone-only update clobbered calorie_target: %v", data["calorie_target"])
 	}
 }
+
+// Changing zones re-buckets history, and this pins how far that reaches — the one
+// trade-off the account-level-zone design accepts (see userLocation).
+//
+// A back-dated entry is anchored at local noon, so read from an account at offset b
+// it sits at 12-a+b local and keeps its day only while |b-a| < 12. Six hours away
+// the day holds; thirteen hours away it does not. Anyone who "fixes" the Tokyo case
+// without adding a per-record offset has broken bucketing for everyone else, so it
+// is asserted rather than left as prose.
+func TestListFoodLogs_zoneChangeRebucketsBeyondTwelveHours(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	// Local noon on the 4th for a New York account (UTC-4 in August).
+	noonInNewYork := time.Date(2026, 8, 4, 16, 0, 0, 0, time.UTC)
+	insertFoodLogAt(t, uid, "Lunch", 600, noonInNewYork)
+
+	dayOf := func(zone, date string) int {
+		t.Helper()
+		setUserTimezone(t, uid, zone)
+		c, w := newContext(uid, http.MethodGet, "/api/v1/food?date="+date, nil)
+		th.ListFoodLogs(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s %s: expected 200, got %d: %s", zone, date, w.Code, w.Body.String())
+		}
+		return len(decodeResponse(t, w)["data"].([]any))
+	}
+
+	for _, tc := range []struct {
+		zone, date string
+		want       int
+		why        string
+	}{
+		{"America/New_York", "2026-08-04", 1, "the day it was logged on"},
+		{"Pacific/Honolulu", "2026-08-04", 1, "6h away, noon absorbs the shift"},
+		{"Pacific/Honolulu", "2026-08-05", 0, "and does not also appear on the next day"},
+		{"Asia/Tokyo", "2026-08-04", 0, "13h away, the entry has left this day"},
+		{"Asia/Tokyo", "2026-08-05", 1, "for the next one — 01:00 local"},
+	} {
+		if got := dayOf(tc.zone, tc.date); got != tc.want {
+			t.Errorf("%s on %s: got %d entries, want %d (%s)", tc.zone, tc.date, got, tc.want, tc.why)
+		}
+	}
+}
