@@ -5,9 +5,7 @@ import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import {
-  apiErrorMessage, dayToInstant, instantToDay, displayToLbs, lbsToDisplay, weightShort, type Exercise,
-} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, instantToDay, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
@@ -94,7 +92,10 @@ export default function EditWorkout() {
         setFormData({
           name: workout.name,
           notes: workout.notes || '',
-          date: instantToDay(startedAt),
+          // The day the workout was recorded at, from its own offset — not the day
+          // the device would put that instant on now. Prefilling the latter and
+          // saving it would move the workout for anyone viewing from another zone.
+          date: workoutDay(workout),
           duration: Math.round(workout.duration / 60),
           exercises: (workout.exercises || []).map((ex) => ({
             exercise_id: ex.exercise_id,

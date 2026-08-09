@@ -9,10 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import {
-  activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, isDayStartable, sessionNameForDay,
-  todaysDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout,
-} from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, isDayStartable, sessionNameForDay, todaysDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -236,7 +233,8 @@ export default function Dashboard() {
   const heatmapDays = eachDayOfInterval({ start: heatmapStart, end: heatmapEnd })
   const workoutDayMap = new Map<string, number>()
   workouts.forEach((w) => {
-    const k = format(new Date(w.started_at), 'yyyy-MM-dd')
+    // See web Dashboard: bucket by the workout's recorded day, not the device's.
+    const k = workoutDay(w)
     workoutDayMap.set(k, (workoutDayMap.get(k) || 0) + 1)
   })
   const heatmapWeeks: Date[][] = []
@@ -277,7 +275,7 @@ export default function Dashboard() {
   const fatPct = Math.min(100, (food.total_fat / settings.fat_target) * 100) || 0
 
   const sparkData = [...weightLogs].reverse().map((l) => ({
-    date: format(new Date(l.logged_at), 'M/d'),
+    date: format(new Date(entryDay(l) + 'T12:00:00'), 'M/d'),
     weight: displayWeight(l.weight, unit),
   }))
 
@@ -401,7 +399,7 @@ export default function Dashboard() {
             </View>
             <View className="mt-4 flex-row items-center justify-between px-0.5">
               {weekDays.map((day, i) => {
-                const hasWorkout = workouts.some((w) => isSameDay(new Date(w.started_at), day))
+                const hasWorkout = workouts.some((w) => workoutDay(w) === format(day, 'yyyy-MM-dd'))
                 const isToday = isSameDay(day, now)
                 const isFuture = day > now
                 return (
@@ -520,7 +518,7 @@ export default function Dashboard() {
                       <Label className="mb-1">Last workout</Label>
                       <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
                       <AppText variant="caption" color="muted" className="mt-0.5">
-                        {format(new Date(lastWorkout.started_at), 'MMM d')}
+                        {format(new Date(workoutDay(lastWorkout) + 'T12:00:00'), 'MMM d')}
                         {mins > 0 ? ` · ${mins} min` : ''}
                         {totalSets > 0 ? ` · ${totalSets} sets` : ''}
                         {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}

@@ -7,10 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import {
-  apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr,
-  weightError, weightShort, type WeightLog, type WeightStats,
-} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -126,7 +123,7 @@ export default function Weight() {
     }
 
     // Guard against a same-day double-log (unless already waved through).
-    if (!duplicateWarningDismissedRef.current && items.length > 0 && instantToDay(items[0].logged_at) === newDate) {
+    if (!duplicateWarningDismissedRef.current && items.length > 0 && entryDay(items[0]) === newDate) {
       setShowDuplicateWarning(true)
       return
     }

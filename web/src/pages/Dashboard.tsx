@@ -16,6 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
+import { workoutDay, entryDay } from '../utils/dateUtils'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
@@ -215,7 +216,9 @@ export default function Dashboard() {
   // map dateString → count
   const workoutDayMap = new Map<string, number>()
   workouts.forEach(w => {
-    const k = format(new Date(w.started_at), 'yyyy-MM-dd')
+    // The workout's own day, so the heatmap counts it under the day it happened
+    // rather than the day the viewing device would place that instant on.
+    const k = workoutDay(w)
     workoutDayMap.set(k, (workoutDayMap.get(k) || 0) + 1)
   })
   // chunk into weeks
@@ -265,7 +268,7 @@ export default function Dashboard() {
 
   // Weight sparkline
   const sparkData = [...weightLogs].reverse().map(l => ({
-    date: format(new Date(l.logged_at), 'M/d'),
+    date: format(new Date(entryDay(l) + 'T12:00:00'), 'M/d'),
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
@@ -439,7 +442,7 @@ export default function Dashboard() {
             {/* Current week day dots */}
             <div className="flex items-center justify-between mt-4 px-1">
               {weekDays.map((day, i) => {
-                const hasWorkout = workouts.some(w => isSameDay(new Date(w.started_at), day))
+                const hasWorkout = workouts.some(w => workoutDay(w) === format(day, 'yyyy-MM-dd'))
                 const isToday = isSameDay(day, TODAY)
                 const isFuture = day > TODAY
                 return (
@@ -544,7 +547,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
                   <p className="text-xs text-tx-muted mt-0.5">
-                    {format(new Date(lastWorkout.started_at), 'MMM d')}
+                    {format(new Date(workoutDay(lastWorkout) + 'T12:00:00'), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
                     {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}

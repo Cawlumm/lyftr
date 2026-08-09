@@ -11,7 +11,7 @@ import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { todayStr, daysAgoStr, dayToInstant, instantToDay } from '../utils/dateUtils'
+import { todayStr, daysAgoStr, dayToInstant, entryDay } from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 import * as types from '../types'
@@ -273,7 +273,7 @@ export default function Weight() {
       return
     }
 
-    if (!duplicateWarningDismissedRef.current && items.length > 0 && instantToDay(items[0].logged_at) === newDate) {
+    if (!duplicateWarningDismissedRef.current && items.length > 0 && entryDay(items[0]) === newDate) {
       setShowDuplicateWarning(true)
       return
     }
@@ -555,7 +555,7 @@ export default function Weight() {
                       {Math.round(displayW)} {wUnit}
                     </p>
                     <p className="text-xs text-tx-muted mt-0.5">
-                      {format(new Date(entry.logged_at), 'MMM d, yyyy')}
+                      {format(new Date(entryDay(entry) + 'T12:00:00'), 'MMM d, yyyy')}
                     </p>
                     {(deltaLbs !== 0 || entry.notes) && (
                       <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">

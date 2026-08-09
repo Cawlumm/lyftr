@@ -101,3 +101,30 @@ export const withLoggedOn = <T extends { logged_at?: string }>(data: T): T & { l
   ...data,
   logged_on: instantToDay(data.logged_at ?? new Date().toISOString()),
 })
+
+/**
+ * The day a diary entry belongs to.
+ *
+ * Prefer the server's stored answer over re-deriving one. `instantToDay(logged_at)`
+ * resolves in the *device's* zone, which stopped being the same question the moment
+ * the day became a stored column: an entry filed on the 4th in New York, viewed from
+ * Tokyo, re-derives as the 5th. Screens that then save that value move the entry.
+ * The fallback covers responses from a server older than the column.
+ */
+export const entryDay = (e: { logged_on?: string; logged_at: string }): string =>
+  e.logged_on || instantToDay(e.logged_at)
+
+/**
+ * The day a workout happened, from the offset recorded when it started.
+ *
+ * A workout stores an instant plus its offset rather than a day, so the local day is
+ * recovered by applying one to the other. Reading the shifted value back in UTC is
+ * correct precisely *because* the offset has already been applied — this is the one
+ * place `slice(0, 10)` names a local day rather than a UTC one. Falls back to the
+ * device zone for rows written before the offset existed.
+ */
+export const workoutDay = (w: { started_at: string; tz_offset_minutes?: number }): string => {
+  if (w.tz_offset_minutes == null) return instantToDay(w.started_at)
+  const shifted = new Date(new Date(w.started_at).getTime() + w.tz_offset_minutes * 60_000)
+  return Number.isNaN(shifted.getTime()) ? instantToDay(w.started_at) : shifted.toISOString().slice(0, 10)
+}
