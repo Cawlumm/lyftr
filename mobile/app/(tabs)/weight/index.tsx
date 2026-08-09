@@ -7,7 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, instantToDay, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,

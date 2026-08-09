@@ -708,8 +708,15 @@ export default function Dashboard() {
         lastLog={weightLogs[0] ?? null}
         onClose={() => setSheetOpen(false)}
         onSuccess={(log) => {
+          // Same order the server returns (logged_on DESC, logged_at DESC), so the
+          // optimistic row sits where the next refetch will put it. Sorting by the
+          // instant alone can place a cross-zone entry above or below its own label.
           setWeightLogs((prev) =>
-            [log, ...prev].sort((a, b) => new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime())
+            [log, ...prev].sort(
+              (a, b) =>
+                entryDay(b).localeCompare(entryDay(a)) ||
+                new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+            )
           )
           client.weightAPI.stats().then(setWeightStats).catch(() => {})
         }}

@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, instantToDay, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
