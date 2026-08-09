@@ -127,6 +127,15 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	// stays zero: the store then preserves the stored timestamp instead of
 	// rewriting it to 0001-01-01 (WorkoutStore.Update).
 	req.StartedAt = req.StartedAt.UTC()
+	// An edit that moves the day also moves the instant, so the offset stored beside it
+	// has to be the one that instant was chosen in — otherwise readers apply the offset
+	// from wherever the workout was first logged and land a day off. Mirrors CreateWorkout:
+	// trust the client's offset, fall back to the account zone for clients too old to send
+	// one. Skipped for a name/notes-only patch (zero StartedAt), which leaves both alone.
+	if !req.StartedAt.IsZero() && req.TZOffsetMinutes == nil {
+		off := h.tzOffsetMinutes(uid, req.StartedAt)
+		req.TZOffsetMinutes = &off
+	}
 	w, err := h.s.Workout.Update(uid, wid, req)
 	if err == sql.ErrNoRows {
 		utils.NotFound(c, "workout not found")

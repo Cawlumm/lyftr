@@ -149,7 +149,14 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
         ...data,
         tz_offset_minutes: utcOffsetMinutes(data?.started_at),
       }).then(unwrap),
-    update: (id: number, data: any) => api.put<{ data: types.Workout }>(`/workouts/${id}`, data).then(unwrap),
+    // Same stamp as create: an edit can move the day, and the offset has to move with
+    // it. Sending the instant alone leaves the row's original offset applied to a new
+    // moment, so the day the user picked is not the day anything renders.
+    update: (id: number, data: any) =>
+      api.put<{ data: types.Workout }>(`/workouts/${id}`, {
+        ...data,
+        tz_offset_minutes: utcOffsetMinutes(data?.started_at),
+      }).then(unwrap),
     delete: (id: number) => api.delete(`/workouts/${id}`),
   }
 
