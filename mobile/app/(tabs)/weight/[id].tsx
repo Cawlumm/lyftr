@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { format, parseISO } from 'date-fns'
+import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
 import { apiErrorMessage, dayToInstant, displayWeight, instantToDay, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay } from '@lyftr/shared'
@@ -174,7 +174,7 @@ export default function WeightDetail() {
                       <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                     </View>
                     <AppText variant="body" color="muted" className="mt-1">
-                      {format(parseISO(log.logged_at), 'EEEE, MMMM d, yyyy')}
+                      {format(new Date(entryDay(log) + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}
                     </AppText>
                     {log.notes ? (
                       <AppText variant="body" color="secondary" className="mt-2 italic">"{log.notes}"</AppText>
@@ -241,7 +241,7 @@ export default function WeightDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({
           title: 'Delete Entry?',
-          subject: `${format(parseISO(log.logged_at), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
+          subject: `${format(new Date(entryDay(log) + 'T12:00:00'), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
         })}
         open={confirming}
         busy={deleting}

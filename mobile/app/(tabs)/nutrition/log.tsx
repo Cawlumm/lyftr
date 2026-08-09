@@ -6,7 +6,7 @@ import {
   AlertCircle, ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Minus, Plus, Scan, Utensils, Zap,
 } from 'lucide-react-native'
 import {
-  dayToInstant, todayStr,
+  dayToInstant, entryDay, todayStr,
   type FoodLog, type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
@@ -132,7 +132,7 @@ export default function LogFood() {
       setSelected(entryToResult(entry))
       setServingsStr(String(entry.servings || 1))
       setMeal(entry.meal)
-      setDate(entry.logged_at.slice(0, 10))
+      setDate(entryDay(entry))
       setPhase('detail')
     }).catch(() => router.replace('/nutrition'))
   }, [editId])

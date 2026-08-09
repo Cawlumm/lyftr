@@ -258,7 +258,7 @@ export default function Weight() {
       .slice()
       .reverse()
       .map(l => {
-        const d = new Date(l.logged_at)
+        const d = new Date(entryDay(l) + 'T12:00:00')
         return { ts: d.getTime(), weight: lbsToDisplay(l.weight, settings.weight_unit), date: d }
       })
   }, [chartLogs, settings.weight_unit])
@@ -424,7 +424,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(new Date(items[0].logged_at), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {format(new Date(entryDay(items[0]) + 'T12:00:00'), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
