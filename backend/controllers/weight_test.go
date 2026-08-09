@@ -650,3 +650,43 @@ func insertWeightLogOn(t *testing.T, uid int64, weight float64, day, loggedAt st
 		t.Fatalf("insert weight log: %v", err)
 	}
 }
+
+// A row the backfill could not date must not distort the summary or vanish from
+// windows. logged_on defaults to ”, which sorts before every real date: read raw, an
+// unset row is simultaneously the "starting" weight (first ASC) and never the "latest"
+// (last DESC), and `logged_on >= ?` hides it from every range. Reads fall back to the
+// instant's own date so it lands in one sensible place instead of two wrong ones.
+//
+// The unset row here carries the LATEST instant, so the two rules disagree: raw makes
+// it oldest, the fallback makes it newest.
+func TestWeightReads_unsetDayFallsBackToTheInstant(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	insertWeightLogOn(t, uid, 200.0, "", "2026-08-09T12:00:00Z")           // unset day, newest instant
+	insertWeightLogOn(t, uid, 170.0, "2026-08-05", "2026-08-05T12:00:00Z") // dated, older
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
+	th.GetWeightStats(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("stats: expected 200, got %d", w.Code)
+	}
+	stats := decodeResponse(t, w)["data"].(map[string]any)
+	if got := stats["latest"].(float64); got != 200.0 {
+		t.Errorf("latest weight = %v, want 200 (the newest day, not the one with a blank logged_on)", got)
+	}
+	if got := stats["starting"].(float64); got != 170.0 {
+		t.Errorf("starting weight = %v, want 170 (a blank logged_on must not sort before every real date)", got)
+	}
+
+	// And the same row must still be reachable through a day range that contains it.
+	c, w = newContext(uid, http.MethodGet, "/api/v1/weight?from=2026-08-08&to=2026-08-10", nil)
+	th.ListWeightLogs(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("list: expected 200, got %d", w.Code)
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	if len(data) != 1 {
+		t.Fatalf("range returned %d entries, want 1 — an undated row dropped out of its own window", len(data))
+	}
+}
