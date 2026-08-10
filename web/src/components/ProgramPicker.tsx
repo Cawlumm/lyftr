@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
-import { types } from '@lyftr/shared'
+import { workoutDays, dayLabel, todaysDay, types } from '@lyftr/shared'
 
 interface Props {
   onSelect: (program: types.Program, day: types.ProgramDay) => void

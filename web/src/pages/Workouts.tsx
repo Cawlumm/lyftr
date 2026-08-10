@@ -10,8 +10,7 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { types } from '@lyftr/shared'
-import { workoutDay, dayToLocalDate} from '../utils/dateUtils'
+import { types, workoutDay, dayToLocalDate } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()

@@ -5,11 +5,9 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
+import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
-import { types } from '@lyftr/shared'
 
 interface Props {
   isOpen: boolean

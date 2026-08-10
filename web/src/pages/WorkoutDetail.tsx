@@ -7,9 +7,8 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types } from '@lyftr/shared'
+import { types, workoutDay, dayToLocalDate } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
-import { workoutDay, dayToLocalDate} from '../utils/dateUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
   return (

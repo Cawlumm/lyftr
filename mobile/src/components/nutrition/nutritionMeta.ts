@@ -32,8 +32,10 @@ export const MEAL_COLORS: Record<Meal, string> = {
   snacks: '#f472b6',
 }
 
-// utils/macroColors.ts — the ring / chart / mini-bar palette.
-export const MACRO_COLORS = { protein: '#10b981', carbs: '#f59e0b', fat: '#8b5cf6' } as const
+// The ring / chart / mini-bar palette. Re-exported so this module stays the one place
+// nutrition screens import their colours from; the values live in @lyftr/shared because
+// web charts with the same three.
+export { MACRO_COLORS } from '@lyftr/shared'
 
 // Per-macro accent used for the small tabular P/C/F figures on rows + the detail grid
 // (web: text-emerald-400 / text-amber-400 / text-violet-400 — the -400 shades).

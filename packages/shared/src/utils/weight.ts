@@ -1,7 +1,6 @@
 // Pure weight helpers — ported verbatim from web/src/stores/settings.ts. Backend
 // always stores lbs; use these everywhere weight values are read/written/shown.
 
-export const weightLabel = (unit: string) => (unit === 'kg' ? 'kg' : 'lbs')
 export const weightShort = (unit: string) => (unit === 'kg' ? 'kg' : 'lb')
 
 export const lbsToDisplay = (lbs: number, unit: string): number =>

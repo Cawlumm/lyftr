@@ -1,7 +1,6 @@
 import axios, { AxiosInstance } from 'axios'
-import { types } from '@lyftr/shared'
+import { types, withLoggedOn, utcOffsetMinutes } from '@lyftr/shared'
 import { normalizeServerUrl } from '../stores/server'
-import { withLoggedOn, utcOffsetMinutes } from '../utils/dateUtils'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy.

@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, BookOpen, FileText, CalendarDays } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
-import { hasWorkoutExercises } from '@lyftr/shared'
+import { hasWorkoutExercises, types } from '@lyftr/shared'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
-import { types } from '@lyftr/shared'
 import type { DayDraft } from '../components/programs/types'
 
 interface ProgramFormData {

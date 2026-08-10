@@ -9,9 +9,8 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { types } from '@lyftr/shared'
+import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
-import { allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay } from '@lyftr/shared'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3

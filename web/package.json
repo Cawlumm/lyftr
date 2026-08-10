@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.build.json && vite build",
+    "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "test:unit": "cross-env TZ=America/New_York vitest run",

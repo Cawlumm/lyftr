@@ -16,11 +16,9 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate} from '../utils/dateUtils'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
-import { types } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
-import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '@lyftr/shared'
 
 const TODAY = new Date()
 

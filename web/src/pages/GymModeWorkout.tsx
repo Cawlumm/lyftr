@@ -6,7 +6,7 @@ import {
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import { types } from '@lyftr/shared'
+import { types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -17,8 +17,6 @@ import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../utils/number'
-import { nextIncompleteSet } from '../utils/workoutSets'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {

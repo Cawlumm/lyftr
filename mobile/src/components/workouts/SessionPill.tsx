@@ -4,7 +4,7 @@ import { router, usePathname } from 'expo-router'
 import { ChevronRight, Timer } from 'lucide-react-native'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock } from '../../utils/workoutSets'
+import { fmtClock } from '@lyftr/shared'
 
 function formatElapsed(seconds: number) {
   const h = Math.floor(seconds / 3600)

@@ -19,8 +19,7 @@ import { RestTimerBanner } from './RestTimerBanner'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../../utils/number'
-import { nextIncompleteSet } from '../../utils/workoutSets'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet } from '@lyftr/shared'
 import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay

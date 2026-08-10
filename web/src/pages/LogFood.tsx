@@ -6,13 +6,11 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
-import { MACRO_COLORS } from '../utils/macroColors'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
-import { types } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'

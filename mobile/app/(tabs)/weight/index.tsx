@@ -7,7 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -17,7 +17,6 @@ import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { BODYWEIGHT_STEP, clampStep } from '../../../src/utils/number'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const

@@ -9,12 +9,10 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
+import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate} from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
-import { types } from '@lyftr/shared'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]

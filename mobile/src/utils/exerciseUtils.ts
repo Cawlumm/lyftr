@@ -1,13 +1,16 @@
-// Port of web/src/utils/exerciseUtils.ts (MUSCLE_COLORS / muscleColor /
-// EQUIPMENT_LABEL) — keep in sync.
-// RN adaptation: the web returns "bg-* text-* border-*" class strings; here the text
-// tint is an inline-style hex instead, because AppText always resolves a default
-// text-color class and two color classes on one Text leave the winner to stylesheet
-// order (see CONVENTIONS.md's font-size warning) — an inline style wins
-// deterministically. The hexes are Tailwind's own *-400 palette values, identical to
-// the web's text-*-400 classes; like the brand literals they are theme-independent.
-// `border` carries the web muscleColorBordered() border class for the picker badges;
+import { resolveMuscleSlugs } from '@lyftr/shared'
+
+// Mobile's half of exercise presentation: the RN tint table and the
+// react-native-body-highlighter slug table. EQUIPMENT_LABEL and the lookup rule are
+// shared — see packages/shared/src/utils/exerciseUtils.ts for why these two are not.
+//
+// The text tint is a hex, not a class, because AppText always resolves a default
+// text-colour class and two colour classes on one Text leave the winner to stylesheet
+// order (see CONVENTIONS.md's font-size warning) — an inline style wins deterministically.
+// The hexes are Tailwind's own *-400 values, identical to web's text-*-400 classes.
+// `border` carries web's muscleColorBordered() border class for the picker badges;
 // borderless badges (detail screen) simply don't apply it.
+export { EQUIPMENT_LABEL } from '@lyftr/shared'
 
 export interface MuscleTint {
   /** NativeWind class for the badge background (bg only — no text class). */
@@ -36,31 +39,15 @@ const MUSCLE_COLORS: Record<string, MuscleTint> = {
   lats:       { chip: 'bg-sky-500/20',    border: 'border-sky-500/30',    text: '#38bdf8' },
 }
 
-// Port of web EQUIPMENT_LABEL — keep in sync.
-export const EQUIPMENT_LABEL: Record<string, string> = {
-  'body only':     'Bodyweight',
-  'barbell':       'Barbell',
-  'dumbbell':      'Dumbbell',
-  'machine':       'Machine',
-  'cable':         'Cable',
-  'kettlebells':   'Kettlebell',
-  'bands':         'Bands',
-  'medicine ball': 'Med Ball',
-  'other':         'Other',
-  'foam roll':     'Foam Roll',
-}
-
 // null → caller renders the muted fallback (bg-surface-muted chip + colors.txMuted).
 export function muscleColor(m: string): MuscleTint | null {
   return MUSCLE_COLORS[m?.toLowerCase()] ?? null
 }
 
-// Maps our exercise muscle names → react-native-body-highlighter's `Slug` set for the
-// gym exercise-info muscle diagram. Adapted from web's MUSCLE_TO_BODY_SLUG, but the RN
-// library's slug model differs from react-body-highlighter: it has a single 'deltoids'
-// (no front/back split) and no 'abductors'/'middle-back', so those remap to the nearest
-// available part. Slugs are kept as plain strings (the diagram component casts to the
-// library's Slug type) so this util doesn't depend on the library.
+// react-native-body-highlighter's slug set: a single 'deltoids' (no front/back split)
+// and no 'abductors'/'middle-back', so those remap to the nearest available part. Slugs
+// stay plain strings (the diagram component casts to the library's Slug type) so this
+// util doesn't depend on the library.
 const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   chest: ['chest'],
   back: ['upper-back', 'lower-back'],
@@ -101,14 +88,4 @@ const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   erectors: ['lower-back'],
 }
 
-// Body-diagram slugs for a muscle name (exact match, then partial), or [] if unknown.
-// Mirrors web muscleToBodySlugs.
-export function muscleToBodySlugs(m: string): string[] {
-  const key = m?.toLowerCase().trim()
-  if (!key) return []
-  if (MUSCLE_TO_BODY_SLUG[key]) return MUSCLE_TO_BODY_SLUG[key]
-  for (const [k, v] of Object.entries(MUSCLE_TO_BODY_SLUG)) {
-    if (key.includes(k) || k.includes(key)) return v
-  }
-  return []
-}
+export const muscleToBodySlugs = (m: string): string[] => resolveMuscleSlugs(m, MUSCLE_TO_BODY_SLUG)

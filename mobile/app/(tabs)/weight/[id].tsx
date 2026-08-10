@@ -4,13 +4,12 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { BODYWEIGHT_STEP, clampStep } from '../../../src/utils/number'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function WeightDetail() {
