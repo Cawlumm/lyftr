@@ -84,3 +84,10 @@ web/playwright-report/
 
 # MCP server config: machine-specific absolute paths, not portable across checkouts.
 .mcp.json
+
+# Maestro flows are local-only dev artifacts, same call as 5fc269a ("remove stray
+# Maestro flow committed with #61"). Nothing in CI runs them — they need a device and
+# a running backend — so a committed flow is a file that rots without anyone noticing.
+# The rule exists because the convention alone did not hold: without it the same mistake
+# landed twice, and the second time it reached main.
+mobile/.maestro/
