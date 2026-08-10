@@ -52,10 +52,12 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
   const restEx = restExIdx != null ? session?.exercises[restExIdx] : undefined
   const nextIdx = restEx != null && restSetIdx != null ? nextIncompleteSet(restEx.sets, restSetIdx) : -1
   const doneSetNum = restEx != null && restSetIdx != null ? restSetIdx + 1 : null
+  // Once rest is over the headline says "Rest over", so the caption carries the
+  // thing you actually need next instead of repeating it.
   const label = doneSetNum == null
-    ? (done ? 'Rest over' : paused ? 'Paused' : 'Rest')
+    ? (done ? 'Ready' : paused ? 'Paused' : 'Rest')
     : done
-      ? (nextIdx !== -1 ? `Rest over · set ${nextIdx + 1} next` : 'Rest over')
+      ? (nextIdx !== -1 ? `Set ${nextIdx + 1} up next` : `Set ${doneSetNum} done`)
       : paused
         ? `Set ${doneSetNum} done · paused`
         : nextIdx !== -1
@@ -64,6 +66,11 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
 
   const secBtn = 'flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-semibold tabular-nums bg-surface-muted border border-surface-border text-tx-secondary active:scale-95'
   const brandBtn = 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 text-white active:scale-95'
+  // Done is the only control in its row, so it has to size itself: `flex-1` does
+  // nothing outside a flex parent, and a lone <button> shrink-to-fits even at
+  // display:flex. Same height and radius as the resting row so the panel doesn't
+  // change height the moment the countdown ends.
+  const doneBtn = 'w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 text-white active:scale-95'
 
   const body = (
     <>
@@ -77,24 +84,32 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
       )}
       <div className="px-4 pt-2 pb-3">
         <p className="text-[11px] font-medium text-tx-muted text-center leading-none">{label}</p>
-        {/* big countdown + pause/resume toggle (the panel's signature element) */}
-        <div className="flex items-center justify-center gap-3 my-2">
+        {/* Big countdown + pause/resume toggle (the panel's signature element). Once
+            rest is over the clock reads 0:00, which is dead information, so the slot
+            states the outcome instead. min-h pins both states to the same height so
+            the docked panel doesn't shift the set content when the timer flips. */}
+        <div className="flex items-center justify-center gap-3 my-2 min-h-[3rem]">
           {done ? (
-            <Check className="w-7 h-7 text-success-500" />
+            <>
+              <Check className="w-7 h-7 text-success-500" />
+              <span className="font-display text-3xl font-black text-tx-primary leading-none">Rest over</span>
+            </>
           ) : (
-            <IconButton
-              icon={paused ? Play : Pause}
-              label={paused ? 'Resume rest timer' : 'Pause rest timer'}
-              onClick={paused ? resumeRest : pauseRest}
-              variant="ghost" size="lg"
-              className="!text-brand-500 hover:!text-brand-500"
-            />
+            <>
+              <IconButton
+                icon={paused ? Play : Pause}
+                label={paused ? 'Resume rest timer' : 'Pause rest timer'}
+                onClick={paused ? resumeRest : pauseRest}
+                variant="ghost" size="lg"
+                className="!text-brand-500 hover:!text-brand-500"
+              />
+              <span className="font-display text-4xl font-black tabular-nums text-tx-primary leading-none">{fmtClock(left)}</span>
+            </>
           )}
-          <span className="font-display text-4xl font-black tabular-nums text-tx-primary leading-none">{fmtClock(left)}</span>
         </div>
         {/* full-width actions */}
         {done ? (
-          <button onClick={() => clearRest()} className={brandBtn}><Check className="w-4 h-4" />Done</button>
+          <button onClick={() => clearRest()} className={doneBtn}><Check className="w-4 h-4" />Done</button>
         ) : (
           <div className="flex gap-2">
             <button onClick={() => adjustRest(-15)} aria-label="Shorten rest by 15 seconds" className={secBtn}>−15</button>
