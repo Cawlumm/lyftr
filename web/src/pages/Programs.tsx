@@ -8,7 +8,7 @@ import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 import {
   todaysDay, dayLabel, isDayStartable, programExerciseCount, programSetCount, sessionNameForDay,

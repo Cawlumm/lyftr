@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 interface Props {
   onSelect: (program: types.Program, day: types.ProgramDay) => void

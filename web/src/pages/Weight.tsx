@@ -14,7 +14,7 @@ import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate} from '../utils/dateUtils'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]

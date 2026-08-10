@@ -4,7 +4,7 @@ import { ArrowLeft, Zap, BookOpen, ChevronRight, Play, Timer, Trash2 } from 'luc
 import { useWorkoutSession } from '../stores/workoutSession'
 import ProgramPicker from '../components/ProgramPicker'
 import { activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 export default function StartWorkout() {
   const navigate = useNavigate()

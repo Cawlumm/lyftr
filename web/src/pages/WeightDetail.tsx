@@ -11,7 +11,7 @@ import { todayStr, dayToInstant, entryDay, dayToLocalDate} from '../utils/dateUt
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 export default function WeightDetail() {
   const { id } = useParams<{ id: string }>()

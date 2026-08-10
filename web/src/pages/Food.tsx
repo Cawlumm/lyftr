@@ -16,7 +16,7 @@ import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, userAPI } from '../services/api'
 import { todayStr, dayToLocalDate} from '../utils/dateUtils'
 import { MACRO_COLORS } from '../utils/macroColors'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {

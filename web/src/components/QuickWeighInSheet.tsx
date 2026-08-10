@@ -9,7 +9,7 @@ import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
 import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 interface Props {
   isOpen: boolean

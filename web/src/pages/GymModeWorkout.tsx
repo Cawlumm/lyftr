@@ -6,7 +6,7 @@ import {
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'

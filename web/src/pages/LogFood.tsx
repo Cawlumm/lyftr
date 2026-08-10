@@ -12,7 +12,7 @@ import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'

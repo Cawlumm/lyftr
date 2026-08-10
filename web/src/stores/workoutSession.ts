@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 const SESSION_KEY = 'lyftr_active_session'
 const GYM_UI_KEY = 'lyftr_gym_ui'

@@ -18,7 +18,7 @@ import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { workoutDay, entryDay, dayToLocalDate} from '../utils/dateUtils'
 import { useNavigate, Link } from 'react-router-dom'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '@lyftr/shared'
 

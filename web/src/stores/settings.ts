@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { userAPI } from '../services/api'
 
 const LAYOUT_KEY = 'lyftr_workout_layout'

@@ -7,7 +7,7 @@ import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import RestPicker from '../components/RestPicker'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { todayStr, dayToInstant } from '../utils/dateUtils'
 
 interface WorkoutFormData {

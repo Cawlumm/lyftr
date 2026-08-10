@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 import { workoutDay, dayToLocalDate} from '../utils/dateUtils'
 

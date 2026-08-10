@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown, Dumbbell, Moon, ChevronRight, ChevronLeft as ChevronCollapse } from 'lucide-react'
 import DayExercisesEditor from './DayExercisesEditor'
-import * as types from '../../types'
+import { types } from '@lyftr/shared'
 import type { DayDraft } from './types'
 
 interface Props {

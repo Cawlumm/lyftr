@@ -5,7 +5,7 @@ import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import { hasWorkoutExercises } from '@lyftr/shared'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import type { DayDraft } from '../components/programs/types'
 
 interface ProgramFormData {

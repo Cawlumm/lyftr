@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 import { allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay } from '@lyftr/shared'
 

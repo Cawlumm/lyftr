@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { authAPI } from '../services/api'
 
 interface AuthStore {

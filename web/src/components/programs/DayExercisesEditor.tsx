@@ -3,7 +3,7 @@ import { Plus, Trash2, Zap, Timer } from 'lucide-react'
 import WeightInput from '../WeightInput'
 import ExercisePicker from '../ExercisePicker'
 import RestPicker from '../RestPicker'
-import * as types from '../../types'
+import { types } from '@lyftr/shared'
 import type { DayExerciseDraft } from './types'
 
 interface Props {

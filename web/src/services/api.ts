@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { normalizeServerUrl } from '../stores/server'
 import { withLoggedOn, utcOffsetMinutes } from '../utils/dateUtils'
 
