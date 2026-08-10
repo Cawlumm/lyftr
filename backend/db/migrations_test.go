@@ -519,6 +519,12 @@ func TestBackfillLocalDays_oneUnreadableRowDoesNotBlockTheRest(t *testing.T) {
 	if _, err := DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (1, 'lift', ?)`, good); err != nil {
 		t.Fatalf("seed workout: %v", err)
 	}
+	// The offset backfill reads started_at the same way, and had the same defect. Seeding
+	// an unreadable weight row alone let that one survive a review: the run died in the
+	// weight pass, so the workout pass never got to fail on its own account.
+	if _, err := DB.Exec(`INSERT INTO workouts (user_id, name, started_at) VALUES (1, 'bad lift', 'not-a-timestamp')`); err != nil {
+		t.Fatalf("seed unreadable workout: %v", err)
+	}
 
 	alterMigrations()
 
