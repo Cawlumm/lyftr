@@ -75,10 +75,18 @@ gh release create v0.1.0-beta.4 --target main --prerelease --notes-file notes.md
 gh release edit v0.1.0-beta.4 --notes-file notes.md
 ```
 
+Check `docs/API_CHANGES.md` first — it holds any breaking HTTP API change that landed
+since the last release, written down when it merged so it can't be forgotten here. Fold
+each entry into the notes under "Breaking changes", then delete it from that file.
+
 Template — no emoji, keep it simple:
 
 ```markdown
 One-line summary of the release.
+
+## Breaking changes
+
+- What changed and what a caller must send instead (#123)
 
 ## What's new
 

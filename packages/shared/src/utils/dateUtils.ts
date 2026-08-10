@@ -74,6 +74,19 @@ export const dayToInstant = (yyyyMmDd: string, previousIso?: string): string => 
 }
 
 /**
+ * A stored day (YYYY-MM-DD) as a local Date, for formatting it.
+ *
+ * Anchored at local noon so a formatter can never round or shift it across either
+ * midnight, and built from explicit components for the reason dayToInstant spells out
+ * above: `new Date('YYYY-MM-DDTHH:MM:SS')` is parsed as UTC by pre-iOS 14.5 Safari, so
+ * every screen using that string form to render a stored day would show the next day
+ * east of UTC — reintroducing, at display time, the bug this module exists to remove.
+ */
+export const dayToLocalDate = (yyyyMmDd: string): Date => {
+  const [y, m, d] = yyyyMmDd.split('-').map(Number)
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0)
+}
+/**
  * The local calendar day `n` days before today.
  *
  * One of the only two functions here that consults the device zone, and legitimately:

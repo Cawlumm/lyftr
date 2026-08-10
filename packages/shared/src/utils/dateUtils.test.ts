@@ -1,4 +1,4 @@
-import { todayStr, dayToInstant, instantToDay, entryDay, workoutDay } from './dateUtils'
+import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay } from './dateUtils'
 
 const hours = (from: string, to: string) =>
   (new Date(to).getTime() - new Date(from).getTime()) / 3_600_000
@@ -128,5 +128,28 @@ describe('workoutDay — recovered from the recorded offset', () => {
 
   it('does not throw on an unparseable instant', () => {
     expect(() => workoutDay({ started_at: 'nonsense', tz_offset_minutes: -240 })).not.toThrow()
+  })
+})
+
+describe('dayToLocalDate', () => {
+  it('returns the same calendar day it was given, in local time', () => {
+    const d = dayToLocalDate('2026-07-01')
+    expect(d.getFullYear()).toBe(2026)
+    expect(d.getMonth()).toBe(6)
+    expect(d.getDate()).toBe(1)
+  })
+
+  // The point of the helper. `new Date('2026-07-01T12:00:00')` is parsed as UTC by
+  // pre-iOS 14.5 Safari, which lands on the 2nd anywhere east of UTC+12 — so a stored
+  // day would render as the next day purely because of how it was parsed. Noon leaves
+  // 12 hours of headroom on both sides of the date it names.
+  it('sits at local noon, far from either midnight', () => {
+    expect(dayToLocalDate('2026-07-01').getHours()).toBe(12)
+  })
+
+  it('round-trips through the day formatter', () => {
+    for (const day of ['2026-01-01', '2026-03-08', '2026-11-01', '2026-12-31']) {
+      expect(instantToDay(dayToLocalDate(day).toISOString())).toBe(day)
+    }
   })
 })

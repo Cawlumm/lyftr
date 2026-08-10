@@ -11,6 +11,15 @@ type FoodStore struct{ db *sql.DB }
 
 func NewFoodStore(db *sql.DB) *FoodStore { return &FoodStore{db: db} }
 
+// foodDay is the day a row is filed under — same rule and same reason as weightDay:
+// logged_on defaults to ” and the backfill leaves it unset for a row whose stored
+// instant is unreadable, which would otherwise drop that entry out of its own diary
+// day and out of every history bucket.
+const foodDay = `CASE
+	  WHEN logged_on <> '' THEN logged_on
+	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
+	END`
+
 const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
 
 func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
@@ -29,7 +38,7 @@ func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
 // instant so entries still read in the order they happened within the day.
 func (s *FoodStore) ListByDay(uid int64, day string) ([]models.FoodLog, error) {
 	rows, err := s.db.Query(
-		foodLogSelect+` WHERE user_id = ? AND logged_on = ? ORDER BY logged_at ASC, id ASC`,
+		foodLogSelect+` WHERE user_id = ? AND `+foodDay+` = ? ORDER BY logged_at ASC, id ASC`,
 		uid, day,
 	)
 	if err != nil {
@@ -46,7 +55,6 @@ func (s *FoodStore) ListByDay(uid int64, day string) ([]models.FoodLog, error) {
 	}
 	return logs, rows.Err()
 }
-
 
 // Get returns one user-owned food log, or sql.ErrNoRows.
 func (s *FoodStore) Get(uid, id int64) (models.FoodLog, error) {
@@ -106,12 +114,11 @@ func (s *FoodStore) DailyMacros(uid int64, day string) (models.DailyStats, error
 	err := s.db.QueryRow(
 		`SELECT COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0), COALESCE(SUM(fiber),0)
-		 FROM food_logs WHERE user_id = ? AND logged_on = ?`,
+		 FROM food_logs WHERE user_id = ? AND `+foodDay+` = ?`,
 		uid, day,
 	).Scan(&stats.TotalCalories, &stats.TotalProtein, &stats.TotalCarbs, &stats.TotalFat, &stats.TotalFiber)
 	return stats, err
 }
-
 
 // History returns per-day macro totals from sinceDay (YYYY-MM-DD) onward.
 //
@@ -122,13 +129,13 @@ func (s *FoodStore) DailyMacros(uid int64, day string) (models.DailyStats, error
 // cannot disagree about which day an entry belongs to.
 func (s *FoodStore) History(uid int64, sinceDay string) ([]models.FoodHistoryPoint, error) {
 	rows, err := s.db.Query(
-		`SELECT logged_on,
+		`SELECT `+foodDay+` AS day,
 		        COALESCE(SUM(calories),0), COALESCE(SUM(protein),0),
 		        COALESCE(SUM(carbs),0), COALESCE(SUM(fat),0)
 		 FROM food_logs
-		 WHERE user_id = ? AND logged_on >= ?
-		 GROUP BY logged_on
-		 ORDER BY logged_on ASC`,
+		 WHERE user_id = ? AND `+foodDay+` >= ?
+		 GROUP BY day
+		 ORDER BY day ASC`,
 		uid, sinceDay,
 	)
 	if err != nil {

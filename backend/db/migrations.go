@@ -85,6 +85,7 @@ func alterMigrations() {
 
 	normalizeWorkoutStartedAt()
 	normalizeFoodLoggedAt()
+	normalizeWeightLoggedAt()
 
 	// The day a diary entry belongs to, and the offset a workout started at, stored
 	// ON THE ROW instead of derived from the account's current zone at read time.
@@ -166,6 +167,28 @@ func backfillLocalDays() {
 	setMigrationFlag("backfill_local_days")
 }
 
+// scanStoredTime reads a timestamp column whatever shape the driver hands back, and
+// reports whether it could be read at all.
+//
+// Shared by both backfills on purpose. They had the same bug and only one was fixed:
+// scanning straight into time.Time makes a single legacy value the driver cannot parse
+// fail the scan, and since the caller returns on error, one unreadable row abandoned the
+// rest of the upgrade and never set the completion flag — so every later boot retried and
+// failed identically. Keeping the read in one place is what stops that fix drifting apart
+// again.
+func scanStoredTime(v any) (time.Time, bool) {
+	switch tv := v.(type) {
+	case time.Time:
+		return tv, true
+	case string:
+		return parseStoredTime(tv)
+	case []byte:
+		return parseStoredTime(string(tv))
+	default:
+		return time.Time{}, false
+	}
+}
+
 // backfillDayColumn sets table.logged_on from table.<column> resolved in the owning
 // user's zone. Users with no settings row fall back to UTC, matching userLocation.
 func backfillDayColumn(table, column string, loadLoc func(string) *time.Location) error {
@@ -183,11 +206,16 @@ func backfillDayColumn(table, column string, loadLoc func(string) *time.Location
 	var fixes []fix
 	for rows.Next() {
 		var id int64
-		var at time.Time
+		var v any
 		var zone string
-		if err := rows.Scan(&id, &at, &zone); err != nil {
+		if err := rows.Scan(&id, &v, &zone); err != nil {
 			rows.Close()
 			return err
+		}
+		at, ok := scanStoredTime(v)
+		if !ok {
+			log.Printf("backfillDayColumn(%s.%s): row %d: unreadable value %v left unset", table, column, id, v)
+			continue
 		}
 		fixes = append(fixes, fix{id, at.In(loadLoc(zone)).Format("2006-01-02")})
 	}
@@ -240,11 +268,16 @@ func backfillWorkoutOffsets(loadLoc func(string) *time.Location) error {
 	var fixes []fix
 	for rows.Next() {
 		var id int64
-		var at time.Time
+		var v any
 		var zone string
-		if err := rows.Scan(&id, &at, &zone); err != nil {
+		if err := rows.Scan(&id, &v, &zone); err != nil {
 			rows.Close()
 			return err
+		}
+		at, ok := scanStoredTime(v)
+		if !ok {
+			log.Printf("backfillWorkoutOffsets: row %d: unreadable started_at %v left unset", id, v)
+			continue
 		}
 		_, offsetSeconds := at.In(loadLoc(zone)).Zone()
 		fixes = append(fixes, fix{id, offsetSeconds / 60})
@@ -294,6 +327,12 @@ func normalizeWorkoutStartedAt() {
 
 func normalizeFoodLoggedAt() {
 	normalizeUTCTimestamps("normalize_food_logged_at", "food_logs", "logged_at")
+}
+
+// weight_logs was the one day-scoped table left without this pass, which is exactly
+// where an unrepaired non-UTC value could sit and stall the day backfill.
+func normalizeWeightLoggedAt() {
+	normalizeUTCTimestamps("normalize_weight_logged_at", "weight_logs", "logged_at")
 }
 
 // normalizeUTCTimestamps rewrites any table.column value stored with a non-UTC zone
@@ -761,5 +800,3 @@ CREATE TABLE IF NOT EXISTS program_sets (
   target_weight       REAL    NOT NULL DEFAULT 0
 );
 `
-
-

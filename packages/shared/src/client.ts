@@ -150,15 +150,21 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
         tz_offset_minutes: utcOffsetMinutes(data?.started_at),
       }).then(unwrap),
     // The offset must describe the instant being sent, so it is stamped only when the
-    // caller derived that instant here and now. The mobile edit screen re-picks the date
-    // through dayToInstant in this zone and omits the offset, so it gets this device's.
-    // A caller that resends the timestamp it loaded passes the stored offset through,
-    // because stamping there would move the day on an edit that never touched the date.
+    // caller derived that instant here and now. Keyed on whether the caller mentioned the
+    // field at all, not on its value: the mobile edit screen re-picks the date through
+    // dayToInstant in this zone and omits the offset, so it gets this device's. A caller
+    // that resends the timestamp it loaded names the field and is taken at its word —
+    // including when the value is undefined because the row predates the column. Stamping
+    // there would claim the workout happened where the editing happened; leaving it unset
+    // lets the server fall back to the account zone, which is at least a stored answer
+    // rather than wherever someone opened the form.
     update: (id: number, data: any) =>
-      api.put<{ data: types.Workout }>(`/workouts/${id}`, {
-        ...data,
-        tz_offset_minutes: data?.tz_offset_minutes ?? utcOffsetMinutes(data?.started_at),
-      }).then(unwrap),
+      api.put<{ data: types.Workout }>(
+        `/workouts/${id}`,
+        'tz_offset_minutes' in (data ?? {})
+          ? data
+          : { ...data, tz_offset_minutes: utcOffsetMinutes(data?.started_at) },
+      ).then(unwrap),
     delete: (id: number) => api.delete(`/workouts/${id}`),
   }
 

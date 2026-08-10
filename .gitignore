@@ -48,10 +48,14 @@ temp/
 
 # design docs (keep screenshots for README). Pre-build planning notes — wireframes,
 # MVP scope, stack bake-offs — stay local: they described intentions, and the code is
-# now the truth. docs/TESTING.md is the exception: it documents how to run the suite
-# and CONTRIBUTING.md links to it, so it stays tracked.
+# now the truth. The exceptions are the ones another tracked file tells you to read:
+# docs/TESTING.md (linked from CONTRIBUTING.md) documents how to run the suite, and
+# docs/API_CHANGES.md (linked from RELEASING.md) carries breaking API changes into the
+# next release's notes — a release process that depends on an untracked file is one that
+# silently stops working for everyone but its author.
 docs/*.md
 !docs/TESTING.md
+!docs/API_CHANGES.md
 docs/*.txt
 
 # Local Claude context
@@ -80,3 +84,10 @@ web/playwright-report/
 
 # MCP server config: machine-specific absolute paths, not portable across checkouts.
 .mcp.json
+
+# Maestro flows are local-only dev artifacts, same call as 5fc269a ("remove stray
+# Maestro flow committed with #61"). Nothing in CI runs them — they need a device and
+# a running backend — so a committed flow is a file that rots without anyone noticing.
+# The rule exists because the convention alone did not hold: without it the same mistake
+# landed twice, and the second time it reached main.
+mobile/.maestro/

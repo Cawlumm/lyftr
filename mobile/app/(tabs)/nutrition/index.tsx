@@ -6,7 +6,7 @@ import { format, subDays, addDays } from 'date-fns'
 import {
   AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { todayStr, type DailyStats, type FoodLog } from '@lyftr/shared'
+import { todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
   AppText, Card, DateInput, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
 } from '../../../src/components/ui'
@@ -181,7 +181,7 @@ export default function Nutrition() {
   const chartW = chartWidth || Math.max(0, windowWidth - 72)
 
   const isToday = selectedDate === todayStr()
-  const selectedDateObj = new Date(selectedDate + 'T12:00:00')
+  const selectedDateObj = dayToLocalDate(selectedDate)
   const prevDate = format(subDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()

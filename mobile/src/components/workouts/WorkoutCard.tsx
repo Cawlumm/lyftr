@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
 import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
-import { displayVolume, type Workout, workoutDay } from '@lyftr/shared'
+import { displayVolume, type Workout, workoutDay, dayToLocalDate} from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -62,7 +62,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
               then exercises + volume — three items on one line truncated at 390pt. */}
           <View className="flex-row items-center gap-x-2 mt-0.5">
             <AppText variant="caption" color="muted" numberOfLines={1}>
-              {format(new Date(workoutDay(workout) + 'T12:00:00'), 'MMM d, yyyy')}
+              {format(dayToLocalDate(workoutDay(workout)), 'MMM d, yyyy')}
             </AppText>
             {durationMin > 0 && (
               <>
@@ -121,7 +121,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                {format(new Date(workoutDay(workout) + 'T12:00:00'), 'MMM d, yyyy')}
+                {format(dayToLocalDate(workoutDay(workout)), 'MMM d, yyyy')}
                 {durationMin > 0 ? ` · ${durationMin} min` : ''}
                 {` · ${workout.exercises?.length || 0} exercises`}
               </AppText>

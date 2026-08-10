@@ -30,23 +30,47 @@ type WeightStats struct {
 
 const weightCols = `id, user_id, weight, notes, logged_at, logged_on, created_at`
 
+// weightDay is the day a row is filed under, for every query that filters, groups or
+// orders by day. NULL when the row has neither — see below for why that matters.
+//
+// logged_on defaults to ” and the backfill leaves a row unset when its stored instant
+// is unreadable. Read raw, ” sorts before every real date, so an unset row becomes the
+// reported *starting* weight and skews change_30d; and `logged_on >= ?` excludes it, so
+// the same row silently vanishes from every windowed query and chart. Falling back to
+// the instant's own date keeps such a row in roughly the right place instead of at both
+// extremes at once. The fallback reads the UTC day, which is the best available answer
+// for a row whose zone could not be established.
+//
+// It yields NULL rather than a substring when logged_at is not a date, because the only
+// rows that reach the fallback are the ones the backfill could not read — so slicing
+// them returns text like 'not-a-tim', and in SQLite's collation that sorts AFTER every
+// real date. It would become the permanent "latest" weight and leak to clients as a
+// history point's date. NULL keeps an unreadable row out of the answer instead of
+// putting it first.
+const weightDay = `CASE
+	  WHEN logged_on <> '' THEN logged_on
+	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
+	END`
+
 func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error) {
 	q := `SELECT ` + weightCols + ` FROM weight_logs WHERE user_id = ?`
 	args := []any{uid}
 	if f.FromDay != nil {
-		q += ` AND logged_on >= ?`
+		q += ` AND ` + weightDay + ` >= ?`
 		args = append(args, *f.FromDay)
 	}
 	if f.ToDay != nil {
 		// Inclusive: the caller asked for a day, not an exclusive bound.
-		q += ` AND logged_on <= ?`
+		q += ` AND ` + weightDay + ` <= ?`
 		args = append(args, *f.ToDay)
 	}
 	// Newest day first, and only then newest instant within it. Every reader labels a
 	// row with logged_on, so ordering by the instant alone puts the list out of the order
 	// it appears to be in: an entry filed for the 10th from UTC+14 is an earlier *moment*
 	// than one filed for the 9th from UTC-11, and sorted by instant it renders below it.
-	q += ` ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT ? OFFSET ?`
+	// SQLite sorts NULL below every value, so DESC already puts an undated row last —
+	// no explicit NULL handling, and the day term can be served by an index.
+	q += ` ORDER BY ` + weightDay + ` DESC, logged_at DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, f.Limit, f.Offset)
 
 	rows, err := s.db.Query(q, args...)
@@ -95,7 +119,7 @@ func (s *WeightStore) UpsertForDay(uid int64, req models.LogWeightRequest, day s
 	id, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
 		var id int64
 		err := tx.QueryRow(
-			`SELECT id FROM weight_logs WHERE user_id = ? AND logged_on = ? ORDER BY id DESC LIMIT 1`,
+			`SELECT id FROM weight_logs WHERE user_id = ? AND `+weightDay+` = ? ORDER BY id DESC LIMIT 1`,
 			uid, day,
 		).Scan(&id)
 		switch err {
@@ -144,7 +168,7 @@ func (s *WeightStore) Update(uid, id int64, req models.LogWeightRequest, day str
 		// Same day as the upsert keys on — one entry per the *user's* day. Runs after
 		// the update above, so it matches the row's new day, not the one it left.
 		_, err = tx.Exec(
-			`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND logged_on = ?`,
+			`DELETE FROM weight_logs WHERE user_id = ? AND id != ? AND `+weightDay+` = ?`,
 			uid, id, day,
 		)
 		return err
@@ -170,11 +194,11 @@ func (s *WeightStore) Stats(uid int64, since7d, since30d string) (WeightStats, e
 	var latest, oldest, minW, maxW, avgW sql.NullFloat64
 	var count int
 	err := s.db.QueryRow(
+		// "Latest" means the most recent day weighed, not the most recent instant: those
+		// part company once a row's day comes from logged_on. Same ordering as List.
 		`SELECT
-		  -- "Latest" means the most recent day weighed, not the most recent instant: those
-		  -- part company once a row's day comes from logged_on. Same ordering as List.
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY logged_on ASC, logged_at ASC, id ASC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND (`+weightDay+`) IS NOT NULL ORDER BY `+weightDay+` DESC, logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND (`+weightDay+`) IS NOT NULL ORDER BY `+weightDay+` ASC, logged_at ASC, id ASC LIMIT 1),
 		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
 		 FROM weight_logs WHERE user_id = ?`,
 		uid, uid, uid,
@@ -206,8 +230,8 @@ func (s *WeightStore) changeOver(uid int64, sinceDay string) (float64, error) {
 	var latest, earliest sql.NullFloat64
 	if err := s.db.QueryRow(
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_on DESC, logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? AND logged_on >= ? ORDER BY logged_on ASC, logged_at ASC, id ASC LIMIT 1)`,
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND `+weightDay+` >= ? ORDER BY `+weightDay+` DESC, logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND `+weightDay+` >= ? ORDER BY `+weightDay+` ASC, logged_at ASC, id ASC LIMIT 1)`,
 		uid, sinceDay, uid, sinceDay,
 	).Scan(&latest, &earliest); err != nil {
 		return 0, err

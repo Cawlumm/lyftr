@@ -88,3 +88,24 @@ describe('workoutAPI tz_offset_minutes', () => {
     expect(calls[0].body.tz_offset_minutes).toBe(0)
   })
 })
+
+// A workout logged before the offset column existed has no stored offset, so the edit
+// screen names the field with an undefined value. That must reach the server as absent
+// — letting it fall back to the account zone — rather than being stamped with wherever
+// the person editing happens to be standing.
+describe('workoutAPI tz_offset_minutes on legacy rows', () => {
+  it('sends no offset when the caller names the field with no value', async () => {
+    const calls: Array<{ body: any }> = []
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async (config: any) => {
+      calls.push({ body: JSON.parse(config.data ?? '{}') })
+      return { data: { data: {} }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    await client.workoutAPI.update(1, {
+      name: 'Legacy row',
+      started_at: '2026-07-01T23:00:00Z',
+      tz_offset_minutes: undefined,
+    })
+    expect('tz_offset_minutes' in calls[0].body).toBe(false)
+  })
+})

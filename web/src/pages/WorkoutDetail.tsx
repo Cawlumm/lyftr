@@ -9,7 +9,7 @@ import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
-import { workoutDay } from '../utils/dateUtils'
+import { workoutDay, dayToLocalDate} from '../utils/dateUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
   return (
@@ -154,7 +154,7 @@ export default function WorkoutDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{workout.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              {format(new Date(workoutDay(workout) + 'T12:00:00'), 'EEEE, MMMM d, yyyy')}
+              {format(dayToLocalDate(workoutDay(workout)), 'EEEE, MMMM d, yyyy')}
             </p>
           </div>
         </div>

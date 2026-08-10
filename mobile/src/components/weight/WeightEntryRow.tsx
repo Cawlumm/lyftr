@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MoreVertical, Scale, TrendingDown, TrendingUp } from 'lucide-react-native'
-import { displayWeight, entryDay, weightShort, type WeightLog } from '@lyftr/shared'
+import { displayWeight, entryDay, weightShort, type WeightLog, dayToLocalDate} from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -32,7 +32,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
   const deltaLbs = next ? item.weight - next.weight : 0
   const displayW = displayWeight(item.weight, unit)
   const displayDelta = displayWeight(Math.abs(deltaLbs), unit)
-  const dateLabel = format(new Date(entryDay(item) + 'T12:00:00'), 'MMM d, yyyy')
+  const dateLabel = format(dayToLocalDate(entryDay(item)), 'MMM d, yyyy')
 
   const handleDelete = async () => {
     setDeleting(true)
