@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { workoutDays, dayLabel, todaysDay } from '../utils/programUtils'
@@ -35,7 +36,14 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
   const title = dayPickFor ? dayPickFor.name : 'Load from Program'
   const subtitle = dayPickFor ? 'Pick a day to pre-fill exercises' : 'Pick a program to pre-fill exercises'
 
-  return (
+  // Portalled to document.body like every other overlay here (ExercisePicker,
+  // DiscardConfirm, QuickWeighInSheet, BarcodeScanner, Toast). Rendered inline it
+  // sat inside AddWorkout's `.animate-slide-up`, whose `animation-fill-mode: both`
+  // leaves `transform: translateY(0)` applied for good. A transform — even an
+  // identity one — makes that element the containing block for `position: fixed`
+  // descendants, so `inset-0` resolved to the form's box: the scrim covered only
+  // part of the screen and the dialog centred on the form rather than the viewport.
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
       <div className="bg-surface-base border border-surface-border rounded-2xl w-full sm:max-w-lg flex flex-col max-h-[80vh]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-surface-border flex-shrink-0">
@@ -137,6 +145,7 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
