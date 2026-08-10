@@ -690,3 +690,62 @@ func TestWeightReads_unsetDayFallsBackToTheInstant(t *testing.T) {
 		t.Fatalf("range returned %d entries, want 1 — an undated row dropped out of its own window", len(data))
 	}
 }
+
+// A row whose instant cannot be read must not outrank every dated row.
+//
+// The fallback slices logged_at for a row with no stored day — but the only rows that
+// reach it are the ones the backfill could not read, so the slice returns text like
+// 'not-a-tim'. In SQLite's collation that sorts AFTER every real date, which made an
+// unreadable row the permanent "latest" weight on the dashboard. Yielding NULL keeps it
+// out of the answer rather than putting it at the front of the queue.
+func TestWeightStats_unreadableInstantNeverBecomesLatest(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	insertWeightLogOn(t, uid, 999.0, "", "not-a-timestamp")
+	insertWeightLogOn(t, uid, 170.0, "2026-08-05", "2026-08-05T12:00:00Z")
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/weight/stats", nil)
+	th.GetWeightStats(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	stats := decodeResponse(t, w)["data"].(map[string]any)
+	if got := stats["latest"].(float64); got != 170.0 {
+		t.Errorf("latest = %v, want 170 — an unreadable instant sorted above every real date", got)
+	}
+	if got := stats["starting"].(float64); got != 170.0 {
+		t.Errorf("starting = %v, want 170", got)
+	}
+}
+
+// The same garbage must never reach a client as a history point's date: every client
+// feeds that string to dayToLocalDate, and an Invalid Date makes the formatter throw,
+// taking down the whole nutrition page rather than mislabelling one bar.
+func TestFoodHistory_neverReturnsANonDate(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	if _, err := db.DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, servings, logged_at, logged_on)
+		 VALUES (?, 'unreadable', 'lunch', 100, 0, 0, 0, 1, 'not-a-timestamp', '')`, uid); err != nil {
+		t.Fatalf("seed unreadable food: %v", err)
+	}
+	if _, err := db.DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, servings, logged_at, logged_on)
+		 VALUES (?, 'good', 'lunch', 200, 0, 0, 0, 1, '2026-08-05T12:00:00Z', '2026-08-05')`, uid); err != nil {
+		t.Fatalf("seed good food: %v", err)
+	}
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history?days=3650", nil)
+	th.GetFoodHistory(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	for _, p := range decodeResponse(t, w)["data"].([]any) {
+		day := p.(map[string]any)["date"].(string)
+		if _, err := time.Parse("2006-01-02", day); err != nil {
+			t.Errorf("history returned %q as a date — clients parse this and the page throws", day)
+		}
+	}
+}

@@ -31,16 +31,26 @@ type WeightStats struct {
 const weightCols = `id, user_id, weight, notes, logged_at, logged_on, created_at`
 
 // weightDay is the day a row is filed under, for every query that filters, groups or
-// orders by day.
+// orders by day. NULL when the row has neither — see below for why that matters.
 //
-// logged_on defaults to '' and the backfill leaves a row unset when its stored instant
-// is unreadable. Read raw, '' sorts before every real date, so an unset row becomes the
+// logged_on defaults to ” and the backfill leaves a row unset when its stored instant
+// is unreadable. Read raw, ” sorts before every real date, so an unset row becomes the
 // reported *starting* weight and skews change_30d; and `logged_on >= ?` excludes it, so
 // the same row silently vanishes from every windowed query and chart. Falling back to
 // the instant's own date keeps such a row in roughly the right place instead of at both
 // extremes at once. The fallback reads the UTC day, which is the best available answer
 // for a row whose zone could not be established.
-const weightDay = `COALESCE(NULLIF(logged_on, ''), substr(logged_at, 1, 10))`
+//
+// It yields NULL rather than a substring when logged_at is not a date, because the only
+// rows that reach the fallback are the ones the backfill could not read — so slicing
+// them returns text like 'not-a-tim', and in SQLite's collation that sorts AFTER every
+// real date. It would become the permanent "latest" weight and leak to clients as a
+// history point's date. NULL keeps an unreadable row out of the answer instead of
+// putting it first.
+const weightDay = `CASE
+	  WHEN logged_on <> '' THEN logged_on
+	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
+	END`
 
 func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error) {
 	q := `SELECT ` + weightCols + ` FROM weight_logs WHERE user_id = ?`
@@ -58,6 +68,8 @@ func (s *WeightStore) List(uid int64, f WeightFilter) ([]models.WeightLog, error
 	// row with logged_on, so ordering by the instant alone puts the list out of the order
 	// it appears to be in: an entry filed for the 10th from UTC+14 is an earlier *moment*
 	// than one filed for the 9th from UTC-11, and sorted by instant it renders below it.
+	// SQLite sorts NULL below every value, so DESC already puts an undated row last —
+	// no explicit NULL handling, and the day term can be served by an index.
 	q += ` ORDER BY ` + weightDay + ` DESC, logged_at DESC, id DESC LIMIT ? OFFSET ?`
 	args = append(args, f.Limit, f.Offset)
 
@@ -185,8 +197,8 @@ func (s *WeightStore) Stats(uid int64, since7d, since30d string) (WeightStats, e
 		// "Latest" means the most recent day weighed, not the most recent instant: those
 		// part company once a row's day comes from logged_on. Same ordering as List.
 		`SELECT
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY `+weightDay+` DESC, logged_at DESC, id DESC LIMIT 1),
-		  (SELECT weight FROM weight_logs WHERE user_id = ? ORDER BY `+weightDay+` ASC, logged_at ASC, id ASC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND (`+weightDay+`) IS NOT NULL ORDER BY `+weightDay+` DESC, logged_at DESC, id DESC LIMIT 1),
+		  (SELECT weight FROM weight_logs WHERE user_id = ? AND (`+weightDay+`) IS NOT NULL ORDER BY `+weightDay+` ASC, logged_at ASC, id ASC LIMIT 1),
 		  MIN(weight), MAX(weight), AVG(weight), COUNT(*)
 		 FROM weight_logs WHERE user_id = ?`,
 		uid, uid, uid,

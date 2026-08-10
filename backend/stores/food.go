@@ -12,10 +12,13 @@ type FoodStore struct{ db *sql.DB }
 func NewFoodStore(db *sql.DB) *FoodStore { return &FoodStore{db: db} }
 
 // foodDay is the day a row is filed under — same rule and same reason as weightDay:
-// logged_on defaults to '' and the backfill leaves it unset for a row whose stored
+// logged_on defaults to ” and the backfill leaves it unset for a row whose stored
 // instant is unreadable, which would otherwise drop that entry out of its own diary
 // day and out of every history bucket.
-const foodDay = `COALESCE(NULLIF(logged_on, ''), substr(logged_at, 1, 10))`
+const foodDay = `CASE
+	  WHEN logged_on <> '' THEN logged_on
+	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
+	END`
 
 const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
 
