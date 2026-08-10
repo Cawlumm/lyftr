@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { workoutDays, dayLabel, todaysDay } from '../utils/programUtils'
+import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
 import * as types from '../types'
 
 interface Props {

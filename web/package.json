@@ -14,9 +14,10 @@
     "test:e2e": "playwright test",
     "test:e2e:docker": "cross-env E2E_DOCKER=1 playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "lint": "eslint . --max-warnings=79"
+    "lint": "eslint . --max-warnings=69"
   },
   "dependencies": {
+    "@lyftr/shared": "*",
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.6.2",
     "date-fns": "^3.0.0",

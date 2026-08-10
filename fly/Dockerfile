@@ -9,12 +9,19 @@
 # The seed snapshot is created manually on first deploy (see fly/SETUP.md).
 
 # ── Stage 1: Frontend ────────────────────────────────────────────────────────
+# web is an npm workspace member, so this installs from the root lockfile. `-w lyfter-web`
+# limits it to web's slice; mobile/package.json is copied only because `npm ci` validates
+# the lockfile against every declared workspace. Mirrors web/Dockerfile — keep them in step.
 FROM --platform=$BUILDPLATFORM node:20-alpine AS frontend
 WORKDIR /app
-COPY web/package.json web/package-lock.json ./
-RUN npm ci
-COPY web/ .
-RUN npm run build
+COPY package.json package-lock.json ./
+COPY web/package.json ./web/
+COPY mobile/package.json ./mobile/
+COPY packages/shared/package.json ./packages/shared/
+RUN npm ci -w lyfter-web --include-workspace-root
+COPY packages/shared ./packages/shared
+COPY web/ ./web/
+RUN npm run build -w lyfter-web
 
 # ── Stage 2: Backend ─────────────────────────────────────────────────────────
 # CGO_ENABLED=0 produces a fully static binary — no libc dependency in runtime.
@@ -37,7 +44,7 @@ FROM nginx:alpine
 RUN apk add --no-cache ca-certificates wget
 
 COPY --from=backend /build/lyftr-api     /app/lyftr-api
-COPY --from=frontend /app/dist           /usr/share/nginx/html
+COPY --from=frontend /app/web/dist       /usr/share/nginx/html
 
 # Fly-specific nginx config: proxy_pass uses localhost:3000 (not :3000 service name)
 COPY fly/nginx.fly.conf /etc/nginx/conf.d/default.conf

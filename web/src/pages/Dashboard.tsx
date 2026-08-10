@@ -20,7 +20,7 @@ import { workoutDay, entryDay, dayToLocalDate} from '../utils/dateUtils'
 import { useNavigate, Link } from 'react-router-dom'
 import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
-import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '../utils/programUtils'
+import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '@lyftr/shared'
 
 const TODAY = new Date()
 

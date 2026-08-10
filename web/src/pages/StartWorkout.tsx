@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Zap, BookOpen, ChevronRight, Play, Timer, Trash2 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import ProgramPicker from '../components/ProgramPicker'
-import { activeSessionExercisesForDay, sessionNameForDay } from '../utils/programUtils'
+import { activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
 import * as types from '../types'
 
 export default function StartWorkout() {

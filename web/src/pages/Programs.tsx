@@ -13,7 +13,7 @@ import * as types from '../types'
 import {
   todaysDay, dayLabel, isDayStartable, programExerciseCount, programSetCount, sessionNameForDay,
   activeSessionExercisesForDay, allExercises,
-} from '../utils/programUtils'
+} from '@lyftr/shared'
 
 function ProgramCard({
   program,

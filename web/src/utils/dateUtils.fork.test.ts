@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 // web/src/utils/dateUtils.ts and packages/shared/src/utils/dateUtils.ts are a
-// deliberate fork: web is not part of the npm workspace (root workspaces are
-// `packages/*` and `mobile`), so it cannot import @lyftr/shared, and mobile cannot
-// import web's copy.
+// deliberate fork, kept only until dateUtils itself migrates. Web now imports
+// @lyftr/shared (see programUtils), so this guard is scheduled for deletion — the
+// `packages/shared/**` entry in ci.yml's `web` paths filter is its successor.
 //
 // A fork kept in step by hand is not a single source of truth — it is one until
 // somebody edits one side. This test makes the two files enforce each other: change

@@ -1,0 +1,42 @@
+# Applies to every build whose context is the repo root: web/Dockerfile (via
+# docker-compose and the CI frontend job) and fly/Dockerfile (via `flyctl deploy`).
+# BuildKit reads .dockerignore from the *context root*, so web/.dockerignore stopped
+# applying the moment web's context moved up here — without this file `COPY web/ ./web/`
+# would drop a stale host node_modules on top of the one `npm ci` just built, and the
+# image would build green against the wrong dependency tree.
+#
+# Do NOT exclude backend/, web/, packages/ or fly/ — all four are copied by fly/Dockerfile.
+
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.claude
+.vscode
+.idea
+
+# Test/build output
+web/coverage
+web/test-results
+web/playwright-report
+web/.vite
+mobile/.expo
+mobile/android
+mobile/ios
+
+# Local runtime state — the DB is a Fly volume in production
+data
+*.db
+*.db-shm
+*.db-wal
+
+# Docs and design assets: nothing in any image reads these
+docs
+design
+releases
+**/*.md
+!README.md
