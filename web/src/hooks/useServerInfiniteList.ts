@@ -10,7 +10,7 @@ interface Options<T> {
 
 interface Result<T> {
   items: T[]
-  sentinelRef: React.RefObject<HTMLDivElement>
+  sentinelRef: React.RefObject<HTMLDivElement | null>
   hasMore: boolean
   loading: boolean
   // True only during the very first fetch — use for full-page spinners
