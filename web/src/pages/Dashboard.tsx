@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex } from '@lyftr/shared'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -28,9 +28,6 @@ function greeting() {
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
 }
-
-const calcVolume = (w: types.Workout) =>
-  (w.exercises ?? []).reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0)
 
 const DEFAULT_FOOD: types.DailyStats = {
   date: format(TODAY, 'yyyy-MM-dd'),

@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel } from '@lyftr/shared'
+import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -123,10 +123,7 @@ export default function WorkoutDetail() {
   }
 
   const exs = workout.exercises ?? []
-  const totalVolume = displayVolume(
-    exs.reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0),
-    wUnit
-  )
+  const totalVolume = displayVolume(calcVolume(workout), wUnit)
   const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
   const durationMin = Math.round(workout.duration / 60)
 

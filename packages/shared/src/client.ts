@@ -175,6 +175,11 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
   // longer bound costs nothing and removes the one place the global value is too tight.
   const BULK_TIMEOUT = 60000
 
+  // The exercise re-seed fetches and writes the entire upstream library. Web's client
+  // had no timeout at all before this, so the button simply waited; 20s would turn a
+  // working re-seed into a reported failure.
+  const SYNC_TIMEOUT = 120000
+
   let exerciseCache: types.Exercise[] | null = null
   let exerciseCachePromise: Promise<types.Exercise[]> | null = null
   const exerciseAPI = {
@@ -196,6 +201,12 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
     clearCache: () => { exerciseCache = null; exerciseCachePromise = null },
+    seedStatus: () => api.get<{ data: { count: number; in_progress: boolean } }>('/admin/seed-status').then(unwrap),
+    // Re-seeds the whole exercise library from the upstream DB: hundreds of rows, and on
+    // a cold or low-powered server it routinely runs past the global 20s. The button is an
+    // explicit admin action the user waits on, so it gets its own bound — a timeout here
+    // would report failure for work the server goes on to finish successfully.
+    sync: () => api.post<{ data: { synced: boolean; total: number } }>('/admin/sync-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
   }
 
   const programAPI = {

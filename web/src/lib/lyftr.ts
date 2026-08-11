@@ -1,0 +1,46 @@
+import {
+  createClient,
+  createServerStore,
+  createSettingsStore,
+  createWorkoutSession,
+} from '@lyftr/shared'
+import { storage } from './storage'
+
+// App-wide singletons: one API client plus the Zustand stores, all bound to the web
+// localStorage adapter. Mirrors mobile/src/lib/lyftr.ts — same factories, different
+// platform bindings. The auth store is still web's own (src/stores/auth.ts); it moves
+// here with its hydration gate in a follow-up, because that one changes first-paint
+// routing behaviour and deserves its own review.
+export const client = createClient(storage, {
+  // A failed token refresh means the session is dead. A hard location assignment
+  // rather than react-router's navigate: this runs inside an axios interceptor with
+  // no router context, and throwing the page away is the point — it clears any state
+  // built from the dead session.
+  onAuthFailure: () => { window.location.href = '/login' },
+  // Same escape hatch as before: an explicit build-time API URL wins over the
+  // user-configured server, for deployments that pin the backend.
+  baseUrlOverride: import.meta.env.VITE_API_URL as string | undefined,
+})
+
+export const useServerStore = createServerStore(storage)
+
+// Web reads the zone straight from Intl — unlike Hermes, every browser reports the
+// real device zone here.
+const detectTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || null
+
+export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
+export const useWorkoutSession = createWorkoutSession(storage)
+
+// Load everything persisted before the first render. localStorage is synchronous, so
+// this settles within a microtask — but the stores' API is async (mobile's Keychain
+// is genuinely so), and rendering before it resolves would show one frame of default
+// state: an empty server URL in Settings, and "No active workout" on top of a session
+// that is actually still running.
+export const hydrateStores = () =>
+  Promise.all([
+    useServerStore.getState().hydrate(),
+    useWorkoutSession.getState().hydrate(),
+    // Device-only prefs, no network — the gym-layout election on the active workout
+    // screen is a mount-only effect, so workout_layout must be right on first render.
+    useSettingsStore.getState().hydratePrefs(),
+  ])

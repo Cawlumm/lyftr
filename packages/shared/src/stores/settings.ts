@@ -41,6 +41,8 @@ const BASE_DEFAULTS: types.UserSettings = {
 export interface SettingsStore {
   settings: types.UserSettings
   loaded: boolean
+  // Device-only prefs, no network. Call before first render.
+  hydratePrefs: () => Promise<void>
   fetch: () => Promise<void>
   update: (patch: Partial<types.UserSettings>) => Promise<void>
   setWorkoutLayout: (layout: 'list' | 'gym') => Promise<void>
@@ -87,6 +89,18 @@ export function createSettingsStore(
   return create<SettingsStore>((set, get) => ({
     settings: BASE_DEFAULTS,
     loaded: false,
+
+    // The three client-only prefs, read from device storage with no network call.
+    //
+    // These have to be right on the FIRST render, not once fetch() returns, because
+    // they are read by mount-only effects: the gym-layout election on the active
+    // workout screen runs with an empty dependency list, so a `workout_layout` that
+    // still says 'list' when it fires leaves a gym-mode user in the list layout and
+    // never re-runs. `loaded` stays false — this is not the settings fetch.
+    hydratePrefs: async () => {
+      const prefs = await clientPrefs(storage)
+      set((state) => ({ settings: { ...state.settings, ...prefs } }))
+    },
 
     fetch: async () => {
       if (get().loaded) return

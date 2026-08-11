@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -32,15 +32,6 @@ function greeting(now: Date) {
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
 }
-
-// Coerce reps/weight to finite numbers: a set with a missing field would otherwise make
-// the product NaN, which poisons the whole volume sum → NaN bar heights → a hard
-// react-native-svg crash on native (web silently drops NaN geometry).
-const calcVolume = (w: Workout) =>
-  (w.exercises ?? []).reduce(
-    (s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + (Number(set.reps) || 0) * (Number(set.weight) || 0), 0),
-    0
-  )
 
 const DEFAULT_FOOD: DailyStats = {
   date: '', total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
