@@ -10,7 +10,7 @@ import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../s
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import { muscleColor } from '../utils/exerciseUtils'
-import { formatElapsed } from '@lyftr/shared'
+import { formatElapsed, useElapsedSeconds } from '@lyftr/shared'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const [editing, setEditing] = useState(false)
@@ -54,7 +54,7 @@ export default function ActiveWorkout() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
-  const [elapsed, setElapsed] = useState(0)
+  const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -69,15 +69,6 @@ export default function ActiveWorkout() {
   }, [])
 
   // Workout elapsed timer
-  useEffect(() => {
-    if (!session) return
-    const started = new Date(session.started_at).getTime()
-    const tick = () => setElapsed(Math.floor((Date.now() - started) / 1000))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [session?.started_at])
-
   if (!session) {
     return (
       <div className="empty-state py-20">

@@ -9,7 +9,7 @@ import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useRestTimer } from '../hooks/useRestTimer'
-import { fmtClock, formatElapsed } from '@lyftr/shared'
+import { fmtClock, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
@@ -28,20 +28,11 @@ function ActiveSessionBar() {
   const { settings } = useSettingsStore()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const [elapsed, setElapsed] = useState(0)
+  const elapsed = useElapsedSeconds(session?.started_at)
   // Rest countdown for the minimized workout — the full panel doesn't follow you out
   // of the workout; this compact chip does. (useRestTimer also owns the auto-dismiss,
   // and this bar is always mounted, so "rest over" clears even while minimized.)
   const { active: resting, paused, done, left } = useRestTimer()
-
-  useEffect(() => {
-    if (!session) return
-    const started = new Date(session.started_at).getTime()
-    const tick = () => setElapsed(Math.floor((Date.now() - started) / 1000))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [session])
 
   if (!session) return null
   // Hide pill when gym mode overlay is open or when on active workout page in list mode
