@@ -14,7 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:docker": "cross-env E2E_DOCKER=1 playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "lint": "eslint . --max-warnings=54"
+    "lint": "eslint . --max-warnings=52"
   },
   "dependencies": {
     "@lyftr/shared": "*",

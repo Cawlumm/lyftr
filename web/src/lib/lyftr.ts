@@ -1,4 +1,6 @@
 import {
+  createAuthStore,
+  createUseRestTimer,
   createClient,
   createServerStore,
   createSettingsStore,
@@ -23,6 +25,7 @@ export const client = createClient(storage, {
   baseUrlOverride: import.meta.env.VITE_API_URL as string | undefined,
 })
 
+export const useAuthStore = createAuthStore(client, storage)
 export const useServerStore = createServerStore(storage)
 
 // Web reads the zone straight from Intl — unlike Hermes, every browser reports the
@@ -48,6 +51,13 @@ export const applyThemeClass = (mode: 'light' | 'dark') => {
 // that is actually still running.
 export const hydrateStores = async () => {
   await Promise.all([
+    // Auth first among equals — this is the one that MUST be settled before the first
+    // render. App.tsx's catch-all route is a <Navigate to="/login">, and <Navigate>
+    // performs a history *replace*: rendering while isAuthenticated is still false
+    // would not merely flash the login screen, it would destroy the URL the user
+    // arrived on. A deep link, an emailed link, or a refresh mid-workout would be
+    // unrecoverable — back does not bring it back.
+    useAuthStore.getState().hydrate(),
     useServerStore.getState().hydrate(),
     useWorkoutSession.getState().hydrate(),
     // Device-only prefs, no network — the gym-layout election on the active workout
@@ -60,3 +70,7 @@ export const hydrateStores = async () => {
   applyThemeClass(useThemeStore.getState().mode)
   useThemeStore.subscribe((s) => applyThemeClass(s.mode))
 }
+
+// Rest-timer state derived from the session store above. The logic lives in
+// @lyftr/shared; this binds it to web's store instance.
+export const useRestTimer = createUseRestTimer(useWorkoutSession)
