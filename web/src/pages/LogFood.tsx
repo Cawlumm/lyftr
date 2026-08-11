@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -25,29 +25,6 @@ const MEAL_ICONS: Record<string, React.ElementType> = {
 const MEAL_COLORS: Record<string, string> = {
   breakfast: 'text-amber-400', lunch: 'text-yellow-400',
   dinner: 'text-indigo-400', snacks: 'text-pink-400',
-}
-
-function entryToResult(e: types.FoodLog): types.FoodSearchResult {
-  const s = e.servings || 1
-  return {
-    name: e.name,
-    calories: e.calories / s,
-    protein: e.protein / s,
-    carbs: e.carbs / s,
-    fat: e.fat / s,
-    fiber: (e.fiber ?? 0) / s,
-    serving_size: e.serving_size ?? '',
-    image_url: e.image_url,
-    source: 'saved',
-  }
-}
-
-function savedToResult(s: types.SavedFood): types.FoodSearchResult {
-  return {
-    name: s.name, brand: s.brand,
-    calories: s.calories, protein: s.protein, carbs: s.carbs,
-    fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
-  }
 }
 
 function FoodResultRow({ item, onClick }: { item: types.FoodSearchResult; onClick: () => void }) {

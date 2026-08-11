@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, isDayStartable, sessionNameForDay, todaysDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate} from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -45,34 +45,6 @@ const calcVolume = (w: Workout) =>
 const DEFAULT_FOOD: DailyStats = {
   date: '', total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
-
-// recharts-slice colors, ported verbatim from web (donut + legend + sparklines).
-const MUSCLE_HEX: Record<string, string> = {
-  chest: '#f87171', back: '#60a5fa', shoulders: '#818cf8', biceps: '#f472b6', triceps: '#a78bfa',
-  legs: '#34d399', quadriceps: '#34d399', hamstrings: '#6ee7b7', glutes: '#86efac', calves: '#4ade80',
-  core: '#fbbf24', abs: '#fbbf24', forearms: '#fb923c', traps: '#94a3b8', lats: '#38bdf8', 'full body': '#e879f9',
-}
-const muscleHex = (m: string) => MUSCLE_HEX[m?.toLowerCase()] ?? '#6366f1'
-
-const MUSCLE_ROAST: Record<string, string> = {
-  chest: 'All chest, no legs. Classic bro.',
-  back: 'Built like a refrigerator. Respect.',
-  shoulders: "Can't fit through doorways. Good.",
-  biceps: 'Mirror selfies loading…',
-  triceps: 'Horseshoe gang. Handshakes must be terrifying.',
-  legs: "Actually training legs. You're a unicorn.",
-  quadriceps: "Quads for days. Jeans don't stand a chance.",
-  hamstrings: 'Posterior chain warrior. Deadlift god incoming.',
-  glutes: 'Glute guy/gal. We respect the commitment.',
-  calves: 'Calf king/queen. The rarest of all lifters.',
-  core: 'Beach season ready 365 days a year.',
-  abs: 'Six pack incoming. Or already here. Either way.',
-  forearms: 'Popeye called. He wants his arms back.',
-  traps: 'No neck, no problem.',
-  lats: 'Walking around like a cobra. Wings deployed.',
-  'full body': 'A true all-rounder. Or you just did burpees.',
-}
-const muscleRoast = (m: string) => MUSCLE_ROAST[m?.toLowerCase()] ?? 'Mysterious training patterns. We respect it.'
 
 const VOL_OPTIONS = [
   { value: '7' as const, label: '7' }, { value: '14' as const, label: '14' }, { value: '30' as const, label: '30' },
@@ -208,13 +180,7 @@ export default function Dashboard() {
   // "Up next": the first (most recently created) program whose due day is a
   // startable workout day. Surfaces today's routine workout without opening the
   // Programs tab — a routine that never shows on the dashboard never gets started.
-  const upNext = (() => {
-    for (const p of programs) {
-      const day = todaysDay(p)
-      if (isDayStartable(day)) return { program: p, day }
-    }
-    return null
-  })()
+  const upNext = nextStartableDay(programs)
 
   const startUpNext = () => {
     if (!upNext) return

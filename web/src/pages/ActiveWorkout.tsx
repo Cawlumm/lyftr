@@ -10,6 +10,7 @@ import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../s
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import { muscleColor } from '../utils/exerciseUtils'
+import { formatElapsed } from '@lyftr/shared'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const [editing, setEditing] = useState(false)
@@ -44,14 +45,6 @@ function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string;
       </button>
     </div>
   )
-}
-
-function formatElapsed(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 export default function ActiveWorkout() {

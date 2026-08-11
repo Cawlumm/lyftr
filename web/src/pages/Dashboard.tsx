@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '@lyftr/shared'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -40,47 +40,6 @@ const DEFAULT_SETTINGS: types.UserSettings = {
   user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
   protein_target: 150, carb_target: 250, fat_target: 65, timezone: 'UTC',
 }
-
-// Hex colors for recharts (can't use Tailwind classes)
-const MUSCLE_HEX: Record<string, string> = {
-  chest:       '#f87171',
-  back:        '#60a5fa',
-  shoulders:   '#818cf8',
-  biceps:      '#f472b6',
-  triceps:     '#a78bfa',
-  legs:        '#34d399',
-  quadriceps:  '#34d399',
-  hamstrings:  '#6ee7b7',
-  glutes:      '#86efac',
-  calves:      '#4ade80',
-  core:        '#fbbf24',
-  abs:         '#fbbf24',
-  forearms:    '#fb923c',
-  traps:       '#94a3b8',
-  lats:        '#38bdf8',
-  'full body': '#e879f9',
-}
-const muscleHex = (m: string) => MUSCLE_HEX[m?.toLowerCase()] ?? '#6366f1'
-
-const MUSCLE_ROAST: Record<string, string> = {
-  chest:       'All chest, no legs. Classic bro.',
-  back:        'Built like a refrigerator. Respect.',
-  shoulders:   "Can't fit through doorways. Good.",
-  biceps:      'Mirror selfies loading…',
-  triceps:     'Horseshoe gang. Handshakes must be terrifying.',
-  legs:        "Actually training legs. You're a unicorn.",
-  quadriceps:  "Quads for days. Jeans don't stand a chance.",
-  hamstrings:  'Posterior chain warrior. Deadlift god incoming.',
-  glutes:      'Glute guy/gal. We respect the commitment.',
-  calves:      'Calf king/queen. The rarest of all lifters.',
-  core:        'Beach season ready 365 days a year.',
-  abs:         'Six pack incoming. Or already here. Either way.',
-  forearms:    'Popeye called. He wants his arms back.',
-  traps:       'No neck, no problem.',
-  lats:        'Walking around like a cobra. Wings deployed.',
-  'full body': 'A true all-rounder. Or you just did burpees.',
-}
-const muscleRoast = (m: string) => MUSCLE_ROAST[m?.toLowerCase()] ?? 'Mysterious training patterns. We respect it.'
 
 function MuscleSparkline({ values, color, isTop }: { values: number[], color: string, isTop: boolean }) {
   if (values.length < 2) return <div className="w-14 h-6 flex-shrink-0" />
@@ -186,13 +145,7 @@ export default function Dashboard() {
   // "Up next": the first (most recently created) program whose due day is a
   // startable workout day. Surfaces today's routine workout without opening the
   // Programs page — a routine that never shows on the dashboard never gets started.
-  const upNext = (() => {
-    for (const p of programs) {
-      const day = todaysDay(p)
-      if (isDayStartable(day)) return { program: p, day }
-    }
-    return null
-  })()
+  const upNext = nextStartableDay(programs)
 
   const startUpNext = () => {
     if (!upNext) return

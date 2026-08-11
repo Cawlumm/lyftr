@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest'
 import { formatVersion } from './version'
 
 describe('formatVersion', () => {

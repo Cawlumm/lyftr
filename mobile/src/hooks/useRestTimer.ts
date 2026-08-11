@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useWorkoutSession } from '../lib/lyftr'
-import { useCountdown } from './useCountdown'
+import { useCountdown } from '@lyftr/shared'
 
 // Port of web/src/hooks/useRestTimer.ts (import points at the mobile store).
 // Derived rest-timer state (seconds left, paused/done flags) + the "rest over"

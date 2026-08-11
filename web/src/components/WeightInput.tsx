@@ -1,4 +1,4 @@
-import { useNumericText } from '../hooks/useNumericText'
+import { useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string

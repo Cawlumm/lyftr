@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -15,7 +15,6 @@ import { muscleColor } from '../../../src/utils/exerciseUtils'
 // Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
 const exerciseHref = (exerciseId: number) => `/workouts/exercise/${exerciseId}` as unknown as Href
 
-const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
 
 function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit: string }) {
   return (

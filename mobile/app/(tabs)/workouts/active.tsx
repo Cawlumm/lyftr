@@ -3,7 +3,7 @@ import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
-import { weightShort, type Exercise } from '@lyftr/shared'
+import { weightShort, type Exercise, formatElapsed } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -12,14 +12,6 @@ import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
-
-function formatElapsed(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
 
 export default function ActiveWorkout() {
   const session = useWorkoutSession((s) => s.session)

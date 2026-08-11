@@ -10,9 +10,8 @@ import { useEffect, useState } from 'react'
 //
 // NOTE: we intentionally do NOT skip re-sync while focused — autofocus + a deferred
 // prefill (QuickWeighInSheet, the weight-detail edit tile) must still populate the
-// field. The
-// residual sub-0.1 mid-type snap is a limit of the 0.1-precision design (#39) + the
-// underlying type=number field, not something to work around here.
+// field. The residual sub-0.1 mid-type snap is a limit of the 0.1-precision design
+// (#39) plus the underlying numeric field, not something to work around here.
 export function useNumericText(value: string): [string, (next: string) => void] {
   const [text, setText] = useState(value)
   useEffect(() => {

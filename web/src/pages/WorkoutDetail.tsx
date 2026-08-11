@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate } from '@lyftr/shared'
+import { types, workoutDay, dayToLocalDate, restLabel } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -28,7 +28,6 @@ export default function WorkoutDetail() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const restOn = settings.rest_enabled ?? true
-  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

@@ -15,6 +15,7 @@ import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor } from '../../../src/utils/exerciseUtils'
+import { targetWeightLabel, restLabel } from '@lyftr/shared'
 
 // Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
 // so back returns to this program — pushing the workouts-tab copy would jump tabs and
@@ -23,7 +24,6 @@ const exerciseHref = (exerciseId: number) => `/programs/exercise/${exerciseId}` 
 const startHref = '/workouts/start' as unknown as Href
 const activeHref = '/workouts/active' as unknown as Href
 
-const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -213,14 +213,13 @@ export default function ProgramDetail() {
         const sr = s.suggested_reps as number
         const weightChanged = s.suggested_weight != null && Math.abs(sw - s.target_weight) > 1e-6
         const repsChanged = sr !== s.target_reps
-        const wLabel = (v: number) => (v > 0 ? `${displayWeight(v, wUnit)} ${wUnit}` : 'BW')
         let oldLabel: string, newLabel: string
         if (weightChanged && repsChanged) {
-          oldLabel = `${s.target_reps} × ${wLabel(s.target_weight)}`
-          newLabel = `${sr} × ${wLabel(sw)}`
+          oldLabel = `${s.target_reps} × ${targetWeightLabel(s.target_weight, wUnit)}`
+          newLabel = `${sr} × ${targetWeightLabel(sw, wUnit)}`
         } else if (weightChanged) {
-          oldLabel = wLabel(s.target_weight)
-          newLabel = wLabel(sw)
+          oldLabel = targetWeightLabel(s.target_weight, wUnit)
+          newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
           newLabel = `${sr} reps`

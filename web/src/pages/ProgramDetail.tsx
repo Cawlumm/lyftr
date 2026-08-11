@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay } from '@lyftr/shared'
+import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
@@ -22,7 +22,6 @@ export default function ProgramDetail() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const restOn = settings.rest_enabled ?? true
-  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [program, setProgram] = useState<types.Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -123,14 +122,13 @@ export default function ProgramDetail() {
         const sr = s.suggested_reps as number
         const weightChanged = s.suggested_weight != null && Math.abs(sw - s.target_weight) > 1e-6
         const repsChanged = sr !== s.target_reps
-        const wLabel = (v: number) => (v > 0 ? `${displayWeight(v, wUnit)} ${wUnit}` : 'BW')
         let oldLabel: string, newLabel: string
         if (weightChanged && repsChanged) {
-          oldLabel = `${s.target_reps} × ${wLabel(s.target_weight)}`
-          newLabel = `${sr} × ${wLabel(sw)}`
+          oldLabel = `${s.target_reps} × ${targetWeightLabel(s.target_weight, wUnit)}`
+          newLabel = `${sr} × ${targetWeightLabel(sw, wUnit)}`
         } else if (weightChanged) {
-          oldLabel = wLabel(s.target_weight)
-          newLabel = wLabel(sw)
+          oldLabel = targetWeightLabel(s.target_weight, wUnit)
+          newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
           newLabel = `${sr} reps`

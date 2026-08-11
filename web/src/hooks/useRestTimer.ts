@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useCountdown } from './useCountdown'
+import { useCountdown } from '@lyftr/shared'
 
 // Derived rest-timer state (seconds left, paused/done flags) + the "rest over"
 // auto-dismiss, shared by the full in-workout banner and the minimized session-pill

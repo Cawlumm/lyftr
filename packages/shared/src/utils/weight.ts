@@ -17,6 +17,11 @@ export const round1 = (n: number): number => Math.round(n * 10) / 10
 // pre-filled into an input.
 export const displayWeight = (lbs: number, unit: string): number => round1(lbsToDisplay(lbs, unit))
 
+// A target weight for display: the converted number with its unit, or "BW" when the
+// target is 0 — a bodyweight movement has no load, and showing "0 lb" reads as a bug.
+export const targetWeightLabel = (lbs: number, unit: string): string =>
+  lbs > 0 ? `${displayWeight(lbs, unit)} ${unit}` : 'BW'
+
 // Volume/aggregate (sum of reps×weight) in the user's unit, as a whole number.
 export const displayVolume = (lbs: number, unit: string): number => Math.round(lbsToDisplay(lbs, unit))
 

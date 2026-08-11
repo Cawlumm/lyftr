@@ -19,7 +19,7 @@ import { RestTimerBanner } from './RestTimerBanner'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet } from '@lyftr/shared'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
 import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay
@@ -326,11 +326,10 @@ export function GymModeWorkout() {
     const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
     const repsVals = ex.sets.map((s) => s.target_reps).filter((r) => r > 0)
     const wtVals = ex.sets.map((s) => displayWeight(s.target_weight, wUnit)).filter((w) => w > 0)
-    const range = (a: number[]) => (a.length === 0 ? '—' : Math.min(...a) === Math.max(...a) ? String(Math.min(...a)) : `${Math.min(...a)}–${Math.max(...a)}`)
     const planStats = [
       { icon: Layers, label: 'Sets', value: String(ex.sets.length) },
-      { icon: Repeat, label: 'Reps', value: range(repsVals) },
-      { icon: Dumbbell, label: 'Weight', value: `${range(wtVals)} ${wUnit}` },
+      { icon: Repeat, label: 'Reps', value: numericRange(repsVals) },
+      { icon: Dumbbell, label: 'Weight', value: `${numericRange(wtVals)} ${wUnit}` },
     ]
     return overlay(
       <>

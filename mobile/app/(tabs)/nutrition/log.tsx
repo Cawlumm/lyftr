@@ -19,6 +19,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { entryToResult, savedToResult } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -32,31 +33,6 @@ const TAB_OPTIONS = [
 ] as const
 
 // Port of web/pages/LogFood.tsx — the search / detail / scan food-logging flow.
-// entryToResult / savedToResult reduce stored entries + saved foods to the per-serving
-// FoodSearchResult shape the detail view multiplies by `servings`.
-function entryToResult(e: FoodLog): FoodSearchResult {
-  const s = e.servings || 1
-  return {
-    name: e.name,
-    calories: e.calories / s,
-    protein: e.protein / s,
-    carbs: e.carbs / s,
-    fat: e.fat / s,
-    fiber: (e.fiber ?? 0) / s,
-    serving_size: e.serving_size ?? '',
-    image_url: e.image_url,
-    source: 'saved',
-  }
-}
-
-function savedToResult(s: SavedFood): FoodSearchResult {
-  return {
-    name: s.name, brand: s.brand,
-    calories: s.calories, protein: s.protein, carbs: s.carbs,
-    fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
-  }
-}
-
 function FoodResultRow({ item, onPress }: { item: FoodSearchResult; onPress: () => void }) {
   const { colors } = useTheme()
   return (
