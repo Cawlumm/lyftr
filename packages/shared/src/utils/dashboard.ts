@@ -38,6 +38,16 @@ const MUSCLE_ROAST: Record<string, string> = {
 export const muscleRoast = (m: string): string =>
   MUSCLE_ROAST[m?.toLowerCase()] ?? 'Mysterious training patterns. We respect it.'
 
+// Time-of-day greeting on the dashboard. Takes the current time rather than reading the
+// clock itself, so the caller controls when "now" is sampled — and so this is testable
+// without faking timers.
+export function greeting(now: Date): string {
+  const h = now.getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
 // The "up next" card: the first program whose day-for-today actually has exercises.
 // Programs are scanned in order, so an earlier program wins a tie — matching the
 // order they're listed on the Programs screen.

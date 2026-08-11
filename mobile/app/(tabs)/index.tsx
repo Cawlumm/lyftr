@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -25,13 +25,6 @@ import { useTheme } from '../../src/theme/useTheme'
 // sheet-opens, a firmer impact for the primary Start action.
 const hSelect = () => Haptics.selectionAsync().catch(() => {})
 const hImpact = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-
-function greeting(now: Date) {
-  const h = now.getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
 
 const DEFAULT_FOOD: DailyStats = {
   date: '', total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,

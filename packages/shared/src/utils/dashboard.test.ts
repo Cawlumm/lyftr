@@ -1,4 +1,4 @@
-import { muscleHex, muscleRoast, nextStartableDay } from './dashboard'
+import { greeting, muscleHex, muscleRoast, nextStartableDay } from './dashboard'
 import type { Program } from '../types'
 
 describe('muscleHex', () => {
@@ -66,5 +66,25 @@ describe('nextStartableDay', () => {
   it('returns the due day itself, not just the program', () => {
     const p = prog(1, 1, [{ exercises: [] }, withExercises])
     expect(nextStartableDay([p])?.day.id).toBe(11)
+  })
+})
+
+describe('greeting', () => {
+  const at = (h: number) => new Date(2026, 0, 15, h, 30)
+
+  it('splits the day at noon and 5pm', () => {
+    expect(greeting(at(0))).toBe('Good morning')
+    expect(greeting(at(11))).toBe('Good morning')
+    expect(greeting(at(12))).toBe('Good afternoon')
+    expect(greeting(at(16))).toBe('Good afternoon')
+    expect(greeting(at(17))).toBe('Good evening')
+    expect(greeting(at(23))).toBe('Good evening')
+  })
+
+  it('reads the time it is given, not the clock', () => {
+    // Taking `now` as an argument is what lets the caller sample it per mount; web
+    // previously read a module-load constant, which went stale across midnight.
+    expect(greeting(at(9))).toBe('Good morning')
+    expect(greeting(at(21))).toBe('Good evening')
   })
 })

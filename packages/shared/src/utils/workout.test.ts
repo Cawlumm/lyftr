@@ -1,4 +1,4 @@
-import { calcVolume, exerciseVolume } from './workout'
+import { calcVolume, countWorkingSets, exerciseVolume } from './workout'
 import type { Set, Workout } from '../types'
 
 const set = (over: Partial<Set> = {}): Set =>
@@ -39,5 +39,26 @@ describe('calcVolume', () => {
     expect(calcVolume({ exercises: [] } as unknown as Workout)).toBe(0)
     expect(calcVolume({} as Workout)).toBe(0)
     expect(calcVolume(undefined)).toBe(0)
+  })
+})
+
+describe('countWorkingSets', () => {
+  it('counts sets across every exercise', () => {
+    const w = { exercises: [{ sets: [set(), set()] }, { sets: [set()] }] } as Workout
+    expect(countWorkingSets(w)).toBe(3)
+  })
+
+  it('excludes warm-ups, so the count agrees with the volume beside it', () => {
+    // A card showing "12 sets · 4,200 lb" where the volume came from 8 of them is a
+    // self-contradiction; whatever the filter is, both figures must apply it.
+    const w = { exercises: [{ sets: [set(), set({ is_warmup: true })] }] } as Workout
+    expect(countWorkingSets(w)).toBe(1)
+    expect(calcVolume(w)).toBe(1000)
+  })
+
+  it('handles missing exercises or sets', () => {
+    expect(countWorkingSets(undefined)).toBe(0)
+    expect(countWorkingSets({} as Workout)).toBe(0)
+    expect(countWorkingSets({ exercises: [{ sets: undefined }] } as unknown as Workout)).toBe(0)
   })
 })

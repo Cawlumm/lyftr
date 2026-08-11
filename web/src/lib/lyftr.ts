@@ -2,6 +2,7 @@ import {
   createClient,
   createServerStore,
   createSettingsStore,
+  createThemeStore,
   createWorkoutSession,
 } from '@lyftr/shared'
 import { storage } from './storage'
@@ -30,17 +31,32 @@ const detectTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone ||
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
 export const useWorkoutSession = createWorkoutSession(storage)
+// Dark-first on web (mobile is light-first, per product).
+export const useThemeStore = createThemeStore(storage, 'dark')
+
+// The <html class="dark"> toggle every CSS variable cascades from. Kept out of the
+// store because the store is platform-agnostic; called once before the first render
+// and again on every change, so the class and the store never disagree.
+export const applyThemeClass = (mode: 'light' | 'dark') => {
+  document.documentElement.classList.toggle('dark', mode === 'dark')
+}
 
 // Load everything persisted before the first render. localStorage is synchronous, so
 // this settles within a microtask — but the stores' API is async (mobile's Keychain
 // is genuinely so), and rendering before it resolves would show one frame of default
 // state: an empty server URL in Settings, and "No active workout" on top of a session
 // that is actually still running.
-export const hydrateStores = () =>
-  Promise.all([
+export const hydrateStores = async () => {
+  await Promise.all([
     useServerStore.getState().hydrate(),
     useWorkoutSession.getState().hydrate(),
     // Device-only prefs, no network — the gym-layout election on the active workout
     // screen is a mount-only effect, so workout_layout must be right on first render.
     useSettingsStore.getState().hydratePrefs(),
+    useThemeStore.getState().hydrate(),
   ])
+  // Paint the theme before React renders, so there is no flash of the default. This is
+  // why theme could only move to the shared store once hydration gated the first render.
+  applyThemeClass(useThemeStore.getState().mode)
+  useThemeStore.subscribe((s) => applyThemeClass(s.mode))
+}

@@ -148,6 +148,25 @@ export function createSettingsStore(
       set((state) => ({ settings: { ...state.settings, rest_seconds_default: secs } }))
     },
 
-    reset: () => set({ settings: BASE_DEFAULTS, loaded: false }),
+    // Forget the signed-in user's server-side settings (targets, unit, timezone) on
+    // sign-out, but KEEP the three device-only prefs.
+    //
+    // They belong to the device, not the account: they live under their own storage
+    // keys, sign-out does not clear those keys, and hydratePrefs() only runs once at
+    // startup. Resetting them to BASE_DEFAULTS would leave the store claiming
+    // workout_layout: 'list' while storage still says 'gym', with nothing to correct it
+    // until the next settings fetch returns. A gym-mode user who reaches the active
+    // workout screen inside that window is stuck in the list layout for the whole
+    // session, because that election is a mount-only effect and never re-runs.
+    reset: () =>
+      set((state) => ({
+        settings: {
+          ...BASE_DEFAULTS,
+          workout_layout: state.settings.workout_layout,
+          rest_enabled: state.settings.rest_enabled,
+          rest_seconds_default: state.settings.rest_seconds_default,
+        },
+        loaded: false,
+      })),
   }))
 }

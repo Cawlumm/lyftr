@@ -23,6 +23,26 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
   }
 }
 
+// The inverse of entryToResult: scale a per-serving result back up by the servings the
+// user is logging. Sharing only the divide half would have left the two directions free
+// to drift apart, which is the exact failure this pair exists to prevent — a re-logged
+// entry would round-trip to different macros than it started with.
+//
+// toFixed(1) matches the 0.1 precision used everywhere else numbers are entered.
+export function scaleServing(r: FoodSearchResult, servings: number) {
+  return {
+    name: r.name || 'Custom entry',
+    calories: +(r.calories * servings).toFixed(1),
+    protein: +(r.protein * servings).toFixed(1),
+    carbs: +(r.carbs * servings).toFixed(1),
+    fat: +(r.fat * servings).toFixed(1),
+    fiber: +((r.fiber ?? 0) * servings).toFixed(1),
+    servings,
+    serving_size: r.serving_size ?? '',
+    image_url: r.image_url ?? '',
+  }
+}
+
 // A saved food is already stored per serving, so it maps across untouched.
 export function savedToResult(s: SavedFood): FoodSearchResult {
   return {

@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -167,16 +167,8 @@ export default function LogFood() {
     setSaveError(null)
     try {
       const payload = {
-        name: selected.name || 'Custom entry',
+        ...scaleServing(selected, servings),
         meal,
-        calories: +(selected.calories * servings).toFixed(1),
-        protein: +(selected.protein * servings).toFixed(1),
-        carbs: +(selected.carbs * servings).toFixed(1),
-        fat: +(selected.fat * servings).toFixed(1),
-        fiber: +((selected.fiber ?? 0) * servings).toFixed(1),
-        servings,
-        serving_size: selected.serving_size ?? '',
-        image_url: selected.image_url ?? '',
         logged_at: dayToInstant(date),
       }
       if (editId) {

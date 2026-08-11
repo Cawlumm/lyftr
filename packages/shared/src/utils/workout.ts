@@ -25,3 +25,15 @@ export const calcVolume = (w: Pick<Workout, 'exercises'> | undefined | null): nu
     (total: number, ex: WorkoutExercise) => total + exerciseVolume(ex.sets),
     0,
   )
+
+// Working sets — warm-ups excluded, same rule as the volume above.
+//
+// This exists so a workout card cannot contradict itself. The stat strip shows a set
+// count next to a volume; counting every set while summing only the working ones reads
+// as "12 sets · 4,200 lb" where the number came from 8 of them. Whatever the filter is,
+// both figures have to apply it.
+export const countWorkingSets = (w: Pick<Workout, 'exercises'> | undefined | null): number =>
+  (w?.exercises ?? []).reduce(
+    (n: number, ex: WorkoutExercise) => n + (ex.sets ?? []).filter((s) => !s.is_warmup).length,
+    0,
+  )

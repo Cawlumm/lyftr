@@ -1,4 +1,4 @@
-import { entryToResult, savedToResult } from './food'
+import { entryToResult, savedToResult, scaleServing } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -39,5 +39,36 @@ describe('savedToResult', () => {
     const s = { id: 1, user_id: 1, name: 'Whey', brand: 'X', calories: 120, protein: 24, carbs: 3, fat: 1, fiber: 0, serving_size: '1 scoop' } as SavedFood
     const r = savedToResult(s)
     expect(r).toMatchObject({ name: 'Whey', brand: 'X', calories: 120, protein: 24, source: 'saved' })
+  })
+})
+
+describe('scaleServing', () => {
+  const result = (over = {}) => ({
+    name: 'Oats', calories: 300, protein: 10, carbs: 54, fat: 6, fiber: 8,
+    serving_size: '100g', source: 'saved' as const, ...over,
+  })
+
+  it('scales every macro by the serving count', () => {
+    const p = scaleServing(result(), 2)
+    expect(p).toMatchObject({ calories: 600, protein: 20, carbs: 108, fat: 12, fiber: 16, servings: 2 })
+  })
+
+  it('round-trips with entryToResult — the pair must agree or a re-log drifts', () => {
+    const original = result()
+    const logged = scaleServing(original, 3)
+    const back = entryToResult({ ...logged, fiber: logged.fiber } as never)
+    expect(back.calories).toBeCloseTo(original.calories, 5)
+    expect(back.protein).toBeCloseTo(original.protein, 5)
+    expect(back.fiber).toBeCloseTo(original.fiber, 5)
+  })
+
+  it('rounds to the app-wide 0.1 precision', () => {
+    expect(scaleServing(result({ calories: 33.333 }), 3).calories).toBe(100)
+    expect(scaleServing(result({ protein: 1.005 }), 1).protein).toBe(1)
+  })
+
+  it('defaults a missing name, fiber, serving_size and image_url', () => {
+    const p = scaleServing(result({ name: '', fiber: undefined, serving_size: undefined, image_url: undefined }), 1)
+    expect(p).toMatchObject({ name: 'Custom entry', fiber: 0, serving_size: '', image_url: '' })
   })
 })

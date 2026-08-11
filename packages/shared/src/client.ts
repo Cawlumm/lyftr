@@ -140,7 +140,7 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
 
   const workoutAPI = {
     list:   (params?: { limit?: number; offset?: number; q?: string }) =>
-      api.get<{ data: types.Workout[] }>('/workouts', { params }).then(unwrap),
+      api.get<{ data: types.Workout[] }>('/workouts', { params, ...listTimeout(params?.limit) }).then(unwrap),
     get:    (id: number) => api.get<{ data: types.Workout }>(`/workouts/${id}`).then(unwrap),
     // A workout keeps its instant and records the offset it happened at, rather than
     // flattening to a day like the diary does — duration and ordering need the moment.
@@ -180,6 +180,14 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
   // working re-seed into a reported failure.
   const SYNC_TIMEOUT = 120000
 
+  // A request that asks for many rows gets the bulk bound instead of the global 20s.
+  // The dashboard pulls 84 workouts with their exercises and sets, and the weight page
+  // pulls up to 1000 logs — both are megabyte-scale on a full account and neither is a
+  // "something is wrong" case at 20s on a home server. Small paginated reads (the
+  // default limit is 20) keep the tight bound, which is where a hang really does mean
+  // a dropped request.
+  const listTimeout = (limit?: number) => ((limit ?? 0) > 50 ? { timeout: BULK_TIMEOUT } : undefined)
+
   let exerciseCache: types.Exercise[] | null = null
   let exerciseCachePromise: Promise<types.Exercise[]> | null = null
   const exerciseAPI = {
@@ -189,11 +197,21 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
       }
       if (exerciseCache) return Promise.resolve(exerciseCache)
       if (exerciseCachePromise) return exerciseCachePromise
+      // The in-flight promise is cleared on BOTH settle paths. Clearing it only in
+      // .then() leaves a rejected promise cached for the life of the page: every later
+      // call returns that same rejection, so one dropped request while the picker was
+      // opening breaks the picker until a full reload. clearCache() would recover it
+      // but nothing calls it. The rejection is re-thrown so the caller still sees the
+      // failure — only the caching of it is undone.
       exerciseCachePromise = api.get<{ data: types.Exercise[] }>('/exercises', { params: { limit: 1000 }, timeout: BULK_TIMEOUT })
         .then((res) => {
           exerciseCache = unwrap(res)
           exerciseCachePromise = null
           return exerciseCache
+        })
+        .catch((err) => {
+          exerciseCachePromise = null
+          throw err
         })
       return exerciseCachePromise
     },
@@ -222,7 +240,7 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
 
   const weightAPI = {
     list:   (params?: { limit?: number; offset?: number; from?: string; to?: string }) =>
-      api.get<{ data: types.WeightLog[] }>('/weight', { params }).then(unwrap),
+      api.get<{ data: types.WeightLog[] }>('/weight', { params, ...listTimeout(params?.limit) }).then(unwrap),
     get:    (id: number) => api.get<{ data: types.WeightLog }>(`/weight/${id}`).then(unwrap),
     log:    (data: { weight: number; notes?: string; logged_at?: string }) =>
       api.post<{ data: types.WeightLog }>('/weight', withLoggedOn(data)).then(unwrap),

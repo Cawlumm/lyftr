@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, restLabel, calcVolume } from '@lyftr/shared'
+import { types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -84,7 +84,7 @@ export default function WorkoutDetail() {
 
   const exs = workout.exercises ?? []
   const totalVolume = displayVolume(calcVolume(workout), wUnit)
-  const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const totalSets = countWorkingSets(workout)
   const durationMin = Math.round(workout.duration / 60)
 
   return (
@@ -198,7 +198,7 @@ export default function WorkoutDetail() {
           const sets = ex.sets ?? []
           const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map(s => s.weight || 0)) : 0
           const maxWeight = displayWeight(maxWeightLbs, wUnit)
-          const exVol = displayVolume(sets.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0), wUnit)
+          const exVol = displayVolume(exerciseVolume(sets), wUnit)
 
           return (
             <button
