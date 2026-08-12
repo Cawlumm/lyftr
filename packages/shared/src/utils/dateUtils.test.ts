@@ -1,5 +1,5 @@
 import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay } from './dateUtils'
-
+
 
 describe('dayToInstant', () => {
   it('defaults to local noon, expressed in UTC', () => {
