@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { router, usePathname } from 'expo-router'
 import { ChevronRight, Timer } from 'lucide-react-native'

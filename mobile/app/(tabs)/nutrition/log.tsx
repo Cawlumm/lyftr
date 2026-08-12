@@ -7,7 +7,7 @@ import {
 } from 'lucide-react-native'
 import {
   dayToInstant, entryDay, todayStr,
-  type FoodLog, type FoodSearchResult, type SavedFood,
+  type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, IconButton, Label, NumberField,

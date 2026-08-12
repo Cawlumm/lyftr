@@ -1,8 +1,5 @@
 import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay } from './dateUtils'
-
-const hours = (from: string, to: string) =>
-  (new Date(to).getTime() - new Date(from).getTime()) / 3_600_000
-
+
 
 describe('dayToInstant', () => {
   it('defaults to local noon, expressed in UTC', () => {
