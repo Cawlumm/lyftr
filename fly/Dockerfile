@@ -34,7 +34,9 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION sh build.sh
 FROM nginx:alpine
 # ca-certificates: needed for Go TLS (exercise seed fetch from GitHub)
 # wget: used in health checks if needed
-RUN apk add --no-cache ca-certificates wget
+# sqlite: `fly ssh console` -> VACUUM INTO is the only correct way to take a backup off
+# the volume; copying lyftr.db leaves the WAL behind. See backend/db/sqlite.go Close.
+RUN apk add --no-cache ca-certificates wget sqlite
 
 COPY --from=backend /build/lyftr-api     /app/lyftr-api
 COPY --from=frontend /app/dist           /usr/share/nginx/html

@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/controllers"
@@ -39,8 +44,29 @@ func main() {
 	routes.Setup(r, h)
 
 	addr := ":" + config.C.Port
-	log.Printf("lyftr API listening on %s (env=%s)", addr, config.C.Env)
-	if err := r.Run(addr); err != nil {
-		log.Fatalf("server error: %v", err)
+	srv := &http.Server{Addr: addr, Handler: r}
+
+	// `docker compose down` sends SIGTERM. gin's r.Run() ignores it, so the process
+	// was killed with the SQLite WAL un-checkpointed — see db.Close for why that
+	// silently truncated people's backups.
+	go func() {
+		log.Printf("lyftr API listening on %s (env=%s)", addr, config.C.Env)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+
+	// Compose's default grace period before SIGKILL is 10s; finish inside it, and
+	// leave room for the checkpoint afterwards.
+	log.Println("shutting down")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
 	}
+	db.Close()
 }

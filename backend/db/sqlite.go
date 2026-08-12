@@ -71,3 +71,22 @@ func Connect() {
 
 	log.Printf("SQLite database ready at %s", dbPath)
 }
+
+// Close shuts the database down cleanly. SQLite checkpoints the write-ahead log into
+// the main file and deletes the -wal when the last connection closes, so this one call
+// is what makes lyftr.db a complete copy of the data.
+//
+// It exists because nothing used to call it. `docker compose down` sends SIGTERM,
+// gin's r.Run ignored it, and the process died with the WAL un-checkpointed — while
+// our own docs told self-hosters their backup was `cp ./data/lyftr.db`. On a test
+// instance that copy held 0 of 29 food logs and 14 of 79 weight logs; the rest had
+// never left lyftr.db-wal. An explicit wal_checkpoint here would be redundant
+// (measured: Close alone recovers every row and removes the -wal).
+func Close() {
+	if DB == nil {
+		return
+	}
+	if err := DB.Close(); err != nil {
+		log.Printf("db close failed, data may remain in lyftr.db-wal: %v", err)
+	}
+}

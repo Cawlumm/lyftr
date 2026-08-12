@@ -20,8 +20,12 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION sh build.sh
 # Stage 2: Runtime
 FROM alpine:3.19
 
-# ca-certificates for any outbound TLS calls; wget for healthcheck
-RUN apk add --no-cache ca-certificates wget
+# ca-certificates for any outbound TLS calls; wget for healthcheck; sqlite so the
+# documented backup (`docker compose exec backend sqlite3 ... "VACUUM INTO ..."`) works
+# without a second container. Copying data/lyftr.db is not a backup — it leaves the WAL
+# behind — so the one tool that reads the WAL correctly has to be in the image.
+# Measured cost: 53.9 MB -> 57.7 MB.
+RUN apk add --no-cache ca-certificates wget sqlite
 
 WORKDIR /app
 
