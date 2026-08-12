@@ -1,9 +1,20 @@
 # Applies to every build whose context is the repo root: web/Dockerfile (via
 # docker-compose and the CI frontend job) and fly/Dockerfile (via `flyctl deploy`).
-# BuildKit reads .dockerignore from the *context root*, so web/.dockerignore stopped
-# applying the moment web's context moved up here — without this file `COPY web/ ./web/`
-# would drop a stale host node_modules on top of the one `npm ci` just built, and the
-# image would build green against the wrong dependency tree.
+#
+# Why this file has to exist. BuildKit reads .dockerignore from the *context root*, so
+# web/.dockerignore stopped applying the moment web's build context moved up here — and
+# fly/Dockerfile was already rooted here with no ignore file at all. With nothing to
+# exclude, two things happen, both measured on this repo:
+#
+#   1. The context balloons.        15.85 kB / 0.3s  ->  38.74 MB / 25.8s
+#   2. `COPY web/ ./web/` overlays the host's web/node_modules on top of the one
+#      `npm ci` just built INSIDE the image. Node resolves the nearest node_modules
+#      first, so the host copy then wins:
+#          eslint resolves from web -> /app/web/node_modules/eslint   (host, mtime 08-10)
+#          the npm ci copy at        -> /app/node_modules/eslint      (mtime 08-12)
+#      Today the shadowed packages are dev tooling (eslint, jsdom) because workspace
+#      hoisting leaves react at the root — but the mechanism shadows whatever is there,
+#      and a host-built native binary would be the wrong platform for the image.
 #
 # Do NOT exclude backend/, web/, packages/ or fly/ — all four are copied by fly/Dockerfile.
 
