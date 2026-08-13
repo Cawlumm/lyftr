@@ -33,32 +33,39 @@ Ask SQLite for the backup instead of copying files. This reads the WAL, is safe 
 stack is running, and writes one self-contained file:
 
 ```bash
+mkdir -p ./backups
+rm -f ./data/lyftr-backup.db.new
 docker compose exec backend \
-  sqlite3 /app/data/lyftr.db "VACUUM INTO '/app/data/lyftr-backup.db.new'"
-mv ./data/lyftr-backup.db.new ./backups/lyftr-backup.db
+  sqlite3 /app/data/lyftr.db "VACUUM INTO '/app/data/lyftr-backup.db.new'" &&
+  mv ./data/lyftr-backup.db.new ./backups/lyftr-backup.db
 ```
 
-Two things about that shape, both deliberate.
+Three things about that shape, all deliberate.
 
 `VACUUM INTO` refuses to write to a path that already exists — it exits 1 with `output
-file already exists` rather than overwriting. So it has to be given a fresh name each
-time, and the previous backup is only replaced once the new one has been written
-successfully. Deleting the old copy first would mean that a failure halfway through
-(container not running, volume full, a typo in the command) leaves you with no backup at
-all, at the exact moment you are about to update.
+file already exists` rather than overwriting. So it gets a fresh `.new` name, and the
+previous backup is only replaced once the new one has been written successfully.
+Deleting the old copy first would mean a failure halfway through (container not running,
+volume full, a typo) leaves you with no backup at all, at the exact moment you are about
+to update. The leading `rm -f` clears only the *staging* file, so a run that died partway
+last time cannot make this one fail.
+
+The `&&` matters for the same reason: without it the `mv` runs even when the backup
+command failed, quietly promoting a stale or missing file to be your backup.
 
 The `mv` moves it **off the data volume**. Keeping backups next to `lyftr.db` means one
 `docker compose down -v`, one `rm -rf data`, or one disk failure takes the database and
-every backup with it. Create `./backups` once with `mkdir -p ./backups`; better still,
-put it on different hardware.
+every backup with it. Better still, keep `./backups` on different hardware.
 
 No `sqlite3` in the image? Any SQLite build works — point it at the same directory:
 
 ```bash
+mkdir -p ./backups
+rm -f ./data/lyftr-backup.db.new
 docker run --rm -v "$(pwd)/data:/data" alpine \
   sh -c "apk add --no-cache sqlite && \
-         sqlite3 /data/lyftr.db \"VACUUM INTO '/data/lyftr-backup.db.new'\""
-mv ./data/lyftr-backup.db.new ./backups/lyftr-backup.db
+         sqlite3 /data/lyftr.db \"VACUUM INTO '/data/lyftr-backup.db.new'\"" &&
+  mv ./data/lyftr-backup.db.new ./backups/lyftr-backup.db
 ```
 
 ### Verify it
@@ -94,9 +101,12 @@ Put the steps in a script rather than in the crontab itself:
 set -e
 cd /path/to/lyftr
 day=$(date +%F)
+mkdir -p ./backups
+# Clear the staging file: a run that died partway would otherwise make every retry
+# today fail with "output file already exists".
+rm -f "./data/lyftr-$day.db.new"
 docker compose exec -T backend \
   sqlite3 /app/data/lyftr.db "VACUUM INTO '/app/data/lyftr-$day.db.new'"
-mkdir -p ./backups
 mv "./data/lyftr-$day.db.new" "./backups/lyftr-$day.db"
 find ./backups -name 'lyftr-20*.db' -mtime +7 -delete
 ```
