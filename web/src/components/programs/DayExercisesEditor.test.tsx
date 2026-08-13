@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import DayExercisesEditor from './DayExercisesEditor'
-import * as types from '../../types'
+import { types } from '@lyftr/shared'
 import type { DayExerciseDraft } from './types'
 
 const bench: types.Exercise = {

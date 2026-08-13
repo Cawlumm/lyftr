@@ -1,3 +1,10 @@
+import { resolveMuscleSlugs } from '@lyftr/shared'
+
+// Web's half of exercise presentation: the Tailwind colour table and the
+// react-body-highlighter slug table. EQUIPMENT_LABEL and the lookup rule are shared —
+// see packages/shared/src/utils/exerciseUtils.ts for why these two tables are not.
+export { EQUIPMENT_LABEL } from '@lyftr/shared'
+
 const MUSCLE_COLORS: Record<string, string> = {
   chest:      'bg-red-500/20 text-red-400 border-red-500/30',
   back:       'bg-blue-500/20 text-blue-400 border-blue-500/30',
@@ -16,19 +23,6 @@ const MUSCLE_COLORS: Record<string, string> = {
   lats:       'bg-sky-500/20 text-sky-400 border-sky-500/30',
 }
 
-export const EQUIPMENT_LABEL: Record<string, string> = {
-  'body only':     'Bodyweight',
-  'barbell':       'Barbell',
-  'dumbbell':      'Dumbbell',
-  'machine':       'Machine',
-  'cable':         'Cable',
-  'kettlebells':   'Kettlebell',
-  'bands':         'Bands',
-  'medicine ball': 'Med Ball',
-  'other':         'Other',
-  'foam roll':     'Foam Roll',
-}
-
 export function muscleColor(m: string): string {
   const full = MUSCLE_COLORS[m?.toLowerCase()] || 'bg-surface-muted text-tx-muted border-surface-border'
   return full.split(' ').filter(c => !c.startsWith('border-')).join(' ')
@@ -38,7 +32,7 @@ export function muscleColorBordered(m: string): string {
   return MUSCLE_COLORS[m?.toLowerCase()] || 'bg-surface-muted text-tx-muted border-surface-border'
 }
 
-// Maps our muscle group names + common secondary muscle names → react-body-highlighter slugs
+// Our muscle group names + common secondary muscle names → react-body-highlighter slugs.
 const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   chest: ['chest'],
   back: ['upper-back', 'lower-back'],
@@ -79,13 +73,4 @@ const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   abductors: ['abductors'],
 }
 
-export function muscleToBodySlugs(m: string): string[] {
-  const key = m?.toLowerCase().trim()
-  if (!key) return []
-  if (MUSCLE_TO_BODY_SLUG[key]) return MUSCLE_TO_BODY_SLUG[key]
-  // partial match fallback
-  for (const [k, v] of Object.entries(MUSCLE_TO_BODY_SLUG)) {
-    if (key.includes(k) || k.includes(key)) return v
-  }
-  return []
-}
+export const muscleToBodySlugs = (m: string): string[] => resolveMuscleSlugs(m, MUSCLE_TO_BODY_SLUG)

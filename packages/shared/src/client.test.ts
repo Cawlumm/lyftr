@@ -109,3 +109,86 @@ describe('workoutAPI tz_offset_minutes on legacy rows', () => {
     expect('tz_offset_minutes' in calls[0].body).toBe(false)
   })
 })
+
+// The unparameterised exercise list is fetched once and cached, because it is ~820 KB
+// and every picker opens with an empty search box.
+describe('exerciseAPI.list caching', () => {
+  // Adapter that fails the first N calls, then succeeds, counting requests.
+  const flakyClient = (failures: number) => {
+    let calls = 0
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async (config: any) => {
+      calls += 1
+      if (calls <= failures) throw new Error('network')
+      return {
+        data: { data: [{ id: 1, name: 'Bench Press' }] },
+        status: 200, statusText: 'OK', headers: {}, config,
+      }
+    }
+    return { client, count: () => calls }
+  }
+
+  it('fetches once and serves later calls from cache', async () => {
+    const { client, count } = flakyClient(0)
+    await client.exerciseAPI.list()
+    await client.exerciseAPI.list()
+    expect(count()).toBe(1)
+  })
+
+  it('recovers after a failed fetch instead of caching the rejection forever', async () => {
+    // Clearing the in-flight promise only on success left a rejected promise cached for
+    // the life of the page: every later call replayed that same rejection, so one
+    // dropped request while the picker was opening broke the picker until a reload.
+    const { client, count } = flakyClient(1)
+
+    await expect(client.exerciseAPI.list()).rejects.toThrow()
+    await expect(client.exerciseAPI.list()).resolves.toHaveLength(1)
+    expect(count()).toBe(2)
+  })
+
+  it('still surfaces the failure to the caller — it only stops caching it', async () => {
+    const { client } = flakyClient(1)
+    await expect(client.exerciseAPI.list()).rejects.toThrow('network')
+  })
+
+  it('does not cache filtered searches', async () => {
+    const { client, count } = flakyClient(0)
+    await client.exerciseAPI.list({ q: 'bench' })
+    await client.exerciseAPI.list({ q: 'bench' })
+    expect(count()).toBe(2)
+  })
+})
+
+// Web had no request timeout at all before adopting this client. The global 20s is
+// right for small reads, but two screens legitimately ask for a lot of rows.
+describe('list timeouts scale with the requested limit', () => {
+  const timeoutClient = () => {
+    const seen: Array<{ url?: string; timeout?: number }> = []
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async (config: any) => {
+      seen.push({ url: config.url, timeout: config.timeout })
+      return { data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    return { client, seen }
+  }
+
+  it('gives the dashboard 84-workout fetch the bulk bound, not 20s', async () => {
+    const { client, seen } = timeoutClient()
+    await client.workoutAPI.list({ limit: 84 })
+    expect(seen[0].timeout).toBe(60000)
+  })
+
+  it('gives the weight page limit:1000 fetch the bulk bound', async () => {
+    const { client, seen } = timeoutClient()
+    await client.weightAPI.list({ limit: 1000 })
+    expect(seen[0].timeout).toBe(60000)
+  })
+
+  it('leaves ordinary paginated reads on the tight global bound', async () => {
+    const { client, seen } = timeoutClient()
+    await client.workoutAPI.list({ limit: 20 })
+    await client.weightAPI.list()
+    expect(seen[0].timeout).toBe(20000)
+    expect(seen[1].timeout).toBe(20000)
+  })
+})

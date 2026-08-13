@@ -6,13 +6,11 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay } from '../utils/dateUtils'
-import { MACRO_COLORS } from '../utils/macroColors'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
-import * as types from '../types'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -27,29 +25,6 @@ const MEAL_ICONS: Record<string, React.ElementType> = {
 const MEAL_COLORS: Record<string, string> = {
   breakfast: 'text-amber-400', lunch: 'text-yellow-400',
   dinner: 'text-indigo-400', snacks: 'text-pink-400',
-}
-
-function entryToResult(e: types.FoodLog): types.FoodSearchResult {
-  const s = e.servings || 1
-  return {
-    name: e.name,
-    calories: e.calories / s,
-    protein: e.protein / s,
-    carbs: e.carbs / s,
-    fat: e.fat / s,
-    fiber: (e.fiber ?? 0) / s,
-    serving_size: e.serving_size ?? '',
-    image_url: e.image_url,
-    source: 'saved',
-  }
-}
-
-function savedToResult(s: types.SavedFood): types.FoodSearchResult {
-  return {
-    name: s.name, brand: s.brand,
-    calories: s.calories, protein: s.protein, carbs: s.carbs,
-    fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
-  }
 }
 
 function FoodResultRow({ item, onClick }: { item: types.FoodSearchResult; onClick: () => void }) {
@@ -192,16 +167,8 @@ export default function LogFood() {
     setSaveError(null)
     try {
       const payload = {
-        name: selected.name || 'Custom entry',
+        ...scaleServing(selected, servings),
         meal,
-        calories: +(selected.calories * servings).toFixed(1),
-        protein: +(selected.protein * servings).toFixed(1),
-        carbs: +(selected.carbs * servings).toFixed(1),
-        fat: +(selected.fat * servings).toFixed(1),
-        fiber: +((selected.fiber ?? 0) * servings).toFixed(1),
-        servings,
-        serving_size: selected.serving_size ?? '',
-        image_url: selected.image_url ?? '',
         logged_at: dayToInstant(date),
       }
       if (editId) {

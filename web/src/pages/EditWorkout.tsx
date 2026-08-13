@@ -5,7 +5,7 @@ import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string

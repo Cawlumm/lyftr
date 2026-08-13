@@ -2,13 +2,12 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
-import { BODYWEIGHT_STEP, clampStep } from '../../utils/number'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {

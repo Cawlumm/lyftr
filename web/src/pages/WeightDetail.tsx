@@ -7,11 +7,9 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, dayToLocalDate} from '../utils/dateUtils'
+import { todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep } from '../utils/number'
-import * as types from '../types'
 
 export default function WeightDetail() {
   const { id } = useParams<{ id: string }>()

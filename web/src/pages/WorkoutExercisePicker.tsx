@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
 
 export default function WorkoutExercisePicker() {

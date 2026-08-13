@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import * as Localization from 'expo-localization'
 import {
   createClient,
+  createUseRestTimer,
   createAuthStore,
   createServerStore,
   createSettingsStore,
@@ -37,3 +38,6 @@ export const useThemeStore = createThemeStore(storage, 'light')
 // AsyncStorage; rest-timer state is in-memory only (see the store).
 export const useWorkoutSession = createWorkoutSession(storage)
 
+
+// Rest-timer state derived from the session store above. Logic in @lyftr/shared.
+export const useRestTimer = createUseRestTimer(useWorkoutSession)

@@ -10,6 +10,7 @@ import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../s
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import { muscleColor } from '../utils/exerciseUtils'
+import { formatElapsed, useElapsedSeconds } from '@lyftr/shared'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const [editing, setEditing] = useState(false)
@@ -46,14 +47,6 @@ function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string;
   )
 }
 
-function formatElapsed(seconds: number) {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
 export default function ActiveWorkout() {
   const navigate = useNavigate()
   const { session, updateSet, updateExerciseNotes, completeSet, addSet, removeSet, removeExercise, buildPayload, cancelSession, openGym } =
@@ -61,7 +54,7 @@ export default function ActiveWorkout() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
-  const [elapsed, setElapsed] = useState(0)
+  const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -76,15 +69,6 @@ export default function ActiveWorkout() {
   }, [])
 
   // Workout elapsed timer
-  useEffect(() => {
-    if (!session) return
-    const started = new Date(session.started_at).getTime()
-    const tick = () => setElapsed(Math.floor((Date.now() - started) / 1000))
-    tick()
-    const id = setInterval(tick, 1000)
-    return () => clearInterval(id)
-  }, [session?.started_at])
-
   if (!session) {
     return (
       <div className="empty-state py-20">

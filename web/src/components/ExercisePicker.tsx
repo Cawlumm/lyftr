@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { exerciseAPI } from '../services/api'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
 
 interface Props {

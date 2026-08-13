@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useNumericText } from './useNumericText'
+import { useNumericText } from '@lyftr/shared'
+
+// The hook itself lives in @lyftr/shared; this suite stays here because exercising a
+// React hook needs jsdom + @testing-library, which shared's plain-node jest setup
+// does not carry. ci.yml runs web's unit job on any packages/shared/** change, so a
+// shared edit still trips these.
 
 // Regression guard for the gym weight/reps in-progress-typing bug fixed in PR #59:
 // the parent re-derives `value` from a rounded / 0→'' number on every keystroke, and

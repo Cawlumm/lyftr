@@ -9,7 +9,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const

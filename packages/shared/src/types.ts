@@ -1,4 +1,5 @@
-// Domain types — ported verbatim from web/src/types.ts. Shared by web + mobile.
+// Domain types — the single definition for web and mobile. These mirror the Go structs
+// in backend/models/models.go; when an API response shape changes, change it here.
 export interface User {
   id: number
   email: string

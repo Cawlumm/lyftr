@@ -1,6 +1,6 @@
 import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
-import { useNumericText } from '../../hooks/useNumericText'
+import { useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, ChevronUp, ChevronDown, Dumbbell, Moon, ChevronRight, ChevronLeft as ChevronCollapse } from 'lucide-react'
 import DayExercisesEditor from './DayExercisesEditor'
-import * as types from '../../types'
+import { types, appendDay, removeDayAt, moveDayBy, patchDayAt } from '@lyftr/shared'
 import type { DayDraft } from './types'
 
 interface Props {
@@ -13,39 +13,32 @@ interface Props {
   restSecondsDefault: number
 }
 
-const reindex = (days: DayDraft[]): DayDraft[] => days.map((d, i) => ({ ...d, order_index: i }))
-
 // The program's day/rest-day cycle, in order. Add/remove/reorder days here; each
-// workout day expands to the (unchanged) per-day exercise editor.
+// workout day expands to the (unchanged) per-day exercise editor. The array operations
+// come from @lyftr/shared — only the `expanded` row bookkeeping below is web's.
 export default function ProgramDaysEditor({ days, onChange, pickerExercises, onCacheExercise, wUnit, restSecondsDefault }: Props) {
   const [expanded, setExpanded] = useState<number | null>(days.findIndex(d => !d.is_rest_day))
 
   const addDay = (isRest: boolean) => {
-    const next = reindex([...days, { order_index: days.length, is_rest_day: isRest, name: '', exercises: [] }])
+    const next = appendDay(days, isRest)
     onChange(next)
     setExpanded(next.length - 1)
   }
 
   const removeDay = (idx: number) => {
-    onChange(reindex(days.filter((_, i) => i !== idx)))
+    onChange(removeDayAt(days, idx))
     setExpanded(null)
   }
 
   const moveDay = (idx: number, dir: -1 | 1) => {
-    const target = idx + dir
-    if (target < 0 || target >= days.length) return
-    const next = [...days]
-    ;[next[idx], next[target]] = [next[target], next[idx]]
-    onChange(reindex(next))
-    if (expanded === idx) setExpanded(target)
-    else if (expanded === target) setExpanded(idx)
+    const next = moveDayBy(days, idx, dir)
+    if (next === days) return // move fell off the end — nothing changed
+    onChange(next)
+    if (expanded === idx) setExpanded(idx + dir)
+    else if (expanded === idx + dir) setExpanded(idx)
   }
 
-  const updateDay = (idx: number, patch: Partial<DayDraft>) => {
-    const next = [...days]
-    next[idx] = { ...next[idx], ...patch }
-    onChange(next)
-  }
+  const updateDay = (idx: number, patch: Partial<DayDraft>) => onChange(patchDayAt(days, idx, patch))
 
   const toggleRest = (idx: number) => {
     const day = days[idx]

@@ -43,7 +43,17 @@ export default function ServerSettings() {
     }
     // Save immediately (warn-but-save): the choice is authoritative right away;
     // the connection probe below is advisory and may lag on a slow/down server.
-    setServerUrl(normalized)
+    //
+    // Awaited: the store persists through an async storage adapter, so firing this and
+    // moving on would report "Connected" for a write that had not landed — or failed
+    // outright (quota, Safari private mode) — leaving the old server in effect on the
+    // next load while the user was told otherwise.
+    try {
+      await setServerUrl(normalized)
+    } catch {
+      setStatus({ kind: 'error', message: "Couldn't save the server URL — this browser is blocking storage." })
+      return
+    }
     setInput(normalized)
     setStatus({ kind: 'testing' })
     const result = await testServerConnection(normalized)

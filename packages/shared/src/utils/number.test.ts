@@ -1,4 +1,3 @@
-import { describe, it, expect } from 'vitest'
 import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only

@@ -3,11 +3,30 @@
 // and pure utilities. NO UI and NO platform APIs (storage is injected).
 
 export * from './types'
+// Also grouped under a `types` namespace. Mobile imports domain types by name; web
+// reads them as `types.Workout` at ~28 call sites. Both spellings resolve to the same
+// declarations, so neither app has to adopt the other's import style to share them.
+export * as types from './types'
 export * from './storage'
 export * from './client'
 export * from './utils/serverUrl'
 export * from './utils/networkError'
 export * from './utils/weight'
+export * from './utils/number'
+export * from './utils/workoutSets'
+export * from './utils/macroColors'
+export * from './utils/exerciseUtils'
+export * from './utils/workout'
+export * from './utils/programDrafts'
+export * from './utils/food'
+export * from './utils/dashboard'
+export * from './utils/version'
+export * from './theme/tokens'
+export * from './hooks/useCountdown'
+export * from './hooks/useNumericText'
+export * from './hooks/useElapsedSeconds'
+export * from './hooks/useRestTimer'
+export * from './hooks/useServerList'
 export * from './utils/dateUtils'
 export * from './utils/programUtils'
 export * from './stores/auth'

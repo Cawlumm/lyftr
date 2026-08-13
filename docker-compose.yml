@@ -24,7 +24,11 @@ services:
 
   frontend:
     image: cwlumm/lyftr-frontend:latest
-    build: ./web
+    # Repo root, not ./web — the build installs the npm workspace so it can reach
+    # packages/shared. Service name stays `frontend` so the CI bake cache flags match.
+    build:
+      context: .
+      dockerfile: web/Dockerfile
     restart: unless-stopped
     environment:
       # host:port the frontend nginx proxies /api to. Must match the backend's PORT.

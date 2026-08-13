@@ -1,4 +1,8 @@
-import { EQUIPMENT_LABEL, muscleColor, muscleToBodySlugs } from './exerciseUtils'
+import { muscleColor, muscleToBodySlugs } from './exerciseUtils'
+
+// The lookup rule and EQUIPMENT_LABEL are covered in
+// packages/shared/src/utils/exerciseUtils.test.ts. What's left here is what is
+// genuinely mobile's: the tint shape and the RN body-highlighter slug remaps.
 
 describe('muscleColor', () => {
   it('resolves a tint case-insensitively', () => {
@@ -11,27 +15,18 @@ describe('muscleColor', () => {
   })
 })
 
-describe('muscleToBodySlugs', () => {
-  it('maps an exact muscle name to its body-diagram slugs', () => {
+describe('muscleToBodySlugs — react-native-body-highlighter vocabulary', () => {
+  it('collapses front/back deltoids to the single slug the RN library has', () => {
+    expect(muscleToBodySlugs('shoulders')).toEqual(['deltoids'])
+    expect(muscleToBodySlugs('rear deltoid')).toEqual(['deltoids'])
+  })
+
+  it('remaps parts the RN library lacks to the nearest one it has', () => {
+    expect(muscleToBodySlugs('abductors')).toEqual(['gluteal'])
+    expect(muscleToBodySlugs('middle back')).toEqual(['upper-back'])
+  })
+
+  it('maps a muscle group to every part it covers', () => {
     expect(muscleToBodySlugs('legs')).toEqual(['quadriceps', 'hamstring', 'calves', 'gluteal'])
-  })
-
-  it('normalizes case and whitespace before matching', () => {
-    expect(muscleToBodySlugs('  Chest ')).toEqual(['chest'])
-  })
-
-  it('falls back to a partial match', () => {
-    expect(muscleToBodySlugs('quad')).toEqual(['quadriceps'])
-  })
-
-  it('returns [] for empty or unknown input', () => {
-    expect(muscleToBodySlugs('')).toEqual([])
-    expect(muscleToBodySlugs('zzz')).toEqual([])
-  })
-})
-
-describe('EQUIPMENT_LABEL', () => {
-  it('maps "body only" to a friendly label', () => {
-    expect(EQUIPMENT_LABEL['body only']).toBe('Bodyweight')
   })
 })

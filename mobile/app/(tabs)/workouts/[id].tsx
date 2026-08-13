@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -15,7 +15,6 @@ import { muscleColor } from '../../../src/utils/exerciseUtils'
 // Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
 const exerciseHref = (exerciseId: number) => `/workouts/exercise/${exerciseId}` as unknown as Href
 
-const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
 
 function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit: string }) {
   return (
@@ -124,11 +123,8 @@ export default function WorkoutDetail() {
   }
 
   const exs = workout.exercises ?? []
-  const totalVolume = displayVolume(
-    exs.reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0),
-    wUnit
-  )
-  const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const totalVolume = displayVolume(calcVolume(workout), wUnit)
+  const totalSets = countWorkingSets(workout)
   const durationMin = Math.round(workout.duration / 60)
 
   return (
@@ -240,7 +236,7 @@ export default function WorkoutDetail() {
               const sets = ex.sets ?? []
               const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.weight || 0)) : 0
               const maxWeight = displayWeight(maxWeightLbs, wUnit)
-              const exVol = displayVolume(sets.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0), wUnit)
+              const exVol = displayVolume(exerciseVolume(sets), wUnit)
 
               return (
                 <Pressable

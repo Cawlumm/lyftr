@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Pause, Play, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useRestTimer } from '../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet } from '../utils/workoutSets'
+import { fmtClock, nextIncompleteSet } from '@lyftr/shared'
 import { IconButton } from './ui'
 
 // Hevy/Strong-style rest panel: a thin draining progress line, a big centred

@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useCountdown } from './useCountdown'
+import { useCountdown } from '@lyftr/shared'
+
+// The hook itself lives in @lyftr/shared; this suite stays here because exercising a
+// React hook needs jsdom + @testing-library, which shared's plain-node jest setup
+// does not carry. ci.yml runs web's unit job on any packages/shared/** change, so a
+// shared edit still trips these.
 
 describe('useCountdown', () => {
   beforeEach(() => vi.useFakeTimers())

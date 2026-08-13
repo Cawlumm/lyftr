@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
@@ -16,73 +16,18 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate} from '../utils/dateUtils'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
-import * as types from '../types'
 import { muscleColor } from '../utils/exerciseUtils'
-import { activeSessionExercisesForDay, dayLabel, isDayStartable, sessionNameForDay, todaysDay } from '../utils/programUtils'
-
-const TODAY = new Date()
-
-function greeting() {
-  const h = TODAY.getHours()
-  if (h < 12) return 'Good morning'
-  if (h < 17) return 'Good afternoon'
-  return 'Good evening'
-}
-
-const calcVolume = (w: types.Workout) =>
-  (w.exercises ?? []).reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0)
 
 const DEFAULT_FOOD: types.DailyStats = {
-  date: format(TODAY, 'yyyy-MM-dd'),
+  date: '',
   total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
 const DEFAULT_SETTINGS: types.UserSettings = {
   user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
   protein_target: 150, carb_target: 250, fat_target: 65, timezone: 'UTC',
 }
-
-// Hex colors for recharts (can't use Tailwind classes)
-const MUSCLE_HEX: Record<string, string> = {
-  chest:       '#f87171',
-  back:        '#60a5fa',
-  shoulders:   '#818cf8',
-  biceps:      '#f472b6',
-  triceps:     '#a78bfa',
-  legs:        '#34d399',
-  quadriceps:  '#34d399',
-  hamstrings:  '#6ee7b7',
-  glutes:      '#86efac',
-  calves:      '#4ade80',
-  core:        '#fbbf24',
-  abs:         '#fbbf24',
-  forearms:    '#fb923c',
-  traps:       '#94a3b8',
-  lats:        '#38bdf8',
-  'full body': '#e879f9',
-}
-const muscleHex = (m: string) => MUSCLE_HEX[m?.toLowerCase()] ?? '#6366f1'
-
-const MUSCLE_ROAST: Record<string, string> = {
-  chest:       'All chest, no legs. Classic bro.',
-  back:        'Built like a refrigerator. Respect.',
-  shoulders:   "Can't fit through doorways. Good.",
-  biceps:      'Mirror selfies loading…',
-  triceps:     'Horseshoe gang. Handshakes must be terrifying.',
-  legs:        "Actually training legs. You're a unicorn.",
-  quadriceps:  "Quads for days. Jeans don't stand a chance.",
-  hamstrings:  'Posterior chain warrior. Deadlift god incoming.',
-  glutes:      'Glute guy/gal. We respect the commitment.',
-  calves:      'Calf king/queen. The rarest of all lifters.',
-  core:        'Beach season ready 365 days a year.',
-  abs:         'Six pack incoming. Or already here. Either way.',
-  forearms:    'Popeye called. He wants his arms back.',
-  traps:       'No neck, no problem.',
-  lats:        'Walking around like a cobra. Wings deployed.',
-  'full body': 'A true all-rounder. Or you just did burpees.',
-}
-const muscleRoast = (m: string) => MUSCLE_ROAST[m?.toLowerCase()] ?? 'Mysterious training patterns. We respect it.'
 
 function MuscleSparkline({ values, color, isTop }: { values: number[], color: string, isTop: boolean }) {
   if (values.length < 2) return <div className="w-14 h-6 flex-shrink-0" />
@@ -127,6 +72,10 @@ const TOOLTIP_STYLE = {
 }
 
 export default function Dashboard() {
+  // Sampled per mount, not at module load. As a module constant this went stale the
+  // moment the tab outlived the day it was opened on — a tab left open across midnight
+  // kept yesterday's date header, week boundary and heatmap "today" until a reload.
+  const TODAY = useMemo(() => new Date(), [])
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
   const { user } = useAuthStore()
@@ -163,7 +112,7 @@ export default function Dashboard() {
       })
       .catch(err => setError(err.message || 'Failed to load'))
       .finally(() => setLoading(false))
-  }, [])
+  }, [TODAY])
 
   if (loading) return <Loading />
 
@@ -188,13 +137,7 @@ export default function Dashboard() {
   // "Up next": the first (most recently created) program whose due day is a
   // startable workout day. Surfaces today's routine workout without opening the
   // Programs page — a routine that never shows on the dashboard never gets started.
-  const upNext = (() => {
-    for (const p of programs) {
-      const day = todaysDay(p)
-      if (isDayStartable(day)) return { program: p, day }
-    }
-    return null
-  })()
+  const upNext = nextStartableDay(programs)
 
   const startUpNext = () => {
     if (!upNext) return
@@ -288,7 +231,7 @@ export default function Dashboard() {
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
           <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5">
-            {greeting()}, {username}
+            {greeting(TODAY)}, {username}
           </h1>
         </div>
         <button

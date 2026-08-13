@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ProgramPicker from './ProgramPicker'
-import * as types from '../types'
+import { types } from '@lyftr/shared'
 
 const listMock = vi.fn()
 vi.mock('../services/api', () => ({
