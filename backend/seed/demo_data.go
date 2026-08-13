@@ -89,7 +89,12 @@ func DemoData(db *sql.DB) {
 			break
 		}
 		log.Printf("seed: demo data waiting for exercises... (%d/18)", i+1)
-		time.Sleep(5 * time.Second)
+		// Abandons the wait immediately on shutdown instead of holding the process for
+		// up to another 5s while the checkpoint is trying to run.
+		if !Sleep(5 * time.Second) {
+			log.Println("seed: shutting down, abandoning demo data")
+			return
+		}
 	}
 	if exCount < 100 {
 		log.Println("seed: exercises not ready, skipping demo data")
@@ -109,14 +114,35 @@ func DemoData(db *sql.DB) {
 		return
 	}
 
+	// Each phase writes through many separate statements with no enclosing transaction,
+	// so shutdown is checked between them: once the WAL has been checkpointed, anything
+	// written afterwards is stranded in a new WAL when the process exits. Partial demo
+	// data is fine — this whole block is skipped when workouts already exist, so the
+	// next start picks up where it left off.
+	if Stopping() {
+		log.Println("seed: shutting down before demo data")
+		return
+	}
 	progID, err := seedProgram(db, userID)
 	if err != nil {
 		log.Printf("seed: program: %v", err)
 	}
+	if Stopping() {
+		log.Println("seed: shutting down after program")
+		return
+	}
 	if err := seedWorkouts(db, userID, progID); err != nil {
 		log.Printf("seed: workouts: %v", err)
 	}
+	if Stopping() {
+		log.Println("seed: shutting down after workouts")
+		return
+	}
 	seedWeightLogs(db, userID)
+	if Stopping() {
+		log.Println("seed: shutting down after weight logs")
+		return
+	}
 	seedFoodLogs(db, userID)
 	log.Println("seed: demo data complete")
 }

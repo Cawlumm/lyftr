@@ -112,8 +112,17 @@ find ./backups -name 'lyftr-20*.db' -mtime +7 -delete
 ```
 
 ```bash
+mkdir -p /path/to/lyftr/backups     # once, before installing the entry below
+```
+
+```bash
 0 3 * * * /path/to/lyftr/backup.sh >> /path/to/lyftr/backups/backup.log 2>&1
 ```
+
+The `mkdir` has to happen first. Cron's shell opens that redirect *before* it runs the
+script, so on a fresh install where `./backups` does not exist yet the redirect fails, the
+script never runs — and the log that was supposed to tell you never gets written either.
+The `mkdir -p` inside `backup.sh` cannot save you, because nothing has reached it.
 
 A crontab entry has to be **one line** — the command field runs to the end of the line and
 there is no `\` continuation, so a multi-line recipe pasted straight into `crontab -e` is

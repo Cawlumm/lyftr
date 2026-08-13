@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -97,9 +98,7 @@ func Connect() {
 //
 // Doing the checkpoint through the pool first is what fixes that: with one connection
 // the PRAGMA queues behind whoever holds it, so it runs after that work finishes
-// rather than racing it. The context bounds the wait — a checkpoint that cannot get
-// the connection must not hang shutdown past compose's grace period, and a loud log
-// beats a silent truncation.
+// rather than racing it. See checkpoint below for why that call is not a one-liner.
 //
 // TRUNCATE rather than PASSIVE so the -wal is emptied, not merely folded in: a
 // leftover -wal is what makes a restore silently replay over the file just put back.
@@ -110,13 +109,59 @@ func Close() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), checkpointTimeout)
 	defer cancel()
-	if _, err := DB.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		log.Printf("WARNING: wal checkpoint failed after %s — recent writes may still be "+
-			"in lyftr.db-wal, so a copy of lyftr.db alone is NOT a complete backup: %v",
-			checkpointTimeout, err)
+	if err := checkpoint(ctx); err != nil {
+		log.Printf("WARNING: %v — recent writes may still be in lyftr.db-wal, so a copy "+
+			"of lyftr.db alone is NOT a complete backup right now", err)
 	}
 
 	if err := DB.Close(); err != nil {
 		log.Printf("db close failed: %v", err)
+	}
+}
+
+// checkpoint runs the final TRUNCATE and reports honestly whether it worked.
+//
+// Two traps make the obvious one-liner wrong, both measured:
+//
+//   - `PRAGMA wal_checkpoint` reports failure in its RESULT ROW, not as an error.
+//     It returns (busy, log, checkpointed) and the status stays SQLITE_OK, so
+//     DB.Exec(...) on a blocked checkpoint returns err == nil having folded nothing:
+//     `err=<nil> busy=1 log=202 checkpointed=202`, WAL unchanged. Any warning keyed off
+//     the error alone can never fire — which is the silent truncation, dressed as a fix.
+//     So scan the row and treat busy != 0 as the failure it is.
+//
+//   - The context does not bound the driver's own wait. Connect sets busy_timeout(5000);
+//     that sleep is not interruptible, so a 4s context just relabels a 5s call
+//     (measured: elapsed=5.03s against checkpointTimeout=4s). Shutdown has a hard
+//     ceiling — compose SIGKILLs at 10s — so lower busy_timeout on this one connection
+//     and let the loop below own the retry budget instead.
+func checkpoint(ctx context.Context) error {
+	conn, err := DB.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("could not get a connection to checkpoint the WAL: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "PRAGMA busy_timeout=250"); err != nil {
+		return fmt.Errorf("could not lower busy_timeout for the checkpoint: %w", err)
+	}
+
+	for {
+		var busy, logFrames, checkpointed int
+		row := conn.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)")
+		if err := row.Scan(&busy, &logFrames, &checkpointed); err != nil {
+			return fmt.Errorf("wal checkpoint failed: %w", err)
+		}
+		if busy == 0 {
+			return nil
+		}
+		// Someone else holds a read lock — the sqlite3 CLI this image ships, a `fly ssh
+		// console` session, a backup mid-VACUUM. Retry until the budget runs out.
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("wal checkpoint still blocked after %s with %d frames in the WAL "+
+				"(another sqlite connection is holding it open)", checkpointTimeout, logFrames)
+		case <-time.After(200 * time.Millisecond):
+		}
 	}
 }

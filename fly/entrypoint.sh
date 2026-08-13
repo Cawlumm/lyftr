@@ -15,29 +15,6 @@ mkdir -p /var/spool/cron/crontabs
 echo "0 * * * * /app/reset.sh >> /app/data/reset.log 2>&1" > /var/spool/cron/crontabs/root
 crond
 
-# Restart loop: reset.sh uses pkill to stop lyftr-api; this loop restarts it.
-# Running in background (&) so nginx can start as foreground PID 1.
-while true; do
-    echo "[lyftr] starting backend..."
-    /app/lyftr-api || true
-    echo "[lyftr] backend exited, restarting in 3s..."
-    sleep 3
-done &
-loop_pid=$!
-
-# Brief pause so the backend is accepting connections before nginx gets traffic
-sleep 2
-
-# nginx runs in the background rather than via `exec`, so this shell stays PID 1 and can
-# forward the shutdown signal.
-#
-# Fly (and Docker) signal PID 1 only. With `exec nginx` that was nginx, and lyftr-api —
-# sitting in the backgrounded loop above — never saw SIGTERM at all: on every deploy,
-# machine stop or restart it was SIGKILLed with the SQLite WAL un-checkpointed. Its
-# graceful shutdown existed but was unreachable on the one deployment that runs it.
-nginx -g 'daemon off;' &
-nginx_pid=$!
-
 shutdown() {
     echo "[lyftr] shutdown: stopping nginx, then draining the backend"
 
@@ -65,6 +42,52 @@ shutdown() {
     fi
     exit 0
 }
+
+# Installed before anything is started, so a stop signal arriving during the first few
+# seconds — a fast rollback, `fly machine stop` right after a deploy, a failed release
+# check — still drains the backend instead of killing PID 1 on the default disposition.
+# $loop_pid/$nginx_pid being unset that early is harmless: the kills are guarded.
 trap shutdown TERM INT
 
-wait "$nginx_pid"
+# Restart loop: reset.sh uses pkill to stop lyftr-api; this loop restarts it.
+# Running in background (&) so nginx can start as foreground PID 1.
+while true; do
+    # reset.sh and snapshot.sh drop this file while they swap the database files around.
+    # Without it the loop restarts the backend ~3s after pkill, so it can reopen the DB
+    # underneath `mv`/`rm -f` — deleting the WAL out from under a live connection. Their
+    # own wait loop cannot close that window; only holding the restart back can.
+    # Expire a stale guard first: if reset.sh is SIGKILLed its EXIT trap never runs, and
+    # without this the loop would wait forever and the demo would stay down permanently.
+    # A reset takes seconds, so anything older than five minutes is wreckage.
+    find /app/data -maxdepth 1 -name '.reset-in-progress' -mmin +5 -delete 2>/dev/null || true
+    while [ -f /app/data/.reset-in-progress ]; do
+        sleep 1
+    done
+    echo "[lyftr] starting backend..."
+    /app/lyftr-api || true
+    echo "[lyftr] backend exited, restarting in 3s..."
+    sleep 3
+done &
+loop_pid=$!
+
+# Brief pause so the backend is accepting connections before nginx gets traffic
+sleep 2
+
+# nginx runs in the background rather than via `exec`, so this shell stays PID 1 and can
+# forward the shutdown signal.
+#
+# Fly (and Docker) signal PID 1 only. With `exec nginx` that was nginx, and lyftr-api —
+# sitting in the backgrounded loop above — never saw SIGTERM at all: on every deploy,
+# machine stop or restart it was SIGKILLed with the SQLite WAL un-checkpointed. Its
+# graceful shutdown existed but was unreachable on the one deployment that runs it.
+nginx -g 'daemon off;' &
+nginx_pid=$!
+
+# If nginx exits on its own — crash, OOM kill, a bad config reload — fall into the same
+# shutdown path rather than letting PID 1 return. Returning here would tear the container
+# down with lyftr-api still running and its WAL open, which is the loss this file exists
+# to prevent. `|| true` because `set -e` would otherwise exit on nginx's non-zero status
+# before the drain gets a chance to run.
+wait "$nginx_pid" || true
+echo "[lyftr] nginx exited on its own; draining the backend before we follow it"
+shutdown

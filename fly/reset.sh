@@ -17,6 +17,14 @@ if [ ! -f "$SEED" ]; then
     exit 0
 fi
 
+# Hold the entrypoint's restart loop back for the whole swap. Waiting for the backend to
+# exit is not enough on its own: the loop brings it back ~3s later, so it can reopen the
+# database between the wait below and the mv/rm further down, and then have its WAL
+# deleted from under it. Cleared on every exit path, including failure.
+GUARD="/app/data/.reset-in-progress"
+touch "$GUARD"
+trap 'rm -f "$GUARD"' EXIT
+
 echo "[reset] $(date): stopping backend..."
 pkill lyftr-api 2>/dev/null || true
 # The backend now HAS a SIGTERM handler: it drains in-flight requests (up to 5s) and

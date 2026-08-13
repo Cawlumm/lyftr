@@ -8,6 +8,12 @@ set -e
 SEED="/app/data/lyftr.seed.db"
 LIVE="/app/data/lyftr.db"
 
+# Same guard reset.sh uses: hold the entrypoint's restart loop back for the whole copy,
+# or it reopens the database ~3s after pkill and the snapshot captures a live file.
+GUARD="/app/data/.reset-in-progress"
+touch "$GUARD"
+trap 'rm -f "$GUARD"' EXIT
+
 echo "[snapshot] $(date): stopping backend..."
 pkill lyftr-api 2>/dev/null || true
 # The backend now HAS a SIGTERM handler: it drains in-flight requests (up to 5s) then

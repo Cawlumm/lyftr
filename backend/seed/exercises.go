@@ -55,7 +55,7 @@ func Exercises(db *sql.DB) {
 	}
 
 	log.Println("seed: exercises table empty - syncing from free-exercise-db in background...")
-	go fetchAndStoreAsync(db)
+	Go("exercise-sync", func() { fetchAndStoreAsync(db) })
 }
 
 func fetchAndStoreAsync(db *sql.DB) {
@@ -87,12 +87,12 @@ func WipeAndReseed(db *sql.DB) error {
 		return fmt.Errorf("wipe failed: %w", err)
 	}
 	log.Println("seed: exercises wiped, starting re-seed...")
-	go func() {
+	Go("exercise-resync", func() {
 		defer seeding.Store(false)
 		if err := fetchAndStoreLocked(db); err != nil {
 			log.Printf("seed: exercise sync failed: %v", err)
 		}
-	}()
+	})
 	return nil
 }
 

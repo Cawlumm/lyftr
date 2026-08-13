@@ -86,6 +86,13 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("graceful shutdown timed out, closing anyway: %v", err)
 	}
+
+	// Seeding is not HTTP work, so srv.Shutdown does not wait for it — and DemoData
+	// writes through many separate statements with no transaction around them. Left
+	// running, it can keep inserting after db.Close has checkpointed, into a WAL that
+	// nothing will fold in before the process exits. Stop it first.
+	seed.Stop(2 * time.Second)
+
 	db.Close()
 
 	if exitCode != 0 {
