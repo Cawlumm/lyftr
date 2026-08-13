@@ -33,13 +33,20 @@ Ask SQLite for the backup instead of copying files. This reads the WAL, is safe 
 stack is running, and writes one self-contained file:
 
 ```bash
+rm -f ./data/lyftr-backup.db
 docker compose exec backend \
   sqlite3 /app/data/lyftr.db "VACUUM INTO '/app/data/lyftr-backup.db'"
 ```
 
+The `rm` is not optional. `VACUUM INTO` refuses to write to a path that already exists —
+it fails with `output file already exists` and exit code 1 rather than clobbering what
+might be your only good copy. Without the `rm` this works the first time and fails every
+time after, which is the worst possible moment to find out.
+
 No `sqlite3` in the image? Any SQLite build works — point it at the same directory:
 
 ```bash
+rm -f ./data/lyftr-backup.db
 docker run --rm -v "$(pwd)/data:/data" alpine \
   sh -c "apk add --no-cache sqlite && \
          sqlite3 /data/lyftr.db \"VACUUM INTO '/data/lyftr-backup.db'\""
@@ -63,8 +70,14 @@ A nightly backup keeping the last 7 days:
 ```bash
 0 3 * * * cd /path/to/lyftr && docker compose exec -T backend \
   sqlite3 /app/data/lyftr.db "VACUUM INTO '/app/data/lyftr-$(date +\%F).db'" && \
-  find /path/to/lyftr/data -name 'lyftr-*.db' -mtime +7 -delete
+  find /path/to/lyftr/data -name 'lyftr-20*.db' -mtime +7 -delete
 ```
+
+Two details that bite here. `%` is the line separator in a crontab, so `date +%F` has to be
+written `date +\%F` or cron truncates the command. And the dated filename means each night
+writes to a path that does not exist yet, so this needs no `rm`. The `find` pattern is
+`lyftr-20*.db` rather than `lyftr-*.db` so it only ever matches the dated files — a looser
+glob would sweep up a hand-made `lyftr-backup.db` too.
 
 ## Restore
 
