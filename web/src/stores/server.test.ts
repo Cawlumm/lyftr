@@ -1,106 +1,52 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import {
-  normalizeServerUrl,
-  useServerStore,
-  isInsecureServerUrl,
-  isMixedContentBlocked,
-} from './server'
+import { useServerStore, isMixedContentBlocked } from './server'
 
-describe('normalizeServerUrl', () => {
-  it('returns empty for blank or whitespace-only input', () => {
-    expect(normalizeServerUrl('')).toBe('')
-    expect(normalizeServerUrl('   ')).toBe('')
-  })
+// Scoped to what is genuinely web's after the store moved to @lyftr/shared:
+//
+//  - isMixedContentBlocked reads window.location.protocol, so it can only be
+//    exercised in a DOM. Shared's jest runs in plain node, where the branch under
+//    test is unreachable — the function returns false before it looks at anything.
+//  - The store binding: that the shared factory, wired to web's localStorage
+//    adapter, really reads and writes the browser's localStorage under the expected
+//    key. Shared tests the reducer against an in-memory adapter; only here can the
+//    adapter itself be wrong.
+//
+// normalizeServerUrl / isInsecureServerUrl are pure and now live in
+// packages/shared/src/utils/serverUrl.test.ts.
 
-  it('rejects input with internal whitespace', () => {
-    expect(normalizeServerUrl('not a url')).toBe('')
-    expect(normalizeServerUrl('http://foo bar')).toBe('')
-  })
-
-  it('rejects a scheme-less host (no scheme is guessed)', () => {
-    expect(normalizeServerUrl('192.168.1.10:3000')).toBe('')
-    expect(normalizeServerUrl('example.com')).toBe('')
-  })
-
-  it('preserves an explicit http:// or https:// scheme', () => {
-    expect(normalizeServerUrl('https://example.com')).toBe('https://example.com')
-    expect(normalizeServerUrl('http://example.com')).toBe('http://example.com')
-  })
-
-  it('reduces to scheme + host, dropping path, query and trailing slash', () => {
-    expect(normalizeServerUrl('http://example.com/api/')).toBe('http://example.com')
-    expect(normalizeServerUrl('https://example.com:8443/x?y=1')).toBe('https://example.com:8443')
-  })
-
-  it('returns empty for unparseable input', () => {
-    expect(normalizeServerUrl('http://')).toBe('')
-    expect(normalizeServerUrl(':::')).toBe('')
-  })
-})
-
-describe('useServerStore', () => {
-  beforeEach(() => {
+describe('useServerStore — localStorage binding', () => {
+  beforeEach(async () => {
     localStorage.clear()
     useServerStore.setState({ serverUrl: '' })
   })
 
-  it('persists a normalized absolute origin to localStorage', () => {
-    useServerStore.getState().setServerUrl('http://192.168.1.10:3000')
+  it('persists a normalized absolute origin to the browser localStorage', async () => {
+    await useServerStore.getState().setServerUrl('http://192.168.1.10:3000')
     expect(useServerStore.getState().serverUrl).toBe('http://192.168.1.10:3000')
     expect(localStorage.getItem('server_url')).toBe('http://192.168.1.10:3000')
   })
 
-  it('does not persist a scheme-less host (rejected, stays on reverse proxy)', () => {
-    useServerStore.getState().setServerUrl('192.168.1.10:3000')
+  it('does not persist a scheme-less host (rejected, stays on the reverse proxy)', async () => {
+    await useServerStore.getState().setServerUrl('192.168.1.10:3000')
     expect(useServerStore.getState().serverUrl).toBe('')
     expect(localStorage.getItem('server_url')).toBeNull()
   })
 
-  it('clears the stored URL when set to empty (back to reverse proxy)', () => {
-    useServerStore.getState().setServerUrl('http://x:3000')
-    useServerStore.getState().setServerUrl('')
+  it('clears the stored URL when set to empty (back to the reverse proxy)', async () => {
+    await useServerStore.getState().setServerUrl('https://lyftr.example.com')
+    expect(localStorage.getItem('server_url')).toBe('https://lyftr.example.com')
+    await useServerStore.getState().setServerUrl('')
     expect(useServerStore.getState().serverUrl).toBe('')
     expect(localStorage.getItem('server_url')).toBeNull()
   })
 
-  it('does not persist invalid input', () => {
-    useServerStore.getState().setServerUrl('has spaces')
-    expect(useServerStore.getState().serverUrl).toBe('')
-    expect(localStorage.getItem('server_url')).toBeNull()
-  })
-
-  it('getServerUrl reflects the current value', () => {
-    useServerStore.getState().setServerUrl('https://example.com')
-    expect(useServerStore.getState().getServerUrl()).toBe('https://example.com')
-  })
-})
-
-describe('isInsecureServerUrl', () => {
-  it('flags plain http:// to a network address', () => {
-    expect(isInsecureServerUrl('http://192.168.1.10:8080')).toBe(true)
-    expect(isInsecureServerUrl('http://lyftr.lan')).toBe(true)
-  })
-
-  it('does not flag https://', () => {
-    expect(isInsecureServerUrl('https://lyftr.example.com')).toBe(false)
-  })
-
-  // Loopback traffic never reaches a network, so there is nobody to intercept it.
-  it('does not flag loopback over http', () => {
-    expect(isInsecureServerUrl('http://localhost:3000')).toBe(false)
-    expect(isInsecureServerUrl('http://127.0.0.1:3000')).toBe(false)
-    expect(isInsecureServerUrl('http://[::1]:3000')).toBe(false)
-  })
-
-  // A host that merely starts with "localhost" is a different host entirely.
-  it('flags lookalike hostnames', () => {
-    expect(isInsecureServerUrl('http://localhost.evil.com')).toBe(true)
-    expect(isInsecureServerUrl('http://127.0.0.1.evil.com')).toBe(true)
-  })
-
-  it('empty (same origin) and garbage are not flagged', () => {
-    expect(isInsecureServerUrl('')).toBe(false)
-    expect(isInsecureServerUrl('not a url')).toBe(false)
+  it('hydrate() reads a URL written by a previous session', async () => {
+    // The upgrade path: the key is unchanged, so an existing install keeps its server.
+    localStorage.setItem('server_url', 'https://lyftr.example.com')
+    useServerStore.setState({ serverUrl: '', isHydrated: false })
+    await useServerStore.getState().hydrate()
+    expect(useServerStore.getState().serverUrl).toBe('https://lyftr.example.com')
+    expect(useServerStore.getState().isHydrated).toBe(true)
   })
 })
 

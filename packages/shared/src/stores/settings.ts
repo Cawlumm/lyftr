@@ -41,6 +41,8 @@ const BASE_DEFAULTS: types.UserSettings = {
 export interface SettingsStore {
   settings: types.UserSettings
   loaded: boolean
+  // Device-only prefs, no network. Call before first render.
+  hydratePrefs: () => Promise<void>
   fetch: () => Promise<void>
   update: (patch: Partial<types.UserSettings>) => Promise<void>
   setWorkoutLayout: (layout: 'list' | 'gym') => Promise<void>
@@ -88,6 +90,18 @@ export function createSettingsStore(
     settings: BASE_DEFAULTS,
     loaded: false,
 
+    // The three client-only prefs, read from device storage with no network call.
+    //
+    // These have to be right on the FIRST render, not once fetch() returns, because
+    // they are read by mount-only effects: the gym-layout election on the active
+    // workout screen runs with an empty dependency list, so a `workout_layout` that
+    // still says 'list' when it fires leaves a gym-mode user in the list layout and
+    // never re-runs. `loaded` stays false — this is not the settings fetch.
+    hydratePrefs: async () => {
+      const prefs = await clientPrefs(storage)
+      set((state) => ({ settings: { ...state.settings, ...prefs } }))
+    },
+
     fetch: async () => {
       if (get().loaded) return
       const prefs = await clientPrefs(storage)
@@ -134,6 +148,25 @@ export function createSettingsStore(
       set((state) => ({ settings: { ...state.settings, rest_seconds_default: secs } }))
     },
 
-    reset: () => set({ settings: BASE_DEFAULTS, loaded: false }),
+    // Forget the signed-in user's server-side settings (targets, unit, timezone) on
+    // sign-out, but KEEP the three device-only prefs.
+    //
+    // They belong to the device, not the account: they live under their own storage
+    // keys, sign-out does not clear those keys, and hydratePrefs() only runs once at
+    // startup. Resetting them to BASE_DEFAULTS would leave the store claiming
+    // workout_layout: 'list' while storage still says 'gym', with nothing to correct it
+    // until the next settings fetch returns. A gym-mode user who reaches the active
+    // workout screen inside that window is stuck in the list layout for the whole
+    // session, because that election is a mount-only effect and never re-runs.
+    reset: () =>
+      set((state) => ({
+        settings: {
+          ...BASE_DEFAULTS,
+          workout_layout: state.settings.workout_layout,
+          rest_enabled: state.settings.rest_enabled,
+          rest_seconds_default: state.settings.rest_seconds_default,
+        },
+        loaded: false,
+      })),
   }))
 }

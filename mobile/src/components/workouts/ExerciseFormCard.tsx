@@ -5,7 +5,7 @@ import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { useNumericText } from '../../hooks/useNumericText'
+import { useNumericText } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {

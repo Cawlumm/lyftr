@@ -1,4 +1,8 @@
 import type { Config } from 'tailwindcss'
+import plugin from 'tailwindcss/plugin'
+// Deep import, not the package index: loading tailwind.config.ts must not pull axios,
+// zustand and the API client into PostCSS. tokens.ts is deliberately dependency-free.
+import { palette, cssVars, GRADIENT_CSS } from '@lyftr/shared/src/theme/tokens'
 
 export default {
   darkMode: 'class',
@@ -11,7 +15,8 @@ export default {
         mono:    ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
-        // CSS-variable-backed surface tokens — light/dark handled in CSS
+        // Surface/text tokens stay CSS-variable-backed so one class works in both
+        // themes; the values behind the vars are emitted by the plugin below.
         surface: {
           base:    'var(--surface-base)',
           raised:  'var(--surface-raised)',
@@ -25,32 +30,14 @@ export default {
           muted:     'var(--tx-muted)',
           inverse:   'var(--tx-inverse)',
         },
-        // Brand — electric cyan
-        brand: {
-          50:  '#e0f9ff',
-          100: '#b0f1fe',
-          200: '#7ae7fd',
-          300: '#38d8fb',
-          400: '#0ecef7',
-          500: '#00b8d9',
-          600: '#0099b8',
-          700: '#007a96',
-          800: '#005c72',
-          900: '#003d4d',
-          DEFAULT: '#00b8d9',
-        },
-        violet: {
-          400: '#a78bfa',
-          500: '#8b5cf6',
-          600: '#7c3aed',
-          DEFAULT: '#8b5cf6',
-        },
-        success: { 400: '#4ade80', 500: '#22c55e', DEFAULT: '#22c55e' },
-        warning: { 400: '#facc15', 500: '#eab308', DEFAULT: '#eab308' },
-        error:   { 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', DEFAULT: '#ef4444' },
+        brand:   palette.brand,
+        violet:  palette.violet,
+        success: palette.success,
+        warning: palette.warning,
+        error:   palette.error,
       },
       backgroundImage: {
-        'gradient-brand': 'linear-gradient(135deg, #00b8d9 0%, #8b5cf6 100%)',
+        'gradient-brand': GRADIENT_CSS,
       },
       boxShadow: {
         'glow-sm':  '0 0 16px rgba(0,184,217,0.18)',
@@ -60,5 +47,15 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // Emit the theme custom properties from the shared tokens instead of hand-writing
+    // them in index.css. Light is the :root default, dark is the .dark override —
+    // same contract as before, one less copy of the hex values.
+    plugin(({ addBase }) => {
+      addBase({
+        ':root': cssVars('light'),
+        '.dark': cssVars('dark'),
+      })
+    }),
+  ],
 } satisfies Config

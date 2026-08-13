@@ -7,9 +7,8 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import * as types from '../types'
+import { types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
-import { workoutDay, dayToLocalDate} from '../utils/dateUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
   return (
@@ -29,7 +28,6 @@ export default function WorkoutDetail() {
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const restOn = settings.rest_enabled ?? true
-  const restLabel = (s: number) => (s % 60 === 0 && s >= 60 ? `${s / 60}m` : `${s}s`)
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -85,11 +83,8 @@ export default function WorkoutDetail() {
   }
 
   const exs = workout.exercises ?? []
-  const totalVolume = displayVolume(
-    exs.reduce((s, ex) => s + (ex.sets ?? []).reduce((ss, set) => ss + set.reps * set.weight, 0), 0),
-    wUnit
-  )
-  const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+  const totalVolume = displayVolume(calcVolume(workout), wUnit)
+  const totalSets = countWorkingSets(workout)
   const durationMin = Math.round(workout.duration / 60)
 
   return (
@@ -203,7 +198,7 @@ export default function WorkoutDetail() {
           const sets = ex.sets ?? []
           const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map(s => s.weight || 0)) : 0
           const maxWeight = displayWeight(maxWeightLbs, wUnit)
-          const exVol = displayVolume(sets.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0), wUnit)
+          const exVol = displayVolume(exerciseVolume(sets), wUnit)
 
           return (
             <button

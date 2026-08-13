@@ -6,7 +6,7 @@ import {
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import * as types from '../types'
+import { types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -17,8 +17,6 @@ import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import DiscardConfirm from '../components/DiscardConfirm'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue } from '../utils/number'
-import { nextIncompleteSet } from '../utils/workoutSets'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
@@ -328,11 +326,10 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     // Plan summary: one value if every set matches, else a min–max range.
     const repsVals = ex.sets.map(s => s.target_reps).filter(r => r > 0)
     const wtVals = ex.sets.map(s => displayWeight(s.target_weight, wUnit)).filter(w => w > 0)
-    const range = (a: number[]) => (a.length === 0 ? '—' : Math.min(...a) === Math.max(...a) ? String(Math.min(...a)) : `${Math.min(...a)}–${Math.max(...a)}`)
     const planStats = [
       { icon: Layers, label: 'Sets', value: <>{ex.sets.length}</> },
-      { icon: Repeat, label: 'Reps', value: <>{range(repsVals)}</> },
-      { icon: Dumbbell, label: 'Weight', value: <>{range(wtVals)}<span className="text-xs font-semibold text-tx-muted ml-0.5">{wUnit}</span></> },
+      { icon: Repeat, label: 'Reps', value: <>{numericRange(repsVals)}</> },
+      { icon: Dumbbell, label: 'Weight', value: <>{numericRange(wtVals)}<span className="text-xs font-semibold text-tx-muted ml-0.5">{wUnit}</span></> },
     ]
 
     return (

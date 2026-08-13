@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.build.json && vite build",
+    "build": "tsc -p tsconfig.json && vite build",
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "test:unit": "cross-env TZ=America/New_York vitest run",
@@ -14,9 +14,10 @@
     "test:e2e": "playwright test",
     "test:e2e:docker": "cross-env E2E_DOCKER=1 playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "lint": "eslint . --max-warnings=79"
+    "lint": "eslint . --max-warnings=52"
   },
   "dependencies": {
+    "@lyftr/shared": "*",
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.6.2",
     "date-fns": "^3.0.0",

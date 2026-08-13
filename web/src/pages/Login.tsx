@@ -4,7 +4,7 @@ import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-rea
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion } from '../utils/version'
+import { formatVersion } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 

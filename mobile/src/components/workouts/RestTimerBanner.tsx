@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, Pause, Play, SkipForward } from 'lucide-react-native'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet } from '../../utils/workoutSets'
+import { fmtClock, nextIncompleteSet } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 

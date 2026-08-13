@@ -139,3 +139,49 @@ describe('settings store — timezone sync', () => {
     expect(store.getState().settings.timezone).toBe('America/New_York')
   })
 })
+
+describe('settings store — reset keeps device prefs', () => {
+  // The three client-only prefs live under their own storage keys and belong to the
+  // device, not the account. Sign-out clears the auth tokens, not those keys, and
+  // hydratePrefs() only runs once at startup — so if reset() dropped them the store
+  // would claim 'list' while storage still said 'gym', with nothing to correct it
+  // until the next settings fetch returned.
+  const prefStorage = () => {
+    const s = createMemoryStorage()
+    s.set('lyftr_workout_layout', 'gym')
+    s.set('lyftr_rest_enabled', 'false')
+    s.set('lyftr_rest_seconds', '120')
+    return s
+  }
+
+  it('preserves workout_layout, rest_enabled and rest_seconds_default', async () => {
+    const { client } = fakeClient(serverSettings())
+    const store = createSettingsStore(client, prefStorage())
+
+    await store.getState().hydratePrefs()
+    expect(store.getState().settings.workout_layout).toBe('gym')
+
+    store.getState().reset()
+
+    expect(store.getState().settings.workout_layout).toBe('gym')
+    expect(store.getState().settings.rest_enabled).toBe(false)
+    expect(store.getState().settings.rest_seconds_default).toBe(120)
+  })
+
+  it('still clears the server-owned settings and the loaded flag', async () => {
+    const { client } = fakeClient(serverSettings({ weight_unit: 'kg', calorie_target: 3100 }))
+    const store = createSettingsStore(client, prefStorage())
+
+    await store.getState().fetch()
+    expect(store.getState().settings.calorie_target).toBe(3100)
+    expect(store.getState().loaded).toBe(true)
+
+    store.getState().reset()
+
+    expect(store.getState().settings.weight_unit).toBe('lbs')
+    expect(store.getState().settings.calorie_target).toBe(2000)
+    expect(store.getState().loaded).toBe(false)
+    // ...but not the device prefs.
+    expect(store.getState().settings.workout_layout).toBe('gym')
+  })
+})

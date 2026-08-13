@@ -3,39 +3,12 @@
 @tailwind utilities;
 
 /* ─── CSS Variables (theme tokens) ─────────────────────
-   Light = :root defaults. Dark = .dark overrides.
-   Everything in the app inherits from these — both modes
-   are fully supported everywhere with no carve-outs.
+   The --surface-* / --tx-* custom properties are NOT declared here any more. They are
+   emitted into :root and .dark by the addBase plugin in tailwind.config.ts, from
+   packages/shared/src/theme/tokens.ts — the same values mobile's theme imports.
+   Light = :root defaults, dark = .dark overrides, exactly as before.
+   Everything below still consumes them; nothing else changes.
 ──────────────────────────────────────────────────────── */
-:root {
-  --surface-base:    #f8fafc;
-  --surface-raised:  #ffffff;
-  --surface-overlay: #f1f5f9;
-  --surface-border:  #e2e8f0;
-  --surface-muted:   #f1f5f9;
-
-  --tx-primary:   #0f172a;
-  --tx-secondary: #475569;
-  --tx-muted:     #94a3b8;
-  --tx-inverse:   #ffffff;
-
-  color-scheme: light;
-}
-
-.dark {
-  --surface-base:    #070d1a;
-  --surface-raised:  #0d1629;
-  --surface-overlay: #111e35;
-  --surface-border:  #1c2f50;
-  --surface-muted:   #162240;
-
-  --tx-primary:   #f1f5f9;
-  --tx-secondary: #94a3b8;
-  --tx-muted:     #475569;
-  --tx-inverse:   #0f172a;
-
-  color-scheme: dark;
-}
 
 /* ─── Base ─────────────────────────────────────────── */
 @layer base {
