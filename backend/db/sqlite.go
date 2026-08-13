@@ -1,16 +1,23 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
+
+// How long Close waits to get the single connection for the final checkpoint. Compose
+// allows 10s between SIGTERM and SIGKILL; the HTTP drain takes the first 5s, so this
+// is the rest of that budget.
+const checkpointTimeout = 4 * time.Second
 
 // BuildSchema brings an already-open DB to the current schema: base tables, then
 // every migration, in the same order Connect uses.
@@ -72,21 +79,44 @@ func Connect() {
 	log.Printf("SQLite database ready at %s", dbPath)
 }
 
-// Close shuts the database down cleanly. SQLite checkpoints the write-ahead log into
-// the main file and deletes the -wal when the last connection closes, so this one call
-// is what makes lyftr.db a complete copy of the data.
+// Close folds the write-ahead log back into lyftr.db and shuts the pool down.
 //
 // It exists because nothing used to call it. `docker compose down` sends SIGTERM,
 // gin's r.Run ignored it, and the process died with the WAL un-checkpointed — while
 // our own docs told self-hosters their backup was `cp ./data/lyftr.db`. On a test
 // instance that copy held 0 of 29 food logs and 14 of 79 weight logs; the rest had
-// never left lyftr.db-wal. An explicit wal_checkpoint here would be redundant
-// (measured: Close alone recovers every row and removes the -wal).
+// never left lyftr.db-wal.
+//
+// The explicit checkpoint is NOT redundant, which is the trap here. sql.DB.Close()
+// closes only the connections sitting idle in the pool and returns immediately;
+// a connection currently checked out is closed later, when its holder gives it back.
+// Since we run SetMaxOpenConns(1), one goroutine mid-transaction — the exercise seed
+// on a fresh instance, or a request still draining — means the sqlite handle is never
+// closed at all and no checkpoint happens. Measured: with a connection checked out,
+// Close returned in 0s, left 832 KB in the -wal, and a copy of lyftr.db had no tables.
+//
+// Doing the checkpoint through the pool first is what fixes that: with one connection
+// the PRAGMA queues behind whoever holds it, so it runs after that work finishes
+// rather than racing it. The context bounds the wait — a checkpoint that cannot get
+// the connection must not hang shutdown past compose's grace period, and a loud log
+// beats a silent truncation.
+//
+// TRUNCATE rather than PASSIVE so the -wal is emptied, not merely folded in: a
+// leftover -wal is what makes a restore silently replay over the file just put back.
 func Close() {
 	if DB == nil {
 		return
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), checkpointTimeout)
+	defer cancel()
+	if _, err := DB.ExecContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		log.Printf("WARNING: wal checkpoint failed after %s — recent writes may still be "+
+			"in lyftr.db-wal, so a copy of lyftr.db alone is NOT a complete backup: %v",
+			checkpointTimeout, err)
+	}
+
 	if err := DB.Close(); err != nil {
-		log.Printf("db close failed, data may remain in lyftr.db-wal: %v", err)
+		log.Printf("db close failed: %v", err)
 	}
 }

@@ -23,8 +23,48 @@ while true; do
     echo "[lyftr] backend exited, restarting in 3s..."
     sleep 3
 done &
+loop_pid=$!
 
 # Brief pause so the backend is accepting connections before nginx gets traffic
 sleep 2
 
-exec nginx -g 'daemon off;'
+# nginx runs in the background rather than via `exec`, so this shell stays PID 1 and can
+# forward the shutdown signal.
+#
+# Fly (and Docker) signal PID 1 only. With `exec nginx` that was nginx, and lyftr-api —
+# sitting in the backgrounded loop above — never saw SIGTERM at all: on every deploy,
+# machine stop or restart it was SIGKILLed with the SQLite WAL un-checkpointed. Its
+# graceful shutdown existed but was unreachable on the one deployment that runs it.
+nginx -g 'daemon off;' &
+nginx_pid=$!
+
+shutdown() {
+    echo "[lyftr] shutdown: stopping nginx, then draining the backend"
+
+    # Kill the restart loop FIRST, or it cheerfully starts a new backend three seconds
+    # after we stop this one, mid-shutdown.
+    kill "$loop_pid" 2>/dev/null || true
+
+    # Stop taking traffic before draining, so nothing new arrives mid-checkpoint.
+    kill -TERM "$nginx_pid" 2>/dev/null || true
+
+    # The signal that makes the WAL safe.
+    pkill -TERM -x lyftr-api 2>/dev/null || true
+
+    # Wait for the checkpoint to finish. Bounded well under fly.toml's kill_timeout so
+    # the process gets to exit on its own terms rather than being killed here.
+    i=0
+    while pgrep -x lyftr-api >/dev/null 2>&1 && [ "$i" -lt 15 ]; do
+        sleep 1
+        i=$((i + 1))
+    done
+    if pgrep -x lyftr-api >/dev/null 2>&1; then
+        echo "[lyftr] WARNING: backend still running after ${i}s; the WAL may not be checkpointed"
+    else
+        echo "[lyftr] backend exited cleanly after ${i}s"
+    fi
+    exit 0
+}
+trap shutdown TERM INT
+
+wait "$nginx_pid"

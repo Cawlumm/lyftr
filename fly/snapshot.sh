@@ -10,12 +10,19 @@ LIVE="/app/data/lyftr.db"
 
 echo "[snapshot] $(date): stopping backend..."
 pkill lyftr-api 2>/dev/null || true
-# The backend has no SIGTERM handler, so it dies immediately and this rarely
-# loops more than once — but the copy below must not race a still-open WAL.
-for i in 1 2 3 4 5; do
-    pgrep lyftr-api >/dev/null 2>&1 || break
+# The backend now HAS a SIGTERM handler: it drains in-flight requests (up to 5s) then
+# checkpoints the WAL (up to 4s), so this can take ~10s. Wait past that budget and fail
+# loudly rather than falling through — capturing a seed from a database that is still
+# being written to is how a corrupt snapshot gets promoted to the demo's reset source.
+waited=0
+while pgrep lyftr-api >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
     sleep 1
+    waited=$((waited + 1))
 done
+if pgrep lyftr-api >/dev/null 2>&1; then
+    echo "[snapshot] $(date): ERROR — backend still running after ${waited}s; refusing to snapshot a live DB"
+    exit 1
+fi
 
 echo "[snapshot] $(date): capturing seed from live DB..."
 # Stage under temp names and verify every copy succeeds before touching the

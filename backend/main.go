@@ -49,24 +49,46 @@ func main() {
 	// `docker compose down` sends SIGTERM. gin's r.Run() ignores it, so the process
 	// was killed with the SQLite WAL un-checkpointed — see db.Close for why that
 	// silently truncated people's backups.
+	//
+	// The listen error comes back on a channel rather than through log.Fatalf: Fatalf
+	// is os.Exit, which skips every defer and the checkpoint below. Connect() has
+	// already run the migrations by this point, so exiting that way on something as
+	// ordinary as "port already in use" would strand those schema writes in the -wal.
+	serverErr := make(chan error, 1)
 	go func() {
 		log.Printf("lyftr API listening on %s (env=%s)", addr, config.C.Env)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("server error: %v", err)
+			serverErr <- err
 		}
 	}()
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-	<-stop
 
-	// Compose's default grace period before SIGKILL is 10s; finish inside it, and
-	// leave room for the checkpoint afterwards.
-	log.Println("shutting down")
+	exitCode := 0
+	select {
+	case sig := <-stop:
+		log.Printf("received %s, shutting down", sig)
+	case err := <-serverErr:
+		log.Printf("server error: %v", err)
+		exitCode = 1
+	}
+
+	// Restore the default signal disposition so a second Ctrl-C kills the process.
+	// Without this the operator has no escape hatch if the drain below wedges:
+	// signal.Notify has disabled the default handler and nobody reads `stop` again.
+	signal.Stop(stop)
+
+	// Compose's default grace period before SIGKILL is 10s. Split it: up to 5s to
+	// drain in-flight requests, and db.Close gets the remainder for the checkpoint.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		log.Printf("graceful shutdown timed out, closing anyway: %v", err)
 	}
 	db.Close()
+
+	if exitCode != 0 {
+		os.Exit(exitCode)
+	}
 }
