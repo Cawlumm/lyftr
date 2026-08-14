@@ -89,7 +89,12 @@ func DemoData(db *sql.DB) {
 			break
 		}
 		log.Printf("seed: demo data waiting for exercises... (%d/18)", i+1)
-		time.Sleep(5 * time.Second)
+		// Abandons the wait immediately on shutdown instead of holding the process for
+		// up to another 5s while the checkpoint is trying to run.
+		if !Sleep(5 * time.Second) {
+			log.Println("seed: shutting down, abandoning demo data")
+			return
+		}
 	}
 	if exCount < 100 {
 		log.Println("seed: exercises not ready, skipping demo data")
@@ -109,14 +114,46 @@ func DemoData(db *sql.DB) {
 		return
 	}
 
+	// The idempotency check above keys on workouts, but the program is written first —
+	// so a run interrupted between the two (which the shutdown checks below make a normal
+	// occurrence, not a freak one) leaves a program behind that the next start does not
+	// count and happily creates again. Measured: stop the container mid-seed, restart,
+	// and the demo account has two identical "PPL — Push Pull Legs" programs.
+	//
+	// Clear the leftovers instead of adding to them. Reaching here means there are no
+	// workouts, so anything from a previous attempt is incomplete by definition, and
+	// program_days/program_exercises cascade on delete.
+	if _, err := db.Exec(`DELETE FROM programs WHERE user_id = ?`, userID); err != nil {
+		log.Printf("seed: could not clear partial demo program: %v", err)
+	}
+
+	// Each phase writes through many separate statements with no enclosing transaction,
+	// so shutdown is checked between them: once the WAL has been checkpointed, anything
+	// written afterwards is stranded in a new WAL when the process exits.
+	if Stopping() {
+		log.Println("seed: shutting down before demo data")
+		return
+	}
 	progID, err := seedProgram(db, userID)
 	if err != nil {
 		log.Printf("seed: program: %v", err)
 	}
+	if Stopping() {
+		log.Println("seed: shutting down after program")
+		return
+	}
 	if err := seedWorkouts(db, userID, progID); err != nil {
 		log.Printf("seed: workouts: %v", err)
 	}
+	if Stopping() {
+		log.Println("seed: shutting down after workouts")
+		return
+	}
 	seedWeightLogs(db, userID)
+	if Stopping() {
+		log.Println("seed: shutting down after weight logs")
+		return
+	}
 	seedFoodLogs(db, userID)
 	log.Println("seed: demo data complete")
 }
@@ -156,6 +193,13 @@ func seedProgram(db *sql.DB, userID int64) (int64, error) {
 	}
 
 	for dayIdx, day := range cycle {
+		// Same reason as the loops below: this one writes the program's days, exercises
+		// and sets across ~140 un-transacted inserts, so it has to be able to stop
+		// between them rather than only at the phase boundary. A half-built program is
+		// discarded and rebuilt on the next start — see the DELETE in DemoData.
+		if Stopping() {
+			return progID, nil
+		}
 		isRest := day.tmplIdx < 0
 		dayRes, err := db.Exec(
 			`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,
@@ -201,6 +245,12 @@ func seedWorkouts(db *sql.DB, userID, progID int64) error {
 	sessionCount := [6]int{} // counts per template type
 
 	for d := 0; d <= 56; d++ {
+		// 57 days of workouts, each several inserts, is far more than seed.Stop's budget.
+		// Checking only between phases would let this loop still be writing when the
+		// checkpoint runs, and anything written after it is stranded in a new WAL.
+		if Stopping() {
+			return nil
+		}
 		day := startDay.AddDate(0, 0, d)
 		if day.After(now.AddDate(0, 0, -3)) {
 			break
@@ -286,6 +336,9 @@ func seedWeightLogs(db *sql.DB, userID int64) {
 	endWeight := 173.0
 
 	for d := 89; d >= 0; d-- {
+		if Stopping() {
+			return
+		}
 		// Skip ~18% of days (missed weigh-ins)
 		if rng.Intn(100) < 18 {
 			continue
@@ -336,6 +389,9 @@ var mealPatterns = [][]mealRow{
 func seedFoodLogs(db *sql.DB, userID int64) {
 	now := time.Now()
 	for d := 6; d >= 0; d-- {
+		if Stopping() {
+			return
+		}
 		day := now.AddDate(0, 0, -d)
 		pattern := mealPatterns[d%len(mealPatterns)]
 		for _, m := range pattern {

@@ -6,6 +6,12 @@
 app = "lyftr-demo"
 primary_region = "fra"
 
+# Fly's default is 5s between SIGTERM and SIGKILL. The backend needs longer: up to 5s
+# draining in-flight requests, then up to 4s to take the single SQLite connection and
+# checkpoint the WAL into lyftr.db (see backend/db/sqlite.go Close). Being killed inside
+# that window is exactly the bug this leaves writes stranded in lyftr.db-wal.
+kill_timeout = "20s"
+
 [build]
   dockerfile = "fly/Dockerfile"
 

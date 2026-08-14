@@ -1,16 +1,24 @@
 package db
 
 import (
+	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	_ "modernc.org/sqlite"
 )
 
 var DB *sql.DB
+
+// How long Close waits to get the single connection for the final checkpoint. Compose
+// allows 10s between SIGTERM and SIGKILL; the HTTP drain takes the first 5s, so this
+// is the rest of that budget.
+const checkpointTimeout = 4 * time.Second
 
 // BuildSchema brings an already-open DB to the current schema: base tables, then
 // every migration, in the same order Connect uses.
@@ -70,4 +78,119 @@ func Connect() {
 	alterMigrations()
 
 	log.Printf("SQLite database ready at %s", dbPath)
+}
+
+// Close folds the write-ahead log back into lyftr.db and shuts the pool down.
+//
+// It exists because nothing used to call it. `docker compose down` sends SIGTERM,
+// gin's r.Run ignored it, and the process died with the WAL un-checkpointed — while
+// our own docs told self-hosters their backup was `cp ./data/lyftr.db`. On a test
+// instance that copy held 0 of 29 food logs and 14 of 79 weight logs; the rest had
+// never left lyftr.db-wal.
+//
+// The explicit checkpoint is NOT redundant, which is the trap here. sql.DB.Close()
+// closes only the connections sitting idle in the pool and returns immediately;
+// a connection currently checked out is closed later, when its holder gives it back.
+// Since we run SetMaxOpenConns(1), one goroutine mid-transaction — the exercise seed
+// on a fresh instance, or a request still draining — means the sqlite handle is never
+// closed at all and no checkpoint happens. Measured: with a connection checked out,
+// Close returned in 0s, left 832 KB in the -wal, and a copy of lyftr.db had no tables.
+//
+// Doing the checkpoint through the pool first is what fixes that: with one connection
+// the PRAGMA queues behind whoever holds it, so it runs after that work finishes
+// rather than racing it. See checkpoint below for why that call is not a one-liner.
+//
+// TRUNCATE rather than PASSIVE so the -wal is emptied, not merely folded in: a
+// leftover -wal is what makes a restore silently replay over the file just put back.
+func Close() { CloseBy(time.Now().Add(checkpointTimeout)) }
+
+// CloseBy is Close with the caller's shutdown deadline, so the checkpoint gets whatever
+// is left of the process-wide budget rather than assuming a fixed slice of it. The
+// earlier version hardcoded its own timeout, which silently pushed the total past the
+// container's grace period once another step was added ahead of it.
+func CloseBy(deadline time.Time) {
+	if DB == nil {
+		return
+	}
+
+	// Always leave a moment to actually close, even if the drain overran.
+	if time.Until(deadline) < 500*time.Millisecond {
+		deadline = time.Now().Add(500 * time.Millisecond)
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	if err := checkpoint(ctx); err != nil {
+		log.Printf("WARNING: %v — recent writes may still be in lyftr.db-wal, so a copy "+
+			"of lyftr.db alone is NOT a complete backup right now", err)
+	}
+
+	if err := DB.Close(); err != nil {
+		log.Printf("db close failed: %v", err)
+	}
+}
+
+// checkpoint runs the final TRUNCATE and reports honestly whether it worked.
+//
+// Two traps make the obvious one-liner wrong, both measured:
+//
+//   - `PRAGMA wal_checkpoint` reports failure in its RESULT ROW, not as an error.
+//     It returns (busy, log, checkpointed) and the status stays SQLITE_OK, so
+//     DB.Exec(...) on a blocked checkpoint returns err == nil having folded nothing:
+//     `err=<nil> busy=1 log=202 checkpointed=202`, WAL unchanged. Any warning keyed off
+//     the error alone can never fire — which is the silent truncation, dressed as a fix.
+//     So scan the row and treat busy != 0 as the failure it is.
+//
+//   - The context does not bound the driver's own wait. Connect sets busy_timeout(5000);
+//     that sleep is not interruptible, so a 4s context just relabels a 5s call
+//     (measured: elapsed=5.03s against checkpointTimeout=4s). Shutdown has a hard
+//     ceiling — compose SIGKILLs at 10s — so lower busy_timeout on this one connection
+//     and let the loop below own the retry budget instead.
+func checkpoint(ctx context.Context) error {
+	conn, err := DB.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("could not get a connection to checkpoint the WAL: %w", err)
+	}
+	defer conn.Close()
+
+	if _, err := conn.ExecContext(ctx, "PRAGMA busy_timeout=250"); err != nil {
+		return fmt.Errorf("could not lower busy_timeout for the checkpoint: %w", err)
+	}
+
+	start := time.Now()
+	lastFrames := -1
+	// Each attempt costs busy_timeout + the pause below, so the deadline lands inside
+	// Scan about as often as inside the wait. Both paths have to produce the same useful
+	// message, or half the time the operator gets a bare "context deadline exceeded".
+	blocked := func() error {
+		if lastFrames < 0 {
+			return fmt.Errorf("wal checkpoint still blocked after %s "+
+				"(another sqlite connection is holding it open)", time.Since(start).Round(time.Millisecond))
+		}
+		return fmt.Errorf("wal checkpoint still blocked after %s with %d frames in the WAL "+
+			"(another sqlite connection is holding it open)",
+			time.Since(start).Round(time.Millisecond), lastFrames)
+	}
+
+	for {
+		var busy, logFrames, checkpointed int
+		row := conn.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)")
+		if err := row.Scan(&busy, &logFrames, &checkpointed); err != nil {
+			if ctx.Err() != nil {
+				return blocked()
+			}
+			return fmt.Errorf("wal checkpoint failed: %w", err)
+		}
+		if busy == 0 {
+			return nil
+		}
+		lastFrames = logFrames
+		// Someone else holds a read lock — the sqlite3 CLI this image ships, a `fly ssh
+		// console` session, a backup mid-VACUUM. Retry until the budget runs out.
+		select {
+		case <-ctx.Done():
+			return blocked()
+		case <-time.After(200 * time.Millisecond):
+		}
+	}
 }
