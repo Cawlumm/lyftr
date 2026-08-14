@@ -227,6 +227,12 @@ func seedWorkouts(db *sql.DB, userID, progID int64) error {
 	sessionCount := [6]int{} // counts per template type
 
 	for d := 0; d <= 56; d++ {
+		// 57 days of workouts, each several inserts, is far more than seed.Stop's budget.
+		// Checking only between phases would let this loop still be writing when the
+		// checkpoint runs, and anything written after it is stranded in a new WAL.
+		if Stopping() {
+			return nil
+		}
 		day := startDay.AddDate(0, 0, d)
 		if day.After(now.AddDate(0, 0, -3)) {
 			break
@@ -312,6 +318,9 @@ func seedWeightLogs(db *sql.DB, userID int64) {
 	endWeight := 173.0
 
 	for d := 89; d >= 0; d-- {
+		if Stopping() {
+			return
+		}
 		// Skip ~18% of days (missed weigh-ins)
 		if rng.Intn(100) < 18 {
 			continue
@@ -362,6 +371,9 @@ var mealPatterns = [][]mealRow{
 func seedFoodLogs(db *sql.DB, userID int64) {
 	now := time.Now()
 	for d := 6; d >= 0; d-- {
+		if Stopping() {
+			return
+		}
 		day := now.AddDate(0, 0, -d)
 		pattern := mealPatterns[d%len(mealPatterns)]
 		for _, m := range pattern {

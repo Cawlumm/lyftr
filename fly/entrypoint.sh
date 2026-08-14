@@ -15,7 +15,17 @@ mkdir -p /var/spool/cron/crontabs
 echo "0 * * * * /app/reset.sh >> /app/data/reset.log 2>&1" > /var/spool/cron/crontabs/root
 crond
 
+shutting_down=0
+
 shutdown() {
+    # Reachable twice: from the trap, and from the fall-through when nginx exits on its
+    # own. A second pass would pkill a backend that is midway through its checkpoint and
+    # restart the 15s wait from zero, so run the body once and let the first call finish.
+    if [ "$shutting_down" = 1 ]; then
+        return
+    fi
+    shutting_down=1
+
     echo "[lyftr] shutdown: stopping nginx, then draining the backend"
 
     # Kill the restart loop FIRST, or it cheerfully starts a new backend three seconds
