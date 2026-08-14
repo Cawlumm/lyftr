@@ -194,10 +194,11 @@ export default function Login() {
             )}
           </form>
 
-          {/* Sign up link — hidden on an instance that has closed registration. The
-              server rejects the signup either way; this is so the only visible path
-              isn't one that 403s on submit. */}
-          {registrationOpen(serverInfo) && (
+          {/* A closed instance says so rather than offering a link that 403s on submit —
+              but it does still say so. Removing the signup path without a trace sends
+              someone who came here to sign up hunting for a button that is not there
+              (mastodon/mastodon#21556); a line of text answers them where they are. */}
+          {registrationOpen(serverInfo) ? (
             <p className="mt-8 text-center text-sm text-tx-muted">
               New here?{' '}
               <Link
@@ -206,6 +207,10 @@ export default function Login() {
               >
                 Create account
               </Link>
+            </p>
+          ) : (
+            <p className="mt-8 text-center text-sm text-tx-muted">
+              This server is not accepting new accounts.
             </p>
           )}
         </div>

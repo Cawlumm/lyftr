@@ -34,11 +34,35 @@ docker compose up -d          # no rebuild — it is read at startup
 |-------|-----------|
 | `open` | Anyone can sign up. The default, and what every version before this one did. |
 | `first-user` | Open only while no account exists. The first person to register claims the instance; everyone after gets a 403. |
-| `closed` | Nobody can register. Use this once your accounts exist. |
+| `closed` | Nobody can register. Where you should end up. |
 
-**`first-user` is the one to pick for a fresh install.** A plain on/off switch makes you choose
-between starting open — and racing whatever scanner finds your hostname first — and starting
-closed, unable to create your own account at all.
+**`first-user` is a setup mode, not a resting state.** Use it for a fresh install — a plain
+on/off switch would make you choose between starting open, and racing whatever scanner finds
+your hostname, and starting closed, unable to create your own account at all. Then **switch to
+`closed` once you have signed up**, for the reason below.
+
+:::caution[Why `first-user` is not somewhere to stay]
+`first-user` decides by asking whether the users table is empty — and that table lives on your
+data volume. If the volume ever fails to mount, or you run `docker compose up` from a different
+directory (which silently creates a new, empty `./data`), the instance looks brand new and
+registration opens again. Immich shipped the same design and had exactly this reported: a
+reboot before the disk was mounted let anyone register as the admin
+([immich-app/immich#24479](https://github.com/immich-app/immich/issues/24479)).
+
+No setting stored *in* the database can protect against this, because it would be missing for
+the same reason. `REGISTRATION=closed` lives in your `.env`, so it survives.
+
+While `first-user` is on and no account exists, the backend says so on every start:
+
+```
+NOTICE: REGISTRATION=first-user and no accounts exist yet — registration is OPEN until
+the first one is created. If this instance already had an account, its data volume is
+not mounted: stop it before someone else claims it.
+```
+
+If you see that on an instance you have already signed up on, your data is not where the
+container is looking. Stop it before fixing the mount.
+:::
 
 A typo is a startup failure, not a fallback: `REGISTRATION=frst-user` refuses to boot rather than
 quietly leaving you wide open. Check `docker compose logs backend` if the container will not start.

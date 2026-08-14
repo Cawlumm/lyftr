@@ -69,18 +69,23 @@ export default function Login() {
       <GradientButton title="Sign in" onPress={submit} loading={loading} />
       <AuthDivider />
       <SecondaryButton title="Try demo account" hint="no sign-up" onPress={demo} />
-      {/* Hidden when the selected server has closed registration — the link would only
-          lead to a screen that says so. The server is what enforces it. */}
-      {isOpen ? (
-        <Footer>
+      {/* A closed server says so instead of offering a link that 403s on submit — but it
+          does still say so, rather than leaving someone who came to sign up hunting for a
+          button that is not there (mastodon/mastodon#21556). */}
+      <Footer>
+        {isOpen ? (
           <View style={{ flexDirection: 'row', gap: 5 }}>
             <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
             <Link href="/register" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
               Create account
             </Link>
           </View>
-        </Footer>
-      ) : null}
+        ) : (
+          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
+            This server is not accepting new accounts.
+          </Text>
+        )}
+      </Footer>
     </AuthScaffold>
   )
 }
