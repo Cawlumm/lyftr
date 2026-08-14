@@ -173,12 +173,17 @@ export default function Login() {
               {isLoading ? 'Signing in…' : 'Sign in'}
             </button>
 
-            {/* Divider */}
-            <div className="relative flex items-center my-6">
-              <div className="flex-1 h-px bg-surface-border" />
-              <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
-              <div className="flex-1 h-px bg-surface-border" />
-            </div>
+            {/* Divider — only when something follows it that is genuinely an alternative
+                way in. In a production build the demo button is absent, so on a server
+                with registration closed there is nothing below but a statement, and an
+                "or" heading it reads like the start of an option that never arrives. */}
+            {(import.meta.env.DEV || registrationOpen(serverInfo)) && (
+              <div className="relative flex items-center my-6">
+                <div className="flex-1 h-px bg-surface-border" />
+                <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
+                <div className="flex-1 h-px bg-surface-border" />
+              </div>
+            )}
 
             {/* Demo button — dev only */}
             {import.meta.env.DEV && (
