@@ -1,10 +1,11 @@
 ---
 title: Backups & Updates
-description: Back up your Lyftr data (a single SQLite file) and update to the latest version safely.
+description: Back up your Lyftr data and update to the latest version safely — including why copying lyftr.db is not a backup.
 ---
 
 All of your Lyftr data — workouts, programs, weight, nutrition — lives in **one SQLite
-database**. Updating is pulling the latest image. Your data survives both.
+database**. Backing it up takes one command, and it is not `cp`. Updating is pulling the
+latest image; your data survives that untouched.
 
 ## Where your data lives
 

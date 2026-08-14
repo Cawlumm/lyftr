@@ -20,6 +20,12 @@ import (
 var (
 	stopCtx, stopSeeding = context.WithCancel(context.Background())
 	running              sync.WaitGroup
+
+	// Serialises "have we started stopping?" against running.Add. Checking the context
+	// and then calling Add is not enough on its own: the two can interleave with Stop's
+	// Wait, which is the documented WaitGroup misuse panic.
+	mu      sync.Mutex
+	stopped bool
 )
 
 // Context is what seed loops should watch to abort promptly on shutdown.
@@ -41,13 +47,27 @@ func Sleep(d time.Duration) bool {
 }
 
 // Go runs fn as a tracked seed goroutine so Stop can wait for it.
+//
+// Refuses to start once shutdown has begun, for two reasons. A new seed launched after
+// the checkpoint would do a 30s fetch and a full insert transaction into a WAL nothing
+// will fold in — and it is reachable, since POST /admin/reset-exercises can outlive the
+// drain. And sync.WaitGroup panics on "Add called concurrently with Wait": Stop leaves a
+// helper blocked in Wait after its budget expires, so an Add landing as the counter hits
+// zero would kill the process outright, before the checkpoint runs.
 func Go(name string, fn func()) {
+	mu.Lock()
+	if stopped {
+		mu.Unlock()
+		log.Printf("seed: not starting %s, shutting down", name)
+		return
+	}
 	running.Add(1)
+	mu.Unlock()
+
 	go func() {
 		defer running.Done()
 		fn()
 	}()
-	_ = name
 }
 
 // Stop signals the seeders and waits, bounded, for them to finish.
@@ -57,6 +77,11 @@ func Go(name string, fn func()) {
 // early is safe: the checkpoint that follows reports honestly if the WAL could not be
 // folded, which is better than hanging until the runtime is killed outright.
 func Stop(timeout time.Duration) {
+	// Close the door before waiting, under the same lock Go takes, so no goroutine can
+	// be registered after Wait has started.
+	mu.Lock()
+	stopped = true
+	mu.Unlock()
 	stopSeeding()
 
 	done := make(chan struct{})

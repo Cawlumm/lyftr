@@ -8,24 +8,37 @@ set -e
 SEED="/app/data/lyftr.seed.db"
 LIVE="/app/data/lyftr.db"
 
-# Same guard reset.sh uses: hold the entrypoint's restart loop back for the whole copy,
-# or it reopens the database ~3s after pkill and the snapshot captures a live file.
+# Same guard reset.sh uses, taken the same way: hold the entrypoint's restart loop back
+# for the whole copy, or it reopens the database ~3s after pkill and the snapshot captures
+# a live file. mkdir is the lock — see reset.sh for why a plain file lets these two clear
+# each other's guard.
 GUARD="/app/data/.reset-in-progress"
-touch "$GUARD"
-trap 'rm -f "$GUARD"' EXIT
+if ! mkdir "$GUARD" 2>/dev/null; then
+    echo "[snapshot] $(date): another reset or snapshot holds $GUARD — try again shortly"
+    exit 1
+fi
+trap 'rmdir "$GUARD" 2>/dev/null || true' EXIT
 
 echo "[snapshot] $(date): stopping backend..."
-pkill lyftr-api 2>/dev/null || true
-# The backend now HAS a SIGTERM handler: it drains in-flight requests (up to 5s) then
-# checkpoints the WAL (up to 4s), so this can take ~10s. Wait past that budget and fail
-# loudly rather than falling through — capturing a seed from a database that is still
-# being written to is how a corrupt snapshot gets promoted to the demo's reset source.
+# Same shape as reset.sh: the backend takes a few seconds to drain and checkpoint, and a
+# restart already in flight when we took the guard can appear just after a pkill that
+# matched nothing. Require two consecutive quiet checks — capturing a seed from a
+# database still being written to is how a corrupt snapshot becomes the demo's reset
+# source.
 waited=0
-while pgrep lyftr-api >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
+quiet=0
+while [ "$waited" -lt 25 ]; do
+    if pgrep lyftr-api >/dev/null 2>&1; then
+        pkill lyftr-api 2>/dev/null || true
+        quiet=0
+    else
+        quiet=$((quiet + 1))
+        [ "$quiet" -ge 2 ] && break
+    fi
     sleep 1
     waited=$((waited + 1))
 done
-if pgrep lyftr-api >/dev/null 2>&1; then
+if [ "$quiet" -lt 2 ]; then
     echo "[snapshot] $(date): ERROR — backend still running after ${waited}s; refusing to snapshot a live DB"
     exit 1
 fi

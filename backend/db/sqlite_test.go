@@ -200,7 +200,15 @@ func TestCheckpointReportsBusyRatherThanClaimingSuccess(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "lyftr.db")
 
 	DB = openWAL(t, path)
-	t.Cleanup(func() { DB = nil })
+	// This case calls checkpoint directly rather than Close, so nothing else closes the
+	// pool. Leaving it open keeps a file handle inside t.TempDir(), which makes the
+	// cleanup RemoveAll fail with "Access is denied" on Windows.
+	t.Cleanup(func() {
+		if DB != nil {
+			DB.Close()
+		}
+		DB = nil
+	})
 
 	DB.Exec("CREATE TABLE workouts (id INTEGER PRIMARY KEY, name TEXT)")
 	for i := 0; i < 200; i++ {

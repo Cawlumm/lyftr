@@ -114,11 +114,22 @@ func DemoData(db *sql.DB) {
 		return
 	}
 
+	// The idempotency check above keys on workouts, but the program is written first —
+	// so a run interrupted between the two (which the shutdown checks below make a normal
+	// occurrence, not a freak one) leaves a program behind that the next start does not
+	// count and happily creates again. Measured: stop the container mid-seed, restart,
+	// and the demo account has two identical "PPL — Push Pull Legs" programs.
+	//
+	// Clear the leftovers instead of adding to them. Reaching here means there are no
+	// workouts, so anything from a previous attempt is incomplete by definition, and
+	// program_days/program_exercises cascade on delete.
+	if _, err := db.Exec(`DELETE FROM programs WHERE user_id = ?`, userID); err != nil {
+		log.Printf("seed: could not clear partial demo program: %v", err)
+	}
+
 	// Each phase writes through many separate statements with no enclosing transaction,
 	// so shutdown is checked between them: once the WAL has been checkpointed, anything
-	// written afterwards is stranded in a new WAL when the process exits. Partial demo
-	// data is fine — this whole block is skipped when workouts already exist, so the
-	// next start picks up where it left off.
+	// written afterwards is stranded in a new WAL when the process exits.
 	if Stopping() {
 		log.Println("seed: shutting down before demo data")
 		return
@@ -182,6 +193,13 @@ func seedProgram(db *sql.DB, userID int64) (int64, error) {
 	}
 
 	for dayIdx, day := range cycle {
+		// Same reason as the loops below: this one writes the program's days, exercises
+		// and sets across ~140 un-transacted inserts, so it has to be able to stop
+		// between them rather than only at the phase boundary. A half-built program is
+		// discarded and rebuilt on the next start — see the DELETE in DemoData.
+		if Stopping() {
+			return progID, nil
+		}
 		isRest := day.tmplIdx < 0
 		dayRes, err := db.Exec(
 			`INSERT INTO program_days (program_id, order_index, is_rest_day, name) VALUES (?, ?, ?, ?)`,

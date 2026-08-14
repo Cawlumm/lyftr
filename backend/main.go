@@ -20,6 +20,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// The whole shutdown sequence — drain, stop seeding, checkpoint — must fit inside the
+// container runtime's grace period before SIGKILL. Compose's default is 10s and an
+// existing self-hoster's docker-compose.yml has no stop_grace_period, so 8s leaves room
+// for the process to exit on its own rather than being killed mid-checkpoint.
+const shutdownBudget = 8 * time.Second
+
 func main() {
 	showVersion := flag.Bool("version", false, "print the build version and exit")
 	flag.Parse()
@@ -32,7 +38,9 @@ func main() {
 	db.Connect()
 	seed.DemoUser(db.DB)
 	seed.Exercises(db.DB)
-	go seed.DemoData(db.DB)
+	// seed.Go, not a bare `go`: Stop can only wait for goroutines it knows about, and
+	// DemoData is the long one it most needs to wait for.
+	seed.Go("demo-data", func() { seed.DemoData(db.DB) })
 
 	if config.C.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -79,21 +87,34 @@ func main() {
 	// signal.Notify has disabled the default handler and nobody reads `stop` again.
 	signal.Stop(stop)
 
-	// Compose's default grace period before SIGKILL is 10s. Split it: up to 5s to
-	// drain in-flight requests, and db.Close gets the remainder for the checkpoint.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// Everything below has to finish inside compose's grace period — 10s by default, and
+	// self-hosters running an older docker-compose.yml never get a stop_grace_period we
+	// might add later. So budget the WHOLE sequence against one deadline rather than
+	// three independent constants that quietly summed to 11s: drain, then stop seeding,
+	// then checkpoint, each capped by what the previous step left behind.
+	deadline := time.Now().Add(shutdownBudget)
+
+	drainBy := time.Now().Add(4 * time.Second)
+	if drainBy.After(deadline) {
+		drainBy = deadline
+	}
+	ctx, cancel := context.WithDeadline(context.Background(), drainBy)
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("graceful shutdown timed out, closing anyway: %v", err)
 	}
+	cancel()
 
 	// Seeding is not HTTP work, so srv.Shutdown does not wait for it — and DemoData
 	// writes through many separate statements with no transaction around them. Left
 	// running, it can keep inserting after db.Close has checkpointed, into a WAL that
 	// nothing will fold in before the process exits. Stop it first.
-	seed.Stop(2 * time.Second)
+	seedBudget := 2 * time.Second
+	if remaining := time.Until(deadline); remaining < seedBudget {
+		seedBudget = remaining
+	}
+	seed.Stop(seedBudget)
 
-	db.Close()
+	db.CloseBy(deadline)
 
 	if exitCode != 0 {
 		os.Exit(exitCode)

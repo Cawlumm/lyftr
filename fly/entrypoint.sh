@@ -4,7 +4,9 @@
 # Responsibilities:
 #   1. Register hourly cron job to reset the demo DB (reset.sh)
 #   2. Run the Go backend in a restart loop (reset.sh kills it; loop brings it back)
-#   3. Start nginx as PID 1 (exec replaces this shell process)
+#   3. Run nginx in the background and stay PID 1 ourselves, so container stop signals
+#      can be forwarded to the backend — it needs SIGTERM to checkpoint its SQLite WAL,
+#      and with `exec nginx` it never received one.
 set -e
 
 # Register hourly reset: copies seed snapshot → live DB, then kills backend
@@ -18,6 +20,11 @@ crond
 shutting_down=0
 
 shutdown() {
+    # $1 is the status to exit with: 0 for a requested stop, non-zero when we got here
+    # because nginx died on its own. Always exiting 0 would report a crash as a clean
+    # shutdown, hiding it from Fly's restart policy and the container's exit status.
+    exit_status=${1:-0}
+
     # Reachable twice: from the trap, and from the fall-through when nginx exits on its
     # own. A second pass would pkill a backend that is midway through its checkpoint and
     # restart the 15s wait from zero, so run the body once and let the first call finish.
@@ -50,14 +57,14 @@ shutdown() {
     else
         echo "[lyftr] backend exited cleanly after ${i}s"
     fi
-    exit 0
+    exit "$exit_status"
 }
 
 # Installed before anything is started, so a stop signal arriving during the first few
 # seconds — a fast rollback, `fly machine stop` right after a deploy, a failed release
 # check — still drains the backend instead of killing PID 1 on the default disposition.
 # $loop_pid/$nginx_pid being unset that early is harmless: the kills are guarded.
-trap shutdown TERM INT
+trap 'shutdown 0' TERM INT
 
 # Restart loop: reset.sh uses pkill to stop lyftr-api; this loop restarts it.
 # Running in background (&) so nginx can start as foreground PID 1.
@@ -66,11 +73,16 @@ while true; do
     # Without it the loop restarts the backend ~3s after pkill, so it can reopen the DB
     # underneath `mv`/`rm -f` — deleting the WAL out from under a live connection. Their
     # own wait loop cannot close that window; only holding the restart back can.
-    # Expire a stale guard first: if reset.sh is SIGKILLed its EXIT trap never runs, and
-    # without this the loop would wait forever and the demo would stay down permanently.
-    # A reset takes seconds, so anything older than five minutes is wreckage.
-    find /app/data -maxdepth 1 -name '.reset-in-progress' -mmin +5 -delete 2>/dev/null || true
-    while [ -f /app/data/.reset-in-progress ]; do
+    # Expire a stale guard: if reset.sh is SIGKILLed its EXIT trap never runs, and the
+    # guard lives on the persistent volume, so without this the demo stays down forever
+    # — across container restarts too. A reset takes seconds; older than five minutes is
+    # wreckage. The find has to run INSIDE the wait: a guard dropped seconds ago is not
+    # yet stale, so checking once before the loop would look at a fresh file, decline to
+    # delete it, and then spin here for good.
+    # -d, not -f: the guard is a directory, because mkdir is the only atomic
+    # take-it-or-fail primitive available to reset.sh and snapshot.sh.
+    while [ -d /app/data/.reset-in-progress ]; do
+        find /app/data -maxdepth 1 -type d -name '.reset-in-progress' -mmin +5 -exec rmdir {} + 2>/dev/null || true
         sleep 1
     done
     echo "[lyftr] starting backend..."
@@ -96,8 +108,13 @@ nginx_pid=$!
 # If nginx exits on its own — crash, OOM kill, a bad config reload — fall into the same
 # shutdown path rather than letting PID 1 return. Returning here would tear the container
 # down with lyftr-api still running and its WAL open, which is the loss this file exists
-# to prevent. `|| true` because `set -e` would otherwise exit on nginx's non-zero status
-# before the drain gets a chance to run.
-wait "$nginx_pid" || true
-echo "[lyftr] nginx exited on its own; draining the backend before we follow it"
-shutdown
+# to prevent.
+#
+# `|| nginx_status=$?` rather than a bare `wait`: under `set -e` a non-zero exit from
+# nginx would end the script on that line, before the drain runs — and a crash is exactly
+# the case worth draining. Capturing it in the same expression keeps the status for the
+# exit below instead of reporting a crash as a clean stop.
+nginx_status=0
+wait "$nginx_pid" || nginx_status=$?
+echo "[lyftr] nginx exited on its own (status ${nginx_status}); draining the backend before we follow it"
+shutdown "$nginx_status"

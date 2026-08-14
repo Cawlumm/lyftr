@@ -20,24 +20,45 @@ fi
 # Hold the entrypoint's restart loop back for the whole swap. Waiting for the backend to
 # exit is not enough on its own: the loop brings it back ~3s later, so it can reopen the
 # database between the wait below and the mv/rm further down, and then have its WAL
-# deleted from under it. Cleared on every exit path, including failure.
+# deleted from under it.
+#
+# mkdir, not touch, because it is the atomic primitive here: reset.sh (hourly cron) and
+# snapshot.sh (run by hand) share this path, and with a plain file plus an unconditional
+# `rm -f` on EXIT whichever finished first would clear the other's guard and let the
+# backend restart into the middle of its swap. mkdir fails if the directory exists, so
+# only one holder can ever own it — and only the owner removes it.
 GUARD="/app/data/.reset-in-progress"
-touch "$GUARD"
-trap 'rm -f "$GUARD"' EXIT
+if ! mkdir "$GUARD" 2>/dev/null; then
+    echo "[reset] $(date): another reset or snapshot holds $GUARD — skipping this run"
+    exit 0
+fi
+trap 'rmdir "$GUARD" 2>/dev/null || true' EXIT
 
 echo "[reset] $(date): stopping backend..."
-pkill lyftr-api 2>/dev/null || true
-# The backend now HAS a SIGTERM handler: it drains in-flight requests (up to 5s) and
-# then checkpoints the WAL (up to 4s), so this can legitimately take ~10s where it used
-# to return almost instantly. Wait well past that budget — the swap below must not run
-# while the backend is still writing, and a bounded loop that simply falls through would
-# put `mv -f` over the live DB underneath a process about to checkpoint onto it.
+# The backend now HAS a SIGTERM handler: it drains in-flight requests then checkpoints
+# the WAL, so stopping it can legitimately take several seconds where it used to return
+# almost instantly. The swap below must not run while it is still writing.
+#
+# Killing once and waiting for pgrep to go quiet is not enough. The entrypoint's restart
+# loop may have been between its guard check and exec'ing the binary when we took the
+# guard, so lyftr-api can appear a moment AFTER a pkill that matched nothing and a pgrep
+# that saw nothing — and the swap would then land on a live connection. So require the
+# process to be absent on two consecutive checks a second apart, killing again if one
+# shows up.
 waited=0
-while pgrep lyftr-api >/dev/null 2>&1 && [ "$waited" -lt 20 ]; do
+quiet=0
+while [ "$waited" -lt 25 ]; do
+    if pgrep lyftr-api >/dev/null 2>&1; then
+        pkill lyftr-api 2>/dev/null || true
+        quiet=0
+    else
+        quiet=$((quiet + 1))
+        [ "$quiet" -ge 2 ] && break
+    fi
     sleep 1
     waited=$((waited + 1))
 done
-if pgrep lyftr-api >/dev/null 2>&1; then
+if [ "$quiet" -lt 2 ]; then
     echo "[reset] $(date): ERROR — backend still running after ${waited}s; refusing to swap the DB underneath it"
     exit 1
 fi

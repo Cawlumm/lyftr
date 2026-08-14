@@ -102,12 +102,23 @@ func Connect() {
 //
 // TRUNCATE rather than PASSIVE so the -wal is emptied, not merely folded in: a
 // leftover -wal is what makes a restore silently replay over the file just put back.
-func Close() {
+func Close() { CloseBy(time.Now().Add(checkpointTimeout)) }
+
+// CloseBy is Close with the caller's shutdown deadline, so the checkpoint gets whatever
+// is left of the process-wide budget rather than assuming a fixed slice of it. The
+// earlier version hardcoded its own timeout, which silently pushed the total past the
+// container's grace period once another step was added ahead of it.
+func CloseBy(deadline time.Time) {
 	if DB == nil {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), checkpointTimeout)
+	// Always leave a moment to actually close, even if the drain overran.
+	if time.Until(deadline) < 500*time.Millisecond {
+		deadline = time.Now().Add(500 * time.Millisecond)
+	}
+
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 	if err := checkpoint(ctx); err != nil {
 		log.Printf("WARNING: %v — recent writes may still be in lyftr.db-wal, so a copy "+
@@ -146,21 +157,39 @@ func checkpoint(ctx context.Context) error {
 		return fmt.Errorf("could not lower busy_timeout for the checkpoint: %w", err)
 	}
 
+	start := time.Now()
+	lastFrames := -1
+	// Each attempt costs busy_timeout + the pause below, so the deadline lands inside
+	// Scan about as often as inside the wait. Both paths have to produce the same useful
+	// message, or half the time the operator gets a bare "context deadline exceeded".
+	blocked := func() error {
+		if lastFrames < 0 {
+			return fmt.Errorf("wal checkpoint still blocked after %s "+
+				"(another sqlite connection is holding it open)", time.Since(start).Round(time.Millisecond))
+		}
+		return fmt.Errorf("wal checkpoint still blocked after %s with %d frames in the WAL "+
+			"(another sqlite connection is holding it open)",
+			time.Since(start).Round(time.Millisecond), lastFrames)
+	}
+
 	for {
 		var busy, logFrames, checkpointed int
 		row := conn.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)")
 		if err := row.Scan(&busy, &logFrames, &checkpointed); err != nil {
+			if ctx.Err() != nil {
+				return blocked()
+			}
 			return fmt.Errorf("wal checkpoint failed: %w", err)
 		}
 		if busy == 0 {
 			return nil
 		}
+		lastFrames = logFrames
 		// Someone else holds a read lock — the sqlite3 CLI this image ships, a `fly ssh
 		// console` session, a backup mid-VACUUM. Retry until the budget runs out.
 		select {
 		case <-ctx.Done():
-			return fmt.Errorf("wal checkpoint still blocked after %s with %d frames in the WAL "+
-				"(another sqlite connection is holding it open)", checkpointTimeout, logFrames)
+			return blocked()
 		case <-time.After(200 * time.Millisecond):
 		}
 	}
