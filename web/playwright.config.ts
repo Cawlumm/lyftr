@@ -20,6 +20,10 @@ const baseURL = process.env.BASE_URL
 
 export default defineConfig({
   testDir: './e2e',
+  // Waits for the API and the exercise seed by registering its own probe account —
+  // the suite depends on no pre-existing user, so it runs against a stack with
+  // DEMO_MODE off (the production default).
+  globalSetup: './e2e/globalSetup.ts',
   // Deletes every e2e account created during the run (recorded in userRegistry),
   // guaranteeing the DB is left as it started — no orphaned test users locally.
   globalTeardown: './e2e/globalTeardown.ts',

@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -112,14 +113,13 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
-// getEnvBool reads a boolean env var. Anything unrecognised falls back rather than
-// being treated as false: DEMO_MODE=yes should not quietly mean "off".
+// getEnvBool reads a boolean env var via strconv.ParseBool — the same spellings the
+// rest of Go accepts. Unset or unparseable falls back rather than reading as false, so
+// a typo cannot quietly turn a setting off.
 func getEnvBool(key string, fallback bool) bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
-	case "1", "true", "yes", "on":
-		return true
-	case "0", "false", "no", "off":
-		return false
+	v, err := strconv.ParseBool(strings.TrimSpace(os.Getenv(key)))
+	if err != nil {
+		return fallback
 	}
-	return fallback
+	return v
 }

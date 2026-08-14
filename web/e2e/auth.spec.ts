@@ -25,7 +25,10 @@ test('wrong password shows an error and stays on the login page (no reload)', as
   // password", not trigger a token-refresh redirect that reloads the page and
   // wipes the message.
   await page.goto('/login')
-  await page.getByPlaceholder('you@example.com').fill('demo@lyftr.local')
+  // Any address works — the server answers "invalid email or password" whether the
+  // account is missing or the password is wrong, and naming a seeded account here
+  // implied the suite needed one.
+  await page.getByPlaceholder('you@example.com').fill('nobody@lyftr.local')
   await page.locator('#password').fill('definitely-the-wrong-password')
   await page.getByRole('button', { name: /sign in/i }).click()
   await expect(page.locator('.alert-error')).toBeVisible()

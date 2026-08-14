@@ -8,22 +8,24 @@ func TestGetEnvBool(t *testing.T) {
 		fallback bool
 		want     bool
 	}{
+		// The spellings strconv.ParseBool takes, which is the point of using it.
 		{"true", false, true},
 		{"TRUE", false, true},
+		{"True", false, true},
 		{"1", false, true},
-		{"yes", false, true},
-		{" on ", false, true},
+		{" true ", false, true},
 		{"false", true, false},
+		{"FALSE", true, false},
 		{"0", true, false},
-		{"no", true, false},
-		{"off", true, false},
 		// Unset falls back — this is what makes DEMO_MODE default to ENV=development.
 		{"", true, true},
 		{"", false, false},
-		// Unrecognised falls back rather than reading as false: DEMO_MODE=ture should
+		// Unparseable falls back rather than reading as false: DEMO_MODE=ture should
 		// not silently turn seeding off on a demo instance that asked for it.
 		{"maybe", true, true},
 		{"maybe", false, false},
+		{"yes", false, false},
+		{"on", true, true},
 	}
 
 	for _, tc := range cases {
