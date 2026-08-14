@@ -14,6 +14,10 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
       - DB_TYPE=sqlite
       - DB_PATH=/app/data/lyftr.db
+      # open | closed | first-user. See site docs → Configuration.
+      - REGISTRATION=${REGISTRATION:-open}
+      # Seeds demo@lyftr.local, whose password is public. Off unless you ask for it.
+      - DEMO_MODE=${DEMO_MODE:-false}
     expose:
       - "3000"
     healthcheck:

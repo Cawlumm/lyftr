@@ -33,7 +33,8 @@ Mac only) / `a` (Android emulator).
 The **Server URL** field in the Settings tab configures the backend origin (validated via
 `GET /api/v1/info`). Leave blank for the default. For the VM dev backend use the LAN IP or
 the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login:
-`demo@lyftr.local` / `password123`.
+`demo@lyftr.local` / `password123` — present on a dev backend and on the hosted demo, but
+not on a production instance unless it sets `DEMO_MODE=true`.
 
 ## Native networking config
 `network_security_config.xml` is an Android

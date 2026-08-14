@@ -13,6 +13,9 @@ export const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
 export interface ServerInfo {
   name: string
   version: string
+  // Optional: a backend older than the REGISTRATION feature omits it. Read it through
+  // registrationOpen() so "absent" means open rather than closed.
+  registration_open?: boolean
 }
 
 export interface ClientOptions {

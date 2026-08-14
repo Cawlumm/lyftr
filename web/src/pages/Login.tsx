@@ -4,7 +4,7 @@ import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-rea
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion } from '@lyftr/shared'
+import { formatVersion, registrationOpen } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 
@@ -194,16 +194,20 @@ export default function Login() {
             )}
           </form>
 
-          {/* Sign up link */}
-          <p className="mt-8 text-center text-sm text-tx-muted">
-            New here?{' '}
-            <Link
-              to="/register"
-              className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
-            >
-              Create account
-            </Link>
-          </p>
+          {/* Sign up link — hidden on an instance that has closed registration. The
+              server rejects the signup either way; this is so the only visible path
+              isn't one that 403s on submit. */}
+          {registrationOpen(serverInfo) && (
+            <p className="mt-8 text-center text-sm text-tx-muted">
+              New here?{' '}
+              <Link
+                to="/register"
+                className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
+              >
+                Create account
+              </Link>
+            </p>
+          )}
         </div>
       </div>
     </div>

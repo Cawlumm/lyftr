@@ -10,6 +10,8 @@ import {
   createSettingsStore,
   createThemeStore,
   createWorkoutSession,
+  testServerConnection,
+  useServerInfoFor,
 } from '@lyftr/shared'
 import { storage } from './storage'
 
@@ -41,3 +43,8 @@ export const useWorkoutSession = createWorkoutSession(storage)
 
 // Rest-timer state derived from the session store above. Logic in @lyftr/shared.
 export const useRestTimer = createUseRestTimer(useWorkoutSession)
+
+// The selected server's /info — version and whether it is taking new accounts. Same
+// hook and same cache the web uses; only the store binding differs.
+export const useServerInfo = () =>
+  useServerInfoFor(useServerStore((s) => s.serverUrl), testServerConnection)

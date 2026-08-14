@@ -175,6 +175,10 @@ jobs:
         run: |
           echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
           echo "PORT=80" >> .env
+          # Demo seeding is off by default now, but the suite needs that account: the
+          # readiness gate below logs in as it, and web/e2e/auth.spec.ts signs in as it.
+          # Without this the gate just times out after 90s and reads like a flake.
+          echo "DEMO_MODE=true" >> .env
 
       - uses: docker/setup-buildx-action@v3
 

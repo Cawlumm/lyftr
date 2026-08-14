@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 
+	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -11,7 +14,43 @@ import (
 
 var validate = validator.New()
 
+// RegistrationClosedMessage is what a rejected signup sees. One constant so the two
+// ways of being closed (REGISTRATION=closed, and first-user with the slot taken) are
+// indistinguishable to a caller — and so the handler and its tests cannot drift.
+const RegistrationClosedMessage = "registration is closed on this server"
+
+// registrationOpen reports whether a new account may be created right now. Errors are
+// reported as closed: advertising an open instance because a COUNT failed is the wrong
+// direction to fail.
+func (h *Handler) registrationOpen() (bool, error) {
+	switch config.C.Registration {
+	case config.RegistrationClosed:
+		return false, nil
+	case config.RegistrationFirstUser:
+		n, err := h.s.User.Count()
+		if err != nil {
+			return false, err
+		}
+		return n == 0, nil
+	default:
+		return true, nil
+	}
+}
+
 func (h *Handler) Register(c *gin.Context) {
+	// Before binding or hashing: bcrypt on an unauthenticated public endpoint is a free
+	// CPU-burn for anyone who finds a closed instance, and the answer does not depend on
+	// anything in the body.
+	open, err := h.registrationOpen()
+	if err != nil {
+		utils.DBError(c, err)
+		return
+	}
+	if !open {
+		utils.Forbidden(c, RegistrationClosedMessage)
+		return
+	}
+
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, err.Error())
@@ -28,7 +67,16 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	userID, err := h.s.User.Create(req.Email, hash)
+	create := h.s.User.Create
+	if config.C.Registration == config.RegistrationFirstUser {
+		create = h.s.User.CreateFirst
+	}
+
+	userID, err := create(req.Email, hash)
+	if errors.Is(err, stores.ErrRegistrationClosed) {
+		utils.Forbidden(c, RegistrationClosedMessage)
+		return
+	}
 	if utils.IsUniqueViolation(err) {
 		utils.Conflict(c, "email already registered")
 		return

@@ -25,9 +25,18 @@ func main() {
 
 	config.Load()
 	db.Connect()
-	seed.DemoUser(db.DB)
+	// The demo account's credentials are published, so it is not something a self-hosted
+	// instance should get by default — only the public demo and local development ask for
+	// it. The exercise library is not demo data and always seeds.
+	if config.C.DemoMode {
+		seed.DemoUser(db.DB)
+	} else {
+		seed.WarnLeftoverDemoUser(db.DB)
+	}
 	seed.Exercises(db.DB)
-	go seed.DemoData(db.DB)
+	if config.C.DemoMode {
+		go seed.DemoData(db.DB)
+	}
 
 	if config.C.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
