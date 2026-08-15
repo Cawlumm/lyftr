@@ -4,7 +4,7 @@ import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-rea
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion } from '@lyftr/shared'
+import { formatVersion, registrationOpen } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 
@@ -173,12 +173,17 @@ export default function Login() {
               {isLoading ? 'Signing in…' : 'Sign in'}
             </button>
 
-            {/* Divider */}
-            <div className="relative flex items-center my-6">
-              <div className="flex-1 h-px bg-surface-border" />
-              <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
-              <div className="flex-1 h-px bg-surface-border" />
-            </div>
+            {/* Divider — only when something follows it that is genuinely an alternative
+                way in. In a production build the demo button is absent, so on a server
+                with registration closed there is nothing below but a statement, and an
+                "or" heading it reads like the start of an option that never arrives. */}
+            {(import.meta.env.DEV || registrationOpen(serverInfo)) && (
+              <div className="relative flex items-center my-6">
+                <div className="flex-1 h-px bg-surface-border" />
+                <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
+                <div className="flex-1 h-px bg-surface-border" />
+              </div>
+            )}
 
             {/* Demo button — dev only */}
             {import.meta.env.DEV && (
@@ -194,16 +199,25 @@ export default function Login() {
             )}
           </form>
 
-          {/* Sign up link */}
-          <p className="mt-8 text-center text-sm text-tx-muted">
-            New here?{' '}
-            <Link
-              to="/register"
-              className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
-            >
-              Create account
-            </Link>
-          </p>
+          {/* A closed instance says so rather than offering a link that 403s on submit —
+              but it does still say so. Removing the signup path without a trace sends
+              someone who came here to sign up hunting for a button that is not there
+              (mastodon/mastodon#21556); a line of text answers them where they are. */}
+          {registrationOpen(serverInfo) ? (
+            <p className="mt-8 text-center text-sm text-tx-muted">
+              New here?{' '}
+              <Link
+                to="/register"
+                className="text-brand-400 font-medium hover:text-brand-300 transition-colors"
+              >
+                Create account
+              </Link>
+            </p>
+          ) : (
+            <p className="mt-8 text-center text-sm text-tx-muted">
+              This server is not accepting new accounts.
+            </p>
+          )}
         </div>
       </div>
     </div>

@@ -3,7 +3,8 @@ import { Text, View, Linking } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { IconInput, GradientButton, SecondaryButton, AuthDivider, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { useAuthStore } from '../../src/lib/lyftr'
+import { registrationOpen } from '@lyftr/shared'
+import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
 
 // Public hosted demo (Fly) — the "Try demo account" button opens it in the browser.
@@ -22,6 +23,7 @@ export default function Login() {
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
   const { accent, colors } = useTheme()
+  const isOpen = registrationOpen(useServerInfo())
 
   // Clear both the client-side and the server error when a field is edited.
   const onChange = (setter: (t: string) => void) => (t: string) => {
@@ -67,13 +69,22 @@ export default function Login() {
       <GradientButton title="Sign in" onPress={submit} loading={loading} />
       <AuthDivider />
       <SecondaryButton title="Try demo account" hint="no sign-up" onPress={demo} />
+      {/* A closed server says so instead of offering a link that 403s on submit — but it
+          does still say so, rather than leaving someone who came to sign up hunting for a
+          button that is not there (mastodon/mastodon#21556). */}
       <Footer>
-        <View style={{ flexDirection: 'row', gap: 5 }}>
-          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
-          <Link href="/register" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
-            Create account
-          </Link>
-        </View>
+        {isOpen ? (
+          <View style={{ flexDirection: 'row', gap: 5 }}>
+            <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
+            <Link href="/register" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
+              Create account
+            </Link>
+          </View>
+        ) : (
+          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
+            This server is not accepting new accounts.
+          </Text>
+        )}
       </Footer>
     </AuthScaffold>
   )

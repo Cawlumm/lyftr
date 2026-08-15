@@ -19,6 +19,11 @@ It's pre-loaded with 8 weeks of push/pull/legs workouts, 90 days of weight logs,
 every page has data to explore. It's a shared instance that **resets every hour**, so feel free to
 change anything — or register your own throwaway account.
 
+Those credentials are for the hosted demo only. Your own install does **not** come with that
+account — see [`DEMO_MODE`](../configuration/#the-demo-account) if you want the sample data
+locally, and [`REGISTRATION`](../configuration/#locking-down-registration) to control who may sign
+up on it.
+
 ## Get the app
 
 - **Android** — download the latest signed APK from the

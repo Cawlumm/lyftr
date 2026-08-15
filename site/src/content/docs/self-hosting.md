@@ -30,6 +30,15 @@ The compose file references prebuilt images on Docker Hub. Running `docker compo
 them so nothing is built locally — you don't need the source code, just the compose file and `.env`.
 :::
 
+:::caution[Close the door behind you]
+Registration is open by default, so anyone who can reach your instance can create an account.
+That is fine on a LAN and wrong once it has a public hostname. Set `REGISTRATION=first-user`
+in `.env` **before** the first `up -d` to claim the instance with your own signup, then move
+to `REGISTRATION=closed` once you have — see
+[Locking down registration](../configuration/#locking-down-registration) for why the second
+step matters.
+:::
+
 :::tip[Exercise library]
 On first startup Lyftr seeds **800+ exercises** from
 [free-exercise-db](https://github.com/yuhonas/free-exercise-db) in the background — no API key, no
@@ -50,7 +59,7 @@ Single SQLite file, minimal RAM, no external services required.
 
 ## Next steps
 
-- **[Configuration](../configuration/)** — environment variables (`JWT_SECRET`, `CORS_ORIGIN`, ports).
+- **[Configuration](../configuration/)** — environment variables (`JWT_SECRET`, `CORS_ORIGIN`, ports, `REGISTRATION`).
 - **[HTTPS & Reverse Proxy](../https/)** — expose it publicly with automatic TLS (and to use the mobile app).
 - **[Backups & Updates](../backups/)** — protect your data and upgrade safely.
 - **[Mobile App](../mobile/)** — install the Android app and point it at your server.

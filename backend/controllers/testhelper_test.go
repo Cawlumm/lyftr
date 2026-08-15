@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/gin-gonic/gin"
@@ -20,8 +21,20 @@ import (
 // the fresh per-test db.DB.
 var th *Handler
 
+// setRegistration points config.C at a mode for the duration of one test and restores
+// whatever was there before. Register and ServerInfo both read this global, so without a
+// deterministic value per test the result depends on which test ran first — measured:
+// TestRegister_lockedDBReturns503 passes in the full suite and nil-panics when run alone.
+func setRegistration(t *testing.T, mode string) {
+	t.Helper()
+	prev := config.C
+	config.C = &config.Config{Registration: mode, Version: "test"}
+	t.Cleanup(func() { config.C = prev })
+}
+
 func setupTestDB(t *testing.T) {
 	t.Helper()
+	setRegistration(t, config.RegistrationOpen)
 	var err error
 	// modernc ignores the mattn-style _foreign_keys=on; use the _pragma form so the
 	// harness actually enforces foreign keys, matching the production DSN.

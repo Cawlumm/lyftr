@@ -97,7 +97,7 @@ func DemoData(db *sql.DB) {
 	}
 
 	var userID int64
-	if err := db.QueryRow(`SELECT id FROM users WHERE email = ?`, "demo@lyftr.local").Scan(&userID); err != nil {
+	if err := db.QueryRow(`SELECT id FROM users WHERE email = ?`, DemoEmail).Scan(&userID); err != nil {
 		log.Printf("seed: demo user not found: %v", err)
 		return
 	}

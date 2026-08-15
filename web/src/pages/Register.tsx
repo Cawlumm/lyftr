@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { AlertCircle, Dumbbell, Apple, TrendingUp, UserPlus } from 'lucide-react'
+import { AlertCircle, Dumbbell, Apple, TrendingUp, UserPlus, Lock } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion } from '@lyftr/shared'
+import { formatVersion, registrationOpen } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 
@@ -12,6 +12,7 @@ export default function Register() {
   const navigate = useNavigate()
   const { register } = useAuthStore()
   const serverInfo = useServerInfo()
+  const isOpen = registrationOpen(serverInfo)
 
   const [email, setEmail]                     = useState('')
   const [password, setPassword]               = useState('')
@@ -102,16 +103,36 @@ export default function Register() {
           {/* Heading */}
           <div className="mb-8">
             <h2 className="font-display font-bold text-3xl text-tx-primary tracking-tight">
-              Create account
+              {isOpen ? 'Create account' : 'Registration closed'}
             </h2>
             <p className="text-tx-muted text-sm mt-2">
-              Start tracking your fitness today.
+              {isOpen
+                ? 'Start tracking your fitness today.'
+                : 'This server is not accepting new accounts.'}
             </p>
           </div>
 
-          {/* Server selector */}
+          {/* Server selector — stays visible when closed: the user may simply be
+              pointed at the wrong server, and this is where they'd fix that. */}
           <ServerSettings />
 
+          {/* A closed instance explains itself rather than letting someone fill in the
+              form and meet a 403 on submit. The server is what enforces this. */}
+          {!isOpen ? (
+            <div className="mt-6 space-y-6">
+              <div className="flex gap-3 rounded-xl border border-surface-border bg-surface-raised p-4">
+                <Lock className="w-4 h-4 mt-0.5 flex-shrink-0 text-tx-muted" />
+                <p className="text-sm text-tx-secondary leading-relaxed">
+                  The owner of this Lyftr instance has turned off new signups. If you should
+                  have an account here, ask them to create one for you.
+                </p>
+              </div>
+              <Link to="/login" className="btn-primary btn-lg w-full flex items-center justify-center gap-2">
+                Back to sign in
+              </Link>
+            </div>
+          ) : (
+          <>
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Email */}
@@ -188,6 +209,8 @@ export default function Register() {
               Sign in
             </Link>
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

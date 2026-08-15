@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
@@ -17,6 +18,7 @@ import (
 // also rebuilds the DI handler (th) bound to this DB.
 func setupFileDB(t *testing.T) string {
 	t.Helper()
+	setRegistration(t, config.RegistrationOpen)
 	path := filepath.Join(t.TempDir(), "lock.db")
 	var err error
 	db.DB, err = sql.Open("sqlite", path+"?_pragma=busy_timeout(0)")

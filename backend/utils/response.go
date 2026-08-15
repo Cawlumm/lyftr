@@ -22,6 +22,10 @@ func Unauthorized(c *gin.Context, msg string) {
 	c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 }
 
+func Forbidden(c *gin.Context, msg string) {
+	c.JSON(http.StatusForbidden, gin.H{"error": msg})
+}
+
 func NotFound(c *gin.Context, msg string) {
 	c.JSON(http.StatusNotFound, gin.H{"error": msg})
 }

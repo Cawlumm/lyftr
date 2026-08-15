@@ -212,12 +212,9 @@ jobs:
       - name: Install Playwright system dependencies
         run: cd web && npx playwright install-deps chromium webkit
 
-      - name: Wait for demo user to be seeded
-        run: |
-          timeout 90 bash -c 'until curl -sf -X POST http://localhost/api/v1/auth/login \
-            -H "Content-Type: application/json" \
-            -d "{\"email\":\"demo@lyftr.local\",\"password\":\"password123\"}" \
-            | grep -q "token"; do sleep 3; done'
+      # Readiness (API up + exercise seed finished) is the suite's own globalSetup now,
+      # which registers a throwaway account rather than logging in as a seeded one. So
+      # this job runs against the production default: no DEMO_MODE, no demo account.
 
       - name: Run E2E tests
         run: cd web && npm run test:e2e:docker

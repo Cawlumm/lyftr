@@ -14,6 +14,8 @@ primary_region = "fra"
   PORT       = "3000"
   DB_PATH    = "/app/data/lyftr.db"
   CORS_ORIGIN = "https://lyftr-demo.fly.dev"
+  # Without this the demo deploys with no account to log into.
+  DEMO_MODE  = "true"
 
 # JWT_SECRET must be set as a secret:
 #   fly secrets set JWT_SECRET=$(openssl rand -hex 32)

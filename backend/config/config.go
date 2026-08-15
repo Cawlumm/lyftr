@@ -3,6 +3,9 @@ package config
 import (
 	"log"
 	"os"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -21,7 +24,23 @@ type Config struct {
 	CORSOrigin string
 	Env        string
 	Version    string
+
+	// Registration is who may create an account: RegistrationOpen, RegistrationClosed,
+	// or RegistrationFirstUser (open only while the users table is empty).
+	Registration string
+	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
+	// development: the credentials are published in the README, so an instance that
+	// seeds them has a known-password account whatever Registration says.
+	DemoMode bool
 }
+
+const (
+	RegistrationOpen      = "open"
+	RegistrationClosed    = "closed"
+	RegistrationFirstUser = "first-user"
+)
+
+var registrationModes = []string{RegistrationOpen, RegistrationClosed, RegistrationFirstUser}
 
 var C *Config
 
@@ -42,6 +61,8 @@ func Version() string { return buildVersion }
 func Load() {
 	_ = godotenv.Load()
 
+	env := getEnv("ENV", "development")
+
 	C = &Config{
 		Port:       getEnv("PORT", "3000"),
 		DBType:     getEnv("DB_TYPE", "sqlite"),
@@ -54,13 +75,35 @@ func Load() {
 		JWTSecret:  getEnv("JWT_SECRET", "change-me-in-production-min-32-chars!!"),
 		JWTExpiry:  getEnv("JWT_EXPIRY", "3600"),
 		CORSOrigin: getEnv("CORS_ORIGIN", "http://localhost:5173"),
-		Env:        getEnv("ENV", "development"),
+		Env:        env,
 		Version:    buildVersion,
+
+		Registration: getEnv("REGISTRATION", RegistrationOpen),
+		// Contributors following CONTRIBUTING.md get the demo account without setting
+		// anything; a self-hoster or the Fly demo has to ask for it.
+		DemoMode: getEnvBool("DEMO_MODE", env == "development"),
 	}
 
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {
 		log.Fatal("JWT_SECRET must be set in production")
 	}
+
+	// Refuse to start on a typo rather than falling back to open. REGISTRATION=frst-user
+	// silently meaning "anyone may sign up" is the one failure mode that leaves someone
+	// believing their instance is locked down when it is not.
+	if !ValidRegistration(C.Registration) {
+		log.Fatalf("REGISTRATION must be one of %v, got %q", registrationModes, C.Registration)
+	}
+
+	if C.Registration == RegistrationFirstUser && C.DemoMode {
+		log.Printf("WARNING: REGISTRATION=first-user with DEMO_MODE=true — the seeded demo " +
+			"account already occupies the users table, so registration will never open. " +
+			"Set DEMO_MODE=false to claim the first account yourself.")
+	}
+}
+
+func ValidRegistration(mode string) bool {
+	return slices.Contains(registrationModes, mode)
 }
 
 func getEnv(key, fallback string) string {
@@ -68,4 +111,15 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getEnvBool reads a boolean env var via strconv.ParseBool — the same spellings the
+// rest of Go accepts. Unset or unparseable falls back rather than reading as false, so
+// a typo cannot quietly turn a setting off.
+func getEnvBool(key string, fallback bool) bool {
+	v, err := strconv.ParseBool(strings.TrimSpace(os.Getenv(key)))
+	if err != nil {
+		return fallback
+	}
+	return v
 }

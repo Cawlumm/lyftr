@@ -71,7 +71,7 @@ Open `http://localhost` and create your account.
 
 ## Try it
 
-- **Live demo** — [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly)
+- **Live demo** — [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly; that account is demo-only — your own install has no default login)
 - **Android** — [download the APK](https://github.com/Cawlumm/lyftr/releases/latest), then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
 
 ## Roadmap

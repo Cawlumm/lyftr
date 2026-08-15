@@ -14,6 +14,8 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
       - DB_TYPE=sqlite
       - DB_PATH=/app/data/lyftr.db
+      - REGISTRATION=${REGISTRATION:-open}
+      - DEMO_MODE=${DEMO_MODE:-false}
     expose:
       - "3000"
     healthcheck:

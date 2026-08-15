@@ -2,6 +2,7 @@ package stores
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -75,21 +76,54 @@ func (s *UserStore) UpsertSettings(uid int64, req models.UpdateSettingsRequest) 
 	return st, nil
 }
 
+// ErrRegistrationClosed means the instance is in first-user mode and the slot was
+// taken — by the owner, or by whoever raced them to it.
+var ErrRegistrationClosed = errors.New("registration is closed")
+
+// Count returns the number of accounts. Drives first-user mode and the
+// registration_open flag on /info.
+func (s *UserStore) Count() (int, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n)
+	return n, err
+}
+
 // Create inserts a user and their default settings atomically (one transaction —
 // fixes the previous non-transactional gap). A duplicate email surfaces as a
 // UNIQUE violation for the controller to map to 409.
 func (s *UserStore) Create(email, hash string) (int64, error) {
 	return inTx(s.db, func(tx *sql.Tx) (int64, error) {
-		res, err := tx.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, email, hash)
-		if err != nil {
-			return 0, err
-		}
-		uid, _ := res.LastInsertId()
-		if _, err := tx.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, uid); err != nil {
-			return 0, err
-		}
-		return uid, nil
+		return createUserTx(tx, email, hash)
 	})
+}
+
+// CreateFirst is Create for first-user mode: it re-counts inside the transaction and
+// refuses if anyone got there first. The controller's pre-check is only a fast reject —
+// on a fresh public instance a scraper and the owner can both observe an empty table
+// and both be allowed through, which is the exact race this mode exists to prevent.
+func (s *UserStore) CreateFirst(email, hash string) (int64, error) {
+	return inTx(s.db, func(tx *sql.Tx) (int64, error) {
+		var n int
+		if err := tx.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil {
+			return 0, err
+		}
+		if n > 0 {
+			return 0, ErrRegistrationClosed
+		}
+		return createUserTx(tx, email, hash)
+	})
+}
+
+func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
+	res, err := tx.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, email, hash)
+	if err != nil {
+		return 0, err
+	}
+	uid, _ := res.LastInsertId()
+	if _, err := tx.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, uid); err != nil {
+		return 0, err
+	}
+	return uid, nil
 }
 
 // Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on).

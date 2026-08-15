@@ -19,7 +19,9 @@ go run .
 # API listens on http://localhost:3000
 ```
 
-On first run the backend seeds a demo account and exercise database automatically.
+On first run the backend seeds the exercise database automatically, plus a demo account —
+the latter only because `ENV=development`, which is what `DEMO_MODE` defaults to. A
+production install seeds no account at all; set `DEMO_MODE=true` if you want one there.
 
 **Demo credentials**
 ```
