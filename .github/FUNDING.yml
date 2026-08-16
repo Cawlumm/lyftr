@@ -1,4 +1,23 @@
 # Puts a "Sponsor" button on the repo header and on every release page.
-# Add ko_fi here once that account exists — it catches people who won't make a
-# GitHub account, which is most of the self-hosting audience.
-github: [Cawlumm]
+#
+# Every platform GitHub supports is listed below. Uncomment a line once the
+# account actually exists — a key pointing at a missing account renders a
+# dead button, which is worse than no button.
+#
+# ko_fi is the one most likely to be worth adding next: it catches people who
+# will not create a GitHub account, which is a large share of the self-hosting
+# audience, and it takes 0% on donations (only the Stripe/PayPal processing fee).
+
+github: [Cawlumm] # up to 4 users + 1 org
+
+# ko_fi: lyftr                       # username only, not the full URL
+# buy_me_a_coffee: lyftr             # takes 5%; ko_fi is the better default
+# liberapay: lyftr                   # 0% fee, non-profit, popular with FOSS purists
+# open_collective: lyftr             # public ledger; ~10% + fiscal host. For teams, not solo
+# patreon: lyftr
+# polar: lyftr
+# issuehunt: lyftr
+# thanks_dev: u/gh/Cawlumm           # note the u/gh/ prefix — a bare username will not resolve
+# tidelift: npm/lyftr                # PLATFORM-NAME/PACKAGE-NAME; only for published packages
+# community_bridge: lyftr            # LFX Mentorship project name
+# custom: ["https://lyftr-app.pages.dev/support/"]   # up to 4 URLs; quote any containing a colon
