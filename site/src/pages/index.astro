@@ -16,7 +16,10 @@ const base = import.meta.env.BASE_URL.replace(/\/?$/, '/');
 const DEMO = 'https://lyftr-demo.fly.dev';
 const REPO = 'https://github.com/Cawlumm/lyftr';
 const DISCORD = 'https://discord.gg/hfFWsrebQA';
-const APK = 'https://github.com/Cawlumm/lyftr/releases?q=mobile-v';
+// Not /releases/latest and not ?q=mobile-v: every release ships as a prerelease so
+// /latest 302s to the list, and mobile-v* was retired when #77 unified the tag namespace
+// (RELEASING.md) — that filter still resolves, to a stale July build.
+const APK = 'https://github.com/Cawlumm/lyftr/releases';
 
 const title = 'Lyftr — Self-Hosted Workout Tracker & Hevy / Strong Alternative (Open Source)';
 const description =
@@ -27,7 +30,7 @@ const ogImage = new URL(banner.src, Astro.site).href;
 const logoUrl = new URL('logo.svg', Astro.site).href;
 
 const proof = [
-  { label: '160+ GitHub stars', href: REPO },
+  { label: '300+ GitHub stars', href: REPO }, // hand-maintained; bump it when it drifts
   { label: 'Featured in selfh.st', href: 'https://selfh.st/weekly/2026-04-24/' },
   { label: 'Runs on Pi · NAS · $5 VPS' },
   { label: 'MIT · Free · No subscription' },
