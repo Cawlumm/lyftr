@@ -9,7 +9,7 @@ talking to **your** server.
 ## Android
 
 1. Download the latest signed APK from the
-   [Releases](https://github.com/Cawlumm/lyftr/releases/latest) page.
+   [Releases](https://github.com/Cawlumm/lyftr/releases) page.
 2. Open the `.apk` on your phone and allow **"install from unknown sources"** if prompted.
 3. Launch Lyftr and enter your server URL when asked.
 

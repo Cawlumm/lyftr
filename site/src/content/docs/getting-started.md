@@ -27,7 +27,7 @@ up on it.
 ## Get the app
 
 - **Android** — download the latest signed APK from the
-  [Releases](https://github.com/Cawlumm/lyftr/releases/latest) page, install it, and point it at
+  [Releases](https://github.com/Cawlumm/lyftr/releases) page, install it, and point it at
   your server. Side-loaded builds don't auto-update — reinstall over the old one when a new
   release drops.
 - **Web** — served by your self-hosted instance (see [Self-Hosting](../self-hosting/)).
