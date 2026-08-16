@@ -56,7 +56,10 @@ export default defineConfig({
         },
         {
           label: 'Help',
-          items: [{ label: 'FAQ', slug: 'faq' }],
+          items: [
+            { label: 'FAQ', slug: 'faq' },
+            { label: 'Support Lyftr', slug: 'support' },
+          ],
         },
       ],
     }),

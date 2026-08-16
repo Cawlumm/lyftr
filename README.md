@@ -96,6 +96,19 @@ for how the test suite is organised.
 > **Beta** — actively built, expect rough edges and frequent updates. The software equivalent of
 > going to the gym for the first time.
 
+## Support
+
+Lyftr is free and open source under the MIT license — run it on your own hardware, no subscription.
+
+The most useful things you can do are free: file a reproducible bug report, fix a doc page that was
+wrong, or tell another self-hoster it exists.
+
+If you'd rather help with the running costs, sponsorship covers the demo server (~$4/month) and the
+developer accounts Lyftr needs to reach more platforms — the iOS app is blocked on a $99/year Apple
+Developer account, not on the code.
+
+[Sponsor on GitHub](https://github.com/sponsors/Cawlumm) · [All the ways to help](https://lyftr-app.pages.dev/support/)
+
 ## License
 
 [MIT](LICENSE)

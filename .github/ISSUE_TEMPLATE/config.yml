@@ -1,0 +1,14 @@
+# Surfaces Discord and the docs at the moment someone is about to file — a fair share of
+# issues are setup questions that get answered faster in chat. blank_issues_enabled stays
+# true: an issue that fits neither template is still worth having.
+blank_issues_enabled: true
+contact_links:
+  - name: Discord
+    url: https://discord.gg/hfFWsrebQA
+    about: Setup help and questions — usually faster than an issue.
+  - name: Documentation
+    url: https://lyftr-app.pages.dev
+    about: Install, configuration, HTTPS, backups and troubleshooting.
+  - name: Support Lyftr
+    url: https://lyftr-app.pages.dev/support/
+    about: Ways to help the project, including sponsorship.
