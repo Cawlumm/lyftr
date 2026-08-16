@@ -1,0 +1,4 @@
+# Puts a "Sponsor" button on the repo header and on every release page.
+# Add ko_fi here once that account exists — it catches people who won't make a
+# GitHub account, which is most of the self-hosting audience.
+github: [Cawlumm]

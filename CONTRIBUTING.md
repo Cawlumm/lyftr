@@ -170,3 +170,8 @@ Never commit with failing tests. Fix root cause — don't skip or comment out.
 ## Questions?
 
 Open a [discussion](../../discussions) or an issue.
+
+## Not a coder?
+
+Bug reports, doc fixes and telling other self-hosters it exists all help. If you'd rather
+help with the running costs, see [Support Lyftr](https://lyftr-app.pages.dev/support/).
