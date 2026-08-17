@@ -80,14 +80,50 @@ other one stops working within the hour. That is deliberate — a password chang
 for when you think someone else has a session, so it has to actually end their session. Sign back
 in on your other devices with the new password.
 
+## If you forget your password
+
 There is no password *reset*. Nothing here can email you a link, and an instance with no mail
-server could not send one. If you lock yourself out, the recovery path is server-side: stop the
-container, and either delete the row from `users` in `lyftr.db` and register again, or restore the
-database file from a backup.
+server could not send one. Recovery is server-side, and because you own the server, it is a small
+job: replace the stored hash by hand.
+
+**Do not delete the account and sign up again.** `users` cascades — the row takes every workout,
+meal and weight entry with it. It also does not work at all when `REGISTRATION=closed`, since
+nothing would let you register the replacement.
+
+Generate a hash. Lyftr uses bcrypt and accepts the `$2a$`, `$2b$` and `$2y$` prefixes, so either of
+these works:
+
+```bash
+# apache2-utils — prints $2y$
+htpasswd -bnBC 12 "" 'your-new-password' | tr -d ':\n'
+
+# or python, with the bcrypt package — prints $2b$
+python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-new-password', bcrypt.gensalt(12)).decode())"
+```
+
+Then write it in. Stop the container first so nothing is mid-write:
+
+```bash
+docker compose stop backend
+sqlite3 ./data/lyftr.db \
+  "UPDATE users
+      SET password_hash = '<paste the hash>',
+          token_version = token_version + 1
+    WHERE email = 'you@example.com';"
+docker compose start backend
+```
+
+Quote the hash in single quotes — it contains `$`, which the shell would otherwise eat.
+
+`token_version` is bumped for the same reason the in-app change bumps it: if you are resetting
+because someone else may hold a session, the new password is worthless while their old tokens still
+work. Raising it invalidates every one of them.
+
+If that is more than you want to do, restoring `lyftr.db` from a backup taken before the password
+changed works too — at the cost of everything logged since.
 
 :::caution
-Recovery means direct database access. Back up `lyftr.db` before touching it — see
-[Backups](/backups/).
+Back up `lyftr.db` before editing it — see [Backups](/backups/).
 :::
 
 ## The demo account
