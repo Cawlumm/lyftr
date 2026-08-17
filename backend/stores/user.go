@@ -187,6 +187,19 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 // ErrNoSuchUser means no account carries that address.
 var ErrNoSuchUser = errors.New("no account with that email")
 
+// FindEmailFold returns the stored address matching email case-insensitively, or
+// sql.ErrNoRows. Addresses are stored and matched exactly everywhere else — including at
+// login — so this exists only to turn "no account found" into a useful message for an
+// operator who typed the wrong case while recovering an account. It must not become a way
+// to authenticate, which is why it returns the stored spelling rather than the row.
+func (s *UserStore) FindEmailFold(email string) (string, error) {
+	var stored string
+	err := s.db.QueryRow(
+		`SELECT email FROM users WHERE email = ? COLLATE NOCASE`, email,
+	).Scan(&stored)
+	return stored, err
+}
+
 // ResetPassword is the operator's way in, for the account whose password is lost. Unlike
 // ChangePassword there is no old hash to verify against — the whole point is that nobody
 // knows it — so this is keyed on email and guarded only by having a shell on the server.

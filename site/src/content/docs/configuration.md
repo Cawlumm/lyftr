@@ -75,10 +75,13 @@ the server reports registration closed, but that is politeness — the 403 is th
 **Settings → Account → Password**, on the web app and in the Android app. It asks for your current
 password, so a stolen session alone cannot lock you out of your own account.
 
-Changing it **signs you out everywhere else**. The device you changed it on stays signed in; every
-other one stops working within the hour. That is deliberate — a password change is what you reach
-for when you think someone else has a session, so it has to actually end their session. Sign back
-in on your other devices with the new password.
+Changing it **signs you out everywhere else**. The device you changed it on stays signed in. That
+is deliberate — a password change is what you reach for when you think someone else has a session,
+so it has to actually end their session. Sign back in on your other devices with the new password.
+
+Other devices stop as soon as their current access token expires, which is `JWT_EXPIRY` seconds
+(one hour by default). Raising `JWT_EXPIRY` widens that window by exactly the same amount, so a
+long expiry trades a little convenience for a longer tail after a password change.
 
 ## If you forget your password
 

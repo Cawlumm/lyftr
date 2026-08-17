@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { userAPI } from '../services/api'
+import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '@lyftr/shared'
 import { KeyRound, Check, AlertCircle, Loader } from 'lucide-react'
 
@@ -8,6 +9,7 @@ import { KeyRound, Check, AlertCircle, Loader } from 'lucide-react'
 const MIN_LENGTH = 8
 
 export default function ChangePassword() {
+  const user = useAuthStore(s => s.user)
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -86,9 +88,11 @@ export default function ChangePassword() {
         </p>
       </div>
 
-      {/* The username hint is invisible but load-bearing: without it password managers
-          cannot tell which account this form belongs to, and offer to save the new
-          password under a blank or wrong entry. */}
+      {/* Password managers key the saved entry on a username field in the same form.
+          Without one they file the new password under a blank or guessed account. It has
+          to carry the real address to do that — an empty value is the same as having no
+          field at all. Hidden rather than absent, since the user already knows who they
+          are signed in as. */}
       <input
         type="text"
         autoComplete="username"
@@ -96,7 +100,7 @@ export default function ChangePassword() {
         tabIndex={-1}
         aria-hidden="true"
         readOnly
-        value=""
+        value={user?.email ?? ''}
       />
 
       <div>

@@ -281,8 +281,16 @@ export default function SettingsScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                   textContentType="newPassword"
-                  error={pwError}
                 />
+                {/* Standalone rather than on a Field: most of these errors are about the
+                    current password or come from the server, and hanging them off the
+                    confirm box pointed the user at the wrong input. */}
+                {pwError ? (
+                  <View className="flex-row items-start gap-1.5">
+                    <AlertTriangle size={13} color={brand.error} strokeWidth={2.4} style={{ marginTop: 1 }} />
+                    <AppText variant="caption" color="error" className="flex-1">{pwError}</AppText>
+                  </View>
+                ) : null}
                 <Muted>At least {MIN_PASSWORD} characters. You stay signed in on this device.</Muted>
                 <View className="flex-row gap-2">
                   <Button
