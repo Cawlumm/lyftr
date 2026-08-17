@@ -102,10 +102,14 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     (response) => response,
     async (error) => {
       const original = error.config
-      // A 401 from the auth endpoints themselves is a credential error, not an
-      // expired session — let the page show it instead of refreshing/redirecting.
-      const isAuthRequest = (original?.url || '').includes('/auth/')
-      if (error.response?.status === 401 && !original._retry && !isAuthRequest) {
+      // A 401 from an endpoint that checks a password in its body is a credential
+      // error, not an expired session — let the page show it instead of
+      // refreshing/redirecting. /me/password belongs here for the same reason
+      // /auth/login does: it answers "that password is wrong", and refreshing would
+      // retry, fail again, and sign the user out over a typo.
+      const url = original?.url || ''
+      const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password')
+      if (error.response?.status === 401 && !original._retry && !isCredentialCheck) {
         original._retry = true
         try {
           const refreshToken = await storage.get(STORAGE_KEYS.refresh)
@@ -139,6 +143,16 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     getSettings:    () => api.get<{ data: types.UserSettings }>('/settings').then(unwrap),
     updateSettings: (data: Partial<types.UserSettings>) => api.put<{ data: types.UserSettings }>('/settings', data).then(unwrap),
     deleteAccount:  () => api.delete('/me'),
+    // Persisting the returned pair is not optional. The change invalidates every token
+    // minted against the old password, this device's included, so skipping this would
+    // sign the user out of the very session that made the change — at the next refresh,
+    // minutes later, with nothing on screen to connect it to what they did.
+    changePassword: async (data: types.ChangePasswordRequest) => {
+      const res = await api.put<{ data: types.TokenPair }>('/me/password', data)
+      const pair = res.data.data
+      await storage.set(STORAGE_KEYS.access, pair.token)
+      await storage.set(STORAGE_KEYS.refresh, pair.refresh_token)
+    },
   }
 
   const workoutAPI = {

@@ -277,3 +277,14 @@ export interface RegisterRequest {
   email: string
   password: string
 }
+
+/** What /auth/refresh and /me/password return: credentials without a user body. */
+export interface TokenPair {
+  token: string
+  refresh_token: string
+}
+
+export interface ChangePasswordRequest {
+  current_password: string
+  new_password: string
+}

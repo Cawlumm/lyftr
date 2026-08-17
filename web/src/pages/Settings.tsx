@@ -7,6 +7,7 @@ import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
+import ChangePassword from '../components/ChangePassword'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
   RefreshCw, Pencil, Clock, Minus, Plus,
@@ -174,6 +175,7 @@ export default function Settings() {
             {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
           </span>
         </SettingRow>
+        <ChangePassword />
       </Section>
 
       {/* Appearance */}

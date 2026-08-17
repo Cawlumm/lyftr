@@ -76,6 +76,14 @@ func alterMigrations() {
 	ensureColumn("workouts", "program_id", `ALTER TABLE workouts ADD COLUMN program_id INTEGER`)
 	ensureIndex("idx_workouts_program", `CREATE INDEX IF NOT EXISTS idx_workouts_program ON workouts(program_id)`)
 
+	// Bumped whenever the account's credentials change, and carried in every token as
+	// the "ver" claim. Refresh compares the two and refuses a token minted before the
+	// bump, which is the only way a stateless JWT can be revoked: without it a stolen
+	// refresh token outlives a password change by its full 30-day life, defeating the
+	// entire point of changing the password. Existing rows start at 1, matching the
+	// tokens already in the wild, so nobody is signed out by the upgrade itself.
+	ensureColumn("users", "token_version", `ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1`)
+
 	// The zone the server buckets this user's day-scoped data in. Defaults to UTC,
 	// which is exactly the behaviour every existing row was written under, so this
 	// column changes nothing until a client reports a real zone.
@@ -662,6 +670,7 @@ CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   email         TEXT    NOT NULL UNIQUE,
   password_hash TEXT    NOT NULL,
+  token_version INTEGER NOT NULL DEFAULT 1,
   created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

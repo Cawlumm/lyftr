@@ -70,6 +70,26 @@ quietly leaving you wide open. Check `docker compose logs backend` if the contai
 This is enforced by the API, not the interface. The apps also hide the "Create account" link when
 the server reports registration closed, but that is politeness — the 403 is the lock.
 
+## Changing your password
+
+**Settings → Account → Password**, on the web app and in the Android app. It asks for your current
+password, so a stolen session alone cannot lock you out of your own account.
+
+Changing it **signs you out everywhere else**. The device you changed it on stays signed in; every
+other one stops working within the hour. That is deliberate — a password change is what you reach
+for when you think someone else has a session, so it has to actually end their session. Sign back
+in on your other devices with the new password.
+
+There is no password *reset*. Nothing here can email you a link, and an instance with no mail
+server could not send one. If you lock yourself out, the recovery path is server-side: stop the
+container, and either delete the row from `users` in `lyftr.db` and register again, or restore the
+database file from a backup.
+
+:::caution
+Recovery means direct database access. Back up `lyftr.db` before touching it — see
+[Backups](/backups/).
+:::
+
 ## The demo account
 
 Every version before this one seeded `demo@lyftr.local` with a password published in this
@@ -78,7 +98,8 @@ you ask for it.
 
 If you are upgrading, the account you already have is not deleted — deleting it might take real
 workouts with it. The backend logs a warning at startup while it exists. To remove it: sign in as
-`demo@lyftr.local`, then **Settings → Delete account**.
+`demo@lyftr.local`, then **Settings → Delete account**. If that account has real data in it, change
+its password instead — that closes the published-credential hole without losing anything.
 
 Turning registration off does nothing about this: a published password is a working login whatever
 `REGISTRATION` says.

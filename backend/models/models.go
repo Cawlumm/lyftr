@@ -3,11 +3,13 @@ package models
 import "time"
 
 type User struct {
-	ID        int64     `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	Password  string    `json:"-" db:"password_hash"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID       int64  `json:"id" db:"id"`
+	Email    string `json:"email" db:"email"`
+	Password string `json:"-" db:"password_hash"`
+	// TokenVersion is a server-side detail; like the hash it must never reach a client.
+	TokenVersion int       `json:"-" db:"token_version"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type UserSettings struct {
@@ -206,6 +208,16 @@ type AuthResponse struct {
 
 type RefreshRequest struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+// ChangePasswordRequest re-authenticates the caller before the change. A valid access
+// token is not enough on its own: it is exactly what an attacker holding a hijacked
+// session already has, and letting that alone rewrite the password would turn session
+// theft into permanent account takeover. min=8 mirrors RegisterRequest so the two
+// cannot drift into a weaker password being settable than is registerable.
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=8"`
 }
 
 // MaxWorkoutSets bounds the TOTAL number of sets across every exercise in a

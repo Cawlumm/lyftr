@@ -1,5 +1,5 @@
 import { createClient } from './client'
-import { StorageAdapter } from './storage'
+import { StorageAdapter, STORAGE_KEYS } from './storage'
 
 const memStorage = (): StorageAdapter => {
   const m = new Map<string, string>()
@@ -190,5 +190,63 @@ describe('list timeouts scale with the requested limit', () => {
     await client.weightAPI.list()
     expect(seen[0].timeout).toBe(20000)
     expect(seen[1].timeout).toBe(20000)
+  })
+})
+
+// The change invalidates every token minted against the old password — including the
+// pair this device is holding. Persisting the replacements is what keeps the session
+// that made the change alive; drop them and the user is signed out minutes later, at
+// the next refresh, with nothing on screen to connect it to what they did.
+describe('userAPI.changePassword', () => {
+  const clientWithStorage = () => {
+    const store = memStorage()
+    const client = createClient(store)
+    client.api.defaults.adapter = async (config: any) => ({
+      data: { data: { token: 'new-access', refresh_token: 'new-refresh' } },
+      status: 200, statusText: 'OK', headers: {}, config,
+    })
+    return { client, store }
+  }
+
+  it('persists the token pair the server returns', async () => {
+    const { client, store } = clientWithStorage()
+    await store.set(STORAGE_KEYS.access, 'old-access')
+    await store.set(STORAGE_KEYS.refresh, 'old-refresh')
+
+    await client.userAPI.changePassword({
+      current_password: 'password123',
+      new_password: 'newpassword456',
+    })
+
+    expect(await store.get(STORAGE_KEYS.access)).toBe('new-access')
+    expect(await store.get(STORAGE_KEYS.refresh)).toBe('new-refresh')
+  })
+
+  // A 401 here means "that current password is wrong", not "your session lapsed". If the
+  // refresh interceptor treats it as the latter it retries, fails again, and signs the
+  // user out — losing the session over a typo.
+  it('does not trigger the refresh-and-sign-out path on a rejected password', async () => {
+    const store = memStorage()
+    let signedOut = false
+    const client = createClient(store, { onAuthFailure: () => { signedOut = true } })
+    client.api.defaults.adapter = async (config: any) => {
+      const err: any = new Error('Request failed with status code 401')
+      err.config = config
+      err.response = {
+        status: 401, data: { error: 'current password is incorrect' },
+        statusText: 'Unauthorized', headers: {}, config,
+      }
+      throw err
+    }
+    await store.set(STORAGE_KEYS.access, 'live-access')
+    await store.set(STORAGE_KEYS.refresh, 'live-refresh')
+
+    await expect(client.userAPI.changePassword({
+      current_password: 'wrong', new_password: 'newpassword456',
+    })).rejects.toBeDefined()
+
+    expect(signedOut).toBe(false)
+    expect(await store.get(STORAGE_KEYS.access)).toBe('live-access')
+    expect(await store.get(STORAGE_KEYS.refresh)).toBe('live-refresh')
   })
 })
