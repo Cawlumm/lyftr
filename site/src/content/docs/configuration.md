@@ -82,49 +82,41 @@ in on your other devices with the new password.
 
 ## If you forget your password
 
-There is no password *reset*. Nothing here can email you a link, and an instance with no mail
-server could not send one. Recovery is server-side, and because you own the server, it is a small
-job: replace the stored hash by hand.
-
-**Do not delete the account and sign up again.** `users` cascades — the row takes every workout,
-meal and weight entry with it. It also does not work at all when `REGISTRATION=closed`, since
-nothing would let you register the replacement.
-
-Generate a hash. Lyftr uses bcrypt and accepts the `$2a$`, `$2b$` and `$2y$` prefixes, so either of
-these works:
+There is no self-service reset. Nothing here can email you a link, and an instance with no mail
+server could not send one. Recovery belongs to whoever has a shell on the server — which, since you
+self-host, is you:
 
 ```bash
-# apache2-utils — prints $2y$
-htpasswd -bnBC 12 "" 'your-new-password' | tr -d ':\n'
-
-# or python, with the bcrypt package — prints $2b$
-python3 -c "import bcrypt; print(bcrypt.hashpw(b'your-new-password', bcrypt.gensalt(12)).decode())"
+docker compose exec backend ./lyftr-api reset-password you@example.com
 ```
 
-Then write it in. Stop the container first so nothing is mid-write:
+It prompts for the new password twice, with no echo, and prints:
+
+```
+Password reset for you@example.com.
+Every existing session for that account has been signed out.
+```
+
+The account and everything in it are untouched — only the password changes.
+
+The password is prompted for rather than passed as a flag, so it never reaches your shell history
+or the container's process list. If you need it unattended, pipe it instead:
 
 ```bash
-docker compose stop backend
-sqlite3 ./data/lyftr.db \
-  "UPDATE users
-      SET password_hash = '<paste the hash>',
-          token_version = token_version + 1
-    WHERE email = 'you@example.com';"
-docker compose start backend
+echo 'your-new-password' | docker compose exec -T backend ./lyftr-api reset-password you@example.com
 ```
 
-Quote the hash in single quotes — it contains `$`, which the shell would otherwise eat.
-
-`token_version` is bumped for the same reason the in-app change bumps it: if you are resetting
-because someone else may hold a session, the new password is worthless while their old tokens still
-work. Raising it invalidates every one of them.
-
-If that is more than you want to do, restoring `lyftr.db` from a backup taken before the password
-changed works too — at the cost of everything logged since.
+Sessions are signed out because a reset is often prompted by someone else having got in, and a new
+password is worthless while their existing token still works.
 
 :::caution
-Back up `lyftr.db` before editing it — see [Backups](/backups/).
+**Do not delete the account and sign up again.** `users` cascades — the row takes every workout,
+meal and weight entry with it. Under `REGISTRATION=closed` it also leaves you permanently locked
+out, since nothing would let you register the replacement.
 :::
+
+If the instance will not start at all, restoring `lyftr.db` from a backup predating the password
+change also works, at the cost of everything logged since — see [Backups](/backups/).
 
 ## The demo account
 

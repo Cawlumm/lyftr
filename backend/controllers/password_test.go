@@ -1,10 +1,12 @@
 package controllers
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
@@ -251,5 +253,72 @@ func TestRefreshRejectsDeletedAccount(t *testing.T) {
 	}
 	if code := refreshWith(t, refresh); code != http.StatusUnauthorized {
 		t.Errorf("refresh for a deleted account = %d, want 401", code)
+	}
+}
+
+// The operator's recovery path. Keyed on email, with no old hash to verify — the whole
+// premise is that nobody knows it.
+func TestResetPasswordReplacesHashAndRevokesSessions(t *testing.T) {
+	setupTestDB(t)
+	uid, refresh := registerAndLogin(t, "reset@example.com", "password123")
+	before := storedHash(t, uid)
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	if err := th.s.User.ResetPassword("reset@example.com", newHash); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+
+	after := storedHash(t, uid)
+	if after == before {
+		t.Error("hash unchanged")
+	}
+	if !utils.CheckPassword("operatorset789", after) {
+		t.Error("the new password does not verify")
+	}
+	if utils.CheckPassword("password123", after) {
+		t.Error("the old password still verifies")
+	}
+	// An operator resetting a password may be evicting an intruder; the intruder's
+	// refresh token must not outlive the reset.
+	if v := tokenVersion(t, uid); v != 2 {
+		t.Errorf("token_version = %d, want 2", v)
+	}
+	if code := refreshWith(t, refresh); code != http.StatusUnauthorized {
+		t.Errorf("refresh after reset = %d, want 401", code)
+	}
+}
+
+func TestResetPasswordUnknownEmail(t *testing.T) {
+	setupTestDB(t)
+	registerAndLogin(t, "present@example.com", "password123")
+
+	err := th.s.User.ResetPassword("absent@example.com", "irrelevant-hash")
+	if !errors.Is(err, stores.ErrNoSuchUser) {
+		t.Fatalf("err = %v, want ErrNoSuchUser", err)
+	}
+}
+
+// Resetting one account must not disturb another's sessions.
+func TestResetPasswordLeavesOtherAccountsAlone(t *testing.T) {
+	setupTestDB(t)
+	registerAndLogin(t, "target@example.com", "password123")
+	bystanderID, bystanderRefresh := registerAndLogin(t, "bystander@example.com", "password123")
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	if err := th.s.User.ResetPassword("target@example.com", newHash); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+
+	if v := tokenVersion(t, bystanderID); v != 1 {
+		t.Errorf("bystander token_version = %d, want 1", v)
+	}
+	if code := refreshWith(t, bystanderRefresh); code != http.StatusOK {
+		t.Errorf("bystander refresh = %d, want 200", code)
 	}
 }

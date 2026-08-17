@@ -184,6 +184,35 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 	return uid, nil
 }
 
+// ErrNoSuchUser means no account carries that address.
+var ErrNoSuchUser = errors.New("no account with that email")
+
+// ResetPassword is the operator's way in, for the account whose password is lost. Unlike
+// ChangePassword there is no old hash to verify against — the whole point is that nobody
+// knows it — so this is keyed on email and guarded only by having a shell on the server.
+//
+// It bumps token_version for the same reason the in-app change does, and here it matters
+// more: an operator resetting a password may be doing it because someone else got in, and
+// a new password is worthless while the intruder's refresh token still mints access
+// tokens for the rest of its 30 days.
+func (s *UserStore) ResetPassword(email, newHash string) error {
+	res, err := s.db.Exec(
+		`UPDATE users SET password_hash = ?, token_version = token_version + 1,
+		                  updated_at = CURRENT_TIMESTAMP
+		 WHERE email = ?`, newHash, email)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNoSuchUser
+	}
+	return nil
+}
+
 // Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on).
 func (s *UserStore) Delete(uid int64) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, uid)

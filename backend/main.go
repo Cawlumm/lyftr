@@ -43,6 +43,12 @@ func warnIfUnclaimed() {
 }
 
 func main() {
+	// Subcommands are matched before flag.Parse, which would otherwise treat
+	// "reset-password" as a positional argument and start the server as usual.
+	if len(os.Args) > 1 && os.Args[1] == "reset-password" {
+		os.Exit(runResetPassword(os.Args[2:]))
+	}
+
 	showVersion := flag.Bool("version", false, "print the build version and exit")
 	flag.Parse()
 	if *showVersion {
