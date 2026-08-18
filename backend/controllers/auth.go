@@ -93,7 +93,16 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	user := models.User{ID: userID, Email: req.Email}
+	// Read the row back rather than assembling the response by hand. Building it from
+	// the request left created_at/updated_at at Go's zero time, which serialises as
+	// "0001-01-01T00:00:00Z" — and the clients render that, so a new account's Settings
+	// page showed "Member since December 1" until something refetched /me.
+	user, err := h.s.User.GetMe(userID)
+	if err != nil {
+		// The account exists and the tokens are valid; only the echoed profile is
+		// missing. Fall back rather than fail the registration.
+		user = models.User{ID: userID, Email: req.Email}
+	}
 	utils.Created(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 

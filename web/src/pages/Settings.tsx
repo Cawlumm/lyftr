@@ -13,16 +13,36 @@ import {
   RefreshCw, Pencil, Clock, Minus, Plus,
 } from 'lucide-react'
 
+// Stacks on phones, sits side-by-side from `sm` up.
+//
+// It used to be side-by-side at every width with `flex-shrink-0` on the value. Since the
+// value could not shrink, a wide one — an email address, most obviously — took the space
+// it wanted and the label column absorbed all of the squeeze, so "Your login email
+// address" wrapped down four near-empty lines at 390px and the value itself still clipped
+// at the card edge. Most users are on a phone, so that was the common case, not the edge.
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-4">
-      <div className="flex-1 mr-4">
+    <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="min-w-0 sm:flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
         {description && <p className="text-xs text-tx-muted mt-0.5">{description}</p>}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
+      <div className="min-w-0 break-words sm:flex-shrink-0 sm:text-right">{children}</div>
     </div>
   )
+}
+
+// A present-but-meaningless timestamp has to read as "unknown", not be formatted anyway.
+// Go's zero time serialises as "0001-01-01T00:00:00Z", which is truthy and parses fine,
+// so the old `created_at ? format(...) : '—'` check passed it straight through and
+// rendered "December 1". The backend no longer sends it, but a stale client or an older
+// server still can, and a date before Lyftr existed is never real.
+function memberSince(iso?: string): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return '—'
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -171,9 +191,7 @@ export default function Settings() {
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
         </SettingRow>
         <SettingRow label="Member since">
-          <span className="text-sm text-tx-muted">
-            {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
-          </span>
+          <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>
         </SettingRow>
         <ChangePassword />
       </Section>

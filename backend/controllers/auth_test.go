@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -164,5 +165,36 @@ func TestUserCount(t *testing.T) {
 	createTestUser(t)
 	if n, err := s.User.Count(); err != nil || n != 1 {
 		t.Errorf("Count = %d (err %v), want 1", n, err)
+	}
+}
+
+// Register used to assemble its response from the request, leaving created_at at Go's
+// zero time. That serialises as "0001-01-01T00:00:00Z", which is truthy and parses fine,
+// so the clients formatted it rather than rejecting it — a brand new account's Settings
+// page read "Member since December 1".
+func TestRegisterReturnsRealTimestamps(t *testing.T) {
+	setupTestDB(t)
+	setRegistration(t, config.RegistrationOpen)
+
+	c, w := newContext(0, "POST", "/api/v1/auth/register",
+		map[string]string{"email": "timestamps@example.com", "password": "password123"})
+	th.Register(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", w.Code)
+	}
+
+	body := decodeResponse(t, w)
+	data, _ := body["data"].(map[string]any)
+	user, _ := data["user"].(map[string]any)
+	created, _ := user["created_at"].(string)
+	if created == "" {
+		t.Fatal("no created_at in the register response")
+	}
+	ts, err := time.Parse(time.RFC3339, created)
+	if err != nil {
+		t.Fatalf("created_at %q does not parse: %v", created, err)
+	}
+	if ts.IsZero() || ts.Year() < 2000 {
+		t.Errorf("created_at = %q, want a real timestamp", created)
 	}
 }
