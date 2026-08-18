@@ -119,9 +119,15 @@ export default function SettingsScreen() {
     })
   }, [settings.calorie_target, settings.protein_target, settings.carb_target, settings.fat_target])
 
+  // A present-but-meaningless timestamp has to read as "unknown", not be formatted anyway.
+  // Go's zero time serialises as "0001-01-01T00:00:00Z", which is truthy and parses fine,
+  // so the `!created_at` check passed it through and this rendered "January 1". The
+  // backend no longer sends it, but an older server still can, and no real account
+  // predates Lyftr.
   const memberSince = useMemo(() => {
     if (!user?.created_at) return '—'
     const d = new Date(user.created_at)
+    if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
     return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
   }, [user?.created_at])
 
@@ -282,16 +288,18 @@ export default function SettingsScreen() {
                   autoCorrect={false}
                   textContentType="newPassword"
                 />
+                <Muted>At least {MIN_PASSWORD} characters. You stay signed in on this device.</Muted>
                 {/* Standalone rather than on a Field: most of these errors are about the
                     current password or come from the server, and hanging them off the
-                    confirm box pointed the user at the wrong input. */}
+                    confirm box pointed the user at the wrong input. Sits directly above the
+                    buttons, matching web — a form-level error belongs next to the action it
+                    blocked, not wedged between a field and its own hint. */}
                 {pwError ? (
                   <View className="flex-row items-start gap-1.5">
                     <AlertTriangle size={13} color={brand.error} strokeWidth={2.4} style={{ marginTop: 1 }} />
                     <AppText variant="caption" color="error" className="flex-1">{pwError}</AppText>
                   </View>
                 ) : null}
-                <Muted>At least {MIN_PASSWORD} characters. You stay signed in on this device.</Muted>
                 <View className="flex-row gap-2">
                   <Button
                     title="Update password"
