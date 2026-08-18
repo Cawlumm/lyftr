@@ -13,22 +13,32 @@ import {
   RefreshCw, Pencil, Clock, Minus, Plus,
 } from 'lucide-react'
 
-// Stacks on phones, sits side-by-side from `sm` up.
+// Wraps per row, on content rather than on viewport width.
 //
-// It used to be side-by-side at every width with `flex-shrink-0` on the value. Since the
-// value could not shrink, a wide one — an email address, most obviously — took the space
-// it wanted and the label column absorbed all of the squeeze, so "Your login email
-// address" wrapped down four near-empty lines at 390px and the value itself still clipped
-// at the card edge. Most users are on a phone, so that was the common case, not the edge.
+// Originally this was side-by-side at every width with `flex-shrink-0` on the value.
+// Since the value could not shrink, a wide one — an email address, most obviously — took
+// the space it wanted and the label column absorbed all the squeeze, so "Your login email
+// address" wrapped down four near-empty lines at 390px while the address still clipped at
+// the card edge.
+//
+// Stacking everything below `sm` fixed that and overcorrected: a compact control like the
+// theme toggle got dropped onto its own line too, for no gain, and the page grew to a
+// ~2800px scroll on a phone. `flex-wrap` asks the right question instead — does this
+// particular value fit beside its label? A toggle does and stays inline; an email address
+// does not and takes the next line at full width. No breakpoint decides it, so the row is
+// right at any width and for any content.
+//
+// The label keeps a `min-w` floor so wrapping actually triggers: with `min-w-0` alone it
+// would shrink to nothing and the pair would stay jammed on one line forever.
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-      <div className="min-w-0 sm:flex-1">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
+      <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
         {description && <p className="text-xs text-tx-muted mt-0.5">{description}</p>}
       </div>
       {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
-      <div className="min-w-0 break-words sm:flex-shrink-0 sm:text-right">{children}</div>
+      <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
     </div>
   )
 }
