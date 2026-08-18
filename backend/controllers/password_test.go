@@ -322,3 +322,52 @@ func TestResetPasswordLeavesOtherAccountsAlone(t *testing.T) {
 		t.Errorf("bystander refresh = %d, want 200", code)
 	}
 }
+
+// Review question: does ending sessions on a password change touch anyone else? The
+// UPDATE is keyed on the single row, but "keyed correctly" is exactly the kind of thing
+// that should be pinned rather than asserted.
+func TestChangePasswordLeavesOtherAccountsAlone(t *testing.T) {
+	setupTestDB(t)
+	uid, _ := registerAndLogin(t, "actor@example.com", "password123")
+	bystanderID, bystanderRefresh := registerAndLogin(t, "bystander@example.com", "password123")
+	bystanderHash := storedHash(t, bystanderID)
+
+	if code, body := changePassword(t, uid, "password123", "newpassword456"); code != http.StatusOK {
+		t.Fatalf("change status = %d, want 200 (%v)", code, body)
+	}
+
+	if storedHash(t, bystanderID) != bystanderHash {
+		t.Error("the bystander's password hash changed")
+	}
+	if v := tokenVersion(t, bystanderID); v != 1 {
+		t.Errorf("bystander token_version = %d, want 1", v)
+	}
+	if code := refreshWith(t, bystanderRefresh); code != http.StatusOK {
+		t.Errorf("bystander refresh = %d, want 200 — their session was ended too", code)
+	}
+	// And the bystander's own password still works.
+	if !utils.CheckPassword("password123", storedHash(t, bystanderID)) {
+		t.Error("the bystander's password no longer verifies")
+	}
+}
+
+// An empty hash would be stored verbatim and then fail bcrypt against every password,
+// locking the account out silently while still bumping token_version.
+func TestPasswordWritesRefuseAnEmptyHash(t *testing.T) {
+	setupTestDB(t)
+	uid, _ := registerAndLogin(t, "empty@example.com", "password123")
+	before := storedHash(t, uid)
+
+	if _, err := th.s.User.ChangePassword(uid, before, ""); !errors.Is(err, stores.ErrEmptyHash) {
+		t.Errorf("ChangePassword with an empty hash: err = %v, want ErrEmptyHash", err)
+	}
+	if err := th.s.User.ResetPassword("empty@example.com", ""); !errors.Is(err, stores.ErrEmptyHash) {
+		t.Errorf("ResetPassword with an empty hash: err = %v, want ErrEmptyHash", err)
+	}
+	if storedHash(t, uid) != before {
+		t.Error("the stored hash was modified")
+	}
+	if v := tokenVersion(t, uid); v != 1 {
+		t.Errorf("token_version = %d, want 1 — a refused write must not evict sessions", v)
+	}
+}

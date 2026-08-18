@@ -62,6 +62,9 @@ var ErrPasswordChanged = errors.New("password changed concurrently")
 // and both would land on token_version+1 rather than +2, leaving the first change's
 // tokens alive. Compare-and-set makes the loser fail loudly instead.
 func (s *UserStore) ChangePassword(uid int64, oldHash, newHash string) (int, error) {
+	if newHash == "" {
+		return 0, ErrEmptyHash
+	}
 	v, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
 		res, err := tx.Exec(
 			`UPDATE users SET password_hash = ?, token_version = token_version + 1,
@@ -184,6 +187,13 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 	return uid, nil
 }
 
+// ErrEmptyHash guards the two statements that WRITE a password. Everywhere else an
+// empty argument simply matches no rows and surfaces as an error, so a guard would be
+// noise -- but these two would store the empty string, and bcrypt rejects it against
+// every password, silently locking the account out while still bumping token_version.
+// A caller that forgets to hash should fail loudly instead.
+var ErrEmptyHash = errors.New("refusing to store an empty password hash")
+
 // ErrNoSuchUser means no account carries that address.
 var ErrNoSuchUser = errors.New("no account with that email")
 
@@ -209,6 +219,9 @@ func (s *UserStore) FindEmailFold(email string) (string, error) {
 // a new password is worthless while the intruder's refresh token still mints access
 // tokens for the rest of its 30 days.
 func (s *UserStore) ResetPassword(email, newHash string) error {
+	if newHash == "" {
+		return ErrEmptyHash
+	}
 	res, err := s.db.Exec(
 		`UPDATE users SET password_hash = ?, token_version = token_version + 1,
 		                  updated_at = CURRENT_TIMESTAMP
