@@ -114,7 +114,6 @@ export default function Settings() {
     try {
       const res = await exerciseAPI.clearCacheOnServer()
       setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
-      exerciseAPI.clearCache()
       loadCacheStatus()
     } catch (err: any) {
       setSeedMsg(err.message || 'Clear failed')

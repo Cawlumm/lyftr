@@ -22,6 +22,9 @@ func (h *Handler) ListExercises(c *gin.Context) {
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 2000 {
 		f.Limit = l
 	}
+	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 1 {
+		f.Page = p
+	}
 	exercises, err := h.s.Exercise.Search(c.Request.Context(), f)
 	if utils.DBError(c, err) {
 		return

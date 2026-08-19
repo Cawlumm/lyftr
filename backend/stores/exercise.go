@@ -25,6 +25,17 @@ func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db}
 type ExerciseFilter struct {
 	Query, MuscleGroup, Category, Equipment string
 	Limit                                   int
+	// Page is 1-based; zero and one both mean the first page. Paging is what lets
+	// the pickers stop downloading the catalog to filter it in the browser.
+	Page int
+}
+
+// offset converts the 1-based page into a SQL offset.
+func (f ExerciseFilter) offset() int {
+	if f.Page < 2 {
+		return 0
+	}
+	return (f.Page - 1) * f.Limit
 }
 
 const exerciseSelect = `SELECT id, name, muscle_group, secondary_muscles, category, equipment, description, image_url FROM exercises`
@@ -62,8 +73,8 @@ func (s *ExerciseStore) List(f ExerciseFilter) ([]models.Exercise, error) {
 		q += " AND equipment = ?"
 		args = append(args, f.Equipment)
 	}
-	q += " ORDER BY name LIMIT ?"
-	args = append(args, f.Limit)
+	q += " ORDER BY name LIMIT ? OFFSET ?"
+	args = append(args, f.Limit, f.offset())
 
 	rows, err := s.db.Query(q, args...)
 	if err != nil {
@@ -241,7 +252,7 @@ func (s *ExerciseStore) Search(ctx context.Context, f ExerciseFilter) ([]models.
 // filtered stays on List, where the filter is what keeps the response small.
 func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]oedb.Exercise, error) {
 	filtered := f.Query != "" || f.MuscleGroup != "" || f.Category != "" || f.Equipment != ""
-	if !filtered && f.Limit > 100 {
+	if !filtered && f.Limit > 100 && f.Page < 2 {
 		// The export is ~300 KB and measured around 14s against the hosted
 		// instance, so it gets a deadline sized for that. It is also cached
 		// upstream-style for 900s, so only the first caller after a cold start
@@ -260,8 +271,12 @@ func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]o
 	// per_page at 100, so without this a caller asking for 1000 dumbbell
 	// exercises would silently receive the first 100 and no indication that more
 	// existed — which is what the local table used to answer in full.
+	first := f.Page
+	if first < 1 {
+		first = 1
+	}
 	var out []oedb.Exercise
-	for page := 1; ; page++ {
+	for page := first; ; page++ {
 		res, err := s.catalog.List(ctx, oedb.ListParams{
 			Query:       f.Query,
 			MuscleGroup: f.MuscleGroup,
@@ -274,7 +289,12 @@ func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]o
 			return nil, err
 		}
 		out = append(out, res.Exercises...)
-		if len(out) >= f.Limit || len(out) >= res.Total || len(res.Exercises) == 0 {
+		if len(out) >= f.Limit || len(res.Exercises) == 0 {
+			return out, nil
+		}
+		// res.Total counts the whole result set, not the remainder, so it only
+		// terminates the walk once this page's offset has consumed it.
+		if (page-first+1)*len(res.Exercises) >= res.Total {
 			return out, nil
 		}
 	}

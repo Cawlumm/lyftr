@@ -191,37 +191,34 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
   // a dropped request.
   const listTimeout = (limit?: number) => ((limit ?? 0) > 50 ? { timeout: BULK_TIMEOUT } : undefined)
 
-  let exerciseCache: types.Exercise[] | null = null
-  let exerciseCachePromise: Promise<types.Exercise[]> | null = null
+  // One screenful and change. Small enough that the first page of the picker arrives
+  // in one round trip, large enough that scrolling does not fetch constantly. The
+  // server caps a page at 100, which is open-exercise-db's own per_page ceiling.
+  const DEFAULT_EXERCISE_PAGE_SIZE = 50
+
   const exerciseAPI = {
-    list: (params?: { q?: string; muscle_group?: string; category?: string; equipment?: string }) => {
-      if (params?.q || params?.muscle_group || params?.category || params?.equipment) {
-        return api.get<{ data: types.Exercise[] }>('/exercises', { params }).then(unwrap)
-      }
-      if (exerciseCache) return Promise.resolve(exerciseCache)
-      if (exerciseCachePromise) return exerciseCachePromise
-      // The in-flight promise is cleared on BOTH settle paths. Clearing it only in
-      // .then() leaves a rejected promise cached for the life of the page: every later
-      // call returns that same rejection, so one dropped request while the picker was
-      // opening breaks the picker until a full reload. clearCache() would recover it
-      // but nothing calls it. The rejection is re-thrown so the caller still sees the
-      // failure — only the caching of it is undone.
-      exerciseCachePromise = api.get<{ data: types.Exercise[] }>('/exercises', { params: { limit: 1000 }, timeout: BULK_TIMEOUT })
-        .then((res) => {
-          exerciseCache = unwrap(res)
-          exerciseCachePromise = null
-          return exerciseCache
-        })
-        .catch((err) => {
-          exerciseCachePromise = null
-          throw err
-        })
-      return exerciseCachePromise
-    },
+    // Every call goes to the server, which queries open-exercise-db and returns one
+    // page. There is deliberately no client-side catalog here: the previous version
+    // fetched all ~873 rows once and filtered them in memory, which made every app
+    // instance a copy of a database it does not own and put the whole catalog behind
+    // one slow request before the picker could show anything. Paging keeps the first
+    // screen fast and the memory flat, and lets the server's own cache do the work —
+    // it holds upstream responses for five minutes, so a repeated search costs it
+    // nothing.
+    list: (params?: {
+      q?: string
+      muscle_group?: string
+      category?: string
+      equipment?: string
+      limit?: number
+      page?: number
+    }) => api.get<{ data: types.Exercise[] }>('/exercises', {
+      params: { limit: DEFAULT_EXERCISE_PAGE_SIZE, ...params },
+      ...listTimeout(params?.limit),
+    }).then(unwrap),
     get: (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(unwrap),
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
-    clearCache: () => { exerciseCache = null; exerciseCachePromise = null },
     // Lyftr does not keep its own exercise library. open-exercise-db is the source and
     // is queried live; the server holds only the rows it has had reason to look at, and
     // these three manage that cache rather than a catalog.

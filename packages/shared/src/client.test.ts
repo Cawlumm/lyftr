@@ -110,52 +110,75 @@ describe('workoutAPI tz_offset_minutes on legacy rows', () => {
   })
 })
 
-// The unparameterised exercise list is fetched once and cached, because it is ~820 KB
-// and every picker opens with an empty search box.
-describe('exerciseAPI.list caching', () => {
-  // Adapter that fails the first N calls, then succeeds, counting requests.
-  const flakyClient = (failures: number) => {
-    let calls = 0
+// The exercise catalog is not the client's to hold. It lives in open-exercise-db,
+// the server queries it and returns a page at a time, and the browser keeps only
+// what it is showing.
+describe('exerciseAPI.list is server-side and unbuffered', () => {
+  // Adapter that records the params of every request and answers with one row.
+  const recordingClient = () => {
+    const seen: any[] = []
     const client = createClient(memStorage())
     client.api.defaults.adapter = async (config: any) => {
-      calls += 1
-      if (calls <= failures) throw new Error('network')
+      seen.push(config.params)
       return {
         data: { data: [{ id: 1, name: 'Bench Press' }] },
         status: 200, statusText: 'OK', headers: {}, config,
       }
     }
-    return { client, count: () => calls }
+    return { client, seen }
   }
 
-  it('fetches once and serves later calls from cache', async () => {
-    const { client, count } = flakyClient(0)
+  // The previous client cached the whole unfiltered catalog on first call, which is
+  // what made every app instance a copy of a database it does not own. Repeating a
+  // request must reach the server, whose own cache holds upstream responses for five
+  // minutes and answers it for free.
+  it('sends every call to the server, including repeats', async () => {
+    const { client, seen } = recordingClient()
     await client.exerciseAPI.list()
     await client.exerciseAPI.list()
-    expect(count()).toBe(1)
+    expect(seen).toHaveLength(2)
   })
 
-  it('recovers after a failed fetch instead of caching the rejection forever', async () => {
-    // Clearing the in-flight promise only on success left a rejected promise cached for
-    // the life of the page: every later call replayed that same rejection, so one
-    // dropped request while the picker was opening broke the picker until a reload.
-    const { client, count } = flakyClient(1)
-
-    await expect(client.exerciseAPI.list()).rejects.toThrow()
-    await expect(client.exerciseAPI.list()).resolves.toHaveLength(1)
-    expect(count()).toBe(2)
+  it('asks for one page by default rather than the whole catalog', async () => {
+    const { client, seen } = recordingClient()
+    await client.exerciseAPI.list()
+    expect(seen[0].limit).toBe(50)
+    expect(seen[0].limit).toBeLessThanOrEqual(100) // the server's per-page ceiling
   })
 
-  it('still surfaces the failure to the caller — it only stops caching it', async () => {
-    const { client } = flakyClient(1)
+  it('forwards paging and filters', async () => {
+    const { client, seen } = recordingClient()
+    await client.exerciseAPI.list({ q: 'bench', page: 3 })
+    expect(seen[0]).toMatchObject({ q: 'bench', page: 3, limit: 50 })
+  })
+
+  it('lets an explicit limit override the default', async () => {
+    const { client, seen } = recordingClient()
+    await client.exerciseAPI.list({ limit: 10 })
+    expect(seen[0].limit).toBe(10)
+  })
+
+  // A failure must reach the caller rather than being swallowed or, as the cached
+  // version once did, replayed to every later call for the life of the page.
+  it('surfaces failures to the caller', async () => {
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async () => { throw new Error('network') }
     await expect(client.exerciseAPI.list()).rejects.toThrow('network')
   })
 
-  it('does not cache filtered searches', async () => {
-    const { client, count } = flakyClient(0)
-    await client.exerciseAPI.list({ q: 'bench' })
-    await client.exerciseAPI.list({ q: 'bench' })
-    expect(count()).toBe(2)
+  it('recovers on the next call after a failure', async () => {
+    let calls = 0
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async (config: any) => {
+      calls += 1
+      if (calls === 1) throw new Error('network')
+      return {
+        data: { data: [{ id: 1, name: 'Bench Press' }] },
+        status: 200, statusText: 'OK', headers: {}, config,
+      }
+    }
+    await expect(client.exerciseAPI.list()).rejects.toThrow()
+    await expect(client.exerciseAPI.list()).resolves.toHaveLength(1)
   })
 })
 

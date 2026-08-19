@@ -329,3 +329,77 @@ func TestSearch_PaginatesFilteredResultsBeyondOnePage(t *testing.T) {
 		t.Errorf("upstream pages fetched = %d, want 3", n)
 	}
 }
+
+// Paging is what lets a picker stop downloading the catalog to filter it in the
+// browser, so an explicitly paged request must return that page and stop — not
+// everything from that page onward.
+func TestSearch_ExplicitPageReturnsOnlyThatPage(t *testing.T) {
+	const total = 250
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		seen = append(seen, q.Get("page")+"/"+q.Get("per_page"))
+		page, _ := strconv.Atoi(q.Get("page"))
+		if page == 0 {
+			page = 1
+		}
+		perPage, _ := strconv.Atoi(q.Get("per_page"))
+		start := (page - 1) * perPage
+		var items []string
+		for i := start; i < start+perPage && i < total; i++ {
+			items = append(items, fmt.Sprintf(
+				`{"id":"uuid-%d","slug":"ex-%d","translation":{"name":"Exercise %d","instructions":[]}}`, i, i, i))
+		}
+		fmt.Fprintf(w, `{"exercises":[%s],"total":%d,"page":%d,"per_page":%d}`,
+			strings.Join(items, ","), total, page, perPage)
+	}))
+	defer srv.Close()
+
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+
+	got, err := s.Search(context.Background(), ExerciseFilter{Query: "ex", Limit: 50, Page: 3})
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(got) != 50 {
+		t.Fatalf("got %d exercises, want 50 (one page)", len(got))
+	}
+	if len(seen) != 1 || seen[0] != "3/50" {
+		t.Errorf("upstream requests = %v, want exactly [3/50]", seen)
+	}
+	if got[0].Name != "Exercise 100" {
+		t.Errorf("first row = %q, want the start of page 3", got[0].Name)
+	}
+}
+
+// The local fallback has to page too, or an offline picker silently repeats its
+// first page forever as the user scrolls.
+func TestList_LocalFallbackPages(t *testing.T) {
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	for i := 0; i < 25; i++ {
+		if _, err := conn.Exec(`INSERT INTO exercises (name) VALUES (?)`, fmt.Sprintf("Exercise %02d", i)); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+
+	page1, err := s.List(ExerciseFilter{Limit: 10, Page: 1})
+	if err != nil {
+		t.Fatalf("page 1: %v", err)
+	}
+	page3, err := s.List(ExerciseFilter{Limit: 10, Page: 3})
+	if err != nil {
+		t.Fatalf("page 3: %v", err)
+	}
+	if len(page1) != 10 || len(page3) != 5 {
+		t.Fatalf("page sizes = %d and %d, want 10 and 5", len(page1), len(page3))
+	}
+	if page1[0].Name == page3[0].Name {
+		t.Errorf("page 3 repeated page 1, starting at %q", page1[0].Name)
+	}
+	if page3[0].Name != "Exercise 20" {
+		t.Errorf("page 3 starts at %q, want Exercise 20", page3[0].Name)
+	}
+}
