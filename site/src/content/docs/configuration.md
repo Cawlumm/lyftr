@@ -82,6 +82,15 @@ instead of dropping you on the front page. Nothing to configure — the bundled 
 redirect. Behind your own reverse proxy, pass the path through to the frontend like any other
 route.
 
+### Password length
+
+Between 8 characters and 72 **bytes**. The minimum is Lyftr's; the maximum is bcrypt's, which
+refuses anything longer rather than silently truncating it.
+
+72 bytes is 72 ordinary characters, but accented letters cost two and most emoji cost four — so a
+19-character emoji passphrase is already over. Both apps say so while you type rather than on
+submit. Worth knowing if your password manager generates long passwords: cap it at 72.
+
 Changing it **signs you out everywhere else**. The device you changed it on stays signed in. That
 is deliberate — a password change is what you reach for when you think someone else has a session,
 so it has to actually end their session. Sign back in on your other devices with the new password.
@@ -123,7 +132,8 @@ unset NEWPW
 ```
 
 Piped input skips the confirmation prompt — there is nothing to type twice — so whatever arrives on
-stdin becomes the password, subject only to the 8-character minimum.
+stdin becomes the password, subject only to the same 8-character minimum and 72-byte maximum
+the apps enforce.
 
 Sessions are signed out because a reset is often prompted by someone else having got in, and a new
 password is worthless while their existing token still works.
