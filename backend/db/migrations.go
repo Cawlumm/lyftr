@@ -112,6 +112,93 @@ func alterMigrations() {
 	ensureIndex("idx_food_logs_user_day", `CREATE INDEX IF NOT EXISTS idx_food_logs_user_day ON food_logs(user_id, logged_on)`)
 	ensureIndex("idx_weight_logs_user_day", `CREATE INDEX IF NOT EXISTS idx_weight_logs_user_day ON weight_logs(user_id, logged_on)`)
 	backfillLocalDays()
+
+	// Identity for the open-exercise-db row this exercise mirrors.
+	//
+	// Lyftr keeps its own INTEGER id as the primary key and does not adopt oedb's
+	// UUID as one: workout_exercises and program_exercises FK into exercises(id)
+	// with no cascade, so that key is load-bearing in user data that predates oedb
+	// entirely. oedb_id is the join key upward, not the identity downward.
+	//
+	// Nullable on purpose. A row with oedb_id IS NULL is one oedb does not know
+	// about — a pre-migration row whose name did not match, or (later) a
+	// user-created exercise not yet contributed. SQLite treats NULLs as distinct in
+	// a UNIQUE index, so any number of them coexist while still forbidding two rows
+	// claiming the same upstream exercise.
+	ensureColumn("exercises", "oedb_id", `ALTER TABLE exercises ADD COLUMN oedb_id TEXT`)
+	ensureColumn("exercises", "slug", `ALTER TABLE exercises ADD COLUMN slug TEXT`)
+	ensureIndex("idx_exercises_oedb_id", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_oedb_id ON exercises(oedb_id)`)
+
+	normalizeExerciseTaxonomy()
+}
+
+// normalizeExerciseTaxonomy rewrites the eight taxonomy values Lyftr inherited
+// verbatim from free-exercise-db into the slug forms open-exercise-db serves.
+//
+// Lyftr's seeder copied upstream's display strings ("body only", "lower back")
+// straight into the column. oedb normalizes the same vocabulary to slugs
+// ("body-only", "lower-back"). Once exercises arrive from oedb, a database left
+// unconverted holds both spellings of the same concept, and every equipment
+// filter silently returns half its rows.
+//
+// Safe to rewrite in place: no user-owned row stores a taxonomy string. Workouts
+// and programs reference exercises by id, so this touches presentation values
+// only. The set is closed and was verified against both corpora — these are the
+// only values that differ, in either direction.
+func normalizeExerciseTaxonomy() {
+	done, err := hasMigrationFlag("normalize_exercise_taxonomy")
+	if err != nil || done {
+		return
+	}
+
+	// secondary_muscles is a JSON array in a TEXT column, so it is rewritten with
+	// string replacement over the encoded form rather than by decoding each row.
+	// The quotes are part of the match: they pin the replacement to a whole JSON
+	// string element, so a value that merely contains another as a substring cannot
+	// be corrupted from the middle.
+	stmts := []struct {
+		sql  string
+		args []any
+	}{
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"body-only", "body only"}},
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"e-z-curl-bar", "e-z curl bar"}},
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"exercise-ball", "exercise ball"}},
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"foam-roll", "foam roll"}},
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"medicine-ball", "medicine ball"}},
+		// oedb has no empty equipment: upstream's blank becomes the explicit "none".
+		{`UPDATE exercises SET equipment = ? WHERE equipment = ?`, []any{"none", ""}},
+		{`UPDATE exercises SET category = ? WHERE category = ?`, []any{"olympic-weightlifting", "olympic weightlifting"}},
+		{`UPDATE exercises SET muscle_group = ? WHERE muscle_group = ?`, []any{"lower-back", "lower back"}},
+		{`UPDATE exercises SET muscle_group = ? WHERE muscle_group = ?`, []any{"middle-back", "middle back"}},
+		{`UPDATE exercises SET secondary_muscles = replace(secondary_muscles, ?, ?)`, []any{`"lower back"`, `"lower-back"`}},
+		{`UPDATE exercises SET secondary_muscles = replace(secondary_muscles, ?, ?)`, []any{`"middle back"`, `"middle-back"`}},
+	}
+
+	tx, err := DB.Begin()
+	if err != nil {
+		log.Printf("migration: normalize exercise taxonomy: begin: %v", err)
+		return
+	}
+	changed := int64(0)
+	for _, s := range stmts {
+		res, err := tx.Exec(s.sql, s.args...)
+		if err != nil {
+			tx.Rollback()
+			log.Printf("migration: normalize exercise taxonomy: %v", err)
+			return
+		}
+		if n, err := res.RowsAffected(); err == nil {
+			changed += n
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("migration: normalize exercise taxonomy: commit: %v", err)
+		return
+	}
+	setMigrationFlag("normalize_exercise_taxonomy")
+	if changed > 0 {
+		log.Printf("migration: normalized %d exercise taxonomy values to oedb slugs", changed)
+	}
 }
 
 // backfillLocalDays fills the stored day/offset for rows written before those

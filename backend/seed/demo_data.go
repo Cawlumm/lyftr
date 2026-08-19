@@ -1,10 +1,12 @@
 package seed
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -80,21 +82,23 @@ var workoutNames = []string{"Push A", "Pull A", "Legs A", "Push B", "Pull B", "L
 var workoutDurations = []int{3720, 3480, 4200, 3660, 3540, 4320}
 var workoutTemplates = [][]demoEx{pushA, pullA, legsA, pushB, pullB, legsB}
 
-func DemoData(db *sql.DB) {
-	// Wait for exercises to be seeded (up to 90s)
-	var exCount int
-	for i := 0; i < 18; i++ {
-		db.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&exCount)
-		if exCount >= 100 {
-			break
-		}
-		log.Printf("seed: demo data waiting for exercises... (%d/18)", i+1)
-		time.Sleep(5 * time.Second)
-	}
-	if exCount < 100 {
-		log.Println("seed: exercises not ready, skipping demo data")
+// CatalogPrimer materializes the catalog rows matching a search term, so a caller
+// that needs particular exercises to exist locally can ask for exactly those.
+//
+// Demo data is the only caller. It exists because Lyftr no longer seeds an
+// exercise library: the demo account's routine references about thirty specific
+// exercises, and this pulls those thirty rather than importing a catalog nothing
+// else needs.
+type CatalogPrimer interface {
+	PrimeQuery(ctx context.Context, query string) error
+}
+
+func DemoData(db *sql.DB, primer CatalogPrimer) {
+	if primer == nil {
+		log.Println("seed: no exercise catalog configured, skipping demo data")
 		return
 	}
+	primeDemoExercises(db, primer)
 
 	var userID int64
 	if err := db.QueryRow(`SELECT id FROM users WHERE email = ?`, DemoEmail).Scan(&userID); err != nil {
@@ -352,4 +356,40 @@ func seedFoodLogs(db *sql.DB, userID int64) {
 			)
 		}
 	}
+}
+
+// primeDemoExercises pulls the exercises the demo routine references.
+//
+// One catalog query per exercise slot, using the first LIKE pattern with its
+// wildcards stripped — the patterns were written as fallbacks for a local LIKE
+// search, and the first is always the most specific spelling. Failures are logged
+// and skipped rather than fatal: lookupExercise already tolerates a missing
+// exercise, and a demo account with 29 of 30 movements is far better than none.
+func primeDemoExercises(db *sql.DB, primer CatalogPrimer) {
+	seen := map[string]bool{}
+	for _, template := range workoutTemplates {
+		for _, ex := range template {
+			for _, pattern := range ex.patterns {
+				term := strings.TrimSpace(strings.ReplaceAll(pattern, "%", " "))
+				if term == "" || seen[term] {
+					continue
+				}
+				seen[term] = true
+
+				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+				err := primer.PrimeQuery(ctx, term)
+				cancel()
+				if err != nil {
+					log.Printf("seed: demo catalog prime %q: %v", term, err)
+					continue
+				}
+				// The first pattern that resolves is the one lookupExercise will
+				// pick, so there is no reason to fetch its fallbacks too.
+				if _, ok := lookupExercise(db, ex.patterns); ok {
+					break
+				}
+			}
+		}
+	}
+	log.Printf("seed: primed demo exercises from open-exercise-db (%d queries)", len(seen))
 }

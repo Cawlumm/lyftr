@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"errors"
 	"strconv"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -21,7 +22,7 @@ func (h *Handler) ListExercises(c *gin.Context) {
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 2000 {
 		f.Limit = l
 	}
-	exercises, err := h.s.Exercise.List(f)
+	exercises, err := h.s.Exercise.Search(c.Request.Context(), f)
 	if utils.DBError(c, err) {
 		return
 	}
@@ -87,29 +88,39 @@ func (h *Handler) GetExerciseHistory(c *gin.Context) {
 	utils.OK(c, history)
 }
 
-// SyncExercises is an admin-only endpoint to re-pull from ExerciseDB.
-func (h *Handler) SyncExercises(c *gin.Context) {
-	if err := h.s.Exercise.Sync(); err != nil {
+// RefreshExerciseCache re-reads the catalog rows this instance already holds and
+// applies any upstream edits.
+//
+// Not a re-import: Lyftr does not keep a copy of open-exercise-db, and this
+// endpoint does not create one. New exercises appear the way every cached row
+// did — the first time a search returns them.
+func (h *Handler) RefreshExerciseCache(c *gin.Context) {
+	n, err := h.s.Exercise.RefreshCached(c.Request.Context())
+	if errors.Is(err, stores.ErrNoCatalog) {
+		utils.BadRequest(c, "no exercise catalog configured")
+		return
+	}
+	if err != nil {
 		utils.BadRequest(c, err.Error())
 		return
 	}
-	count, err := h.s.Exercise.Count()
+	utils.OK(c, gin.H{"refreshed": n})
+}
+
+// ExerciseCacheStatus reports how many catalog rows this instance holds.
+func (h *Handler) ExerciseCacheStatus(c *gin.Context) {
+	count, err := h.s.Exercise.CachedCount()
 	if utils.DBError(c, err) {
 		return
 	}
-	utils.OK(c, gin.H{"synced": true, "total": count})
+	utils.OK(c, gin.H{"count": count})
 }
 
-// ExerciseSeedStatus returns exercise count and whether seeding is running.
-func (h *Handler) ExerciseSeedStatus(c *gin.Context) {
-	utils.OK(c, h.s.Exercise.SeedStatus())
-}
-
-// ResetExercises wipes the exercises table and triggers a fresh seed in background.
-func (h *Handler) ResetExercises(c *gin.Context) {
-	if err := h.s.Exercise.Reset(); err != nil {
-		utils.BadRequest(c, err.Error())
+// ClearExerciseCache drops cached rows nothing references.
+func (h *Handler) ClearExerciseCache(c *gin.Context) {
+	n, err := h.s.Exercise.ClearUnreferenced()
+	if utils.DBError(c, err) {
 		return
 	}
-	utils.OK(c, gin.H{"reset": true, "message": "exercises wiped, re-seeding in background"})
+	utils.OK(c, gin.H{"cleared": n})
 }

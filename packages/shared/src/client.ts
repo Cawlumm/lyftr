@@ -222,12 +222,16 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
     clearCache: () => { exerciseCache = null; exerciseCachePromise = null },
-    seedStatus: () => api.get<{ data: { count: number; in_progress: boolean } }>('/admin/seed-status').then(unwrap),
-    // Re-seeds the whole exercise library from the upstream DB: hundreds of rows, and on
-    // a cold or low-powered server it routinely runs past the global 20s. The button is an
-    // explicit admin action the user waits on, so it gets its own bound — a timeout here
-    // would report failure for work the server goes on to finish successfully.
-    sync: () => api.post<{ data: { synced: boolean; total: number } }>('/admin/sync-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
+    // Lyftr does not keep its own exercise library. open-exercise-db is the source and
+    // is queried live; the server holds only the rows it has had reason to look at, and
+    // these three manage that cache rather than a catalog.
+    cacheStatus: () => api.get<{ data: { count: number } }>('/admin/seed-status').then(unwrap),
+    // Re-reads every row the server already holds, applying upstream corrections. It
+    // pulls the full upstream export to do so, which on a cold server runs past the
+    // global 20s — the button is an explicit admin action the user waits on, so it gets
+    // its own bound. A timeout here would report failure for work that goes on to finish.
+    refreshCache: () => api.post<{ data: { refreshed: number } }>('/admin/sync-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
+    clearCacheOnServer: () => api.post<{ data: { cleared: number } }>('/admin/reset-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
   }
 
   const programAPI = {

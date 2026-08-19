@@ -554,3 +554,78 @@ func TestBackfillLocalDays_oneUnreadableRowDoesNotBlockTheRest(t *testing.T) {
 		t.Error("completion flag never set — every boot will retry this forever")
 	}
 }
+
+// An existing install carries the taxonomy exactly as free-exercise-db spelled it
+// ("body only", "lower back"). open-exercise-db serves the same vocabulary as
+// slugs. Left unconverted the table holds both spellings of one concept, and
+// every equipment or muscle filter silently returns half its rows.
+func TestNormalizeExerciseTaxonomy_RewritesLegacySpellings(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	rows := []struct{ name, muscle, category, equipment, secondary string }{
+		{"Push Up", "chest", "strength", "body only", `["triceps","lower back"]`},
+		{"Deadlift", "lower back", "strength", "barbell", `["middle back","glutes"]`},
+		{"Snatch", "shoulders", "olympic weightlifting", "", `[]`},
+		{"Curl", "biceps", "strength", "e-z curl bar", `[]`},
+		{"Ball Crunch", "abdominals", "strength", "exercise ball", `[]`},
+		{"Roll Out", "abdominals", "strength", "foam roll", `[]`},
+		{"Med Ball Throw", "chest", "plyometrics", "medicine ball", `[]`},
+	}
+	for _, r := range rows {
+		if _, err := DB.Exec(`INSERT INTO exercises (name, muscle_group, category, equipment, secondary_muscles)
+			VALUES (?, ?, ?, ?, ?)`, r.name, r.muscle, r.category, r.equipment, r.secondary); err != nil {
+			t.Fatalf("seed %s: %v", r.name, err)
+		}
+	}
+
+	alterMigrations()
+
+	want := map[string][3]string{ // name -> {muscle_group, category, equipment}
+		"Push Up":        {"chest", "strength", "body-only"},
+		"Deadlift":       {"lower-back", "strength", "barbell"},
+		"Snatch":         {"shoulders", "olympic-weightlifting", "none"},
+		"Curl":           {"biceps", "strength", "e-z-curl-bar"},
+		"Ball Crunch":    {"abdominals", "strength", "exercise-ball"},
+		"Roll Out":       {"abdominals", "strength", "foam-roll"},
+		"Med Ball Throw": {"chest", "plyometrics", "medicine-ball"},
+	}
+	for name, w := range want {
+		var muscle, category, equipment string
+		if err := DB.QueryRow(`SELECT muscle_group, category, equipment FROM exercises WHERE name = ?`, name).
+			Scan(&muscle, &category, &equipment); err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		if muscle != w[0] || category != w[1] || equipment != w[2] {
+			t.Errorf("%s = %q/%q/%q, want %q/%q/%q", name, muscle, category, equipment, w[0], w[1], w[2])
+		}
+	}
+
+	var secondary string
+	DB.QueryRow(`SELECT secondary_muscles FROM exercises WHERE name = 'Deadlift'`).Scan(&secondary)
+	if secondary != `["middle-back","glutes"]` {
+		t.Errorf("secondary_muscles = %s, want the slug form", secondary)
+	}
+}
+
+// The rewrite runs once and is not re-applied. It is guarded by a migration flag
+// rather than being idempotent by construction, because a second pass over a
+// table that has since gained user-contributed values could rewrite something it
+// should not.
+func TestNormalizeExerciseTaxonomy_RunsOnce(t *testing.T) {
+	setupMigrationTestDB(t)
+	if _, err := DB.Exec(`INSERT INTO exercises (name, equipment) VALUES ('Push Up', 'body only')`); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	alterMigrations()
+	if _, err := DB.Exec(`UPDATE exercises SET equipment = 'body only' WHERE name = 'Push Up'`); err != nil {
+		t.Fatalf("reintroduce: %v", err)
+	}
+	alterMigrations()
+
+	var equipment string
+	DB.QueryRow(`SELECT equipment FROM exercises WHERE name = 'Push Up'`).Scan(&equipment)
+	if equipment != "body only" {
+		t.Errorf("equipment = %q, want the migration to have skipped its second run", equipment)
+	}
+}

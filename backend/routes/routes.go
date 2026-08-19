@@ -90,9 +90,9 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.POST("programs/:id/suggestions/resolve", h.ResolveSuggestions)
 
 		// Admin
-		protected.POST("admin/sync-exercises", h.SyncExercises)
-		protected.GET("admin/seed-status", h.ExerciseSeedStatus)
-		protected.POST("admin/reset-exercises", h.ResetExercises)
+		protected.POST("admin/sync-exercises", h.RefreshExerciseCache)
+		protected.GET("admin/seed-status", h.ExerciseCacheStatus)
+		protected.POST("admin/reset-exercises", h.ClearExerciseCache)
 	}
 }
 

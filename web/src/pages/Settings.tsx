@@ -49,8 +49,8 @@ export default function Settings() {
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
 
-  const [seedStatus, setSeedStatus] = useState<{ count: number; in_progress: boolean } | null>(null)
-  const [seedAction, setSeedAction] = useState<'sync' | null>(null)
+  const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
+  const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
   const [seedMsg, setSeedMsg] = useState<string | null>(null)
 
   const [formData, setFormData] = useState({
@@ -61,12 +61,12 @@ export default function Settings() {
     fat_target: storedSettings.fat_target,
   })
 
-  const loadSeedStatus = useCallback(async () => {
+  const loadCacheStatus = useCallback(async () => {
     try {
-      const s = await exerciseAPI.seedStatus()
-      setSeedStatus(s)
+      const s = await exerciseAPI.cacheStatus()
+      setCacheStatus(s)
       return s
-    } catch { /* seeding status is a best-effort probe; absence just hides the banner */ }
+    } catch { /* cache status is a best-effort probe; absence just hides the count */ }
   }, [])
 
   useEffect(() => {
@@ -88,28 +88,36 @@ export default function Settings() {
       }
     }
     load()
-    loadSeedStatus()
-  }, [loadSeedStatus])
+    loadCacheStatus()
+  }, [loadCacheStatus])
 
-  // Poll while seeding in progress
-  useEffect(() => {
-    if (!seedStatus?.in_progress) return
-    const id = setInterval(async () => {
-      const s = await loadSeedStatus()
-      if (s && !s.in_progress) clearInterval(id)
-    }, 2000)
-    return () => clearInterval(id)
-  }, [seedStatus?.in_progress, loadSeedStatus])
+  // No polling: nothing populates the cache in the background any more. It fills as
+  // a side-effect of reads, and these two actions are synchronous.
 
-  const handleSync = async () => {
-    setSeedAction('sync')
+  const handleRefreshCache = async () => {
+    setSeedAction('refresh')
     setSeedMsg(null)
     try {
-      const res = await exerciseAPI.sync()
-      setSeedMsg(`Synced ${res.total.toLocaleString()} exercises`)
-      loadSeedStatus()
+      const res = await exerciseAPI.refreshCache()
+      setSeedMsg(`Refreshed ${res.refreshed.toLocaleString()} exercises`)
+      loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg(err.message || 'Sync failed')
+      setSeedMsg(err.message || 'Refresh failed')
+    } finally {
+      setSeedAction(null)
+    }
+  }
+
+  const handleClearCache = async () => {
+    setSeedAction('clear')
+    setSeedMsg(null)
+    try {
+      const res = await exerciseAPI.clearCacheOnServer()
+      setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
+      exerciseAPI.clearCache()
+      loadCacheStatus()
+    } catch (err: any) {
+      setSeedMsg(err.message || 'Clear failed')
     } finally {
       setSeedAction(null)
     }
@@ -389,19 +397,11 @@ export default function Settings() {
       <Section title="Exercise Library">
         <SettingRow
           label="Exercise database"
-          description="800+ exercises seeded automatically on first run"
+          description="Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
         >
-          <div className="flex items-center gap-2">
-            {seedStatus?.in_progress ? (
-              <span className="flex items-center gap-1.5 text-xs text-brand-400">
-                <Loader className="w-3.5 h-3.5 animate-spin" /> Seeding...
-              </span>
-            ) : (
-              <span className="text-sm font-mono text-tx-muted">
-                {seedStatus ? seedStatus.count.toLocaleString() : '—'} exercises
-              </span>
-            )}
-          </div>
+          <span className="text-sm font-mono text-tx-muted">
+            {cacheStatus ? cacheStatus.count.toLocaleString() : '—'} cached
+          </span>
         </SettingRow>
 
         {seedMsg && (
@@ -410,15 +410,25 @@ export default function Settings() {
           </div>
         )}
 
-        <div className="py-3">
+        <div className="py-3 flex items-center gap-2">
           <button
-            onClick={handleSync}
-            disabled={!!seedAction || seedStatus?.in_progress}
+            onClick={handleRefreshCache}
+            disabled={!!seedAction}
             className="btn-secondary btn-sm"
           >
-            {seedAction === 'sync'
-              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
-              : <><RefreshCw className="w-3.5 h-3.5" /> Re-sync</>
+            {seedAction === 'refresh'
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Refreshing...</>
+              : <><RefreshCw className="w-3.5 h-3.5" /> Refresh cached</>
+            }
+          </button>
+          <button
+            onClick={handleClearCache}
+            disabled={!!seedAction}
+            className="btn-secondary btn-sm"
+          >
+            {seedAction === 'clear'
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Clearing...</>
+              : <><Trash2 className="w-3.5 h-3.5" /> Clear unused</>
             }
           </button>
         </div>
