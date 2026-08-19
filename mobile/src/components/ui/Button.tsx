@@ -36,7 +36,15 @@ export function Button({
       disabled={isDisabled}
       // active:scale-95 is the standard press feedback for every tappable (see
       // CONVENTIONS.md "native feel") — it reads as native where hover states can't.
-      className={`h-12 rounded-lg flex-row items-center justify-center gap-2 active:scale-95 ${v.bg} ${isDisabled ? 'opacity-40' : ''} ${className}`}
+      // px-4 matters only when the button sizes to its own label. Nearly every caller
+      // passes flex-1 or fills a column, so the padding is invisible there — but a
+      // centred button with none had its text touching both edges.
+      //
+      // Deliberately not px-5, which web's same-height btn-lg uses: the tightest caller
+      // is the two-button row on the change-password card, where at 390dp each half has
+      // only ~23dp of slack around "Update password". px-4 clears that; px-5 would sit
+      // on the edge of squeezing the label.
+      className={`h-12 px-4 rounded-lg flex-row items-center justify-center gap-2 active:scale-95 ${v.bg} ${isDisabled ? 'opacity-40' : ''} ${className}`}
     >
       {loading ? (
         // White only sits on the brand-filled primary; other variants keep the surface
