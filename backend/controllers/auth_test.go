@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"testing"
 	"time"
 
@@ -196,5 +197,56 @@ func TestRegisterReturnsRealTimestamps(t *testing.T) {
 	}
 	if ts.IsZero() || ts.Year() < 2000 {
 		t.Errorf("created_at = %q, want a real timestamp", created)
+	}
+}
+
+// A sign-in for an address with no account used to return before hashing, while a real
+// address paid a full bcrypt round. That is a 12x difference in practice — an oracle for
+// which addresses are registered, which is exactly what giving both cases the same
+// message is meant to prevent.
+//
+// Asserted as a ratio rather than an absolute, since bcrypt cost and machine speed both
+// move. The bound is loose on purpose: this catches "one path skips bcrypt entirely",
+// not micro-variation.
+func TestLoginDoesNotLeakAccountExistenceByTiming(t *testing.T) {
+	setupTestDB(t)
+
+	const password = "password123"
+	c, w := newContext(0, "POST", "/api/v1/auth/register",
+		map[string]string{"email": "timing@lyftr.local", "password": password})
+	th.Register(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("register status = %d", w.Code)
+	}
+
+	attempt := func(email string) time.Duration {
+		start := time.Now()
+		c, w := newContext(0, "POST", "/api/v1/auth/login",
+			map[string]string{"email": email, "password": "definitely-the-wrong-password"})
+		th.Login(c)
+		if w.Code != http.StatusUnauthorized {
+			t.Fatalf("login status = %d, want 401", w.Code)
+		}
+		return time.Since(start)
+	}
+
+	// Median of a handful, so one scheduling hiccup cannot decide the result.
+	median := func(email string) time.Duration {
+		const n = 5
+		var xs []time.Duration
+		for i := 0; i < n; i++ {
+			xs = append(xs, attempt(email))
+		}
+		sort.Slice(xs, func(i, j int) bool { return xs[i] < xs[j] })
+		return xs[n/2]
+	}
+
+	existing := median("timing@lyftr.local")
+	missing := median("no-such-account@lyftr.local")
+
+	ratio := float64(existing) / float64(missing)
+	if ratio > 3 || ratio < 1.0/3 {
+		t.Errorf("existing=%v missing=%v (%.1fx apart) — one path is skipping the password comparison",
+			existing, missing, ratio)
 	}
 }

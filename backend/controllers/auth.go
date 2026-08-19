@@ -127,6 +127,11 @@ func (h *Handler) Login(c *gin.Context) {
 
 	user, err := h.s.User.GetByEmail(req.Email)
 	if err == sql.ErrNoRows {
+		// Pay the bcrypt round a real account would have cost. Returning straight away
+		// made a missing address answer ~12x faster than a wrong password, which tells
+		// anyone asking exactly which addresses are registered — undoing the point of
+		// giving both cases the same message.
+		utils.BurnPasswordComparison(req.Password)
 		utils.Unauthorized(c, "invalid email or password")
 		return
 	}

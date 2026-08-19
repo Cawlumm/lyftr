@@ -32,3 +32,26 @@ func HashPassword(plain string) (string, error) {
 func CheckPassword(plain, hash string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(plain)) == nil
 }
+
+// decoyHash is a real bcrypt hash at the same cost as a stored one. It exists to be
+// compared against when no account matched, so a sign-in attempt for an address that does
+// not exist costs the same as one for an address that does.
+//
+// Without it the two branches are trivially distinguishable: a miss returns before hashing
+// and a hit pays a full bcrypt round, which measured 8.7ms against 105.7ms — a 12x signal
+// that hands out a list of which addresses are registered. The handlers already answer
+// both cases with the same sentence for exactly that reason; the timing undid it.
+//
+// Generated at init from a fixed string, not a constant, so it always matches whatever
+// cost bcrypt.DefaultCost currently is.
+var decoyHash []byte
+
+func init() {
+	decoyHash, _ = bcrypt.GenerateFromPassword([]byte("decoy-for-constant-time-login"), bcrypt.DefaultCost)
+}
+
+// BurnPasswordComparison spends the work a real password check would, and discards it.
+// Call it on the no-such-account path before answering.
+func BurnPasswordComparison(plain string) {
+	_ = bcrypt.CompareHashAndPassword(decoyHash, []byte(plain))
+}
