@@ -4,6 +4,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"unicode/utf8"
+
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 // validatePassword is the only thing standing between an operator reset and a password
@@ -20,9 +23,9 @@ func TestValidatePassword(t *testing.T) {
 		{"one short", strings.Repeat("a", minPasswordLength-1), true},
 		{"exactly the minimum", strings.Repeat("a", minPasswordLength), false},
 		{"comfortably long", "a-perfectly-fine-password", false},
-		// Length is counted in bytes, matching Go's len() and the backend's validator.
-		// Spelling that out here so a future switch to runes is a deliberate change.
-		{"multibyte still counted in bytes", "héllo", true},
+		// 5 runes, so short whichever way you count — the rune-vs-byte distinction is
+		// pinned properly in TestValidatePasswordLength.
+		{"multibyte below the minimum", "héllo", true},
 	}
 
 	for _, tc := range cases {
@@ -125,6 +128,50 @@ func TestReadNewPasswordFromPipe(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "no password on stdin") {
 			t.Errorf("error was %q, want it to name the empty stdin", err)
+		}
+	})
+}
+
+// bcrypt refuses anything over 72 bytes rather than truncating it, so this is a hard
+// storage limit, not a policy. The CLI must say so itself — surfacing a raw
+// "bcrypt: password length exceeds 72 bytes" is the operator's problem to decode.
+func TestValidatePasswordLength(t *testing.T) {
+	t.Run("accepts exactly the byte limit", func(t *testing.T) {
+		p := strings.Repeat("a", utils.MaxPasswordBytes)
+		if _, err := validatePassword(p); err != nil {
+			t.Fatalf("rejected a password at the limit: %v", err)
+		}
+	})
+
+	t.Run("rejects one byte over", func(t *testing.T) {
+		p := strings.Repeat("a", utils.MaxPasswordBytes+1)
+		_, err := validatePassword(p)
+		if err == nil {
+			t.Fatal("accepted a password bcrypt cannot hash")
+		}
+		if err.Error() != utils.PasswordTooLongMessage {
+			t.Errorf("error was %q, want the shared message", err)
+		}
+	})
+
+	// The limit is bytes, so multibyte input hits it far below 72 characters. 19 of these
+	// is 76 bytes — a passphrase that looks short and still cannot be stored.
+	t.Run("counts the maximum in bytes, not characters", func(t *testing.T) {
+		p := strings.Repeat("\U0001F3CB", 19)
+		if utf8.RuneCountInString(p) >= utils.MaxPasswordBytes {
+			t.Fatalf("test input is not the case being covered: %d runes", utf8.RuneCountInString(p))
+		}
+		if _, err := validatePassword(p); err == nil {
+			t.Error("accepted 76 bytes because it counted 19 characters")
+		}
+	})
+
+	// The minimum is the opposite: runes, matching the API's `min=8` tag. Counting bytes
+	// let the CLI set a 5-character passphrase the app would have refused.
+	t.Run("counts the minimum in runes, not bytes", func(t *testing.T) {
+		p := strings.Repeat("\U0001F3CB", 5) // 5 runes, 20 bytes
+		if _, err := validatePassword(p); err == nil {
+			t.Error("accepted 5 characters because it counted 20 bytes")
 		}
 	})
 }

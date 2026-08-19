@@ -95,7 +95,7 @@ export default function Register() {
         placeholder="••••••••"
       />
       <View className="gap-1.5 mt-2">
-        <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
+        <PasswordRule state={rules.length}>{lengthRuleLabel(password)}</PasswordRule>
       </View>
       <IconInput
         label="Confirm password"

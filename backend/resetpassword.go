@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -118,8 +119,16 @@ func readNewPassword() (string, error) {
 }
 
 func validatePassword(p string) (string, error) {
-	if len(p) < minPasswordLength {
+	// Runes, not bytes, because the API's `min=8` tag counts runes — counting bytes here
+	// let the CLI set a short passphrase of multibyte characters that the app itself
+	// would refuse, so the two disagreed about the same password.
+	if utf8.RuneCountInString(p) < minPasswordLength {
 		return "", fmt.Errorf("password must be at least %d characters", minPasswordLength)
+	}
+	// Bytes, because this limit is bcrypt's and bcrypt counts bytes. Checked here so the
+	// operator gets the same sentence the API gives, rather than a raw hashing error.
+	if utils.PasswordTooLong(p) {
+		return "", errors.New(utils.PasswordTooLongMessage)
 	}
 	return p, nil
 }

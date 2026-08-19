@@ -163,7 +163,7 @@ export default function Register() {
               autoComplete="new-password"
               placeholder="••••••••"
             >
-              <Rule state={rules.length}>{lengthRuleLabel()}</Rule>
+              <Rule state={rules.length}>{lengthRuleLabel(password)}</Rule>
             </PasswordField>
 
             {/* Confirm password */}

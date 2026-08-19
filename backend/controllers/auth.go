@@ -62,6 +62,14 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	// Before hashing: bcrypt refuses anything over 72 bytes outright, and mapping that
+	// to a 500 told the user the server had broken on input their password manager
+	// generates by default.
+	if utils.PasswordTooLong(req.Password) {
+		utils.BadRequest(c, utils.PasswordTooLongMessage)
+		return
+	}
+
 	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		utils.InternalError(c)
@@ -176,6 +184,11 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	// that never happened.
 	if req.CurrentPassword == req.NewPassword {
 		utils.BadRequest(c, "new password must be different from the current one")
+		return
+	}
+
+	if utils.PasswordTooLong(req.NewPassword) {
+		utils.BadRequest(c, utils.PasswordTooLongMessage)
 		return
 	}
 

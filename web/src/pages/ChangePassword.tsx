@@ -111,7 +111,7 @@ export default function ChangePassword() {
           onChange={setNext}
           autoComplete="new-password"
         >
-          <Rule state={rules.length}>{lengthRuleLabel()}</Rule>
+          <Rule state={rules.length}>{lengthRuleLabel(next)}</Rule>
           <Rule state={rules.different}>{differentRuleLabel()}</Rule>
         </PasswordField>
 

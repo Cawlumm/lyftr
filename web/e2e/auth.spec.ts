@@ -174,3 +174,29 @@ test('/.well-known/change-password redirects to the change-password form', async
   expect(res.status()).toBe(302)
   expect(res.headers()['location']).toBe('/settings/password')
 })
+
+// bcrypt cannot store more than 72 bytes, and a password manager's default generated
+// password is longer than that. Before the limit was surfaced, the form let it through
+// and the server answered 500 — the user was told to try again, which could never work.
+test('a password too long for bcrypt is refused before it can be submitted', async ({ page }) => {
+  const email = `e2e-pw-long+${Date.now()}@lyftr.local`
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+
+  const tooLong = 'a'.repeat(100)
+  await page.locator('#password').fill(tooLong)
+  await page.locator('#password-confirm').fill(tooLong)
+
+  // "At least 8 characters" under a 100-character password points the wrong way, so the
+  // rule states the bound it actually failed.
+  await expect(page.getByText(/at most 72 characters/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled()
+
+  // And the limit is bytes, so a passphrase that reads as short is still refused.
+  const emoji = '\u{1F3CB}'.repeat(19)
+  await page.locator('#password').fill(emoji)
+  await page.locator('#password-confirm').fill(emoji)
+  await expect(page.getByText(/at most 72 characters/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled()
+})

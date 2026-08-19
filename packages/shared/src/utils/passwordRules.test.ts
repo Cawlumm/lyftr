@@ -1,4 +1,13 @@
-import { lengthRuleLabel, matchRuleLabel, MIN_PASSWORD_LENGTH, newPasswordRules, ruleState } from './passwordRules'
+import {
+  byteLength,
+  characterLength,
+  lengthRuleLabel,
+  matchRuleLabel,
+  MAX_PASSWORD_BYTES,
+  MIN_PASSWORD_LENGTH,
+  newPasswordRules,
+  ruleState,
+} from './passwordRules'
 
 describe('ruleState', () => {
   it('is pending until the field is touched, whatever the answer would be', () => {
@@ -83,5 +92,48 @@ describe('rule labels', () => {
     expect(matchRuleLabel('pending')).not.toMatch(/match/i)
     expect(matchRuleLabel('ok')).toBe('Passwords match')
     expect(matchRuleLabel('bad')).toBe('Passwords do not match')
+  })
+})
+
+describe('length is measured the way the server measures it', () => {
+  // JavaScript's .length counts UTF-16 code units, so four emoji look like eight
+  // characters. The server counts runes and sees four — the client used to accept a
+  // password the server then rejected on submit.
+  it('counts characters, not UTF-16 code units, for the minimum', () => {
+    const fourEmoji = '\u{1F3CB}'.repeat(4)
+    expect(fourEmoji.length).toBe(8)
+    expect(characterLength(fourEmoji)).toBe(4)
+    expect(newPasswordRules({ password: fourEmoji, confirm: fourEmoji })).toMatchObject({
+      length: 'bad',
+      ready: false,
+    })
+  })
+
+  it('counts bytes for the maximum, matching bcrypt', () => {
+    expect(byteLength('a'.repeat(72))).toBe(72)
+    expect(byteLength('\u{1F3CB}'.repeat(19))).toBe(76)
+  })
+
+  it('accepts exactly the byte limit and rejects one over', () => {
+    const atLimit = 'a'.repeat(MAX_PASSWORD_BYTES)
+    expect(newPasswordRules({ password: atLimit, confirm: atLimit })).toMatchObject({ length: 'ok', ready: true })
+
+    const over = 'a'.repeat(MAX_PASSWORD_BYTES + 1)
+    expect(newPasswordRules({ password: over, confirm: over })).toMatchObject({ length: 'bad', ready: false })
+  })
+
+  // 19 characters, 76 bytes — long enough to be refused while looking far too short to be.
+  it('rejects a multibyte passphrase well under the character limit', () => {
+    const emoji = '\u{1F3CB}'.repeat(19)
+    expect(characterLength(emoji)).toBeLessThan(MAX_PASSWORD_BYTES)
+    expect(newPasswordRules({ password: emoji, confirm: emoji }).ready).toBe(false)
+  })
+
+  // Telling someone with a 100-character password that they need at least 8 sends them
+  // in the wrong direction.
+  it('flips the label when the password is too long', () => {
+    expect(lengthRuleLabel('a'.repeat(10))).toMatch(/at least/i)
+    expect(lengthRuleLabel('a'.repeat(MAX_PASSWORD_BYTES + 1))).toMatch(/at most/i)
+    expect(lengthRuleLabel()).toMatch(/at least/i)
   })
 })

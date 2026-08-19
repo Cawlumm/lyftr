@@ -3,6 +3,7 @@ package controllers
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/db"
@@ -370,4 +371,52 @@ func TestPasswordWritesRefuseAnEmptyHash(t *testing.T) {
 	if v := tokenVersion(t, uid); v != 1 {
 		t.Errorf("token_version = %d, want 1 — a refused write must not evict sessions", v)
 	}
+}
+
+// bcrypt refuses over 72 bytes outright rather than truncating, and both handlers used to
+// hand that error to InternalError. The user was told the server had broken and to try
+// again, on input a password manager generates by default — advice that could never work.
+func TestPasswordLengthLimitIsAClientError(t *testing.T) {
+	setupTestDB(t)
+
+	tooLong := strings.Repeat("a", utils.MaxPasswordBytes+1)
+	atLimit := strings.Repeat("a", utils.MaxPasswordBytes)
+
+	register := func(email, password string) int {
+		c, w := newContext(0, "POST", "/api/v1/auth/register",
+			map[string]string{"email": email, "password": password})
+		th.Register(c)
+		return w.Code
+	}
+
+	t.Run("register rejects it as a client error", func(t *testing.T) {
+		if got := register("toolong@lyftr.local", tooLong); got != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d — a 5xx tells the user to retry something that cannot work", got, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("register still accepts exactly the limit", func(t *testing.T) {
+		if got := register("atlimit@lyftr.local", atLimit); got != http.StatusCreated {
+			t.Fatalf("status = %d, want %d", got, http.StatusCreated)
+		}
+	})
+
+	// The limit is bytes, so a 19-character passphrase is already too long. Worth pinning:
+	// the obvious `max=72` validator tag counts runes and would let this through to the
+	// same 500 the fix exists to remove.
+	t.Run("counts bytes, so multibyte fails well under 72 characters", func(t *testing.T) {
+		emoji := strings.Repeat("🏋", 19)
+		if got := register("emoji@lyftr.local", emoji); got != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d for %d bytes in %d characters",
+				got, http.StatusBadRequest, len(emoji), len([]rune(emoji)))
+		}
+	})
+
+	t.Run("change password rejects it as a client error", func(t *testing.T) {
+		uid, _ := registerAndLogin(t, "changetoolong@lyftr.local", "password123")
+		code, _ := changePassword(t, uid, "password123", tooLong)
+		if code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d", code, http.StatusBadRequest)
+		}
+	})
 }

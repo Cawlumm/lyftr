@@ -124,7 +124,7 @@ export default function ChangePasswordScreen() {
               onChangeText={setNext}
               textContentType="newPassword"
             >
-              <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
+              <PasswordRule state={rules.length}>{lengthRuleLabel(next)}</PasswordRule>
               <PasswordRule state={rules.different}>{differentRuleLabel()}</PasswordRule>
             </PasswordField>
             <PasswordField
