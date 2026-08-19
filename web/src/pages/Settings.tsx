@@ -7,10 +7,10 @@ import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
-import ChangePassword from '../components/ChangePassword'
+import { Link } from 'react-router-dom'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
-  RefreshCw, Pencil, Clock, Minus, Plus,
+  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound,
 } from 'lucide-react'
 
 // Wraps per row, on content rather than on viewport width.
@@ -203,7 +203,11 @@ export default function Settings() {
         <SettingRow label="Member since">
           <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>
         </SettingRow>
-        <ChangePassword />
+        <SettingRow label="Password" description="Changing it signs you out on your other devices">
+          <Link to="/settings/password" className="btn-secondary btn-sm">
+            <KeyRound className="w-3.5 h-3.5" /> Change
+          </Link>
+        </SettingRow>
       </Section>
 
       {/* Appearance */}

@@ -75,6 +75,13 @@ the server reports registration closed, but that is politeness — the 403 is th
 **Settings → Account → Password**, on the web app and in the Android app. It asks for your current
 password, so a stolen session alone cannot lock you out of your own account.
 
+The web form has its own address, `/settings/password`, and `/.well-known/change-password`
+redirects to it. That is the [W3C Change Password URL](https://w3c.github.io/webappsec-change-password-url/),
+so Safari's Keychain, Chrome's Password Checkup and 1Password can send you straight to the form
+instead of dropping you on the front page. Nothing to configure — the bundled nginx serves the
+redirect. Behind your own reverse proxy, pass the path through to the frontend like any other
+route.
+
 Changing it **signs you out everywhere else**. The device you changed it on stays signed in. That
 is deliberate — a password change is what you reach for when you think someone else has a session,
 so it has to actually end their session. Sign back in on your other devices with the new password.

@@ -21,6 +21,7 @@ import LogFood from './pages/LogFood'
 import Weight from './pages/Weight'
 import WeightDetail from './pages/WeightDetail'
 import Settings from './pages/Settings'
+import ChangePassword from './pages/ChangePassword'
 import Login from './pages/Login'
 import Register from './pages/Register'
 
@@ -65,6 +66,7 @@ function App() {
             <Route path="/weight" element={<Weight />} />
             <Route path="/weight/:id" element={<WeightDetail />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/settings/password" element={<ChangePassword />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" />} />

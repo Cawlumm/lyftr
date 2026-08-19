@@ -19,7 +19,6 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import {
-  apiErrorMessage,
   normalizeServerUrl,
   testServerConnection,
   isInsecureServerUrl,
@@ -42,9 +41,9 @@ import {
   Toast,
   Toggle,
   type ToastVariant,
-} from '../../src/components/ui'
-import { client, useAuthStore, useServerStore, useSettingsStore } from '../../src/lib/lyftr'
-import { useTheme } from '../../src/theme/useTheme'
+} from '../../../src/components/ui'
+import { client, useAuthStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -52,10 +51,6 @@ const MONTHS = [
 ]
 
 const REST_PRESETS = [60, 90, 120, 180]
-
-// Mirrors the backend's min=8 so the obvious mistake costs no round trip. The server
-// still enforces it — this only saves the request.
-const MIN_PASSWORD = 8
 
 type ToastState = { variant: ToastVariant; title: string; description?: string }
 
@@ -83,13 +78,6 @@ export default function SettingsScreen() {
   const [saving, setSaving] = useState(false)
 
   const [showCustomRest, setShowCustomRest] = useState(false)
-
-  const [showPasswordForm, setShowPasswordForm] = useState(false)
-  const [pwCurrent, setPwCurrent] = useState('')
-  const [pwNext, setPwNext] = useState('')
-  const [pwConfirm, setPwConfirm] = useState('')
-  const [pwSaving, setPwSaving] = useState(false)
-  const [pwError, setPwError] = useState<string | null>(null)
 
   // Server repoint (same warn-but-save flow as the sign-in screens / web ServerSettings).
   const [urlInput, setUrlInput] = useState(serverUrl)
@@ -172,47 +160,6 @@ export default function SettingsScreen() {
     setTesting(false)
   }
 
-  const closePasswordForm = () => {
-    setShowPasswordForm(false)
-    setPwCurrent('')
-    setPwNext('')
-    setPwConfirm('')
-    setPwError(null)
-  }
-
-  const handleChangePassword = async () => {
-    setPwError(null)
-    if (pwNext.length < MIN_PASSWORD) {
-      setPwError(`New password must be at least ${MIN_PASSWORD} characters`)
-      return
-    }
-    if (pwNext !== pwConfirm) {
-      setPwError('New passwords do not match')
-      return
-    }
-    if (pwNext === pwCurrent) {
-      setPwError('New password must be different from the current one')
-      return
-    }
-
-    setPwSaving(true)
-    try {
-      // The shared client persists the returned token pair, so this device stays signed
-      // in while every other one is evicted.
-      await client.userAPI.changePassword({ current_password: pwCurrent, new_password: pwNext })
-      closePasswordForm()
-      setToast({
-        variant: 'success',
-        title: 'Password changed',
-        description: 'Your other devices have been signed out.',
-      })
-    } catch (err: any) {
-      setPwError(apiErrorMessage(err, "Couldn't change your password. Please try again."))
-    } finally {
-      setPwSaving(false)
-    }
-  }
-
   const handleDeleteAccount = async () => {
     setDeleting(true)
     try {
@@ -252,71 +199,11 @@ export default function SettingsScreen() {
             <SettingsRow
               icon={KeyRound}
               label="Password"
-              description={showPasswordForm ? undefined : 'Changing it signs you out on your other devices'}
+              description="Changing it signs you out on your other devices"
               divider
-              chevron={!showPasswordForm}
-              onPress={() => (showPasswordForm ? closePasswordForm() : setShowPasswordForm(true))}
+              chevron
+              onPress={() => router.push('/settings/password')}
             />
-            {showPasswordForm ? (
-              <View className="border-t border-surface-border py-4 gap-3">
-                <Field
-                  label="Current password"
-                  value={pwCurrent}
-                  onChangeText={setPwCurrent}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="password"
-                />
-                <Field
-                  label="New password"
-                  value={pwNext}
-                  onChangeText={setPwNext}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  // newPassword lets the OS keychain offer to generate and save one, and
-                  // stops it filing the new value under the old password's entry.
-                  textContentType="newPassword"
-                />
-                <Field
-                  label="Confirm new password"
-                  value={pwConfirm}
-                  onChangeText={setPwConfirm}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  textContentType="newPassword"
-                />
-                <Muted>At least {MIN_PASSWORD} characters. You stay signed in on this device.</Muted>
-                {/* Standalone rather than on a Field: most of these errors are about the
-                    current password or come from the server, and hanging them off the
-                    confirm box pointed the user at the wrong input. Sits directly above the
-                    buttons, matching web — a form-level error belongs next to the action it
-                    blocked, not wedged between a field and its own hint. */}
-                {pwError ? (
-                  <View className="flex-row items-start gap-1.5">
-                    <AlertTriangle size={13} color={brand.error} strokeWidth={2.4} style={{ marginTop: 1 }} />
-                    <AppText variant="caption" color="error" className="flex-1">{pwError}</AppText>
-                  </View>
-                ) : null}
-                <View className="flex-row gap-2">
-                  <Button
-                    title="Update password"
-                    onPress={handleChangePassword}
-                    loading={pwSaving}
-                    className="flex-1"
-                  />
-                  <Button
-                    title="Cancel"
-                    variant="secondary"
-                    onPress={closePasswordForm}
-                    disabled={pwSaving}
-                    className="flex-1"
-                  />
-                </View>
-              </View>
-            ) : null}
           </SettingsGroup>
 
           {/* Appearance */}

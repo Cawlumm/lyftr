@@ -97,14 +97,18 @@ test('changes the password, then signs in with the new one', { tag: '@mobile' },
   const token = await page.evaluate(() => localStorage.getItem('access_token'))
   if (token) recordCreatedUser(token)
 
+  // Via the Settings link rather than a direct goto: the row is the only entry point in
+  // the UI, so this is what proves the page is reachable at all.
   await page.goto('/settings')
-  await page.getByRole('button', { name: /^change$/i }).click()
+  await page.getByRole('link', { name: /^change$/i }).click()
+  await expect(page).toHaveURL(/\/settings\/password$/)
   await page.locator('#current-password').fill(oldPassword)
   await page.locator('#new-password').fill(newPassword)
   await page.locator('#confirm-password').fill(newPassword)
   await page.getByRole('button', { name: /update password/i }).click()
 
-  await expect(page.locator('.alert-success')).toContainText(/other devices have been signed out/i)
+  await expect(page.getByRole('heading', { name: /password changed/i })).toBeVisible()
+  await expect(page.locator('.alert-success')).toContainText(/still signed in on this device/i)
 
   // The device that made the change keeps working — the client swapped in the pair the
   // server returned, so a normal authenticated read still succeeds.
@@ -140,15 +144,27 @@ test('a wrong current password shows an error without signing the user out', asy
   const token = await page.evaluate(() => localStorage.getItem('access_token'))
   if (token) recordCreatedUser(token)
 
-  await page.goto('/settings')
-  await page.getByRole('button', { name: /^change$/i }).click()
+  // Straight to the route — the same landing the /.well-known/change-password redirect
+  // produces, so a deep link is covered as well as the in-app path used above.
+  await page.goto('/settings/password')
   await page.locator('#current-password').fill('not-my-password')
   await page.locator('#new-password').fill('newpassword456')
   await page.locator('#confirm-password').fill('newpassword456')
   await page.getByRole('button', { name: /update password/i }).click()
 
   await expect(page.locator('.alert-error')).toContainText(/current password is incorrect/i)
-  // Still signed in, still on Settings — not bounced to /login.
-  await expect(page).toHaveURL(/\/settings$/)
+  // Still signed in, still on the form — not bounced to /login.
+  await expect(page).toHaveURL(/\/settings\/password$/)
   expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBeTruthy()
+})
+
+// The W3C Change Password URL. Password managers open it to send a user to the form, and
+// expect a redirect — served by nginx in production and by a vite middleware in dev, so
+// this passes against either stack. Asserted without following, because a 200 here would
+// mean the SPA fallback swallowed it and the manager would land on whatever React Router
+// decides, not on the form.
+test('/.well-known/change-password redirects to the change-password form', async ({ page }) => {
+  const res = await page.request.get('/.well-known/change-password', { maxRedirects: 0 })
+  expect(res.status()).toBe(302)
+  expect(res.headers()['location']).toBe('/settings/password')
 })
