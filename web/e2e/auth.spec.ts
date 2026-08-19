@@ -108,7 +108,7 @@ test('changes the password, then signs in with the new one', { tag: '@mobile' },
   await page.getByRole('button', { name: /update password/i }).click()
 
   await expect(page.getByRole('heading', { name: /password changed/i })).toBeVisible()
-  await expect(page.locator('.alert-success')).toContainText(/still signed in on this device/i)
+  await expect(page.getByText(/still signed in here/i)).toBeVisible()
 
   // The device that made the change keeps working — the client swapped in the pair the
   // server returned, so a normal authenticated read still succeeds.
