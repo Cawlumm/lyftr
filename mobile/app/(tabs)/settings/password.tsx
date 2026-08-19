@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { AlertTriangle, ArrowLeft, Check } from 'lucide-react-native'
+import { ArrowLeft, ShieldCheck } from 'lucide-react-native'
 import { apiErrorMessage, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import {
+  Alert,
   AppText,
   Button,
-  Muted,
+  Card,
   PageHeader,
   PasswordField,
   PasswordRule,
@@ -19,6 +20,10 @@ import { useTheme } from '../../../src/theme/useTheme'
 // Web needs the route so /.well-known/change-password has somewhere to redirect; mobile
 // follows so the two platforms stay one flow, and so this becomes deep-linkable if app
 // links are ever added.
+//
+// Laid out beat for beat with that page — back link, header, the form on a card, and a
+// centred confirmation card on success — so the two do not merely do the same thing, they
+// read as the same screen.
 export default function ChangePasswordScreen() {
   const { colors, brand } = useTheme()
 
@@ -36,8 +41,8 @@ export default function ChangePasswordScreen() {
   const submit = async () => {
     setError(null)
     // The rules render under the fields as the user types and the button stays disabled
-    // until they pass, so this is a backstop. The error line below is server failures
-    // only — a wrong current password, or a change that landed elsewhere first.
+    // until they pass, so this is a backstop. The alert below is server failures only —
+    // a wrong current password, or a change that landed elsewhere first.
     if (!rules.ready) return
 
     setSaving(true)
@@ -54,87 +59,105 @@ export default function ChangePasswordScreen() {
     }
   }
 
+  const backLink = (
+    <Pressable
+      onPress={back}
+      hitSlop={8}
+      className="flex-row items-center gap-1.5 self-start active:opacity-60"
+    >
+      <ArrowLeft size={16} color={colors.txMuted} />
+      <AppText variant="body" color="muted">Settings</AppText>
+    </Pressable>
+  )
+
+  // Success replaces the form rather than sitting above it. Three filled-looking boxes
+  // under a success banner invite a second submit that could only fail — the current
+  // password is no longer current. The card carries its own heading, so the page header
+  // is dropped here rather than saying the same words twice.
+  if (done) {
+    return (
+      <Screen>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View className="gap-5 py-4">
+            {backLink}
+            <Card className="items-center gap-3 p-6">
+              <View className="h-12 w-12 items-center justify-center rounded-full border border-success-500/20 bg-success-500/10">
+                <ShieldCheck size={24} color={brand.successSoft} strokeWidth={2.2} />
+              </View>
+              <View className="gap-1">
+                <AppText variant="title" className="text-center">Password changed</AppText>
+                <AppText variant="body" color="muted" className="text-center">
+                  You are still signed in here. Every other device has been signed out and
+                  will need the new password.
+                </AppText>
+              </View>
+              <Button title="Back to settings" variant="secondary" onPress={back} className="mt-1" />
+            </Card>
+          </View>
+        </ScrollView>
+      </Screen>
+    )
+  }
+
   return (
     <Screen>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <View className="gap-6 py-4">
-          <View className="gap-3">
-            <Pressable
-              onPress={back}
-              hitSlop={8}
-              className="flex-row items-center gap-1.5 self-start active:opacity-60"
-            >
-              <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">Settings</AppText>
-            </Pressable>
-            {/* Success replaces the form rather than sitting above it. Three filled-looking
-                boxes under a success banner invite a second submit, which would fail — the
-                current password is no longer current. */}
-            <PageHeader
-              title={done ? 'Password changed' : 'Change password'}
-              subtitle={
-                done
-                  ? 'Your other devices have been signed out.'
-                  : 'You will stay signed in here. Every other device is signed out.'
-              }
-            />
-          </View>
+        <View className="gap-5 py-4">
+          {backLink}
+          <PageHeader
+            title="Change password"
+            subtitle="You will stay signed in here. Every other device is signed out."
+          />
 
-          {done ? (
-            <View className="gap-4">
-              <View className="flex-row items-start gap-1.5">
-                <Check size={14} color={brand.success} strokeWidth={2.4} style={{ marginTop: 1 }} />
-                <AppText variant="body" className="flex-1">
-                  You are still signed in on this device.
-                </AppText>
-              </View>
-              <Button title="Back to settings" variant="secondary" onPress={back} />
-            </View>
-          ) : (
-            <View className="gap-3">
-              <PasswordField
-                label="Current password"
-                value={current}
-                onChangeText={setCurrent}
-                textContentType="password"
+          <Card className="gap-4">
+            <PasswordField
+              label="Current password"
+              value={current}
+              onChangeText={setCurrent}
+              textContentType="password"
+            />
+            {/* newPassword lets the OS keychain offer to generate and save one, and stops
+                it filing the new value under the old password's entry. */}
+            <PasswordField
+              label="New password"
+              value={next}
+              onChangeText={setNext}
+              textContentType="newPassword"
+            >
+              <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
+              <PasswordRule state={rules.different}>{differentRuleLabel()}</PasswordRule>
+            </PasswordField>
+            <PasswordField
+              label="Confirm new password"
+              value={confirm}
+              onChangeText={setConfirm}
+              textContentType="newPassword"
+            >
+              <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>
+            </PasswordField>
+
+            {/* Form-level, so it belongs beside the action it blocked rather than hanging
+                off one field — pinning it to the confirm box pointed the user at the wrong
+                input for an error about the current password. */}
+            {error ? <Alert variant="error">{error}</Alert> : null}
+
+            <View className="flex-row gap-2">
+              <Button
+                title="Update password"
+                onPress={submit}
+                loading={saving}
+                disabled={!rules.ready}
+                className="flex-1"
               />
-              {/* newPassword lets the OS keychain offer to generate and save one, and
-                  stops it filing the new value under the old password's entry. */}
-              <PasswordField
-                label="New password"
-                value={next}
-                onChangeText={setNext}
-                textContentType="newPassword"
-              >
-                <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
-                <PasswordRule state={rules.different}>{differentRuleLabel()}</PasswordRule>
-              </PasswordField>
-              <PasswordField
-                label="Confirm new password"
-                value={confirm}
-                onChangeText={setConfirm}
-                textContentType="newPassword"
-              >
-                <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>
-              </PasswordField>
-              <Muted>You stay signed in on this device.</Muted>
-              {/* Standalone rather than on a Field: most of these errors are about the
-                  current password or come from the server, and hanging them off the confirm
-                  box pointed the user at the wrong input. Sits directly above the buttons,
-                  matching web — a form-level error belongs next to the action it blocked,
-                  not wedged between a field and its own hint. */}
-              {error ? (
-                <View className="flex-row items-start gap-1.5">
-                  <AlertTriangle size={13} color={brand.error} strokeWidth={2.4} style={{ marginTop: 1 }} />
-                  <AppText variant="caption" color="error" className="flex-1">{error}</AppText>
-                </View>
-              ) : null}
-              <View className="flex-row gap-2">
-                <Button title="Update password" onPress={submit} loading={saving} disabled={!rules.ready} className="flex-1" />
-                <Button title="Cancel" variant="secondary" onPress={back} disabled={saving} className="flex-1" />
-              </View>
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={back}
+                disabled={saving}
+                className="flex-1"
+              />
             </View>
-          )}
+          </Card>
         </View>
       </ScrollView>
     </Screen>

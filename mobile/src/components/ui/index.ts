@@ -9,6 +9,7 @@ export type { AppTextProps, TextVariant, TextColor } from './Typography'
 // Layout / surfaces
 export { Screen } from './Screen'
 export { Card } from './Card'
+export { Alert } from './Alert'
 
 // Headers (web-parity)
 export { PageHeader } from './PageHeader'
