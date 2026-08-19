@@ -1,0 +1,141 @@
+# Dependency updates.
+#
+# Shaped for one maintainer, not a team: monthly rather than daily, grouped so a
+# framework bump is one pull request instead of nine, and a cooldown so a release that
+# gets yanked in its first week never reaches you. Patch updates are ignored outright —
+# wger does the same, and they are almost never worth a review on their own. Security
+# advisories are unaffected by any of this; Dependabot raises those regardless of
+# schedule, grouping, or the patch-ignore rule below.
+#
+# The `ignore` entries at the bottom of the npm block record decisions already taken in
+# the dependency audit (#120), so they are not re-proposed every month. Delete an entry
+# to re-open that question deliberately.
+version: 2
+updates:
+  # ── Workspace: web + mobile + shared, one lockfile at the root ──────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    groups:
+      expo:
+        patterns:
+          - expo
+          - expo-*
+          - "@expo/*"
+          - react-native
+          - react-native-*
+          - "@react-native/*"
+          - metro
+          - metro-*
+      react:
+        patterns:
+          - react
+          - react-dom
+          - react-router
+          - react-router-dom
+          - "@types/react"
+          - "@types/react-dom"
+      lint:
+        patterns:
+          - eslint
+          - eslint-*
+          - "@typescript-eslint/*"
+          - typescript
+      test:
+        patterns:
+          - vitest
+          - "@vitest/*"
+          - jest
+          - jest-*
+          - "@playwright/*"
+          - "@testing-library/*"
+      build:
+        patterns:
+          - vite
+          - "@vitejs/*"
+          - tailwindcss
+          - nativewind
+          - autoprefixer
+          - postcss
+    ignore:
+      # Reviewing every patch bump costs more than it returns.
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+      # Expo majors are SDK upgrades with their own migration guides and their own
+      # testing — a build has to be produced and run on a device before one can land, so
+      # they do not belong in an automated dependency PR. Raise them deliberately.
+      - dependency-name: expo
+        update-types: ["version-update:semver-major"]
+      - dependency-name: expo-*
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-native
+        update-types: ["version-update:semver-major"]
+      # React Router 7 fixes two advisories that cannot fire here — one needs SSR, which
+      # this SPA does not do, and the other needs a user-controlled navigation target,
+      # which no route in the app has. See #120. Worth doing on its own merits, not as a
+      # security bump.
+      - dependency-name: react-router
+        update-types: ["version-update:semver-major"]
+      - dependency-name: react-router-dom
+        update-types: ["version-update:semver-major"]
+
+  # ── Backend ────────────────────────────────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - backend
+    groups:
+      golang-x:
+        patterns:
+          - golang.org/x/*
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+
+  # ── Workflow actions ───────────────────────────────────────────────────────────
+  #
+  # A pinned action is a supply-chain dependency like any other, and these are the one
+  # ecosystem where patch updates matter: actions are usually pinned to a major tag that
+  # moves under you, so an explicit bump is the only visible record.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - ci
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # ── Container base images ──────────────────────────────────────────────────────
+  #
+  # Nothing watched these before. golang:1.26-alpine and node:20-alpine float to the
+  # latest patch on rebuild, but alpine:3.19 and nginx:alpine are the runtime layers that
+  # actually ship, and a pinned alpine minor goes stale quietly.
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - docker
+  - package-ecosystem: docker
+    directory: /web
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - docker
