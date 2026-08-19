@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
+import { PasswordRule } from '../../src/components/ui'
 import { IconInput, GradientButton, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { registrationOpen } from '@lyftr/shared'
+import { registrationOpen, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
 import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
 
@@ -15,7 +16,9 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
-  // Client-side validation errors (match / length), shown on submit like the web form.
+  // Only the email check lands here now — the password rules render under their own
+  // fields as the user types (see below), so this holds the one error that has nowhere
+  // else to go, plus whatever the server says.
   const [localError, setLocalError] = useState<string | null>(null)
   const register = useAuthStore((s) => s.register)
   const loading = useAuthStore((s) => s.isLoading)
@@ -29,12 +32,15 @@ export default function Register() {
     setter(t)
   }
 
-  // Validate only on submit (not while typing) — same checks, same order, same copy
-  // as web/src/pages/Register.tsx, surfaced after the user presses Create account.
+  // Password rules come from @lyftr/shared, the same call web/src/pages/Register.tsx
+  // makes. They used to be two hand-written checks per app, which is how the wording
+  // drifted apart; now neither app can accept a password the other refuses.
+  const rules = newPasswordRules({ password, confirm: passwordConfirm })
+
   const submit = async () => {
     if (!EMAIL_RE.test(email.trim())) { setLocalError('Enter a valid email address'); return }
-    if (password !== passwordConfirm) { setLocalError('Passwords do not match'); return }
-    if (password.length < 8) { setLocalError('Password must be at least 8 characters'); return }
+    // Backstop — the button is disabled until the rules pass.
+    if (!rules.ready) return
     setLocalError(null)
     try { await register(email.trim(), password) } catch {}
   }
@@ -86,8 +92,11 @@ export default function Register() {
         password
         value={password}
         onChangeText={onChange(setPassword)}
-        placeholder="At least 8 characters"
+        placeholder="••••••••"
       />
+      <View className="gap-1.5 mt-2">
+        <PasswordRule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</PasswordRule>
+      </View>
       <IconInput
         label="Confirm password"
         icon="lock"
@@ -96,8 +105,13 @@ export default function Register() {
         onChangeText={onChange(setPasswordConfirm)}
         placeholder="••••••••"
       />
+      <View className="gap-1.5 mt-2">
+        <PasswordRule state={rules.match}>
+          {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
+        </PasswordRule>
+      </View>
       {shownError ? <AuthError message={shownError} /> : null}
-      <GradientButton title="Create account" onPress={submit} loading={loading} />
+      <GradientButton title="Create account" onPress={submit} loading={loading} disabled={!rules.ready} />
       <Footer>
         <View style={{ flexDirection: 'row', gap: 5 }}>
           <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Have an account?</Text>

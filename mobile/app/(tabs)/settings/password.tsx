@@ -2,21 +2,18 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { AlertTriangle, ArrowLeft, Check } from 'lucide-react-native'
-import { apiErrorMessage } from '@lyftr/shared'
+import { apiErrorMessage, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
 import {
   AppText,
   Button,
-  Field,
   Muted,
   PageHeader,
+  PasswordField,
+  PasswordRule,
   Screen,
 } from '../../../src/components/ui'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-
-// Mirrors the backend's min=8 so the obvious mistake costs no round trip. The server
-// still enforces it — this only saves the request.
-const MIN_PASSWORD = 8
 
 // Its own screen rather than a panel inside Settings, matching web's /settings/password.
 // Web needs the route so /.well-known/change-password has somewhere to redirect; mobile
@@ -32,22 +29,16 @@ export default function ChangePasswordScreen() {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
+  const rules = newPasswordRules({ password: next, confirm, current })
+
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/settings'))
 
   const submit = async () => {
     setError(null)
-    if (next.length < MIN_PASSWORD) {
-      setError(`New password must be at least ${MIN_PASSWORD} characters`)
-      return
-    }
-    if (next !== confirm) {
-      setError('New passwords do not match')
-      return
-    }
-    if (next === current) {
-      setError('New password must be different from the current one')
-      return
-    }
+    // The rules render under the fields as the user types and the button stays disabled
+    // until they pass, so this is a backstop. The error line below is server failures
+    // only — a wrong current password, or a change that landed elsewhere first.
+    if (!rules.ready) return
 
     setSaving(true)
     try {
@@ -101,36 +92,34 @@ export default function ChangePasswordScreen() {
             </View>
           ) : (
             <View className="gap-3">
-              <Field
+              <PasswordField
                 label="Current password"
                 value={current}
                 onChangeText={setCurrent}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
                 textContentType="password"
               />
-              <Field
+              {/* newPassword lets the OS keychain offer to generate and save one, and
+                  stops it filing the new value under the old password's entry. */}
+              <PasswordField
                 label="New password"
                 value={next}
                 onChangeText={setNext}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
-                // newPassword lets the OS keychain offer to generate and save one, and
-                // stops it filing the new value under the old password's entry.
                 textContentType="newPassword"
-              />
-              <Field
+              >
+                <PasswordRule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</PasswordRule>
+                <PasswordRule state={rules.different}>Different from your current password</PasswordRule>
+              </PasswordField>
+              <PasswordField
                 label="Confirm new password"
                 value={confirm}
                 onChangeText={setConfirm}
-                secureTextEntry
-                autoCapitalize="none"
-                autoCorrect={false}
                 textContentType="newPassword"
-              />
-              <Muted>At least {MIN_PASSWORD} characters. You stay signed in on this device.</Muted>
+              >
+                <PasswordRule state={rules.match}>
+                  {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
+                </PasswordRule>
+              </PasswordField>
+              <Muted>You stay signed in on this device.</Muted>
               {/* Standalone rather than on a Field: most of these errors are about the
                   current password or come from the server, and hanging them off the confirm
                   box pointed the user at the wrong input. Sits directly above the buttons,
@@ -143,7 +132,7 @@ export default function ChangePasswordScreen() {
                 </View>
               ) : null}
               <View className="flex-row gap-2">
-                <Button title="Update password" onPress={submit} loading={saving} className="flex-1" />
+                <Button title="Update password" onPress={submit} loading={saving} disabled={!rules.ready} className="flex-1" />
                 <Button title="Cancel" variant="secondary" onPress={back} disabled={saving} className="flex-1" />
               </View>
             </View>

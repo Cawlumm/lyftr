@@ -7,6 +7,7 @@ import { useServerInfo } from '../hooks/useServerInfo'
 import { formatVersion, registrationOpen } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
+import PasswordField from '../components/ui/PasswordField'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -139,21 +140,14 @@ export default function Login() {
             </div>
 
             {/* Password */}
-            <div>
-              <div className="mb-2">
-                <label htmlFor="password" className="label">Password</label>
-              </div>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input mt-2"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                required
-              />
-            </div>
+            <PasswordField
+              id="password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
 
             {/* Error */}
             {error && (
