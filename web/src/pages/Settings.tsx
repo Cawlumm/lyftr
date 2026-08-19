@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { memberSince } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -7,19 +8,38 @@ import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
 import ServerSettings from '../components/ServerSettings'
+import { Link } from 'react-router-dom'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
-  RefreshCw, Pencil, Clock, Minus, Plus,
+  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound,
 } from 'lucide-react'
 
+// Wraps per row, on content rather than on viewport width.
+//
+// Originally this was side-by-side at every width with `flex-shrink-0` on the value.
+// Since the value could not shrink, a wide one — an email address, most obviously — took
+// the space it wanted and the label column absorbed all the squeeze, so "Your login email
+// address" wrapped down four near-empty lines at 390px while the address still clipped at
+// the card edge.
+//
+// Stacking everything below `sm` fixed that and overcorrected: a compact control like the
+// theme toggle got dropped onto its own line too, for no gain, and the page grew to a
+// ~2800px scroll on a phone. `flex-wrap` asks the right question instead — does this
+// particular value fit beside its label? A toggle does and stays inline; an email address
+// does not and takes the next line at full width. No breakpoint decides it, so the row is
+// right at any width and for any content.
+//
+// The label keeps a `min-w` floor so wrapping actually triggers: with `min-w-0` alone it
+// would shrink to nothing and the pair would stay jammed on one line forever.
 function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between py-4">
-      <div className="flex-1 mr-4">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
+      <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
         {description && <p className="text-xs text-tx-muted mt-0.5">{description}</p>}
       </div>
-      <div className="flex-shrink-0">{children}</div>
+      {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
+      <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
     </div>
   )
 }
@@ -170,9 +190,12 @@ export default function Settings() {
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
         </SettingRow>
         <SettingRow label="Member since">
-          <span className="text-sm text-tx-muted">
-            {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '—'}
-          </span>
+          <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>
+        </SettingRow>
+        <SettingRow label="Password" description="Changing it signs you out on your other devices">
+          <Link to="/settings/password" className="btn-secondary btn-sm">
+            <KeyRound className="w-3.5 h-3.5" /> Change
+          </Link>
         </SettingRow>
       </Section>
 

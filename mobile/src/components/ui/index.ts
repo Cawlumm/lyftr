@@ -9,6 +9,7 @@ export type { AppTextProps, TextVariant, TextColor } from './Typography'
 // Layout / surfaces
 export { Screen } from './Screen'
 export { Card } from './Card'
+export { Alert } from './Alert'
 
 // Headers (web-parity)
 export { PageHeader } from './PageHeader'
@@ -23,6 +24,7 @@ export { SegmentedControl } from './SegmentedControl'
 export { Field } from './Field'
 export { SearchField } from './SearchField'
 export { NumberField } from './NumberField'
+export { PasswordField, PasswordRule } from './PasswordField'
 export { NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID } from './NumericKeyboardAccessory'
 export { StepperTile } from './StepperTile'
 export { DateInput } from './DateInput'

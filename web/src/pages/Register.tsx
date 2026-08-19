@@ -4,9 +4,10 @@ import { AlertCircle, Dumbbell, Apple, TrendingUp, UserPlus, Lock } from 'lucide
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion, registrationOpen } from '@lyftr/shared'
+import { formatVersion, registrationOpen, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
+import PasswordField, { Rule } from '../components/ui/PasswordField'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -20,11 +21,14 @@ export default function Register() {
   const [error, setError]                     = useState('')
   const [isLoading, setLoading]               = useState(false)
 
+  const rules = newPasswordRules({ password, confirm: passwordConfirm })
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (password !== passwordConfirm) { setError('Passwords do not match'); return }
-    if (password.length < 8)          { setError('Password must be at least 8 characters'); return }
+    // The rules render under the fields as they type and the button is disabled until
+    // they pass, so this is a backstop. The banner below is now server failures only.
+    if (!rules.ready) return
     setLoading(true)
     try {
       await register(email, password)
@@ -151,34 +155,28 @@ export default function Register() {
             </div>
 
             {/* Password */}
-            <div>
-              <label htmlFor="password" className="label">Password</label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input mt-2"
-                placeholder="Min 8 characters"
-                autoComplete="new-password"
-                required
-              />
-            </div>
+            <PasswordField
+              id="password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              placeholder="••••••••"
+            >
+              <Rule state={rules.length}>{lengthRuleLabel(password)}</Rule>
+            </PasswordField>
 
             {/* Confirm password */}
-            <div>
-              <label htmlFor="password-confirm" className="label">Confirm password</label>
-              <input
-                id="password-confirm"
-                type="password"
-                value={passwordConfirm}
-                onChange={e => setPasswordConfirm(e.target.value)}
-                className="input mt-2"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                required
-              />
-            </div>
+            <PasswordField
+              id="password-confirm"
+              label="Confirm password"
+              value={passwordConfirm}
+              onChange={setPasswordConfirm}
+              autoComplete="new-password"
+              placeholder="••••••••"
+            >
+              <Rule state={rules.match}>{matchRuleLabel(rules.match)}</Rule>
+            </PasswordField>
 
             {/* Error */}
             {error && (
@@ -191,7 +189,7 @@ export default function Register() {
             {/* Create account button */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !rules.ready}
               className="btn-primary btn-lg w-full mt-6 flex items-center justify-center gap-2"
             >
               <UserPlus className="w-4 h-4" />

@@ -154,3 +154,31 @@ export const workoutDay = (w: { started_at: string; tz_offset_minutes?: number }
   const shifted = new Date(new Date(w.started_at).getTime() + w.tz_offset_minutes * 60_000)
   return Number.isNaN(shifted.getTime()) ? instantToDay(w.started_at) : shifted.toISOString().slice(0, 10)
 }
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+/**
+ * "August 2026" for the Settings → Member since row, or "—" when there is nothing real
+ * to show.
+ *
+ * A present-but-meaningless timestamp has to read as unknown rather than be formatted
+ * anyway. Go's zero time serialises as "0001-01-01T00:00:00Z", which is truthy and parses
+ * fine, so a plain `created_at ? format(...) : '—'` rendered it — web showed "December 1"
+ * and mobile "January 1" for a brand new account. The backend no longer sends it, but an
+ * older server still can, and no real account predates Lyftr.
+ *
+ * Read in UTC on purpose. Unlike the day-scoped rows above, `created_at` is a bare
+ * instant with no stored offset, so deriving the month from the reader's clock would move
+ * someone's join date across a month boundary purely by travelling. Month names are
+ * spelled out here rather than via toLocaleDateString so both apps render identically
+ * regardless of the Intl data the runtime happens to ship.
+ */
+export const memberSince = (iso?: string): string => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return '—'
+  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+}

@@ -1,4 +1,4 @@
-import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay } from './dateUtils'
+import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince } from './dateUtils'
 
 
 describe('dayToInstant', () => {
@@ -148,5 +148,30 @@ describe('dayToLocalDate', () => {
     for (const day of ['2026-01-01', '2026-03-08', '2026-11-01', '2026-12-31']) {
       expect(instantToDay(dayToLocalDate(day).toISOString())).toBe(day)
     }
+  })
+})
+
+describe('memberSince', () => {
+  it('renders the UTC month and year', () => {
+    expect(memberSince('2026-08-19T14:30:00Z')).toBe('August 2026')
+  })
+
+  // The bug it exists for: Go's zero time is truthy and parses fine, so it used to be
+  // formatted and shown as a real date on a brand new account.
+  it('rejects Go\'s zero time rather than formatting it', () => {
+    expect(memberSince('0001-01-01T00:00:00Z')).toBe('—')
+  })
+
+  it('reads as unknown for missing or unparseable input', () => {
+    expect(memberSince(undefined)).toBe('—')
+    expect(memberSince('')).toBe('—')
+    expect(memberSince('not-a-date')).toBe('—')
+  })
+
+  // UTC, not the reader's clock: created_at carries no offset, so a local reading would
+  // move a join date across a month boundary purely by travelling.
+  it('does not shift the month with the reader\'s timezone', () => {
+    expect(memberSince('2026-09-01T00:30:00Z')).toBe('September 2026')
+    expect(memberSince('2026-08-31T23:30:00Z')).toBe('August 2026')
   })
 })

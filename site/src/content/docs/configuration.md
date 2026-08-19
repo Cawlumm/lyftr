@@ -70,6 +70,83 @@ quietly leaving you wide open. Check `docker compose logs backend` if the contai
 This is enforced by the API, not the interface. The apps also hide the "Create account" link when
 the server reports registration closed, but that is politeness — the 403 is the lock.
 
+## Changing your password
+
+**Settings → Account → Password**, on the web app and in the Android app. It asks for your current
+password, so a stolen session alone cannot lock you out of your own account.
+
+The web form has its own address, `/settings/password`, and `/.well-known/change-password`
+redirects to it. That is the [W3C Change Password URL](https://w3c.github.io/webappsec-change-password-url/),
+so Safari's Keychain, Chrome's Password Checkup and 1Password can send you straight to the form
+instead of dropping you on the front page. Nothing to configure — the bundled nginx serves the
+redirect. Behind your own reverse proxy, pass the path through to the frontend like any other
+route.
+
+### Password length
+
+Between 8 characters and 72 **bytes**. The minimum is Lyftr's; the maximum is bcrypt's, which
+refuses anything longer rather than silently truncating it.
+
+72 bytes is 72 ordinary characters, but accented letters cost two and most emoji cost four — so a
+19-character emoji passphrase is already over. Both apps say so while you type rather than on
+submit. Worth knowing if your password manager generates long passwords: cap it at 72.
+
+Changing it **signs you out everywhere else**. The device you changed it on stays signed in. That
+is deliberate — a password change is what you reach for when you think someone else has a session,
+so it has to actually end their session. Sign back in on your other devices with the new password.
+
+Other devices stop as soon as their current access token expires, which is `JWT_EXPIRY` seconds
+(one hour by default). Raising `JWT_EXPIRY` widens that window by exactly the same amount, so a
+long expiry trades a little convenience for a longer tail after a password change.
+
+## If you forget your password
+
+There is no self-service reset. Nothing here can email you a link, and an instance with no mail
+server could not send one. Recovery belongs to whoever has a shell on the server — which, since you
+self-host, is you:
+
+```bash
+docker compose exec backend ./lyftr-api reset-password you@example.com
+```
+
+It prompts for the new password twice, with no echo, and prints:
+
+```
+Password reset for you@example.com.
+Every existing session for that account has been signed out.
+```
+
+The account and everything in it are untouched — only the password changes.
+
+The password is prompted for rather than passed as a flag, so it never reaches your shell history
+or the container's process list.
+
+If you need it unattended, pipe it in. Read it into a variable first rather than typing it into the
+command — `echo 'your-new-password' | ...` puts the password straight into your shell history, which
+is the thing the prompt exists to avoid:
+
+```bash
+read -rs NEWPW
+docker compose exec -T backend ./lyftr-api reset-password you@example.com <<< "$NEWPW"
+unset NEWPW
+```
+
+Piped input skips the confirmation prompt — there is nothing to type twice — so whatever arrives on
+stdin becomes the password, subject only to the same 8-character minimum and 72-byte maximum
+the apps enforce.
+
+Sessions are signed out because a reset is often prompted by someone else having got in, and a new
+password is worthless while their existing token still works.
+
+:::caution
+**Do not delete the account and sign up again.** `users` cascades — the row takes every workout,
+meal and weight entry with it. Under `REGISTRATION=closed` it also leaves you permanently locked
+out, since nothing would let you register the replacement.
+:::
+
+If the instance will not start at all, restoring `lyftr.db` from a backup predating the password
+change also works, at the cost of everything logged since — see [Backups](/backups/).
+
 ## The demo account
 
 Every version before this one seeded `demo@lyftr.local` with a password published in this
@@ -78,7 +155,8 @@ you ask for it.
 
 If you are upgrading, the account you already have is not deleted — deleting it might take real
 workouts with it. The backend logs a warning at startup while it exists. To remove it: sign in as
-`demo@lyftr.local`, then **Settings → Delete account**.
+`demo@lyftr.local`, then **Settings → Delete account**. If that account has real data in it, change
+its password instead — that closes the published-credential hole without losing anything.
 
 Turning registration off does nothing about this: a published password is a working login whatever
 `REGISTRATION` says.

@@ -23,9 +23,70 @@ func (s *UserStore) GetMe(uid int64) (models.User, error) {
 func (s *UserStore) GetByEmail(email string) (models.User, error) {
 	var u models.User
 	err := s.db.QueryRow(
-		`SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?`, email,
-	).Scan(&u.ID, &u.Email, &u.Password, &u.CreatedAt, &u.UpdatedAt)
+		`SELECT id, email, password_hash, token_version, created_at, updated_at FROM users WHERE email = ?`, email,
+	).Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
+}
+
+// GetByID is GetByEmail for an already-authenticated caller: it carries the hash, so
+// the password-change handler can verify the current password without trusting the
+// email in the token. sql.ErrNoRows if the account was deleted mid-session.
+func (s *UserStore) GetByID(uid int64) (models.User, error) {
+	var u models.User
+	err := s.db.QueryRow(
+		`SELECT id, email, password_hash, token_version, created_at, updated_at FROM users WHERE id = ?`, uid,
+	).Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
+	return u, err
+}
+
+// TokenVersion returns the account's current token generation, or sql.ErrNoRows if the
+// account is gone. Read on refresh only — never on the per-request auth path, which
+// stays free of database work.
+func (s *UserStore) TokenVersion(uid int64) (int, error) {
+	var v int
+	err := s.db.QueryRow(`SELECT token_version FROM users WHERE id = ?`, uid).Scan(&v)
+	return v, err
+}
+
+// ErrPasswordChanged means the stored hash moved between the handler reading it and
+// this update running — a second password change racing the first.
+var ErrPasswordChanged = errors.New("password changed concurrently")
+
+// ChangePassword swaps the hash and invalidates every token minted against the old one,
+// returning the new token version so the caller can re-issue a pair for the device that
+// made the change.
+//
+// The UPDATE is conditional on the hash the handler verified. Two concurrent changes
+// would otherwise both pass verification against the same old hash and both write, so
+// the loser's password would silently win while its user was told it had been set —
+// and both would land on token_version+1 rather than +2, leaving the first change's
+// tokens alive. Compare-and-set makes the loser fail loudly instead.
+func (s *UserStore) ChangePassword(uid int64, oldHash, newHash string) (int, error) {
+	if newHash == "" {
+		return 0, ErrEmptyHash
+	}
+	v, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
+		res, err := tx.Exec(
+			`UPDATE users SET password_hash = ?, token_version = token_version + 1,
+			                  updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ? AND password_hash = ?`, newHash, uid, oldHash)
+		if err != nil {
+			return 0, err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			return 0, ErrPasswordChanged
+		}
+		var v int
+		if err := tx.QueryRow(`SELECT token_version FROM users WHERE id = ?`, uid).Scan(&v); err != nil {
+			return 0, err
+		}
+		return int64(v), nil
+	})
+	return int(v), err
 }
 
 const userSettingsSelect = `SELECT user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone FROM user_settings`
@@ -124,6 +185,58 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 		return 0, err
 	}
 	return uid, nil
+}
+
+// ErrEmptyHash guards the two statements that WRITE a password. Everywhere else an
+// empty argument simply matches no rows and surfaces as an error, so a guard would be
+// noise -- but these two would store the empty string, and bcrypt rejects it against
+// every password, silently locking the account out while still bumping token_version.
+// A caller that forgets to hash should fail loudly instead.
+var ErrEmptyHash = errors.New("refusing to store an empty password hash")
+
+// ErrNoSuchUser means no account carries that address.
+var ErrNoSuchUser = errors.New("no account with that email")
+
+// FindEmailFold returns the stored address matching email case-insensitively, or
+// sql.ErrNoRows. Addresses are stored and matched exactly everywhere else — including at
+// login — so this exists only to turn "no account found" into a useful message for an
+// operator who typed the wrong case while recovering an account. It must not become a way
+// to authenticate, which is why it returns the stored spelling rather than the row.
+func (s *UserStore) FindEmailFold(email string) (string, error) {
+	var stored string
+	err := s.db.QueryRow(
+		`SELECT email FROM users WHERE email = ? COLLATE NOCASE`, email,
+	).Scan(&stored)
+	return stored, err
+}
+
+// ResetPassword is the operator's way in, for the account whose password is lost. Unlike
+// ChangePassword there is no old hash to verify against — the whole point is that nobody
+// knows it — so this is keyed on email and guarded only by having a shell on the server.
+//
+// It bumps token_version for the same reason the in-app change does, and here it matters
+// more: an operator resetting a password may be doing it because someone else got in, and
+// a new password is worthless while the intruder's refresh token still mints access
+// tokens for the rest of its 30 days.
+func (s *UserStore) ResetPassword(email, newHash string) error {
+	if newHash == "" {
+		return ErrEmptyHash
+	}
+	res, err := s.db.Exec(
+		`UPDATE users SET password_hash = ?, token_version = token_version + 1,
+		                  updated_at = CURRENT_TIMESTAMP
+		 WHERE email = ?`, newHash, email)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNoSuchUser
+	}
+	return nil
 }
 
 // Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on).

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/controllers"
@@ -42,7 +44,42 @@ func warnIfUnclaimed() {
 		"data volume is not mounted: stop it before someone else claims it.")
 }
 
+// subcommands are the non-server entry points on this binary. Dispatched before
+// flag.Parse, which would otherwise treat the name as a positional argument and start the
+// server as usual.
+var subcommands = map[string]func(args []string) int{
+	"reset-password": runResetPassword,
+}
+
+// dispatchSubcommand runs a subcommand and reports its exit code, or -1 to carry on and
+// start the server.
+//
+// A bare word that is not a known subcommand is an error rather than something to ignore:
+// `lyftr-api reset-passwrod you@example.com` would otherwise silently boot the API, look
+// like it worked, and leave the operator believing a password had been reset. Anything
+// starting with "-" is left alone for flag.Parse.
+func dispatchSubcommand(argv []string) int {
+	if len(argv) < 2 || strings.HasPrefix(argv[1], "-") {
+		return -1
+	}
+	if run, ok := subcommands[argv[1]]; ok {
+		return run(argv[2:])
+	}
+	names := make([]string, 0, len(subcommands))
+	for name := range subcommands {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	fmt.Fprintf(os.Stderr, "unknown command %q\n", argv[1])
+	fmt.Fprintf(os.Stderr, "available commands: %s\n", strings.Join(names, ", "))
+	return 2
+}
+
 func main() {
+	if code := dispatchSubcommand(os.Args); code >= 0 {
+		os.Exit(code)
+	}
+
 	showVersion := flag.Bool("version", false, "print the build version and exit")
 	flag.Parse()
 	if *showVersion {

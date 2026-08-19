@@ -78,3 +78,125 @@ test('server settings Save stays enabled when the field equals the current serve
 // exhaustively in web/src/stores/server.test.ts. The "rejects an invalid URL"
 // test above is kept as the single E2E proof that the panel surfaces a
 // validation error to the user.
+
+// Registers its own throwaway account rather than using the worker fixture: changing a
+// password bumps that account's token_version, and the worker account is shared by every
+// other spec in the run.
+test('changes the password, then signs in with the new one', { tag: '@mobile' }, async ({ page }) => {
+  const email = `e2e-pw+${Date.now()}@lyftr.local`
+  const oldPassword = 'password123'
+  const newPassword = 'newpassword456'
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill(oldPassword)
+  await page.locator('#password-confirm').fill(oldPassword)
+  await page.getByRole('button', { name: /create account/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) recordCreatedUser(token)
+
+  // Via the Settings link rather than a direct goto: the row is the only entry point in
+  // the UI, so this is what proves the page is reachable at all.
+  await page.goto('/settings')
+  await page.getByRole('link', { name: /^change$/i }).click()
+  await expect(page).toHaveURL(/\/settings\/password$/)
+  await page.locator('#current-password').fill(oldPassword)
+  await page.locator('#new-password').fill(newPassword)
+  await page.locator('#confirm-password').fill(newPassword)
+  await page.getByRole('button', { name: /update password/i }).click()
+
+  await expect(page.getByRole('heading', { name: /password changed/i })).toBeVisible()
+  await expect(page.getByText(/still signed in here/i)).toBeVisible()
+
+  // The device that made the change keeps working — the client swapped in the pair the
+  // server returned, so a normal authenticated read still succeeds.
+  await page.goto('/workouts')
+  await expect(page).toHaveURL(/\/workouts$/)
+
+  // And the credential really moved: the old password no longer signs in, the new one does.
+  await page.evaluate(() => localStorage.clear())
+  await page.goto('/login')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill(oldPassword)
+  await page.getByRole('button', { name: /sign in/i }).click()
+  await expect(page.locator('.alert-error')).toBeVisible()
+
+  await page.locator('#password').fill(newPassword)
+  await page.getByRole('button', { name: /sign in/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+})
+
+// The bug this guards: /me/password returns 401 for a wrong current password, and the
+// shared client's refresh interceptor used to treat any 401 outside /auth/ as an expired
+// session — refreshing, retrying, failing, and signing the user out over a typo.
+test('a wrong current password shows an error without signing the user out', async ({ page }) => {
+  const email = `e2e-pw-bad+${Date.now()}@lyftr.local`
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill('password123')
+  await page.locator('#password-confirm').fill('password123')
+  await page.getByRole('button', { name: /create account/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) recordCreatedUser(token)
+
+  // Straight to the route — the same landing the /.well-known/change-password redirect
+  // produces, so a deep link is covered as well as the in-app path used above.
+  await page.goto('/settings/password')
+  await page.locator('#current-password').fill('not-my-password')
+  await page.locator('#new-password').fill('newpassword456')
+  await page.locator('#confirm-password').fill('newpassword456')
+  await page.getByRole('button', { name: /update password/i }).click()
+
+  await expect(page.locator('.alert-error')).toContainText(/current password is incorrect/i)
+  // Still signed in, still on the form — not bounced to /login.
+  await expect(page).toHaveURL(/\/settings\/password$/)
+  expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBeTruthy()
+})
+
+// The W3C Change Password URL. Password managers open it to send a user to the form, and
+// expect a redirect — served by nginx in production and by a vite middleware in dev, so
+// this runs against either stack. Asserted without following, because a 200 here would
+// mean the SPA fallback swallowed it and the manager would land on whatever React Router
+// decides, not on the form.
+//
+// The exact relative Location is the assertion, not just the path: nginx defaults to
+// absolute_redirect on, which would rebuild it from $scheme and — behind a TLS
+// terminator, which is how both bundled configs run — hand a password manager an http://
+// URL for a site it reached over https. Both configs turn it off. A regression there
+// fails here rather than silently downgrading the redirect.
+test('/.well-known/change-password redirects to the change-password form', async ({ page }) => {
+  const res = await page.request.get('/.well-known/change-password', { maxRedirects: 0 })
+  expect(res.status()).toBe(302)
+  expect(res.headers()['location']).toBe('/settings/password')
+})
+
+// bcrypt cannot store more than 72 bytes, and a password manager's default generated
+// password is longer than that. Before the limit was surfaced, the form let it through
+// and the server answered 500 — the user was told to try again, which could never work.
+test('a password too long for bcrypt is refused before it can be submitted', async ({ page }) => {
+  const email = `e2e-pw-long+${Date.now()}@lyftr.local`
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+
+  const tooLong = 'a'.repeat(100)
+  await page.locator('#password').fill(tooLong)
+  await page.locator('#password-confirm').fill(tooLong)
+
+  // "At least 8 characters" under a 100-character password points the wrong way, so the
+  // rule states the bound it actually failed.
+  await expect(page.getByText(/at most 72 characters/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled()
+
+  // And the limit is bytes, so a passphrase that reads as short is still refused.
+  const emoji = '\u{1F3CB}'.repeat(19)
+  await page.locator('#password').fill(emoji)
+  await page.locator('#password-confirm').fill(emoji)
+  await expect(page.getByText(/at most 72 characters/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled()
+})

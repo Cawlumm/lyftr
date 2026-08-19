@@ -39,6 +39,7 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.GET("me", h.GetMe)
 		protected.GET("settings", h.GetSettings)
 		protected.PUT("settings", h.UpdateSettings)
+		protected.PUT("me/password", h.ChangePassword)
 		protected.DELETE("me", h.DeleteAccount)
 
 		// Workouts

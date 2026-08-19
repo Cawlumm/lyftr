@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import {
@@ -7,6 +7,7 @@ import {
   Clock,
   AlertTriangle,
   Dumbbell,
+  KeyRound,
   LogOut,
   Mail,
   Minus,
@@ -18,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import {
+  memberSince,
   normalizeServerUrl,
   testServerConnection,
   isInsecureServerUrl,
@@ -40,14 +42,9 @@ import {
   Toast,
   Toggle,
   type ToastVariant,
-} from '../../src/components/ui'
-import { client, useAuthStore, useServerStore, useSettingsStore } from '../../src/lib/lyftr'
-import { useTheme } from '../../src/theme/useTheme'
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
+} from '../../../src/components/ui'
+import { client, useAuthStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
 
 const REST_PRESETS = [60, 90, 120, 180]
 
@@ -105,12 +102,6 @@ export default function SettingsScreen() {
       fat_target: String(settings.fat_target),
     })
   }, [settings.calorie_target, settings.protein_target, settings.carb_target, settings.fat_target])
-
-  const memberSince = useMemo(() => {
-    if (!user?.created_at) return '—'
-    const d = new Date(user.created_at)
-    return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
-  }, [user?.created_at])
 
   const restEnabled = settings.rest_enabled ?? true
   const restCur = settings.rest_seconds_default ?? 90
@@ -188,7 +179,15 @@ export default function SettingsScreen() {
           {/* Account */}
           <SettingsGroup title="Account">
             <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} />
-            <SettingsRow icon={CalendarDays} label="Member since" value={memberSince} divider />
+            <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
+            <SettingsRow
+              icon={KeyRound}
+              label="Password"
+              description="Changing it signs you out on your other devices"
+              divider
+              chevron
+              onPress={() => router.push('/settings/password')}
+            />
           </SettingsGroup>
 
           {/* Appearance */}

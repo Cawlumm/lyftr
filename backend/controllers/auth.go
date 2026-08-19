@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/Cawlumm/lyftr-backend/config"
+	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
@@ -61,6 +62,14 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
+	// Before hashing: bcrypt refuses anything over 72 bytes outright, and mapping that
+	// to a 500 told the user the server had broken on input their password manager
+	// generates by default.
+	if utils.PasswordTooLong(req.Password) {
+		utils.BadRequest(c, utils.PasswordTooLongMessage)
+		return
+	}
+
 	hash, err := utils.HashPassword(req.Password)
 	if err != nil {
 		utils.InternalError(c)
@@ -85,13 +94,23 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(userID, req.Email)
+	// A brand new row is at token_version 1 by schema default.
+	access, refresh, err := utils.GenerateTokenPair(userID, req.Email, 1)
 	if err != nil {
 		utils.InternalError(c)
 		return
 	}
 
-	user := models.User{ID: userID, Email: req.Email}
+	// Read the row back rather than assembling the response by hand. Building it from
+	// the request left created_at/updated_at at Go's zero time, which serialises as
+	// "0001-01-01T00:00:00Z" — and the clients render that, so a new account's Settings
+	// page showed "Member since December 1" until something refetched /me.
+	user, err := h.s.User.GetMe(userID)
+	if err != nil {
+		// The account exists and the tokens are valid; only the echoed profile is
+		// missing. Fall back rather than fail the registration.
+		user = models.User{ID: userID, Email: req.Email}
+	}
 	utils.Created(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
@@ -108,6 +127,11 @@ func (h *Handler) Login(c *gin.Context) {
 
 	user, err := h.s.User.GetByEmail(req.Email)
 	if err == sql.ErrNoRows {
+		// Pay the bcrypt round a real account would have cost. Returning straight away
+		// made a missing address answer ~12x faster than a wrong password, which tells
+		// anyone asking exactly which addresses are registered — undoing the point of
+		// giving both cases the same message.
+		utils.BurnPasswordComparison(req.Password)
 		utils.Unauthorized(c, "invalid email or password")
 		return
 	}
@@ -119,7 +143,7 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email)
+	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email, user.TokenVersion)
 	if err != nil {
 		utils.InternalError(c)
 		return
@@ -127,6 +151,76 @@ func (h *Handler) Login(c *gin.Context) {
 
 	user.Password = ""
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
+}
+
+// ChangePassword sets a new password for the signed-in caller and ends every other
+// session. The device that made the change gets a fresh token pair in the response, so
+// it stays signed in while the rest fall off as their access tokens lapse.
+func (h *Handler) ChangePassword(c *gin.Context) {
+	uid := middleware.UserID(c)
+
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, err.Error())
+		return
+	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	// Looked up by ID, not by the email in the token: an address that changed since the
+	// token was minted would otherwise resolve to the wrong row or to none at all.
+	user, err := h.s.User.GetByID(uid)
+	if err == sql.ErrNoRows {
+		utils.Unauthorized(c, "account no longer exists")
+		return
+	}
+	if utils.DBError(c, err) {
+		return
+	}
+
+	if !utils.CheckPassword(req.CurrentPassword, user.Password) {
+		utils.Unauthorized(c, "current password is incorrect")
+		return
+	}
+	// Rejected before hashing. Allowing it would burn a bcrypt round to no effect and,
+	// worse, still bump token_version — signing every other device out for a change
+	// that never happened.
+	if req.CurrentPassword == req.NewPassword {
+		utils.BadRequest(c, "new password must be different from the current one")
+		return
+	}
+
+	if utils.PasswordTooLong(req.NewPassword) {
+		utils.BadRequest(c, utils.PasswordTooLongMessage)
+		return
+	}
+
+	newHash, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		utils.InternalError(c)
+		return
+	}
+
+	version, err := h.s.User.ChangePassword(uid, user.Password, newHash)
+	if errors.Is(err, stores.ErrPasswordChanged) {
+		utils.Conflict(c, "password was changed elsewhere, please try again")
+		return
+	}
+	if utils.DBError(c, err) {
+		return
+	}
+
+	access, refresh, err := utils.GenerateTokenPair(uid, user.Email, version)
+	if err != nil {
+		// The password did change — reporting a failure here would send the user off to
+		// retry with a password that no longer works. Say what happened instead.
+		utils.Unauthorized(c, "password changed, please sign in again")
+		return
+	}
+
+	utils.OK(c, gin.H{"token": access, "refresh_token": refresh})
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {
@@ -142,7 +236,25 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(claims.UserID, claims.Email)
+	// The one place a stateless token meets server state. Signature validity says the
+	// token was minted by us; it cannot say the credentials behind it still stand. A
+	// refresh lives 30 days, so without this check a password change would leave every
+	// other device — including whoever the change was meant to evict — able to mint
+	// fresh access tokens for a month.
+	current, err := h.s.User.TokenVersion(claims.UserID)
+	if err == sql.ErrNoRows {
+		utils.Unauthorized(c, "invalid refresh token")
+		return
+	}
+	if utils.DBError(c, err) {
+		return
+	}
+	if utils.NormalizeTokenVersion(claims.TokenVersion) != current {
+		utils.Unauthorized(c, "session expired, please sign in again")
+		return
+	}
+
+	access, refresh, err := utils.GenerateTokenPair(claims.UserID, claims.Email, current)
 	if err != nil {
 		utils.InternalError(c)
 		return
