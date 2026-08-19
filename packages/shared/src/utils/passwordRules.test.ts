@@ -1,4 +1,4 @@
-import { MIN_PASSWORD_LENGTH, newPasswordRules, ruleState } from './passwordRules'
+import { lengthRuleLabel, matchRuleLabel, MIN_PASSWORD_LENGTH, newPasswordRules, ruleState } from './passwordRules'
 
 describe('ruleState', () => {
   it('is pending until the field is touched, whatever the answer would be', () => {
@@ -69,5 +69,19 @@ describe('newPasswordRules on change-password (current supplied)', () => {
   it('holds "different" pending until both the current and the new password have content', () => {
     expect(newPasswordRules({ password: '', confirm: '', current }).different).toBe('pending')
     expect(newPasswordRules({ password: 'newpassword456', confirm: '', current: '' }).different).toBe('pending')
+  })
+})
+
+describe('rule labels', () => {
+  it('states the length rule using the shared minimum', () => {
+    expect(lengthRuleLabel()).toBe(`At least ${MIN_PASSWORD_LENGTH} characters`)
+  })
+
+  // The pending wording is the point of routing this through the state: an untouched
+  // confirmation box must not claim the passwords already match.
+  it('does not claim a match before the confirmation is touched', () => {
+    expect(matchRuleLabel('pending')).not.toMatch(/match/i)
+    expect(matchRuleLabel('ok')).toBe('Passwords match')
+    expect(matchRuleLabel('bad')).toBe('Passwords do not match')
   })
 })

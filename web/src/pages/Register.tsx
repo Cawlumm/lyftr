@@ -4,7 +4,7 @@ import { AlertCircle, Dumbbell, Apple, TrendingUp, UserPlus, Lock } from 'lucide
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion, registrationOpen, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
+import { formatVersion, registrationOpen, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 import PasswordField, { Rule } from '../components/ui/PasswordField'
@@ -161,9 +161,9 @@ export default function Register() {
               value={password}
               onChange={setPassword}
               autoComplete="new-password"
-              placeholder={`Min ${MIN_PASSWORD_LENGTH} characters`}
+              placeholder="••••••••"
             >
-              <Rule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</Rule>
+              <Rule state={rules.length}>{lengthRuleLabel()}</Rule>
             </PasswordField>
 
             {/* Confirm password */}
@@ -175,9 +175,7 @@ export default function Register() {
               autoComplete="new-password"
               placeholder="••••••••"
             >
-              <Rule state={rules.match}>
-                {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
-              </Rule>
+              <Rule state={rules.match}>{matchRuleLabel(rules.match)}</Rule>
             </PasswordField>
 
             {/* Error */}

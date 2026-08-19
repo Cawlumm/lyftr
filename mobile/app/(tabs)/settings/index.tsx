@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import {
@@ -19,6 +19,7 @@ import {
   Trash2,
 } from 'lucide-react-native'
 import {
+  memberSince,
   normalizeServerUrl,
   testServerConnection,
   isInsecureServerUrl,
@@ -44,11 +45,6 @@ import {
 } from '../../../src/components/ui'
 import { client, useAuthStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
 
 const REST_PRESETS = [60, 90, 120, 180]
 
@@ -106,18 +102,6 @@ export default function SettingsScreen() {
       fat_target: String(settings.fat_target),
     })
   }, [settings.calorie_target, settings.protein_target, settings.carb_target, settings.fat_target])
-
-  // A present-but-meaningless timestamp has to read as "unknown", not be formatted anyway.
-  // Go's zero time serialises as "0001-01-01T00:00:00Z", which is truthy and parses fine,
-  // so the `!created_at` check passed it through and this rendered "January 1". The
-  // backend no longer sends it, but an older server still can, and no real account
-  // predates Lyftr.
-  const memberSince = useMemo(() => {
-    if (!user?.created_at) return '—'
-    const d = new Date(user.created_at)
-    if (Number.isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
-    return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
-  }, [user?.created_at])
 
   const restEnabled = settings.rest_enabled ?? true
   const restCur = settings.rest_seconds_default ?? 90
@@ -195,7 +179,7 @@ export default function SettingsScreen() {
           {/* Account */}
           <SettingsGroup title="Account">
             <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} />
-            <SettingsRow icon={CalendarDays} label="Member since" value={memberSince} divider />
+            <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
             <SettingsRow
               icon={KeyRound}
               label="Password"

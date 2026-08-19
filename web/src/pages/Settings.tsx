@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { memberSince } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -41,18 +42,6 @@ function SettingRow({ label, description, children }: { label: string; descripti
       <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
     </div>
   )
-}
-
-// A present-but-meaningless timestamp has to read as "unknown", not be formatted anyway.
-// Go's zero time serialises as "0001-01-01T00:00:00Z", which is truthy and parses fine,
-// so the old `created_at ? format(...) : '—'` check passed it straight through and
-// rendered "December 1". The backend no longer sends it, but a stale client or an older
-// server still can, and a date before Lyftr existed is never real.
-function memberSince(iso?: string): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return '—'
-  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

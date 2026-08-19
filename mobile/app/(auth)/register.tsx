@@ -4,7 +4,7 @@ import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { PasswordRule } from '../../src/components/ui'
 import { IconInput, GradientButton, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { registrationOpen, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
+import { registrationOpen, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
 
@@ -95,7 +95,7 @@ export default function Register() {
         placeholder="••••••••"
       />
       <View className="gap-1.5 mt-2">
-        <PasswordRule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</PasswordRule>
+        <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
       </View>
       <IconInput
         label="Confirm password"
@@ -106,9 +106,7 @@ export default function Register() {
         placeholder="••••••••"
       />
       <View className="gap-1.5 mt-2">
-        <PasswordRule state={rules.match}>
-          {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
-        </PasswordRule>
+        <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>
       </View>
       {shownError ? <AuthError message={shownError} /> : null}
       <GradientButton title="Create account" onPress={submit} loading={loading} disabled={!rules.ready} />

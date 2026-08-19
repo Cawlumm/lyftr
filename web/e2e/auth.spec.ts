@@ -160,9 +160,15 @@ test('a wrong current password shows an error without signing the user out', asy
 
 // The W3C Change Password URL. Password managers open it to send a user to the form, and
 // expect a redirect — served by nginx in production and by a vite middleware in dev, so
-// this passes against either stack. Asserted without following, because a 200 here would
+// this runs against either stack. Asserted without following, because a 200 here would
 // mean the SPA fallback swallowed it and the manager would land on whatever React Router
 // decides, not on the form.
+//
+// The exact relative Location is the assertion, not just the path: nginx defaults to
+// absolute_redirect on, which would rebuild it from $scheme and — behind a TLS
+// terminator, which is how both bundled configs run — hand a password manager an http://
+// URL for a site it reached over https. Both configs turn it off. A regression there
+// fails here rather than silently downgrading the redirect.
 test('/.well-known/change-password redirects to the change-password form', async ({ page }) => {
   const res = await page.request.get('/.well-known/change-password', { maxRedirects: 0 })
   expect(res.status()).toBe(302)

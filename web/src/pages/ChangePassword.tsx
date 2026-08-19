@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, Loader, ShieldCheck } from 'lucide-react'
 import { userAPI } from '../services/api'
 import { useAuthStore } from '../stores/auth'
-import { apiErrorMessage, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
+import { apiErrorMessage, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import PageHeader from '../components/ui/PageHeader'
 import PasswordField, { Rule } from '../components/ui/PasswordField'
 
@@ -111,8 +111,8 @@ export default function ChangePassword() {
           onChange={setNext}
           autoComplete="new-password"
         >
-          <Rule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</Rule>
-          <Rule state={rules.different}>Different from your current password</Rule>
+          <Rule state={rules.length}>{lengthRuleLabel()}</Rule>
+          <Rule state={rules.different}>{differentRuleLabel()}</Rule>
         </PasswordField>
 
         <PasswordField
@@ -122,9 +122,7 @@ export default function ChangePassword() {
           onChange={setConfirm}
           autoComplete="new-password"
         >
-          <Rule state={rules.match}>
-            {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
-          </Rule>
+          <Rule state={rules.match}>{matchRuleLabel(rules.match)}</Rule>
         </PasswordField>
 
         {/* Server-side failures only — a wrong current password, or a change that landed

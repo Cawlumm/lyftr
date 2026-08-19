@@ -110,11 +110,20 @@ Every existing session for that account has been signed out.
 The account and everything in it are untouched — only the password changes.
 
 The password is prompted for rather than passed as a flag, so it never reaches your shell history
-or the container's process list. If you need it unattended, pipe it instead:
+or the container's process list.
+
+If you need it unattended, pipe it in. Read it into a variable first rather than typing it into the
+command — `echo 'your-new-password' | ...` puts the password straight into your shell history, which
+is the thing the prompt exists to avoid:
 
 ```bash
-echo 'your-new-password' | docker compose exec -T backend ./lyftr-api reset-password you@example.com
+read -rs NEWPW
+docker compose exec -T backend ./lyftr-api reset-password you@example.com <<< "$NEWPW"
+unset NEWPW
 ```
+
+Piped input skips the confirmation prompt — there is nothing to type twice — so whatever arrives on
+stdin becomes the password, subject only to the 8-character minimum.
 
 Sessions are signed out because a reset is often prompted by someone else having got in, and a new
 password is worthless while their existing token still works.

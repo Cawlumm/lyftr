@@ -28,7 +28,10 @@ interface Props {
   label: string
   value: string
   onChangeText: (value: string) => void
-  /** `password` for the existing one, `newPassword` to let the keychain offer to save. */
+  /**
+   * `password` for the existing one, `newPassword` to let the keychain offer to save.
+   * Drives both platform hints — textContentType on iOS, autoComplete on Android.
+   */
   textContentType: 'password' | 'newPassword'
   /** Rule rows rendered under the field. */
   children?: ReactNode
@@ -55,6 +58,11 @@ export function PasswordField({ label, value, onChangeText, textContentType, chi
         autoCapitalize="none"
         autoCorrect={false}
         textContentType={textContentType}
+        // textContentType is iOS-only, and Android is what this app actually ships to.
+        // autoComplete is React Native's unified hint — without it the Android password
+        // manager gets no signal and neither offers to save the new password nor fills
+        // the current one, which web has had all along via its own autoComplete.
+        autoComplete={textContentType === 'newPassword' ? 'password-new' : 'password'}
         rightSlot={
           <Pressable
             onPress={() => setVisible((v) => !v)}

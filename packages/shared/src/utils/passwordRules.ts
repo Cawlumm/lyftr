@@ -59,3 +59,30 @@ export function newPasswordRules({ password, confirm, current }: NewPasswordInpu
     ready: longEnough && matches && (!changing || (!!current && isDifferent)),
   }
 }
+
+// The wording, next to the rules themselves. Sharing the states but hand-copying the
+// labels across four screens leaves exactly the drift this module exists to stop — the
+// apps could no longer disagree about what passes, only about what to call it.
+export function lengthRuleLabel(): string {
+  return `At least ${MIN_PASSWORD_LENGTH} characters`
+}
+
+export function differentRuleLabel(): string {
+  return 'Different from your current password'
+}
+
+/**
+ * Reads the state rather than fixing one string, because the match rule is the only one
+ * whose phrasing flips. "Passwords match" in the `pending` state would assert something
+ * untrue about a confirmation box nobody has typed into yet.
+ */
+export function matchRuleLabel(state: RuleState): string {
+  switch (state) {
+    case 'ok':
+      return 'Passwords match'
+    case 'bad':
+      return 'Passwords do not match'
+    default:
+      return 'Repeat the new password'
+  }
+}

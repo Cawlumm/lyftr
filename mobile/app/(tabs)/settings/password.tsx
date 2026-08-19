@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { AlertTriangle, ArrowLeft, Check } from 'lucide-react-native'
-import { apiErrorMessage, MIN_PASSWORD_LENGTH, newPasswordRules } from '@lyftr/shared'
+import { apiErrorMessage, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import {
   AppText,
   Button,
@@ -106,8 +106,8 @@ export default function ChangePasswordScreen() {
                 onChangeText={setNext}
                 textContentType="newPassword"
               >
-                <PasswordRule state={rules.length}>At least {MIN_PASSWORD_LENGTH} characters</PasswordRule>
-                <PasswordRule state={rules.different}>Different from your current password</PasswordRule>
+                <PasswordRule state={rules.length}>{lengthRuleLabel()}</PasswordRule>
+                <PasswordRule state={rules.different}>{differentRuleLabel()}</PasswordRule>
               </PasswordField>
               <PasswordField
                 label="Confirm new password"
@@ -115,9 +115,7 @@ export default function ChangePasswordScreen() {
                 onChangeText={setConfirm}
                 textContentType="newPassword"
               >
-                <PasswordRule state={rules.match}>
-                  {rules.match === 'bad' ? 'Passwords do not match' : 'Passwords match'}
-                </PasswordRule>
+                <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>
               </PasswordField>
               <Muted>You stay signed in on this device.</Muted>
               {/* Standalone rather than on a Field: most of these errors are about the
