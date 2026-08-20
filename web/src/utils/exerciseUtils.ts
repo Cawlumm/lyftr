@@ -67,6 +67,8 @@ const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   'spinal erectors': ['lower-back'],
   erectors: ['lower-back'],
   'lower back': ['lower-back'],
+  'lower-back': ['lower-back'],
+  'middle-back': ['upper-back'],
   'upper back': ['upper-back'],
   'hip flexors': ['adductor'],
   adductors: ['adductor'],

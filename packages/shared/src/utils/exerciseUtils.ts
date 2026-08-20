@@ -14,16 +14,33 @@
 //
 // The *lookup rule* over those tables is identical on both sides, so it lives here.
 
+// Keys are open-exercise-db's equipment slugs, which is what the API now serves.
+//
+// The spaced spellings below them are the same vocabulary as free-exercise-db wrote
+// it, and they stay as aliases rather than being replaced: a self-hosted instance
+// that has not yet run the taxonomy migration still holds rows spelled that way, and
+// a label table that silently stopped matching them would degrade to raw values in
+// the UI with nothing to explain why.
 export const EQUIPMENT_LABEL: Record<string, string> = {
+  'body-only':      'Bodyweight',
+  'barbell':        'Barbell',
+  'dumbbell':       'Dumbbell',
+  'machine':        'Machine',
+  'cable':          'Cable',
+  'kettlebells':    'Kettlebell',
+  'bands':          'Bands',
+  'medicine-ball':  'Med Ball',
+  'e-z-curl-bar':   'EZ Bar',
+  'exercise-ball':  'Exercise Ball',
+  'foam-roll':      'Foam Roll',
+  'none':           'None',
+  'other':          'Other',
+
+  // Pre-migration spellings.
   'body only':     'Bodyweight',
-  'barbell':       'Barbell',
-  'dumbbell':      'Dumbbell',
-  'machine':       'Machine',
-  'cable':         'Cable',
-  'kettlebells':   'Kettlebell',
-  'bands':         'Bands',
   'medicine ball': 'Med Ball',
-  'other':         'Other',
+  'e-z curl bar':  'EZ Bar',
+  'exercise ball': 'Exercise Ball',
   'foam roll':     'Foam Roll',
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/controllers"
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/oedb"
 	"github.com/Cawlumm/lyftr-backend/routes"
 	"github.com/Cawlumm/lyftr-backend/seed"
 	"github.com/Cawlumm/lyftr-backend/stores"
@@ -92,15 +93,20 @@ func main() {
 	warnIfUnclaimed()
 	// The demo account's credentials are published, so it is not something a self-hosted
 	// instance should get by default — only the public demo and local development ask for
-	// it. The exercise library is not demo data and always seeds.
 	if config.C.DemoMode {
 		seed.DemoUser(db.DB)
 	} else {
 		seed.WarnLeftoverDemoUser(db.DB)
 	}
-	seed.Exercises(db.DB)
+	// Lyftr does not seed or mirror an exercise library. open-exercise-db is the
+	// source, queried live; the local exercises table is filled only as a
+	// side-effect of reads, so a fresh instance starts with an empty one and is
+	// fully functional.
+	s := stores.New(db.DB)
+	s.Exercise.UseCatalog(oedb.New(config.C.OEDBBaseURL, config.Version()))
+
 	if config.C.DemoMode {
-		go seed.DemoData(db.DB)
+		go seed.DemoData(db.DB, s.Exercise)
 	}
 
 	if config.C.Env == "production" {
@@ -108,7 +114,6 @@ func main() {
 	}
 
 	r := gin.Default()
-	s := stores.New(db.DB)
 	h := controllers.NewHandler(s)
 	routes.Setup(r, h)
 

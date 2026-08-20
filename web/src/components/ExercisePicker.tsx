@@ -6,6 +6,12 @@ import { exerciseAPI } from '../services/api'
 import { types } from '@lyftr/shared'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
 
+// Must match the server's default page size, since a short page is what signals
+// the end of the results.
+const PAGE_SIZE = 50
+// How close to the end of the loaded rows to get before fetching the next page.
+const PREFETCH_ROWS = 10
+
 interface Props {
   selectedIds: number[]
   onSelect: (exercise: types.Exercise) => void
@@ -16,23 +22,54 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
   const [exercises, setExercises] = useState<types.Exercise[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [exhausted, setExhausted] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // Guards against the virtualizer asking for the next page repeatedly while the
+  // first request for it is still in flight — it fires on every scroll frame, not
+  // once per boundary crossing. It only ever suppresses an append: a new search
+  // must never be dropped because a page fetch is outstanding.
+  const loadingRef = useRef(false)
+  // Identifies the newest request so a slow earlier one cannot overwrite it. Typing
+  // fast enough to outrun a response otherwise leaves the list showing results for
+  // a query the user has already moved on from.
+  const reqRef = useRef(0)
 
-  useEffect(() => { load('') }, [])
-
-  useEffect(() => {
-    const t = setTimeout(() => load(query), 250)
-    return () => clearTimeout(t)
-  }, [query])
-
-  const load = async (q: string) => {
+  // Results come a page at a time from the server, which queries open-exercise-db.
+  // Nothing downloads the catalog to filter it here: with ~873 exercises upstream
+  // and growing, the browser is the wrong place to do that, and it put the whole
+  // library behind one slow request before the picker could render anything.
+  const load = useCallback(async (q: string, nextPage: number, append = false) => {
+    if (append && loadingRef.current) return
+    const id = ++reqRef.current
+    loadingRef.current = true
     setLoading(true)
     try {
-      const data = await exerciseAPI.list(q ? { q } : undefined)
-      setExercises(data || [])
+      const data = await exerciseAPI.list({ ...(q ? { q } : {}), page: nextPage }) || []
+      if (reqRef.current !== id) return // a newer request has taken over
+      setExercises(prev => (append ? [...prev, ...data] : data))
+      // A short page means the server has nothing left for this query. Asking again
+      // would just repeat the request for every remaining scroll event.
+      setExhausted(data.length < PAGE_SIZE)
+      setPage(nextPage)
     } catch { /* a failed search keeps the previous list rather than blanking it */ }
-    finally { setLoading(false) }
-  }
+    finally {
+      if (reqRef.current === id) {
+        loadingRef.current = false
+        setLoading(false)
+      }
+    }
+  }, [])
+
+  useEffect(() => { load('', 1) }, [load])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setExhausted(false)
+      load(query, 1)
+    }, 250)
+    return () => clearTimeout(t)
+  }, [query, load])
 
   const available = exercises.filter(e => !selectedIds.includes(e.id))
 
@@ -42,6 +79,17 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
     estimateSize: useCallback(() => 64, []),
     overscan: 5,
   })
+
+  const virtualItems = virtualizer.getVirtualItems()
+
+  // Fetch the next page as the last rendered row approaches the end of what we
+  // hold. Keyed on the last visible index rather than a scroll handler so it works
+  // with the virtualizer's own windowing.
+  const lastVisible = virtualItems.length ? virtualItems[virtualItems.length - 1].index : 0
+  useEffect(() => {
+    if (exhausted || loading || available.length === 0) return
+    if (lastVisible >= available.length - PREFETCH_ROWS) load(query, page + 1, true)
+  }, [lastVisible, available.length, exhausted, loading, query, page, load])
 
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-surface-base flex flex-col animate-slide-up">
@@ -55,7 +103,9 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
         </button>
         <div>
           <h2 className="font-display font-bold text-xl text-tx-primary">Add Exercise</h2>
-          <p className="text-xs text-tx-muted">{available.length} available</p>
+          <p className="text-xs text-tx-muted">
+            {available.length} loaded{exhausted ? '' : '…'}
+          </p>
         </div>
       </div>
 
@@ -67,7 +117,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search name, muscle, equipment…"
+            placeholder="Search exercises…"
             className="input pl-10 w-full"
             autoFocus
           />
@@ -90,7 +140,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
             className="px-4 py-2 relative"
             style={{ height: virtualizer.getTotalSize() }}
           >
-            {virtualizer.getVirtualItems().map(row => {
+            {virtualItems.map(row => {
               const ex = available[row.index]
               return (
                 <div

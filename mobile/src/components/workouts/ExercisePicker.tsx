@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
@@ -15,7 +15,9 @@ interface Props {
   onClose: () => void
 }
 
-const MAX_SHOWN = 40
+// Must match the server's default page size: a short page is what tells us there
+// is nothing left for this query.
+const PAGE_SIZE = 50
 
 function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
   return (
@@ -56,30 +58,51 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
+  const [page, setPage] = useState(1)
+  const [exhausted, setExhausted] = useState(false)
+  // FlatList fires onEndReached more than once near the boundary; this keeps those
+  // repeats from each starting their own request for the same page.
+  const loadingRef = useRef(false)
+  // Identifies the newest request so a slow earlier one cannot overwrite it.
+  const reqRef = useRef(0)
 
-  // One debounced loader (250ms, web parity); the empty query is served instantly —
-  // the client caches the unfiltered exercise list after the first fetch.
-  useEffect(() => {
-    let cancelled = false
-    const t = setTimeout(async () => {
-      setLoading(true)
-      try {
-        const data = await client.exerciseAPI.list(query ? { q: query } : undefined)
-        if (!cancelled) setExercises(data || [])
-      } catch {
-        // Web swallows picker fetch errors too — the empty state covers it.
-      } finally {
-        if (!cancelled) setLoading(false)
+  // Every page comes from the server, which queries open-exercise-db. The client
+  // used to cache the whole unfiltered catalog on first open and slice it locally;
+  // that made each install a copy of a database it does not own, and on a phone it
+  // is the difference between one 50-row response and ~873 rows of JSON.
+  const load = useCallback(async (q: string, nextPage: number, append = false) => {
+    // Only an append is skippable. Dropping a search because a page fetch is still
+    // in flight leaves the user looking at the unfiltered first page while their
+    // query appears to have done nothing.
+    if (append && loadingRef.current) return
+    const id = ++reqRef.current
+    loadingRef.current = true
+    setLoading(true)
+    try {
+      const data = (await client.exerciseAPI.list({ ...(q ? { q } : {}), page: nextPage })) || []
+      if (reqRef.current !== id) return // a newer request has taken over
+      setExercises((prev) => (append ? [...prev, ...data] : data))
+      setExhausted(data.length < PAGE_SIZE)
+      setPage(nextPage)
+    } catch {
+      // Web swallows picker fetch errors too — the empty state covers it.
+    } finally {
+      if (reqRef.current === id) {
+        loadingRef.current = false
+        setLoading(false)
       }
-    }, query ? 250 : 0)
-    return () => {
-      cancelled = true
-      clearTimeout(t)
     }
-  }, [query])
+  }, [])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setExhausted(false)
+      load(query, 1)
+    }, query ? 250 : 0)
+    return () => clearTimeout(t)
+  }, [query, load])
 
   const available = exercises.filter((e) => !selectedIds.includes(e.id))
-  const shown = available.slice(0, MAX_SHOWN)
 
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
@@ -96,7 +119,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             {/* Large title (matches the sibling "Log Workout" screen title) — the
                 18px heading read undersized for a full-screen surface. */}
             <AppText variant="title">Add Exercise</AppText>
-            <AppText variant="caption" color="muted">{available.length} available</AppText>
+            <AppText variant="caption" color="muted">
+              {available.length} loaded{exhausted ? '' : '…'}
+            </AppText>
           </View>
         </View>
 
@@ -113,7 +138,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               className="flex-1 font-sans text-base text-tx-primary"
               value={query}
               onChangeText={setQuery}
-              placeholder="Search name, muscle, equipment…"
+              placeholder="Search exercises…"
               placeholderTextColor={colors.txMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -130,7 +155,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
           </View>
         ) : (
           <FlatList
-            data={shown}
+            data={available}
             keyExtractor={(e) => String(e.id)}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -139,16 +164,19 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             // media so the thumbnails read as a column, not boxed cells.
             ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
             renderItem={({ item }) => <PickerRow exercise={item} onPress={() => onSelect(item)} />}
+            onEndReached={() => { if (!exhausted && !loading) load(query, page + 1, true) }}
+            onEndReachedThreshold={0.5}
             ListEmptyComponent={
               <View className="items-center py-16">
                 <AppText variant="body" color="muted">No exercises found</AppText>
               </View>
             }
             ListFooterComponent={
-              available.length > MAX_SHOWN ? (
-                <AppText variant="caption" color="muted" className="py-3 text-center">
-                  Showing {MAX_SHOWN} of {available.length} — refine search
-                </AppText>
+              !exhausted && exercises.length > 0 ? (
+                <View className="flex-row items-center justify-center gap-2 py-4">
+                  <ActivityIndicator color={accent} />
+                  <AppText variant="caption" color="muted">Loading more…</AppText>
+                </View>
               ) : null
             }
           />

@@ -28,6 +28,11 @@ type Config struct {
 	// Registration is who may create an account: RegistrationOpen, RegistrationClosed,
 	// or RegistrationFirstUser (open only while the users table is empty).
 	Registration string
+	// OEDBBaseURL is the open-exercise-db instance Lyftr queries for its exercise
+	// catalog. Empty selects the hosted one; point it at a self-hosted catalog, or
+	// at a test double, by setting OEDB_BASE_URL.
+	OEDBBaseURL string
+
 	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
 	// development: the credentials are published in the README, so an instance that
 	// seeds them has a known-password account whatever Registration says.
@@ -77,6 +82,8 @@ func Load() {
 		CORSOrigin: getEnv("CORS_ORIGIN", "http://localhost:5173"),
 		Env:        env,
 		Version:    buildVersion,
+
+		OEDBBaseURL: getEnv("OEDB_BASE_URL", ""),
 
 		Registration: getEnv("REGISTRATION", RegistrationOpen),
 		// Contributors following CONTRIBUTING.md get the demo account without setting
