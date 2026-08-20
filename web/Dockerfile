@@ -4,7 +4,7 @@
 # longer applies to this image).
 
 # Stage 1: Build — run on host platform to avoid QEMU slowness for npm/node
-FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:26-alpine AS builder
 
 WORKDIR /app
 
