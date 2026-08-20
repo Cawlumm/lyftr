@@ -24,10 +24,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5
         with:
           # Moderate and above fails. The existing moderate findings are all either
           # unreachable or blocked behind a major (see #120), but that is an argument for

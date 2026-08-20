@@ -85,13 +85,13 @@ jobs:
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
             exit 1
           fi
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
-      - uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -133,19 +133,19 @@ jobs:
         run: |
           echo "::warning::dry_run_release rehearses the release build, which is always \
           android/preview — ignoring platform=${{ inputs.platform }} profile=${{ inputs.profile }}."
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: package-lock.json
       # Local Android builds compile with Gradle on this runner, so the JDK is ours to
       # pin rather than EAS's image's. 17 is what AGP 8 / RN 0.81 expect.
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
@@ -154,7 +154,7 @@ jobs:
       # A cold Gradle build re-downloads the whole Android dependency graph (~10 min of
       # the run). The lockfile keys it: native deps only change when they do.
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -248,7 +248,7 @@ jobs:
 
       # Always keep a copy on the run itself: it's the only artifact a dry run produces,
       # and on a real release it's a fallback if the upload below fails.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.ver.outputs.name }}
           path: ${{ steps.ver.outputs.name }}
@@ -257,7 +257,7 @@ jobs:
 
       - name: Attach APK to the GitHub Release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ steps.ver.outputs.name }}
           make_latest: false # everything currently ships as a prerelease; revisit once a stable tag lands
