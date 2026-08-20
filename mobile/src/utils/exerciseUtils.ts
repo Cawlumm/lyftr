@@ -53,7 +53,9 @@ const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
   back: ['upper-back', 'lower-back'],
   'upper back': ['upper-back'],
   'middle back': ['upper-back'], // RN lib has no 'middle-back'
+  'middle-back': ['upper-back'],
   'lower back': ['lower-back'],
+  'lower-back': ['lower-back'],
   lats: ['upper-back'],
   shoulders: ['deltoids'],
   deltoids: ['deltoids'],

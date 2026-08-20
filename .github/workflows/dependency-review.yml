@@ -1,0 +1,38 @@
+name: Dependency review
+
+# Fails a pull request that *introduces* a dependency with a known advisory, or one under
+# a licence the project cannot ship.
+#
+# This is the counterpart to Dependabot rather than a duplicate of it. Dependabot tells
+# you about what is already installed — a backlog, most of which needs a major version
+# bump nobody is going to take this week. This only looks at what the diff adds, so it
+# stays quiet until a pull request would make things worse. That makes it the one
+# security check here that can be a hard failure without becoming noise.
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  # Needed to leave the summary comment on the pull request.
+  pull-requests: write
+
+jobs:
+  review:
+    name: Review dependency changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Review
+        uses: actions/dependency-review-action@v4
+        with:
+          # Moderate and above fails. The existing moderate findings are all either
+          # unreachable or blocked behind a major (see #120), but that is an argument for
+          # not adding more, not for tolerating new ones.
+          fail-on-severity: moderate
+          comment-summary-in-pr: always
+          # Copyleft licences would make the project undistributable as it stands.
+          deny-licenses: AGPL-3.0, GPL-3.0

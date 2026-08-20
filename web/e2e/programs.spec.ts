@@ -72,8 +72,8 @@ test.describe('Programs', () => {
     // Programs are day-nested now — add a workout day before its exercise editor appears.
     await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).click()
-    await expect(page.getByPlaceholder(/search name/i)).toBeVisible()
-    await page.getByPlaceholder(/search name/i).fill('squat')
+    await expect(page.getByPlaceholder(/search exercises/i)).toBeVisible()
+    await page.getByPlaceholder(/search exercises/i).fill('squat')
     await page.getByText(/squat/i).first().click()
 
     // Fill target sets
@@ -131,7 +131,7 @@ test.describe('Programs', () => {
     await page.goto('/programs/new')
     await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).click()
-    await page.getByPlaceholder(/search name/i).fill('deadlift')
+    await page.getByPlaceholder(/search exercises/i).fill('deadlift')
     await page.getByText(/deadlift/i).first().click()
 
     const weightSuffix = page.locator('text=/^(lb|kg)$/')

@@ -88,8 +88,8 @@ test.describe('Workouts', () => {
 
     // Add exercise
     await page.getByRole('button', { name: /add exercise/i }).click()
-    await expect(page.getByPlaceholder(/search name/i)).toBeVisible()
-    await page.getByPlaceholder(/search name/i).fill('bench press')
+    await expect(page.getByPlaceholder(/search exercises/i)).toBeVisible()
+    await page.getByPlaceholder(/search exercises/i).fill('bench press')
     await page.getByText(/bench press/i).first().click()
 
     // Fill in set

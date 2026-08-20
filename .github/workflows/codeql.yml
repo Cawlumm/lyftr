@@ -1,0 +1,81 @@
+name: CodeQL
+
+# Static analysis for the Go backend, the TypeScript in web/mobile/shared, and the
+# workflow files themselves. Free on public repositories, including the Actions minutes.
+#
+# What this does and does not buy: CodeQL finds the pattern-shaped classes — injection,
+# path traversal, XSS, unsafe deserialization, hardcoded credentials. It does not find
+# semantic defects. The three real bugs the password work turned up (a 500 on any
+# password over bcrypt's 72-byte limit, a 12x login timing oracle, and case-sensitive
+# email collisions) would all have sailed past it. Treat this as covering a class that
+# manual review is bad at, not as a substitute for review.
+#
+# Separate from ci.yml on purpose: that workflow gates its jobs behind a `changes` filter
+# so unrelated pushes skip them, and a scheduled security scan wants the opposite —
+# to run on a fixed cadence whatever changed, because the queries improve even when the
+# code does not.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Mondays, 04:17 UTC. Off the hour so it does not land in the crowd of jobs that
+    # every repo schedules at :00.
+    - cron: "17 4 * * 1"
+
+# A superseded run has nothing to say; cancel it rather than paying for it.
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: go
+            build-mode: autobuild
+          # One TypeScript job covers web, mobile and packages/shared — CodeQL analyses
+          # the checkout, and splitting it would only duplicate work.
+          - language: javascript-typescript
+            build-mode: none
+          # The workflows themselves. Actions are a supply-chain surface and this is the
+          # only thing that looks at them.
+          - language: actions
+            build-mode: none
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The go directive is 1.26.6; without this the runner's default toolchain may be
+      # older and autobuild fails before any analysis happens.
+      - name: Set up Go
+        if: matrix.language == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+          cache-dependency-path: backend/go.sum
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-extended adds the lower-confidence queries. On a codebase this size
+          # the extra noise is manageable, and the point of turning this on is coverage.
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}
