@@ -3,9 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ExercisePicker from './ExercisePicker'
 import { types } from '@lyftr/shared'
 
+type ListParams = {
+  q?: string
+  muscle_group?: string
+  category?: string
+  equipment?: string
+  limit?: number
+  page?: number
+}
+
 const listMock = vi.fn()
 vi.mock('../services/api', () => ({
-  exerciseAPI: { list: (params?: any) => listMock(params) },
+  exerciseAPI: { list: (params?: ListParams) => listMock(params) },
 }))
 
 // @tanstack/react-virtual measures a real scroll container, which jsdom has no
