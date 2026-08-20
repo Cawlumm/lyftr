@@ -18,7 +18,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION sh build.sh
 
 # Stage 2: Runtime
-FROM alpine:3.19
+FROM alpine:3.24
 
 # ca-certificates for any outbound TLS calls; wget for healthcheck
 RUN apk add --no-cache ca-certificates wget
