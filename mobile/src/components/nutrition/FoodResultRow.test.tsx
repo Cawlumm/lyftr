@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { FoodSearchResult } from '@lyftr/shared'
 
 // Same preamble as the programs component tests: expo-router can't load under bare jest,
@@ -12,16 +12,8 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
-jest.mock('expo-haptics', () => ({
-  selectionAsync: jest.fn(() => Promise.resolve()),
-  notificationAsync: jest.fn(() => Promise.resolve()),
-  impactAsync: jest.fn(() => Promise.resolve()),
-  NotificationFeedbackType: { Success: 'success', Warning: 'warning', Error: 'error' },
-  ImpactFeedbackStyle: { Light: 'light', Medium: 'medium', Heavy: 'heavy' },
-}))
 
 import { FoodResultRow } from './FoodResultRow'
-import { client } from '../../lib/lyftr'
 
 const item = (overrides: Partial<FoodSearchResult> = {}): FoodSearchResult => ({
   name: 'Chicken Breast',
@@ -35,93 +27,70 @@ const item = (overrides: Partial<FoodSearchResult> = {}): FoodSearchResult => ({
   ...overrides,
 })
 
-const OPTIONS_LABEL = 'Chicken Breast options'
-
-afterEach(() => {
-  jest.restoreAllMocks()
-})
+const ADD = 'Add Chicken Breast to Favorites'
+const REMOVE = 'Remove Chicken Breast from Favorites'
 
 describe('FoodResultRow', () => {
-  // The Recent and search tabs render this same row and must not gain a delete control —
-  // they show foods the user does not own. This is the regression guard for #115's
-  // restructure of a component shared by all three tabs.
-  it('renders no options menu when it is not a saved food', () => {
+  // A list that doesn't pass onToggleFavorite gets no star at all. Nothing uses this
+  // today, but the prop is optional and the row must not render a dead control.
+  it('renders no star when the list does not offer favouriting', () => {
     render(<FoodResultRow item={item()} onPress={() => {}} />)
-    expect(screen.queryByLabelText(OPTIONS_LABEL)).toBeNull()
+    expect(screen.queryByLabelText(ADD)).toBeNull()
+    expect(screen.queryByLabelText(REMOVE)).toBeNull()
   })
 
-  it('renders no options menu when savedFoodId is given without onDeleted', () => {
-    render(<FoodResultRow item={item()} onPress={() => {}} savedFoodId={7} />)
-    expect(screen.queryByLabelText(OPTIONS_LABEL)).toBeNull()
+  // The label carries the toggle state, because the fill that conveys it visually is
+  // invisible to a screen reader.
+  it('offers to add when the food is not favourited', () => {
+    render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
+    expect(screen.getByLabelText(ADD)).toBeTruthy()
+    expect(screen.queryByLabelText(REMOVE)).toBeNull()
   })
 
-  it('renders the options menu for a saved food', () => {
-    render(<FoodResultRow item={item()} onPress={() => {}} savedFoodId={7} onDeleted={() => {}} />)
-    expect(screen.getByLabelText(OPTIONS_LABEL)).toBeTruthy()
+  it('offers to remove when the food is favourited', () => {
+    render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={() => {}} />)
+    expect(screen.getByLabelText(REMOVE)).toBeTruthy()
+    expect(screen.queryByLabelText(ADD)).toBeNull()
   })
 
-  it('tapping the row still selects the food rather than opening the menu', () => {
+  // One tap, no confirmation sheet in between — that is the whole point of the change.
+  it('toggles on a single tap', () => {
+    const onToggleFavorite = jest.fn()
+    render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={onToggleFavorite} />)
+    fireEvent.press(screen.getByLabelText(REMOVE))
+    expect(onToggleFavorite).toHaveBeenCalledTimes(1)
+  })
+
+  // Tapping the star must not also select the food; the row press and the star press are
+  // separate targets even though the star sits inside the row's Pressable.
+  it('does not select the food when the star is tapped', () => {
     const onPress = jest.fn()
-    render(<FoodResultRow item={item()} onPress={onPress} savedFoodId={7} onDeleted={() => {}} />)
+    render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
+    fireEvent.press(screen.getByLabelText(ADD))
+    expect(onPress).not.toHaveBeenCalled()
+  })
+
+  it('still selects the food when the row body is tapped', () => {
+    const onPress = jest.fn()
+    render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
     fireEvent.press(screen.getByText('Chicken Breast'))
     expect(onPress).toHaveBeenCalled()
   })
 
-  it('deletes through the API and reports the id back after confirming', async () => {
-    jest.useFakeTimers()
-    const del = jest.spyOn(client.savedFoodsAPI, 'delete').mockResolvedValue(undefined as never)
-    const onDeleted = jest.fn()
-    const onDeleteFailed = jest.fn()
-
+  // Mid-request the star is inert, so a double tap can't fire a create and a delete for
+  // the same food and leave the list disagreeing with the server.
+  it('ignores taps while the toggle is in flight', () => {
+    const onToggleFavorite = jest.fn()
     render(
       <FoodResultRow
         item={item()}
         onPress={() => {}}
-        savedFoodId={7}
-        onDeleted={onDeleted}
-        onDeleteFailed={onDeleteFailed}
+        favorited
+        onToggleFavorite={onToggleFavorite}
+        togglingFavorite
       />,
     )
-
-    fireEvent.press(screen.getByLabelText(OPTIONS_LABEL))
-    fireEvent.press(screen.getByText('Remove from Favorites'))
-    // ActionSheet defers the action until after its dismiss animation so the confirm
-    // sheet isn't presented mid-close.
-    act(() => { jest.runOnlyPendingTimers() })
-
-    fireEvent.press(screen.getByText('Remove'))
-
-    await waitFor(() => expect(del).toHaveBeenCalledWith(7))
-    expect(onDeleted).toHaveBeenCalledWith(7)
-    expect(onDeleteFailed).not.toHaveBeenCalled()
-    jest.useRealTimers()
-  })
-
-  // A swallowed failure leaves the row on screen with no explanation, which reads as a
-  // dead button — the exact shape of the complaint in #115.
-  it('reports a failed delete instead of dropping the row', async () => {
-    jest.useFakeTimers()
-    jest.spyOn(client.savedFoodsAPI, 'delete').mockRejectedValue(new Error('boom'))
-    const onDeleted = jest.fn()
-    const onDeleteFailed = jest.fn()
-
-    render(
-      <FoodResultRow
-        item={item()}
-        onPress={() => {}}
-        savedFoodId={7}
-        onDeleted={onDeleted}
-        onDeleteFailed={onDeleteFailed}
-      />,
-    )
-
-    fireEvent.press(screen.getByLabelText(OPTIONS_LABEL))
-    fireEvent.press(screen.getByText('Remove from Favorites'))
-    act(() => { jest.runOnlyPendingTimers() })
-    fireEvent.press(screen.getByText('Remove'))
-
-    await waitFor(() => expect(onDeleteFailed).toHaveBeenCalled())
-    expect(onDeleted).not.toHaveBeenCalled()
-    jest.useRealTimers()
+    fireEvent.press(screen.getByLabelText(REMOVE))
+    expect(onToggleFavorite).not.toHaveBeenCalled()
   })
 })

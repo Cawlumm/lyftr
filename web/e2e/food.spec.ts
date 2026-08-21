@@ -341,7 +341,9 @@ test.describe('Food', () => {
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
   })
 
-  test('Add to Favorites toggle saves food during logging', async ({ page }) => {
+  // Favouriting is no longer a side effect of logging: the star acts on its own, from
+  // the detail view, without the food ever being logged.
+  test('starring from the detail view favourites without logging', async ({ page }) => {
     const savedName = `E2ESave-${Date.now()}`
 
     await page.route('**/api/v1/food/search**', route =>
@@ -352,22 +354,23 @@ test.describe('Food', () => {
     await expect(page.getByText(`No results for "${savedName}"`)).toBeVisible({ timeout: 2000 })
     await page.getByRole('button').filter({ hasText: /manually/ }).click()
 
-    // Toggle "Add to Favorites"
-    await page.getByText('Add to Favorites').click()
+    // Star it, then leave without logging.
+    await page.getByRole('button', { name: `Add ${savedName} to Favorites` }).click()
+    await expect(page.getByRole('button', { name: `Remove ${savedName} from Favorites` })).toBeVisible({ timeout: 5000 })
 
-    await page.getByRole('button', { name: 'Log Food' }).click()
-    await page.waitForURL('/food', { timeout: 5000 })
-
-    // Verify in Favorites tab
     await page.goto('/food/log')
     await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(savedName)).toBeVisible({ timeout: 8000 })
+
+    // And it was never logged — the diary has no entry for it.
+    await page.goto('/food')
+    await expect(page.getByText(savedName)).not.toBeVisible({ timeout: 3000 })
   })
 
   // #115: the delete endpoint and the client method both existed, but nothing called
   // them — a saved food could not be removed from either app. Creates its own row rather
   // than using the shared seed so the other Favorites tests keep theirs.
-  test('removes a saved food from Favorites', async ({ page, request }) => {
+  test('unstarring removes it from Favorites', async ({ page, request }) => {
     const name = `E2EDelete-${Date.now()}`
     const created = await request.post(`${API}/food/saved`, {
       headers: { Authorization: `Bearer ${authToken}` },
@@ -379,8 +382,8 @@ test.describe('Food', () => {
     await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
 
+    // One click, no confirmation sheet in between.
     await page.getByRole('button', { name: `Remove ${name} from Favorites` }).click()
-    await page.getByRole('button', { name: 'Remove', exact: true }).click()
 
     await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
 

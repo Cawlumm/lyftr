@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
   Star, AlertCircle, Utensils, Zap,
-  Coffee, Sun, Moon, Cookie, ChevronRight, Trash2,
+  Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
@@ -27,16 +27,25 @@ const MEAL_COLORS: Record<string, string> = {
   dinner: 'text-indigo-400', snacks: 'text-pink-400',
 }
 
-// `onDelete` is optional and only the Favorites tab passes it. Without it this renders
-// exactly the markup it always has — Recent and the search results are the hot path in
-// this screen, so the delete affordance is added around them rather than through them.
+// The star is the whole favourites mechanic: one tap on, one tap off, from every tab.
+// It replaces the trash + inline confirm this row briefly had, which only appeared on the
+// Favorites tab — so a food found by search could not be favourited without logging it.
 //
-// It has to be a sibling of the row button, not a child: a <button> inside a <button> is
-// invalid HTML and React warns about it, which is the whole reason the two-branch shape
+// No confirmation, deliberately: a favourite is a bookmark, not a record, and a second
+// click restores it. Matches Cronometer.
+//
+// The star has to be a sibling of the row button, not a child: a <button> inside a
+// <button> is invalid HTML and React warns about it, which is why the two-branch shape
 // below exists instead of one container.
 function FoodResultRow(
-  { item, onClick, onDelete, deleteLabel }:
-  { item: types.FoodSearchResult; onClick: () => void; onDelete?: () => void; deleteLabel?: string },
+  { item, onClick, favorited, onToggleFavorite, togglingFavorite }:
+  {
+    item: types.FoodSearchResult
+    onClick: () => void
+    favorited?: boolean
+    onToggleFavorite?: () => void
+    togglingFavorite?: boolean
+  },
 ) {
   const content = (
     <>
@@ -70,7 +79,7 @@ function FoodResultRow(
     </>
   )
 
-  if (!onDelete) {
+  if (!onToggleFavorite) {
     return (
       <button
         onClick={onClick}
@@ -86,8 +95,35 @@ function FoodResultRow(
       <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
         {content}
       </button>
-      <IconButton icon={Trash2} variant="danger" label={deleteLabel ?? 'Delete'} onClick={onDelete} />
+      <FavoriteStar
+        favorited={!!favorited}
+        busy={!!togglingFavorite}
+        name={item.name}
+        onClick={onToggleFavorite}
+      />
     </div>
+  )
+}
+
+// Shared by the rows and the detail header so the two cannot drift. aria-pressed carries
+// the toggle state that the fill conveys visually.
+function FavoriteStar(
+  { favorited, busy = false, name, onClick, size = 'sm' }:
+  { favorited: boolean; busy?: boolean; name: string; onClick: () => void; size?: 'sm' | 'md' },
+) {
+  const box = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10'
+  const icon = size === 'sm' ? 'w-[18px] h-[18px]' : 'w-[22px] h-[22px]'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      aria-pressed={favorited}
+      aria-label={favorited ? `Remove ${name} from Favorites` : `Add ${name} to Favorites`}
+      className={`${box} flex items-center justify-center rounded-lg flex-shrink-0 transition-colors hover:bg-surface-muted active:scale-95 disabled:opacity-40 ${favorited ? 'text-brand-500' : 'text-tx-muted'}`}
+    >
+      <Star className={icon} fill={favorited ? 'currentColor' : 'none'} strokeWidth={2.2} />
+    </button>
   )
 }
 
@@ -113,17 +149,46 @@ export default function LogFood() {
   const [servings, setServings] = useState(1)
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [saveToMyFoods, setSaveToMyFoods] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  // Whether the food on screen is already bookmarked. Derived from the list rather
-  // than tracked, so removing it on the Favorites tab immediately re-offers the toggle.
-  const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
+  // Derived from the list rather than tracked, so a star clicked on any tab is reflected
+  // everywhere the same food appears — including the detail view.
+  const favoriteOf = (item: types.FoodSearchResult) => findSavedFood(savedFoods, item)
+  const favoriteKey = (item: types.FoodSearchResult) => `${item.name}|${item.brand ?? ''}`
+  const isToggling = (item: types.FoodSearchResult) => togglingFavorite === favoriteKey(item)
 
-  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
-  const [deletingId, setDeletingId] = useState<number | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  // Favouriting is its own action, not a side effect of logging: one click on, one click
+  // off, from any row or from the detail view. No confirmation — a second click undoes it.
+  const toggleFavorite = async (item: types.FoodSearchResult) => {
+    if (togglingFavorite) return
+    setTogglingFavorite(favoriteKey(item))
+    setFavoriteError(null)
+    const existing = favoriteOf(item)
+    try {
+      if (existing) {
+        await savedFoodsAPI.delete(existing.id)
+        setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
+      } else {
+        const created = await savedFoodsAPI.create({
+          name: item.name, brand: item.brand ?? '',
+          calories: item.calories, protein: item.protein,
+          carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
+          serving_size: item.serving_size ?? '',
+        })
+        setSavedFoods(prev => [...prev, created])
+      }
+    } catch (err) {
+      setFavoriteError(apiErrorMessage(err, existing
+        ? `Couldn't remove ${item.name} from Favorites.`
+        : `Couldn't add ${item.name} to Favorites.`))
+    } finally {
+      setTogglingFavorite(null)
+    }
+  }
+
+  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+  const [favoriteError, setFavoriteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -196,26 +261,6 @@ export default function LogFood() {
     }
   }
 
-  // Deliberately not the `.catch(() => {})` this file uses elsewhere. Swallowing a failed
-  // delete leaves the row on screen with no explanation, which reads as the button being
-  // broken — the complaint in #115 was already about a missing affordance, and a silent
-  // one is not an improvement. The row is dropped from local state rather than refetched:
-  // the list is small, and a refetch would blank it on a flaky connection.
-  const handleDeleteSaved = async (id: number) => {
-    if (deletingId !== null) return
-    setDeletingId(id)
-    setDeleteError(null)
-    try {
-      await savedFoodsAPI.delete(id)
-      setSavedFoods(prev => prev.filter(f => f.id !== id))
-      setDeleteConfirmId(null)
-    } catch (err) {
-      setDeleteError(apiErrorMessage(err, 'Failed to remove from Favorites'))
-    } finally {
-      setDeletingId(null)
-    }
-  }
-
   const handleLog = async () => {
     if (!selected || saving) return
     setSaving(true)
@@ -230,14 +275,6 @@ export default function LogFood() {
         await foodAPI.update(editId, payload)
       } else {
         await foodAPI.log(payload)
-        if (saveToMyFoods && !alreadySaved) {
-          await savedFoodsAPI.create({
-            name: selected.name, brand: selected.brand ?? '',
-            calories: selected.calories, protein: selected.protein,
-            carbs: selected.carbs, fat: selected.fat, fiber: selected.fiber ?? 0,
-            serving_size: selected.serving_size ?? '',
-          }).catch(() => {})
-        }
       }
       navigate('/food', { replace: true })
     } catch (err: any) {
@@ -289,6 +326,19 @@ export default function LogFood() {
             <h1 className="font-display font-bold text-2xl text-tx-primary">Log Food</h1>
           )}
         </div>
+        {/* Favouriting is decoupled from logging, so the star sits beside the food rather
+            than inside the form — you can star something without logging it, and unstar
+            it the same way. Hidden in edit mode, where `selected` is a logged entry being
+            amended rather than a food being picked. */}
+        {phase === 'detail' && selected && !editId && selected.name && (
+          <FavoriteStar
+            size="md"
+            favorited={favoriteOf(selected) !== undefined}
+            busy={isToggling(selected)}
+            name={selected.name}
+            onClick={() => toggleFavorite(selected)}
+          />
+        )}
       </div>
 
       {/* Search phase */}
@@ -377,7 +427,16 @@ export default function LogFood() {
                     <p className="text-xs text-tx-muted mt-1 opacity-60">Search or scan to log food</p>
                   </div>
                 )
-                : recentItems.map((item) => <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onClick={() => selectResult(item)} />)
+                : recentItems.map((item) => (
+                  <FoodResultRow
+                    key={`${item.name}-${item.calories}`}
+                    item={item}
+                    onClick={() => selectResult(item)}
+                    favorited={favoriteOf(item) !== undefined}
+                    onToggleFavorite={() => toggleFavorite(item)}
+                    togglingFavorite={isToggling(item)}
+                  />
+                ))
             )}
 
             {tab === 'myfoods' && (
@@ -389,40 +448,25 @@ export default function LogFood() {
                     <p className="text-xs text-tx-muted mt-1 opacity-60">Star foods while logging to find them here</p>
                   </div>
                 )
-                : savedFoods.map(sf => (
-                  deleteConfirmId === sf.id ? (
-                    // Replaces the row rather than sitting beside it, matching how Food.tsx
-                    // confirms a log deletion — the row is the thing being acted on, so the
-                    // question belongs in its place.
-                    <div key={sf.id} className="px-4 py-3 flex items-center justify-between gap-3 bg-error-500/5 border-l-2 border-error-500 border-b border-surface-border last:border-b-0">
-                      <p className="text-xs text-tx-secondary flex-1 min-w-0">
-                        Remove <span className="font-medium text-tx-primary">{sf.name}</span> from Favorites?
-                      </p>
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button onClick={() => { setDeleteConfirmId(null); setDeleteError(null) }} className="btn-secondary btn-sm">
-                          Cancel
-                        </button>
-                        <button onClick={() => handleDeleteSaved(sf.id)} disabled={deletingId === sf.id} className="btn-danger-solid btn-sm disabled:opacity-50">
-                          {deletingId === sf.id ? '…' : 'Remove'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
+                : savedFoods.map(sf => {
+                  const item = savedToResult(sf)
+                  return (
                     <FoodResultRow
                       key={sf.id}
-                      item={savedToResult(sf)}
-                      onClick={() => selectResult(savedToResult(sf))}
-                      onDelete={() => { setDeleteConfirmId(sf.id); setDeleteError(null) }}
-                      deleteLabel={`Remove ${sf.name} from Favorites`}
+                      item={item}
+                      onClick={() => selectResult(item)}
+                      favorited
+                      onToggleFavorite={() => toggleFavorite(item)}
+                      togglingFavorite={isToggling(item)}
                     />
                   )
-                ))
+                })
             )}
 
-            {tab === 'myfoods' && deleteError && (
+            {favoriteError && (
               <div className="px-4 py-3 flex items-center gap-2 border-t border-surface-border">
                 <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
-                <p className="text-xs text-error-400">{deleteError}</p>
+                <p className="text-xs text-error-400">{favoriteError}</p>
               </div>
             )}
 
@@ -448,7 +492,14 @@ export default function LogFood() {
               </div>
             )}
             {tab === 'all' && !searching && searchResults.map((item) => (
-              <FoodResultRow key={`${item.name}-${item.calories}`} item={item} onClick={() => selectResult(item)} />
+              <FoodResultRow
+                key={`${item.name}-${item.calories}`}
+                item={item}
+                onClick={() => selectResult(item)}
+                    favorited={favoriteOf(item) !== undefined}
+                    onToggleFavorite={() => toggleFavorite(item)}
+                    togglingFavorite={isToggling(item)}
+              />
             ))}
           </div>
         </div>
@@ -589,33 +640,6 @@ export default function LogFood() {
             <DateInput label="When" value={date} onChange={setDate} max={todayStr()} />
           </div>
 
-          {/* Add to Favorites — hidden in edit mode. Already-saved is a state, not a
-              toggle: the bookmark stores the unscaled food, so saving the same one
-              again could only produce the identical row reported in #115. Remove it
-              from the Favorites tab instead, which is why that reads as the way out. */}
-          {!editId && (alreadySaved ? (
-            <div className="flex items-center gap-2 w-full card p-4">
-              <Star className="w-4 h-4 text-brand-500 flex-shrink-0" fill="currentColor" />
-              <span className="text-sm font-medium text-tx-secondary">In your Favorites</span>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setSaveToMyFoods(v => !v)}
-              className="flex items-center gap-3 w-full card p-4 hover:bg-surface-muted/50 transition-colors"
-            >
-              <div className={`relative w-11 h-6 rounded-full border transition-colors flex-shrink-0 ${saveToMyFoods ? 'bg-brand-500 border-brand-500' : 'bg-surface-muted border-surface-border'}`}>
-                <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${saveToMyFoods ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </div>
-              <div className="flex items-center gap-2 flex-1">
-                {saveToMyFoods
-                  ? <Star className="w-4 h-4 text-brand-500" fill="currentColor" />
-                  : <Star className="w-4 h-4 text-tx-muted" />
-                }
-                <span className="text-sm font-medium text-tx-secondary">Add to Favorites</span>
-              </div>
-            </button>
-          ))}
         </div>
       )}
 

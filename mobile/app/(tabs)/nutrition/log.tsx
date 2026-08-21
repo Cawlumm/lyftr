@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { Image, Pressable, ScrollView, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -11,10 +11,10 @@ import {
 } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, IconButton, Label, NumberField,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl, Toggle,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
-import { FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
+import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
@@ -55,11 +55,47 @@ export default function LogFood() {
   const [servingsStr, setServingsStr] = useState('1')
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [saveToMyFoods, setSaveToMyFoods] = useState(false)
+  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+  const [pulling, setPulling] = useState(false)
 
-  // Whether the food on screen is already bookmarked. Derived from the list rather than
-  // tracked, so removing it on the Favorites tab immediately re-offers the toggle.
-  const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
+  // Derived from the list rather than tracked, so a star tapped on any tab is reflected
+  // everywhere the same food appears — including the detail screen.
+  const favoriteOf = (item: FoodSearchResult) => findSavedFood(savedFoods, item)
+
+  // Favouriting is its own action, not a side effect of logging. One tap on, one tap off,
+  // from any row or from the detail header. No confirmation: a second tap undoes it.
+  const toggleFavorite = async (item: FoodSearchResult) => {
+    const key = `${item.name}|${item.brand ?? ''}`
+    if (togglingFavorite) return
+    setTogglingFavorite(key)
+    setDeleteError(null)
+    const existing = favoriteOf(item)
+    try {
+      if (existing) {
+        await client.savedFoodsAPI.delete(existing.id)
+        setSavedFoods((prev) => prev.filter((f) => f.id !== existing.id))
+        Haptics.selectionAsync().catch(() => {})
+      } else {
+        const created = await client.savedFoodsAPI.create({
+          name: item.name, brand: item.brand ?? '',
+          calories: item.calories, protein: item.protein,
+          carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
+          serving_size: item.serving_size ?? '',
+        })
+        setSavedFoods((prev) => [...prev, created])
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      }
+    } catch {
+      setDeleteError(existing
+        ? `Couldn't remove ${item.name} from Favorites.`
+        : `Couldn't add ${item.name} to Favorites.`)
+    } finally {
+      setTogglingFavorite(null)
+    }
+  }
+
+  const isToggling = (item: FoodSearchResult) =>
+    togglingFavorite === `${item.name}|${item.brand ?? ''}`
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -82,23 +118,36 @@ export default function LogFood() {
     }).catch(() => router.replace('/nutrition'))
   }, [editId])
 
-  // Recent (today, deduped ≤10) + saved foods.
-  useEffect(() => {
-    client.foodAPI.list(todayStr()).then((logs) => {
-      const seen = new Set<string>()
-      const items: FoodSearchResult[] = []
-      for (const log of logs || []) {
-        const key = log.name.toLowerCase()
-        if (!seen.has(key)) {
-          seen.add(key)
-          items.push(entryToResult(log))
-          if (items.length >= 10) break
+  // Recent (today, deduped ≤10) + favourites.
+  const loadLists = useCallback(async () => {
+    await Promise.all([
+      client.foodAPI.list(todayStr()).then((logs) => {
+        const seen = new Set<string>()
+        const items: FoodSearchResult[] = []
+        for (const log of logs || []) {
+          const key = log.name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            items.push(entryToResult(log))
+            if (items.length >= 10) break
+          }
         }
-      }
-      setRecentItems(items)
-    }).catch(() => {})
-    client.savedFoodsAPI.list().then(setSavedFoods).catch(() => {})
+        setRecentItems(items)
+      }).catch(() => {}),
+      client.savedFoodsAPI.list().then(setSavedFoods).catch(() => {}),
+    ])
   }, [])
+
+  useEffect(() => { loadLists() }, [loadLists])
+
+  // Pull-to-refresh, matching the five list screens that already have it. Worth having
+  // here because both lists go stale from elsewhere: logging on another device changes
+  // Recent, and favouriting on web changes Favorites.
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await loadLists()
+    setPulling(false)
+  }, [loadLists])
 
   // Debounced remote search (only on the Search tab).
   useEffect(() => {
@@ -162,14 +211,6 @@ export default function LogFood() {
         await client.foodAPI.update(editId, payload)
       } else {
         await client.foodAPI.log(payload)
-        if (saveToMyFoods && !alreadySaved) {
-          await client.savedFoodsAPI.create({
-            name: selected.name, brand: selected.brand ?? '',
-            calories: selected.calories, protein: selected.protein,
-            carbs: selected.carbs, fat: selected.fat, fiber: selected.fiber ?? 0,
-            serving_size: selected.serving_size ?? '',
-          }).catch(() => {})
-        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
@@ -219,11 +260,29 @@ export default function LogFood() {
             <AppText variant="title">Log Food</AppText>
           )}
         </View>
+        {/* Favouriting is decoupled from logging, so the star lives beside the food
+            rather than inside the form — you can star something without logging it,
+            and unstar it the same way. Hidden in edit mode, where `selected` is a
+            logged entry being amended rather than a food being picked. */}
+        {phase === 'detail' && selected && !editId && selected.name ? (
+          <FavoriteStar
+            size="md"
+            favorited={favoriteOf(selected) !== undefined}
+            busy={isToggling(selected)}
+            name={selected.name}
+            onPress={() => toggleFavorite(selected)}
+          />
+        ) : null}
       </View>
 
       {/* ── Search phase ── */}
       {phase === 'search' ? (
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
+        >
           <View className="gap-4">
             {/* Search + scan */}
             <View className="flex-row items-center gap-2">
@@ -284,7 +343,16 @@ export default function LogFood() {
                 recentItems.length === 0 ? (
                   <EmptyBlock icon={Utensils} title="No recent items today" subtitle="Search or scan to log food" />
                 ) : (
-                  recentItems.map((item, i) => <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />)
+                  recentItems.map((item, i) => (
+                    <FoodResultRow
+                      key={`${item.name}-${item.calories}-${i}`}
+                      item={item}
+                      onPress={() => selectResult(item)}
+                          favorited={favoriteOf(item) !== undefined}
+                          onToggleFavorite={() => toggleFavorite(item)}
+                          togglingFavorite={isToggling(item)}
+                    />
+                  ))
                 )
               ) : null}
 
@@ -303,12 +371,9 @@ export default function LogFood() {
                         key={sf.id}
                         item={savedToResult(sf)}
                         onPress={() => selectResult(savedToResult(sf))}
-                        savedFoodId={sf.id}
-                        onDeleted={(id) => {
-                          setDeleteError(null)
-                          setSavedFoods((prev) => prev.filter((f) => f.id !== id))
-                        }}
-                        onDeleteFailed={setDeleteError}
+                        favorited
+                        onToggleFavorite={() => toggleFavorite(savedToResult(sf))}
+                        togglingFavorite={isToggling(savedToResult(sf))}
                       />
                     ))}
                   </>
@@ -333,7 +398,14 @@ export default function LogFood() {
                 </View>
               ) : null}
               {tab === 'all' && !searching ? searchResults.map((item, i) => (
-                <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />
+                <FoodResultRow
+                  key={`${item.name}-${item.calories}-${i}`}
+                  item={item}
+                  onPress={() => selectResult(item)}
+                  favorited={favoriteOf(item) !== undefined}
+                  onToggleFavorite={() => toggleFavorite(item)}
+                  togglingFavorite={isToggling(item)}
+                />
               )) : null}
             </Card>
           </View>
@@ -463,29 +535,6 @@ export default function LogFood() {
                 <DateInput label="When" value={date} onChange={setDate} maximumDate={new Date()} />
               </Card>
 
-              {/* Add to Favorites — hidden in edit mode. Already-saved is a state, not
-                  a toggle: the bookmark stores the unscaled food, so saving it again
-                  could only produce the identical row reported in #115. */}
-              {!editId ? (
-                alreadySaved ? (
-                  <Card className="flex-row items-center gap-2">
-                    <Star size={16} color={accent} fill={accent} />
-                    <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>In your Favorites</AppText>
-                  </Card>
-                ) : (
-                  <Pressable onPress={() => setSaveToMyFoods((v) => !v)} className="flex-row items-center gap-3">
-                    <Card className="flex-1 flex-row items-center gap-3">
-                      <View pointerEvents="none">
-                        <Toggle value={saveToMyFoods} onValueChange={setSaveToMyFoods} />
-                      </View>
-                      <View className="flex-row items-center gap-2">
-                        {saveToMyFoods ? <Star size={16} color={accent} fill={accent} /> : <Star size={16} color={colors.txMuted} />}
-                        <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Add to Favorites</AppText>
-                      </View>
-                    </Card>
-                  </Pressable>
-                )
-              ) : null}
             </View>
           </ScrollView>
 
