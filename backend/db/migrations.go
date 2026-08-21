@@ -152,18 +152,19 @@ func alterMigrations() {
 	}
 }
 
-// dedupeSavedFoods collapses duplicate stars so the unique index above can be
-// created. Keeps the lowest id in each (user_id, name, brand) group — the one saved
-// first.
+// dedupeSavedFoods collapses duplicate stars, keeping the lowest id in each
+// (user_id, name, brand) group — the one starred first.
+//
+// Reports whether saved_foods is known to be free of duplicates, i.e. whether the
+// unique index may safely be created. False means "not now", never a reason to fail
+// the boot.
 //
 // Deleting rows in a migration deserves an argument. Nothing can edit a saved food
-// (there is no PATCH), and starring copies whichever search result was on screen,
-// so two rows sharing a user, name and brand differ at most in macros sourced from two
-// different search hits for the same product. Neither is more authoritative, both
-// render identically in the list, and either one logs the same way. Keeping the
-// earliest is arbitrary but stable, and the row is one tap to recreate.
-// Reports whether saved_foods is known to be free of duplicates, i.e. whether the unique
-// index may safely be created. False means "not now" — never a reason to fail the boot.
+// (there is no PATCH), and starring copies whichever search result was on screen, so
+// two rows sharing a user, name and brand differ at most in macros sourced from two
+// search hits for the same product. Neither is more authoritative, both render
+// identically in the list, and either one logs the same way. Keeping the earliest is
+// arbitrary but stable, and the row is one tap to recreate.
 func dedupeSavedFoods() bool {
 	done, err := hasMigrationFlag("dedupe_saved_foods")
 	if err != nil {

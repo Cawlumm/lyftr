@@ -951,11 +951,10 @@ func TestCreateSavedFood_success(t *testing.T) {
 	}
 }
 
-// My Foods is a bookmark list, and the bookmark saves the unscaled food — the servings
-// stepper scales at log time. So saving the same food twice cannot express anything the
-// first save didn't, and #115 was a user doing exactly that and being left with two
-// identical rows he could not tell apart.
-func TestCreateSavedFood_isSameBookmarkTwice(t *testing.T) {
+// Starring saves the unscaled food — the servings stepper scales at log time — so
+// starring the same food twice cannot express anything the first star didn't. #115 was a
+// user doing exactly that and being left with two identical rows he could not tell apart.
+func TestCreateSavedFood_isSameStarTwice(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 
@@ -989,7 +988,7 @@ func TestCreateSavedFood_isSameBookmarkTwice(t *testing.T) {
 	}
 }
 
-// Same name, different brand, is a different product and stays a separate bookmark.
+// Same name, different brand, is a different product and stays a separate favourite.
 func TestCreateSavedFood_brandDistinguishes(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
@@ -1013,7 +1012,7 @@ func TestCreateSavedFood_brandDistinguishes(t *testing.T) {
 	}
 }
 
-// The uniqueness is per user. One person bookmarking a food must not stop anyone else.
+// The uniqueness is per user. One person starring a food must not stop anyone else.
 func TestCreateSavedFood_scopedPerUser(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

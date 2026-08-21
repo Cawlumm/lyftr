@@ -198,6 +198,10 @@ func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (f models
 		if !utils.IsUniqueViolation(err) {
 			return models.SavedFood{}, false, err
 		}
+		// If the row is deleted between the failed insert and this read the scan returns
+		// sql.ErrNoRows and the caller answers 500. That needs an unstar to land in the
+		// gap between two statements on a pool of one connection; a retry loop costs more
+		// than the case is worth, and the client's next action refetches anyway.
 		err = scanSavedFood(
 			s.db.QueryRow(savedFoodSelect+` WHERE user_id = ? AND name = ? AND brand = ?`, uid, req.Name, req.Brand),
 			&f,

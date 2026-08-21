@@ -38,12 +38,12 @@ const MEAL_COLORS: Record<string, string> = {
 // <button> is invalid HTML and React warns about it, which is why the two-branch shape
 // below exists instead of one container.
 function FoodResultRow(
-  { item, onClick, favorited, onToggleFavorite, togglingFavorite }:
+  { item, onClick, favorited, onToggleFavorite, togglingFavorite = false }:
   {
     item: types.FoodSearchResult
     onClick: () => void
-    favorited?: boolean
-    onToggleFavorite?: () => void
+    favorited: boolean
+    onToggleFavorite: () => void
     togglingFavorite?: boolean
   },
 ) {
@@ -79,25 +79,14 @@ function FoodResultRow(
     </>
   )
 
-  if (!onToggleFavorite) {
-    return (
-      <button
-        onClick={onClick}
-        className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-surface-muted active:bg-surface-muted/80 transition-colors border-b border-surface-border last:border-0 text-left"
-      >
-        {content}
-      </button>
-    )
-  }
-
   return (
     <div className="flex items-center gap-2 w-full px-4 hover:bg-surface-muted transition-colors border-b border-surface-border last:border-0">
       <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
         {content}
       </button>
       <FavoriteStar
-        favorited={!!favorited}
-        busy={!!togglingFavorite}
+        favorited={favorited}
+        busy={togglingFavorite}
         name={item.name}
         onClick={onToggleFavorite}
       />

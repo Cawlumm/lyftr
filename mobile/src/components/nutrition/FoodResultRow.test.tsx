@@ -31,14 +31,6 @@ const ADD = 'Add Chicken Breast to Favorites'
 const REMOVE = 'Remove Chicken Breast from Favorites'
 
 describe('FoodResultRow', () => {
-  // A list that doesn't pass onToggleFavorite gets no star at all. Nothing uses this
-  // today, but the prop is optional and the row must not render a dead control.
-  it('renders no star when the list does not offer favouriting', () => {
-    render(<FoodResultRow item={item()} onPress={() => {}} />)
-    expect(screen.queryByLabelText(ADD)).toBeNull()
-    expect(screen.queryByLabelText(REMOVE)).toBeNull()
-  })
-
   // The label carries the toggle state, because the fill that conveys it visually is
   // invisible to a screen reader.
   it('offers to add when the food is not favourited', () => {

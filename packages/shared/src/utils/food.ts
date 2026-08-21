@@ -55,9 +55,9 @@ export function savedToResult(s: SavedFood): FoodSearchResult {
 // Which saved food, if any, is the same favourite as `item`.
 //
 // Starring stores the unscaled food and the servings stepper scales at log time, so
-// "same food" is name + brand, and nothing else. Deliberately matched exactly, mirroring the UNIQUE(user_id, name, brand) index
-// the server enforces: if the two disagreed, the client would offer a bookmark the
-// server then refuses to create as new.
+// "same food" is name + brand, and nothing else. Matched exactly, mirroring the
+// UNIQUE(user_id, name, brand) index the server enforces: if the two disagreed, the
+// client would offer a star the server then refuses to create as new.
 //
 // Brand is normalised to '' because that is what the API stores for a food with no
 // brand, while a search result can carry undefined.

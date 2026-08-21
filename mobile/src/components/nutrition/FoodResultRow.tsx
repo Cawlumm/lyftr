@@ -9,10 +9,10 @@ interface Props {
   item: FoodSearchResult
   /** Tap the row → pick this food and go to the detail step. */
   onPress: () => void
-  /** Filled star. Undefined means this list does not offer favouriting at all. */
-  favorited?: boolean
-  /** Toggle the star. Its presence is what puts the control on the row. */
-  onToggleFavorite?: () => void
+  /** Filled star. */
+  favorited: boolean
+  /** Toggle the star. Every list this row appears in offers favouriting. */
+  onToggleFavorite: () => void
   /** Star is mid-request — dimmed and inert so a double tap can't race itself. */
   togglingFavorite?: boolean
 }
@@ -31,7 +31,6 @@ export function FoodResultRow({
   item, onPress, favorited, onToggleFavorite, togglingFavorite = false,
 }: Props) {
   const { colors } = useTheme()
-  const canFavorite = onToggleFavorite !== undefined
 
   return (
     <Pressable
@@ -60,14 +59,12 @@ export function FoodResultRow({
         </View>
       </View>
 
-      {canFavorite ? (
-        <FavoriteStar
-          favorited={!!favorited}
-          busy={togglingFavorite}
-          name={item.name}
-          onPress={onToggleFavorite}
-        />
-      ) : null}
+      <FavoriteStar
+        favorited={favorited}
+        busy={togglingFavorite}
+        name={item.name}
+        onPress={onToggleFavorite}
+      />
       <ChevronRight size={16} color={colors.txMuted} />
     </Pressable>
   )
