@@ -73,14 +73,32 @@ describe('scaleServing', () => {
   })
 })
 
-describe('findSavedFood', () => {
-  const saved = (over: Partial<SavedFood> = {}): SavedFood => ({
-    id: 1, user_id: 1, name: 'Chicken Breast', brand: 'Tesco',
-    calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0,
-    serving_size: '100g', barcode: '', created_at: '',
-    ...over,
-  } as SavedFood)
+const saved = (over: Partial<SavedFood> = {}): SavedFood => ({
+  id: 1, user_id: 1, name: 'Chicken Breast', brand: 'Tesco',
+  calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0,
+  serving_size: '100g', barcode: '', created_at: '',
+  ...over,
+} as SavedFood)
 
+// The Recent tab is built on entryToResult, and its rows are matched against Favorites
+// by name + brand. If brand doesn't survive the log round-trip, a branded favourite shows
+// an unfilled star on Recent and starring it creates a second, brandless row.
+describe('brand survives the log round-trip', () => {
+  it('entryToResult keeps the brand', () => {
+    expect(entryToResult(log({ brand: 'Tesco' } as never)).brand).toBe('Tesco')
+  })
+
+  it('scaleServing carries the brand onto the logged payload', () => {
+    const picked = savedToResult(saved({ brand: 'Fage' }))
+    expect(scaleServing(picked, 2).brand).toBe('Fage')
+  })
+
+  it('an unbranded food stays an empty string, matching what the API stores', () => {
+    expect(scaleServing({ name: 'Water', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 glass', source: 'manual' }, 1).brand).toBe('')
+  })
+})
+
+describe('findSavedFood', () => {
   it('matches on name and brand', () => {
     const list = [saved({ id: 7 })]
     expect(findSavedFood(list, { name: 'Chicken Breast', brand: 'Tesco' })?.id).toBe(7)

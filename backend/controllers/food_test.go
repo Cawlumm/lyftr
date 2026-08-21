@@ -1399,3 +1399,37 @@ func TestListFoodLogs_zoneChangeDoesNotMoveStoredDay(t *testing.T) {
 		}
 	}
 }
+
+// A logged entry has to remember its brand, or Recent cannot tell a branded favourite
+// from an unbranded food of the same name. Before food_logs carried brand, starring a
+// logged item from Recent posted brand ”, which passed UNIQUE(user_id, name, brand) and
+// created a second row — the duplicate class #115 was filed for, re-entered through the
+// Recent tab.
+func TestLogFood_roundTripsBrand(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{
+		"name": "Chicken Breast", "brand": "Tesco", "meal": "lunch",
+		"calories": 165.0, "protein": 31.0, "carbs": 0.0, "fat": 3.6, "servings": 1.0,
+	}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	if got := decodeResponse(t, w)["data"].(map[string]any)["brand"]; got != "Tesco" {
+		t.Fatalf("logged entry came back with brand %v, want Tesco", got)
+	}
+
+	// And it survives the read path the Recent tab is built on.
+	c2, w2 := newContext(uid, http.MethodGet, "/api/v1/food", nil)
+	th.ListFoodLogs(c2)
+	entries := decodeResponse(t, w2)["data"].([]any)
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(entries))
+	}
+	if got := entries[0].(map[string]any)["brand"]; got != "Tesco" {
+		t.Errorf("listed entry has brand %v, want Tesco", got)
+	}
+}

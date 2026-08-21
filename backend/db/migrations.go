@@ -139,6 +139,11 @@ func alterMigrations() {
 
 	normalizeExerciseTaxonomy()
 
+	// The product a diary entry was, so it survives into Recent and can be matched
+	// against Favorites. Entries written before this default to '' — the same value the
+	// unbranded case uses, which is exactly how they already compared.
+	ensureColumn("food_logs", "brand", `ALTER TABLE food_logs ADD COLUMN brand TEXT NOT NULL DEFAULT ''`)
+
 	// Favorites is a bookmark list: starring a food saves it *unscaled* — the servings
 	// stepper scales at log time instead — so two rows with the same user/name/brand
 	// carry no information the first one didn't. They are the same star pressed twice.
@@ -184,8 +189,10 @@ func dedupeSavedFoods() bool {
 		// create the index — CREATE UNIQUE INDEX would fail against the duplicates still
 		// there, and ensureIndex is log.Fatal, so a transient error on this one DELETE
 		// would stop the server starting. Running without the index is the far smaller
-		// problem: the clients still check before saving and CreateSaved still resolves a
-		// conflict, so the worst case is the duplicate this migration exists to remove.
+		// problem: the clients still check before starring, so the worst case is the
+		// duplicate this migration exists to remove. Note the server-side guard genuinely
+		// is absent there — with no index there is no unique violation for CreateSaved to
+		// resolve, so it takes the plain insert path and answers 201.
 		log.Printf("migrations: dedupe saved_foods: %v (skipping the unique index this boot)", err)
 		return false
 	}

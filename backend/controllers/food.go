@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -77,6 +78,10 @@ func (h *Handler) LogFood(c *gin.Context) {
 		utils.BadRequest(c, "name exceeds 200 characters")
 		return
 	}
+	if len(req.Brand) > 200 {
+		utils.BadRequest(c, "brand exceeds 200 characters")
+		return
+	}
 	if len(req.ServingSize) > 100 {
 		utils.BadRequest(c, "serving_size exceeds 100 characters")
 		return
@@ -127,6 +132,10 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 	}
 	if len(req.Name) > 200 {
 		utils.BadRequest(c, "name exceeds 200 characters")
+		return
+	}
+	if len(req.Brand) > 200 {
+		utils.BadRequest(c, "brand exceeds 200 characters")
 		return
 	}
 	if len(req.ServingSize) > 100 {
@@ -517,6 +526,12 @@ func (h *Handler) CreateSavedFood(c *gin.Context) {
 	}
 
 	f, created, err := h.s.Food.CreateSaved(uid, req)
+	// Explicit, because utils.DBError treats sql.ErrNoRows as "not an error" and returns
+	// without writing anything — which would let a zero-valued row leave here as a 200.
+	if errors.Is(err, sql.ErrNoRows) {
+		utils.InternalError(c)
+		return
+	}
 	if utils.DBError(c, err) {
 		return
 	}

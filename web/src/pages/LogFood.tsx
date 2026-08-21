@@ -173,7 +173,13 @@ export default function LogFood() {
         // favourited, so `created` can be something the list already holds — after a
         // refetch that raced this request, for instance. Appending blind puts two rows
         // with the same id (and the same React key) in the list.
-        setSavedFoods(prev => prev.some(f => f.id === created.id) ? prev : [...prev, created])
+        // Inserted in name order rather than appended: ListSaved returns ORDER BY name,
+        // so appending parks a new favourite at the bottom until the next load and then
+        // jumps it. Plain < to match SQLite's BINARY collation rather than localeCompare,
+        // which would order differently from the server it is imitating.
+        setSavedFoods(prev => prev.some(f => f.id === created.id)
+          ? prev
+          : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
       }
     } catch (err) {
       setFavoriteError(apiErrorMessage(err, existing
@@ -342,6 +348,17 @@ export default function LogFood() {
         )}
       </div>
 
+      {/* Outside both phases on purpose: the star is on the rows *and* in the header
+          above, so a failure has to be visible whichever one the user pressed. Sitting
+          inside the search phase meant a failed star on the detail view said nothing at
+          all and simply snapped back to unfilled. */}
+      {favoriteError && (
+        <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
+          <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
+          <p className="text-xs text-error-400">{favoriteError}</p>
+        </div>
+      )}
+
       {/* Search phase */}
       {phase === 'search' && (
         <div className="space-y-4">
@@ -462,13 +479,6 @@ export default function LogFood() {
                     />
                   )
                 })
-            )}
-
-            {favoriteError && (
-              <div className="px-4 py-3 flex items-center gap-2 border-t border-surface-border">
-                <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
-                <p className="text-xs text-error-400">{favoriteError}</p>
-              </div>
             )}
 
             {tab === 'all' && !query.trim() && (

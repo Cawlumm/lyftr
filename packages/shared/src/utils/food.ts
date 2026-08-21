@@ -12,6 +12,7 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
   const s = e.servings || 1
   return {
     name: e.name,
+    brand: e.brand ?? '',
     calories: e.calories / s,
     protein: e.protein / s,
     carbs: e.carbs / s,
@@ -32,6 +33,10 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
 export function scaleServing(r: FoodSearchResult, servings: number) {
   return {
     name: r.name || 'Custom entry',
+    // Carried onto the log so a diary entry still knows which product it was. Without
+    // it every Recent row compares as brand '', so a branded favourite shows an empty
+    // star there and starring it creates a second, brandless row.
+    brand: r.brand ?? '',
     calories: +(r.calories * servings).toFixed(1),
     protein: +(r.protein * servings).toFixed(1),
     carbs: +(r.carbs * servings).toFixed(1),

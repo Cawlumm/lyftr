@@ -62,6 +62,12 @@ export default function LogFood() {
   // everywhere the same food appears — including the detail screen.
   const favoriteOf = (item: FoodSearchResult) => findSavedFood(savedFoods, item)
 
+  // Bumped by every star/unstar. A list load captures it and discards its own result if
+  // a toggle landed while it was in flight — otherwise a pull-to-refresh issued just
+  // before a DELETE resolves comes back holding the row and puts the unstarred food back
+  // on screen, and the next tap deletes an id the server no longer has.
+  const listEpoch = useRef(0)
+
   // Favouriting is its own action, not a side effect of logging. One tap on, one tap off,
   // from any row or from the detail header. No confirmation: a second tap undoes it.
   const toggleFavorite = async (item: FoodSearchResult) => {
@@ -72,6 +78,7 @@ export default function LogFood() {
     if (togglingFavorite.has(key)) return
     setTogglingFavorite((prev) => new Set(prev).add(key))
     setFavoriteError(null)
+    listEpoch.current += 1
     const existing = favoriteOf(item)
     try {
       if (existing) {
@@ -89,7 +96,13 @@ export default function LogFood() {
         // favourited, so `created` can be something the list already holds — after a
         // pull-to-refresh that raced this request, for instance. Appending blind puts two
         // rows with the same id (and the same React key) in the list.
-        setSavedFoods((prev) => prev.some((f) => f.id === created.id) ? prev : [...prev, created])
+        // Inserted in name order rather than appended: ListSaved returns ORDER BY name,
+        // so appending parks a new favourite at the bottom until the next load and then
+        // jumps it. Plain < to match SQLite's BINARY collation rather than localeCompare,
+        // which would order differently from the server it is imitating.
+        setSavedFoods((prev) => prev.some((f) => f.id === created.id)
+          ? prev
+          : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       }
     } catch {
@@ -131,6 +144,10 @@ export default function LogFood() {
 
   // Recent (today, deduped ≤10) + favourites.
   const loadLists = useCallback(async () => {
+    const epoch = listEpoch.current
+    const apply = <T,>(set: (v: T) => void) => (v: T) => {
+      if (listEpoch.current === epoch) set(v)
+    }
     await Promise.all([
       client.foodAPI.list(todayStr()).then((logs) => {
         const seen = new Set<string>()
@@ -143,9 +160,9 @@ export default function LogFood() {
             if (items.length >= 10) break
           }
         }
-        setRecentItems(items)
+        apply(setRecentItems)(items)
       }).catch(() => {}),
-      client.savedFoodsAPI.list().then(setSavedFoods).catch(() => {}),
+      client.savedFoodsAPI.list().then(apply(setSavedFoods)).catch(() => {}),
     ])
   }, [])
 
@@ -286,6 +303,16 @@ export default function LogFood() {
         ) : null}
       </View>
 
+      {/* Outside both phases on purpose: the star is on the rows *and* in the header
+          above, so a failure has to be visible whichever one the user pressed. Sitting
+          inside the search phase meant a failed star on the detail screen said nothing
+          at all and simply snapped back to unfilled. */}
+      {favoriteError ? (
+        <View className="pb-3">
+          <Alert variant="error">{favoriteError}</Alert>
+        </View>
+      ) : null}
+
       {/* ── Search phase ── */}
       {phase === 'search' ? (
         <ScrollView
@@ -321,8 +348,6 @@ export default function LogFood() {
 
             {/* Above the tab content, not inside one branch: the star is on every tab, so
                 a failure starring a search result has to be visible on the search tab. */}
-            {favoriteError ? <Alert variant="error">{favoriteError}</Alert> : null}
-
             {rateLimited ? (
               <View className="flex-row items-center gap-2 rounded-xl border border-warning-500/20 bg-warning-500/10 px-3.5 py-3">
                 <AlertCircle size={16} color={isDark ? brand.warningSoft : brand.warning} />
