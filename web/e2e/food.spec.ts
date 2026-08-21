@@ -364,6 +364,33 @@ test.describe('Food', () => {
     await expect(page.getByText(savedName)).toBeVisible({ timeout: 8000 })
   })
 
+  // #115: the delete endpoint and the client method both existed, but nothing called
+  // them — a saved food could not be removed from either app. Creates its own row rather
+  // than using the shared seed so the other My Foods tests keep theirs.
+  test('removes a saved food from My Foods', async ({ page, request }) => {
+    const name = `E2EDelete-${Date.now()}`
+    const created = await request.post(`${API}/food/saved`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      data: { name, calories: 120, protein: 10, carbs: 12, fat: 4, serving_size: '1 cup' },
+    })
+    expect(created.ok()).toBeTruthy()
+
+    await page.goto('/food/log')
+    await page.getByRole('button', { name: 'My Foods' }).click()
+    await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
+
+    await page.getByRole('button', { name: `Remove ${name} from My Foods` }).click()
+    await page.getByRole('button', { name: 'Remove', exact: true }).click()
+
+    await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
+
+    // The row vanishing only proves local state was filtered. Reload to prove the
+    // DELETE actually reached the server.
+    await page.reload()
+    await page.getByRole('button', { name: 'My Foods' }).click()
+    await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
+  })
+
   test('selecting from My Foods goes to detail phase', async ({ page }) => {
     await page.goto('/food/log')
     await page.getByRole('button', { name: 'My Foods' }).click()

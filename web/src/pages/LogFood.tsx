@@ -3,10 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
   Bookmark, BookmarkCheck, AlertCircle, Utensils, Zap,
-  Coffee, Sun, Moon, Cookie, ChevronRight,
+  Coffee, Sun, Moon, Cookie, ChevronRight, Trash2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -27,12 +27,19 @@ const MEAL_COLORS: Record<string, string> = {
   dinner: 'text-indigo-400', snacks: 'text-pink-400',
 }
 
-function FoodResultRow({ item, onClick }: { item: types.FoodSearchResult; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-surface-muted active:bg-surface-muted/80 transition-colors border-b border-surface-border last:border-0 text-left"
-    >
+// `onDelete` is optional and only the My Foods tab passes it. Without it this renders
+// exactly the markup it always has — Recent and the search results are the hot path in
+// this screen, so the delete affordance is added around them rather than through them.
+//
+// It has to be a sibling of the row button, not a child: a <button> inside a <button> is
+// invalid HTML and React warns about it, which is the whole reason the two-branch shape
+// below exists instead of one container.
+function FoodResultRow(
+  { item, onClick, onDelete, deleteLabel }:
+  { item: types.FoodSearchResult; onClick: () => void; onDelete?: () => void; deleteLabel?: string },
+) {
+  const content = (
+    <>
       {item.image_url ? (
         <img src={item.image_url} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-surface-border" />
       ) : (
@@ -60,7 +67,27 @@ function FoodResultRow({ item, onClick }: { item: types.FoodSearchResult; onClic
         </div>
       </div>
       <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
-    </button>
+    </>
+  )
+
+  if (!onDelete) {
+    return (
+      <button
+        onClick={onClick}
+        className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-surface-muted active:bg-surface-muted/80 transition-colors border-b border-surface-border last:border-0 text-left"
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 w-full px-4 hover:bg-surface-muted transition-colors border-b border-surface-border last:border-0">
+      <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
+        {content}
+      </button>
+      <IconButton icon={Trash2} variant="danger" label={deleteLabel ?? 'Delete'} onClick={onDelete} />
+    </div>
   )
 }
 
@@ -89,6 +116,10 @@ export default function LogFood() {
   const [saveToMyFoods, setSaveToMyFoods] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -158,6 +189,26 @@ export default function LogFood() {
       } else {
         setSearchError('Product not found — enter details manually')
       }
+    }
+  }
+
+  // Deliberately not the `.catch(() => {})` this file uses elsewhere. Swallowing a failed
+  // delete leaves the row on screen with no explanation, which reads as the button being
+  // broken — the complaint in #115 was already about a missing affordance, and a silent
+  // one is not an improvement. The row is dropped from local state rather than refetched:
+  // the list is small, and a refetch would blank it on a flaky connection.
+  const handleDeleteSaved = async (id: number) => {
+    if (deletingId !== null) return
+    setDeletingId(id)
+    setDeleteError(null)
+    try {
+      await savedFoodsAPI.delete(id)
+      setSavedFoods(prev => prev.filter(f => f.id !== id))
+      setDeleteConfirmId(null)
+    } catch (err) {
+      setDeleteError(apiErrorMessage(err, 'Failed to remove from My Foods'))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -334,7 +385,41 @@ export default function LogFood() {
                     <p className="text-xs text-tx-muted mt-1 opacity-60">Save foods while logging to find them here</p>
                   </div>
                 )
-                : savedFoods.map(sf => <FoodResultRow key={sf.id} item={savedToResult(sf)} onClick={() => selectResult(savedToResult(sf))} />)
+                : savedFoods.map(sf => (
+                  deleteConfirmId === sf.id ? (
+                    // Replaces the row rather than sitting beside it, matching how Food.tsx
+                    // confirms a log deletion — the row is the thing being acted on, so the
+                    // question belongs in its place.
+                    <div key={sf.id} className="px-4 py-3 flex items-center justify-between gap-3 bg-error-500/5 border-l-2 border-error-500 border-b border-surface-border last:border-b-0">
+                      <p className="text-xs text-tx-secondary flex-1 min-w-0">
+                        Remove <span className="font-medium text-tx-primary">{sf.name}</span> from My Foods?
+                      </p>
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button onClick={() => { setDeleteConfirmId(null); setDeleteError(null) }} className="btn-secondary btn-sm">
+                          Cancel
+                        </button>
+                        <button onClick={() => handleDeleteSaved(sf.id)} disabled={deletingId === sf.id} className="btn-danger-solid btn-sm disabled:opacity-50">
+                          {deletingId === sf.id ? '…' : 'Remove'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <FoodResultRow
+                      key={sf.id}
+                      item={savedToResult(sf)}
+                      onClick={() => selectResult(savedToResult(sf))}
+                      onDelete={() => { setDeleteConfirmId(sf.id); setDeleteError(null) }}
+                      deleteLabel={`Remove ${sf.name} from My Foods`}
+                    />
+                  )
+                ))
+            )}
+
+            {tab === 'myfoods' && deleteError && (
+              <div className="px-4 py-3 flex items-center gap-2 border-t border-surface-border">
+                <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
+                <p className="text-xs text-error-400">{deleteError}</p>
+              </div>
             )}
 
             {tab === 'all' && !query.trim() && (

@@ -10,10 +10,11 @@ import {
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
-  AppText, Button, Card, DateInput, IconButton, Label, NumberField,
+  Alert, AppText, Button, Card, DateInput, IconButton, Label, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl, Toggle,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
+import { FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
@@ -33,43 +34,6 @@ const TAB_OPTIONS = [
 ] as const
 
 // Port of web/pages/LogFood.tsx — the search / detail / scan food-logging flow.
-function FoodResultRow({ item, onPress }: { item: FoodSearchResult; onPress: () => void }) {
-  const { colors } = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
-    >
-      {item.image_url ? (
-        <Image source={{ uri: item.image_url }} className="h-11 w-11 rounded-xl border border-surface-border" />
-      ) : (
-        <View className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
-          <Utensils size={20} color={colors.txMuted} />
-        </View>
-      )}
-      <View className="min-w-0 flex-1">
-        <AppText variant="bodySemibold" numberOfLines={1}>{item.name}</AppText>
-        {item.brand ? <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">{item.brand}</AppText> : null}
-        <View className="mt-1 flex-row flex-wrap items-center gap-x-1.5">
-          <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(item.calories)} kcal</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g P</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g C</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g F</AppText>
-          {item.serving_size ? (<><Dot /><AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{item.serving_size}</AppText></>) : null}
-        </View>
-      </View>
-      <ChevronRight size={16} color={colors.txMuted} />
-    </Pressable>
-  )
-}
-
-function Dot() {
-  return <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>·</AppText>
-}
-
 export default function LogFood() {
   const { colors, brand, accent, isDark } = useTheme()
   const params = useLocalSearchParams<{ meal?: string; date?: string; edit?: string }>()
@@ -94,6 +58,7 @@ export default function LogFood() {
   const [saveToMyFoods, setSaveToMyFoods] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -323,7 +288,26 @@ export default function LogFood() {
                 savedFoods.length === 0 ? (
                   <EmptyBlock icon={Bookmark} title="No saved foods yet" subtitle="Save foods while logging to find them here" />
                 ) : (
-                  savedFoods.map((sf) => <FoodResultRow key={sf.id} item={savedToResult(sf)} onPress={() => selectResult(savedToResult(sf))} />)
+                  <>
+                    {deleteError ? (
+                      <View className="px-4 pt-3">
+                        <Alert variant="error">{deleteError}</Alert>
+                      </View>
+                    ) : null}
+                    {savedFoods.map((sf) => (
+                      <FoodResultRow
+                        key={sf.id}
+                        item={savedToResult(sf)}
+                        onPress={() => selectResult(savedToResult(sf))}
+                        savedFoodId={sf.id}
+                        onDeleted={(id) => {
+                          setDeleteError(null)
+                          setSavedFoods((prev) => prev.filter((f) => f.id !== id))
+                        }}
+                        onDeleteFailed={setDeleteError}
+                      />
+                    ))}
+                  </>
                 )
               ) : null}
 
