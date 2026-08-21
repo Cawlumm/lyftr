@@ -156,13 +156,17 @@ export default function LogFood() {
   // everywhere the same food appears — including the detail view.
   const favoriteOf = (item: types.FoodSearchResult) => findSavedFood(savedFoods, item)
   const favoriteKey = (item: types.FoodSearchResult) => `${item.name}|${item.brand ?? ''}`
-  const isToggling = (item: types.FoodSearchResult) => togglingFavorite === favoriteKey(item)
+  const isToggling = (item: types.FoodSearchResult) => togglingFavorite.has(favoriteKey(item))
 
   // Favouriting is its own action, not a side effect of logging: one click on, one click
   // off, from any row or from the detail view. No confirmation — a second click undoes it.
   const toggleFavorite = async (item: types.FoodSearchResult) => {
-    if (togglingFavorite) return
-    setTogglingFavorite(favoriteKey(item))
+    const key = favoriteKey(item)
+    // Guard this food only. A single global flag dropped clicks on *other* rows while a
+    // request was in flight, so on a slow connection every other star went dead with no
+    // feedback — indistinguishable from a broken button.
+    if (togglingFavorite.has(key)) return
+    setTogglingFavorite(prev => new Set(prev).add(key))
     setFavoriteError(null)
     const existing = favoriteOf(item)
     try {
@@ -176,18 +180,26 @@ export default function LogFood() {
           carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
           serving_size: item.serving_size ?? '',
         })
-        setSavedFoods(prev => [...prev, created])
+        // The server answers 200 with the existing row when the food is already
+        // favourited, so `created` can be something the list already holds — after a
+        // refetch that raced this request, for instance. Appending blind puts two rows
+        // with the same id (and the same React key) in the list.
+        setSavedFoods(prev => prev.some(f => f.id === created.id) ? prev : [...prev, created])
       }
     } catch (err) {
       setFavoriteError(apiErrorMessage(err, existing
         ? `Couldn't remove ${item.name} from Favorites.`
         : `Couldn't add ${item.name} to Favorites.`))
     } finally {
-      setTogglingFavorite(null)
+      setTogglingFavorite(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
     }
   }
 
-  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+  const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)

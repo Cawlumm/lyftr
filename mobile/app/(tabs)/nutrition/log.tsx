@@ -55,7 +55,7 @@ export default function LogFood() {
   const [servingsStr, setServingsStr] = useState('1')
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+  const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [pulling, setPulling] = useState(false)
 
   // Derived from the list rather than tracked, so a star tapped on any tab is reflected
@@ -66,9 +66,12 @@ export default function LogFood() {
   // from any row or from the detail header. No confirmation: a second tap undoes it.
   const toggleFavorite = async (item: FoodSearchResult) => {
     const key = `${item.name}|${item.brand ?? ''}`
-    if (togglingFavorite) return
-    setTogglingFavorite(key)
-    setDeleteError(null)
+    // Guard this food only. A single global flag dropped taps on *other* rows while a
+    // request was in flight, so on a slow connection every other star went dead with no
+    // feedback — indistinguishable from a broken button.
+    if (togglingFavorite.has(key)) return
+    setTogglingFavorite((prev) => new Set(prev).add(key))
+    setFavoriteError(null)
     const existing = favoriteOf(item)
     try {
       if (existing) {
@@ -82,23 +85,31 @@ export default function LogFood() {
           carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
           serving_size: item.serving_size ?? '',
         })
-        setSavedFoods((prev) => [...prev, created])
+        // The server answers 200 with the existing row when the food is already
+        // favourited, so `created` can be something the list already holds — after a
+        // pull-to-refresh that raced this request, for instance. Appending blind puts two
+        // rows with the same id (and the same React key) in the list.
+        setSavedFoods((prev) => prev.some((f) => f.id === created.id) ? prev : [...prev, created])
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       }
     } catch {
-      setDeleteError(existing
+      setFavoriteError(existing
         ? `Couldn't remove ${item.name} from Favorites.`
         : `Couldn't add ${item.name} to Favorites.`)
     } finally {
-      setTogglingFavorite(null)
+      setTogglingFavorite((prev) => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
     }
   }
 
   const isToggling = (item: FoodSearchResult) =>
-    togglingFavorite === `${item.name}|${item.brand ?? ''}`
+    togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [favoriteError, setFavoriteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -308,6 +319,10 @@ export default function LogFood() {
             {/* Tabs */}
             <SegmentedControl options={TAB_OPTIONS} value={tab} onChange={setTab} />
 
+            {/* Above the tab content, not inside one branch: the star is on every tab, so
+                a failure starring a search result has to be visible on the search tab. */}
+            {favoriteError ? <Alert variant="error">{favoriteError}</Alert> : null}
+
             {rateLimited ? (
               <View className="flex-row items-center gap-2 rounded-xl border border-warning-500/20 bg-warning-500/10 px-3.5 py-3">
                 <AlertCircle size={16} color={isDark ? brand.warningSoft : brand.warning} />
@@ -361,11 +376,6 @@ export default function LogFood() {
                   <EmptyBlock icon={Star} title="No favorites yet" subtitle="Star foods while logging to find them here" />
                 ) : (
                   <>
-                    {deleteError ? (
-                      <View className="px-4 pt-3">
-                        <Alert variant="error">{deleteError}</Alert>
-                      </View>
-                    ) : null}
                     {savedFoods.map((sf) => (
                       <FoodResultRow
                         key={sf.id}

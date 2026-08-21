@@ -148,9 +148,10 @@ func alterMigrations() {
 	// Order matters. ensureIndex is log.Fatal on failure, and CREATE UNIQUE INDEX fails
 	// against any database that already holds duplicates, so a straight index here would
 	// refuse to boot exactly the installs that have the bug.
-	dedupeSavedFoods()
-	ensureIndex("idx_saved_foods_unique",
-		`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
+	if dedupeSavedFoods() {
+		ensureIndex("idx_saved_foods_unique",
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
+	}
 }
 
 // dedupeSavedFoods collapses duplicate bookmarks so the unique index below can be
@@ -163,10 +164,16 @@ func alterMigrations() {
 // different search hits for the same product. Neither is more authoritative, both
 // render identically in the list, and either one logs the same way. Keeping the
 // earliest is arbitrary but stable, and the row is one tap to recreate.
-func dedupeSavedFoods() {
+// Reports whether saved_foods is known to be free of duplicates, i.e. whether the unique
+// index may safely be created. False means "not now" — never a reason to fail the boot.
+func dedupeSavedFoods() bool {
 	done, err := hasMigrationFlag("dedupe_saved_foods")
-	if err != nil || done {
-		return
+	if err != nil {
+		log.Printf("migrations: dedupe saved_foods flag: %v (skipping the unique index this boot)", err)
+		return false
+	}
+	if done {
+		return true
 	}
 	res, err := DB.Exec(`
 		DELETE FROM saved_foods
@@ -174,16 +181,20 @@ func dedupeSavedFoods() {
 			SELECT MIN(id) FROM saved_foods GROUP BY user_id, name, brand
 		)`)
 	if err != nil {
-		// Leave the flag unset so the next boot retries. Returning here means the
-		// ensureIndex that follows will Fatal, which is the correct loud failure: the
-		// alternative is booting with duplicates that the app now assumes cannot exist.
-		log.Printf("migrations: dedupe saved_foods: %v", err)
-		return
+		// Leave the flag unset so the next boot retries, and tell the caller not to
+		// create the index — CREATE UNIQUE INDEX would fail against the duplicates still
+		// there, and ensureIndex is log.Fatal, so a transient error on this one DELETE
+		// would stop the server starting. Running without the index is the far smaller
+		// problem: the clients still check before saving and CreateSaved still resolves a
+		// conflict, so the worst case is the duplicate this migration exists to remove.
+		log.Printf("migrations: dedupe saved_foods: %v (skipping the unique index this boot)", err)
+		return false
 	}
 	if n, _ := res.RowsAffected(); n > 0 {
 		log.Printf("migration: removed %d duplicate saved_foods row(s)", n)
 	}
 	setMigrationFlag("dedupe_saved_foods")
+	return true
 }
 
 // normalizeExerciseTaxonomy rewrites the eight taxonomy values Lyftr inherited
