@@ -337,7 +337,7 @@ test.describe('Food', () => {
 
   test('Favorites tab shows seeded saved food', async ({ page }) => {
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'Favorites' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
   })
 
@@ -359,7 +359,7 @@ test.describe('Food', () => {
     await expect(page.getByRole('button', { name: `Remove ${savedName} from Favorites` })).toBeVisible({ timeout: 5000 })
 
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'Favorites' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(savedName)).toBeVisible({ timeout: 8000 })
 
     // And it was never logged — the diary has no entry for it.
@@ -379,7 +379,7 @@ test.describe('Food', () => {
     expect(created.ok()).toBeTruthy()
 
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'Favorites' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
 
     // One click, no confirmation sheet in between.
@@ -390,13 +390,13 @@ test.describe('Food', () => {
     // The row vanishing only proves local state was filtered. Reload to prove the
     // DELETE actually reached the server.
     await page.reload()
-    await page.getByRole('button', { name: 'Favorites' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
   })
 
   test('selecting from Favorites goes to detail phase', async ({ page }) => {
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'Favorites' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
     await page.getByText(`${SEED_PREFIX}-saved`).first().click()
 
