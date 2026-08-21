@@ -10,6 +10,10 @@ const today = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.ge
 // Local noon → UTC ISO, same anchor as dayToIsoNoon() in the app.
 const todayNoon = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0, 0).toISOString()
 
+// The two fields the cleanup below needs off a food log or saved food. Narrower than
+// the real types on purpose: this is a delete-by-name sweep, not a model.
+type SeedRow = { id: number; name: string }
+
 let authToken: string
 let seedFoodIds: number[] = []
 let seedSavedIds: number[] = []
@@ -64,7 +68,7 @@ test.describe('Food', () => {
     // Clean up any UI-created entries
     const list = await request.get(`${API}/food?date=${today}`, { headers: h })
     const lb = await list.json()
-    const toDelete = (lb.data ?? []).filter((e: any) =>
+    const toDelete = (lb.data ?? []).filter((e: SeedRow) =>
       e.name.startsWith('E2ELog-') || e.name.startsWith('E2ESave-') || e.name.startsWith('E2EEdit-')
     )
     for (const e of toDelete) {
@@ -74,7 +78,7 @@ test.describe('Food', () => {
     // Clean up saved foods created via UI
     const sfList = await request.get(`${API}/food/saved`, { headers: h })
     const sfb = await sfList.json()
-    const sfToDelete = (sfb.data ?? []).filter((s: any) => s.name.startsWith('E2ESave-'))
+    const sfToDelete = (sfb.data ?? []).filter((s: SeedRow) => s.name.startsWith('E2ESave-'))
     for (const s of sfToDelete) {
       await request.delete(`${API}/food/saved/${s.id}`, { headers: h })
     }

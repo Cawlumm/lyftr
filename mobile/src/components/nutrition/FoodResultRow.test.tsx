@@ -1,19 +1,21 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { FoodSearchResult } from '@lyftr/shared'
+// The `mock` prefix is what lets a jest.mock factory close over an import — the rule is
+// jest's, and it means the async-storage mock needs no require() inside the factory.
+import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
+import { FoodResultRow } from './FoodResultRow'
 
 // Same preamble as the programs component tests: expo-router can't load under bare jest,
-// and the ui barrel reaches it via useTheme → lib/lyftr.
+// and the ui barrel reaches it via useTheme → lib/lyftr. These sit below the imports
+// because babel-jest hoists jest.mock above them anyway — writing them first was a
+// convention, not a requirement, and it cost an import/first warning per file.
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
 }))
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
-)
+jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
-
-import { FoodResultRow } from './FoodResultRow'
 
 const item = (overrides: Partial<FoodSearchResult> = {}): FoodSearchResult => ({
   name: 'Chicken Breast',
