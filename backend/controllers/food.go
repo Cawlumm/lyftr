@@ -495,6 +495,14 @@ func (h *Handler) CreateSavedFood(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	// Surrounding whitespace is not a distinguishing feature of a food:
+	// "Oats" and "Oats " are the same favourite, and storing both leaves the
+	// user with two rows that render identically and cannot be told apart.
+	// Trimming happens before validation, not after, for two reasons: a lone
+	// space passes `required` (it is not an empty string) but is not a name,
+	// and the length limits below should measure the value that gets stored.
+	req.Name = strings.TrimSpace(req.Name)
+	req.Brand = strings.TrimSpace(req.Brand)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return
