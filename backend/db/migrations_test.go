@@ -629,3 +629,117 @@ func TestNormalizeExerciseTaxonomy_RunsOnce(t *testing.T) {
 		t.Errorf("equipment = %q, want the migration to have skipped its second run", equipment)
 	}
 }
+
+// The unique index added for #115 is created with ensureIndex, which is log.Fatal on
+// failure — so on any database that already holds duplicate bookmarks, getting the
+// dedupe order wrong does not produce a bad row, it stops the server booting. That is
+// precisely the set of installs that have the bug, which makes this the migration worth
+// pinning rather than trusting.
+func TestDedupeSavedFoods_collapsesDuplicatesAndIndexes(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	var uid, other int64
+	for _, u := range []struct {
+		email string
+		into  *int64
+	}{{"dupes@example.com", &uid}, {"other@example.com", &other}} {
+		res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, 'x')`, u.email)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		*u.into, _ = res.LastInsertId()
+	}
+
+	// The state from the issue: the same bookmark pressed twice, plus rows that only
+	// look similar — a different brand, and another user's identical bookmark.
+	rows := []struct {
+		uid   int64
+		name  string
+		brand string
+		kcal  float64
+	}{
+		{uid, "Chicken Breast", "Tesco", 165},
+		{uid, "Chicken Breast", "Tesco", 170}, // duplicate, differing macros
+		{uid, "Chicken Breast", "Tesco", 165}, // duplicate again
+		{uid, "Chicken Breast", "Sainsbury's", 168},
+		{uid, "Rolled Oats", "Quaker", 389},
+		{other, "Chicken Breast", "Tesco", 165},
+	}
+	for _, r := range rows {
+		if _, err := DB.Exec(
+			`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, ?, ?, ?)`,
+			r.uid, r.name, r.brand, r.kcal,
+		); err != nil {
+			t.Fatalf("seed saved_food: %v", err)
+		}
+	}
+
+	alterMigrations()
+
+	var n int
+	if err := DB.QueryRow(
+		`SELECT COUNT(*) FROM saved_foods WHERE user_id = ? AND name = 'Chicken Breast' AND brand = 'Tesco'`, uid,
+	).Scan(&n); err != nil {
+		t.Fatalf("count duplicates: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected the duplicates collapsed to 1 row, got %d", n)
+	}
+
+	// Earliest row wins, so the surviving macros are the first save's.
+	var kcal float64
+	DB.QueryRow(
+		`SELECT calories FROM saved_foods WHERE user_id = ? AND name = 'Chicken Breast' AND brand = 'Tesco'`, uid,
+	).Scan(&kcal)
+	if kcal != 165 {
+		t.Errorf("kept calories %v, want the first save's 165", kcal)
+	}
+
+	// The look-alikes are untouched: a different brand is a different product, and
+	// uniqueness is per user.
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n); err != nil {
+		t.Fatalf("count user rows: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("expected 3 rows left for the user (Tesco, Sainsbury's, Oats), got %d", n)
+	}
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, other).Scan(&n); err != nil {
+		t.Fatalf("count other user rows: %v", err)
+	}
+	if n != 1 {
+		t.Errorf("other user's bookmark was collapsed too: %d rows", n)
+	}
+
+	// And the index now actually forbids what the migration just cleaned up.
+	if _, err := DB.Exec(
+		`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, 'Rolled Oats', 'Quaker', 389)`, uid,
+	); err == nil {
+		t.Fatal("a duplicate bookmark was still insertable after the migration")
+	}
+}
+
+// alterMigrations runs on every boot; the dedupe must not fight the index on the second
+// pass, and must not touch rows that are legitimately there.
+func TestDedupeSavedFoods_isIdempotentAcrossBoots(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('boot@example.com', 'x')`)
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	uid, _ := res.LastInsertId()
+	if _, err := DB.Exec(
+		`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, 'Oats', 'Quaker', 389)`, uid,
+	); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	alterMigrations()
+	alterMigrations()
+
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n)
+	if n != 1 {
+		t.Fatalf("expected the single bookmark to survive two boots, got %d rows", n)
+	}
+}

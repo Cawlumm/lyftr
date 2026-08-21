@@ -133,6 +133,7 @@ type FoodLog struct {
 	ID          int64     `json:"id" db:"id"`
 	UserID      int64     `json:"user_id" db:"user_id"`
 	Name        string    `json:"name" db:"name"`
+	Brand       string    `json:"brand" db:"brand"`
 	Meal        string    `json:"meal" db:"meal"` // "breakfast", "lunch", "dinner", "snacks"
 	Calories    float64   `json:"calories" db:"calories"`
 	Protein     float64   `json:"protein" db:"protein"`
@@ -289,6 +290,7 @@ type LogWeightRequest struct {
 
 type LogFoodRequest struct {
 	Name        string    `json:"name" validate:"required"`
+	Brand       string    `json:"brand"`
 	Meal        string    `json:"meal" validate:"required,oneof=breakfast lunch dinner snacks"`
 	Calories    float64   `json:"calories" validate:"gte=0"`
 	Protein     float64   `json:"protein" validate:"gte=0"`

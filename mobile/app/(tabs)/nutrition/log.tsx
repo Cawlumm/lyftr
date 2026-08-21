@@ -1,25 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
-import { Image, Pressable, ScrollView, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
-  AlertCircle, ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Minus, Plus, Scan, Utensils, Zap,
+  AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
 } from 'lucide-react-native'
 import {
   dayToInstant, entryDay, todayStr,
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
-  AppText, Button, Card, DateInput, IconButton, Label, NumberField,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl, Toggle,
+  Alert, AppText, Button, Card, DateInput, IconButton, Label, NumberField,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
+import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { entryToResult, savedToResult, scaleServing } from '@lyftr/shared'
+import { entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -28,48 +29,11 @@ const hSelect = () => Haptics.selectionAsync().catch(() => {})
 
 const TAB_OPTIONS = [
   { value: 'recent', label: 'Recent' },
-  { value: 'myfoods', label: 'My Foods' },
+  { value: 'myfoods', label: 'Favorites' },
   { value: 'all', label: 'Search' },
 ] as const
 
 // Port of web/pages/LogFood.tsx — the search / detail / scan food-logging flow.
-function FoodResultRow({ item, onPress }: { item: FoodSearchResult; onPress: () => void }) {
-  const { colors } = useTheme()
-  return (
-    <Pressable
-      onPress={onPress}
-      className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
-    >
-      {item.image_url ? (
-        <Image source={{ uri: item.image_url }} className="h-11 w-11 rounded-xl border border-surface-border" />
-      ) : (
-        <View className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
-          <Utensils size={20} color={colors.txMuted} />
-        </View>
-      )}
-      <View className="min-w-0 flex-1">
-        <AppText variant="bodySemibold" numberOfLines={1}>{item.name}</AppText>
-        {item.brand ? <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">{item.brand}</AppText> : null}
-        <View className="mt-1 flex-row flex-wrap items-center gap-x-1.5">
-          <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(item.calories)} kcal</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g P</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g C</AppText>
-          <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g F</AppText>
-          {item.serving_size ? (<><Dot /><AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{item.serving_size}</AppText></>) : null}
-        </View>
-      </View>
-      <ChevronRight size={16} color={colors.txMuted} />
-    </Pressable>
-  )
-}
-
-function Dot() {
-  return <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>·</AppText>
-}
-
 export default function LogFood() {
   const { colors, brand, accent, isDark } = useTheme()
   const params = useLocalSearchParams<{ meal?: string; date?: string; edit?: string }>()
@@ -91,9 +55,79 @@ export default function LogFood() {
   const [servingsStr, setServingsStr] = useState('1')
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [saveToMyFoods, setSaveToMyFoods] = useState(false)
+  const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
+  const [pulling, setPulling] = useState(false)
+
+  // Derived from the list rather than tracked, so a star tapped on any tab is reflected
+  // everywhere the same food appears — including the detail screen.
+  const favoriteOf = (item: FoodSearchResult) => findSavedFood(savedFoods, item)
+
+  // Bumped by every star/unstar. A list load captures it and discards its own result if
+  // a toggle landed while it was in flight — otherwise a pull-to-refresh issued just
+  // before a DELETE resolves comes back holding the row and puts the unstarred food back
+  // on screen, and the next tap deletes an id the server no longer has.
+  const listEpoch = useRef(0)
+
+  // Favouriting is its own action, not a side effect of logging. One tap on, one tap off,
+  // from any row or from the detail header. No confirmation: a second tap undoes it.
+  // The guard is a ref, not the state below. setState does not apply within the tick it
+  // is called in, so a burst of taps in one frame all read the same empty set and all
+  // fire — five rapid clicks sent one DELETE that worked and four that 404'd, then showed
+  // "Couldn't remove …" for an unstar that had actually succeeded. The state exists only
+  // to dim the star; the ref is what decides.
+  const inFlightFavorites = useRef<Set<string>>(new Set())
+
+  const toggleFavorite = async (item: FoodSearchResult) => {
+    const key = `${item.name}|${item.brand ?? ''}`
+    // Guard this food only. A single global flag dropped taps on *other* rows while a
+    // request was in flight, so on a slow connection every other star went dead with no
+    // feedback — indistinguishable from a broken button.
+    if (inFlightFavorites.current.has(key)) return
+    inFlightFavorites.current.add(key)
+    setTogglingFavorite(new Set(inFlightFavorites.current))
+    setFavoriteError(null)
+    listEpoch.current += 1
+    const existing = favoriteOf(item)
+    try {
+      if (existing) {
+        await client.savedFoodsAPI.delete(existing.id)
+        setSavedFoods((prev) => prev.filter((f) => f.id !== existing.id))
+        Haptics.selectionAsync().catch(() => {})
+      } else {
+        const created = await client.savedFoodsAPI.create({
+          name: item.name, brand: item.brand ?? '',
+          calories: item.calories, protein: item.protein,
+          carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
+          serving_size: item.serving_size ?? '',
+        })
+        // The server answers 200 with the existing row when the food is already
+        // favourited, so `created` can be something the list already holds — after a
+        // pull-to-refresh that raced this request, for instance. Appending blind puts two
+        // rows with the same id (and the same React key) in the list.
+        // Inserted in name order rather than appended: ListSaved returns ORDER BY name,
+        // so appending parks a new favourite at the bottom until the next load and then
+        // jumps it. Plain < to match SQLite's BINARY collation rather than localeCompare,
+        // which would order differently from the server it is imitating.
+        setSavedFoods((prev) => prev.some((f) => f.id === created.id)
+          ? prev
+          : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+      }
+    } catch {
+      setFavoriteError(existing
+        ? `Couldn't remove ${item.name} from Favorites.`
+        : `Couldn't add ${item.name} to Favorites.`)
+    } finally {
+      inFlightFavorites.current.delete(key)
+      setTogglingFavorite(new Set(inFlightFavorites.current))
+    }
+  }
+
+  const isToggling = (item: FoodSearchResult) =>
+    togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [favoriteError, setFavoriteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -113,23 +147,40 @@ export default function LogFood() {
     }).catch(() => router.replace('/nutrition'))
   }, [editId])
 
-  // Recent (today, deduped ≤10) + saved foods.
-  useEffect(() => {
-    client.foodAPI.list(todayStr()).then((logs) => {
-      const seen = new Set<string>()
-      const items: FoodSearchResult[] = []
-      for (const log of logs || []) {
-        const key = log.name.toLowerCase()
-        if (!seen.has(key)) {
-          seen.add(key)
-          items.push(entryToResult(log))
-          if (items.length >= 10) break
+  // Recent (today, deduped ≤10) + favourites.
+  const loadLists = useCallback(async () => {
+    const epoch = listEpoch.current
+    const apply = <T,>(set: (v: T) => void) => (v: T) => {
+      if (listEpoch.current === epoch) set(v)
+    }
+    await Promise.all([
+      client.foodAPI.list(todayStr()).then((logs) => {
+        const seen = new Set<string>()
+        const items: FoodSearchResult[] = []
+        for (const log of logs || []) {
+          const key = log.name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            items.push(entryToResult(log))
+            if (items.length >= 10) break
+          }
         }
-      }
-      setRecentItems(items)
-    }).catch(() => {})
-    client.savedFoodsAPI.list().then(setSavedFoods).catch(() => {})
+        apply(setRecentItems)(items)
+      }).catch(() => {}),
+      client.savedFoodsAPI.list().then(apply(setSavedFoods)).catch(() => {}),
+    ])
   }, [])
+
+  useEffect(() => { loadLists() }, [loadLists])
+
+  // Pull-to-refresh, matching the five list screens that already have it. Worth having
+  // here because both lists go stale from elsewhere: logging on another device changes
+  // Recent, and favouriting on web changes Favorites.
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await loadLists()
+    setPulling(false)
+  }, [loadLists])
 
   // Debounced remote search (only on the Search tab).
   useEffect(() => {
@@ -193,14 +244,6 @@ export default function LogFood() {
         await client.foodAPI.update(editId, payload)
       } else {
         await client.foodAPI.log(payload)
-        if (saveToMyFoods) {
-          await client.savedFoodsAPI.create({
-            name: selected.name, brand: selected.brand ?? '',
-            calories: selected.calories, protein: selected.protein,
-            carbs: selected.carbs, fat: selected.fat, fiber: selected.fiber ?? 0,
-            serving_size: selected.serving_size ?? '',
-          }).catch(() => {})
-        }
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
@@ -250,11 +293,39 @@ export default function LogFood() {
             <AppText variant="title">Log Food</AppText>
           )}
         </View>
+        {/* Favouriting is decoupled from logging, so the star lives beside the food
+            rather than inside the form — you can star something without logging it,
+            and unstar it the same way. Hidden in edit mode, where `selected` is a
+            logged entry being amended rather than a food being picked. */}
+        {phase === 'detail' && selected && !editId && selected.name ? (
+          <FavoriteStar
+            size="md"
+            favorited={favoriteOf(selected) !== undefined}
+            busy={isToggling(selected)}
+            name={selected.name}
+            onPress={() => toggleFavorite(selected)}
+          />
+        ) : null}
       </View>
+
+      {/* Outside both phases on purpose: the star is on the rows *and* in the header
+          above, so a failure has to be visible whichever one the user pressed. Sitting
+          inside the search phase meant a failed star on the detail screen said nothing
+          at all and simply snapped back to unfilled. */}
+      {favoriteError ? (
+        <View className="pb-3">
+          <Alert variant="error">{favoriteError}</Alert>
+        </View>
+      ) : null}
 
       {/* ── Search phase ── */}
       {phase === 'search' ? (
-        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
+        >
           <View className="gap-4">
             {/* Search + scan */}
             <View className="flex-row items-center gap-2">
@@ -280,6 +351,8 @@ export default function LogFood() {
             {/* Tabs */}
             <SegmentedControl options={TAB_OPTIONS} value={tab} onChange={setTab} />
 
+            {/* Above the tab content, not inside one branch: the star is on every tab, so
+                a failure starring a search result has to be visible on the search tab. */}
             {rateLimited ? (
               <View className="flex-row items-center gap-2 rounded-xl border border-warning-500/20 bg-warning-500/10 px-3.5 py-3">
                 <AlertCircle size={16} color={isDark ? brand.warningSoft : brand.warning} />
@@ -315,15 +388,35 @@ export default function LogFood() {
                 recentItems.length === 0 ? (
                   <EmptyBlock icon={Utensils} title="No recent items today" subtitle="Search or scan to log food" />
                 ) : (
-                  recentItems.map((item, i) => <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />)
+                  recentItems.map((item, i) => (
+                    <FoodResultRow
+                      key={`${item.name}-${item.calories}-${i}`}
+                      item={item}
+                      onPress={() => selectResult(item)}
+                          favorited={favoriteOf(item) !== undefined}
+                          onToggleFavorite={() => toggleFavorite(item)}
+                          togglingFavorite={isToggling(item)}
+                    />
+                  ))
                 )
               ) : null}
 
               {tab === 'myfoods' ? (
                 savedFoods.length === 0 ? (
-                  <EmptyBlock icon={Bookmark} title="No saved foods yet" subtitle="Save foods while logging to find them here" />
+                  <EmptyBlock icon={Star} title="No favorites yet" subtitle="Star foods while logging to find them here" />
                 ) : (
-                  savedFoods.map((sf) => <FoodResultRow key={sf.id} item={savedToResult(sf)} onPress={() => selectResult(savedToResult(sf))} />)
+                  <>
+                    {savedFoods.map((sf) => (
+                      <FoodResultRow
+                        key={sf.id}
+                        item={savedToResult(sf)}
+                        onPress={() => selectResult(savedToResult(sf))}
+                        favorited
+                        onToggleFavorite={() => toggleFavorite(savedToResult(sf))}
+                        togglingFavorite={isToggling(savedToResult(sf))}
+                      />
+                    ))}
+                  </>
                 )
               ) : null}
 
@@ -345,7 +438,14 @@ export default function LogFood() {
                 </View>
               ) : null}
               {tab === 'all' && !searching ? searchResults.map((item, i) => (
-                <FoodResultRow key={`${item.name}-${item.calories}-${i}`} item={item} onPress={() => selectResult(item)} />
+                <FoodResultRow
+                  key={`${item.name}-${item.calories}-${i}`}
+                  item={item}
+                  onPress={() => selectResult(item)}
+                  favorited={favoriteOf(item) !== undefined}
+                  onToggleFavorite={() => toggleFavorite(item)}
+                  togglingFavorite={isToggling(item)}
+                />
               )) : null}
             </Card>
           </View>
@@ -475,20 +575,6 @@ export default function LogFood() {
                 <DateInput label="When" value={date} onChange={setDate} maximumDate={new Date()} />
               </Card>
 
-              {/* Save to My Foods — hidden in edit mode */}
-              {!editId ? (
-                <Pressable onPress={() => setSaveToMyFoods((v) => !v)} className="flex-row items-center gap-3">
-                  <Card className="flex-1 flex-row items-center gap-3">
-                    <View pointerEvents="none">
-                      <Toggle value={saveToMyFoods} onValueChange={setSaveToMyFoods} />
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                      {saveToMyFoods ? <BookmarkCheck size={16} color={accent} /> : <Bookmark size={16} color={colors.txMuted} />}
-                      <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Save to My Foods</AppText>
-                    </View>
-                  </Card>
-                </Pressable>
-              ) : null}
             </View>
           </ScrollView>
 
