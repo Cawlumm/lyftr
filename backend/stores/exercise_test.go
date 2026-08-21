@@ -248,12 +248,26 @@ func TestClearUnreferenced_KeepsReferencedRows(t *testing.T) {
 // Refresh applies upstream edits to rows already held, and must not import rows
 // the instance has never seen — that is the line between refreshing a cache and
 // seeding a library.
+//
+// It now asks for the rows by id rather than pulling the export and filtering,
+// so this asserts on the request as well as the result: fetching the whole
+// catalog to update two rows is the cost this replaced.
 func TestRefreshCached_UpdatesHeldRowsWithoutImporting(t *testing.T) {
+	var paths []string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"exercises":[
-			{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}},
-			{"id":"uuid-2","slug":"new","muscle_group":"back","translation":{"name":"Never Seen","instructions":[]}}
-		],"total":2}`)
+		paths = append(paths, r.URL.Path)
+		ids := r.URL.Query().Get("ids")
+		if ids == "" {
+			t.Errorf("refresh fetched %s without naming ids", r.URL)
+		}
+		// Answer only what was asked for, the way the real endpoint does.
+		var items []string
+		for _, id := range strings.Split(ids, ",") {
+			if id == "uuid-1" {
+				items = append(items, `{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}}`)
+			}
+		}
+		fmt.Fprintf(w, `{"exercises":[%s],"total":%d,"page":1,"per_page":100}`, strings.Join(items, ","), len(items))
 	}))
 	defer srv.Close()
 
@@ -273,6 +287,12 @@ func TestRefreshCached_UpdatesHeldRowsWithoutImporting(t *testing.T) {
 		t.Errorf("refreshed %d, want 1", n)
 	}
 
+	for _, p := range paths {
+		if strings.Contains(p, "export") {
+			t.Errorf("refresh pulled the export (%s); it should ask for the ids it holds", p)
+		}
+	}
+
 	var total int
 	conn.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&total)
 	if total != 1 {
@@ -282,6 +302,24 @@ func TestRefreshCached_UpdatesHeldRowsWithoutImporting(t *testing.T) {
 	conn.QueryRow(`SELECT name FROM exercises WHERE oedb_id = 'uuid-1'`).Scan(&name)
 	if name != "Held Renamed" {
 		t.Errorf("name = %q, want the upstream edit applied", name)
+	}
+}
+
+// An instance with nothing cached has nothing to refresh, and must not reach for
+// the catalog to discover that.
+func TestRefreshCached_EmptyCacheMakesNoRequest(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request with an empty cache: %s", r.URL)
+	}))
+	defer srv.Close()
+
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+
+	n, err := s.RefreshCached(context.Background())
+	if err != nil || n != 0 {
+		t.Fatalf("got %d, %v; want 0 and no error", n, err)
 	}
 }
 

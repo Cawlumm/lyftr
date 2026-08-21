@@ -61,13 +61,15 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
     }
   }, [])
 
-  useEffect(() => { load('', 1) }, [load])
-
+  // One effect, not two. An initial load plus a debounced query effect both fire
+  // on mount, so opening the picker fetched page 1 twice — the debounce only
+  // staggered them. Debouncing the empty query by zero gives the first page
+  // immediately and still waits out typing.
   useEffect(() => {
     const t = setTimeout(() => {
       setExhausted(false)
       load(query, 1)
-    }, 250)
+    }, query ? 250 : 0)
     return () => clearTimeout(t)
   }, [query, load])
 

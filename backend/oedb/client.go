@@ -446,3 +446,48 @@ func (c *Client) Export(ctx context.Context) ([]Exercise, error) {
 	}
 	return out.Exercises, nil
 }
+
+// maxIDsPerRequest is oedb's documented cap for the ids filter. Exceeding it is
+// a 422, not a truncation, so the batching below has to respect it rather than
+// discover it.
+const maxIDsPerRequest = 100
+
+// ListByIDs fetches specific exercises by their oedb UUIDs.
+//
+// This is what refreshing a cache should cost: a request proportional to what is
+// held, rather than the full catalog export filtered down afterwards. Until oedb
+// grew this filter the export was the only route, which meant ~300 KB to
+// re-read a handful of rows.
+//
+// Requests are issued one batch at a time rather than concurrently. The batches
+// are few, each response is cached upstream, and a burst of parallel requests is
+// exactly the shape that trips a rate limiter for no gain in wall-clock worth
+// having.
+func (c *Client) ListByIDs(ctx context.Context, ids []string) ([]Exercise, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	out := make([]Exercise, 0, len(ids))
+	for start := 0; start < len(ids); start += maxIDsPerRequest {
+		end := start + maxIDsPerRequest
+		if end > len(ids) {
+			end = len(ids)
+		}
+
+		// per_page must cover the batch, or the response is paginated and the
+		// tail of the batch is silently missing — the failure would look like
+		// "some rows just never refresh".
+		batch := ids[start:end]
+		q := url.Values{}
+		q.Set("ids", strings.Join(batch, ","))
+		q.Set("per_page", strconv.Itoa(len(batch)))
+
+		var res ListResult
+		if err := c.getJSON(ctx, "/api/v1/exercises?"+q.Encode(), &res); err != nil {
+			return nil, err
+		}
+		out = append(out, res.Exercises...)
+	}
+	return out, nil
+}

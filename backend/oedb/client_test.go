@@ -345,3 +345,76 @@ func TestRetryAfter(t *testing.T) {
 		t.Errorf("retryAfter(\"2\") = %v, %v", d, ok)
 	}
 }
+
+// oedb rejects more than 100 ids per request outright, so the batching has to
+// respect that boundary rather than discover it. Getting this wrong loses the
+// tail of a refresh silently — rows that simply never update.
+func TestListByIDs_BatchesAtTheCap(t *testing.T) {
+	var requests []struct {
+		ids     []string
+		perPage string
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("ids") == "" {
+			t.Errorf("request without ids: %s", r.URL)
+		}
+		ids := strings.Split(q.Get("ids"), ",")
+		if len(ids) > 100 {
+			// Mirror oedb: over the cap is a rejection, not a truncation.
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+		requests = append(requests, struct {
+			ids     []string
+			perPage string
+		}{ids, q.Get("per_page")})
+
+		items := make([]string, 0, len(ids))
+		for _, id := range ids {
+			items = append(items, fmt.Sprintf(
+				`{"id":%q,"slug":"ex","translation":{"name":"Exercise %s","instructions":[]}}`, id, id))
+		}
+		fmt.Fprintf(w, `{"exercises":[%s],"total":%d,"page":1,"per_page":%d}`,
+			strings.Join(items, ","), len(items), len(items))
+	}))
+	defer srv.Close()
+
+	ids := make([]string, 250)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("uuid-%03d", i)
+	}
+
+	got, err := New(srv.URL, "test").ListByIDs(context.Background(), ids)
+	if err != nil {
+		t.Fatalf("list by ids: %v", err)
+	}
+	if len(got) != 250 {
+		t.Fatalf("got %d exercises, want 250 — a batch was lost", len(got))
+	}
+	if len(requests) != 3 {
+		t.Fatalf("made %d requests, want 3 batches of at most 100", len(requests))
+	}
+	for i, req := range requests {
+		if len(req.ids) > 100 {
+			t.Errorf("batch %d had %d ids, over the cap", i, len(req.ids))
+		}
+		// per_page must cover the batch or the response is paginated and the
+		// tail goes missing without an error.
+		if req.perPage != fmt.Sprint(len(req.ids)) {
+			t.Errorf("batch %d: per_page=%s for %d ids", i, req.perPage, len(req.ids))
+		}
+	}
+}
+
+func TestListByIDs_EmptyMakesNoRequest(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unexpected request for an empty id set: %s", r.URL)
+	}))
+	defer srv.Close()
+
+	got, err := New(srv.URL, "test").ListByIDs(context.Background(), nil)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("got %v, %v; want no rows and no error", got, err)
+	}
+}
