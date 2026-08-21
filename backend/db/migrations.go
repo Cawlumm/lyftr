@@ -139,27 +139,25 @@ func alterMigrations() {
 
 	normalizeExerciseTaxonomy()
 
-	// My Foods is a favourites list: the only thing that writes to it is the bookmark
-	// toggle on the log screen, and that toggle deliberately saves the *unscaled* food
-	// (the servings stepper scales at log time instead). So two rows with the same
-	// user/name/brand carry no information the first one didn't — they are the same
-	// bookmark pressed twice.
+	// Favorites is a bookmark list: starring a food saves it *unscaled* — the servings
+	// stepper scales at log time instead — so two rows with the same user/name/brand
+	// carry no information the first one didn't. They are the same star pressed twice.
 	//
-	// Order matters. ensureIndex is log.Fatal on failure, and CREATE UNIQUE INDEX fails
-	// against any database that already holds duplicates, so a straight index here would
-	// refuse to boot exactly the installs that have the bug.
+	// Both the order and the condition matter. ensureIndex is log.Fatal on failure and
+	// CREATE UNIQUE INDEX fails against a table that still holds duplicates, so creating
+	// it unconditionally would refuse to boot exactly the installs that have the bug.
 	if dedupeSavedFoods() {
 		ensureIndex("idx_saved_foods_unique",
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
 	}
 }
 
-// dedupeSavedFoods collapses duplicate bookmarks so the unique index below can be
+// dedupeSavedFoods collapses duplicate stars so the unique index above can be
 // created. Keeps the lowest id in each (user_id, name, brand) group — the one saved
 // first.
 //
 // Deleting rows in a migration deserves an argument. Nothing can edit a saved food
-// (there is no PATCH), and the bookmark copies whichever search result was on screen,
+// (there is no PATCH), and starring copies whichever search result was on screen,
 // so two rows sharing a user, name and brand differ at most in macros sourced from two
 // different search hits for the same product. Neither is more authoritative, both
 // render identically in the list, and either one logs the same way. Keeping the
