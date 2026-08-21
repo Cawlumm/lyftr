@@ -20,7 +20,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { entryToResult, savedToResult, scaleServing } from '@lyftr/shared'
+import { entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -56,6 +56,10 @@ export default function LogFood() {
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
   const [saveToMyFoods, setSaveToMyFoods] = useState(false)
+
+  // Whether the food on screen is already bookmarked. Derived from the list rather than
+  // tracked, so removing it on the My Foods tab immediately re-offers the toggle.
+  const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -158,7 +162,7 @@ export default function LogFood() {
         await client.foodAPI.update(editId, payload)
       } else {
         await client.foodAPI.log(payload)
-        if (saveToMyFoods) {
+        if (saveToMyFoods && !alreadySaved) {
           await client.savedFoodsAPI.create({
             name: selected.name, brand: selected.brand ?? '',
             calories: selected.calories, protein: selected.protein,
@@ -459,19 +463,28 @@ export default function LogFood() {
                 <DateInput label="When" value={date} onChange={setDate} maximumDate={new Date()} />
               </Card>
 
-              {/* Save to My Foods — hidden in edit mode */}
+              {/* Save to My Foods — hidden in edit mode. Already-saved is a state, not
+                  a toggle: the bookmark stores the unscaled food, so saving it again
+                  could only produce the identical row reported in #115. */}
               {!editId ? (
-                <Pressable onPress={() => setSaveToMyFoods((v) => !v)} className="flex-row items-center gap-3">
-                  <Card className="flex-1 flex-row items-center gap-3">
-                    <View pointerEvents="none">
-                      <Toggle value={saveToMyFoods} onValueChange={setSaveToMyFoods} />
-                    </View>
-                    <View className="flex-row items-center gap-2">
-                      {saveToMyFoods ? <BookmarkCheck size={16} color={accent} /> : <Bookmark size={16} color={colors.txMuted} />}
-                      <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Save to My Foods</AppText>
-                    </View>
+                alreadySaved ? (
+                  <Card className="flex-row items-center gap-2">
+                    <BookmarkCheck size={16} color={accent} />
+                    <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Already in My Foods</AppText>
                   </Card>
-                </Pressable>
+                ) : (
+                  <Pressable onPress={() => setSaveToMyFoods((v) => !v)} className="flex-row items-center gap-3">
+                    <Card className="flex-1 flex-row items-center gap-3">
+                      <View pointerEvents="none">
+                        <Toggle value={saveToMyFoods} onValueChange={setSaveToMyFoods} />
+                      </View>
+                      <View className="flex-row items-center gap-2">
+                        {saveToMyFoods ? <BookmarkCheck size={16} color={accent} /> : <Bookmark size={16} color={colors.txMuted} />}
+                        <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Save to My Foods</AppText>
+                      </View>
+                    </Card>
+                  </Pressable>
+                )
               ) : null}
             </View>
           </ScrollView>

@@ -1,4 +1,4 @@
-import { entryToResult, savedToResult, scaleServing } from './food'
+import { entryToResult, findSavedFood, savedToResult, scaleServing } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -70,5 +70,44 @@ describe('scaleServing', () => {
   it('defaults a missing name, fiber, serving_size and image_url', () => {
     const p = scaleServing(result({ name: '', fiber: undefined, serving_size: undefined, image_url: undefined }), 1)
     expect(p).toMatchObject({ name: 'Custom entry', fiber: 0, serving_size: '', image_url: '' })
+  })
+})
+
+describe('findSavedFood', () => {
+  const saved = (over: Partial<SavedFood> = {}): SavedFood => ({
+    id: 1, user_id: 1, name: 'Chicken Breast', brand: 'Tesco',
+    calories: 165, protein: 31, carbs: 0, fat: 3.6, fiber: 0,
+    serving_size: '100g', barcode: '', created_at: '',
+    ...over,
+  } as SavedFood)
+
+  it('matches on name and brand', () => {
+    const list = [saved({ id: 7 })]
+    expect(findSavedFood(list, { name: 'Chicken Breast', brand: 'Tesco' })?.id).toBe(7)
+  })
+
+  it('treats a different brand as a different product', () => {
+    const list = [saved({ brand: 'Tesco' })]
+    expect(findSavedFood(list, { name: 'Chicken Breast', brand: "Sainsbury's" })).toBeUndefined()
+  })
+
+  // The API stores '' for an unbranded food; a search result can carry undefined. These
+  // are the same bookmark, and treating them as different is how a duplicate slips past
+  // the client check straight into the server's unique index.
+  it('treats a missing brand and an empty brand as the same', () => {
+    const list = [saved({ id: 3, brand: '' })]
+    expect(findSavedFood(list, { name: 'Chicken Breast' })?.id).toBe(3)
+    expect(findSavedFood(list, { name: 'Chicken Breast', brand: '' })?.id).toBe(3)
+  })
+
+  // Matched exactly, mirroring the server's UNIQUE index. If the client folded case and
+  // the server did not, the client would hide a bookmark the server would happily add.
+  it('does not fold case', () => {
+    const list = [saved()]
+    expect(findSavedFood(list, { name: 'chicken breast', brand: 'Tesco' })).toBeUndefined()
+  })
+
+  it('returns undefined against an empty list', () => {
+    expect(findSavedFood([], { name: 'Chicken Breast', brand: 'Tesco' })).toBeUndefined()
   })
 })

@@ -138,6 +138,52 @@ func alterMigrations() {
 	ensureIndex("idx_exercises_oedb_id", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_oedb_id ON exercises(oedb_id)`)
 
 	normalizeExerciseTaxonomy()
+
+	// My Foods is a favourites list: the only thing that writes to it is the bookmark
+	// toggle on the log screen, and that toggle deliberately saves the *unscaled* food
+	// (the servings stepper scales at log time instead). So two rows with the same
+	// user/name/brand carry no information the first one didn't — they are the same
+	// bookmark pressed twice.
+	//
+	// Order matters. ensureIndex is log.Fatal on failure, and CREATE UNIQUE INDEX fails
+	// against any database that already holds duplicates, so a straight index here would
+	// refuse to boot exactly the installs that have the bug.
+	dedupeSavedFoods()
+	ensureIndex("idx_saved_foods_unique",
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
+}
+
+// dedupeSavedFoods collapses duplicate bookmarks so the unique index below can be
+// created. Keeps the lowest id in each (user_id, name, brand) group — the one saved
+// first.
+//
+// Deleting rows in a migration deserves an argument. Nothing can edit a saved food
+// (there is no PATCH), and the bookmark copies whichever search result was on screen,
+// so two rows sharing a user, name and brand differ at most in macros sourced from two
+// different search hits for the same product. Neither is more authoritative, both
+// render identically in the list, and either one logs the same way. Keeping the
+// earliest is arbitrary but stable, and the row is one tap to recreate.
+func dedupeSavedFoods() {
+	done, err := hasMigrationFlag("dedupe_saved_foods")
+	if err != nil || done {
+		return
+	}
+	res, err := DB.Exec(`
+		DELETE FROM saved_foods
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM saved_foods GROUP BY user_id, name, brand
+		)`)
+	if err != nil {
+		// Leave the flag unset so the next boot retries. Returning here means the
+		// ensureIndex that follows will Fatal, which is the correct loud failure: the
+		// alternative is booting with duplicates that the app now assumes cannot exist.
+		log.Printf("migrations: dedupe saved_foods: %v", err)
+		return
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("migration: removed %d duplicate saved_foods row(s)", n)
+	}
+	setMigrationFlag("dedupe_saved_foods")
 }
 
 // normalizeExerciseTaxonomy rewrites the eight taxonomy values Lyftr inherited

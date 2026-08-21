@@ -51,3 +51,20 @@ export function savedToResult(s: SavedFood): FoodSearchResult {
     fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
   }
 }
+
+// Which saved food, if any, is the same bookmark as `item`.
+//
+// My Foods is a favourites list — the bookmark stores the unscaled food and the
+// servings stepper scales at log time — so "same food" is name + brand, and nothing
+// else. Deliberately matched exactly, mirroring the UNIQUE(user_id, name, brand) index
+// the server enforces: if the two disagreed, the client would offer a bookmark the
+// server then refuses to create as new.
+//
+// Brand is normalised to '' because that is what the API stores for a food with no
+// brand, while a search result can carry undefined.
+export function findSavedFood(
+  saved: SavedFood[],
+  item: Pick<FoodSearchResult, 'name' | 'brand'>,
+): SavedFood | undefined {
+  return saved.find(s => s.name === item.name && (s.brand ?? '') === (item.brand ?? ''))
+}

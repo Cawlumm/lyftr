@@ -951,6 +951,88 @@ func TestCreateSavedFood_success(t *testing.T) {
 	}
 }
 
+// My Foods is a bookmark list, and the bookmark saves the unscaled food — the servings
+// stepper scales at log time. So saving the same food twice cannot express anything the
+// first save didn't, and #115 was a user doing exactly that and being left with two
+// identical rows he could not tell apart.
+func TestCreateSavedFood_isSameBookmarkTwice(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{
+		"name": "Chicken Breast", "brand": "Tesco",
+		"calories": 165.0, "protein": 31.0, "carbs": 0.0, "fat": 3.6,
+		"fiber": 0.0, "serving_size": "100g",
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("first save: expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	firstID := decodeResponse(t, w)["data"].(map[string]any)["id"]
+
+	// Second save of the same food: 200, not 201 — nothing was created.
+	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c2)
+	if w2.Code != http.StatusOK {
+		t.Fatalf("second save: expected 200, got %d: %s", w2.Code, w2.Body.String())
+	}
+	if got := decodeResponse(t, w2)["data"].(map[string]any)["id"]; got != firstID {
+		t.Errorf("second save returned id %v, want the existing row %v", got, firstID)
+	}
+
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&count)
+	if count != 1 {
+		t.Fatalf("expected 1 saved food after saving the same one twice, got %d", count)
+	}
+}
+
+// Same name, different brand, is a different product and stays a separate bookmark.
+func TestCreateSavedFood_brandDistinguishes(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	for _, brand := range []string{"Tesco", "Sainsbury's"} {
+		body := map[string]any{
+			"name": "Chicken Breast", "brand": brand,
+			"calories": 165.0, "protein": 31.0, "carbs": 0.0, "fat": 3.6,
+		}
+		c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+		th.CreateSavedFood(c)
+		if w.Code != http.StatusCreated {
+			t.Fatalf("brand %q: expected 201, got %d: %s", brand, w.Code, w.Body.String())
+		}
+	}
+
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&count)
+	if count != 2 {
+		t.Fatalf("expected 2 saved foods across two brands, got %d", count)
+	}
+}
+
+// The uniqueness is per user. One person bookmarking a food must not stop anyone else.
+func TestCreateSavedFood_scopedPerUser(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	other := otherUser(t)
+
+	body := map[string]any{"name": "Oats", "brand": "Quaker", "calories": 389.0}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("first user: expected 201, got %d", w.Code)
+	}
+	c2, w2 := newContext(other, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("second user: expected 201, got %d: %s", w2.Code, w2.Body.String())
+	}
+}
+
 func TestCreateSavedFood_missingName(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)

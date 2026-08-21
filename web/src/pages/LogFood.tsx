@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight, Trash2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -117,6 +117,10 @@ export default function LogFood() {
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
+  // Whether the food on screen is already bookmarked. Derived from the list rather
+  // than tracked, so removing it on the My Foods tab immediately re-offers the toggle.
+  const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
+
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -226,7 +230,7 @@ export default function LogFood() {
         await foodAPI.update(editId, payload)
       } else {
         await foodAPI.log(payload)
-        if (saveToMyFoods) {
+        if (saveToMyFoods && !alreadySaved) {
           await savedFoodsAPI.create({
             name: selected.name, brand: selected.brand ?? '',
             calories: selected.calories, protein: selected.protein,
@@ -585,23 +589,33 @@ export default function LogFood() {
             <DateInput label="When" value={date} onChange={setDate} max={todayStr()} />
           </div>
 
-          {/* Save to My Foods toggle — hidden in edit mode */}
-          {!editId && <button
-            type="button"
-            onClick={() => setSaveToMyFoods(v => !v)}
-            className="flex items-center gap-3 w-full card p-4 hover:bg-surface-muted/50 transition-colors"
-          >
-            <div className={`relative w-11 h-6 rounded-full border transition-colors flex-shrink-0 ${saveToMyFoods ? 'bg-brand-500 border-brand-500' : 'bg-surface-muted border-surface-border'}`}>
-              <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${saveToMyFoods ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          {/* Save to My Foods — hidden in edit mode. Already-saved is a state, not a
+              toggle: the bookmark stores the unscaled food, so saving the same one
+              again could only produce the identical row reported in #115. Remove it
+              from the My Foods tab instead, which is why that reads as the way out. */}
+          {!editId && (alreadySaved ? (
+            <div className="flex items-center gap-2 w-full card p-4">
+              <BookmarkCheck className="w-4 h-4 text-brand-500 flex-shrink-0" />
+              <span className="text-sm font-medium text-tx-secondary">Already in My Foods</span>
             </div>
-            <div className="flex items-center gap-2 flex-1">
-              {saveToMyFoods
-                ? <BookmarkCheck className="w-4 h-4 text-brand-500" />
-                : <Bookmark className="w-4 h-4 text-tx-muted" />
-              }
-              <span className="text-sm font-medium text-tx-secondary">Save to My Foods</span>
-            </div>
-          </button>}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSaveToMyFoods(v => !v)}
+              className="flex items-center gap-3 w-full card p-4 hover:bg-surface-muted/50 transition-colors"
+            >
+              <div className={`relative w-11 h-6 rounded-full border transition-colors flex-shrink-0 ${saveToMyFoods ? 'bg-brand-500 border-brand-500' : 'bg-surface-muted border-surface-border'}`}>
+                <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${saveToMyFoods ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                {saveToMyFoods
+                  ? <BookmarkCheck className="w-4 h-4 text-brand-500" />
+                  : <Bookmark className="w-4 h-4 text-tx-muted" />
+                }
+                <span className="text-sm font-medium text-tx-secondary">Save to My Foods</span>
+              </div>
+            </button>
+          ))}
         </div>
       )}
 

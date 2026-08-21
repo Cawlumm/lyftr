@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 // FoodStore owns all SQL for food_logs and saved_foods.
@@ -178,7 +179,15 @@ func (s *FoodStore) ListSaved(uid int64) ([]models.SavedFood, error) {
 	return foods, rows.Err()
 }
 
-func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.SavedFood, error) {
+// CreateSaved bookmarks a food, and is idempotent: bookmarking something already in
+// My Foods returns the existing row rather than adding a second copy. `created` reports
+// which happened so the handler can answer 201 or 200.
+//
+// The clients already grey the bookmark out once a food is saved, but that check reads
+// a list fetched when the screen opened. Two devices, or one device with a stale list,
+// would otherwise race straight into the unique index and surface a 500 for what is
+// simply "already saved".
+func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (f models.SavedFood, created bool, err error) {
 	res, err := s.db.Exec(
 		`INSERT INTO saved_foods (user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -186,12 +195,18 @@ func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.S
 		req.ServingSize, req.Barcode,
 	)
 	if err != nil {
-		return models.SavedFood{}, err
+		if !utils.IsUniqueViolation(err) {
+			return models.SavedFood{}, false, err
+		}
+		err = scanSavedFood(
+			s.db.QueryRow(savedFoodSelect+` WHERE user_id = ? AND name = ? AND brand = ?`, uid, req.Name, req.Brand),
+			&f,
+		)
+		return f, false, err
 	}
 	id, _ := res.LastInsertId()
-	var f models.SavedFood
 	err = scanSavedFood(s.db.QueryRow(savedFoodSelect+` WHERE id = ?`, id), &f)
-	return f, err
+	return f, true, err
 }
 
 func (s *FoodStore) DeleteSaved(uid, id int64) (int64, error) {

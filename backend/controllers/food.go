@@ -516,8 +516,15 @@ func (h *Handler) CreateSavedFood(c *gin.Context) {
 		return
 	}
 
-	f, err := h.s.Food.CreateSaved(uid, req)
+	f, created, err := h.s.Food.CreateSaved(uid, req)
 	if utils.DBError(c, err) {
+		return
+	}
+	// 200 rather than 201 when the bookmark was already there. Nothing was created, and
+	// answering 201 twice for the same food is how the duplicates in #115 read to a
+	// client that was checking.
+	if !created {
+		utils.OK(c, f)
 		return
 	}
 	utils.Created(c, f)
