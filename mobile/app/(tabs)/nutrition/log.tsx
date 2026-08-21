@@ -70,13 +70,21 @@ export default function LogFood() {
 
   // Favouriting is its own action, not a side effect of logging. One tap on, one tap off,
   // from any row or from the detail header. No confirmation: a second tap undoes it.
+  // The guard is a ref, not the state below. setState does not apply within the tick it
+  // is called in, so a burst of taps in one frame all read the same empty set and all
+  // fire — five rapid clicks sent one DELETE that worked and four that 404'd, then showed
+  // "Couldn't remove …" for an unstar that had actually succeeded. The state exists only
+  // to dim the star; the ref is what decides.
+  const inFlightFavorites = useRef<Set<string>>(new Set())
+
   const toggleFavorite = async (item: FoodSearchResult) => {
     const key = `${item.name}|${item.brand ?? ''}`
     // Guard this food only. A single global flag dropped taps on *other* rows while a
     // request was in flight, so on a slow connection every other star went dead with no
     // feedback — indistinguishable from a broken button.
-    if (togglingFavorite.has(key)) return
-    setTogglingFavorite((prev) => new Set(prev).add(key))
+    if (inFlightFavorites.current.has(key)) return
+    inFlightFavorites.current.add(key)
+    setTogglingFavorite(new Set(inFlightFavorites.current))
     setFavoriteError(null)
     listEpoch.current += 1
     const existing = favoriteOf(item)
@@ -110,11 +118,8 @@ export default function LogFood() {
         ? `Couldn't remove ${item.name} from Favorites.`
         : `Couldn't add ${item.name} to Favorites.`)
     } finally {
-      setTogglingFavorite((prev) => {
-        const next = new Set(prev)
-        next.delete(key)
-        return next
-      })
+      inFlightFavorites.current.delete(key)
+      setTogglingFavorite(new Set(inFlightFavorites.current))
     }
   }
 
