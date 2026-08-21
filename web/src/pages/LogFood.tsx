@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
-  Bookmark, BookmarkCheck, AlertCircle, Utensils, Zap,
+  Star, AlertCircle, Utensils, Zap,
   Coffee, Sun, Moon, Cookie, ChevronRight, Trash2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
@@ -27,7 +27,7 @@ const MEAL_COLORS: Record<string, string> = {
   dinner: 'text-indigo-400', snacks: 'text-pink-400',
 }
 
-// `onDelete` is optional and only the My Foods tab passes it. Without it this renders
+// `onDelete` is optional and only the Favorites tab passes it. Without it this renders
 // exactly the markup it always has — Recent and the search results are the hot path in
 // this screen, so the delete affordance is added around them rather than through them.
 //
@@ -118,7 +118,7 @@ export default function LogFood() {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Whether the food on screen is already bookmarked. Derived from the list rather
-  // than tracked, so removing it on the My Foods tab immediately re-offers the toggle.
+  // than tracked, so removing it on the Favorites tab immediately re-offers the toggle.
   const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
@@ -210,7 +210,7 @@ export default function LogFood() {
       setSavedFoods(prev => prev.filter(f => f.id !== id))
       setDeleteConfirmId(null)
     } catch (err) {
-      setDeleteError(apiErrorMessage(err, 'Failed to remove from My Foods'))
+      setDeleteError(apiErrorMessage(err, 'Failed to remove from Favorites'))
     } finally {
       setDeletingId(null)
     }
@@ -330,7 +330,7 @@ export default function LogFood() {
           <SegmentedControl
             options={[
               { value: 'recent', label: 'Recent' },
-              { value: 'myfoods', label: 'My Foods' },
+              { value: 'myfoods', label: 'Favorites' },
               { value: 'all', label: 'Search' },
             ] as const}
             value={tab}
@@ -384,9 +384,9 @@ export default function LogFood() {
               savedFoods.length === 0
                 ? (
                   <div className="px-4 py-14 text-center">
-                    <Bookmark className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
-                    <p className="text-sm text-tx-muted">No saved foods yet</p>
-                    <p className="text-xs text-tx-muted mt-1 opacity-60">Save foods while logging to find them here</p>
+                    <Star className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
+                    <p className="text-sm text-tx-muted">No favorites yet</p>
+                    <p className="text-xs text-tx-muted mt-1 opacity-60">Star foods while logging to find them here</p>
                   </div>
                 )
                 : savedFoods.map(sf => (
@@ -396,7 +396,7 @@ export default function LogFood() {
                     // question belongs in its place.
                     <div key={sf.id} className="px-4 py-3 flex items-center justify-between gap-3 bg-error-500/5 border-l-2 border-error-500 border-b border-surface-border last:border-b-0">
                       <p className="text-xs text-tx-secondary flex-1 min-w-0">
-                        Remove <span className="font-medium text-tx-primary">{sf.name}</span> from My Foods?
+                        Remove <span className="font-medium text-tx-primary">{sf.name}</span> from Favorites?
                       </p>
                       <div className="flex gap-2 flex-shrink-0">
                         <button onClick={() => { setDeleteConfirmId(null); setDeleteError(null) }} className="btn-secondary btn-sm">
@@ -413,7 +413,7 @@ export default function LogFood() {
                       item={savedToResult(sf)}
                       onClick={() => selectResult(savedToResult(sf))}
                       onDelete={() => { setDeleteConfirmId(sf.id); setDeleteError(null) }}
-                      deleteLabel={`Remove ${sf.name} from My Foods`}
+                      deleteLabel={`Remove ${sf.name} from Favorites`}
                     />
                   )
                 ))
@@ -589,14 +589,14 @@ export default function LogFood() {
             <DateInput label="When" value={date} onChange={setDate} max={todayStr()} />
           </div>
 
-          {/* Save to My Foods — hidden in edit mode. Already-saved is a state, not a
+          {/* Add to Favorites — hidden in edit mode. Already-saved is a state, not a
               toggle: the bookmark stores the unscaled food, so saving the same one
               again could only produce the identical row reported in #115. Remove it
-              from the My Foods tab instead, which is why that reads as the way out. */}
+              from the Favorites tab instead, which is why that reads as the way out. */}
           {!editId && (alreadySaved ? (
             <div className="flex items-center gap-2 w-full card p-4">
-              <BookmarkCheck className="w-4 h-4 text-brand-500 flex-shrink-0" />
-              <span className="text-sm font-medium text-tx-secondary">Already in My Foods</span>
+              <Star className="w-4 h-4 text-brand-500 flex-shrink-0" fill="currentColor" />
+              <span className="text-sm font-medium text-tx-secondary">In your Favorites</span>
             </div>
           ) : (
             <button
@@ -609,10 +609,10 @@ export default function LogFood() {
               </div>
               <div className="flex items-center gap-2 flex-1">
                 {saveToMyFoods
-                  ? <BookmarkCheck className="w-4 h-4 text-brand-500" />
-                  : <Bookmark className="w-4 h-4 text-tx-muted" />
+                  ? <Star className="w-4 h-4 text-brand-500" fill="currentColor" />
+                  : <Star className="w-4 h-4 text-tx-muted" />
                 }
-                <span className="text-sm font-medium text-tx-secondary">Save to My Foods</span>
+                <span className="text-sm font-medium text-tx-secondary">Add to Favorites</span>
               </div>
             </button>
           ))}

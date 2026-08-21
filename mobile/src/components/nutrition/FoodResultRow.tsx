@@ -15,7 +15,7 @@ interface Props {
   /** Tap the row → pick this food and go to the detail step. */
   onPress: () => void
   /**
-   * The saved_foods row id, when this result came from My Foods. Its presence is what
+   * The saved_foods row id, when this result came from Favorites. Its presence is what
    * puts the ⋮ menu on the row — Recent and search results are not owned by the user and
    * have nothing to delete.
    */
@@ -30,7 +30,7 @@ interface Props {
   onDeleteFailed?: (message: string) => void
 }
 
-// The search / Recent / My Foods result row, extracted from the log screen so the delete
+// The search / Recent / Favorites result row, extracted from the log screen so the delete
 // path can be tested without rendering the whole flow.
 //
 // The menu mirrors FoodEntryRow: a ⋮ IconButton inside the row Pressable opening an
@@ -52,7 +52,7 @@ export function FoodResultRow({ item, onPress, savedFoodId, onDeleted, onDeleteF
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       onDeleted?.(savedFoodId)
     } catch {
-      onDeleteFailed?.(`Couldn't remove ${item.name} from My Foods.`)
+      onDeleteFailed?.(`Couldn't remove ${item.name} from Favorites.`)
       setDeleting(false)
       setConfirming(false)
     }
@@ -101,13 +101,13 @@ export function FoodResultRow({ item, onPress, savedFoodId, onDeleted, onDeleteF
         <>
           <ActionSheet
             open={menuOpen}
-            title="Saved food"
+            title="Favorite"
             subtitle={item.name}
             onClose={() => setMenuOpen(false)}
-            actions={[deleteAction(() => setConfirming(true), 'Remove from My Foods')]}
+            actions={[deleteAction(() => setConfirming(true), 'Remove from Favorites')]}
           />
           <ConfirmSheet
-            {...deleteConfirmProps({ title: 'Remove from My Foods?', subject: `"${item.name}"` })}
+            {...deleteConfirmProps({ title: 'Remove from Favorites?', subject: `"${item.name}"` })}
             confirmLabel="Remove"
             busyLabel="Removing…"
             open={confirming}

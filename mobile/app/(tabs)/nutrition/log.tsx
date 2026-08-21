@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
-  AlertCircle, ArrowLeft, Bookmark, BookmarkCheck, ChevronRight, Minus, Plus, Scan, Utensils, Zap,
+  AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
 } from 'lucide-react-native'
 import {
   dayToInstant, entryDay, todayStr,
@@ -29,7 +29,7 @@ const hSelect = () => Haptics.selectionAsync().catch(() => {})
 
 const TAB_OPTIONS = [
   { value: 'recent', label: 'Recent' },
-  { value: 'myfoods', label: 'My Foods' },
+  { value: 'myfoods', label: 'Favorites' },
   { value: 'all', label: 'Search' },
 ] as const
 
@@ -58,7 +58,7 @@ export default function LogFood() {
   const [saveToMyFoods, setSaveToMyFoods] = useState(false)
 
   // Whether the food on screen is already bookmarked. Derived from the list rather than
-  // tracked, so removing it on the My Foods tab immediately re-offers the toggle.
+  // tracked, so removing it on the Favorites tab immediately re-offers the toggle.
   const alreadySaved = selected ? findSavedFood(savedFoods, selected) !== undefined : false
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -290,7 +290,7 @@ export default function LogFood() {
 
               {tab === 'myfoods' ? (
                 savedFoods.length === 0 ? (
-                  <EmptyBlock icon={Bookmark} title="No saved foods yet" subtitle="Save foods while logging to find them here" />
+                  <EmptyBlock icon={Star} title="No favorites yet" subtitle="Star foods while logging to find them here" />
                 ) : (
                   <>
                     {deleteError ? (
@@ -463,14 +463,14 @@ export default function LogFood() {
                 <DateInput label="When" value={date} onChange={setDate} maximumDate={new Date()} />
               </Card>
 
-              {/* Save to My Foods — hidden in edit mode. Already-saved is a state, not
+              {/* Add to Favorites — hidden in edit mode. Already-saved is a state, not
                   a toggle: the bookmark stores the unscaled food, so saving it again
                   could only produce the identical row reported in #115. */}
               {!editId ? (
                 alreadySaved ? (
                   <Card className="flex-row items-center gap-2">
-                    <BookmarkCheck size={16} color={accent} />
-                    <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Already in My Foods</AppText>
+                    <Star size={16} color={accent} fill={accent} />
+                    <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>In your Favorites</AppText>
                   </Card>
                 ) : (
                   <Pressable onPress={() => setSaveToMyFoods((v) => !v)} className="flex-row items-center gap-3">
@@ -479,8 +479,8 @@ export default function LogFood() {
                         <Toggle value={saveToMyFoods} onValueChange={setSaveToMyFoods} />
                       </View>
                       <View className="flex-row items-center gap-2">
-                        {saveToMyFoods ? <BookmarkCheck size={16} color={accent} /> : <Bookmark size={16} color={colors.txMuted} />}
-                        <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Save to My Foods</AppText>
+                        {saveToMyFoods ? <Star size={16} color={accent} fill={accent} /> : <Star size={16} color={colors.txMuted} />}
+                        <AppText variant="bodySemibold" color="secondary" style={{ fontSize: 14 }}>Add to Favorites</AppText>
                       </View>
                     </Card>
                   </Pressable>

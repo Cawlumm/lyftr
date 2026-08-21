@@ -333,15 +333,15 @@ test.describe('Food', () => {
     await expect(page.getByText(deleteName)).not.toBeVisible({ timeout: 3000 })
   })
 
-  // ─── My Foods ─────────────────────────────────────────────────────────────
+  // ─── Favorites ────────────────────────────────────────────────────────────
 
-  test('My Foods tab shows seeded saved food', async ({ page }) => {
+  test('Favorites tab shows seeded saved food', async ({ page }) => {
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
   })
 
-  test('Save to My Foods toggle saves food during logging', async ({ page }) => {
+  test('Add to Favorites toggle saves food during logging', async ({ page }) => {
     const savedName = `E2ESave-${Date.now()}`
 
     await page.route('**/api/v1/food/search**', route =>
@@ -352,22 +352,22 @@ test.describe('Food', () => {
     await expect(page.getByText(`No results for "${savedName}"`)).toBeVisible({ timeout: 2000 })
     await page.getByRole('button').filter({ hasText: /manually/ }).click()
 
-    // Toggle "Save to My Foods"
-    await page.getByText('Save to My Foods').click()
+    // Toggle "Add to Favorites"
+    await page.getByText('Add to Favorites').click()
 
     await page.getByRole('button', { name: 'Log Food' }).click()
     await page.waitForURL('/food', { timeout: 5000 })
 
-    // Verify in My Foods tab
+    // Verify in Favorites tab
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(savedName)).toBeVisible({ timeout: 8000 })
   })
 
   // #115: the delete endpoint and the client method both existed, but nothing called
   // them — a saved food could not be removed from either app. Creates its own row rather
-  // than using the shared seed so the other My Foods tests keep theirs.
-  test('removes a saved food from My Foods', async ({ page, request }) => {
+  // than using the shared seed so the other Favorites tests keep theirs.
+  test('removes a saved food from Favorites', async ({ page, request }) => {
     const name = `E2EDelete-${Date.now()}`
     const created = await request.post(`${API}/food/saved`, {
       headers: { Authorization: `Bearer ${authToken}` },
@@ -376,10 +376,10 @@ test.describe('Food', () => {
     expect(created.ok()).toBeTruthy()
 
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
 
-    await page.getByRole('button', { name: `Remove ${name} from My Foods` }).click()
+    await page.getByRole('button', { name: `Remove ${name} from Favorites` }).click()
     await page.getByRole('button', { name: 'Remove', exact: true }).click()
 
     await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
@@ -387,13 +387,13 @@ test.describe('Food', () => {
     // The row vanishing only proves local state was filtered. Reload to prove the
     // DELETE actually reached the server.
     await page.reload()
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
   })
 
-  test('selecting from My Foods goes to detail phase', async ({ page }) => {
+  test('selecting from Favorites goes to detail phase', async ({ page }) => {
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites' }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
     await page.getByText(`${SEED_PREFIX}-saved`).first().click()
 

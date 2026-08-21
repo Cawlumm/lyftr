@@ -84,7 +84,7 @@ describe('FoodResultRow', () => {
     )
 
     fireEvent.press(screen.getByLabelText(OPTIONS_LABEL))
-    fireEvent.press(screen.getByText('Remove from My Foods'))
+    fireEvent.press(screen.getByText('Remove from Favorites'))
     // ActionSheet defers the action until after its dismiss animation so the confirm
     // sheet isn't presented mid-close.
     act(() => { jest.runOnlyPendingTimers() })
@@ -116,7 +116,7 @@ describe('FoodResultRow', () => {
     )
 
     fireEvent.press(screen.getByLabelText(OPTIONS_LABEL))
-    fireEvent.press(screen.getByText('Remove from My Foods'))
+    fireEvent.press(screen.getByText('Remove from Favorites'))
     act(() => { jest.runOnlyPendingTimers() })
     fireEvent.press(screen.getByText('Remove'))
 
