@@ -138,6 +138,69 @@ func alterMigrations() {
 	ensureIndex("idx_exercises_oedb_id", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_oedb_id ON exercises(oedb_id)`)
 
 	normalizeExerciseTaxonomy()
+
+	// The product a diary entry was, so it survives into Recent and can be matched
+	// against Favorites. Entries written before this default to '' — the same value the
+	// unbranded case uses, which is exactly how they already compared.
+	ensureColumn("food_logs", "brand", `ALTER TABLE food_logs ADD COLUMN brand TEXT NOT NULL DEFAULT ''`)
+
+	// Favorites is a bookmark list: starring a food saves it *unscaled* — the servings
+	// stepper scales at log time instead — so two rows with the same user/name/brand
+	// carry no information the first one didn't. They are the same star pressed twice.
+	//
+	// Both the order and the condition matter. ensureIndex is log.Fatal on failure and
+	// CREATE UNIQUE INDEX fails against a table that still holds duplicates, so creating
+	// it unconditionally would refuse to boot exactly the installs that have the bug.
+	if dedupeSavedFoods() {
+		ensureIndex("idx_saved_foods_unique",
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
+	}
+}
+
+// dedupeSavedFoods collapses duplicate stars, keeping the lowest id in each
+// (user_id, name, brand) group — the one starred first.
+//
+// Reports whether saved_foods is known to be free of duplicates, i.e. whether the
+// unique index may safely be created. False means "not now", never a reason to fail
+// the boot.
+//
+// Deleting rows in a migration deserves an argument. Nothing can edit a saved food
+// (there is no PATCH), and starring copies whichever search result was on screen, so
+// two rows sharing a user, name and brand differ at most in macros sourced from two
+// search hits for the same product. Neither is more authoritative, both render
+// identically in the list, and either one logs the same way. Keeping the earliest is
+// arbitrary but stable, and the row is one tap to recreate.
+func dedupeSavedFoods() bool {
+	done, err := hasMigrationFlag("dedupe_saved_foods")
+	if err != nil {
+		log.Printf("migrations: dedupe saved_foods flag: %v (skipping the unique index this boot)", err)
+		return false
+	}
+	if done {
+		return true
+	}
+	res, err := DB.Exec(`
+		DELETE FROM saved_foods
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM saved_foods GROUP BY user_id, name, brand
+		)`)
+	if err != nil {
+		// Leave the flag unset so the next boot retries, and tell the caller not to
+		// create the index — CREATE UNIQUE INDEX would fail against the duplicates still
+		// there, and ensureIndex is log.Fatal, so a transient error on this one DELETE
+		// would stop the server starting. Running without the index is the far smaller
+		// problem: the clients still check before starring, so the worst case is the
+		// duplicate this migration exists to remove. Note the server-side guard genuinely
+		// is absent there — with no index there is no unique violation for CreateSaved to
+		// resolve, so it takes the plain insert path and answers 201.
+		log.Printf("migrations: dedupe saved_foods: %v (skipping the unique index this boot)", err)
+		return false
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("migration: removed %d duplicate saved_foods row(s)", n)
+	}
+	setMigrationFlag("dedupe_saved_foods")
+	return true
 }
 
 // normalizeExerciseTaxonomy rewrites the eight taxonomy values Lyftr inherited

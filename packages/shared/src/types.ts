@@ -94,6 +94,8 @@ export interface FoodLog {
   id: number
   user_id?: number
   name: string
+  /** The product this entry was, so Recent can be matched against Favorites. '' when unbranded. */
+  brand?: string
   meal: 'breakfast' | 'lunch' | 'dinner' | 'snacks'
   calories: number
   protein: number

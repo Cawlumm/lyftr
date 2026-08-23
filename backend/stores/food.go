@@ -2,8 +2,10 @@ package stores
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 // FoodStore owns all SQL for food_logs and saved_foods.
@@ -20,11 +22,11 @@ const foodDay = `CASE
 	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
 	END`
 
-const foodLogSelect = `SELECT id, user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
+const foodLogSelect = `SELECT id, user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
 
 func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
 	return row.Scan(
-		&f.ID, &f.UserID, &f.Name, &f.Meal,
+		&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Meal,
 		&f.Calories, &f.Protein, &f.Carbs, &f.Fat, &f.Fiber,
 		&f.Servings, &f.ServingSize, &f.Barcode, &f.ImageURL,
 		&f.LoggedAt, &f.LoggedOn, &f.CreatedAt,
@@ -67,9 +69,9 @@ func (s *FoodStore) Get(uid, id int64) (models.FoodLog, error) {
 // by the controller (client-supplied when sent, else from the account zone).
 func (s *FoodStore) Create(uid int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
-		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		uid, req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
+		`INSERT INTO food_logs (user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		uid, req.Name, req.Brand, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
 		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
 	)
 	if err != nil {
@@ -81,10 +83,10 @@ func (s *FoodStore) Create(uid int64, req models.LogFoodRequest, day string) (mo
 
 func (s *FoodStore) Update(uid, id int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
-		`UPDATE food_logs SET name=?, meal=?, calories=?, protein=?, carbs=?, fat=?, fiber=?,
+		`UPDATE food_logs SET name=?, brand=?, meal=?, calories=?, protein=?, carbs=?, fat=?, fiber=?,
 		 servings=?, serving_size=?, barcode=?, image_url=?, logged_at=?, logged_on=?
 		 WHERE id=? AND user_id=?`,
-		req.Name, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
+		req.Name, req.Brand, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
 		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
 		id, uid,
 	)
@@ -178,7 +180,28 @@ func (s *FoodStore) ListSaved(uid int64) ([]models.SavedFood, error) {
 	return foods, rows.Err()
 }
 
-func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.SavedFood, error) {
+// CreateSaved stars a food, and is idempotent: starring something already in Favorites
+// returns the existing row rather than adding a second copy. `created` reports which
+// happened so the handler can answer 201 or 200.
+//
+// The clients already show the star as filled once a food is favourited, but that check
+// reads a list fetched when the screen opened. Two devices, or one device with a stale
+// list, would otherwise race straight into the unique index and surface a 500 for what
+// is simply "already favourited".
+func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.SavedFood, bool, error) {
+	// Two attempts: the insert can lose to a concurrent star, and the read that resolves
+	// that conflict can then lose to a concurrent unstar. One retry closes both, and a
+	// second failure means the row is genuinely gone rather than contended.
+	for attempt := 0; ; attempt++ {
+		f, created, err := s.createSavedOnce(uid, req)
+		if errors.Is(err, sql.ErrNoRows) && attempt == 0 {
+			continue
+		}
+		return f, created, err
+	}
+}
+
+func (s *FoodStore) createSavedOnce(uid int64, req models.SaveFoodRequest) (f models.SavedFood, created bool, err error) {
 	res, err := s.db.Exec(
 		`INSERT INTO saved_foods (user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -186,12 +209,23 @@ func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.S
 		req.ServingSize, req.Barcode,
 	)
 	if err != nil {
-		return models.SavedFood{}, err
+		if !utils.IsUniqueViolation(err) {
+			return models.SavedFood{}, false, err
+		}
+		// A miss here means the row was unstarred between the insert and this read, on a
+		// pool of one connection. Surfaced as sql.ErrNoRows so CreateSaved retries the
+		// insert: returning it to the handler would be worse than useless, because
+		// utils.DBError ignores sql.ErrNoRows and the zero-valued row would ship as a
+		// 200 with id 0 — a blank favourite the clients would then render.
+		err = scanSavedFood(
+			s.db.QueryRow(savedFoodSelect+` WHERE user_id = ? AND name = ? AND brand = ?`, uid, req.Name, req.Brand),
+			&f,
+		)
+		return f, false, err
 	}
 	id, _ := res.LastInsertId()
-	var f models.SavedFood
 	err = scanSavedFood(s.db.QueryRow(savedFoodSelect+` WHERE id = ?`, id), &f)
-	return f, err
+	return f, true, err
 }
 
 func (s *FoodStore) DeleteSaved(uid, id int64) (int64, error) {

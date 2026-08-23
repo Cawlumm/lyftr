@@ -10,6 +10,10 @@ const today = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.ge
 // Local noon → UTC ISO, same anchor as dayToIsoNoon() in the app.
 const todayNoon = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0, 0).toISOString()
 
+// The two fields the cleanup below needs off a food log or saved food. Narrower than
+// the real types on purpose: this is a delete-by-name sweep, not a model.
+type SeedRow = { id: number; name: string }
+
 let authToken: string
 let seedFoodIds: number[] = []
 let seedSavedIds: number[] = []
@@ -64,7 +68,7 @@ test.describe('Food', () => {
     // Clean up any UI-created entries
     const list = await request.get(`${API}/food?date=${today}`, { headers: h })
     const lb = await list.json()
-    const toDelete = (lb.data ?? []).filter((e: any) =>
+    const toDelete = (lb.data ?? []).filter((e: SeedRow) =>
       e.name.startsWith('E2ELog-') || e.name.startsWith('E2ESave-') || e.name.startsWith('E2EEdit-')
     )
     for (const e of toDelete) {
@@ -74,7 +78,7 @@ test.describe('Food', () => {
     // Clean up saved foods created via UI
     const sfList = await request.get(`${API}/food/saved`, { headers: h })
     const sfb = await sfList.json()
-    const sfToDelete = (sfb.data ?? []).filter((s: any) => s.name.startsWith('E2ESave-'))
+    const sfToDelete = (sfb.data ?? []).filter((s: SeedRow) => s.name.startsWith('E2ESave-'))
     for (const s of sfToDelete) {
       await request.delete(`${API}/food/saved/${s.id}`, { headers: h })
     }
@@ -333,15 +337,17 @@ test.describe('Food', () => {
     await expect(page.getByText(deleteName)).not.toBeVisible({ timeout: 3000 })
   })
 
-  // ─── My Foods ─────────────────────────────────────────────────────────────
+  // ─── Favorites ────────────────────────────────────────────────────────────
 
-  test('My Foods tab shows seeded saved food', async ({ page }) => {
+  test('Favorites tab shows seeded saved food', async ({ page }) => {
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
   })
 
-  test('Save to My Foods toggle saves food during logging', async ({ page }) => {
+  // Favouriting is no longer a side effect of logging: the star acts on its own, from
+  // the detail view, without the food ever being logged.
+  test('starring from the detail view favourites without logging', async ({ page }) => {
     const savedName = `E2ESave-${Date.now()}`
 
     await page.route('**/api/v1/food/search**', route =>
@@ -352,21 +358,49 @@ test.describe('Food', () => {
     await expect(page.getByText(`No results for "${savedName}"`)).toBeVisible({ timeout: 2000 })
     await page.getByRole('button').filter({ hasText: /manually/ }).click()
 
-    // Toggle "Save to My Foods"
-    await page.getByText('Save to My Foods').click()
+    // Star it, then leave without logging.
+    await page.getByRole('button', { name: `Add ${savedName} to Favorites` }).click()
+    await expect(page.getByRole('button', { name: `Remove ${savedName} from Favorites` })).toBeVisible({ timeout: 5000 })
 
-    await page.getByRole('button', { name: 'Log Food' }).click()
-    await page.waitForURL('/food', { timeout: 5000 })
-
-    // Verify in My Foods tab
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(savedName)).toBeVisible({ timeout: 8000 })
+
+    // And it was never logged — the diary has no entry for it.
+    await page.goto('/food')
+    await expect(page.getByText(savedName)).not.toBeVisible({ timeout: 3000 })
   })
 
-  test('selecting from My Foods goes to detail phase', async ({ page }) => {
+  // #115: the delete endpoint and the client method both existed, but nothing called
+  // them — a saved food could not be removed from either app. Creates its own row rather
+  // than using the shared seed so the other Favorites tests keep theirs.
+  test('unstarring removes it from Favorites', async ({ page, request }) => {
+    const name = `E2EDelete-${Date.now()}`
+    const created = await request.post(`${API}/food/saved`, {
+      headers: { Authorization: `Bearer ${authToken}` },
+      data: { name, calories: 120, protein: 10, carbs: 12, fat: 4, serving_size: '1 cup' },
+    })
+    expect(created.ok()).toBeTruthy()
+
     await page.goto('/food/log')
-    await page.getByRole('button', { name: 'My Foods' }).click()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
+    await expect(page.getByText(name)).toBeVisible({ timeout: 5000 })
+
+    // One click, no confirmation sheet in between.
+    await page.getByRole('button', { name: `Remove ${name} from Favorites` }).click()
+
+    await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
+
+    // The row vanishing only proves local state was filtered. Reload to prove the
+    // DELETE actually reached the server.
+    await page.reload()
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
+    await expect(page.getByText(name)).not.toBeVisible({ timeout: 5000 })
+  })
+
+  test('selecting from Favorites goes to detail phase', async ({ page }) => {
+    await page.goto('/food/log')
+    await page.getByRole('button', { name: 'Favorites', exact: true }).click()
     await expect(page.getByText(`${SEED_PREFIX}-saved`).first()).toBeVisible({ timeout: 3000 })
     await page.getByText(`${SEED_PREFIX}-saved`).first().click()
 

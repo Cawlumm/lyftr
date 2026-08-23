@@ -12,6 +12,7 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
   const s = e.servings || 1
   return {
     name: e.name,
+    brand: e.brand ?? '',
     calories: e.calories / s,
     protein: e.protein / s,
     carbs: e.carbs / s,
@@ -32,6 +33,10 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
 export function scaleServing(r: FoodSearchResult, servings: number) {
   return {
     name: r.name || 'Custom entry',
+    // Carried onto the log so a diary entry still knows which product it was. Without
+    // it every Recent row compares as brand '', so a branded favourite shows an empty
+    // star there and starring it creates a second, brandless row.
+    brand: r.brand ?? '',
     calories: +(r.calories * servings).toFixed(1),
     protein: +(r.protein * servings).toFixed(1),
     carbs: +(r.carbs * servings).toFixed(1),
@@ -50,4 +55,20 @@ export function savedToResult(s: SavedFood): FoodSearchResult {
     calories: s.calories, protein: s.protein, carbs: s.carbs,
     fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
   }
+}
+
+// Which saved food, if any, is the same favourite as `item`.
+//
+// Starring stores the unscaled food and the servings stepper scales at log time, so
+// "same food" is name + brand, and nothing else. Matched exactly, mirroring the
+// UNIQUE(user_id, name, brand) index the server enforces: if the two disagreed, the
+// client would offer a star the server then refuses to create as new.
+//
+// Brand is normalised to '' because that is what the API stores for a food with no
+// brand, while a search result can carry undefined.
+export function findSavedFood(
+  saved: SavedFood[],
+  item: Pick<FoodSearchResult, 'name' | 'brand'>,
+): SavedFood | undefined {
+  return saved.find(s => s.name === item.name && (s.brand ?? '') === (item.brand ?? ''))
 }
