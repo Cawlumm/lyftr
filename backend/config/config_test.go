@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestGetEnvBool(t *testing.T) {
 	cases := []struct {
@@ -33,6 +36,28 @@ func TestGetEnvBool(t *testing.T) {
 		if got := getEnvBool("LYFTR_TEST_BOOL", tc.fallback); got != tc.want {
 			t.Errorf("getEnvBool(%q, %v) = %v, want %v", tc.raw, tc.fallback, got, tc.want)
 		}
+	}
+}
+
+func TestGetEnvList(t *testing.T) {
+	cases := []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{"unset disables forwarded trust", "", nil},
+		{"single proxy", "127.0.0.1", []string{"127.0.0.1"}},
+		{"cidrs and whitespace", " 127.0.0.0/8, ::1/128 ", []string{"127.0.0.0/8", "::1/128"}},
+		{"empty entries dropped", ", 172.18.0.3 , ,", []string{"172.18.0.3"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("LYFTR_TEST_LIST", tc.raw)
+			if got := getEnvList("LYFTR_TEST_LIST"); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("getEnvList(%q) = %#v, want %#v", tc.raw, got, tc.want)
+			}
+		})
 	}
 }
 
