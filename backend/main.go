@@ -76,6 +76,14 @@ func dispatchSubcommand(argv []string) int {
 	return 2
 }
 
+func newRouter(trustedProxies []string) (*gin.Engine, error) {
+	r := gin.Default()
+	if err := r.SetTrustedProxies(trustedProxies); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
 func main() {
 	if code := dispatchSubcommand(os.Args); code >= 0 {
 		os.Exit(code)
@@ -89,6 +97,19 @@ func main() {
 	}
 
 	config.Load()
+	if config.C.Env == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// Gin trusts every proxy by default. Always override that default, even when the
+	// configured list is empty: direct clients must not be able to choose ClientIP via
+	// X-Forwarded-For. Validate before touching the database so bad security config
+	// fails closed without startup side effects.
+	r, err := newRouter(config.C.TrustedProxies)
+	if err != nil {
+		log.Fatalf("invalid TRUSTED_PROXIES: %v", err)
+	}
+
 	db.Connect()
 	warnIfUnclaimed()
 	// The demo account's credentials are published, so it is not something a self-hosted
@@ -109,11 +130,6 @@ func main() {
 		go seed.DemoData(db.DB, s.Exercise)
 	}
 
-	if config.C.Env == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	r := gin.Default()
 	h := controllers.NewHandler(s)
 	routes.Setup(r, h)
 
