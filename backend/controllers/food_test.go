@@ -1152,12 +1152,21 @@ func TestCreateSavedFood_whitespaceVariantsCollapseToOneFood(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 
-	for _, variant := range []string{"Oats", "Oats ", " Oats", "  Oats  "} {
+	// Only the first save creates a row. Once the trimmed name matches an existing
+	// favourite the insert hits UNIQUE(user_id, name, brand) and CreateSaved answers 200
+	// with the row already there, so asserting 201 throughout would be asserting that
+	// trimming had *not* worked.
+	for i, variant := range []string{"Oats", "Oats ", " Oats", "  Oats  "} {
 		body := map[string]any{"name": variant, "brand": "Quaker", "calories": 100.0}
 		c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
 		th.CreateSavedFood(c)
-		if w.Code != http.StatusCreated {
-			t.Fatalf("saving %q: expected 201, got %d: %s", variant, w.Code, w.Body.String())
+
+		want := http.StatusOK
+		if i == 0 {
+			want = http.StatusCreated
+		}
+		if w.Code != want {
+			t.Fatalf("saving %q: expected %d, got %d: %s", variant, want, w.Code, w.Body.String())
 		}
 	}
 
