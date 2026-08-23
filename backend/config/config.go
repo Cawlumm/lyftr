@@ -25,6 +25,10 @@ type Config struct {
 	Env        string
 	Version    string
 
+	// TrustedProxies are the network hops allowed to supply forwarded client-IP
+	// headers. Empty means trust none; never infer trust from a client/LAN range.
+	TrustedProxies []string
+
 	// Registration is who may create an account: RegistrationOpen, RegistrationClosed,
 	// or RegistrationFirstUser (open only while the users table is empty).
 	Registration string
@@ -83,6 +87,8 @@ func Load() {
 		Env:        env,
 		Version:    buildVersion,
 
+		TrustedProxies: getEnvList("TRUSTED_PROXIES"),
+
 		OEDBBaseURL: getEnv("OEDB_BASE_URL", ""),
 
 		Registration: getEnv("REGISTRATION", RegistrationOpen),
@@ -118,6 +124,19 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// getEnvList reads a comma-separated env var, trimming whitespace and dropping empty
+// entries. An unset TRUSTED_PROXIES intentionally becomes nil: Gin otherwise trusts all
+// forwarded-IP sources by default, which lets a direct client choose c.ClientIP().
+func getEnvList(key string) []string {
+	var out []string
+	for _, raw := range strings.Split(os.Getenv(key), ",") {
+		if value := strings.TrimSpace(raw); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 // getEnvBool reads a boolean env var via strconv.ParseBool — the same spellings the
