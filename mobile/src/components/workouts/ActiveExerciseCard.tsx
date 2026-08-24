@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from 'lucide-react-native'
-import { displayToLbs, displayWeight, sanitizeNumericInput, type ActiveSessionExercise } from '@lyftr/shared'
+import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -11,6 +11,42 @@ import { muscleColor } from '../../utils/exerciseUtils'
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
 const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
+
+// Weight gets its own component so each row can own a useNumericText buffer, the same
+// contract ExerciseFormCard's WeightCell uses. Without it the separator is unenterable:
+// the parent re-derives `value` from a number every keystroke, so typing "12." stores
+// Number("12.") === 12, re-renders as "12", and RN's TextInput pushes that back into the
+// native field — deleting the separator before the fractional digit can be typed. That
+// made #141 look fixed while the List view (the default layout) still could not accept
+// 12,5 or 12.5. Holding the raw text here is what lets a trailing separator survive.
+function WeightCell({ value, editable, placeholder, placeholderColor, accessibilityLabel, onChange }: {
+  value: string
+  editable: boolean
+  placeholder: string
+  placeholderColor: string
+  accessibilityLabel: string
+  onChange: (next: string) => void
+}) {
+  const [text, setText] = useNumericText(value)
+  return (
+    <TextInput
+      editable={editable}
+      value={text}
+      onChangeText={(raw) => {
+        const v = sanitizeNumericInput(raw, 'decimal')
+        setText(v)
+        onChange(v)
+      }}
+      keyboardType="decimal-pad"
+      inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+      placeholder={placeholder}
+      placeholderTextColor={placeholderColor}
+      className={`${CELL} ${editable ? '' : 'opacity-40'}`}
+      style={{ fontVariant: ['tabular-nums'] }}
+      accessibilityLabel={accessibilityLabel}
+    />
+  )
+}
 
 interface Props {
   /** Position in the session — rendered as-is in callbacks so the owning screen
@@ -122,19 +158,12 @@ function ActiveExerciseCardBase({
                 />
               </View>
               <View className="flex-1">
-                <TextInput
+                <WeightCell
                   editable={!set.completed}
                   value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
-                  onChangeText={(t) => {
-                    const v = sanitizeNumericInput(t, 'decimal')
-                    onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))
-                  }}
-                  keyboardType="decimal-pad"
-                  inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                  onChange={(v) => onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))}
                   placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
-                  placeholderTextColor={colors.txMuted}
-                  className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  placeholderColor={colors.txMuted}
                   accessibilityLabel={`Weight, set ${set.set_number}, ${ex.exercise.name}`}
                 />
               </View>
