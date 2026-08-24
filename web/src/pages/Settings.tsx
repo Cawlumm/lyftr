@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { memberSince } from '@lyftr/shared'
+import { memberSince, formatNumber } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -119,7 +119,7 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg(`Refreshed ${res.refreshed.toLocaleString()} exercises`)
+      setSeedMsg(`Refreshed ${formatNumber(res.refreshed, { grouped: true })} exercises`)
       loadCacheStatus()
     } catch (err: any) {
       setSeedMsg(err.message || 'Refresh failed')
@@ -133,7 +133,7 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
+      setSeedMsg(`Cleared ${formatNumber(res.cleared, { grouped: true })} unused exercises`)
       loadCacheStatus()
     } catch (err) {
       setSeedMsg(err instanceof Error ? err.message : 'Clear failed')
@@ -422,7 +422,7 @@ export default function Settings() {
           description="Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
         >
           <span className="text-sm font-mono text-tx-muted">
-            {cacheStatus ? cacheStatus.count.toLocaleString() : '—'} cached
+            {cacheStatus ? formatNumber(cacheStatus.count, { grouped: true }) : '—'} cached
           </span>
         </SettingRow>
 

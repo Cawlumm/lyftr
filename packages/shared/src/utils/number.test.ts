@@ -313,7 +313,22 @@ describe('toLocaleText hardening', () => {
 // full stop regardless of locale, so a German user could see "83,4" in the field and
 // "83.4" in the caption beside it.
 describe('formatNumber', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',', locale: 'en-US' }))
+
+  // Note the split: `decimal`/`group` drive PARSING, because JavaScript has no number
+  // parser and sanitizeNumericInput has to be told which character is the separator.
+  // `locale` drives DISPLAY, because Intl does that job and wants a locale, not two
+  // characters. Both real call sites pass all three; a test that sets only the
+  // separators would silently format as en-US, which is what these afterEach/beforeEach
+  // pairs exist to prevent.
+  const asLocale = (tag: string) => {
+    const parts = new Intl.NumberFormat(tag).formatToParts(1234.5)
+    configureNumberLocale({
+      decimal: parts.find((x) => x.type === 'decimal')?.value,
+      group: parts.find((x) => x.type === 'group')?.value,
+      locale: tag,
+    })
+  }
 
   it('is the plain number on en-US', () => {
     expect(formatNumber(83.4)).toBe('83.4')
@@ -321,13 +336,13 @@ describe('formatNumber', () => {
   })
 
   it('draws the locale separator', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber(83.4)).toBe('83,4')
     expect(formatNumber(102.5)).toBe('102,5')
   })
 
   it('honours a fixed decimal count', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber(83, { decimals: 1 })).toBe('83,0')
     expect(formatNumber(83.44, { decimals: 1 })).toBe('83,4')
     expect(formatNumber(83.456, { decimals: 2 })).toBe('83,46')
@@ -338,10 +353,16 @@ describe('formatNumber', () => {
   it('groups only when asked', () => {
     expect(formatNumber(1234.5)).toBe('1234.5')
     expect(formatNumber(1234.5, { grouped: true })).toBe('1,234.5')
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber(1234.5, { grouped: true })).toBe('1.234,5')
-    configureNumberLocale({ decimal: ',', group: ' ' })
-    expect(formatNumber(1234567, { grouped: true })).toBe('1 234 567')
+  })
+
+  // The reason this delegates to Intl rather than grouping every three digits by hand:
+  // grouping is CLDR data, not arithmetic. The hand-rolled version rendered 12,345,678.9
+  // here, which is not how anyone in India writes it.
+  it('groups by the locale system, not every three digits', () => {
+    asLocale('en-IN')
+    expect(formatNumber(12345678.9, { grouped: true })).toBe('1,23,45,678.9')
   })
 
   it('leaves short integers alone when grouping', () => {
@@ -350,13 +371,13 @@ describe('formatNumber', () => {
   })
 
   it('handles negatives', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber(-4.6)).toBe('-4,6')
     expect(formatNumber(-1234.5, { grouped: true })).toBe('-1.234,5')
   })
 
-  // Every caller site currently renders a possibly-absent number, so the empty cases have
-  // to be text rather than "NaN" or "undefined" landing on screen.
+  // Every call site renders a possibly-absent number, so the empty cases have to be text
+  // rather than "NaN" or "undefined" landing on screen.
   it('renders nothing rather than junk for absent or invalid values', () => {
     expect(formatNumber(null)).toBe('')
     expect(formatNumber(undefined)).toBe('')
@@ -367,7 +388,7 @@ describe('formatNumber', () => {
   })
 
   it('accepts a numeric string, which is what most call sites already hold', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber('83.4')).toBe('83,4')
   })
 
@@ -377,14 +398,14 @@ describe('formatNumber', () => {
   // This is the one place wger gets it wrong: their widget formats with grouping and their
   // input filter then eats it, so editing a formatted "1.234,5" yields 1,23.
   it('round-trips through sanitizeNumericInput', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     for (const n of [0.5, 12.5, 83.4, 102.5, 225, 1234.5]) {
       expect(Number(sanitizeNumericInput(formatNumber(n), 'decimal'))).toBe(n)
     }
   })
 
   it('agrees with toLocaleText for a value already held as text', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    asLocale('de-DE')
     expect(formatNumber(102.5)).toBe(toLocaleText('102.5'))
   })
 })

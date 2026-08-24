@@ -211,7 +211,7 @@ export default function WorkoutDetail() {
                   <AppText variant="caption" color="muted">Volume</AppText>
                 </View>
                 <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
-                  {totalVolume > 0 ? totalVolume.toLocaleString() : '—'}
+                  {totalVolume > 0 ? formatNumber(totalVolume, { grouped: true }) : '—'}
                   {totalVolume > 0 && <AppText variant="caption" color="muted"> {wUnit}</AppText>}
                 </AppText>
               </View>
@@ -255,7 +255,7 @@ export default function WorkoutDetail() {
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
                         <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
-                          {sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}
+                          {sets.length} sets{exVol > 0 ? ` · ${formatNumber(exVol, { grouped: true })} ${wUnit}` : ''}
                         </AppText>
                       </View>
                     </View>

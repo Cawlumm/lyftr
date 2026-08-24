@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
+import { formatNumber } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -106,7 +107,7 @@ export function VolumeBarChart({ data, width, unit, height = 130 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(xCenter(sel!) - 55, 0, Math.max(0, width - 110)), top: 0, maxWidth: 130 }}>
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {selPt.volume.toLocaleString()} {unit}
+            {formatNumber(selPt.volume, { grouped: true })} {unit}
           </AppText>
           <AppText variant="caption" color="muted" numberOfLines={1}>{selPt.name}</AppText>
         </View>

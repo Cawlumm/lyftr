@@ -475,7 +475,7 @@ export default function Dashboard() {
                         {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                         {mins > 0 ? ` · ${mins} min` : ''}
                         {totalSets > 0 ? ` · ${totalSets} sets` : ''}
-                        {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}
+                        {totalVolume > 0 ? ` · ${formatNumber(totalVolume, { grouped: true })} ${wUnit}` : ''}
                       </AppText>
                     </View>
                     <LinkRow label="All" onPress={() => router.navigate('/workouts')} />

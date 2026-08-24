@@ -41,16 +41,54 @@ export function clampValue(raw: string | number, min = 0): number {
   return Number.isFinite(n) ? Math.max(min, n) : min
 }
 
-// Locale facts for reading a typed number. Injected, not detected: Hermes leaves
-// Intl.NumberFormat#formatToParts unimplemented on iOS - PlatformIntlApple.mm is a
-// literal llvm_unreachable - so the obvious detection route crashes on half our
-// devices. Mobile passes expo-localization's native values, the same reason
-// detectTimezone is injected into the settings store. Defaults are en-US, so a caller
-// that never configures anything behaves exactly as before.
+// Locale facts, injected once at startup. Two things live here because two different
+// mechanisms need them:
+//
+//   - `separators` is for PARSING. JavaScript has no number parser - Intl.NumberFormat
+//     exposes format/formatToParts and nothing that reads a string back - so
+//     sanitizeNumericInput is ours to write, and it needs to know which character the
+//     user's keypad calls a decimal. wger does not have this problem: Dart's intl ships
+//     NumberFormat.tryParse, so their widget gets parsing free from the same object it
+//     formats with.
+//   - `localeTag` is for FORMATTING, which Intl does handle. Passing the tag rather than
+//     letting Intl pick the runtime default keeps display and parsing answering from one
+//     source; mobile takes both from expo-localization, web from Intl itself.
+//
+// Mobile has to inject the separators rather than read them from Intl because Hermes
+// leaves formatToParts unimplemented on iOS (PlatformIntlApple.mm is a literal
+// llvm_unreachable). format() is implemented on both platforms, which is why the display
+// half can lean on Intl and the parsing half cannot.
+//
+// Defaults are en-US, so a caller that configures nothing behaves as before.
 let separators = { decimal: '.', group: ',' }
+let localeTag: string | undefined
 
-export function configureNumberLocale(next: { decimal?: string | null; group?: string | null }): void {
+export function configureNumberLocale(next: {
+  decimal?: string | null
+  group?: string | null
+  locale?: string | null
+}): void {
   separators = { decimal: next.decimal || '.', group: next.group || ',' }
+  localeTag = next.locale || undefined
+  formatters.clear()
+}
+
+// Constructing an Intl.NumberFormat is expensive enough to matter in a list that
+// re-renders per keystroke, and they are immutable, so keep them.
+const formatters = new Map<string, Intl.NumberFormat>()
+function formatterFor(grouped: boolean, decimals?: number): Intl.NumberFormat {
+  const key = `${localeTag ?? ''}|${grouped}|${decimals ?? ''}`
+  let f = formatters.get(key)
+  if (!f) {
+    const opts: Intl.NumberFormatOptions = { useGrouping: grouped }
+    if (decimals !== undefined) {
+      opts.minimumFractionDigits = decimals
+      opts.maximumFractionDigits = decimals
+    }
+    f = new Intl.NumberFormat(localeTag, opts)
+    formatters.set(key, f)
+  }
+  return f
 }
 
 // Arabic-Indic (U+0660-0669) and Extended Arabic-Indic (U+06F0-06F9) digits, which an
@@ -144,22 +182,21 @@ export function toLocaleText(canonical: string): string {
   return separators.decimal === '.' ? canonical : canonical.split('.').join(separators.decimal)
 }
 
-// The third and last piece: a number the app holds -> the text a person reads.
+// The third and last piece: a number the app holds -> the text a person reads. Cards,
+// chips, captions, chart ticks.
 //
-// sanitizeNumericInput and toLocaleText cover a numeric *field*, where the value is
-// already a string being edited. Everything else on screen — a weight card, a macro
-// chip, a chart tick, a "last: 83.4" caption — starts from a number, and until this
-// existed each of those did its own `String(n)` or `n.toFixed(1)` and rendered a full
-// stop regardless of locale. One row could show both notations at once.
+// This is a thin wrapper over Intl.NumberFormat rather than a hand-rolled formatter,
+// because the hand-rolled one was a worse copy of a built-in. It produced byte-identical
+// output to Intl for en-US, de-DE and fr-FR - and got en-IN wrong, rendering 12,345,678.9
+// where the lakh/crore system wants 1,23,45,678.9. Grouping is not "every three digits";
+// it is CLDR data, and Intl already carries it.
 //
-// Deliberately NOT Intl.NumberFormat, even though format() (unlike formatToParts) is
-// implemented on iOS. Using it here would mean display followed the OS locale while
-// input followed the separators injected in configureNumberLocale — two sources for the
-// same question, and the first place they disagreed would be a bug nobody could
-// reproduce. One source, same as the day-attribution rule.
+// Kept as a named function rather than calling Intl at each site so there is still one
+// place that decides how a number looks, which is what numberDisplay.guard.test.ts
+// enforces - and one place to change if Intl ever proves unreliable under Hermes.
 //
-// Grouping is opt-in. A bodyweight of 1 234,5 reads worse than 1234,5, but a yearly
-// volume total wants it, so the caller decides rather than the util guessing.
+// Grouping is opt-in: "1 234,5" reads worse than "1234,5" for a bodyweight, while a
+// volume total wants it. The caller knows which it has.
 export function formatNumber(
   value: number | string | null | undefined,
   opts: { decimals?: number; grouped?: boolean } = {},
@@ -167,15 +204,5 @@ export function formatNumber(
   if (value === null || value === undefined || value === '') return ''
   const n = typeof value === 'number' ? value : Number(value)
   if (!Number.isFinite(n)) return ''
-
-  const fixed = opts.decimals === undefined ? String(n) : n.toFixed(opts.decimals)
-  const neg = fixed.startsWith('-')
-  const [intPart, fracPart] = (neg ? fixed.slice(1) : fixed).split('.')
-
-  const grouped =
-    opts.grouped && intPart.length > 3
-      ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, separators.group)
-      : intPart
-
-  return (neg ? '-' : '') + grouped + (fracPart ? separators.decimal + fracPart : '')
+  return formatterFor(Boolean(opts.grouped), opts.decimals).format(n)
 }

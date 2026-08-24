@@ -21,6 +21,7 @@ const numberParts = new Intl.NumberFormat(undefined).formatToParts(1234.5)
 configureNumberLocale({
   decimal: numberParts.find((p) => p.type === 'decimal')?.value,
   group: numberParts.find((p) => p.type === 'group')?.value,
+  locale: new Intl.NumberFormat().resolvedOptions().locale,
 })
 
 // App-wide singletons: one API client plus the Zustand stores, all bound to the web

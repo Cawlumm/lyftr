@@ -373,7 +373,7 @@ export default function Dashboard() {
                 <YAxis hide />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v.toLocaleString()} ${wUnit}`, 'Volume']}
+                  formatter={(v: number) => [`${formatNumber(v, { grouped: true })} ${wUnit}`, 'Volume']}
                   labelFormatter={(label: string) => chartData.find(d => d.date === label)?.name || label}
                   cursor={{ fill: 'rgba(99,102,241,0.08)', radius: 4 }}
                 />
@@ -497,7 +497,7 @@ export default function Dashboard() {
                     {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
-                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
+                    {totalVolume > 0 && ` · ${formatNumber(totalVolume, { grouped: true })} ${wUnit}`}
                   </p>
                 </div>
                 <Link to="/workouts" className="flex items-center gap-0.5 text-xs text-brand-400 hover:text-brand-300 flex-shrink-0 transition-colors">

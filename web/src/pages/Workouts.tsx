@@ -10,7 +10,7 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, calcVolume } from '@lyftr/shared'
+import { types, workoutDay, dayToLocalDate, calcVolume, formatNumber } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
@@ -107,7 +107,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
                   <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">
-                    <TrendingUp className="w-3 h-3 flex-shrink-0" />{totalVolume.toLocaleString()} {wUnit}
+                    <TrendingUp className="w-3 h-3 flex-shrink-0" />{formatNumber(totalVolume, { grouped: true })} {wUnit}
                   </span>
                 </>
               )}

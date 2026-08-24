@@ -557,7 +557,7 @@ export default function LogFood() {
                   </div>
                   {selected.serving_size && (
                     <p className="text-xs text-tx-muted mt-1">
-                      per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}
+                      per {servings === 1 ? '' : `${formatNumber(servings)} × `}{selected.serving_size}
                     </p>
                   )}
                 </div>

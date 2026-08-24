@@ -43,6 +43,7 @@ const numberLocale = Localization.getLocales()[0]
 configureNumberLocale({
   decimal: numberLocale?.decimalSeparator,
   group: numberLocale?.digitGroupingSeparator,
+  locale: numberLocale?.languageTag,
 })
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
