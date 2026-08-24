@@ -14,53 +14,73 @@ Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). U
 
 ## Run it (development)
 
-**Expo Go cannot run this app.** `app.json` declares config plugins (secure-store,
-camera, splash, fonts, localization, the Android network-security config), and Expo Go
-ships a fixed set of native modules that doesn't include them. Trying anyway fails with
-`expo-updates system is disabled due to an invalid configuration`. You need a
-**development build** — your own build of the app that speaks to Metro.
-
-It is a **one-time** cost. After it's installed, JS changes reload over Metro in seconds
-and you never rebuild unless a *native* dependency changes.
-
 ```bash
 npm install                                    # repo root, npm workspaces
 cd mobile
 npx expo install --fix                         # align native modules to the SDK
-npm run build:dev                              # one-time cloud build (EAS), ~15-25 min
+npm start                                      # Metro; press `a` for a booted emulator
 ```
 
-`build:dev` uses an EAS **cloud** build, which draws on the monthly quota. The free way is
-to build it on a GitHub runner instead — Actions → *EAS build* → *Run workflow* → tick
-**dev_client**. That runs `eas build --profile development --local`, which stays on the
-runner and costs no quota, and uploads the APK as a workflow artifact named after its
-native fingerprint.
+Open the project in **Expo Go** on the device. Editing JS reloads in seconds — no build,
+no EAS, no cloud quota. This is the day-to-day loop.
 
-Either way it is one build. You do not rebuild it to pick up a JS change — that is what
-Metro is for. You rebuild when the **native** surface moves: a new native dependency, a
-config plugin, an SDK bump. The fingerprint tells you when that has happened:
+Two things that will waste your afternoon if you don't know them:
+
+**`npx expo start` may crash before Metro binds.** There is a bug in `@expo/cli`'s startup
+dependency check — it reads a `fetch` response body twice:
+
+```
+TypeError: Body is unusable: Body has already been read
+  at getNativeModuleVersionsAsync (@expo/cli/src/api/getNativeModuleVersions.ts:47)
+```
+
+Skip the check: `EXPO_NO_DEPENDENCY_VALIDATION=1 npx expo start`. Nothing is wrong with the
+project. Metro then serves normally — confirmed by curling the manifest, which comes back
+`200` with `"runtimeVersion":"exposdk:54.0.0"`.
+
+**Expo Go logs a warning about updates, and it is harmless:**
+
+```
+The expo-updates system is disabled due to an invalid configuration.
+```
+
+That is `"level":"warn"`, emitted by Expo Go's *own* bundled `expo-updates` because a local
+dev project has no update URL. This repo does not depend on `expo-updates` at all. Do not
+read it as the cause of an unrelated failure — it has been mistaken for one before.
+
+If the device cannot reach Metro (`java.io.IOException: Failed to download remote update`),
+that is the network between them, not the project — a host firewall on the Metro port is the
+usual cause. `npx expo start --tunnel` routes via ngrok and sidesteps it.
+
+### When you need a development build instead
+
+Expo Go bundles the Expo SDK, so most of what this app uses is already in it. What it cannot
+apply is a **config plugin** — `expo-network-security-config` (issue #79) is native XML, so
+the user-CA/cleartext policy simply is not there. If you are testing *that*, or any native
+module Expo Go lacks, build a development client:
+
+```bash
+npm run build:dev          # cloud build, uses EAS quota
+```
+
+Free alternative: Actions → *EAS build* → *Run workflow* → tick **dev_client**. That runs
+`eas build --profile development --local` on a GitHub runner, costs no quota, and uploads the
+APK named after its native fingerprint.
+
+Either way it is one build, and you do not repeat it for JS changes — that is what Metro is
+for. Rebuild when the **native** surface moves. The fingerprint tells you when:
 
 ```bash
 npx @expo/fingerprint fingerprint:generate --platform android
 ```
 
-Same hash as the dev client you are running means the one on your device is still current,
-however much JS has changed under it.
-
-Install the resulting APK, then for day-to-day work:
-
-```bash
-npm start                                      # = expo start --dev-client
-```
-
-Open the app; it connects to Metro. Press `a` to launch it on a booted Android emulator.
+Same hash as the client on your device means it is still current, however much JS has changed.
 
 **Never build locally.** No `expo run:android`, no `expo prebuild` + Gradle, no
-`eas build --local`. A first local build is 10–25 minutes of toolchain download before
-it compiles anything, and `prebuild` writes an untracked `android/` and rewrites the
-`android`/`ios` scripts in `package.json`. Build through EAS or a CI runner.
+`eas build --local` (unsupported on Windows). `prebuild` also writes an untracked `android/`
+and rewrites the `android`/`ios` scripts in `package.json`.
 
-`npm run web` still works for quick UI checks that don't touch native modules.
+`npm run web` still works for quick UI checks that do not touch native modules.
 
 ### Build profiles (`eas.json`)
 

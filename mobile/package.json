@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "main": "expo-router/entry",
-  "//": "Expo SDK 54. After a fresh clone run `npx expo install --fix` to align native module versions to the installed Expo SDK. Expo Go cannot run this app (config plugins) - build the dev client once with `npm run build:dev`, install it, then `npm start`. See README.md.",
+  "//": "Expo SDK 54. After a fresh clone run `npx expo install --fix` to align native module versions to the installed Expo SDK, then `npx expo start`.",
   "scripts": {
-    "start": "expo start --dev-client",
+    "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

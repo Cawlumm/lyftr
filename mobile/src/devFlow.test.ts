@@ -33,7 +33,24 @@ describe('eas build profiles', () => {
     const channels = Object.values(easJson.build).filter((p: any) => p.channel)
     if (!hasUpdates) expect(channels).toEqual([])
   })
+
+
+  // #<apk-size>: the universal APK carried all four ABIs, and x86 alone was 47% of the
+  // download - emulator-only code on every user's phone. arm64-v8a covers real devices;
+  // x86_64 is kept deliberately so the same artifact still installs on the Android
+  // emulator we test on. Dropping armeabi-v7a drops 32-bit-only devices, which is the
+  // call Nextcloud made and Play has required 64-bit since 2019.
+  it('builds only the ABIs we ship', () => {
+    const pkg = JSON.parse(readFileSync(join(MOBILE, 'package.json'), 'utf8'))
+    expect('expo-build-properties' in pkg.dependencies).toBe(true)
+    const app = JSON.parse(readFileSync(join(MOBILE, 'app.json'), 'utf8'))
+    const plugin = app.expo.plugins.find(
+      (p: unknown) => Array.isArray(p) && p[0] === 'expo-build-properties',
+    )
+    expect(plugin?.[1]?.android?.buildArchs).toEqual(['arm64-v8a', 'x86_64'])
+  })
 })
+
 
 // Addresses that only resolve on a developer's own machine. `10.0.2.2` is the Android
 // emulator's alias for the host; the loopback forms are the iOS simulator and web.

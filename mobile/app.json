@@ -66,6 +66,17 @@
           "enable": true,
           "networkSecurityConfig": "./network_security_config.xml"
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "buildArchs": [
+              "arm64-v8a",
+              "x86_64"
+            ]
+          }
+        }
       ]
     ],
     "experiments": {
