@@ -9,8 +9,7 @@ import {
   Play, Plus, Repeat, Timer, Trash2, X,
 } from 'lucide-react-native'
 import {
-  displayToLbs, displayWeight, weightShort, type Exercise,
-} from '@lyftr/shared'
+  displayToLbs, displayWeight, weightShort, type Exercise, formatNumber } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
@@ -511,7 +510,7 @@ export function GymModeWorkout() {
           {set.target_reps > 0 || set.target_weight > 0 ? (
             <AppText variant="body" color="muted" className="text-center">
               Target <Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{set.target_reps > 0 ? set.target_reps : '—'} reps</Text>
-              {set.target_weight > 0 ? <Text> · <Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{displayWeight(set.target_weight, wUnit)} {wUnit}</Text></Text> : null}
+              {set.target_weight > 0 ? <Text> · <Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{formatNumber(displayWeight(set.target_weight, wUnit))} {wUnit}</Text></Text> : null}
             </AppText>
           ) : null}
 

@@ -165,3 +165,53 @@ was an interim stand-in).
 Screens have not been migrated onto the new primitives yet (`Section`/`Stat`/
 `OptionPill`/`ListRow` duplicate patterns still inlined in `(tabs)/*`) — adopt them
 as screens are next touched.
+
+## 8. Numbers — the app stores canonical, the screen shows the user's notation
+
+Half of Europe writes twelve and a half as `12,5`. Android's `decimal-pad` shows the
+**locale's** separator, and on those keypads there is often no full stop at all — so a
+field that strips "anything that isn't a digit or a dot" makes decimals unenterable for
+those users. That was #141.
+
+RN makes sanitizing mandatory rather than defensive: `ReactEditText` replaces Android's
+`KeyListener` specifically to *"permit all keyboard input through"*, so `keyboardType`
+constrains what is **drawn**, never what arrives.
+
+| Layer | Notation |
+|---|---|
+| stores, API, arithmetic | canonical `.` |
+| a numeric field's buffer | canonical `.` |
+| anything a person reads | the locale's |
+
+**Four functions, all in `@lyftr/shared` (`utils/number.ts`). Do not add a fifth.**
+
+| | |
+|---|---|
+| `configureNumberLocale({decimal, group})` | called **once**, in `src/lib/lyftr.ts`, from `expo-localization` |
+| `sanitizeNumericInput(raw, mode)` | typed text → canonical. Every numeric `TextInput` |
+| `toLocaleText(canonical)` | a field's buffer → what that field draws |
+| `formatNumber(n, {decimals, grouped})` | a stored number → text a person reads |
+
+Never `String(n)`, `n.toFixed(1)` or `` `${n}` `` for text a user reads.
+
+Separators are **injected, not detected**: Hermes leaves `Intl.NumberFormat#formatToParts`
+unimplemented on iOS, so detecting them would crash on half the fleet. `formatNumber`
+avoids `Intl` for the same reason display and input must not have two sources of truth.
+
+### Gotchas
+
+- **Numbers that aren't for reading stay canonical** — SVG path data, keys, ids, query
+  params. `DashboardCharts.tsx` builds paths with `toFixed(1)`; localise that and the
+  path parser reads the comma as a coordinate separator and the chart collapses.
+- **Whitespace is never a separator.** `fr`, `ru`, `sv`, `pl`, `cs`, `fi`, `nb`, `uk` use
+  a *space* as their group character and `expo-localization` passes it through verbatim.
+- **Grouping can't be detected mid-type.** A `TextInput` re-sends the whole field on each
+  keystroke, so `"1,"` arrives with nothing after it and reads as a decimal. Typing
+  `1,200` on en-US gives `1.2`; pasting gives `1200`. Known, and pinned by a test.
+- **A locale-dependent test must name its locale.** A test that never calls
+  `configureNumberLocale` is an en-US test — the one locale these bugs never appear in.
+  `src/components/ui/NumberField.locale.test.tsx` is the rendered-component shape.
+- **A field whose `value` is re-derived from a number needs a `useNumericText` buffer**,
+  or the parent's round-trip through `Number()` deletes the separator before the
+  fractional digit can be typed. This is what left the List view broken after #141 was
+  first "fixed" — see `ActiveExerciseCard`'s `WeightCell`.

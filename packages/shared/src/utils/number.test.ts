@@ -5,6 +5,7 @@ import {
   clampStep,
   clampValue,
   configureNumberLocale,
+  formatNumber,
   sanitizeNumericInput,
   toLocaleText,
 } from './number'
@@ -301,5 +302,82 @@ describe('toLocaleText hardening', () => {
     expect(toLocaleText(null)).toBe('')
     // @ts-expect-error deliberately wrong type
     expect(toLocaleText(12.5)).toBe('')
+  })
+})
+
+// The piece that closes the loop: a stored number -> the text a person reads. Before it
+// existed every card, chip and chart tick did its own String(n) or n.toFixed(1) and drew a
+// full stop regardless of locale, so a German user could see "83,4" in the field and
+// "83.4" in the caption beside it.
+describe('formatNumber', () => {
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+
+  it('is the plain number on en-US', () => {
+    expect(formatNumber(83.4)).toBe('83.4')
+    expect(formatNumber(120)).toBe('120')
+  })
+
+  it('draws the locale separator', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber(83.4)).toBe('83,4')
+    expect(formatNumber(102.5)).toBe('102,5')
+  })
+
+  it('honours a fixed decimal count', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber(83, { decimals: 1 })).toBe('83,0')
+    expect(formatNumber(83.44, { decimals: 1 })).toBe('83,4')
+    expect(formatNumber(83.456, { decimals: 2 })).toBe('83,46')
+  })
+
+  // Opt-in, because "1 234,5" reads worse than "1234,5" for a bodyweight but a volume
+  // total wants it.
+  it('groups only when asked', () => {
+    expect(formatNumber(1234.5)).toBe('1234.5')
+    expect(formatNumber(1234.5, { grouped: true })).toBe('1,234.5')
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber(1234.5, { grouped: true })).toBe('1.234,5')
+    configureNumberLocale({ decimal: ',', group: ' ' })
+    expect(formatNumber(1234567, { grouped: true })).toBe('1 234 567')
+  })
+
+  it('leaves short integers alone when grouping', () => {
+    expect(formatNumber(999, { grouped: true })).toBe('999')
+    expect(formatNumber(1000, { grouped: true })).toBe('1,000')
+  })
+
+  it('handles negatives', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber(-4.6)).toBe('-4,6')
+    expect(formatNumber(-1234.5, { grouped: true })).toBe('-1.234,5')
+  })
+
+  // Every caller site currently renders a possibly-absent number, so the empty cases have
+  // to be text rather than "NaN" or "undefined" landing on screen.
+  it('renders nothing rather than junk for absent or invalid values', () => {
+    expect(formatNumber(null)).toBe('')
+    expect(formatNumber(undefined)).toBe('')
+    expect(formatNumber('')).toBe('')
+    expect(formatNumber(NaN)).toBe('')
+    expect(formatNumber(Infinity)).toBe('')
+    expect(formatNumber('abc')).toBe('')
+  })
+
+  it('accepts a numeric string, which is what most call sites already hold', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber('83.4')).toBe('83,4')
+  })
+
+  // The loop is closed: what a field draws, a field can read back.
+  it('round-trips through sanitizeNumericInput', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    for (const n of [0.5, 12.5, 83.4, 102.5, 225, 1234.5]) {
+      expect(Number(sanitizeNumericInput(formatNumber(n), 'decimal'))).toBe(n)
+    }
+  })
+
+  it('agrees with toLocaleText for a value already held as text', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(formatNumber(102.5)).toBe(toLocaleText('102.5'))
   })
 })

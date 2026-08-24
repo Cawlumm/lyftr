@@ -162,3 +162,39 @@ export function toLocaleText(canonical: string): string {
   if (typeof canonical !== 'string') return ''
   return separators.decimal === '.' ? canonical : canonical.split('.').join(separators.decimal)
 }
+
+// The third and last piece: a number the app holds -> the text a person reads.
+//
+// sanitizeNumericInput and toLocaleText cover a numeric *field*, where the value is
+// already a string being edited. Everything else on screen — a weight card, a macro
+// chip, a chart tick, a "last: 83.4" caption — starts from a number, and until this
+// existed each of those did its own `String(n)` or `n.toFixed(1)` and rendered a full
+// stop regardless of locale. One row could show both notations at once.
+//
+// Deliberately NOT Intl.NumberFormat, even though format() (unlike formatToParts) is
+// implemented on iOS. Using it here would mean display followed the OS locale while
+// input followed the separators injected in configureNumberLocale — two sources for the
+// same question, and the first place they disagreed would be a bug nobody could
+// reproduce. One source, same as the day-attribution rule.
+//
+// Grouping is opt-in. A bodyweight of 1 234,5 reads worse than 1234,5, but a yearly
+// volume total wants it, so the caller decides rather than the util guessing.
+export function formatNumber(
+  value: number | string | null | undefined,
+  opts: { decimals?: number; grouped?: boolean } = {},
+): string {
+  if (value === null || value === undefined || value === '') return ''
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n)) return ''
+
+  const fixed = opts.decimals === undefined ? String(n) : n.toFixed(opts.decimals)
+  const neg = fixed.startsWith('-')
+  const [intPart, fracPart] = (neg ? fixed.slice(1) : fixed).split('.')
+
+  const grouped =
+    opts.grouped && intPart.length > 3
+      ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, separators.group)
+      : intPart
+
+  return (neg ? '-' : '') + grouped + (fracPart ? separators.decimal + fracPart : '')
+}

@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatNumber } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
@@ -169,7 +169,7 @@ export default function WeightDetail() {
                 ) : (
                   <>
                     <View className="flex-row items-end gap-2">
-                      <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{displayWeight(log.weight, unit)}</AppText>
+                      <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{formatNumber(displayWeight(log.weight, unit))}</AppText>
                       <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                     </View>
                     <AppText variant="body" color="muted" className="mt-1">
