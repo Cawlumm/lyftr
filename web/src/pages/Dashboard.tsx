@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatNumber } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -534,7 +534,7 @@ export default function Dashboard() {
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, settings.weight_unit)}${wUnit}` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${formatNumber(displayWeight(best.weight, settings.weight_unit))}${wUnit}` : ' BW'}
                         </span>
                       )}
                     </div>
@@ -735,7 +735,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-tx-primary tabular-nums leading-none">
-                  {displayWeight(weightLogs[0].weight, settings.weight_unit)}
+                  {formatNumber(displayWeight(weightLogs[0].weight, settings.weight_unit))}
                 </span>
                 <span className="text-sm text-tx-muted">{wUnit}</span>
               </div>

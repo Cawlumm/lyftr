@@ -240,7 +240,7 @@ export default function WeightDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({
           title: 'Delete Entry?',
-          subject: `${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
+          subject: `${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${formatNumber(displayWeight(log.weight, unit))} ${wUnit}`,
         })}
         open={confirming}
         busy={deleting}

@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
+import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel, formatNumber } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
@@ -415,7 +415,7 @@ export default function ProgramDetail() {
                             {ex.exercise.muscle_group}
                           </span>
                         )}
-                        <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
+                        <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${formatNumber(maxTarget)} ${wUnit}` : ''}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -432,7 +432,7 @@ export default function ProgramDetail() {
                               hasSuggestion ? 'bg-warning-500/10 text-tx-secondary ring-1 ring-warning-500/40'
                                 : isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
                             }`}>
-                              {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
+                              {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${formatNumber(displayWeight(set.target_weight, wUnit))} ${wUnit}` : 'BW'}
                             </div>
                           )
                         })}

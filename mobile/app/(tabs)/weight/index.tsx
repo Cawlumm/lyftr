@@ -290,7 +290,7 @@ export default function Weight() {
                     <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
                     <View className="min-w-0 flex-1">
                       <Text className="font-sans-semibold text-sm text-warning-400">
-                        Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                        Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({formatNumber(displayWeight(items[0].weight, unit))} {wUnit}). Log again anyway?
                       </Text>
                       <View className="mt-2 flex-row gap-2">
                         <Pressable

@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood, formatNumber } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -594,7 +594,7 @@ export default function LogFood() {
                   { label: 'Fiber',   value: fib,  color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
                 ].map(m => (
                   <div key={m.label} className={`rounded-xl border p-2.5 text-center ${m.bg}`}>
-                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}g</p>
+                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{formatNumber(m.value)}g</p>
                     <p className="text-[10px] text-tx-muted mt-0.5">{m.label}</p>
                   </div>
                 ))}

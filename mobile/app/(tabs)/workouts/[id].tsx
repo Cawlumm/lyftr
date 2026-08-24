@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatNumber } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -30,7 +30,7 @@ function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit
         color={isBest ? 'brand' : 'secondary'}
         style={{ fontVariant: ['tabular-nums'] }}
       >
-        {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : 'BW'}
+        {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${formatNumber(displayWeight(set.weight, unit))} ${unit}` : 'BW'}
       </AppText>
     </View>
   )
@@ -263,7 +263,7 @@ export default function WorkoutDetail() {
                       <View className="items-end mr-1">
                         <AppText variant="label" color="muted">best</AppText>
                         <AppText variant="subheading" color="brand" style={{ fontVariant: ['tabular-nums'] }}>
-                          {maxWeight} {wUnit}
+                          {formatNumber(maxWeight)} {wUnit}
                         </AppText>
                       </View>
                     )}

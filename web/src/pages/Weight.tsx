@@ -370,7 +370,7 @@ export default function Weight() {
             <h2 className="section-title">Log Weight</h2>
           </div>
           {items.length > 0 && (
-            <span className="text-[11px] text-tx-muted">last: {displayWeight(items[0].weight, settings.weight_unit)} {wUnit}</span>
+            <span className="text-[11px] text-tx-muted">last: {formatNumber(displayWeight(items[0].weight, settings.weight_unit))} {wUnit}</span>
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
@@ -422,7 +422,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({formatNumber(displayWeight(items[0].weight, settings.weight_unit))} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"

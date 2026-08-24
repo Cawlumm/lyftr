@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatNumber } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -493,7 +493,7 @@ export default function Dashboard() {
                           </View>
                           {best ? (
                             <Text className="text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
-                              {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, unit)}${wUnit}` : ' BW'}
+                              {sets.length}×{best.weight > 0 ? ` ${formatNumber(displayWeight(best.weight, unit))}${wUnit}` : ' BW'}
                             </Text>
                           ) : null}
                         </View>
@@ -623,7 +623,7 @@ export default function Dashboard() {
               <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className="active:scale-[0.99]" accessibilityLabel="Log weight">
                 <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-baseline gap-1.5">
-                    <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
+                    <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{formatNumber(displayWeight(weightLogs[0].weight, unit))}</AppText>
                     <AppText variant="caption" color="muted">{wUnit}</AppText>
                   </View>
                   <View className="flex-row items-center gap-2">
