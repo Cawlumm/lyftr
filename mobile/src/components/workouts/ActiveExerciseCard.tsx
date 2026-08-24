@@ -13,17 +13,15 @@ const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Hr
 
 const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
-// Weight gets its own component so each row can own a useNumericText buffer, the same
-// contract ExerciseFormCard's WeightCell uses. Without it the separator is unenterable:
-// the parent re-derives `value` from a number every keystroke, so typing "12." stores
-// Number("12.") === 12, re-renders as "12", and RN's TextInput pushes that back into the
-// native field — deleting the separator before the fractional digit can be typed. That
-// made #141 look fixed while the List view (the default layout) still could not accept
-// 12,5 or 12.5. Holding the raw text here is what lets a trailing separator survive.
-// Both cells of a set row. A component rather than two inline TextInputs because
-// useNumericField is a hook and these render inside a .map over the sets — a hook cannot
-// be called in a loop. Each row therefore gets its own buffer, which is what lets a
-// half-typed "12." survive the parent re-deriving value from a number each keystroke.
+// Both cells of a set row. A component rather than two inline NumericInputs because each
+// row needs its own text buffer, and because these render inside a .map over the sets —
+// the buffer is a hook, and a hook cannot be called in a loop.
+//
+// The buffer is what makes a separator enterable at all: the parent re-derives `value`
+// from a number every keystroke, so typing "12." stores Number("12.") === 12, re-renders
+// as "12", and RN's TextInput pushes that back into the native field — deleting the
+// separator before the fractional digit can be typed. That is what made #141 look fixed
+// while the List view, the *default* layout, still could not accept 12,5 or 12.5.
 //
 // Note there is no selectTextOnFocus here, unlike the log/edit form: these are live sets
 // being corrected mid-workout, so a tap should land where it was aimed rather than

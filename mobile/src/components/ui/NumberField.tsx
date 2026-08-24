@@ -14,8 +14,9 @@ interface Props {
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
-// StepperTile (the tile is the visual container). Robust partial-entry typing via
-// useNumericText; the parent owns conversion/validation in onChange.
+// StepperTile (the tile is the visual container). The number handling is NumericInput's;
+// this only adds the type scale and the disabled treatment. The parent owns conversion
+// and validation in onChange.
 export function NumberField({
   value,
   onChange,
