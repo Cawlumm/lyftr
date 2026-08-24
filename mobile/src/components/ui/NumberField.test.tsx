@@ -20,47 +20,20 @@ const field = (props: Partial<React.ComponentProps<typeof NumberField>> = {}) =>
   return { input: screen.getByLabelText(props.accessibilityLabel ?? 'Weight'), onChange }
 }
 
+// What sanitizeNumericInput accepts is settled in packages/shared — number.test.ts owns
+// that truth table. These only prove this component is wired to it and picks the right
+// keyboard, so the rules don't get asserted twice in two places that could drift.
 describe('NumberField', () => {
-  // #141: Android's decimal-pad shows the locale's separator, and across most of Europe
-  // that is a comma with no full stop available. Stripping it as "not a digit" deleted
-  // the only separator those users could reach, so a weight of 12,5 was unenterable.
-  it('accepts a comma as the decimal separator', () => {
+  it('sanitizes through the shared helper in decimal mode', () => {
     const { input, onChange } = field({ inputMode: 'decimal' })
     fireEvent.changeText(input, '12,5')
     expect(onChange).toHaveBeenCalledWith('12.5')
   })
 
-  it('still accepts a full stop', () => {
-    const { input, onChange } = field({ inputMode: 'decimal' })
-    fireEvent.changeText(input, '12.5')
-    expect(onChange).toHaveBeenCalledWith('12.5')
-  })
-
-  it('keeps only the first separator however it was typed', () => {
-    const { input, onChange } = field({ inputMode: 'decimal' })
-    fireEvent.changeText(input, '1,2,5')
-    expect(onChange).toHaveBeenCalledWith('1.25')
-  })
-
-  // Reps are whole numbers, and a comma must not sneak a decimal in by the back door.
-  it('drops the separator entirely in integer mode', () => {
+  it('sanitizes through the shared helper in numeric mode', () => {
     const { input, onChange } = field({ inputMode: 'numeric' })
     fireEvent.changeText(input, '12,5')
     expect(onChange).toHaveBeenCalledWith('125')
-  })
-
-  it('rejects letters and signs', () => {
-    const { input, onChange } = field({ inputMode: 'decimal' })
-    fireEvent.changeText(input, '-1a2b.5kg')
-    expect(onChange).toHaveBeenCalledWith('12.5')
-  })
-
-  // Typing "12," must leave the separator in place, or the field fights the user by
-  // deleting it before they can type the fractional digit.
-  it('keeps a trailing separator mid-typing', () => {
-    const { input, onChange } = field({ inputMode: 'decimal' })
-    fireEvent.changeText(input, '12,')
-    expect(onChange).toHaveBeenCalledWith('12.')
   })
 
   it('uses a decimal keyboard for decimals and a number pad for integers', () => {
