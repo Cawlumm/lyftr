@@ -1,4 +1,4 @@
-import { entryToResult, findSavedFood, savedToResult, scaleServing } from './food'
+import { entryToResult, findSavedFood, normaliseFoodKey, savedToResult, scaleServing } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -127,5 +127,45 @@ describe('findSavedFood', () => {
 
   it('returns undefined against an empty list', () => {
     expect(findSavedFood([], { name: 'Chicken Breast', brand: 'Tesco' })).toBeUndefined()
+  })
+})
+
+// The server trims before storing, so the client has to compare on the same terms —
+// otherwise a search result carrying "Oats " reads as different from the stored "Oats",
+// the star shows unfilled next to a food that is already favourited, and tapping it asks
+// the server to create a row it will refuse as a duplicate.
+describe('findSavedFood normalisation', () => {
+  const list = [saved({ id: 9, name: 'Oats', brand: 'Quaker' })]
+
+  it.each([
+    ['trailing space', 'Oats ', 'Quaker'],
+    ['leading space', ' Oats', 'Quaker'],
+    ['both ends', '  Oats  ', 'Quaker'],
+    ['tab and newline', '\tOats\n', 'Quaker'],
+    ['padded brand', 'Oats', ' Quaker '],
+  ])('matches across %s', (_label, name, brand) => {
+    expect(findSavedFood(list, { name, brand })?.id).toBe(9)
+  })
+
+  // Case stays significant, matching the UNIQUE(user_id, name, brand) index. Folding it
+  // here would hide a favourite the server would happily create.
+  it('does not fold case', () => {
+    expect(findSavedFood(list, { name: 'oats', brand: 'Quaker' })).toBeUndefined()
+  })
+
+  it('still separates genuinely different brands', () => {
+    expect(findSavedFood(list, { name: 'Oats ', brand: 'Lidl' })).toBeUndefined()
+  })
+
+  it('treats a whitespace-only brand as unbranded', () => {
+    const unbranded = [saved({ id: 4, name: 'Water', brand: '' })]
+    expect(findSavedFood(unbranded, { name: 'Water', brand: '   ' })?.id).toBe(4)
+  })
+})
+
+describe('normaliseFoodKey', () => {
+  it('trims and tolerates undefined', () => {
+    expect(normaliseFoodKey('  Oats  ')).toBe('Oats')
+    expect(normaliseFoodKey(undefined)).toBe('')
   })
 })

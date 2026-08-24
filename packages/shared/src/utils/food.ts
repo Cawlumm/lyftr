@@ -70,5 +70,19 @@ export function findSavedFood(
   saved: SavedFood[],
   item: Pick<FoodSearchResult, 'name' | 'brand'>,
 ): SavedFood | undefined {
-  return saved.find(s => s.name === item.name && (s.brand ?? '') === (item.brand ?? ''))
+  const name = normaliseFoodKey(item.name)
+  const brand = normaliseFoodKey(item.brand)
+  return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
+}
+
+// The single definition of "the same food", client-side. It has to agree with the
+// server, which trims before storing — otherwise a search result carrying "Oats " reads
+// as different from the stored "Oats", the star shows unfilled next to a food that is
+// already favourited, and tapping it asks the server to create something it will refuse
+// as a duplicate.
+//
+// Trim only. Case is deliberately significant, matching the UNIQUE(user_id, name, brand)
+// index: folding it here would hide a favourite the server would happily create.
+export function normaliseFoodKey(value: string | undefined): string {
+  return (value ?? '').trim()
 }
