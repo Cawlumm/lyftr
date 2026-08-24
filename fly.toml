@@ -14,6 +14,10 @@ primary_region = "fra"
   PORT       = "3000"
   DB_PATH    = "/app/data/lyftr.db"
   CORS_ORIGIN = "https://lyftr-demo.fly.dev"
+  # nginx and the Go backend share one container. Trust only that loopback hop;
+  # fly/nginx.fly.conf rewrites X-Forwarded-For from Fly's authoritative
+  # Fly-Client-IP header before proxying to Go.
+  TRUSTED_PROXIES = "127.0.0.1/32,::1/128"
   # Without this the demo deploys with no account to log into.
   DEMO_MODE  = "true"
 
