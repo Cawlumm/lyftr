@@ -1045,6 +1045,149 @@ func TestCreateSavedFood_missingName(t *testing.T) {
 	}
 }
 
+// TestCreateSavedFood_trimsWhitespace covers #137: whitespace around a name is
+// not a distinguishing feature of a food, so every spelling of "Oats" has to
+// land on the same stored value. Otherwise the list shows rows the user cannot
+// tell apart.
+func TestCreateSavedFood_trimsWhitespace(t *testing.T) {
+	variants := []string{"Oats", "Oats ", " Oats", "  Oats  ", "\tOats\n"}
+
+	for _, variant := range variants {
+		t.Run(fmt.Sprintf("%q", variant), func(t *testing.T) {
+			setupTestDB(t)
+			uid := createTestUser(t)
+
+			body := map[string]any{"name": variant, "brand": " Quaker ", "calories": 100.0}
+			c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+			th.CreateSavedFood(c)
+
+			if w.Code != http.StatusCreated {
+				t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+			}
+			data := decodeResponse(t, w)["data"].(map[string]any)
+			if data["name"].(string) != "Oats" {
+				t.Errorf("stored name = %q, want %q", data["name"], "Oats")
+			}
+			if data["brand"].(string) != "Quaker" {
+				t.Errorf("stored brand = %q, want %q", data["brand"], "Quaker")
+			}
+
+			var stored string
+			if err := db.DB.QueryRow(`SELECT name FROM saved_foods WHERE user_id = ?`, uid).Scan(&stored); err != nil {
+				t.Fatalf("read back: %v", err)
+			}
+			if stored != "Oats" {
+				t.Errorf("row in the database is %q, want %q", stored, "Oats")
+			}
+		})
+	}
+}
+
+// TestCreateSavedFood_whitespaceOnlyNameRejected covers the other half of #137:
+// `required` only rejects the empty string, and a space is not empty, so " "
+// used to be saved as a favourite that renders as nothing at all.
+func TestCreateSavedFood_whitespaceOnlyNameRejected(t *testing.T) {
+	for _, name := range []string{" ", "   ", "\t", "\n", " \t\n "} {
+		t.Run(fmt.Sprintf("%q", name), func(t *testing.T) {
+			setupTestDB(t)
+			uid := createTestUser(t)
+
+			body := map[string]any{"name": name, "calories": 100.0}
+			c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+			th.CreateSavedFood(c)
+
+			if w.Code == http.StatusCreated {
+				t.Fatalf("a whitespace-only name was accepted: %s", w.Body.String())
+			}
+			var count int
+			db.DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&count)
+			if count != 0 {
+				t.Errorf("%d row(s) written for a rejected name", count)
+			}
+		})
+	}
+}
+
+// Trimming must not reach inside the name: a food really can have two words.
+func TestCreateSavedFood_keepsInteriorWhitespace(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{"name": "  Greek  Yogurt  ", "brand": "Chobani", "calories": 130.0}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if data["name"].(string) != "Greek  Yogurt" {
+		t.Errorf("stored name = %q, want %q", data["name"], "Greek  Yogurt")
+	}
+}
+
+// The length limit should measure what gets stored, so padding must not push an
+// otherwise-legal name over the cap.
+func TestCreateSavedFood_lengthLimitAppliesToTrimmedName(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	name := strings.Repeat("a", 200)
+	body := map[string]any{"name": "   " + name + "   ", "calories": 100.0}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+	th.CreateSavedFood(c)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("a 200-character name with padding should be accepted, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if got := data["name"].(string); got != name {
+		t.Errorf("stored name has length %d, want %d", len(got), len(name))
+	}
+}
+
+// TestCreateSavedFood_whitespaceVariantsCollapseToOneFood is the user-visible
+// statement of #137: saving every spelling of one food leaves one favourite.
+func TestCreateSavedFood_whitespaceVariantsCollapseToOneFood(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	// Only the first save creates a row. Once the trimmed name matches an existing
+	// favourite the insert hits UNIQUE(user_id, name, brand) and CreateSaved answers 200
+	// with the row already there, so asserting 201 throughout would be asserting that
+	// trimming had *not* worked.
+	for i, variant := range []string{"Oats", "Oats ", " Oats", "  Oats  "} {
+		body := map[string]any{"name": variant, "brand": "Quaker", "calories": 100.0}
+		c, w := newContext(uid, http.MethodPost, "/api/v1/food/saved", body)
+		th.CreateSavedFood(c)
+
+		want := http.StatusOK
+		if i == 0 {
+			want = http.StatusCreated
+		}
+		if w.Code != want {
+			t.Fatalf("saving %q: expected %d, got %d: %s", variant, want, w.Code, w.Body.String())
+		}
+	}
+
+	rows, err := db.DB.Query(`SELECT DISTINCT name FROM saved_foods WHERE user_id = ?`, uid)
+	if err != nil {
+		t.Fatalf("query: %v", err)
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			t.Fatalf("scan: %v", err)
+		}
+		names = append(names, n)
+	}
+	if len(names) != 1 || names[0] != "Oats" {
+		t.Errorf("distinct saved names = %q, want exactly [\"Oats\"]", names)
+	}
+}
+
 // ─── DeleteSavedFood ──────────────────────────────────────────────────────────
 
 func TestDeleteSavedFood_success(t *testing.T) {
