@@ -1,11 +1,12 @@
 import { memo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
+import { NumericInput } from '../ui/NumericInput'
 import { FileText, Plus, Timer, Trash2, X } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { sanitizeNumericInput, toLocaleText, useNumericText } from '@lyftr/shared'
+
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {
@@ -45,32 +46,32 @@ const CELL = 'h-9 flex-1 rounded-lg border border-surface-border/60 bg-surface-o
 const COL_SET = 'w-9'
 const COL_DELETE = 'w-9'
 
-// Weight gets its own component so each row can own a useNumericText buffer —
-// preserves a trailing "." / leading "0" while the parent re-derives value as a
-// number each keystroke (same contract as workouts/WeightInput, minus the inline
-// unit suffix: in a table the unit lives in the column header once).
-function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, inputAccessoryViewID }: {
+// Both cells of a set row. A component rather than two inline TextInputs because
+// useNumericField is a hook and these render inside a .map over the sets — a hook
+// cannot be called in a loop. Which is a useful constraint: it also gives each row its
+// own buffer, so a trailing "." or leading "0" survives the parent re-deriving value
+// from a number every keystroke (same contract as workouts/WeightInput, minus the
+// inline unit suffix: in a table the unit lives in the column header once).
+function SetCell({ value, onChange, mode, accessibilityLabel, placeholderColor, inputRef, onNext, inputAccessoryViewID }: {
   value: string
   onChange: (next: string) => void
+  /** Reps are whole; weight takes one decimal separator. */
+  mode: 'numeric' | 'decimal'
+  accessibilityLabel: string
   placeholderColor: string
   /** Callback ref so the parent's focus chain can jump reps → weight. */
   inputRef?: (r: TextInput | null) => void
-  /** Present on all but the last set: Android's numeric "next" key hops to the next row's reps. */
+  /** Reps always have one (the weight beside them); weight has one on all but the last
+      set, where Android's numeric "next" key hops to the next row's reps. */
   onNext?: () => void
   inputAccessoryViewID?: string
 }) {
-  const [text, setText] = useNumericText(value)
-  const emit = (raw: string) => {
-    const v = sanitizeNumericInput(raw, 'decimal')
-    setText(v)
-    onChange(v)
-  }
   return (
-    <TextInput
+    <NumericInput
+      value={value}
+      onChangeText={onChange}
+      inputMode={mode}
       ref={inputRef}
-      value={toLocaleText(text)}
-      onChangeText={emit}
-      keyboardType="decimal-pad"
       returnKeyType={onNext ? 'next' : 'done'}
       submitBehavior={onNext ? 'submit' : 'blurAndSubmit'}
       onSubmitEditing={onNext}
@@ -78,7 +79,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
       inputAccessoryViewID={inputAccessoryViewID}
       placeholder="0"
       placeholderTextColor={placeholderColor}
-      accessibilityLabel="Set weight"
+      accessibilityLabel={accessibilityLabel}
       className={CELL}
       style={{ fontVariant: ['tabular-nums'] }}
     />
@@ -155,25 +156,21 @@ function ExerciseFormCardBase({
               </AppText>
             </View>
             <View className="flex-1">
-              <TextInput
-                ref={(r) => { repsRefs.current[setIdx] = r }}
-                value={set.reps ? String(set.reps) : ''}
-                onChangeText={(t) => onUpdateSet(index, setIdx, 'reps', sanitizeNumericInput(t, 'numeric'))}
-                keyboardType="number-pad"
-                returnKeyType="next"
-                submitBehavior="submit"
-                onSubmitEditing={() => weightRefs.current[setIdx]?.focus()}
-                selectTextOnFocus
-                inputAccessoryViewID={inputAccessoryViewID}
-                placeholder="0"
-                placeholderTextColor={colors.txMuted}
+              <SetCell
+                mode="numeric"
                 accessibilityLabel="Set reps"
-                className={CELL}
-                style={{ fontVariant: ['tabular-nums'] }}
+                value={set.reps ? String(set.reps) : ''}
+                onChange={(v) => onUpdateSet(index, setIdx, 'reps', v)}
+                inputRef={(r) => { repsRefs.current[setIdx] = r }}
+                onNext={() => weightRefs.current[setIdx]?.focus()}
+                inputAccessoryViewID={inputAccessoryViewID}
+                placeholderColor={colors.txMuted}
               />
             </View>
             <View className="flex-1">
-              <WeightCell
+              <SetCell
+                mode="decimal"
+                accessibilityLabel="Set weight"
                 value={set.weight ? String(set.weight) : ''}
                 onChange={(v) => onUpdateSet(index, setIdx, 'weight', v)}
                 placeholderColor={colors.txMuted}

@@ -188,11 +188,37 @@ constrains what is **drawn**, never what arrives.
 | | |
 |---|---|
 | `configureNumberLocale({ locale })` | called **once**, in `src/lib/lyftr.ts`, with the device's language tag |
-| `sanitizeNumericInput(raw, mode)` | typed text → canonical. Every numeric `TextInput` |
+| `sanitizeNumericInput(raw, mode)` | typed text → canonical |
 | `toLocaleText(canonical)` | a field's buffer → what that field draws |
 | `formatNumber(n, {decimals, grouped})` | a stored number → text a person reads |
 
 Never `String(n)`, `n.toFixed(1)` or `` `${n}` `` for text a user reads.
+
+### Numeric input: use `NumericInput`, never a raw `TextInput`
+
+The first three above are *primitives*. No screen calls them directly — a field that got
+one of the three right and another wrong is how #141 survived #143. Two layers instead:
+
+| | |
+|---|---|
+| `<NumericInput>` (`src/components/ui/`) | a `TextInput` that already sanitizes, buffers and localises. Styling, refs and keyboard props pass through, so it drops in wherever a `TextInput` was |
+| `useNumericField(value, onChange, mode)` (`@lyftr/shared`) | the same three, as props to spread — for a field you cannot wrap, i.e. one rendered by `<Field>`, which owns its own `TextInput`. Settings' four macro targets are the only current case |
+
+Both feed from one implementation, so a new rule (a thousands separator, a max precision)
+is one edit. `packages/shared/src/hooks/useNumericField.guard.test.ts` fails the build if a
+field declares a numeric `keyboardType` itself or calls `sanitizeNumericInput` directly.
+
+This is the shape every comparable project lands on, because no framework hands it to you
+for free on RN: `TextInput` has no `inputFormatters` (Flutter's hook, and why wger needs no
+wrapper), `onKeyPress` is not cancelable, and Android's `ReactEditText` installs a key
+listener that permits all input through. react-aria pairs `useNumberField` with Spectrum's
+`<NumberField>`; Expensify pairs `LocaleDigitUtils` with `AmountTextInput`; both after
+shipping this same bug (Expensify/App#10108 is #141 in Spanish).
+
+Adobe's `@internationalized/number` solves this properly, including the partial-input case
+(`isValidPartialNumber`) — and we cannot use it: its parser calls `formatToParts` in four
+places, which Hermes leaves unimplemented on iOS. That is why our separator is derived from
+`format()` instead.
 
 `formatNumber` is a thin wrapper over `Intl.NumberFormat` — grouping is CLDR data, not
 arithmetic, and a hand-rolled version got `en-IN` wrong (`12,345,678.9` where lakh/crore

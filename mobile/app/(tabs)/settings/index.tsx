@@ -24,7 +24,7 @@ import {
   testServerConnection,
   isInsecureServerUrl,
   INSECURE_SERVER_WARNING,
-  sanitizeNumericInput,
+  useNumericField,
 } from '@lyftr/shared'
 import {
   AppText,
@@ -50,6 +50,24 @@ import { useTheme } from '../../../src/theme/useTheme'
 const REST_PRESETS = [60, 90, 120, 180]
 
 type ToastState = { variant: ToastVariant; title: string; description?: string }
+
+// The four macro targets. A component rather than four inline <Field>s because
+// useNumericField is a hook: it has to be called once per field, which a single
+// key-indexed onDigits handler cannot do. Whole numbers, so `numeric`.
+function TargetField({ label, unit, value, onChangeText }: {
+  label: string
+  unit: string
+  value: string
+  onChangeText: (next: string) => void
+}) {
+  return (
+    <Field
+      label={label}
+      {...useNumericField(value, onChangeText, 'numeric')}
+      rightSlot={<Muted className="text-xs">{unit}</Muted>}
+    />
+  )
+}
 
 export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user)
@@ -110,7 +128,7 @@ export default function SettingsScreen() {
   const restCustomActive = restIsCustom || showCustomRest
 
   const onDigits = (key: keyof typeof targets) => (t: string) =>
-    setTargets((p) => ({ ...p, [key]: sanitizeNumericInput(t, 'numeric') }))
+    setTargets((p) => ({ ...p, [key]: t }))
 
   const handleSaveTargets = async () => {
     setSaving(true)
@@ -308,34 +326,10 @@ export default function SettingsScreen() {
               }
             />
             <View className="gap-3 border-t border-surface-border py-4">
-              <Field
-                label="Calorie target"
-                keyboardType="number-pad"
-                value={targets.calorie_target}
-                onChangeText={onDigits('calorie_target')}
-                rightSlot={<Muted className="text-xs">kcal</Muted>}
-              />
-              <Field
-                label="Protein target"
-                keyboardType="number-pad"
-                value={targets.protein_target}
-                onChangeText={onDigits('protein_target')}
-                rightSlot={<Muted className="text-xs">g</Muted>}
-              />
-              <Field
-                label="Carb target"
-                keyboardType="number-pad"
-                value={targets.carb_target}
-                onChangeText={onDigits('carb_target')}
-                rightSlot={<Muted className="text-xs">g</Muted>}
-              />
-              <Field
-                label="Fat target"
-                keyboardType="number-pad"
-                value={targets.fat_target}
-                onChangeText={onDigits('fat_target')}
-                rightSlot={<Muted className="text-xs">g</Muted>}
-              />
+              <TargetField label="Calorie target" unit="kcal" value={targets.calorie_target} onChangeText={onDigits('calorie_target')} />
+              <TargetField label="Protein target" unit="g" value={targets.protein_target} onChangeText={onDigits('protein_target')} />
+              <TargetField label="Carb target" unit="g" value={targets.carb_target} onChangeText={onDigits('carb_target')} />
+              <TargetField label="Fat target" unit="g" value={targets.fat_target} onChangeText={onDigits('fat_target')} />
               <Button title="Save targets" onPress={handleSaveTargets} loading={saving} className="mt-1" />
             </View>
           </SettingsGroup>

@@ -1,8 +1,9 @@
 import { memo } from 'react'
 import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { NumericInput } from '../ui/NumericInput'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from 'lucide-react-native'
-import { displayToLbs, displayWeight, sanitizeNumericInput, toLocaleText, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
+import { displayToLbs, displayWeight, toLocaleText, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -19,25 +20,31 @@ const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-
 // native field — deleting the separator before the fractional digit can be typed. That
 // made #141 look fixed while the List view (the default layout) still could not accept
 // 12,5 or 12.5. Holding the raw text here is what lets a trailing separator survive.
-function WeightCell({ value, editable, placeholder, placeholderColor, accessibilityLabel, onChange }: {
+// Both cells of a set row. A component rather than two inline TextInputs because
+// useNumericField is a hook and these render inside a .map over the sets — a hook cannot
+// be called in a loop. Each row therefore gets its own buffer, which is what lets a
+// half-typed "12." survive the parent re-deriving value from a number each keystroke.
+//
+// Note there is no selectTextOnFocus here, unlike the log/edit form: these are live sets
+// being corrected mid-workout, so a tap should land where it was aimed rather than
+// replacing the value. That is the case sanitizeNumericInput's first-separator-wins rule
+// exists for — the cursor can sit inside a prefilled "82,5".
+function SetCell({ value, editable, mode, placeholder, placeholderColor, accessibilityLabel, onChange }: {
   value: string
   editable: boolean
+  /** Reps are whole; weight takes one decimal separator. */
+  mode: 'numeric' | 'decimal'
   placeholder: string
   placeholderColor: string
   accessibilityLabel: string
   onChange: (next: string) => void
 }) {
-  const [text, setText] = useNumericText(value)
   return (
-    <TextInput
+    <NumericInput
+      value={value}
+      onChangeText={onChange}
+      inputMode={mode}
       editable={editable}
-      value={toLocaleText(text)}
-      onChangeText={(raw) => {
-        const v = sanitizeNumericInput(raw, 'decimal')
-        setText(v)
-        onChange(v)
-      }}
-      keyboardType="decimal-pad"
       inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
       placeholder={placeholder}
       placeholderTextColor={placeholderColor}
@@ -144,21 +151,19 @@ function ActiveExerciseCardBase({
                 <Text className="font-sans-bold text-sm" style={{ color: set.completed ? accent : colors.txMuted, fontVariant: ['tabular-nums'] }}>{set.set_number}</Text>
               </View>
               <View className="flex-1">
-                <TextInput
+                <SetCell
+                  mode="numeric"
                   editable={!set.completed}
                   value={set.actual_reps ? String(set.actual_reps) : ''}
-                  onChangeText={(t) => onUpdateSet(index, setIdx, 'actual_reps', Number(sanitizeNumericInput(t, 'numeric')) || 0)}
-                  keyboardType="number-pad"
-                  inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                  onChange={(v) => onUpdateSet(index, setIdx, 'actual_reps', Number(v) || 0)}
                   placeholder={set.target_reps > 0 ? String(set.target_reps) : '—'}
-                  placeholderTextColor={colors.txMuted}
-                  className={`${CELL} ${set.completed ? 'opacity-40' : ''}`}
-                  style={{ fontVariant: ['tabular-nums'] }}
+                  placeholderColor={colors.txMuted}
                   accessibilityLabel={`Reps, set ${set.set_number}, ${ex.exercise.name}`}
                 />
               </View>
               <View className="flex-1">
-                <WeightCell
+                <SetCell
+                  mode="decimal"
                   editable={!set.completed}
                   value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                   onChange={(v) => onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))}
