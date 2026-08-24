@@ -1576,3 +1576,69 @@ func TestLogFood_roundTripsBrand(t *testing.T) {
 		t.Errorf("listed entry has brand %v, want Tesco", got)
 	}
 }
+
+// The Recent tab matches logged entries against Favorites by name and brand, so a log
+// written with stray whitespace misses the favourite it came from — the star reads empty
+// next to a food already starred. Same normalisation as the favourites path.
+func TestLogFood_trimsNameAndBrand(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{
+		"name": "  Oats  ", "brand": " Quaker ", "meal": "breakfast",
+		"calories": 100.0, "servings": 1.0,
+	}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	d := decodeResponse(t, w)["data"].(map[string]any)
+	if d["name"].(string) != "Oats" {
+		t.Errorf("logged name = %q, want %q", d["name"], "Oats")
+	}
+	if d["brand"].(string) != "Quaker" {
+		t.Errorf("logged brand = %q, want %q", d["brand"], "Quaker")
+	}
+}
+
+// A whitespace-only name is not a name; `required` only rejects the empty string, so the
+// trim has to happen before validation for it to be caught.
+func TestLogFood_rejectsWhitespaceOnlyName(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{"name": "   ", "meal": "breakfast", "calories": 100.0, "servings": 1.0}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
+	th.LogFood(c)
+
+	if w.Code == http.StatusCreated {
+		t.Fatalf("a whitespace-only name was logged: %s", w.Body.String())
+	}
+	var count int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM food_logs WHERE user_id = ?`, uid).Scan(&count)
+	if count != 0 {
+		t.Errorf("%d row(s) written for a rejected name", count)
+	}
+}
+
+func TestUpdateFoodLog_trimsNameAndBrand(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	id := insertFoodLog(t, uid, "Oats", "breakfast", 100, 5, 20, 2, time.Now())
+
+	body := map[string]any{
+		"name": " Rolled Oats ", "brand": " Quaker ", "meal": "breakfast",
+		"calories": 120.0, "servings": 1.0,
+	}
+	c, w := newContext(uid, http.MethodPut, "/api/v1/food/"+fmt.Sprint(id), body)
+	setParam(c, "id", fmt.Sprint(id))
+	th.UpdateFoodLog(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	d := decodeResponse(t, w)["data"].(map[string]any)
+	if d["name"].(string) != "Rolled Oats" || d["brand"].(string) != "Quaker" {
+		t.Errorf("updated entry is %q/%q, want trimmed", d["name"], d["brand"])
+	}
+}

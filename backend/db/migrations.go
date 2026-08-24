@@ -151,10 +151,87 @@ func alterMigrations() {
 	// Both the order and the condition matter. ensureIndex is log.Fatal on failure and
 	// CREATE UNIQUE INDEX fails against a table that still holds duplicates, so creating
 	// it unconditionally would refuse to boot exactly the installs that have the bug.
-	if dedupeSavedFoods() {
+	if dedupeSavedFoods() && trimSavedFoods() {
 		ensureIndex("idx_saved_foods_unique",
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
 	}
+}
+
+// sqlWhitespace is the character set TRIM() strips. SQLite's one-argument TRIM removes
+// spaces and nothing else, so TRIM(char(9)||'Oats') is still tab-Oats — which would
+// leave migrated rows holding whitespace that every new write strips, and the two would
+// disagree about identity forever. Go's strings.TrimSpace covers more than these four,
+// but these are what a food name realistically arrives with.
+const sqlWhitespace = `' ' || char(9) || char(10) || char(13)`
+
+// trimSavedFoods normalises rows written before the handlers started trimming, so stored
+// data matches what the app now produces and what the clients compare against.
+//
+// Reports whether saved_foods is safe to index — same contract as dedupeSavedFoods, and
+// never a reason to fail the boot.
+//
+// The order is the whole trick. Trimming first collides with the unique index the moment
+// two rows trim to the same key:
+//
+//	UPDATE first -> UNIQUE constraint failed: saved_foods.user_id, name, brand
+//	DELETE first -> fine
+//
+// So collapse on the *trimmed* key while the rows are still untrimmed, then rewrite the
+// survivors. Keeps the earliest id, the same rule dedupeSavedFoods documents.
+func trimSavedFoods() bool {
+	done, err := hasMigrationFlag("trim_saved_foods")
+	if err != nil {
+		log.Printf("migrations: trim saved_foods flag: %v (skipping the unique index this boot)", err)
+		return false
+	}
+	if done {
+		return true
+	}
+
+	// A name that is nothing but whitespace renders as a blank row. It was never a
+	// favourite anyone chose; the handlers now reject it outright.
+	if _, err := DB.Exec(`DELETE FROM saved_foods WHERE TRIM(name, ` + sqlWhitespace + `) = ''`); err != nil {
+		log.Printf("migrations: drop blank saved_foods: %v (skipping the unique index this boot)", err)
+		return false
+	}
+
+	if _, err := DB.Exec(`
+		DELETE FROM saved_foods
+		WHERE id NOT IN (
+			SELECT MIN(id) FROM saved_foods
+			GROUP BY user_id, TRIM(name, ` + sqlWhitespace + `), TRIM(brand, ` + sqlWhitespace + `)
+		)`); err != nil {
+		log.Printf("migrations: dedupe saved_foods on the trimmed key: %v (skipping the unique index this boot)", err)
+		return false
+	}
+
+	res, err := DB.Exec(`
+		UPDATE saved_foods
+		SET name = TRIM(name, ` + sqlWhitespace + `), brand = TRIM(brand, ` + sqlWhitespace + `)
+		WHERE name <> TRIM(name, ` + sqlWhitespace + `) OR brand <> TRIM(brand, ` + sqlWhitespace + `)`)
+	if err != nil {
+		log.Printf("migrations: trim saved_foods: %v (skipping the unique index this boot)", err)
+		return false
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("migration: trimmed %d saved_foods row(s)", n)
+	}
+
+	// food_logs feeds the Recent tab, which matches against Favorites by name and brand.
+	// No unique index here, so a plain rewrite — but leaving it untrimmed would keep old
+	// entries failing to match the favourites they came from.
+	if res, err := DB.Exec(`
+		UPDATE food_logs
+		SET name = TRIM(name, ` + sqlWhitespace + `), brand = TRIM(brand, ` + sqlWhitespace + `)
+		WHERE name <> TRIM(name, ` + sqlWhitespace + `) OR brand <> TRIM(brand, ` + sqlWhitespace + `)`); err != nil {
+		log.Printf("migrations: trim food_logs: %v (skipping the unique index this boot)", err)
+		return false
+	} else if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("migration: trimmed %d food_logs row(s)", n)
+	}
+
+	setMigrationFlag("trim_saved_foods")
+	return true
 }
 
 // dedupeSavedFoods collapses duplicate stars, keeping the lowest id in each

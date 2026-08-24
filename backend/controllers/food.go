@@ -70,6 +70,13 @@ func (h *Handler) LogFood(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	// Same normalisation the favourites path applies, and for a reason that only exists
+	// since food_logs gained `brand`: the Recent tab matches logged entries against
+	// Favorites by name and brand, so an untrimmed entry misses the favourite it is —
+	// the star reads empty next to a food already starred. Before validation, so a
+	// whitespace-only name collapses to "" and the existing `required` rule rejects it.
+	req.Name = strings.TrimSpace(req.Name)
+	req.Brand = strings.TrimSpace(req.Brand)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return
@@ -126,6 +133,13 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		utils.BadRequest(c, err.Error())
 		return
 	}
+	// Same normalisation the favourites path applies, and for a reason that only exists
+	// since food_logs gained `brand`: the Recent tab matches logged entries against
+	// Favorites by name and brand, so an untrimmed entry misses the favourite it is —
+	// the star reads empty next to a food already starred. Before validation, so a
+	// whitespace-only name collapses to "" and the existing `required` rule rejects it.
+	req.Name = strings.TrimSpace(req.Name)
+	req.Brand = strings.TrimSpace(req.Brand)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return

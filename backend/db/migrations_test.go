@@ -743,3 +743,128 @@ func TestDedupeSavedFoods_isIdempotentAcrossBoots(t *testing.T) {
 		t.Fatalf("expected the single bookmark to survive two boots, got %d rows", n)
 	}
 }
+
+// The trim migration has to normalise rows written before the handlers trimmed, without
+// tripping the unique index #136 added. Order is the risk: trimming before deduping
+// fails the moment two rows trim to the same key, so this pins the whole sequence.
+func TestTrimSavedFoods_normalisesAndCollapses(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	var uid, other int64
+	for _, u := range []struct {
+		email string
+		into  *int64
+	}{{"trim@example.com", &uid}, {"other@example.com", &other}} {
+		res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, 'x')`, u.email)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		*u.into, _ = res.LastInsertId()
+	}
+
+	rows := []struct {
+		uid   int64
+		name  string
+		brand string
+		kcal  float64
+	}{
+		{uid, "Oats", "Quaker", 100},     // id 1 — earliest, should survive
+		{uid, "Oats ", "Quaker", 110},    // trailing space
+		{uid, " Oats", " Quaker ", 120},  // leading, and a padded brand
+		{uid, "\tOats\n", "Quaker", 130}, // tab/newline — plain TRIM() would miss these
+		{uid, "   ", "", 140},            // whitespace-only name: a blank row
+		{uid, "Oats", "Lidl", 150},       // different brand, genuinely another product
+		{other, "Oats ", "Quaker", 160},  // another user's row
+	}
+	for _, r := range rows {
+		if _, err := DB.Exec(
+			`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, ?, ?, ?)`,
+			r.uid, r.name, r.brand, r.kcal,
+		); err != nil {
+			t.Fatalf("seed saved_food: %v", err)
+		}
+	}
+	// No brand column yet — alterMigrations adds it. That is exactly the pre-migration
+	// shape this test exists to upgrade, so the fixture must not invent it.
+	if _, err := DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal, calories, logged_at)
+		 VALUES (?, ' Oats ', 'breakfast', 100, '2026-01-01 08:00:00')`, uid,
+	); err != nil {
+		t.Fatalf("seed food_log: %v", err)
+	}
+
+	alterMigrations()
+
+	var name, brand string
+	var kcal float64
+	if err := DB.QueryRow(
+		`SELECT name, brand, calories FROM saved_foods WHERE user_id = ? AND brand = 'Quaker'`, uid,
+	).Scan(&name, &brand, &kcal); err != nil {
+		t.Fatalf("expected exactly one Quaker row: %v", err)
+	}
+	if name != "Oats" || brand != "Quaker" {
+		t.Errorf("survivor is %q/%q, want \"Oats\"/\"Quaker\"", name, brand)
+	}
+	if kcal != 100 {
+		t.Errorf("kept calories %v, want the earliest row's 100", kcal)
+	}
+
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n)
+	if n != 2 {
+		t.Errorf("expected 2 rows for the user (Quaker + Lidl), got %d", n)
+	}
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE TRIM(name) = ''`).Scan(&n)
+	if n != 0 {
+		t.Errorf("%d blank-name row(s) survived", n)
+	}
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, other).Scan(&n)
+	if n != 1 {
+		t.Errorf("the other user's row was touched: %d rows", n)
+	}
+
+	// The log feeds Recent, which matches favourites by name+brand.
+	if err := DB.QueryRow(`SELECT name, brand FROM food_logs WHERE user_id = ?`, uid).Scan(&name, &brand); err != nil {
+		t.Fatalf("read food_log: %v", err)
+	}
+	if name != "Oats" {
+		t.Errorf("food_log name is %q, want trimmed", name)
+	}
+	if brand != "" {
+		t.Errorf("a pre-migration log should default to an empty brand, got %q", brand)
+	}
+
+	// And the index is in place afterwards, which is what the ordering protects.
+	if _, err := DB.Exec(
+		`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, 'Oats', 'Quaker', 1)`, uid,
+	); err == nil {
+		t.Error("a duplicate was insertable after the migration")
+	}
+}
+
+// alterMigrations runs on every boot; the trim must not re-run or fight the index.
+func TestTrimSavedFoods_isIdempotentAcrossBoots(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('boot2@example.com', 'x')`)
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	uid, _ := res.LastInsertId()
+	if _, err := DB.Exec(
+		`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, 'Oats ', 'Quaker', 100)`, uid,
+	); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	alterMigrations()
+	alterMigrations()
+
+	var name string
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n)
+	DB.QueryRow(`SELECT name FROM saved_foods WHERE user_id = ?`, uid).Scan(&name)
+	if n != 1 || name != "Oats" {
+		t.Fatalf("after two boots: %d row(s), name %q", n, name)
+	}
+}
