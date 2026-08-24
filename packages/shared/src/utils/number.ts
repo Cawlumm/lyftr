@@ -40,3 +40,25 @@ export function clampValue(raw: string | number, min = 0): number {
   const n = typeof raw === 'number' ? raw : Number(raw)
   return Number.isFinite(n) ? Math.max(min, n) : min
 }
+
+// Strip anything that isn't part of a non-negative number, for RN inputs. Web
+// needs none of this — <input type="number"> lets the browser parse the locale's
+// own separator — but a React Native TextInput hands back raw text with no such
+// hook, so every mobile numeric field sanitizes what it receives.
+//
+// The comma is load-bearing (#141). Android's decimal-pad shows the *locale's*
+// separator, which across most of Europe is a comma, and on those keypads there is
+// no full stop to type instead. Stripping it as "not a digit" deleted the only
+// separator those users could reach, so a weight of 12,5 could not be entered at
+// all. Fold it to a point; the stored value stays machine-readable either way.
+// 'numeric' still drops it, so reps can't be typed fractional by the back door.
+//
+// One copy on purpose. This logic was duplicated across three components when #141
+// was filed, and the first fix corrected one of them while the default workout view
+// stayed broken — which is the failure mode a shared util exists to prevent.
+export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
+  const v = raw.replace(/,/g, '.').replace(mode === 'decimal' ? /[^0-9.]/g : /[^0-9]/g, '')
+  if (mode !== 'decimal') return v
+  const i = v.indexOf('.')
+  return i === -1 ? v : v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
+}

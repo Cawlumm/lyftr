@@ -1,4 +1,4 @@
-import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue } from './number'
+import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue, sanitizeNumericInput } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only
 // through WeightInput's buttons; those moved to StepperTile (#91), so it's tested
@@ -66,5 +66,47 @@ describe('clampValue', () => {
     expect(clampValue('')).toBe(0)
     expect(clampValue('abc')).toBe(0)
     expect(clampValue('abc', 5)).toBe(5)
+  })
+})
+
+describe('sanitizeNumericInput', () => {
+  // #141: Android's decimal-pad shows the locale's separator, and across most of
+  // Europe that is a comma with no full stop on the keypad at all. Stripping it as
+  // "not a digit" deleted the only separator those users could reach, so a weight
+  // of 12,5 was unenterable.
+  it('folds a comma to a decimal point', () => {
+    expect(sanitizeNumericInput('12,5', 'decimal')).toBe('12.5')
+  })
+
+  it('still accepts a full stop', () => {
+    expect(sanitizeNumericInput('12.5', 'decimal')).toBe('12.5')
+  })
+
+  it('keeps only the first separator, however it was typed', () => {
+    expect(sanitizeNumericInput('1,2,5', 'decimal')).toBe('1.25')
+    expect(sanitizeNumericInput('1.2,5', 'decimal')).toBe('1.25')
+    expect(sanitizeNumericInput('1,2.5', 'decimal')).toBe('1.25')
+  })
+
+  // Typing "12," must leave the separator in place, or the field fights the user by
+  // deleting it before they can reach the fractional digit.
+  it('keeps a trailing separator mid-typing', () => {
+    expect(sanitizeNumericInput('12,', 'decimal')).toBe('12.')
+  })
+
+  // Reps are whole numbers, and a comma must not sneak a decimal in by the back door.
+  it('drops the separator entirely in numeric mode', () => {
+    expect(sanitizeNumericInput('12,5', 'numeric')).toBe('125')
+    expect(sanitizeNumericInput('12.5', 'numeric')).toBe('125')
+  })
+
+  it('rejects letters and signs in both modes', () => {
+    expect(sanitizeNumericInput('-1a2b.5kg', 'decimal')).toBe('12.5')
+    expect(sanitizeNumericInput('-1a2b5kg', 'numeric')).toBe('125')
+  })
+
+  it('passes an empty string through', () => {
+    expect(sanitizeNumericInput('', 'decimal')).toBe('')
+    expect(sanitizeNumericInput('abc', 'decimal')).toBe('')
   })
 })
