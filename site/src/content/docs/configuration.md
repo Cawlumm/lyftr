@@ -13,8 +13,37 @@ All configuration lives in a `.env` file at the project root.
 | `CORS_ORIGIN` | `http://localhost` | Comma-separated allow-list of client origins. Use `*` to allow any (the API is Bearer-token based, no cookies). |
 | `PORT` | `80` | Host port for the web interface. |
 | `BACKEND_ORIGIN` | `backend:3000` | Docker **service name**:port the frontend proxies `/api` to — not a host IP. Only change the port, to match a custom backend `PORT`. |
+| `TRUSTED_PROXIES` | `172.28.0.0/16` (Compose) | Comma-separated proxy IPs/CIDRs allowed to supply forwarded client-IP headers. Direct backend runs default to none. |
 | `REGISTRATION` | `open` | Who may create an account: `open`, `first-user`, or `closed`. See below. |
 | `DEMO_MODE` | `false` | Seeds the demo account and sample data. Leave off — its password is public. |
+
+## Trusted proxy boundary
+
+Lyftr uses the client IP for security-sensitive controls such as the auth limiter. A caller must
+not be able to choose that identity by sending its own `X-Forwarded-For` header.
+
+The backend therefore trusts **no forwarded-IP source by default**. If you run the Go binary
+directly, leave `TRUSTED_PROXIES` unset unless you deliberately put a reverse proxy in front of it.
+If you do, list the proxy hop itself — not the client or LAN networks behind it.
+
+The bundled Compose stack is the exception because its topology is known. Compose pins frontend
+nginx and the backend to `172.28.0.0/16` and supplies that exact CIDR as `TRUSTED_PROXIES`. nginx is
+therefore trusted to append the real socket client, while a normal LAN address such as
+`192.168.1.50` remains untrusted and stops the header walk where it should.
+
+:::caution[Do not trust client networks]
+Do not broaden this to `192.168.0.0/16`, `10.0.0.0/8`, all RFC1918 space, `0.0.0.0/0`, or `::/0`.
+A real client inside a trusted range is treated as another proxy hop, so Gin can walk past it to an
+address the caller prepended. Trust the reverse-proxy hop, not the population it serves.
+:::
+
+The Fly demo has a different topology: Fly Proxy → nginx → Go in one container. It trusts only the
+loopback nginx hop. The Fly nginx config replaces `X-Forwarded-For` with Fly's
+[`Fly-Client-IP`](https://fly.io/docs/networking/request-headers/#fly-client-ip) before forwarding
+to Go, so Fly's own proxy addresses do not become the limiter key.
+
+Invalid proxy entries fail startup before the database is opened. If the backend exits with
+`invalid TRUSTED_PROXIES`, fix the IP/CIDR list rather than widening it until it boots.
 
 ## Locking down registration
 
