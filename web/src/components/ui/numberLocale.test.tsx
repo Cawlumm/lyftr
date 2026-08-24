@@ -11,7 +11,7 @@ import { configureNumberLocale, formatNumber } from '@lyftr/shared'
 // Hermes leaves formatToParts unimplemented on iOS), so this also pins that the browser
 // path produces the values the shared formatter expects.
 describe('number display locale (web)', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',', locale: 'en-US' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   // Mirrors what web/src/lib/lyftr.ts passes. All three fields matter and they do
   // different jobs: decimal/group are what sanitizeNumericInput parses against, while
@@ -19,16 +19,12 @@ describe('number display locale (web)', () => {
   // silently stays en-US — which is the one locale these bugs never show up in.
   const separatorsFor = (locale: string) => {
     const parts = new Intl.NumberFormat(locale).formatToParts(1234.5)
-    return {
-      decimal: parts.find((p) => p.type === 'decimal')?.value,
-      group: parts.find((p) => p.type === 'group')?.value,
-      locale,
-    }
+    return { decimal: parts.find((p) => p.type === 'decimal')?.value, locale }
   }
 
   it('reads separators out of Intl the way lyftr.ts does', () => {
-    expect(separatorsFor('en-US')).toEqual({ decimal: '.', group: ',', locale: 'en-US' })
-    expect(separatorsFor('de-DE')).toEqual({ decimal: ',', group: '.', locale: 'de-DE' })
+    expect(separatorsFor('en-US')).toEqual({ decimal: '.', locale: 'en-US' })
+    expect(separatorsFor('de-DE')).toEqual({ decimal: ',', locale: 'de-DE' })
   })
 
   it('formats a weight in the reader notation once configured', () => {

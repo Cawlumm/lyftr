@@ -40,14 +40,7 @@ const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
 // field reads input as en-US, so a German "1.234,5" parses as 1.2345 and an Arabic
 // keypad's digits are deleted outright, logging a weight of 0 (#141).
 const numberLocale = Localization.getLocales()[0]
-configureNumberLocale({
-  locale: numberLocale?.languageTag,
-  // Fallback only, for a runtime without Intl. The separator the parser actually uses is
-  // read back out of the formatter, so a field and the caption beside it cannot disagree —
-  // which they could when this was passed straight through, because iOS lets the Number
-  // Format setting differ from the language.
-  decimal: numberLocale?.decimalSeparator,
-})
+configureNumberLocale({ locale: numberLocale?.languageTag })
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
 // Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.

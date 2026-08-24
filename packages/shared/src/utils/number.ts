@@ -57,17 +57,13 @@ export function clampValue(raw: string | number, min = 0): number {
 // that character. wger does not have this problem: Dart's intl ships NumberFormat.tryParse,
 // so their widget formats and parses from one object.
 //
-// `decimal` remains accepted as a fallback for a runtime where Intl is unavailable, and
-// `group` is accepted and ignored - grouping is Intl's business now, and the parser
-// deliberately does not detect it (see sanitizeNumericInput).
+// `decimal` and `group` used to be accepted here too. Both are gone: `group` was never
+// read once grouping detection was dropped, and the `decimal` "fallback for a runtime
+// without Intl" was unreachable - formatNumber would have thrown on the line above it.
 let separators = { decimal: '.' }
 let localeTag: string | undefined
 
-export function configureNumberLocale(next: {
-  decimal?: string | null
-  group?: string | null
-  locale?: string | null
-}): void {
+export function configureNumberLocale(next: { locale?: string | null }): void {
   // An invalid tag makes `new Intl.NumberFormat(tag)` throw RangeError - and it would
   // throw at render, on every one of the ~24 call sites, long after the bad value was
   // accepted here. Probe once and degrade to the runtime default instead.
@@ -85,8 +81,7 @@ export function configureNumberLocale(next: {
   // Whatever Intl draws a decimal point as, that is what the parser accepts. \p{Nd} and
   // not [0-9]: ar-EG formats 1.1 as "١٫١", so stripping only ASCII digits would leave the
   // whole string and hand the parser three characters instead of one separator.
-  const drawn = formatNumber(1.1).replace(/\p{Nd}/gu, '')
-  separators = { decimal: drawn || next.decimal || '.' }
+  separators = { decimal: formatNumber(1.1).replace(/\p{Nd}/gu, '') || '.' }
 }
 
 // Constructing an Intl.NumberFormat is expensive enough to matter in a list that
