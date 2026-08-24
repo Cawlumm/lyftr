@@ -48,6 +48,14 @@ on:
         type: choice
         default: preview
         options: [preview, production]
+      dev_client:
+        description: >-
+          Build a development client APK on the runner instead. This is the build you
+          install once and then load JS into over Metro (`npm start`) — it does not need
+          rebuilding when JS changes, only when the native surface does. Local build, so
+          it costs no EAS cloud quota. Ignores the two inputs above.
+        type: boolean
+        default: false
       dry_run_release:
         description: >-
           Rehearse the release build instead: build the Android preview APK on the runner
@@ -72,7 +80,7 @@ permissions:
 jobs:
   # On-demand tester build → the APK lives on the EAS build page (install link + QR).
   tester-build:
-    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run_release
+    if: github.event_name == 'workflow_dispatch' && !inputs.dry_run_release && !inputs.dev_client
     name: EAS ${{ github.event.inputs.profile }} (${{ github.event.inputs.platform }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -105,11 +113,102 @@ jobs:
             --non-interactive \
             --no-wait
 
+  # The build you install once and then stop thinking about.
+  #
+  # A development client loads JS from Metro at runtime, so its APK is a function of the
+  # *native* surface only — autolinked modules, config plugins, app config. Editing a
+  # screen does not change it. That is why this is a manual dispatch and not a per-push
+  # job: rebuilding it after a JS change produces an APK that behaves identically to the
+  # one already on the device, for ~20 minutes of runner time. Expo builds the same
+  # assumption into `eas build:dev`, which reuses a build whose fingerprint still matches
+  # rather than making a new one.
+  #
+  # `--local` keeps it on this runner, so it does not touch the EAS cloud build quota —
+  # the documented way to keep building once that quota is spent. Credentials still come
+  # from EAS, so this is signed with the same key as everything else.
+  dev-client:
+    if: github.event_name == 'workflow_dispatch' && inputs.dev_client
+    name: Development client APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - name: Require EXPO_TOKEN
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      # Same JDK the release job pins, for the same reason: Gradle runs here, not on an
+      # EAS image, and AGP 8 / RN 0.81 expect 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      # Shares the release job's cache key on purpose — same lockfile, same dependency
+      # graph, so a dev-client build warms the cache the next release build reads.
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      # The fingerprint is what says whether this build was needed. Recording it in the
+      # log and on the artifact means the next person can compare rather than guess —
+      # and it is the same hash the `development` profile would be keyed on.
+      - name: Record the native fingerprint
+        id: fp
+        working-directory: mobile
+        run: |
+          npx --yes @expo/fingerprint@latest fingerprint:generate --platform android > fp.json
+          FP=$(python3 -c "import json;print(json.load(open('fp.json'))['hash'])")
+          rm fp.json
+          echo "hash=$FP" >> "$GITHUB_OUTPUT"
+          echo "Native fingerprint: \`$FP\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the development client
+        working-directory: mobile
+        env:
+          APK_NAME: lyftr-devclient-${{ steps.fp.outputs.hash }}.apk
+        run: |
+          eas build \
+            --platform android \
+            --profile development \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/$APK_NAME"
+
+      # A dev client is only useful while its fingerprint is current, and a stale one in
+      # someone's downloads is worse than none — hence the short retention and the hash
+      # in the name.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lyftr-devclient-${{ steps.fp.outputs.hash }}
+          path: lyftr-devclient-${{ steps.fp.outputs.hash }}.apk
+          retention-days: 14
+          if-no-files-found: error
+
   # Tagged release → build the Android APK on this runner, then attach it to the Release.
   # Also runs on a manual dispatch with dry_run_release, which stops after the artifact
   # upload — that's how you rehearse a release build without publishing anything.
   release-apk:
-    if: github.event_name == 'push' || inputs.dry_run_release
+    if: github.event_name == 'push' || (inputs.dry_run_release && !inputs.dev_client)
     name: Release Android APK
     runs-on: ubuntu-latest
     timeout-minutes: 60 # the whole Gradle build now happens here — no external queue

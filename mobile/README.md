@@ -30,6 +30,23 @@ npx expo install --fix                         # align native modules to the SDK
 npm run build:dev                              # one-time cloud build (EAS), ~15-25 min
 ```
 
+`build:dev` uses an EAS **cloud** build, which draws on the monthly quota. The free way is
+to build it on a GitHub runner instead — Actions → *EAS build* → *Run workflow* → tick
+**dev_client**. That runs `eas build --profile development --local`, which stays on the
+runner and costs no quota, and uploads the APK as a workflow artifact named after its
+native fingerprint.
+
+Either way it is one build. You do not rebuild it to pick up a JS change — that is what
+Metro is for. You rebuild when the **native** surface moves: a new native dependency, a
+config plugin, an SDK bump. The fingerprint tells you when that has happened:
+
+```bash
+npx @expo/fingerprint fingerprint:generate --platform android
+```
+
+Same hash as the dev client you are running means the one on your device is still current,
+however much JS has changed under it.
+
 Install the resulting APK, then for day-to-day work:
 
 ```bash
