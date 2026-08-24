@@ -772,6 +772,7 @@ func TestTrimSavedFoods_normalisesAndCollapses(t *testing.T) {
 		{uid, "Oats ", "Quaker", 110},    // trailing space
 		{uid, " Oats", " Quaker ", 120},  // leading, and a padded brand
 		{uid, "\tOats\n", "Quaker", 130}, // tab/newline — plain TRIM() would miss these
+		{uid, " Oats ", "Quaker", 135},   // non-breaking space: strings.TrimSpace strips it, so this must too
 		{uid, "   ", "", 140},            // whitespace-only name: a blank row
 		{uid, "Oats", "Lidl", 150},       // different brand, genuinely another product
 		{other, "Oats ", "Quaker", 160},  // another user's row

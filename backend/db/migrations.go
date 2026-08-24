@@ -157,12 +157,20 @@ func alterMigrations() {
 	}
 }
 
-// sqlWhitespace is the character set TRIM() strips. SQLite's one-argument TRIM removes
-// spaces and nothing else, so TRIM(char(9)||'Oats') is still tab-Oats — which would
-// leave migrated rows holding whitespace that every new write strips, and the two would
-// disagree about identity forever. Go's strings.TrimSpace covers more than these four,
-// but these are what a food name realistically arrives with.
-const sqlWhitespace = `' ' || char(9) || char(10) || char(13)`
+// sqlWhitespace is the character set TRIM() strips, chosen to match what the handlers do
+// with strings.TrimSpace.
+//
+// SQLite's one-argument TRIM removes spaces and nothing else, so TRIM(char(9)||'Oats') is
+// still tab-Oats. Anything this set misses that TrimSpace catches is worse than untidy: the
+// migration would leave the row as it found it while every later write strips the padding,
+// producing the pair of identical-looking favourites the migration exists to remove.
+//
+// char(160) is a non-breaking space and char(133) a NEL — both are unicode.IsSpace, so Go
+// strips them, and both turn up in product names from Open Food Facts. Verified:
+//
+//	TRIM(char(160)||'Oats'||char(160), ' '||char(9)||char(10)||char(13))            -> "\xa0Oats\xa0"
+//	TRIM(char(160)||'Oats'||char(160), ' '||…||char(160)||char(133))                -> "Oats"
+const sqlWhitespace = `' ' || char(9) || char(10) || char(13) || char(160) || char(133)`
 
 // trimSavedFoods normalises rows written before the handlers started trimming, so stored
 // data matches what the app now produces and what the clients compare against.
