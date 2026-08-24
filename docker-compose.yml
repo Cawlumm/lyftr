@@ -16,6 +16,7 @@ services:
       - DB_PATH=/app/data/lyftr.db
       - REGISTRATION=${REGISTRATION:-open}
       - DEMO_MODE=${DEMO_MODE:-false}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-172.28.0.0/16}
     expose:
       - "3000"
     healthcheck:
@@ -23,6 +24,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - lyftr
 
   frontend:
     image: cwlumm/lyftr-frontend:latest
@@ -40,3 +43,14 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - lyftr
+
+# Pin the bundled reverse-proxy hop to a network real LAN clients cannot occupy.
+# The backend trusts only this CIDR by default, so nginx can supply X-Forwarded-For
+# without broad RFC1918 trust turning a private client into another proxy hop.
+networks:
+  lyftr:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
