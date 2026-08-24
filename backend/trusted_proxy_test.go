@@ -39,13 +39,13 @@ func TestClientIPIgnoresSpoofedForwardedForWithoutTrustedProxy(t *testing.T) {
 }
 
 func TestClientIPStopsAtLANClientBehindTrustedProxy(t *testing.T) {
-	// nginx appends the socket client to any inbound XFF. Trusting only the actual
-	// proxy means the private LAN client is the first untrusted hop; attacker input
-	// farther left must stay unreachable.
+	// The bundled Compose stack trusts only its pinned Docker network. nginx appends
+	// the real socket client to any inbound XFF, so a normal private LAN client is
+	// the first untrusted hop and attacker input farther left stays unreachable.
 	got := clientIPForTest(
 		t,
-		[]string{"172.18.0.3"},
-		"172.18.0.3:54321",
+		[]string{"172.28.0.0/16"},
+		"172.28.0.5:54321",
 		"198.51.100.99, 192.168.1.50",
 	)
 	if got != "192.168.1.50" {
