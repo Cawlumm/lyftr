@@ -115,3 +115,19 @@ export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): 
   }
   return out
 }
+
+// The other half of the round trip. sanitizeNumericInput returns what the *field*
+// shows, in the locale's own notation; these two convert between that and the number
+// the app stores, which is always canonical.
+//
+// Without both halves the trip is asymmetric: a German user types "12,5", it is stored
+// as 12.5, and the field redraws as "12.5" - the app quietly rewriting what they typed.
+// wger states the principle well: display and parsing go through the same format, so a
+// value can never be mis-read because of a separator mismatch between locales.
+
+/** Canonical field text -> what to draw, in the locale's notation. Text-level on
+ * purpose: it has to survive a half-typed "12.", which Number() would round to 12 and
+ * so delete the separator the user just pressed. */
+export function toLocaleText(canonical: string): string {
+  return separators.decimal === '.' ? canonical : canonical.split('.').join(separators.decimal)
+}

@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from 'lucide-react-native'
-import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
+import { displayToLbs, displayWeight, sanitizeNumericInput, toLocaleText, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -31,7 +31,7 @@ function WeightCell({ value, editable, placeholder, placeholderColor, accessibil
   return (
     <TextInput
       editable={editable}
-      value={text}
+      value={toLocaleText(text)}
       onChangeText={(raw) => {
         const v = sanitizeNumericInput(raw, 'decimal')
         setText(v)

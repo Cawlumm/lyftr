@@ -5,7 +5,7 @@ import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
+import { sanitizeNumericInput, toLocaleText, useNumericText } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {
@@ -68,7 +68,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
   return (
     <TextInput
       ref={inputRef}
-      value={text}
+      value={toLocaleText(text)}
       onChangeText={emit}
       keyboardType="decimal-pad"
       returnKeyType={onNext ? 'next' : 'done'}

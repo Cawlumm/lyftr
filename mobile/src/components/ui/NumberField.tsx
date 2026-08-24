@@ -1,6 +1,6 @@
 import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
-import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
+import { sanitizeNumericInput, toLocaleText, useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string
@@ -40,7 +40,10 @@ export function NumberField({
   const [text, setText] = useNumericText(value)
   return (
     <TextInput
-      value={text}
+      // Draw the locale's separator; the buffer and onChange stay canonical, so no
+      // caller has to learn a second notation. Text-level so a half-typed "12." keeps
+      // the separator the user just pressed.
+      value={toLocaleText(text)}
       editable={!disabled}
       placeholder={placeholder}
       placeholderTextColor={colors.txMuted}

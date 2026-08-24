@@ -6,6 +6,7 @@ import {
   clampValue,
   configureNumberLocale,
   sanitizeNumericInput,
+  toLocaleText,
 } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only
@@ -183,5 +184,40 @@ describe('sanitizeNumericInput', () => {
     it('is unaffected by grouping, so a 2,000 calorie target reads as 2000', () => {
       expect(sanitizeNumericInput('2,000', 'numeric')).toBe('2000')
     })
+  })
+})
+
+// The other half of the round trip. sanitizeNumericInput keeps the stored text canonical
+// so no caller has to learn a second notation; this is what the field actually draws.
+// Without it the trip is asymmetric — a German user types "12,5", it stores as 12.5, and
+// the field redraws "12.5", quietly rewriting what they typed. wger states the principle:
+// display and parsing go through one format, so a value can't be mis-read across locales.
+describe('toLocaleText', () => {
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+
+  it('is a no-op on a full-stop locale', () => {
+    expect(toLocaleText('12.5')).toBe('12.5')
+    expect(toLocaleText('')).toBe('')
+  })
+
+  it('draws the locale separator', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(toLocaleText('12.5')).toBe('12,5')
+  })
+
+  // The reason this is text-level and not Number()-based: mid-typing, "12." must keep
+  // the separator the user just pressed. Number('12.') is 12, which would delete it.
+  it('survives a half-typed value', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(toLocaleText('12.')).toBe('12,')
+  })
+
+  it('round-trips with sanitizeNumericInput on a comma locale', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    const typed = '12,5'
+    const stored = sanitizeNumericInput(typed, 'decimal')
+    expect(stored).toBe('12.5')          // canonical for every caller
+    expect(Number(stored)).toBe(12.5)     // Number() still works, so no call site changed
+    expect(toLocaleText(stored)).toBe(typed) // and the user sees what they typed
   })
 })
