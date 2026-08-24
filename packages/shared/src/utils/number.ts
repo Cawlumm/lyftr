@@ -41,26 +41,26 @@ export function clampValue(raw: string | number, min = 0): number {
   return Number.isFinite(n) ? Math.max(min, n) : min
 }
 
-// Locale facts, injected once at startup. Two things live here because two different
-// mechanisms need them:
+// Locale, injected once at startup. One input, one derived value, and they cannot
+// disagree - which is the point.
 //
-//   - `separators` is for PARSING. JavaScript has no number parser - Intl.NumberFormat
-//     exposes format/formatToParts and nothing that reads a string back - so
-//     sanitizeNumericInput is ours to write, and it needs to know which character the
-//     user's keypad calls a decimal. wger does not have this problem: Dart's intl ships
-//     NumberFormat.tryParse, so their widget gets parsing free from the same object it
-//     formats with.
-//   - `localeTag` is for FORMATTING, which Intl does handle. Passing the tag rather than
-//     letting Intl pick the runtime default keeps display and parsing answering from one
-//     source; mobile takes both from expo-localization, web from Intl itself.
+// `locale` is what Intl formats with, and formatNumber is the only thing that draws a
+// number. The decimal character used for PARSING is then read back out of that same
+// formatter rather than accepted from the caller, because the two arriving separately is
+// a real hazard: on iOS the Number Format setting is independent of the language, so
+// expo-localization can report a German separator while the language tag says en-US. The
+// field would draw "102,5" and the caption beside it "102.5" - exactly the split this
+// change exists to remove.
 //
-// Mobile has to inject the separators rather than read them from Intl because Hermes
-// leaves formatToParts unimplemented on iOS (PlatformIntlApple.mm is a literal
-// llvm_unreachable). format() is implemented on both platforms, which is why the display
-// half can lean on Intl and the parsing half cannot.
+// JavaScript has no number parser (Intl.NumberFormat exposes format and formatToParts and
+// nothing that reads a string back), so sanitizeNumericInput is ours to write and needs
+// that character. wger does not have this problem: Dart's intl ships NumberFormat.tryParse,
+// so their widget formats and parses from one object.
 //
-// Defaults are en-US, so a caller that configures nothing behaves as before.
-let separators = { decimal: '.', group: ',' }
+// `decimal` remains accepted as a fallback for a runtime where Intl is unavailable, and
+// `group` is accepted and ignored - grouping is Intl's business now, and the parser
+// deliberately does not detect it (see sanitizeNumericInput).
+let separators = { decimal: '.' }
 let localeTag: string | undefined
 
 export function configureNumberLocale(next: {
@@ -68,13 +68,30 @@ export function configureNumberLocale(next: {
   group?: string | null
   locale?: string | null
 }): void {
-  separators = { decimal: next.decimal || '.', group: next.group || ',' }
-  localeTag = next.locale || undefined
+  // An invalid tag makes `new Intl.NumberFormat(tag)` throw RangeError - and it would
+  // throw at render, on every one of the ~24 call sites, long after the bad value was
+  // accepted here. Probe once and degrade to the runtime default instead.
+  let tag: string | undefined = next.locale || undefined
+  if (tag) {
+    try {
+      new Intl.NumberFormat(tag).format(1)
+    } catch {
+      tag = undefined
+    }
+  }
+  localeTag = tag
   formatters.clear()
+
+  // Whatever Intl draws a decimal point as, that is what the parser accepts. \p{Nd} and
+  // not [0-9]: ar-EG formats 1.1 as "١٫١", so stripping only ASCII digits would leave the
+  // whole string and hand the parser three characters instead of one separator.
+  const drawn = formatNumber(1.1).replace(/\p{Nd}/gu, '')
+  separators = { decimal: drawn || next.decimal || '.' }
 }
 
 // Constructing an Intl.NumberFormat is expensive enough to matter in a list that
-// re-renders per keystroke, and they are immutable, so keep them.
+// re-renders per keystroke, and they are immutable, so keep them. Cleared above whenever
+// the locale changes, so the cache cannot outlive the setting it was built from.
 const formatters = new Map<string, Intl.NumberFormat>()
 function formatterFor(grouped: boolean, decimals?: number): Intl.NumberFormat {
   const key = `${localeTag ?? ''}|${grouped}|${decimals ?? ''}`

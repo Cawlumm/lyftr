@@ -84,7 +84,7 @@ describe('sanitizeNumericInput', () => {
   // this package is plain ts-jest and never imports expo-localization. Every test that
   // doesn't configure a locale is therefore an en-US test, worth stating because the bug
   // this file exists for only appears outside that locale.
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   describe('en-US (the default)', () => {
     it('takes a full stop', () => {
@@ -136,7 +136,7 @@ describe('sanitizeNumericInput', () => {
   })
 
   describe('de-DE', () => {
-    beforeEach(() => configureNumberLocale({ decimal: ',', group: '.' }))
+    beforeEach(() => configureNumberLocale({ locale: 'de-DE' }))
 
     it('reads a comma as the decimal', () => {
       expect(sanitizeNumericInput('12,5', 'decimal')).toBe('12.5')
@@ -155,7 +155,7 @@ describe('sanitizeNumericInput', () => {
   })
 
   describe('ar (Arabic-Indic digits)', () => {
-    beforeEach(() => configureNumberLocale({ decimal: '\u066B', group: '\u066C' }))
+    beforeEach(() => configureNumberLocale({ locale: 'ar-EG' }))
 
     // Before the digit fold this produced '' -> Number('') || 0 -> a bodyweight of 0,
     // logged silently. NFKC does not fold these, so the fold is arithmetic.
@@ -196,7 +196,7 @@ describe('sanitizeNumericInput', () => {
 // the field redraws "12.5", quietly rewriting what they typed. wger states the principle:
 // display and parsing go through one format, so a value can't be mis-read across locales.
 describe('toLocaleText', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   it('is a no-op on a full-stop locale', () => {
     expect(toLocaleText('12.5')).toBe('12.5')
@@ -204,19 +204,19 @@ describe('toLocaleText', () => {
   })
 
   it('draws the locale separator', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     expect(toLocaleText('12.5')).toBe('12,5')
   })
 
   // The reason this is text-level and not Number()-based: mid-typing, "12." must keep
   // the separator the user just pressed. Number('12.') is 12, which would delete it.
   it('survives a half-typed value', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     expect(toLocaleText('12.')).toBe('12,')
   })
 
   it('round-trips with sanitizeNumericInput on a comma locale', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     const typed = '12,5'
     const stored = sanitizeNumericInput(typed, 'decimal')
     expect(stored).toBe('12.5')          // canonical for every caller
@@ -230,7 +230,7 @@ describe('toLocaleText', () => {
 // field on every key, so `sanitize(toLocaleText(buffer) + key)` is the shape that actually
 // runs — and three defects lived only in that shape.
 describe('sanitizeNumericInput under per-keystroke input', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   const type = (keys: string) =>
     [...keys].reduce((buf, k) => sanitizeNumericInput(toLocaleText(buf) + k, 'decimal'), '')
@@ -240,14 +240,14 @@ describe('sanitizeNumericInput under per-keystroke input', () => {
   // decimal turned that into "825." — a silent 10x, committed on the same keystroke, that
   // backspace could not undo because the fraction digit had become an integer digit.
   it('keeps the first separator when a second is inserted', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     expect(type('82,5,')).toBe('82.5')
     expect(sanitizeNumericInput('82.5.', 'decimal')).toBe('82.5')
     expect(sanitizeNumericInput('225.5.', 'decimal')).toBe('225.5')
   })
 
   it('types a plain decimal correctly on a comma locale', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     expect(type('12,5')).toBe('12.5')
     expect(type('102,5')).toBe('102.5')
   })
@@ -269,7 +269,7 @@ describe('sanitizeNumericInput under per-keystroke input', () => {
 // expo-localization hands it over verbatim. Treating it as a separator candidate made any
 // space in the text the decimal point.
 describe('sanitizeNumericInput with a space group separator', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   for (const [name, sp] of [
     ['space', '\u0020'],
@@ -277,7 +277,7 @@ describe('sanitizeNumericInput with a space group separator', () => {
     ['narrow no-break space', '\u202F'],
   ] as const) {
     it(`ignores a ${name} rather than reading it as a decimal`, () => {
-      configureNumberLocale({ decimal: ',', group: sp })
+      configureNumberLocale({ locale: 'fr-FR' })
       expect(sanitizeNumericInput(`12,50${sp}kg`, 'decimal')).toBe('12.50')
       expect(sanitizeNumericInput(`82,5${sp}kg`, 'decimal')).toBe('82.5')
       expect(sanitizeNumericInput(`12,5${sp}`, 'decimal')).toBe('12.5')
@@ -293,12 +293,12 @@ describe('sanitizeNumericInput with a space group separator', () => {
 })
 
 describe('toLocaleText hardening', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   // Threw on every comma locale and silently passed the value through on en-US — so it
   // would have crashed only for the users this change exists for, and only in production.
   it('does not throw on a non-string, in any locale', () => {
-    configureNumberLocale({ decimal: ',', group: '.' })
+    configureNumberLocale({ locale: 'de-DE' })
     // @ts-expect-error deliberately wrong type
     expect(toLocaleText(undefined)).toBe('')
     // @ts-expect-error deliberately wrong type
@@ -313,7 +313,7 @@ describe('toLocaleText hardening', () => {
 // full stop regardless of locale, so a German user could see "83,4" in the field and
 // "83.4" in the caption beside it.
 describe('formatNumber', () => {
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',', locale: 'en-US' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   // Note the split: `decimal`/`group` drive PARSING, because JavaScript has no number
   // parser and sanitizeNumericInput has to be told which character is the separator.
@@ -321,14 +321,7 @@ describe('formatNumber', () => {
   // characters. Both real call sites pass all three; a test that sets only the
   // separators would silently format as en-US, which is what these afterEach/beforeEach
   // pairs exist to prevent.
-  const asLocale = (tag: string) => {
-    const parts = new Intl.NumberFormat(tag).formatToParts(1234.5)
-    configureNumberLocale({
-      decimal: parts.find((x) => x.type === 'decimal')?.value,
-      group: parts.find((x) => x.type === 'group')?.value,
-      locale: tag,
-    })
-  }
+  const asLocale = (tag: string) => configureNumberLocale({ locale: tag })
 
   it('is the plain number on en-US', () => {
     expect(formatNumber(83.4)).toBe('83.4')

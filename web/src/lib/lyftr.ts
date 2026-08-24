@@ -17,12 +17,7 @@ import { storage } from './storage'
 //
 // Input needs none of this on web: <input type="number"> lets the browser parse the
 // locale's own separator, which is why #141 was Android-only. This is display only.
-const numberParts = new Intl.NumberFormat(undefined).formatToParts(1234.5)
-configureNumberLocale({
-  decimal: numberParts.find((p) => p.type === 'decimal')?.value,
-  group: numberParts.find((p) => p.type === 'group')?.value,
-  locale: new Intl.NumberFormat().resolvedOptions().locale,
-})
+configureNumberLocale({ locale: new Intl.NumberFormat().resolvedOptions().locale })
 
 // App-wide singletons: one API client plus the Zustand stores, all bound to the web
 // localStorage adapter. Mirrors mobile/src/lib/lyftr.ts — same factories, different

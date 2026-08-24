@@ -747,7 +747,7 @@ export default function Dashboard() {
                   }
                   return (
                     <span className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
-                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, settings.weight_unit))} {wUnit}
+                      7d · {delta < 0 ? '↓' : '↑'}{formatNumber(Math.abs(displayWeight(delta, settings.weight_unit)))} {wUnit}
                     </span>
                   )
                 })()}

@@ -187,16 +187,25 @@ constrains what is **drawn**, never what arrives.
 
 | | |
 |---|---|
-| `configureNumberLocale({decimal, group})` | called **once**, in `src/lib/lyftr.ts`, from `expo-localization` |
+| `configureNumberLocale({ locale })` | called **once**, in `src/lib/lyftr.ts`, with the device's language tag |
 | `sanitizeNumericInput(raw, mode)` | typed text → canonical. Every numeric `TextInput` |
 | `toLocaleText(canonical)` | a field's buffer → what that field draws |
 | `formatNumber(n, {decimals, grouped})` | a stored number → text a person reads |
 
 Never `String(n)`, `n.toFixed(1)` or `` `${n}` `` for text a user reads.
 
-Separators are **injected, not detected**: Hermes leaves `Intl.NumberFormat#formatToParts`
-unimplemented on iOS, so detecting them would crash on half the fleet. `formatNumber`
-avoids `Intl` for the same reason display and input must not have two sources of truth.
+`formatNumber` is a thin wrapper over `Intl.NumberFormat` — grouping is CLDR data, not
+arithmetic, and a hand-rolled version got `en-IN` wrong (`12,345,678.9` where lakh/crore
+wants `1,23,45,678.9`).
+
+**Parsing has no equivalent.** `Intl.NumberFormat.prototype.parse` does not exist, so
+`sanitizeNumericInput` is ours to write — and it needs to know which character the keypad
+calls a decimal. That character is read back out of the formatter rather than passed in
+separately, so a field and the caption beside it can never disagree. (iOS lets the Number
+Format setting differ from the language, which is exactly how they could.)
+
+This asymmetry is why wger's equivalent looks simpler: Dart's `intl` ships
+`NumberFormat.tryParse`, so their widget formats and parses from one object.
 
 ### Gotchas
 

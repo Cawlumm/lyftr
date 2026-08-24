@@ -1,6 +1,8 @@
 // Pure weight helpers — ported verbatim from web/src/stores/settings.ts. Backend
 // always stores lbs; use these everywhere weight values are read/written/shown.
 
+import { formatNumber } from './number'
+
 export const weightShort = (unit: string) => (unit === 'kg' ? 'kg' : 'lb')
 
 export const lbsToDisplay = (lbs: number, unit: string): number =>
@@ -20,7 +22,7 @@ export const displayWeight = (lbs: number, unit: string): number => round1(lbsTo
 // A target weight for display: the converted number with its unit, or "BW" when the
 // target is 0 — a bodyweight movement has no load, and showing "0 lb" reads as a bug.
 export const targetWeightLabel = (lbs: number, unit: string): string =>
-  lbs > 0 ? `${displayWeight(lbs, unit)} ${unit}` : 'BW'
+  lbs > 0 ? `${formatNumber(displayWeight(lbs, unit))} ${unit}` : 'BW'
 
 // Volume/aggregate (sum of reps×weight) in the user's unit, as a whole number.
 export const displayVolume = (lbs: number, unit: string): number => Math.round(lbsToDisplay(lbs, unit))

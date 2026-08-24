@@ -41,9 +41,12 @@ const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
 // keypad's digits are deleted outright, logging a weight of 0 (#141).
 const numberLocale = Localization.getLocales()[0]
 configureNumberLocale({
-  decimal: numberLocale?.decimalSeparator,
-  group: numberLocale?.digitGroupingSeparator,
   locale: numberLocale?.languageTag,
+  // Fallback only, for a runtime without Intl. The separator the parser actually uses is
+  // read back out of the formatter, so a field and the caption beside it cannot disagree —
+  // which they could when this was passed straight through, because iOS lets the Number
+  // Format setting differ from the language.
+  decimal: numberLocale?.decimalSeparator,
 })
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)

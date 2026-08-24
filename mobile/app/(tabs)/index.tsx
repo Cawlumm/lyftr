@@ -632,7 +632,7 @@ export default function Dashboard() {
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
-                          7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, unit))} {wUnit}
+                          7d · {delta < 0 ? '↓' : '↑'}{formatNumber(Math.abs(displayWeight(delta, unit)))} {wUnit}
                         </Text>
                       )
                     })()}

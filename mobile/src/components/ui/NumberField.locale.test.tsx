@@ -17,8 +17,8 @@ jest.mock('react-native-safe-area-context', () => ({
 // weight fields left the whole suite green. These assert what is actually DRAWN on a
 // comma locale — the thing a German user sees — rather than what onChange emits.
 describe('NumberField on a comma locale', () => {
-  beforeEach(() => configureNumberLocale({ decimal: ',', group: '.' }))
-  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+  beforeEach(() => configureNumberLocale({ locale: 'de-DE' }))
+  afterEach(() => configureNumberLocale({ locale: 'en-US' }))
 
   const field = (value: string) => {
     const onChange = jest.fn()
