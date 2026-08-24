@@ -312,8 +312,6 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
           tags: ${{ steps.meta.outputs.tags }}
-          build-args: |
-            VERSION=${{ steps.ver.outputs.version }}
           cache-from: type=gha,scope=lyftr-frontend
           cache-to: type=gha,scope=lyftr-frontend,mode=max
 
