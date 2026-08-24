@@ -10,6 +10,7 @@ import {
   createSettingsStore,
   createThemeStore,
   createWorkoutSession,
+  configureNumberLocale,
   testServerConnection,
   useServerInfoFor,
 } from '@lyftr/shared'
@@ -32,6 +33,17 @@ export const useServerStore = createServerStore(storage)
 // polyfilled Intl.DateTimeFormat().resolvedOptions().timeZone reports "UTC" on
 // every phone — which would look like the feature worked while doing nothing.
 const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
+
+// Same reason, same source: which character means "decimal" has to come from the OS,
+// because Hermes leaves Intl.NumberFormat#formatToParts unimplemented on iOS — deriving
+// the separators from Intl would crash there rather than degrade. Without this every
+// field reads input as en-US, so a German "1.234,5" parses as 1.2345 and an Arabic
+// keypad's digits are deleted outright, logging a weight of 0 (#141).
+const numberLocale = Localization.getLocales()[0]
+configureNumberLocale({
+  decimal: numberLocale?.decimalSeparator,
+  group: numberLocale?.digitGroupingSeparator,
+})
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
 // Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.

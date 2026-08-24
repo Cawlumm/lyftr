@@ -41,24 +41,77 @@ export function clampValue(raw: string | number, min = 0): number {
   return Number.isFinite(n) ? Math.max(min, n) : min
 }
 
-// Strip anything that isn't part of a non-negative number, for RN inputs. Web
-// needs none of this — <input type="number"> lets the browser parse the locale's
-// own separator — but a React Native TextInput hands back raw text with no such
-// hook, so every mobile numeric field sanitizes what it receives.
+// Locale facts for reading a typed number. Injected, not detected: Hermes leaves
+// Intl.NumberFormat#formatToParts unimplemented on iOS - PlatformIntlApple.mm is a
+// literal llvm_unreachable - so the obvious detection route crashes on half our
+// devices. Mobile passes expo-localization's native values, the same reason
+// detectTimezone is injected into the settings store. Defaults are en-US, so a caller
+// that never configures anything behaves exactly as before.
+let separators = { decimal: '.', group: ',' }
+
+export function configureNumberLocale(next: { decimal?: string | null; group?: string | null }): void {
+  separators = { decimal: next.decimal || '.', group: next.group || ',' }
+}
+
+// Arabic-Indic (U+0660-0669) and Extended Arabic-Indic (U+06F0-06F9) digits, which an
+// Arabic or Persian keypad emits instead of ASCII. Deleting them as "not a digit" turns
+// a logged weight into 0 silently. Arithmetic rather than Intl, so this works on iOS;
+// String.normalize('NFKC') is no help here - it folds fullwidth digits but leaves these
+// alone, so a test written with fullwidth characters would pass while the real case fails.
+const NON_ASCII_DIGITS = /[\u0660-\u0669\u06F0-\u06F9]/g
+const foldDigits = (s: string): string =>
+  s.replace(NON_ASCII_DIGITS, (d) => {
+    const c = d.charCodeAt(0)
+    return String(c >= 0x06f0 ? c - 0x06f0 : c - 0x0660)
+  })
+
+// Strip anything that isn't part of a non-negative number, for RN inputs. Web needs none
+// of this - <input type="number"> lets the browser parse the locale's own separator - but
+// a React Native TextInput hands back raw text with no such hook, so every mobile numeric
+// field sanitizes what it receives. RN makes that mandatory rather than defensive: it
+// replaces Android's KeyListener specifically to "permit all keyboard input through", so
+// keyboardType constrains what is *drawn*, never what arrives.
 //
-// The comma is load-bearing (#141). Android's decimal-pad shows the *locale's*
-// separator, which across most of Europe is a comma, and on those keypads there is
-// no full stop to type instead. Stripping it as "not a digit" deleted the only
-// separator those users could reach, so a weight of 12,5 could not be entered at
-// all. Fold it to a point; the stored value stays machine-readable either way.
-// 'numeric' still drops it, so reps can't be typed fractional by the back door.
+// The separator is load-bearing (#141). Android's decimal-pad shows the *locale's*
+// separator - a comma across most of Europe - and on those keypads there is often no full
+// stop at all, so stripping it as "not a digit" left those users unable to enter 12,5.
 //
-// One copy on purpose. This logic was duplicated across three components when #141
-// was filed, and the first fix corrected one of them while the default workout view
-// stayed broken — which is the failure mode a shared util exists to prevent.
+// Which character means what depends on the locale, and guessing costs real accuracy:
+// read as en-US, "1,200" is twelve hundred; read as de-DE it is 1.2. So the rules are:
+//
+//   - one separator, and it is the locale's group character followed by exactly three
+//     digits -> grouping, dropped. "1,200" in en-US is 1200.
+//   - one separator otherwise -> decimal, however it is spelled. "12,5" and "12." both
+//     work whatever the locale, because a keypad emits an ASCII comma even where the
+//     locale's own decimal character is something else (Arabic locales do this).
+//   - several separators -> the last is the decimal, the rest are grouping. Handles
+//     "1.234,5" and "1,234.5" identically without needing to know which locale is which.
+//
+// 'numeric' keeps digits only, so a separator can't sneak a fractional rep in sideways.
 export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
-  const v = raw.replace(/,/g, '.').replace(mode === 'decimal' ? /[^0-9.]/g : /[^0-9]/g, '')
-  if (mode !== 'decimal') return v
-  const i = v.indexOf('.')
-  return i === -1 ? v : v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
+  const folded = foldDigits(raw)
+  if (mode !== 'decimal') return folded.replace(/[^0-9]/g, '')
+
+  const { decimal, group } = separators
+  const isSep = (ch: string) => ch === decimal || ch === group || ch === '.' || ch === ','
+  const at: number[] = []
+  for (let i = 0; i < folded.length; i++) if (isSep(folded[i])) at.push(i)
+
+  let decimalAt = -1
+  if (at.length === 1) {
+    const i = at[0]
+    const trailingDigits = folded.slice(i + 1).replace(/[^0-9]/g, '').length
+    const grouping = folded[i] === group && folded[i] !== decimal && trailingDigits === 3
+    decimalAt = grouping ? -1 : i
+  } else if (at.length > 1) {
+    decimalAt = at[at.length - 1]
+  }
+
+  let out = ''
+  for (let i = 0; i < folded.length; i++) {
+    const ch = folded[i]
+    if (ch >= '0' && ch <= '9') out += ch
+    else if (i === decimalAt) out += '.'
+  }
+  return out
 }
