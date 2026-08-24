@@ -65,74 +65,55 @@ const foldDigits = (s: string): string =>
     return String(c >= 0x06f0 ? c - 0x06f0 : c - 0x0660)
   })
 
-// Strip anything that isn't part of a non-negative number, for RN inputs. Web needs none
-// of this - <input type="number"> lets the browser parse the locale's own separator - but
-// a React Native TextInput hands back raw text with no such hook, so every mobile numeric
-// field sanitizes what it receives. RN makes that mandatory rather than defensive: it
-// replaces Android's KeyListener specifically to "permit all keyboard input through", so
+// Typed text -> the canonical form the app stores. Every numeric TextInput on mobile goes
+// through this; there is no second copy. Web needs none of it - <input type="number"> lets
+// the browser parse the locale's own separator - but React Native hands back raw text with
+// no hook to filter keys. That is mandatory rather than defensive: ReactEditText replaces
+// Android's KeyListener specifically to "permit all keyboard input through", so
 // keyboardType constrains what is *drawn*, never what arrives.
 //
 // The separator is load-bearing (#141). Android's decimal-pad shows the *locale's*
 // separator - a comma across most of Europe - and on those keypads there is often no full
 // stop at all, so stripping it as "not a digit" left those users unable to enter 12,5.
 //
-// Which character means what depends on the locale: read as en-US "1,200" is twelve
-// hundred, read as de-DE it is 1.2. The rules:
+// The rule, which is wger's rule for the same problem in their own decimal widget:
 //
-//   - a separator is *grouping* only when it is the locale's group character AND exactly
-//     three digits follow it before the next separator or the end. "1,200" in en-US is
-//     1200; "1.234,5" in de-DE is 1234.5.
-//   - the decimal is the FIRST separator that is not grouping. Everything else is dropped.
-//   - which spelling counts is generous on purpose: an Android keypad emits an ASCII comma
-//     even where the locale's own decimal character is something else, which Adobe's
-//     parser hardcodes for Arabic. So "12,5" and "12." both work in any locale.
+//     digits, plus ONE separator. A "." or a "," both count, whatever the locale, because
+//     a keypad emits an ASCII comma even where the locale's decimal character is something
+//     else (Adobe's parser hardcodes exactly this for Arabic). Everything else is dropped.
 //
-// First-not-grouping, rather than last: a TextInput re-sanitizes the WHOLE field on every
-// keystroke, and the cursor can be mid-string (these cells have no selectTextOnFocus, so
-// tapping a prefilled "82,5" lands inside it). Taking the last separator turned an
-// inserted keystroke into "825." - a silent 10x that backspace could not undo, because the
-// fraction digit had become an integer digit. Taking the first keeps "82.5".
+// Which separator wins:
+//   - only one KIND present -> the FIRST one. "12,5," is 12.5, and "12.5." is 12.5.
+//   - both kinds present -> the LAST one, because then it is unambiguous: "1.234,5" and
+//     "1,234.5" are both 1234.5 without needing to know which locale produced them.
 //
-// Whitespace goes first and never counts as a separator. Half of Europe - fr, ru, sv, pl,
-// cs, fi, nb, uk - has a space as its group character, and expo-localization hands that
-// straight over; treating it as a separator candidate made a trailing space, or a pasted
-// "12,50 kg", read as 1250.
+// First-when-unambiguous is not a detail. A TextInput re-sends the WHOLE field on every
+// keystroke and the cursor can sit mid-string (these cells have no selectTextOnFocus, so
+// tapping a prefilled "82,5" lands inside it). Preferring the last separator turned one
+// inserted keystroke into "825." - a silent 10x, committed on that key, that backspace
+// could not undo because the fraction digit had become an integer digit.
 //
-// KNOWN LIMIT, typed input only: grouping cannot be recognised while it is being typed.
-// Keystroke-by-keystroke, "1," reaches here with no digits after it, so it is read as a
-// decimal and canonicalised to "1." - and the "." that comes back on the next keystroke is
-// no longer the group character, so the three digits that follow can never reclassify it.
-// Typing "1,200" in en-US therefore yields 1.2, while pasting it yields 1200. Nobody types
-// a thousands separator into a bodyweight field, so this is left alone rather than papered
-// over with lookahead; it is called out because the paste-path test cannot show it.
+// Note what is deliberately NOT here: grouping detection. A thousands separator cannot be
+// recognised while it is being typed - "1," arrives with nothing after it - so any rule
+// that reads grouping works on paste and lies on the typed path, which is the path people
+// use. wger does not attempt it either. "1,200" is therefore 1.2 in every locale and by
+// both routes; consistent and predictable beats occasionally-cleverer.
 //
 // 'numeric' keeps digits only, so a separator can't sneak a fractional rep in sideways.
 export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
   const folded = foldDigits(raw)
   if (mode !== 'decimal') return folded.replace(/[^0-9]/g, '')
 
+  // Whitespace never counts. fr, ru, sv, pl, cs, fi, nb and uk use a space as their group
+  // character and expo-localization passes it through verbatim, so a trailing space or a
+  // pasted "12,50 kg" would otherwise be read as a separator.
   const bare = folded.replace(/\s/g, '')
-  const { decimal, group } = separators
-  const isSep = (ch: string) => ch === decimal || ch === group || ch === '.' || ch === ','
+  const isSep = (ch: string) => ch === '.' || ch === ',' || ch === separators.decimal
 
-  // Digits immediately after i, stopping at the next non-digit - not every digit that
-  // follows. In "1.234,5" the first separator is followed by "234" then a comma; counting
-  // to the end of the string would see four digits and miss the grouping.
-  const runAfter = (i: number): number => {
-    let n = 0
-    while (i + 1 + n < bare.length && bare[i + 1 + n] >= '0' && bare[i + 1 + n] <= '9') n++
-    return n
-  }
-
-  let decimalAt = -1
-  for (let i = 0; i < bare.length; i++) {
-    if (!isSep(bare[i])) continue
-    const grouping = bare[i] === group && bare[i] !== decimal && runAfter(i) === 3
-    if (!grouping) {
-      decimalAt = i
-      break
-    }
-  }
+  const at: number[] = []
+  for (let i = 0; i < bare.length; i++) if (isSep(bare[i])) at.push(i)
+  const kinds = new Set(at.map((i) => bare[i]))
+  const decimalAt = at.length === 0 ? -1 : kinds.size > 1 ? at[at.length - 1] : at[0]
 
   let out = ''
   for (let i = 0; i < bare.length; i++) {

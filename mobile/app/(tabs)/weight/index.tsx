@@ -340,7 +340,7 @@ export default function Weight() {
                     <View>
                       <Label className="mb-2">Current Weight</Label>
                       <View className="flex-row items-end gap-2">
-                        <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{current}</AppText>
+                        <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{formatNumber(current)}</AppText>
                         <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                       </View>
                     </View>
@@ -352,7 +352,7 @@ export default function Weight() {
                     </View>
                   </View>
                   <AppText variant="caption" color="muted" className="mt-3">
-                    {Math.abs(change)} {wUnit} {changeWord} over {period}
+                    {formatNumber(Math.abs(change))} {wUnit} {changeWord} over {period}
                   </AppText>
                 </>
               )}

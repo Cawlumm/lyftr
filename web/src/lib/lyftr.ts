@@ -1,4 +1,5 @@
 import {
+  configureNumberLocale,
   createAuthStore,
   createUseRestTimer,
   createClient,
@@ -8,6 +9,19 @@ import {
   createWorkoutSession,
 } from '@lyftr/shared'
 import { storage } from './storage'
+
+// Which character means "decimal" for this reader. Web can ask Intl directly — the
+// reason mobile injects expo-localization's values instead is that Hermes leaves
+// formatToParts unimplemented on iOS, which is a Hermes gap, not a browser one. Both
+// apps end up feeding the same shared formatter, so a weight reads the same on either.
+//
+// Input needs none of this on web: <input type="number"> lets the browser parse the
+// locale's own separator, which is why #141 was Android-only. This is display only.
+const numberParts = new Intl.NumberFormat(undefined).formatToParts(1234.5)
+configureNumberLocale({
+  decimal: numberParts.find((p) => p.type === 'decimal')?.value,
+  group: numberParts.find((p) => p.type === 'group')?.value,
+})
 
 // App-wide singletons: one API client plus the Zustand stores, all bound to the web
 // localStorage adapter. Mirrors mobile/src/lib/lyftr.ts — same factories, different

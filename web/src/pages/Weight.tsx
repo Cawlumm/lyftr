@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
+import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatNumber } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
@@ -100,7 +100,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
   // Callout: flip left if dot near right edge, flip below if dot near top
   const calloutFlipH = last[0] > W * 0.65
   const calloutFlipV = last[1] < PT + 30
-  const calloutLabel = String(round1(points[points.length - 1].weight))
+  const calloutLabel = formatNumber(round1(points[points.length - 1].weight))
   const calloutW = calloutLabel.length * 9 + 16
   const calloutX = calloutFlipH ? last[0] - calloutW - 8 : last[0] + 8
   const calloutY = calloutFlipV ? last[1] + 10 : last[1] - 28
@@ -120,7 +120,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
         >
           <div className="bg-surface-raised border border-surface-border rounded-xl px-3 py-2 shadow-card text-xs whitespace-nowrap">
             <p className="font-bold tabular-nums text-tx-primary text-sm">
-              {round1(activePoint.weight)} <span className="font-normal text-tx-muted">{wUnit}</span>
+              {formatNumber(round1(activePoint.weight))} <span className="font-normal text-tx-muted">{wUnit}</span>
             </p>
             <p className="text-tx-muted mt-0.5">{format(activePoint.date, 'MMM d, yyyy')}</p>
           </div>
@@ -474,17 +474,17 @@ export default function Weight() {
               <div>
                 <p className="stat-label mb-2">Current Weight</p>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl">{current}</span>
+                  <span className="stat-value text-5xl">{formatNumber(current)}</span>
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
               </div>
               <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass}`}>
                 <TrendIcon className="w-4 h-4" />
-                {Math.abs(change)} {wUnit}
+                {formatNumber(Math.abs(change))} {wUnit}
               </div>
             </div>
             <p className="text-xs text-tx-muted mt-3">
-              {Math.abs(change)} {wUnit} {changeWord} over {period}
+              {formatNumber(Math.abs(change))} {wUnit} {changeWord} over {period}
             </p>
           </>
         )}

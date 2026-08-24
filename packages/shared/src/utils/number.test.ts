@@ -98,13 +98,19 @@ describe('sanitizeNumericInput', () => {
       expect(sanitizeNumericInput('12,5', 'decimal')).toBe('12.5')
     })
 
-    // Was 1.2 before localization landed - a silent 1000x error on a plain en-US input.
-    it('reads a grouping comma as grouping, not as a decimal', () => {
-      expect(sanitizeNumericInput('1,200', 'decimal')).toBe('1200')
+    // One kind of separator is always the decimal, whichever it is and wherever it sits.
+    // Grouping is deliberately not detected - see the note on sanitizeNumericInput - so
+    // this reads the same typed or pasted, which the grouping-aware version did not.
+    it('treats a lone separator as the decimal', () => {
+      expect(sanitizeNumericInput('1,200', 'decimal')).toBe('1.200')
+      expect(sanitizeNumericInput('1.200', 'decimal')).toBe('1.200')
     })
 
-    it('resolves both separators by taking the last as the decimal', () => {
+    // Both kinds present is unambiguous, so the last one is the decimal. Covers a pasted
+    // "1,234.5" or "1.234,5" without needing to know which locale wrote it.
+    it('takes the last separator when both kinds appear', () => {
       expect(sanitizeNumericInput('1,234.5', 'decimal')).toBe('1234.5')
+      expect(sanitizeNumericInput('1.234,5', 'decimal')).toBe('1234.5')
     })
 
     // Typing "12," must leave the separator alone or the field fights the user before
@@ -136,11 +142,7 @@ describe('sanitizeNumericInput', () => {
       expect(sanitizeNumericInput('12,5', 'decimal')).toBe('12.5')
     })
 
-    it('reads a grouping full stop as grouping', () => {
-      expect(sanitizeNumericInput('1.200', 'decimal')).toBe('1200')
-    })
-
-    it('resolves 1.234,5 correctly', () => {
+    it('resolves 1.234,5 correctly, since both kinds appear', () => {
       expect(sanitizeNumericInput('1.234,5', 'decimal')).toBe('1234.5')
     })
 
@@ -182,7 +184,7 @@ describe('sanitizeNumericInput', () => {
       expect(sanitizeNumericInput('\u0661\u0662', 'numeric')).toBe('12')
     })
 
-    it('is unaffected by grouping, so a 2,000 calorie target reads as 2000', () => {
+    it('drops separators entirely, so a 2,000 calorie target reads as 2000', () => {
       expect(sanitizeNumericInput('2,000', 'numeric')).toBe('2000')
     })
   })
@@ -254,13 +256,12 @@ describe('sanitizeNumericInput under per-keystroke input', () => {
     expect(type('12.5')).toBe('12.5')
   })
 
-  // KNOWN LIMIT, documented on the function: grouping can't be recognised mid-type,
-  // because "1," arrives with nothing after it and is canonicalised to "1." before the
-  // digits that would identify it as grouping ever show up. Pinned so the behaviour is a
-  // decision rather than a surprise, and so the paste path's guarantee stays honest.
-  it('cannot recognise grouping while it is being typed', () => {
+  // Grouping is not detected at all, by design, so the typed and pasted paths now agree.
+  // The earlier grouping-aware rule made these two disagree - 1.2 typed, 1200 pasted -
+  // which is the kind of split nobody can reproduce from a bug report.
+  it('reads a lone separator the same way typed or pasted', () => {
     expect(type('1,200')).toBe('1.200')
-    expect(sanitizeNumericInput('1,200', 'decimal')).toBe('1200')
+    expect(sanitizeNumericInput('1,200', 'decimal')).toBe('1.200')
   })
 })
 
@@ -281,6 +282,8 @@ describe('sanitizeNumericInput with a space group separator', () => {
       expect(sanitizeNumericInput(`82,5${sp}kg`, 'decimal')).toBe('82.5')
       expect(sanitizeNumericInput(`12,5${sp}`, 'decimal')).toBe('12.5')
       expect(sanitizeNumericInput(`1${sp}250`, 'decimal')).toBe('1250')
+      // the group character is no longer consulted at all - only whitespace stripping
+      // keeps this correct, which is why that step stays.
     })
   }
 
@@ -368,7 +371,11 @@ describe('formatNumber', () => {
     expect(formatNumber('83.4')).toBe('83,4')
   })
 
-  // The loop is closed: what a field draws, a field can read back.
+  // The loop is closed for ungrouped text: what a field draws, a field can read back.
+  // Grouped output deliberately does NOT round-trip - the parser does not detect grouping -
+  // so `grouped: true` is for read-only display and must never feed an editable field.
+  // This is the one place wger gets it wrong: their widget formats with grouping and their
+  // input filter then eats it, so editing a formatted "1.234,5" yields 1,23.
   it('round-trips through sanitizeNumericInput', () => {
     configureNumberLocale({ decimal: ',', group: '.' })
     for (const n of [0.5, 12.5, 83.4, 102.5, 225, 1234.5]) {
