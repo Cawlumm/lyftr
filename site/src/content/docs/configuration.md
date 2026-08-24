@@ -31,6 +31,11 @@ nginx and the backend to `172.28.0.0/16` and supplies that exact CIDR as `TRUSTE
 therefore trusted to append the real socket client, while a normal LAN address such as
 `192.168.1.50` remains untrusted and stops the header walk where it should.
 
+The security property is **separation**, not anything special about `172.28.0.0/16`. If your LAN or
+VPN already uses that subnet, choose a different non-overlapping subnet in `docker-compose.yml` and
+change `TRUSTED_PROXIES` in `.env` to the same value. Letting those two settings drift either loses
+the real client IP or re-opens a header-walk ambiguity.
+
 :::caution[Do not trust client networks]
 Do not broaden this to `192.168.0.0/16`, `10.0.0.0/8`, all RFC1918 space, `0.0.0.0/0`, or `::/0`.
 A real client inside a trusted range is treated as another proxy hop, so Gin can walk past it to an
