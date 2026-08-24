@@ -19,7 +19,7 @@ import { RestTimerBanner } from './RestTimerBanner'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
+import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange, toLocaleText } from '@lyftr/shared'
 import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay
@@ -524,7 +524,7 @@ export function GymModeWorkout() {
             </View>
             <View className="flex-1">
               <StepperTile icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
-                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel="Weight" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? toLocaleText(String(displayWeight(set.target_weight, wUnit))) : '0'} disabled={set.completed} accessibilityLabel="Weight" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
               </StepperTile>
             </View>
           </View>

@@ -162,7 +162,7 @@ function ActiveExerciseCardBase({
                   editable={!set.completed}
                   value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                   onChange={(v) => onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))}
-                  placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
+                  placeholder={set.target_weight > 0 ? toLocaleText(String(displayWeight(set.target_weight, wUnit))) : '—'}
                   placeholderColor={colors.txMuted}
                   accessibilityLabel={`Weight, set ${set.set_number}, ${ex.exercise.name}`}
                 />

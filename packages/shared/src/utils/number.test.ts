@@ -79,10 +79,10 @@ describe('clampValue', () => {
 })
 
 describe('sanitizeNumericInput', () => {
-  // jest-expo auto-wires Expo's expo-localization mock, which hardcodes en-US
-  // (decimalSeparator '.', digitGroupingSeparator ','). Every test that doesn't say
-  // otherwise is therefore an en-US test - worth stating, because the bug this file
-  // exists for only appears outside that locale.
+  // The en-US default comes from the module literal in number.ts, not from any mock -
+  // this package is plain ts-jest and never imports expo-localization. Every test that
+  // doesn't configure a locale is therefore an en-US test, worth stating because the bug
+  // this file exists for only appears outside that locale.
   afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
 
   describe('en-US (the default)', () => {
@@ -219,5 +219,87 @@ describe('toLocaleText', () => {
     expect(stored).toBe('12.5')          // canonical for every caller
     expect(Number(stored)).toBe(12.5)     // Number() still works, so no call site changed
     expect(toLocaleText(stored)).toBe(typed) // and the user sees what they typed
+  })
+})
+
+// Everything below came out of an adversarial review that drove the REAL per-keystroke
+// loop instead of calling the function with whole strings. A TextInput re-sends the entire
+// field on every key, so `sanitize(toLocaleText(buffer) + key)` is the shape that actually
+// runs — and three defects lived only in that shape.
+describe('sanitizeNumericInput under per-keystroke input', () => {
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+
+  const type = (keys: string) =>
+    [...keys].reduce((buf, k) => sanitizeNumericInput(toLocaleText(buf) + k, 'decimal'), '')
+
+  // The cells have no selectTextOnFocus, so tapping a prefilled "82,5" drops the cursor
+  // inside a string that already holds a separator. Taking the LAST separator as the
+  // decimal turned that into "825." — a silent 10x, committed on the same keystroke, that
+  // backspace could not undo because the fraction digit had become an integer digit.
+  it('keeps the first separator when a second is inserted', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(type('82,5,')).toBe('82.5')
+    expect(sanitizeNumericInput('82.5.', 'decimal')).toBe('82.5')
+    expect(sanitizeNumericInput('225.5.', 'decimal')).toBe('225.5')
+  })
+
+  it('types a plain decimal correctly on a comma locale', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    expect(type('12,5')).toBe('12.5')
+    expect(type('102,5')).toBe('102.5')
+  })
+
+  it('types a plain decimal correctly on en-US', () => {
+    expect(type('12.5')).toBe('12.5')
+  })
+
+  // KNOWN LIMIT, documented on the function: grouping can't be recognised mid-type,
+  // because "1," arrives with nothing after it and is canonicalised to "1." before the
+  // digits that would identify it as grouping ever show up. Pinned so the behaviour is a
+  // decision rather than a surprise, and so the paste path's guarantee stays honest.
+  it('cannot recognise grouping while it is being typed', () => {
+    expect(type('1,200')).toBe('1.200')
+    expect(sanitizeNumericInput('1,200', 'decimal')).toBe('1200')
+  })
+})
+
+// fr, ru, sv, pl, cs, fi, nb, uk all use a space as the group character, and
+// expo-localization hands it over verbatim. Treating it as a separator candidate made any
+// space in the text the decimal point.
+describe('sanitizeNumericInput with a space group separator', () => {
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+
+  for (const [name, sp] of [
+    ['space', '\u0020'],
+    ['no-break space', '\u00A0'],
+    ['narrow no-break space', '\u202F'],
+  ] as const) {
+    it(`ignores a ${name} rather than reading it as a decimal`, () => {
+      configureNumberLocale({ decimal: ',', group: sp })
+      expect(sanitizeNumericInput(`12,50${sp}kg`, 'decimal')).toBe('12.50')
+      expect(sanitizeNumericInput(`82,5${sp}kg`, 'decimal')).toBe('82.5')
+      expect(sanitizeNumericInput(`12,5${sp}`, 'decimal')).toBe('12.5')
+      expect(sanitizeNumericInput(`1${sp}250`, 'decimal')).toBe('1250')
+    })
+  }
+
+  it('ignores a trailing space on any locale', () => {
+    expect(sanitizeNumericInput('12.5 ', 'decimal')).toBe('12.5')
+  })
+})
+
+describe('toLocaleText hardening', () => {
+  afterEach(() => configureNumberLocale({ decimal: '.', group: ',' }))
+
+  // Threw on every comma locale and silently passed the value through on en-US — so it
+  // would have crashed only for the users this change exists for, and only in production.
+  it('does not throw on a non-string, in any locale', () => {
+    configureNumberLocale({ decimal: ',', group: '.' })
+    // @ts-expect-error deliberately wrong type
+    expect(toLocaleText(undefined)).toBe('')
+    // @ts-expect-error deliberately wrong type
+    expect(toLocaleText(null)).toBe('')
+    // @ts-expect-error deliberately wrong type
+    expect(toLocaleText(12.5)).toBe('')
   })
 })
