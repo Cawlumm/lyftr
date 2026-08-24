@@ -13,28 +13,74 @@ Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). U
 - **expo-camera** (barcode, later), **expo-haptics** (rest timer, later)
 
 ## Run it (development)
-From the **repo root** (npm workspaces):
+
+**Expo Go cannot run this app.** `app.json` declares config plugins (secure-store,
+camera, splash, fonts, localization, the Android network-security config), and Expo Go
+ships a fixed set of native modules that doesn't include them. Trying anyway fails with
+`expo-updates system is disabled due to an invalid configuration`. You need a
+**development build** — your own build of the app that speaks to Metro.
+
+It is a **one-time** cost. After it's installed, JS changes reload over Metro in seconds
+and you never rebuild unless a *native* dependency changes.
+
 ```bash
-npm install                     # installs shared + mobile
-npx expo install --fix          # (in mobile/) align native module versions to the SDK
-cd mobile && npx expo start      # Metro dev server
-```
-Then on your **phone**: open **Expo Go**, connect over Wi‑Fi / **Tailscale** (or
-`npx expo start --tunnel`), and scan the QR. Once native modules (SecureStore, camera,
-haptics) are in play, build a **dev client** instead of Expo Go:
-```bash
-eas build --profile development --platform ios   # cloud build, no Mac needed
+npm install                                    # repo root, npm workspaces
+cd mobile
+npx expo install --fix                         # align native modules to the SDK
+npm run build:dev                              # one-time cloud build (EAS), ~15-25 min
 ```
 
-On a **laptop**: `npx expo start --web` (quick UI checks), or press `i` (iOS Simulator,
-Mac only) / `a` (Android emulator).
+Install the resulting APK, then for day-to-day work:
+
+```bash
+npm start                                      # = expo start --dev-client
+```
+
+Open the app; it connects to Metro. Press `a` to launch it on a booted Android emulator.
+
+**Never build locally.** No `expo run:android`, no `expo prebuild` + Gradle, no
+`eas build --local`. A first local build is 10–25 minutes of toolchain download before
+it compiles anything, and `prebuild` writes an untracked `android/` and rewrites the
+`android`/`ios` scripts in `package.json`. Build through EAS or a CI runner.
+
+`npm run web` still works for quick UI checks that don't touch native modules.
+
+### Build profiles (`eas.json`)
+
+| Profile | What it is | Dev launcher | Artifact |
+|---|---|---|---|
+| `development` | what you develop against — loads JS from Metro | yes | debug APK |
+| `preview` | a self-contained build to hand someone; JS is baked in | no | release APK |
+| `production` | store submission | no | AAB |
+
+Only `development` sets `developmentClient`. That matters: the dev launcher and dev menu
+are a *debug-build* feature — `expo-dev-launcher` ships a `src/release` source set whose
+controller throws `DevLauncher isn't available in release builds`, and Gradle picks
+source sets per variant — so they cannot appear in a `preview` or `production` build.
+`src/devFlow.test.ts` pins which profile is allowed to ask for it.
+
+A `preview` build ignores Metro entirely. If you change JS and the app doesn't update,
+that's why: you're on the wrong profile.
 
 ## Point at your backend
-The **Server URL** field in the Settings tab configures the backend origin (validated via
-`GET /api/v1/info`). Leave blank for the default. For the VM dev backend use the LAN IP or
-the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login:
-`demo@lyftr.local` / `password123` — present on a dev backend and on the hosted demo, but
-not on a production instance unless it sets `DEMO_MODE=true`.
+The **Server URL** field — on the sign-in screen and in the Settings tab — sets the
+backend origin, validated via `GET /api/v1/info`. There is no default: a fresh install
+talks to nothing until you set one. An explicit `http://` or `https://` is required;
+the scheme is never guessed.
+
+In a **development build only**, that field shows one-tap buttons for the local backend
+— `http://10.0.2.2:3000` on Android (the emulator's alias for the host machine; its own
+`localhost` is the emulator itself), `http://localhost:3000` on an iOS simulator. They sit
+behind `__DEV__`, which Metro substitutes at transform time, so neither the buttons nor
+the addresses exist in a release bundle. `src/devFlow.test.ts` enforces that.
+
+Over a LAN or a VPN, use that machine's address — `npx expo start --tunnel` if the
+network blocks the direct route.
+
+Demo login `demo@lyftr.local` / `password123` exists on a dev backend and on the hosted
+demo. `DEMO_MODE` defaults to on whenever `ENV` is unset or not `production`, so a
+self-hosted instance that sets neither variable **will** have that account with that
+published password. Set `ENV=production` (or `DEMO_MODE=false`) on anything real.
 
 ## Native networking config
 `network_security_config.xml` is an Android
