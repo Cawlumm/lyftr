@@ -347,7 +347,7 @@ export default function Weight() {
                     <View className={`flex-row items-center gap-1.5 rounded-lg border px-3 py-1.5 ${trendPill}`}>
                       <TrendIcon size={16} color={trendText} />
                       <Text className="font-sans-semibold text-sm" style={{ color: trendText, fontVariant: ['tabular-nums'] }}>
-                        {Math.abs(change)} {wUnit}
+                        {formatNumber(Math.abs(change))} {wUnit}
                       </Text>
                     </View>
                   </View>
