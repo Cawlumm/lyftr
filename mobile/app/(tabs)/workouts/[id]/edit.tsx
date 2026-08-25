@@ -54,6 +54,7 @@ export default function EditWorkout() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
+  const settingsLoaded = useSettingsStore((s) => s.loaded)
   const wUnit = weightShort(settings.weight_unit)
   const { brand, accent, isDark } = useTheme()
 
@@ -80,6 +81,7 @@ export default function EditWorkout() {
       router.replace('/workouts')
       return
     }
+    if (!settingsLoaded) return
     client.workoutAPI.get(workoutId)
       .then((workout) => {
         const map: Record<number, Exercise> = {}
@@ -112,9 +114,11 @@ export default function EditWorkout() {
       })
       .catch(() => setError('Failed to load workout'))
       .finally(() => setInitialLoading(false))
-    // Web effect deps: [id] only — settings are fetched before a user can navigate here.
+    // Gated on settingsLoaded rather than assuming a tab walk got here first: the
+    // conversion above reads weight_unit, and a deep link or a cold start on this route
+    // lets the workout fetch land before settings do. Web lost exactly that race.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, settingsLoaded])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 

@@ -14,7 +14,7 @@ import NumberField from '../components/ui/NumberField'
 export default function WeightDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { settings } = useSettingsStore()
+  const { settings, loaded: settingsLoaded } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
   const [log, setLog] = useState<types.WeightLog | null>(null)
@@ -38,6 +38,9 @@ export default function WeightDetail() {
   useEscapeKey(editing, () => { setEditing(false); setEditError('') })
 
   useEffect(() => {
+    // Settings first: displayWeight below reads weight_unit, and this fetch used to beat
+    // it, prefilling the edit field with raw lbs while the label already said kg.
+    if (!settingsLoaded) return
     weightAPI.get(Number(id))
       .then(data => {
         setLog(data)
@@ -47,7 +50,7 @@ export default function WeightDetail() {
       })
       .catch(err => setError(err?.response?.data?.error || 'Failed to load entry'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, settingsLoaded])
 
   const startEdit = () => {
     if (!log) return

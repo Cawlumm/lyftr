@@ -16,7 +16,7 @@ interface ProgramFormData {
 export default function EditProgram() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { settings } = useSettingsStore()
+  const { settings, loaded: settingsLoaded } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
@@ -29,6 +29,9 @@ export default function EditProgram() {
   useEffect(() => {
     const programId = Number(id)
     if (!programId) { navigate('/programs'); return }
+    // Settings first: target_weight is converted below with weight_unit, and this fetch
+    // used to win that race, loading lbs into a form labelled kg.
+    if (!settingsLoaded) return
     programAPI.get(programId)
       .then(p => {
         const map: Record<number, types.Exercise> = {}
@@ -57,7 +60,7 @@ export default function EditProgram() {
       })
       .catch(() => { setError('Failed to load program'); })
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, settingsLoaded])
 
   const cacheExercise = (ex: types.Exercise) => setPickerExercises(prev => ({ ...prev, [ex.id]: ex }))
 

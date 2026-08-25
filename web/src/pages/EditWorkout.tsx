@@ -17,7 +17,7 @@ interface WorkoutFormData {
 export default function EditWorkout() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { settings } = useSettingsStore()
+  const { settings, loaded: settingsLoaded } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -36,6 +36,9 @@ export default function EditWorkout() {
   useEffect(() => {
     const workoutId = Number(id)
     if (!workoutId) { navigate('/workouts'); return }
+    // Wait for settings: the conversion below reads weight_unit, and this fetch used to
+    // win the race against it. See the note on the deps array.
+    if (!settingsLoaded) return
     workoutAPI.get(workoutId)
       .then(workout => {
         const map: Record<number, types.Exercise> = {}
@@ -56,7 +59,7 @@ export default function EditWorkout() {
       })
       .catch(() => setError('Failed to load workout'))
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, settingsLoaded])
 
   const addExercise = (exercise: types.Exercise) => {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))
