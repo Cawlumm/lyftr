@@ -38,7 +38,7 @@ export const maxWeight = (unit: string): number => round1(lbsToDisplay(MAX_WEIGH
 export const weightError = (value: number, unit: string): string | null => {
   if (!Number.isFinite(value) || value <= 0) return 'Enter a valid weight'
   if (displayToLbs(value, unit) > MAX_WEIGHT_LBS) {
-    return `Weight must be under ${Math.round(maxWeight(unit))} ${weightShort(unit)}`
+    return `Weight must be under ${formatNumber(Math.round(maxWeight(unit)))} ${weightShort(unit)}`
   }
   return null
 }
