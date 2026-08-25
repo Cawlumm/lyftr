@@ -240,9 +240,12 @@ This asymmetry is why wger's equivalent looks simpler: Dart's `intl` ships
   path parser reads the comma as a coordinate separator and the chart collapses.
 - **Whitespace is never a separator.** `fr`, `ru`, `sv`, `pl`, `cs`, `fi`, `nb`, `uk` use
   a *space* as their group character and `expo-localization` passes it through verbatim.
-- **Grouping can't be detected mid-type.** A `TextInput` re-sends the whole field on each
-  keystroke, so `"1,"` arrives with nothing after it and reads as a decimal. Typing
-  `1,200` on en-US gives `1.2`; pasting gives `1200`. Known, and pinned by a test.
+- **Grouping is never detected.** A `TextInput` re-sends the whole field on each keystroke,
+  so `"1,"` arrives with nothing after it and reads as a decimal. `1,200` on en-US is
+  therefore `1.2` **whether typed or pasted** — the two agree on purpose. An earlier
+  grouping-aware rule made them disagree (`1.2` typed, `1200` pasted), which meant the same
+  characters meant different numbers depending on how they arrived. Pinned by
+  `number.test.ts` and again in `number.fuzz.test.ts`, which fails if someone "fixes" it.
 - **A locale-dependent test must name its locale.** A test that never calls
   `configureNumberLocale` is an en-US test — the one locale these bugs never appear in.
   `src/components/ui/NumberField.locale.test.tsx` is the rendered-component shape.
