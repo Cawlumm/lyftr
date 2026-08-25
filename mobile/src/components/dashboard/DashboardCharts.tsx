@@ -151,7 +151,7 @@ export function WeightSparkline({ data, width, unit, height = 48 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(sp.x - 45, 0, Math.max(0, width - 90)), top: -6 }}>
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[sel].weight} {unit} · {data[sel].date}
+            {formatNumber(data[sel].weight)} {unit} · {data[sel].date}
           </AppText>
         </View>
       ) : null}

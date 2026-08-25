@@ -203,7 +203,7 @@ export function ExerciseHistoryChart({
           }}
         >
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[selected].weight} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
+            {formatNumber(data[selected].weight)} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
           </AppText>
           {data[selected].sub ? (
             <AppText variant="caption" color="muted">{data[selected].sub}</AppText>

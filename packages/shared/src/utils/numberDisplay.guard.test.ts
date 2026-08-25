@@ -85,4 +85,41 @@ describe('number display', () => {
     }
     expect(offenders).toEqual([])
   })
+
+  // The rule above is lexical and single-line, which leaves one shape uncovered: convert
+  // in one file, render in another. A chart builds its series with
+  // `weight: displayWeight(...)` — an object property, correctly exempted, because the
+  // chart's own maths needs a number — and then a tooltip in a different component draws
+  // `{data[sel].weight}`, where no converter name appears at all.
+  //
+  // Both mobile charts did exactly that. In German the tooltip read "83.4 kg" while the
+  // field beside it read "83,4" — the same split #146 exists to remove, reached from the
+  // other end. Web had already wrapped its equivalents in formatNumber.
+  //
+  // So: a `.weight` or `.volume` read in text position must be formatted. Narrow on
+  // purpose — those two names are the converted quantities, and a bare property read is
+  // the only shape the first rule cannot see.
+  it('renders a converted series value through formatNumber too', () => {
+    // A bare read only. `{best.weight > 0 ? …}` is a test that decides whether to render
+    // at all — the render sits after it and does its own formatting — so anything followed
+    // by a comparison, an assignment or arithmetic is skipped. What is left is
+    // `{data[sel].weight}`: the value itself, on its way to the screen.
+    const SERIES = /\.(?:weight|volume)\b(?!\s*(?:[:=><!&|?+\-*/]|\]))/g
+    const offenders: string[] = []
+    for (const file of files) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          for (const m of line.matchAll(SERIES)) {
+            const before = line.slice(0, m.index)
+            if (!TEXT_CONTEXT.test(before)) continue
+            if (ATTRIBUTE.test(before)) continue
+            if (OBJECT_PROPERTY.test(before)) continue
+            if (/formatNumber\(/.test(before)) continue
+            offenders.push(`${file.slice(ROOT.length + 1).replace(/\\/g, '/')}:${i + 1}`)
+          }
+        })
+    }
+    expect(offenders).toEqual([])
+  })
 })
