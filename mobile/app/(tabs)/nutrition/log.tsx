@@ -481,7 +481,7 @@ export default function LogFood() {
                         <AppText variant="body" color="muted">kcal</AppText>
                       </View>
                       {selected.serving_size ? (
-                        <AppText variant="caption" color="muted" className="mt-1">per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-1">per {servings === 1 ? '' : `${formatNumber(servings)} × `}{selected.serving_size}</AppText>
                       ) : null}
                     </View>
                     {pro + carb + fat_ > 0 ? (

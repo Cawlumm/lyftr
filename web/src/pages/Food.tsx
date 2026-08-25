@@ -369,7 +369,7 @@ export default function Food() {
                                   <span className="text-[10px] text-tx-muted">·</span>
                                   <span className="text-xs text-violet-400 tabular-nums">{formatNumber(entry.fat, { decimals: 0 })}g F</span>
                                   {entry.servings !== 1 && (
-                                    <span className="text-xs text-tx-muted">× {entry.servings}</span>
+                                    <span className="text-xs text-tx-muted">× {formatNumber(entry.servings)}</span>
                                   )}
                                 </div>
                               </div>

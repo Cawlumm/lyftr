@@ -87,7 +87,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
           <AppText variant="caption" color="muted">{label}</AppText>
         </View>
       ))}
-      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
+      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {formatNumber(entry.servings)}</AppText> : null}
     </View>
   )
 

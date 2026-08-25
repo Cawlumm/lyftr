@@ -85,7 +85,7 @@ export default function NutritionDetail() {
   // Spec-list rows (MFP / Lose It convention): serving size, servings, meal, logged.
   const specRows: { label: string; value: string; tabular?: boolean }[] = [
     ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
-    { label: 'Servings', value: String(entry.servings), tabular: true },
+    { label: 'Servings', value: formatNumber(entry.servings), tabular: true },
     { label: 'Meal', value: MEAL_LABELS[meal] },
     { label: 'Logged', value: format(dayToLocalDate(entryDay(entry)), 'EEE, MMM d, yyyy') },
   ]
