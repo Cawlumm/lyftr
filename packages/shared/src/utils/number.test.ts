@@ -129,6 +129,25 @@ describe('sanitizeNumericInput', () => {
     expect(sanitizeNumericInput('8.5', 'numeric')).toBe('85')
   })
 
+  // Ported from Dart's intl (number_parser_base.dart), which is what wger's own
+  // NumberFormat.parse runs on. Their widget's filter is ASCII-only and strips these
+  // before the parser ever sees them, so this is a case their app still gets wrong.
+  it('folds localised digits instead of deleting them', () => {
+    expect(dec('١٢٫٥')).toBe('12.5') // ar_EG: Arabic-Indic
+    expect(dec('۱۲٫۵')).toBe('12.5') // fa: Extended Arabic-Indic
+    expect(sanitizeNumericInput('٨٥', 'numeric')).toBe('85')
+  })
+
+  it('reads U+066B, the decimal separator those keypads emit', () => {
+    // Folding the digits alone would leave this as 125 - a silent 10x, worse than the
+    // zero it fixes. Dart lists U+066B as DECIMAL_SEP for both fa and ar_EG.
+    expect(dec('12٫5')).toBe('12.5')
+  })
+
+  it('drops U+066C, their group separator, like any other thousands mark', () => {
+    expect(dec('1٬234٫5')).toBe('1234.5')
+  })
+
   it('leaves an empty field empty', () => {
     expect(dec('')).toBe('')
     expect(dec(',')).toBe('.')

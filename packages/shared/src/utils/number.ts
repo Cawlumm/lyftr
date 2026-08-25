@@ -93,19 +93,66 @@ export function clampValue(raw: string | number, min = 0): number {
 // REVISIT if @formatjs/intl-numberformat ever lands here for another reason. At that point
 // react-aria's parser works on both platforms and this function should be deleted for it.
 //
+// Localised digits, folded the way Dart's intl does it - the library wger's own
+// NumberFormat.parse runs on, so this is the reference implementation rather than our
+// invention:
+//
+//     number_parser_base.dart:118   var digitValue = charCode - _localeZero;
+//     number_parser_base.dart:224   writeCharCode(asciiZeroCodeUnit + digit);
+//
+// Subtracting a zero code point is the whole trick: digit sets are contiguous, so
+// `code - zero` is the value and `0x30 + value` is the ASCII form. Deliberately NOT
+// String.normalize('NFKC') - NFKC folds fullwidth digits and leaves Arabic-Indic alone, so
+// a test written with fullwidth characters passes while the real case still logs a 0.
+//
+// One deviation, and it is the only one: Dart reads a single zero digit from the ACTIVE
+// locale's symbols (`fa` -> U+06F0, `ar_EG` -> U+0660, most locales -> U+0030). No locale
+// is injected here, so we carry both ranges CLDR actually assigns and fold whichever
+// arrives. That is strictly broader than Dart - it accepts Persian digits from a device
+// claiming en-US, which Dart would reject - and it needs no locale to be correct. If a
+// locale is ever injected (see #146), narrow this to that locale's zero digit and the
+// port becomes exact.
+const ASCII_ZERO = 0x30
+const LOCALE_ZEROS = [0x0660, 0x06f0] // Arabic-Indic, Extended Arabic-Indic
+
+function foldDigits(raw: string): string {
+  let out = ''
+  for (const ch of raw) {
+    const code = ch.codePointAt(0)!
+    let folded = ch
+    for (const localeZero of LOCALE_ZEROS) {
+      const digitValue = code - localeZero
+      if (digitValue >= 0 && digitValue <= 9) {
+        folded = String.fromCharCode(ASCII_ZERO + digitValue)
+        break
+      }
+    }
+    out += folded
+  }
+  return out
+}
+
+// U+066B ARABIC DECIMAL SEPARATOR is a separator wherever those digits are. It is what
+// Dart lists as DECIMAL_SEP for both `fa` and `ar_EG`, and folding the digits without it
+// would leave "12٫5" as 125 - a silent 10x, worse than the zero this fixes. U+066C,
+// their GROUP_SEP, needs no case: it falls through and is dropped like any other
+// character, which is the same thing we do to a Latin thousands separator.
+const isSeparator = (ch: string): boolean => ch === '.' || ch === ',' || ch === '٫'
+
 // 'numeric' keeps digits only, so a separator cannot sneak a fractional rep in sideways.
 export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
-  if (mode !== 'decimal') return raw.replace(/[^0-9]/g, '')
+  const folded = foldDigits(raw)
+  if (mode !== 'decimal') return folded.replace(/[^0-9]/g, '')
 
   // Whitespace never counts as a separator. fr, ru, sv, pl, cs, fi, nb and uk group with
   // a space, so a trailing space or a pasted "12,50 kg" would otherwise read as 1250.
-  const bare = raw.replace(/\s/g, '')
+  const bare = folded.replace(/\s/g, '')
 
   let out = ''
   let seen = false
   for (const ch of bare) {
     if (ch >= '0' && ch <= '9') out += ch
-    else if ((ch === '.' || ch === ',') && !seen) {
+    else if (isSeparator(ch) && !seen) {
       out += '.'
       seen = true
     }
