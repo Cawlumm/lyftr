@@ -11,6 +11,21 @@ const workspaceRoot = path.resolve(projectRoot, '..')
 const config = getDefaultConfig(projectRoot)
 
 config.watchFolders = [workspaceRoot]
+
+// Watching the workspace root is what lets Metro transpile @lyftr/shared from source, but
+// the root also holds directories that are not source and are very large: `.claude`
+// carries a git worktree per parallel session (each a full checkout), and `.git`,
+// `.playwright-mcp` and `data` are churn Metro has no reason to index. Crawling them made
+// metro-file-map exceed its watch-mode timeout and the bundler died before serving a
+// byte -- "Failed to start watch mode", then a TypeError from NativeWind reading a
+// file-map that was never built. Excluded here rather than by narrowing watchFolders,
+// which would stop shared/ rebuilding on save.
+config.resolver.blockList = [
+  /[\\/]\.claude[\\/]/,
+  /[\\/]\.git[\\/]/,
+  /[\\/]\.playwright-mcp[\\/]/,
+  /[\\/]data[\\/].*\.db/,
+]
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, 'node_modules'),
   path.resolve(workspaceRoot, 'node_modules'),
