@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { entryDay, type FoodLog, dayToLocalDate, formatNumber } from '@lyftr/shared'
 import {
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -140,7 +140,7 @@ export default function NutritionDetail() {
               <AppText variant="title" className="mt-3" numberOfLines={2}>{entry.name}</AppText>
               <View className="mt-1 flex-row items-center gap-1.5">
                 <Flame size={20} color={MACRO_COLORS.carbs} />
-                <AppText variant="display" style={{ fontSize: 38, lineHeight: 42, fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)}</AppText>
+                <AppText variant="display" style={{ fontSize: 38, lineHeight: 42, fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(entry.calories))}</AppText>
                 <AppText variant="body" color="muted" className="mb-1">kcal</AppText>
               </View>
 
@@ -168,7 +168,7 @@ export default function NutritionDetail() {
               <View className="mt-4 flex-row gap-2">
                 {macros.map((m) => (
                   <View key={m.label} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>
-                    <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{m.value.toFixed(0)}g</AppText>
+                    <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{formatNumber(m.value, { decimals: 0 })}g</AppText>
                     <AppText variant="caption" color="muted" style={{ fontSize: 10 }} className="mt-0.5">{m.label}</AppText>
                   </View>
                 ))}

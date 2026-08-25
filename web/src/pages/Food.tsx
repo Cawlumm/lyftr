@@ -14,7 +14,7 @@ import {
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, userAPI } from '../services/api'
-import { todayStr, dayToLocalDate, MACRO_COLORS, types } from '@lyftr/shared'
+import { todayStr, dayToLocalDate, MACRO_COLORS, types, formatNumber } from '@lyftr/shared'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -51,11 +51,11 @@ function MacroRing({
             style={{ transition: 'stroke-dashoffset 0.6s ease' }} />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold tabular-nums" style={{ color }}>{Math.round(pct * 100)}%</span>
+          <span className="text-xs font-bold tabular-nums" style={{ color }}>{formatNumber(Math.round(pct * 100))}%</span>
         </div>
       </div>
       <div className="text-center">
-        <p className="text-sm font-semibold tabular-nums text-tx-primary">{Math.round(value)}g</p>
+        <p className="text-sm font-semibold tabular-nums text-tx-primary">{formatNumber(Math.round(value))}g</p>
         <p className="text-[10px] text-tx-muted">{label} / {target}g</p>
       </div>
     </div>
@@ -227,7 +227,7 @@ export default function Food() {
             <div>
               <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-bold tabular-nums text-tx-primary">{Math.round(totalCals)}</span>
+                <span className="text-4xl font-bold tabular-nums text-tx-primary">{formatNumber(Math.round(totalCals))}</span>
                 <span className="text-sm text-tx-muted">/ {calTarget}</span>
               </div>
             </div>
@@ -238,8 +238,8 @@ export default function Food() {
             }`}>
               <Flame className="w-4 h-4" />
               {isOver
-                ? `${Math.round(Math.abs(remaining))} over`
-                : `${Math.round(remaining)} left`
+                ? `${formatNumber(Math.round(Math.abs(remaining)))} over`
+                : `${formatNumber(Math.round(remaining))} left`
               }
             </div>
           </div>
@@ -305,7 +305,7 @@ export default function Food() {
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-semibold text-tx-primary">{MEAL_LABELS[meal]}</span>
                     {mealCals > 0 && (
-                      <span className="ml-2 text-xs text-tx-muted tabular-nums">{Math.round(mealCals)} kcal</span>
+                      <span className="ml-2 text-xs text-tx-muted tabular-nums">{formatNumber(Math.round(mealCals))} kcal</span>
                     )}
                   </div>
                   <IconButton
@@ -360,14 +360,14 @@ export default function Food() {
                                 <p className="text-sm font-medium text-tx-primary truncate">{entry.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   <span className="text-xs font-semibold text-tx-secondary tabular-nums">
-                                    {Math.round(entry.calories)} kcal
+                                    {formatNumber(Math.round(entry.calories))} kcal
                                   </span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-emerald-400 tabular-nums">{entry.protein.toFixed(0)}g P</span>
+                                  <span className="text-xs text-emerald-400 tabular-nums">{formatNumber(entry.protein, { decimals: 0 })}g P</span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-amber-400 tabular-nums">{entry.carbs.toFixed(0)}g C</span>
+                                  <span className="text-xs text-amber-400 tabular-nums">{formatNumber(entry.carbs, { decimals: 0 })}g C</span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-violet-400 tabular-nums">{entry.fat.toFixed(0)}g F</span>
+                                  <span className="text-xs text-violet-400 tabular-nums">{formatNumber(entry.fat, { decimals: 0 })}g F</span>
                                   {entry.servings !== 1 && (
                                     <span className="text-xs text-tx-muted">× {entry.servings}</span>
                                   )}
@@ -443,7 +443,7 @@ export default function Food() {
                   color: 'var(--color-tx-primary)',
                 }}
                 labelFormatter={d => format(dayToLocalDate(d), 'MMM d')}
-                formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
+                formatter={(val: number, name: string) => [`${formatNumber(Math.round(val))}g`, name]}
                 cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
               />
               <Area type="monotone" dataKey="fat" stackId="macros" stroke={MACRO_COLORS.fat} strokeWidth={1.5} fill="url(#gFat)" name="Fat" dot={false} />

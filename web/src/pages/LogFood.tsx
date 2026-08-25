@@ -60,13 +60,13 @@ function FoodResultRow(
         <p className="text-sm font-semibold text-tx-primary truncate">{item.name}</p>
         {item.brand && <p className="text-xs text-tx-muted truncate mt-0.5">{item.brand}</p>}
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          <span className="text-xs font-semibold text-tx-secondary tabular-nums">{Math.round(item.calories)} kcal</span>
+          <span className="text-xs font-semibold text-tx-secondary tabular-nums">{formatNumber(Math.round(item.calories))} kcal</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-emerald-400 tabular-nums">{item.protein.toFixed(0)}g P</span>
+          <span className="text-xs text-emerald-400 tabular-nums">{formatNumber(item.protein, { decimals: 0 })}g P</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-amber-400 tabular-nums">{item.carbs.toFixed(0)}g C</span>
+          <span className="text-xs text-amber-400 tabular-nums">{formatNumber(item.carbs, { decimals: 0 })}g C</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-violet-400 tabular-nums">{item.fat.toFixed(0)}g F</span>
+          <span className="text-xs text-violet-400 tabular-nums">{formatNumber(item.fat, { decimals: 0 })}g F</span>
           {item.serving_size && (
             <>
               <span className="text-[10px] text-tx-muted">·</span>

@@ -6,7 +6,7 @@ import { format, subDays, addDays } from 'date-fns'
 import {
   AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { todayStr, type DailyStats, type FoodLog, dayToLocalDate, formatNumber } from '@lyftr/shared'
 import {
   AppText, Card, DateInput, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
 } from '../../../src/components/ui'
@@ -282,7 +282,7 @@ export default function Nutrition() {
                   <View>
                     <AppText variant="caption" color="muted" className="mb-1 uppercase" style={{ letterSpacing: 0.5 }}>Calories</AppText>
                     <View className="flex-row items-baseline gap-1.5">
-                      <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(totalCals)}</AppText>
+                      <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(totalCals))}</AppText>
                       <AppText variant="body" color="muted">/ {calTarget}</AppText>
                     </View>
                   </View>
@@ -295,7 +295,7 @@ export default function Nutrition() {
                   >
                     <Flame size={16} color={isOver ? '#fbbf24' : '#34d399'} />
                     <AppText variant="bodySemibold" style={{ fontSize: 13, color: isOver ? '#fbbf24' : '#34d399' }}>
-                      {isOver ? `${Math.round(Math.abs(remaining))} over` : `${Math.round(remaining)} left`}
+                      {isOver ? `${formatNumber(Math.round(Math.abs(remaining)))} over` : `${formatNumber(Math.round(remaining))} left`}
                     </AppText>
                   </View>
                 </View>
