@@ -29,8 +29,12 @@ type Props = Omit<TextInputProps, 'value' | 'onChangeText' | 'keyboardType'> & {
 // TextInput and takes props, so nothing can be wrapped around it and settings' four macro
 // targets spread useNumericField directly. One seam either way.
 //
-// The hook is spread AFTER rest deliberately: value/onChangeText/keyboardType are the
-// three things this component exists to own, so a caller cannot pass them back in.
+// The hook is spread AFTER rest deliberately, so a `keyboardType` arriving from a caller
+// lands in rest and loses. That ordering is the whole runtime guarantee and it is worth
+// being precise about: `value` and `onChangeText` are destructured by name, so JSX has
+// already resolved them before this function runs and a later spread would simply win.
+// Those two are held by the Omit on Props instead — a compile-time guard, which is enough
+// given every caller is TypeScript, but not the same thing as the spread order.
 export const NumericInput = forwardRef<TextInput, Props>(function NumericInput(
   { value, onChangeText, inputMode = 'decimal', ...rest },
   ref,

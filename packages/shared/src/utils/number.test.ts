@@ -252,6 +252,18 @@ describe('sanitizeNumericInput under per-keystroke input', () => {
     expect(type('102,5')).toBe('102.5')
   })
 
+  // The same rule one keystroke later: a DIGIT after the second separator, not the end of
+  // the string. Reached a real screen during device testing — a cell briefly read
+  // "45.5.5" because the field had not been fully cleared before typing. The trailing
+  // cases above would have passed while this one silently produced a different number, so
+  // it is pinned separately.
+  it('keeps the first separator when a digit follows the second', () => {
+    expect(sanitizeNumericInput('45.5.5', 'decimal')).toBe('45.55')
+    expect(sanitizeNumericInput('1.2.3.4', 'decimal')).toBe('1.234')
+    configureNumberLocale({ locale: 'de-DE' })
+    expect(sanitizeNumericInput('45,5,5', 'decimal')).toBe('45.55')
+  })
+
   it('types a plain decimal correctly on en-US', () => {
     expect(type('12.5')).toBe('12.5')
   })
