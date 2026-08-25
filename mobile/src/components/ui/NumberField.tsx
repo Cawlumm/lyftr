@@ -1,6 +1,6 @@
 import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
-import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
+import { useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string
@@ -14,15 +14,17 @@ interface Props {
   inputAccessoryViewID?: string
 }
 
-// RN keyboards have no onKeyDown to block bad keys with, so every numeric field
-// sanitizes the text it is handed. One shared implementation, in @lyftr/shared.
-//
-// The comma is load-bearing (#141). Android's decimal-pad shows the *locale's*
-// separator, which is a comma across most of Europe — and on those keyboards there is
-// no full stop to type instead. Stripping it as "not a digit" meant the only separator
-// those users could reach was deleted on every keystroke, so a weight of 12,5 could not
-// be entered at all. Fold it to a point rather than dropping it; the stored value stays
-// machine-readable either way.
+// Web blocks bad keys in onKeyDown; RN keyboards have no such hook, so we sanitize
+// the changed text instead. Non-negative always; integer mode also strips the
+// decimal point so reps can't be typed fractional.
+function sanitize(raw: string, decimal: boolean): string {
+  let v = raw.replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '')
+  if (decimal) {
+    const i = v.indexOf('.')
+    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
+  }
+  return v
+}
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
 // StepperTile (the tile is the visual container). Robust partial-entry typing via
@@ -50,7 +52,7 @@ export function NumberField({
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}
       onChangeText={(raw) => {
-        const v = sanitizeNumericInput(raw, inputMode)
+        const v = sanitize(raw, inputMode === 'decimal')
         setText(v)
         onChange(v)
       }}

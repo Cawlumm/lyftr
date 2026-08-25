@@ -1,7 +1,6 @@
 import { Pressable, Text, TextInput, View } from 'react-native'
 import { Minus, Plus } from 'lucide-react-native'
 import { useTheme } from '../../theme/useTheme'
-import { sanitizeNumericInput } from '@lyftr/shared'
 
 // A thumb-friendly duration input: one unified stepper — −/+ as integrated end
 // segments (±5 min) around a still-typeable value with a "min" suffix. Common
@@ -43,7 +42,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         <View className="flex-row items-baseline">
           <TextInput
             value={value ? String(value) : ''}
-            onChangeText={(t) => onChange(Number(sanitizeNumericInput(t, 'numeric')) || 0)}
+            onChangeText={(t) => onChange(Number(t.replace(/[^0-9]/g, '')) || 0)}
             keyboardType="number-pad"
             returnKeyType="done"
             selectTextOnFocus

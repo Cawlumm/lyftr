@@ -24,7 +24,6 @@ import {
   testServerConnection,
   isInsecureServerUrl,
   INSECURE_SERVER_WARNING,
-  sanitizeNumericInput,
 } from '@lyftr/shared'
 import {
   AppText,
@@ -110,7 +109,7 @@ export default function SettingsScreen() {
   const restCustomActive = restIsCustom || showCustomRest
 
   const onDigits = (key: keyof typeof targets) => (t: string) =>
-    setTargets((p) => ({ ...p, [key]: sanitizeNumericInput(t, 'numeric') }))
+    setTargets((p) => ({ ...p, [key]: t.replace(/[^0-9]/g, '') }))
 
   const handleSaveTargets = async () => {
     setSaving(true)

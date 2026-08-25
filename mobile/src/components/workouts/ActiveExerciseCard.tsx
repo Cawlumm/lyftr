@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from 'lucide-react-native'
-import { displayToLbs, displayWeight, sanitizeNumericInput, type ActiveSessionExercise } from '@lyftr/shared'
+import { displayToLbs, displayWeight, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -111,7 +111,7 @@ function ActiveExerciseCardBase({
                 <TextInput
                   editable={!set.completed}
                   value={set.actual_reps ? String(set.actual_reps) : ''}
-                  onChangeText={(t) => onUpdateSet(index, setIdx, 'actual_reps', Number(sanitizeNumericInput(t, 'numeric')) || 0)}
+                  onChangeText={(t) => onUpdateSet(index, setIdx, 'actual_reps', Number(t.replace(/[^0-9]/g, '')) || 0)}
                   keyboardType="number-pad"
                   inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
                   placeholder={set.target_reps > 0 ? String(set.target_reps) : '—'}
@@ -126,7 +126,9 @@ function ActiveExerciseCardBase({
                   editable={!set.completed}
                   value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                   onChangeText={(t) => {
-                    const v = sanitizeNumericInput(t, 'decimal')
+                    let v = t.replace(/[^0-9.]/g, '')
+                    const i = v.indexOf('.')
+                    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
                     onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))
                   }}
                   keyboardType="decimal-pad"
