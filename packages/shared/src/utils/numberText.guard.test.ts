@@ -181,6 +181,26 @@ describe('every number a person reads goes through the shared formatter', () => 
     expect(offenders).toEqual([])
   })
 
+  // Attributes are exempt from the rule above, because almost all of them are machinery.
+  // A placeholder is the exception: it is drawn inside the field, in the same place the
+  // value will appear, so a raw one sits a dot next to the comma the browser draws.
+  // Mobile localised these; web did not, which is exactly the sort of asymmetry no
+  // component-level sweep would surface.
+  it('draws a weight placeholder in the reader notation', () => {
+    const offenders: string[] = []
+    for (const file of files) {
+      readFileSync(join(ROOT, file), 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          if (!/placeholder=/.test(line)) return
+          if (!/displayWeight|lbsToDisplay/.test(line)) return
+          if (SAFE.test(line)) return
+          offenders.push(`${file}:${i + 1}`)
+        })
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('keeps the allowlist honest — every entry still matches something', () => {
     for (const a of ALLOWED) {
       const src = readFileSync(join(ROOT, a.file), 'utf8')
