@@ -76,6 +76,23 @@ export function clampValue(raw: string | number, min = 0): number {
 // grouping-aware rule works on paste and lies while typing, which is the path people use.
 // "1,200" is therefore 1.2 in every locale and by both routes.
 //
+// Why this is hand-written rather than a dependency, so nobody has to re-derive it:
+// JavaScript has a number FORMATTER and no number PARSER. Intl.NumberFormat.prototype
+// exposes format, formatToParts, formatRange, formatRangeToParts and resolvedOptions -
+// nothing that reads a string back. (wger's version is shorter because Dart's intl ships
+// NumberFormat.tryParse, so their widget formats and parses from one object.)
+//
+// The one maintained library that does this properly is react-aria's
+// @internationalized/number, and its NumberParser calls formatToParts in four places -
+// which Hermes does not implement on iOS (facebook/hermes#1188, open). Adopting it means
+// also shipping @formatjs/intl-numberformat and CLDR locale data as a polyfill, to replace
+// the ~20 lines below. The two React Native-specific packages are stale (2022 and 2023) and
+// one depends on the deprecated `intl` polyfill. Web needs none of this at all:
+// <input type="number"> lets the browser parse the locale's separator.
+//
+// REVISIT if @formatjs/intl-numberformat ever lands here for another reason. At that point
+// react-aria's parser works on both platforms and this function should be deleted for it.
+//
 // 'numeric' keeps digits only, so a separator cannot sneak a fractional rep in sideways.
 export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
   if (mode !== 'decimal') return raw.replace(/[^0-9]/g, '')
