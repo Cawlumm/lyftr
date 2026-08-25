@@ -40,3 +40,59 @@ export function clampValue(raw: string | number, min = 0): number {
   const n = typeof raw === 'number' ? raw : Number(raw)
   return Number.isFinite(n) ? Math.max(min, n) : min
 }
+
+// Typed text -> the canonical form the app stores. Every numeric field on mobile calls
+// this; web needs none of it, because <input type="number"> lets the browser parse the
+// locale's own separator. React Native has no equivalent hook: ReactEditText replaces
+// Android's KeyListener specifically to "permit all keyboard input through", so
+// `keyboardType` constrains what is *drawn* and never what arrives.
+//
+// The separator is the whole bug (#141). Android's decimal-pad draws the *locale's*
+// decimal character - a comma across most of Europe, and on those keypads often with no
+// full stop at all - so stripping it as "not a digit" left those users unable to enter a
+// decimal weight by any route.
+//
+// The rule is wger's, who fixed the same report against their Flutter app
+// (wger-project/flutter#1147, lib/core/number_input.dart):
+//
+//     digits, plus ONE separator. A "." and a "," both count, whatever the locale,
+//     because "a numeric keyboard cannot be pinned to a locale" - the keypad may emit
+//     either. Everything else is dropped.
+//
+// Which separator wins, where we go one step further than they do:
+//   - one KIND present -> the FIRST. "12,5," is 12.5 and "12.5." is 12.5.
+//   - both kinds -> the LAST, because then it is unambiguous: "1.234,5" and "1,234.5"
+//     are both 1234.5 without having to know which locale produced them. wger keeps the
+//     first unconditionally, which reads a pasted "1.234,5" as 1.23.
+//
+// First-when-unambiguous is not a detail. A TextInput re-sends the WHOLE field on every
+// keystroke and the cursor can sit mid-string, so preferring the last separator turns one
+// keypress inside a prefilled "82,5" into "825" - a silent 10x that backspace cannot undo,
+// because the fraction digit has become an integer digit.
+//
+// Grouping is deliberately not detected. It cannot be, mid-type: "1," arrives with
+// nothing after it, so any rule that reads grouping works on paste and lies while typing,
+// which is the path people actually use. wger does not attempt it either. "1,200" is 1.2
+// in every locale and by both routes.
+//
+// 'numeric' keeps digits only, so a separator cannot sneak a fractional rep in sideways.
+export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
+  if (mode !== 'decimal') return raw.replace(/[^0-9]/g, '')
+
+  // Whitespace never counts as a separator. fr, ru, sv, pl, cs, fi, nb and uk group with
+  // a space, so a trailing space or a pasted "12,50 kg" would otherwise read as 1250.
+  const bare = raw.replace(/\s/g, '')
+
+  const at: number[] = []
+  for (let i = 0; i < bare.length; i++) if (bare[i] === '.' || bare[i] === ',') at.push(i)
+  const kinds = new Set(at.map((i) => bare[i]))
+  const decimalAt = at.length === 0 ? -1 : kinds.size > 1 ? at[at.length - 1] : at[0]
+
+  let out = ''
+  for (let i = 0; i < bare.length; i++) {
+    const ch = bare[i]
+    if (ch >= '0' && ch <= '9') out += ch
+    else if (i === decimalAt) out += '.'
+  }
+  return out
+}

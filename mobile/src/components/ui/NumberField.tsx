@@ -1,6 +1,6 @@
 import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
-import { useNumericText } from '@lyftr/shared'
+import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string
@@ -12,18 +12,6 @@ interface Props {
   accessibilityLabel?: string
   /** iOS: id of an InputAccessoryView (e.g. NUMERIC_ACCESSORY_ID) to show a Done bar. */
   inputAccessoryViewID?: string
-}
-
-// Web blocks bad keys in onKeyDown; RN keyboards have no such hook, so we sanitize
-// the changed text instead. Non-negative always; integer mode also strips the
-// decimal point so reps can't be typed fractional.
-function sanitize(raw: string, decimal: boolean): string {
-  let v = raw.replace(decimal ? /[^0-9.]/g : /[^0-9]/g, '')
-  if (decimal) {
-    const i = v.indexOf('.')
-    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
-  }
-  return v
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
@@ -52,7 +40,7 @@ export function NumberField({
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}
       onChangeText={(raw) => {
-        const v = sanitize(raw, inputMode === 'decimal')
+        const v = sanitizeNumericInput(raw, inputMode)
         setText(v)
         onChange(v)
       }}

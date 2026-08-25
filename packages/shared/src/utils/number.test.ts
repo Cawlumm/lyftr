@@ -1,4 +1,4 @@
-import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue } from './number'
+import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue, sanitizeNumericInput } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only
 // through WeightInput's buttons; those moved to StepperTile (#91), so it's tested
@@ -66,5 +66,68 @@ describe('clampValue', () => {
     expect(clampValue('')).toBe(0)
     expect(clampValue('abc')).toBe(0)
     expect(clampValue('abc', 5)).toBe(5)
+  })
+})
+
+// #141: a German user could not enter a decimal weight at all. Android's decimal-pad
+// draws the locale's separator and the field deleted it as "not a digit", so these are
+// the cases that bug is made of - plus the ones wger hit when they fixed the same report
+// against their Flutter app (wger-project/flutter#1147).
+describe('sanitizeNumericInput', () => {
+  const dec = (s: string) => sanitizeNumericInput(s, 'decimal')
+
+  it('accepts a comma as the decimal separator - the reported bug', () => {
+    expect(dec('12,5')).toBe('12.5')
+  })
+
+  it('accepts a dot too, whatever the locale', () => {
+    // The keypad may emit either: a numeric keyboard cannot be pinned to a locale.
+    expect(dec('12.5')).toBe('12.5')
+  })
+
+  it('keeps a half-typed separator, so the fraction digit can still be typed', () => {
+    expect(dec('12,')).toBe('12.')
+    expect(dec('12.')).toBe('12.')
+  })
+
+  it('takes the FIRST separator when only one kind is present', () => {
+    // A TextInput re-sends the whole field per keystroke and the cursor can sit inside a
+    // prefilled value, so preferring the last would turn one keypress in "82,5" into 825
+    // - a silent 10x that backspace cannot undo.
+    expect(dec('82,5,')).toBe('82.5')
+    expect(dec('12.5.')).toBe('12.5')
+  })
+
+  it('takes the LAST separator when both kinds are present', () => {
+    // Then it is unambiguous, so a pasted grouped number reads correctly either way.
+    expect(dec('1.234,5')).toBe('1234.5')
+    expect(dec('1,234.5')).toBe('1234.5')
+  })
+
+  it('never reads whitespace as a separator', () => {
+    // fr, ru, sv, pl, cs, fi, nb and uk group with a space.
+    expect(dec('12,50 kg')).toBe('12.50')
+    expect(dec('12,5 ')).toBe('12.5')
+  })
+
+  it('drops everything that is not a digit or a separator', () => {
+    expect(dec('abc12,5kg')).toBe('12.5')
+    expect(dec('-12,5')).toBe('12.5')
+  })
+
+  it('does not detect grouping - it cannot be, mid-type', () => {
+    // "1," arrives with nothing after it, so a grouping-aware rule works on paste and
+    // lies while typing. 1,200 is 1.2 by both routes, deliberately. wger agrees.
+    expect(dec('1,200')).toBe('1.200')
+  })
+
+  it('refuses a separator in numeric mode, so reps stay whole', () => {
+    expect(sanitizeNumericInput('8,5', 'numeric')).toBe('85')
+    expect(sanitizeNumericInput('8.5', 'numeric')).toBe('85')
+  })
+
+  it('leaves an empty field empty', () => {
+    expect(dec('')).toBe('')
+    expect(dec(',')).toBe('.')
   })
 })
