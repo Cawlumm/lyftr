@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MoreVertical, Scale, TrendingDown, TrendingUp } from 'lucide-react-native'
-import { displayWeight, entryDay, weightShort, type WeightLog, dayToLocalDate} from '@lyftr/shared'
+import { displayWeight, entryDay, weightShort, type WeightLog, dayToLocalDate, formatNumber } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -54,7 +54,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
         </View>
         <View className="min-w-0 flex-1">
           <Text className="font-sans-semibold text-sm text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-            {Math.round(displayW)} {wUnit}
+            {formatNumber(Math.round(displayW))} {wUnit}
           </Text>
           <AppText variant="caption" color="muted" className="mt-0.5">{dateLabel}</AppText>
           {deltaLbs !== 0 || item.notes ? (
@@ -63,7 +63,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
                 <View className="flex-row items-center gap-0.5">
                   {deltaLbs < 0 ? <TrendingDown size={12} color={brand.successSoft} /> : <TrendingUp size={12} color={brand.errorSoft} />}
                   <Text className="font-sans-medium text-xs" style={{ color: deltaLbs < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
-                    {Math.round(displayDelta)}
+                    {formatNumber(Math.round(displayDelta))}
                   </Text>
                 </View>
               ) : null}
@@ -74,7 +74,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
         </View>
         <IconButton
           icon={MoreVertical}
-          label={`${Math.round(displayW)} ${wUnit} options`}
+          label={`${formatNumber(Math.round(displayW))} ${wUnit} options`}
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
@@ -93,7 +93,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
               <Scale size={20} color={accent} />
             </View>
             <View className="flex-1">
-              <AppText variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(displayW)} {wUnit}</AppText>
+              <AppText variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(displayW))} {wUnit}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
                 {dateLabel}{item.notes ? ` · ${item.notes}` : ''}
               </AppText>
@@ -107,7 +107,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: 'Delete Entry?', subject: `${dateLabel} · ${Math.round(displayW)} ${wUnit}` })}
+        {...deleteConfirmProps({ title: 'Delete Entry?', subject: `${dateLabel} · ${formatNumber(Math.round(displayW))} ${wUnit}` })}
         open={confirming}
         busy={deleting}
         onConfirm={handleDelete}

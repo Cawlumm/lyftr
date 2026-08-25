@@ -228,7 +228,7 @@ export default function Food() {
               <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl font-bold tabular-nums text-tx-primary">{formatNumber(Math.round(totalCals))}</span>
-                <span className="text-sm text-tx-muted">/ {calTarget}</span>
+                <span className="text-sm text-tx-muted">/ {formatNumber(calTarget)}</span>
               </div>
             </div>
             <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl border ${
@@ -259,7 +259,7 @@ export default function Food() {
             </div>
             <div className="flex justify-between text-[10px] text-tx-muted">
               <span>0</span>
-              <span>{calTarget} kcal goal</span>
+              <span>{formatNumber(calTarget)} kcal goal</span>
             </div>
           </div>
 

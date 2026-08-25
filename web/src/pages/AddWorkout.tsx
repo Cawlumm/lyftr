@@ -7,7 +7,7 @@ import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import RestPicker from '../components/RestPicker'
-import { types, todayStr, dayToInstant } from '@lyftr/shared'
+import { types, todayStr, dayToInstant, formatNumber } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string
@@ -173,7 +173,7 @@ export default function AddWorkout() {
           <div className="grid grid-cols-3 gap-2 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg">
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{formData.exercises.length}</div><div className="text-xs text-tx-muted">Exercises</div></div>
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{totalSets}</div><div className="text-xs text-tx-muted">Sets</div></div>
-            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
+            <div className="text-center"><div className="text-sm font-bold text-brand-500">{formatNumber(Math.round(totalWeight))}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
           </div>
         )}
 

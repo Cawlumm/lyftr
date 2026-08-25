@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatNumber } from '@lyftr/shared'
 import {
   AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
@@ -110,7 +110,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
               <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
               <View className="min-w-0 flex-1">
                 <Text className="font-sans-semibold text-sm text-warning-400">
-                  Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
+                  Already logged today ({formatNumber(Math.round(lastValue ?? 0))} {wUnit}). Log again anyway?
                 </Text>
                 <View className="mt-2 flex-row gap-2">
                   <Pressable onPress={() => setShowDuplicateWarning(false)}

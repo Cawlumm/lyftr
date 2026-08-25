@@ -324,7 +324,7 @@ export default function Dashboard() {
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_calories)}
+            {formatNumber(Math.round(food.total_calories))}
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -337,7 +337,7 @@ export default function Dashboard() {
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+            {formatNumber(Math.round(food.total_protein))}<span className="text-xs text-tx-muted font-normal">g</span>
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
@@ -580,11 +580,11 @@ export default function Dashboard() {
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
-              {Math.round(food.total_calories)}
+              {formatNumber(Math.round(food.total_calories))}
             </span>
-            <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
+            <span className="text-xs text-tx-muted">/ {formatNumber(settings.calorie_target)} kcal</span>
             <div className="flex-1" />
-            <span className="text-xs text-tx-muted tabular-nums">{Math.round(calPct)}%</span>
+            <span className="text-xs text-tx-muted tabular-nums">{formatNumber(Math.round(calPct))}%</span>
           </div>
           <div className="progress-track mb-4">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -601,8 +601,8 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                    {Math.round(m.val)}g
-                    <span className="text-tx-muted font-normal"> / {m.target}g</span>
+                    {formatNumber(Math.round(m.val))}g
+                    <span className="text-tx-muted font-normal"> / {formatNumber(m.target)}g</span>
                   </span>
                 </div>
                 <div className="progress-track">
@@ -659,7 +659,7 @@ export default function Dashboard() {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
-                      `${v} sets (${Math.round((v / totalMuscSets) * 100)}%)`,
+                      `${v} sets (${formatNumber(Math.round((v / totalMuscSets) * 100))}%)`,
                       props.payload?.name ?? '',
                     ]}
                   />

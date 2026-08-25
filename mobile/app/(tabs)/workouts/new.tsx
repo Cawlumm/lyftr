@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr } from '@lyftr/shared'
+import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, formatNumber } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -216,7 +216,7 @@ export default function AddWorkout() {
               <AppText variant="title">Log Workout</AppText>
               <AppText variant="caption" color="muted">
                 {formData.exercises.length} exercises • {totalSets} sets
-                {totalWeight > 0 ? ` • ${Math.round(totalWeight)} ${wUnit}` : ''}
+                {totalWeight > 0 ? ` • ${formatNumber(Math.round(totalWeight))} ${wUnit}` : ''}
               </AppText>
             </View>
           </View>

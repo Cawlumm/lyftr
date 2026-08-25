@@ -283,7 +283,7 @@ export default function Nutrition() {
                     <AppText variant="caption" color="muted" className="mb-1 uppercase" style={{ letterSpacing: 0.5 }}>Calories</AppText>
                     <View className="flex-row items-baseline gap-1.5">
                       <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(totalCals))}</AppText>
-                      <AppText variant="body" color="muted">/ {calTarget}</AppText>
+                      <AppText variant="body" color="muted">/ {formatNumber(calTarget)}</AppText>
                     </View>
                   </View>
                   <View
@@ -308,7 +308,7 @@ export default function Nutrition() {
                   </View>
                   <View className="flex-row justify-between">
                     <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>0</AppText>
-                    <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{calTarget} kcal goal</AppText>
+                    <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{formatNumber(calTarget)} kcal goal</AppText>
                   </View>
                 </View>
 

@@ -573,10 +573,10 @@ export default function Dashboard() {
             {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
             <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
             <View className="mb-3 flex-row items-baseline gap-1.5">
-              <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
-              <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
+              <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(food.total_calories))}</Text>
+              <AppText variant="caption" color="muted">/ {formatNumber(settings.calorie_target)} kcal</AppText>
               <View className="flex-1" />
-              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(calPct)}%</AppText>
+              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(calPct))}%</AppText>
             </View>
             <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
             <View className="gap-3">
@@ -589,7 +589,7 @@ export default function Dashboard() {
                   <View className="mb-1 flex-row items-center justify-between">
                     <AppText variant="caption" color="muted">{m.label}</AppText>
                     <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                      {Math.round(m.val)}g<Text className="font-sans font-normal text-tx-muted"> / {m.target}g</Text>
+                      {formatNumber(Math.round(m.val))}g<Text className="font-sans font-normal text-tx-muted"> / {formatNumber(m.target)}g</Text>
                     </Text>
                   </View>
                   <ProgressBar pct={m.pct} color={m.color} />

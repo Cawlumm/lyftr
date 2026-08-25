@@ -5,7 +5,7 @@ import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
-import { types } from '@lyftr/shared'
+import { types, formatNumber } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string
@@ -181,7 +181,7 @@ export default function EditWorkout() {
           <div className="grid grid-cols-3 gap-2 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg">
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{formData.exercises.length}</div><div className="text-xs text-tx-muted">Exercises</div></div>
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{totalSets}</div><div className="text-xs text-tx-muted">Sets</div></div>
-            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
+            <div className="text-center"><div className="text-sm font-bold text-brand-500">{formatNumber(Math.round(totalWeight))}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
           </div>
         )}
 

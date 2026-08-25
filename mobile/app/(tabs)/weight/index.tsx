@@ -367,7 +367,7 @@ export default function Weight() {
                     <Label numberOfLines={1}>{s.label}</Label>
                   </View>
                   <View className="flex-row items-end gap-1">
-                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(s.value)}</AppText>
+                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(s.value))}</AppText>
                     <AppText variant="caption" color="muted" className="mb-0.5">{wUnit}</AppText>
                   </View>
                 </Card>

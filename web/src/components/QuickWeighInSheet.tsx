@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatNumber } from '@lyftr/shared'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
 
@@ -122,7 +122,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged today ({formatNumber(Math.round(lastValue ?? 0))} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"

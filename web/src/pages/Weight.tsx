@@ -503,7 +503,7 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            <span className="stat-value text-xl">{Math.round(s.value)}</span>
+            <span className="stat-value text-xl">{formatNumber(Math.round(s.value))}</span>
             <span className="text-xs text-tx-muted ml-1">{wUnit}</span>
           </div>
         ))}
@@ -550,7 +550,7 @@ export default function Weight() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-tx-primary tabular-nums">
-                      {Math.round(displayW)} {wUnit}
+                      {formatNumber(Math.round(displayW))} {wUnit}
                     </p>
                     <p className="text-xs text-tx-muted mt-0.5">
                       {format(dayToLocalDate(entryDay(entry)), 'MMM d, yyyy')}
@@ -560,7 +560,7 @@ export default function Weight() {
                         {deltaLbs !== 0 && (
                           <span className={`flex items-center gap-0.5 text-xs font-medium tabular-nums flex-shrink-0 ${deltaLbs < 0 ? 'text-success-400' : 'text-error-400'}`}>
                             {deltaLbs < 0 ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-                            {Math.round(displayDelta)}
+                            {formatNumber(Math.round(displayDelta))}
                           </span>
                         )}
                         {deltaLbs !== 0 && entry.notes && <span className="text-tx-muted/40 text-xs flex-shrink-0">·</span>}

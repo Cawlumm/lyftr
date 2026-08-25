@@ -220,7 +220,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
           <AppText variant="caption" color="muted" className="capitalize" numberOfLines={1}>{selSlice.d.name}</AppText>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{selSlice.d.value}</AppText>
           <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
-            {Math.round((selSlice.d.value / total) * 100)}%
+            {formatNumber(Math.round((selSlice.d.value / total) * 100))}%
           </AppText>
         </View>
       ) : (
