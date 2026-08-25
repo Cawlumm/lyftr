@@ -55,25 +55,26 @@ export function clampValue(raw: string | number, min = 0): number {
 // The rule is wger's, who fixed the same report against their Flutter app
 // (wger-project/flutter#1147, lib/core/number_input.dart):
 //
-//     digits, plus ONE separator. A "." and a "," both count, whatever the locale,
-//     because "a numeric keyboard cannot be pinned to a locale" - the keypad may emit
-//     either. Everything else is dropped.
+//     digits, plus ONE separator - the FIRST one. A "." and a "," both count, whatever
+//     the locale, because "a numeric keyboard cannot be pinned to a locale": the keypad
+//     may emit either. Everything else is dropped.
 //
-// Which separator wins, where we go one step further than they do:
-//   - one KIND present -> the FIRST. "12,5," is 12.5 and "12.5." is 12.5.
-//   - both kinds -> the LAST, because then it is unambiguous: "1.234,5" and "1,234.5"
-//     are both 1234.5 without having to know which locale produced them. wger keeps the
-//     first unconditionally, which reads a pasted "1.234,5" as 1.23.
+// First rather than last is load-bearing, not a tie-break. A TextInput re-sends the WHOLE
+// field on every keystroke and the cursor can sit mid-string, so preferring the last would
+// turn one keypress inside a prefilled "82,5" into "825" - a silent 10x that backspace
+// cannot undo, because the fraction digit has become an integer digit.
 //
-// First-when-unambiguous is not a detail. A TextInput re-sends the WHOLE field on every
-// keystroke and the cursor can sit mid-string, so preferring the last separator turns one
-// keypress inside a prefilled "82,5" into "825" - a silent 10x that backspace cannot undo,
-// because the fraction digit has become an integer digit.
+// What this deliberately does NOT do is work out which character was meant as grouping.
+// Doing that properly needs the locale's own decimal character, and then the other one is
+// grouping by definition - which is what ICU-based parsers (react-aria's NumberParser,
+// Expensify's LocaleDigitUtils) do. No locale is injected here, so guessing would be a
+// heuristic no other app ships. The cost is that a *pasted* "1.234,5" reads 1.2345; typing
+// is unaffected, and wger accepts the same trade. If the locale ever is injected, replace
+// this with the ICU rule rather than a smarter guess.
 //
-// Grouping is deliberately not detected. It cannot be, mid-type: "1," arrives with
-// nothing after it, so any rule that reads grouping works on paste and lies while typing,
-// which is the path people actually use. wger does not attempt it either. "1,200" is 1.2
-// in every locale and by both routes.
+// It also cannot be done mid-type in any case: "1," arrives with nothing after it, so a
+// grouping-aware rule works on paste and lies while typing, which is the path people use.
+// "1,200" is therefore 1.2 in every locale and by both routes.
 //
 // 'numeric' keeps digits only, so a separator cannot sneak a fractional rep in sideways.
 export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): string {
@@ -83,16 +84,14 @@ export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): 
   // a space, so a trailing space or a pasted "12,50 kg" would otherwise read as 1250.
   const bare = raw.replace(/\s/g, '')
 
-  const at: number[] = []
-  for (let i = 0; i < bare.length; i++) if (bare[i] === '.' || bare[i] === ',') at.push(i)
-  const kinds = new Set(at.map((i) => bare[i]))
-  const decimalAt = at.length === 0 ? -1 : kinds.size > 1 ? at[at.length - 1] : at[0]
-
   let out = ''
-  for (let i = 0; i < bare.length; i++) {
-    const ch = bare[i]
+  let seen = false
+  for (const ch of bare) {
     if (ch >= '0' && ch <= '9') out += ch
-    else if (i === decimalAt) out += '.'
+    else if ((ch === '.' || ch === ',') && !seen) {
+      out += '.'
+      seen = true
+    }
   }
   return out
 }

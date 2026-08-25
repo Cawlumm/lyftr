@@ -90,7 +90,7 @@ describe('sanitizeNumericInput', () => {
     expect(dec('12.')).toBe('12.')
   })
 
-  it('takes the FIRST separator when only one kind is present', () => {
+  it('takes the FIRST separator, whichever kinds appear', () => {
     // A TextInput re-sends the whole field per keystroke and the cursor can sit inside a
     // prefilled value, so preferring the last would turn one keypress in "82,5" into 825
     // - a silent 10x that backspace cannot undo.
@@ -98,10 +98,13 @@ describe('sanitizeNumericInput', () => {
     expect(dec('12.5.')).toBe('12.5')
   })
 
-  it('takes the LAST separator when both kinds are present', () => {
-    // Then it is unambiguous, so a pasted grouped number reads correctly either way.
-    expect(dec('1.234,5')).toBe('1234.5')
-    expect(dec('1,234.5')).toBe('1234.5')
+  it('does not guess which character was grouping - same rule as wger', () => {
+    // Telling grouping from a decimal needs the locale's own separator, and then the
+    // other character is grouping by definition (react-aria and Expensify both do that).
+    // No locale is injected here, so a pasted grouped number keeps the first separator
+    // rather than being second-guessed. Typing is unaffected, which is the reported path.
+    expect(dec('1.234,5')).toBe('1.2345')
+    expect(dec('1,234.5')).toBe('1.2345')
   })
 
   it('never reads whitespace as a separator', () => {
