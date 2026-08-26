@@ -3,6 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Clock, Minus, Pencil, Plus, TimerOff } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { sanitizeNumericInput } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {
@@ -97,7 +98,7 @@ export function RestPicker({ value, onChange }: Props) {
           <View className="h-11 w-28 flex-row items-center rounded-lg border border-surface-border bg-surface-overlay px-3">
             <TextInput
               value={String(value)}
-              onChangeText={(raw) => onChange(clamp(Number(raw.replace(/[^0-9]/g, '')) || 0))}
+              onChangeText={(raw) => onChange(clamp(Number(sanitizeNumericInput(raw, 'numeric')) || 0))}
               keyboardType="number-pad"
               returnKeyType="done"
               selectTextOnFocus
