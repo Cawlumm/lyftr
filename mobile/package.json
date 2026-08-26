@@ -10,7 +10,6 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "link": "node ../scripts/link-device.js",
     "doctor": "expo-doctor",
     "type-check": "tsc --noEmit",
     "test": "jest",

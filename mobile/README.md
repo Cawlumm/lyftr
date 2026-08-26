@@ -52,25 +52,35 @@ If the device cannot reach Metro (`java.io.IOException: Failed to download remot
 that is the network between them, not the project — a host firewall on the Metro port is the
 usual cause. `npx expo start --tunnel` routes via ngrok and sidesteps it.
 
-**The emulator cannot reach Metro on `10.0.2.2` on every machine.** `10.0.2.2` is the
-emulator's alias for the host's loopback, but it arrives as an external connection, so a
-host firewall (or Metro binding to localhost only) drops it — the app then sits on the
-splash screen or shows Expo Go's "Something went wrong". The fix is a reverse tunnel,
-which is what Expo's own device guide recommends when the dev server is not reachable:
+**If the device cannot reach Metro**, the symptom is a splash screen that never advances
+rather than an error. `npm run android` handles this for you - Expo CLI runs `adb reverse`
+when it launches the app - so this only bites when you attach to an app that is already
+running. The fallback is one command, which is what Expo's own device guide prescribes:
 
 ```bash
-npm run link      # adb reverse for Metro (8081) and the backend (3000)
+adb reverse tcp:8081 tcp:8081     # Metro
+adb reverse tcp:3000 tcp:3000     # the backend, if 10.0.2.2 is firewalled too
 ```
 
-Then point the app at `http://127.0.0.1:3000` rather than `10.0.2.2:3000`, and open
-`exp://127.0.0.1:8081`. `npm run android` does the reverse for you when it installs and
-launches; you need `npm run link` when you attach to an already-running app, which is the
-common case with a dev client.
+**`npm run doctor`** runs `expo-doctor`: installed native modules against the SDK, and app
+config that has drifted from what the build expects. Worth running after any dependency
+change and before blaming the app for a build failure.
 
-**`npm run doctor`** runs `expo-doctor`: it checks installed native modules against the
-SDK, and catches app config that has drifted from what the build expects. Worth running
-after any dependency change and before blaming the app for a build failure.
+## Point the app at your backend without typing it
 
+Set it once per machine, the way Expo prescribes for environment config:
+
+```bash
+# mobile/.env.local  (gitignored)
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000     # Android emulator
+# EXPO_PUBLIC_API_URL=http://localhost:3000  # iOS simulator / web
+# EXPO_PUBLIC_API_URL=http://192.168.1.20:3000  # a phone on your LAN
+```
+
+`EXPO_PUBLIC_`-prefixed variables are statically inlined into the bundle, so this becomes a
+literal at build time. It fills the server field only when you have not saved one - whatever
+you set in the app always wins. Do not put anything secret in these: [the docs are explicit](https://docs.expo.dev/guides/environment-variables/)
+that they are readable in the shipped bundle.
 ### Metro and the monorepo — deliberately not configured
 
 `mobile/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since

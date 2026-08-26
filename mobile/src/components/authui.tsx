@@ -218,24 +218,6 @@ export function AuthDivider() {
   )
 }
 
-// Local backends worth one tap while developing. `10.0.2.2` is the Android emulator's
-// alias for the host machine — the emulator's own `localhost` is the emulator — and a
-// simulator on iOS shares the Mac's loopback, so the two platforms need different
-// addresses. Typing either by hand on a soft keyboard, every time an emulator is wiped,
-// is the sort of friction that ends with someone hardcoding a URL in the client.
-//
-// `__DEV__` is a compile-time constant: Metro substitutes `false` for release builds and
-// the minifier drops the branch, so neither these addresses nor the buttons exist in a
-// production bundle. It has to stay a literal `__DEV__` check for that to hold — reading
-// the same thing from a runtime value would leave the branch in the shipped bundle.
-const DEV_HOSTS = __DEV__
-  ? Platform.select({
-      android: [{ label: 'Emulator', url: 'http://10.0.2.2:3000' }],
-      ios: [{ label: 'Simulator', url: 'http://localhost:3000' }],
-      default: [{ label: 'Localhost', url: 'http://localhost:3000' }],
-    })!
-  : []
-
 // Server settings row that expands to a URL field (self-hosted users).
 export function ServerRow() {
   const { colors, brand, accent } = useTheme()
@@ -319,27 +301,6 @@ export function ServerRow() {
               fontSize: 14,
             }}
           />
-          {DEV_HOSTS.length > 0 ? (
-            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-              <Text style={{ fontFamily: FONT.body, fontSize: 11, color: colors.txMuted }}>dev</Text>
-              {DEV_HOSTS.map((h) => (
-                <Pressable
-                  key={h.url}
-                  onPress={() => { setMsg(null); setUrl(h.url) }}
-                  style={{
-                    paddingHorizontal: 10,
-                    paddingVertical: 5,
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    backgroundColor: colors.overlay,
-                  }}
-                >
-                  <Text style={{ fontFamily: FONT.body, fontSize: 11, color: colors.txSecondary }}>{h.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
           {msg ? (
             <Text style={{ fontFamily: FONT.body, fontSize: 12, color: ok ? brand.success : brand.error }}>{msg}</Text>
           ) : null}
