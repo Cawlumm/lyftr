@@ -21,7 +21,7 @@ npx expo install --fix                         # align native modules to the SDK
 npm start                                      # Metro; press `a` for a booted emulator
 ```
 
-Open the project in **Expo Go** on the device. Editing JS reloads in seconds — no build,
+Open the project in **Expo Go** — `npm run start:go`. Plain `npm start` targets a *development build* instead, because installing `expo-dev-client` changes what `expo start` means ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)); use it once you have built one. Editing JS reloads in seconds — no build,
 no EAS, no cloud quota. This is the day-to-day loop.
 
 Two things that will waste your afternoon if you don't know them:
@@ -112,9 +112,7 @@ module Expo Go lacks, build a development client:
 npm run build:dev          # cloud build, uses EAS quota
 ```
 
-Free alternative: Actions → *EAS build* → *Run workflow* → tick **dev_client**. That runs
-`eas build --profile development --local` on a GitHub runner, costs no quota, and uploads the
-APK named after its native fingerprint.
+Free alternative if the EAS quota is spent: `eas build --profile development --local` on a machine with the Android SDK. There is no CI job for it — one existed briefly in this PR and was cut as infrastructure with no user, since Expo Go covers everything this app does today.
 
 Either way it is one build, and you do not repeat it for JS changes — that is what Metro is
 for. Rebuild when the **native** surface moves. The fingerprint tells you when:
@@ -150,15 +148,11 @@ that's why: you're on the wrong profile.
 
 ## Point at your backend
 The **Server URL** field — on the sign-in screen and in the Settings tab — sets the
-backend origin, validated via `GET /api/v1/info`. There is no default: a fresh install
+backend origin, validated via `GET /api/v1/info`. Nothing is baked in: a fresh install
 talks to nothing until you set one. An explicit `http://` or `https://` is required;
 the scheme is never guessed.
 
-In a **development build only**, that field shows one-tap buttons for the local backend
-— `http://10.0.2.2:3000` on Android (the emulator's alias for the host machine; its own
-`localhost` is the emulator itself), `http://localhost:3000` on an iOS simulator. They sit
-behind `__DEV__`, which Metro substitutes at transform time, so neither the buttons nor
-the addresses exist in a release bundle. `src/devFlow.test.ts` enforces that.
+While developing, that field is pre-filled from `EXPO_PUBLIC_API_URL` — see "Point the app at your backend without typing it" above. `src/devFlow.test.ts` fails if a developer-machine address is hardcoded in app source instead.
 
 Over a LAN or a VPN, use that machine's address — `npx expo start --tunnel` if the
 network blocks the direct route.

@@ -16,6 +16,9 @@ import {
 import { storage } from './storage'
 
 export const client = createClient(storage, {
+  // The dev machine's backend, when nothing is saved. Same value the server store
+  // shows in Settings — passed to both because the client reads storage, not the store.
+  fallbackBaseUrl: process.env.EXPO_PUBLIC_API_URL ?? '',
   // When a token refresh fails, the session is dead — kick back to login.
   onAuthFailure: () => {
     try {

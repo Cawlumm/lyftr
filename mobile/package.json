@@ -10,7 +10,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "doctor": "expo-doctor",
+    "doctor": "npx expo-doctor@latest",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

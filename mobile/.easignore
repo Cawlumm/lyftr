@@ -1,0 +1,37 @@
+# What NOT to upload into an Android/iOS build.
+#
+# EAS falls back to .gitignore when this file is absent, and .gitignore's job is "what
+# should git forget", not "what does a native build need". In a monorepo those differ a
+# lot: the archive for a mobile build was carrying the docs site, the Go backend and the
+# web app — roughly 8.5 MB of tracked files that no Gradle task will ever read.
+# https://docs.expo.dev/build-reference/easignore/
+#
+# Note this REPLACES .gitignore rather than extending it, so the ignores that matter for a
+# build are repeated below.
+
+# Other workspaces — the mobile build needs packages/shared and nothing else.
+/backend
+/web
+/site
+/docs
+/fly
+/infra
+/e2e
+
+# Agent and tooling scratch (a full checkout per session lives under .claude/worktrees)
+/.claude
+/.playwright-mcp
+/.github
+
+# Standard build/dev noise
+node_modules
+.expo
+dist
+web-build
+*.log
+.DS_Store
+
+# Never ship a developer's machine config: EXPO_PUBLIC_ values are inlined into the bundle
+.env
+.env.*
+!.env.example

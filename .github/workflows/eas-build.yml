@@ -48,6 +48,14 @@ on:
         type: choice
         default: preview
         options: [preview, production]
+      dry_run_release:
+        description: >-
+          Rehearse the release build instead: build the Android preview APK on the runner
+          exactly as a tag would, upload it as a workflow artifact, and touch no GitHub
+          Release. Ignores the two inputs above — a release is Android/preview by
+          definition, and rehearsing anything else would not be a rehearsal.
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*' # unified tag namespace — same tags ci.yml builds/pushes web+backend images on
@@ -115,10 +123,15 @@ jobs:
     timeout-minutes: 60 # the whole Gradle build now happens here — no external queue
     permissions:
       contents: write # create/update the GitHub Release + upload the asset
-    env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # eas needs this for credentials, not just login
+
     steps:
+      # Scoped per step rather than on the job: EXPO_TOKEN used to sit in job-level env,
+      # which handed it to actions/cache, upload-artifact and the release action as well -
+      # none of which need it, and the last of those is third-party code running with
+      # contents:write.
       - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |
           if [ -z "$EXPO_TOKEN" ]; then
             echo "::error::EXPO_TOKEN secret is not set — see this workflow's header for one-time setup."
@@ -219,6 +232,7 @@ jobs:
       - name: Build the APK on this runner
         working-directory: mobile
         env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # eas needs it for credentials, not just login
           APK_NAME: ${{ steps.ver.outputs.name }}
           LYFTR_VERSION: ${{ steps.ver.outputs.version }} # set on both paths — see the resolve step
         run: |
@@ -265,7 +279,10 @@ jobs:
 
       - name: Attach APK to the GitHub Release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v2
+        # Pinned like the Expo action above, and for a stronger reason: this one runs in
+        # the job holding contents:write. A mutable tag there is a supply-chain hole that
+        # pinning the other action does not close.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: ${{ steps.ver.outputs.name }}
           make_latest: false # everything currently ships as a prerelease; revisit once a stable tag lands
