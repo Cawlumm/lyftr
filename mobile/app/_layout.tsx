@@ -1,7 +1,7 @@
 import '../src/lib/polyfills'
 import '../global.css'
 import { useEffect } from 'react'
-import { Slot, useRouter, useSegments } from 'expo-router'
+import { Stack } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { colorScheme } from 'nativewind'
@@ -23,8 +23,37 @@ import { WorkoutSessionLayer } from '../src/components/workouts/WorkoutSessionLa
 // white/blank flash in between. Hidden on mount below.
 SplashScreen.preventAutoHideAsync().catch(() => {})
 
-// Root layout: hydrate persisted state once, then gate routes on auth. Unauthed users
-// are pushed into the (auth) group; authed users out of it.
+// Route access is declared, not navigated. Stack.Protected takes a boolean guard and,
+// when a screen becomes protected while it is active, expo-router redirects to the first
+// available screen and drops the protected entries from history. Nothing here calls
+// router.replace, so there is no imperative navigation to argue with the auth store -
+// which is precisely what #145 was: the API client pushed /login on a failed refresh
+// while the store still said the user was signed in, this layout pushed them back, and
+// the two bounced until React threw "Maximum update depth exceeded", leaving an app that
+// still drew but answered no presses until it was force-quit.
+//
+// This is the pattern both frameworks now prescribe. React Navigation's auth-flow guide:
+// "you don't manually navigate ... React Navigation will automatically navigate to the
+// correct screen when isSignedIn changes". Expo Router shipped Stack.Protected in v5 to
+// "avoid imperative redirects"; we are on v6 and were still using the older pattern.
+//
+// The two guards are complementary on purpose: exactly one group is reachable at any
+// moment, so a signed-out user cannot sit on a tab and a signed-in one cannot sit on
+// login. Making the loop unrepresentable beats detecting it.
+function RootStack({ isAuthed }: { isAuthed: boolean }) {
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={isAuthed}>
+        <Stack.Screen name="(tabs)" />
+      </Stack.Protected>
+      <Stack.Protected guard={!isAuthed}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+    </Stack>
+  )
+}
+
+// Root layout: hydrate persisted state once; the stack below decides what is reachable.
 export default function RootLayout() {
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const hydrateServer = useServerStore((s) => s.hydrate)
@@ -35,8 +64,6 @@ export default function RootLayout() {
   const themeHydrated = useThemeStore((s) => s.isHydrated)
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
   const { mode, isDark } = useTheme()
-  const segments = useSegments()
-  const router = useRouter()
   const [fontsLoaded] = useFonts({
     Outfit_700Bold,
     Outfit_800ExtraBold,
@@ -71,17 +98,11 @@ export default function RootLayout() {
     colorScheme.set(mode)
   }, [mode])
 
-  useEffect(() => {
-    if (!isHydrated) return
-    const inAuthGroup = segments[0] === '(auth)'
-    if (!isAuthed && !inAuthGroup) router.replace('/login')
-    else if (isAuthed && inAuthGroup) router.replace('/')
-  }, [isHydrated, isAuthed, segments, router])
 
   return (
     <SafeAreaProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      {ready ? <Slot /> : <Loading />}
+      {ready ? <RootStack isAuthed={isAuthed} /> : <Loading />}
       {/* Always-mounted session UI (gym overlay + minimized pill), above the tabs so it
           covers the tab bar — mirrors web's Layout. Self-hides when authed/no session. */}
       {ready && isAuthed ? <WorkoutSessionLayer /> : null}
