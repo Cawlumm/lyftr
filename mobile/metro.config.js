@@ -1,6 +1,10 @@
-// Metro config for a monorepo: watch the workspace root so Metro transpiles the
-// @lyftr/shared TypeScript source, and resolve modules from both the app's and the
-// root's node_modules. Wrapped with NativeWind's metro transform.
+// Metro config. The monorepo wiring that used to live here is gone: since SDK 52
+// expo/metro-config detects a monorepo and sets watchFolders and nodeModulesPaths
+// itself, and the docs say to delete the manual versions rather than keep them in step
+// ("Expo configures Metro automatically for monorepos ... If you previously had manual
+// configuration, delete these properties"). Ours were the pre-52 recipe, and pointing
+// watchFolders at the workspace root by hand is what made metro-file-map crawl the
+// session worktrees under .claude and die with "Failed to start watch mode".
 const { getDefaultConfig } = require('expo/metro-config')
 const { withNativeWind } = require('nativewind/metro')
 const path = require('path')
@@ -10,16 +14,6 @@ const workspaceRoot = path.resolve(projectRoot, '..')
 
 const config = getDefaultConfig(projectRoot)
 
-config.watchFolders = [workspaceRoot]
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(workspaceRoot, 'node_modules'),
-]
-// Keep hierarchical lookup ON (default) so packages resolve their own transitive deps
-// (e.g. react-native-reanimated -> semver/functions/satisfies). A SINGLE react instance
-// — required or RN 0.81's Fabric renderer crashes ("ReactSharedInternals.S") — is instead
-// guaranteed by the root package.json `overrides.react` pin + a hoisted single copy.
-config.resolver.disableHierarchicalLookup = false
 
 // WEB-ONLY: force zustand to its CJS build. On web, Metro's package-exports resolution
 // picks zustand's ESM (esm/*.mjs), which uses bare `import.meta` — Metro can't bundle

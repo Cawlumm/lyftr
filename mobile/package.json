@@ -6,9 +6,12 @@
   "//": "Expo SDK 54. After a fresh clone run `npx expo install --fix` to align native module versions to the installed Expo SDK, then `npx expo start`.",
   "scripts": {
     "start": "expo start",
+    "start:go": "expo start --go",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "link": "node ../scripts/link-device.js",
+    "doctor": "expo-doctor",
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",

@@ -52,6 +52,45 @@ If the device cannot reach Metro (`java.io.IOException: Failed to download remot
 that is the network between them, not the project — a host firewall on the Metro port is the
 usual cause. `npx expo start --tunnel` routes via ngrok and sidesteps it.
 
+**The emulator cannot reach Metro on `10.0.2.2` on every machine.** `10.0.2.2` is the
+emulator's alias for the host's loopback, but it arrives as an external connection, so a
+host firewall (or Metro binding to localhost only) drops it — the app then sits on the
+splash screen or shows Expo Go's "Something went wrong". The fix is a reverse tunnel,
+which is what Expo's own device guide recommends when the dev server is not reachable:
+
+```bash
+npm run link      # adb reverse for Metro (8081) and the backend (3000)
+```
+
+Then point the app at `http://127.0.0.1:3000` rather than `10.0.2.2:3000`, and open
+`exp://127.0.0.1:8081`. `npm run android` does the reverse for you when it installs and
+launches; you need `npm run link` when you attach to an already-running app, which is the
+common case with a dev client.
+
+**`npm run doctor`** runs `expo-doctor`: it checks installed native modules against the
+SDK, and catches app config that has drifted from what the build expects. Worth running
+after any dependency change and before blaming the app for a build failure.
+
+### Metro and the monorepo — deliberately not configured
+
+`mobile/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since
+SDK 52 `expo/metro-config` detects the monorepo and sets both, and [the docs say to delete
+the manual versions](https://docs.expo.dev/guides/monorepos/) rather than keep them in
+step. Ours were the pre-52 recipe and they were actively harmful: they pointed
+`watchFolders` at the workspace ROOT, so `metro-file-map` crawled `.git`, `backend/data`
+and every session worktree under `.claude` — and died with `Failed to start watch mode`,
+followed by a NativeWind `TypeError` reading a file map that was never built.
+
+What Expo picks on its own is narrower and correct:
+
+```
+watchFolders: [ node_modules, packages/shared, mobile, web ]
+```
+
+So `@lyftr/shared` still transpiles from source (verified: a dev bundle contains
+`packages/shared/src/utils/number.ts`), with nothing to keep in step by hand. If you ever
+need to re-add config here, check whether Expo already does it first.
+
 ### When you need a development build instead
 
 Expo Go bundles the Expo SDK, so most of what this app uses is already in it. What it cannot
