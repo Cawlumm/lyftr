@@ -15,7 +15,21 @@ const workspaceRoot = path.resolve(projectRoot, '..')
 const config = getDefaultConfig(projectRoot)
 
 
-// WEB-ONLY: force zustand to its CJS build. On web, Metro's package-exports resolution
+// WEB-ONLY: force zustand to its CJS build, and this is load-bearing - measured, not
+// assumed. Exporting the web bundle four ways:
+//
+//   override + babel plugin   0 occurrences of import.meta
+//   override alone            0
+//   babel plugin alone        2   <- zustand's ESM build, would throw at runtime
+//   neither                   2
+//
+// babel-plugin-transform-import-meta was carried alongside this for the same problem and
+// never solved it (Babel does not reach that dependency's output the way this does), so
+// it has been removed. If you are tempted to delete the block below because Metro's
+// package-exports resolution looks like it should pick CJS on its own, export the web
+// bundle and grep for import.meta first - it does not.
+//
+// WEB-ONLY detail: force zustand to its CJS build. On web, Metro's package-exports resolution
 // picks zustand's ESM (esm/*.mjs), which uses bare `import.meta` — Metro can't bundle
 // that ("Cannot use 'import.meta' outside a module"). Native resolves the CJS build
 // already, so this override is scoped to platform === 'web'.
