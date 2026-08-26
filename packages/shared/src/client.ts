@@ -25,17 +25,6 @@ export interface ClientOptions {
   // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
   // When set, the stored server_url is ignored.
   baseUrlOverride?: string
-  // Where to talk to when the user has NOT chosen a server — mobile passes
-  // EXPO_PUBLIC_API_URL so a dev machine works out of the box. Unlike baseUrlOverride
-  // this loses to a stored URL, because it is a default and not an override.
-  //
-  // It has to live here rather than only in the server store: resolveAPIBase reads
-  // storage directly on every request and never looks at the store, so a fallback that
-  // only reached zustand state would fill the settings field and change nothing about
-  // where requests go. That version shipped in this PR's first draft and adversarial
-  // review caught it: the sign-in screen probed the fallback and reported "Connected",
-  // then login POSTed to a relative /api/v1 that React Native cannot resolve.
-  fallbackBaseUrl?: string
 }
 
 // Turn an axios error into an actionable message. Proxy misconfig (404/405) is
@@ -84,8 +73,7 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
   const resolveAPIBase = async (): Promise<string> => {
     if (opts.baseUrlOverride) return opts.baseUrlOverride
     const stored = await storage.get(STORAGE_KEYS.serverUrl)
-    const chosen = stored || opts.fallbackBaseUrl || ''
-    const base = chosen ? normalizeServerUrl(chosen) : ''
+    const base = stored ? normalizeServerUrl(stored) : ''
     return apiUrl(base)
   }
 

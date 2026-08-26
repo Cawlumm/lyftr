@@ -12,22 +12,14 @@ export interface ServerStore {
 // Factory — bind to a platform storage adapter. `serverUrl` is loaded via hydrate()
 // at startup and persisted on change. normalizeServerUrl rejects scheme-less/garbage
 // input by returning '' (the caller surfaces the error).
-// `fallback` is the URL to use when the user has not chosen one - on mobile, the dev
-// machine's backend from EXPO_PUBLIC_API_URL. A parameter rather than a lookup so this
-// file stays platform-agnostic; web passes nothing, because '' already means "talk to the
-// origin this page was served from" there.
-//
-// Note the same value must also reach createClient as `fallbackBaseUrl`: requests resolve
-// their base from storage, not from this store, so setting it here alone changes what the
-// settings screen SHOWS and not where anything goes.
-export function createServerStore(storage: StorageAdapter, fallback = '') {
+export function createServerStore(storage: StorageAdapter) {
   return create<ServerStore>((set) => ({
     serverUrl: '',
     isHydrated: false,
 
     hydrate: async () => {
       const stored = await storage.get(STORAGE_KEYS.serverUrl)
-      set({ serverUrl: stored || normalizeServerUrl(fallback), isHydrated: true })
+      set({ serverUrl: stored || '', isHydrated: true })
     },
 
     setServerUrl: async (url: string) => {

@@ -66,21 +66,6 @@ adb reverse tcp:3000 tcp:3000     # the backend, if 10.0.2.2 is firewalled too
 config that has drifted from what the build expects. Worth running after any dependency
 change and before blaming the app for a build failure.
 
-## Point the app at your backend without typing it
-
-Set it once per machine, the way Expo prescribes for environment config:
-
-```bash
-# mobile/.env.local  (gitignored)
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000     # Android emulator
-# EXPO_PUBLIC_API_URL=http://localhost:3000  # iOS simulator / web
-# EXPO_PUBLIC_API_URL=http://192.168.1.20:3000  # a phone on your LAN
-```
-
-`EXPO_PUBLIC_`-prefixed variables are statically inlined into the bundle, so this becomes a
-literal at build time. It fills the server field only when you have not saved one - whatever
-you set in the app always wins. Do not put anything secret in these: [the docs are explicit](https://docs.expo.dev/guides/environment-variables/)
-that they are readable in the shipped bundle.
 ### Metro and the monorepo — deliberately not configured
 
 `mobile/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since
@@ -152,7 +137,7 @@ backend origin, validated via `GET /api/v1/info`. Nothing is baked in: a fresh i
 talks to nothing until you set one. An explicit `http://` or `https://` is required;
 the scheme is never guessed.
 
-While developing, that field is pre-filled from `EXPO_PUBLIC_API_URL` — see "Point the app at your backend without typing it" above. `src/devFlow.test.ts` fails if a developer-machine address is hardcoded in app source instead.
+You type it once and it persists; `src/devFlow.test.ts` fails if a developer-machine address is hardcoded in app source instead of being entered here.
 
 Over a LAN or a VPN, use that machine's address — `npx expo start --tunnel` if the
 network blocks the direct route.
