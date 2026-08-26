@@ -277,6 +277,8 @@ jobs:
         with:
           context: ./backend
           platforms: linux/amd64,linux/arm64,linux/arm/v7
+          # push=false on PRs/feature branches — builds only (validates Dockerfile)
+          # push=true on main merge or version tag — publishes to Docker Hub
           push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
           tags: ${{ steps.meta.outputs.tags }}
           build-args: |
@@ -310,6 +312,8 @@ jobs:
           context: .
           file: ./web/Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm/v7
+          # push=false on PRs/feature branches — builds only (validates Dockerfile)
+          # push=true on main merge or version tag — publishes to Docker Hub
           push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=lyftr-frontend
