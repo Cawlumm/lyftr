@@ -28,11 +28,9 @@
 //               emulator we test on. x86 is dropped — 32-bit emulator-only, and it was
 //               47% of the download.
 //
-//   development the dev client only ever runs on a maintainer's device or emulator.
 //
 // Default when unset is all four: armeabi-v7a, arm64-v8a, x86, x86_64.
 const BUILD_ARCHS = {
-  development: ['arm64-v8a', 'x86_64'],
   preview: ['armeabi-v7a', 'arm64-v8a', 'x86_64'],
 }
 
