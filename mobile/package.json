@@ -6,7 +6,6 @@
   "//": "Expo SDK 54. After a fresh clone run `npx expo install --fix` to align native module versions to the installed Expo SDK, then `npx expo start`.",
   "scripts": {
     "start": "expo start",
-    "start:go": "expo start --go",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -14,8 +13,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "lint": "eslint .",
-    "build:dev": "eas build --profile development --platform android"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@expo-google-fonts/outfit": "^0.4.3",
@@ -30,7 +28,6 @@
     "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.13",
-    "expo-dev-client": "~6.0.21",
     "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
     "expo-keep-awake": "~15.0.8",

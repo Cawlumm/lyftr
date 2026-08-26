@@ -10,21 +10,23 @@ const easJson = JSON.parse(readFileSync(join(MOBILE, 'eas.json'), 'utf8'))
 // launcher cannot reach a release APK by accident — but `developmentClient: true` on
 // the wrong profile would make that profile *build* debug, which is a different and
 // entirely reachable mistake. These pin which profile is allowed to ask for it.
-// One config assertion earns its place. The rest of what used to be here — production is
-// distribution:store, buildArchs equals this literal, no channel keys — read a value out
-// of eas.json/app.json and asserted it equalled the value written in the same commit. That
-// is a change detector with no independent oracle: it cannot find a defect, only an edit,
-// and it made the correct fix (moving buildArchs behind EAS_BUILD_PROFILE) fail CI.
+// A development client is a DEBUG artifact: expo-dev-launcher's release source set is a
+// stub that throws "DevLauncher isn't available in release builds". So `developmentClient:
+// true` on a profile that ships to anyone builds the wrong thing, quietly.
 //
-// This one survives because it has an oracle outside the file it reads: a development
-// client is a debug artifact, so asking for one on a profile that ships to users would
-// build the wrong thing, and nothing else in the repo would say so.
+// This project has no such profile and no expo-dev-client dependency, on purpose: Expo Go
+// runs everything the app uses, and the one thing it cannot apply — the
+// expo-network-security-config plugin from #79 — is verified on the real APK instead, by
+// the aapt2 check in .github/workflows/eas-build.yml. The assertion is therefore that
+// NOTHING asks for a dev client; if someone adds a native module Expo Go lacks, they will
+// add the dependency and the profile together, and this test is where they will be told to
+// think about which profile gets it.
 describe('eas build profiles', () => {
-  it('asks for a development client on the development profile only', () => {
+  it('ships no profile that builds a development client', () => {
     const asking = Object.entries(easJson.build)
       .filter(([, p]: [string, any]) => p.developmentClient)
       .map(([name]) => name)
-    expect(asking).toEqual(['development'])
+    expect(asking).toEqual([])
   })
 })
 

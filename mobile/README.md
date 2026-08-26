@@ -21,7 +21,7 @@ npx expo install --fix                         # align native modules to the SDK
 npm start                                      # Metro; press `a` for a booted emulator
 ```
 
-Open the project in **Expo Go** — `npm run start:go`. Plain `npm start` targets a *development build* instead, because installing `expo-dev-client` changes what `expo start` means ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)); use it once you have built one. Editing JS reloads in seconds — no build,
+Open the project in **Expo Go** on the device. Editing JS reloads in seconds — no build,
 no EAS, no cloud quota. This is the day-to-day loop.
 
 Two things that will waste your afternoon if you don't know them:
@@ -86,50 +86,22 @@ So `@lyftr/shared` still transpiles from source (verified: a dev bundle contains
 `packages/shared/src/utils/number.ts`), with nothing to keep in step by hand. If you ever
 need to re-add config here, check whether Expo already does it first.
 
-### When you need a development build instead
+### Why there is no development build
 
-Expo Go bundles the Expo SDK, so most of what this app uses is already in it. What it cannot
-apply is a **config plugin** — `expo-network-security-config` (issue #79) is native XML, so
-the user-CA/cleartext policy simply is not there. If you are testing *that*, or any native
-module Expo Go lacks, build a development client:
+Expo Go bundles the Expo SDK, and everything this app uses is in it — every device test in
+this repo's history ran that way. The one thing Expo Go cannot apply is a **config plugin**:
+`expo-network-security-config` (#79) is native XML, so the user-CA/cleartext policy is
+simply absent there.
 
-```bash
-npm run build:dev          # cloud build, uses EAS quota
-```
+That gap is covered on the real artifact rather than by hand. The release workflow runs
+`aapt2 dump xmltree` over the built APK and fails if `networkSecurityConfig` is missing, so
+the plugin cannot stop applying without the release failing.
 
-Free alternative if the EAS quota is spent: `eas build --profile development --local` on a machine with the Android SDK. There is no CI job for it — one existed briefly in this PR and was cut as infrastructure with no user, since Expo Go covers everything this app does today.
-
-Either way it is one build, and you do not repeat it for JS changes — that is what Metro is
-for. Rebuild when the **native** surface moves. The fingerprint tells you when:
-
-```bash
-npx @expo/fingerprint fingerprint:generate --platform android
-```
-
-Same hash as the client on your device means it is still current, however much JS has changed.
-
-**Never build locally.** No `expo run:android`, no `expo prebuild` + Gradle, no
-`eas build --local` (unsupported on Windows). `prebuild` also writes an untracked `android/`
-and rewrites the `android`/`ios` scripts in `package.json`.
-
-`npm run web` still works for quick UI checks that do not touch native modules.
-
-### Build profiles (`eas.json`)
-
-| Profile | What it is | Dev launcher | Artifact |
-|---|---|---|---|
-| `development` | what you develop against — loads JS from Metro | yes | debug APK |
-| `preview` | a self-contained build to hand someone; JS is baked in | no | release APK |
-| `production` | store submission | no | AAB |
-
-Only `development` sets `developmentClient`. That matters: the dev launcher and dev menu
-are a *debug-build* feature — `expo-dev-launcher` ships a `src/release` source set whose
-controller throws `DevLauncher isn't available in release builds`, and Gradle picks
-source sets per variant — so they cannot appear in a `preview` or `production` build.
-`src/devFlow.test.ts` pins which profile is allowed to ask for it.
-
-A `preview` build ignores Metro entirely. If you change JS and the app doesn't update,
-that's why: you're on the wrong profile.
+What a development client would add is JS iteration against native code nobody here has
+added yet — so there is no `expo-dev-client` dependency and no `development` profile. Add
+both together the day you add a native module Expo Go lacks; `src/devFlow.test.ts` fails
+until you decide which profile gets it, and note that `expo start` then stops meaning Expo
+Go ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)).
 
 ## Point at your backend
 The **Server URL** field — on the sign-in screen and in the Settings tab — sets the
