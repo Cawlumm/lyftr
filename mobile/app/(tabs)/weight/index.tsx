@@ -7,7 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -70,7 +70,6 @@ export default function Weight() {
   const [newWeight, setNewWeight] = useState('')
   const [newDate, setNewDate] = useState(todayStr())
   const [newNotes, setNewNotes] = useState('')
-  const [logging, setLogging] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const duplicateWarningDismissedRef = useRef(false)
@@ -112,8 +111,25 @@ export default function Weight() {
   )
   const [chartWidth, setChartWidth] = useState(0)
 
+  const log = useAsyncAction(async (w: number) => {
+        const real = await client.weightAPI.log({
+          weight: displayToLbs(w, unit),
+          notes: newNotes.trim(),
+          logged_at: dayToInstant(newDate),
+        })
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+        setNewWeight(String(displayWeight(real.weight, unit)))
+        setNewNotes('')
+        setNewDate(todayStr())
+        setShowNotes(false)
+        duplicateWarningDismissedRef.current = false
+        reload()
+        refetchStats()
+        refetchChart()
+  }, 'Failed to log weight')
+
   const handleLog = async () => {
-    if (logging) return
+    if (log.busy) return
     const w = parseFloat(newWeight)
     const wErr = weightError(w, unit)
     if (wErr) {
@@ -127,30 +143,9 @@ export default function Weight() {
       return
     }
 
-    setLogging(true)
     setError(null)
     setShowDuplicateWarning(false)
-
-    try {
-      const real = await client.weightAPI.log({
-        weight: displayToLbs(w, unit),
-        notes: newNotes.trim(),
-        logged_at: dayToInstant(newDate),
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      setNewWeight(String(displayWeight(real.weight, unit)))
-      setNewNotes('')
-      setNewDate(todayStr())
-      setShowNotes(false)
-      duplicateWarningDismissedRef.current = false
-      reload()
-      refetchStats()
-      refetchChart()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to log weight'))
-    } finally {
-      setLogging(false)
-    }
+    void log.run(w)
   }
 
   if (initialLoading) return <WeightSkeleton />
@@ -220,10 +215,10 @@ export default function Weight() {
               }
             />
 
-            {error ? (
+            {error || log.error ? (
               <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
                 <AlertCircle size={18} color={brand.errorSoft} />
-                <Text className="flex-1 font-sans text-sm text-error-400">{error}</Text>
+                <Text className="flex-1 font-sans text-sm text-error-400">{error || log.error}</Text>
               </View>
             ) : null}
 
@@ -315,10 +310,10 @@ export default function Weight() {
                 ) : null}
 
                 <Button
-                  title={logging ? 'Logging…' : 'Log Weight'}
+                  title={log.busy ? 'Logging…' : 'Log Weight'}
                   onPress={handleLog}
-                  loading={logging}
-                  disabled={!(parseFloat(newWeight) > 0) || logging}
+                  loading={log.busy}
+                  disabled={!(parseFloat(newWeight) > 0) || log.busy}
                 />
                 <View className="flex-row items-center justify-center gap-1.5">
                   <Sunrise size={14} color={brand.warningSoft} />

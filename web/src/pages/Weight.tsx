@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { apiErrorMessage, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
+import { useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
@@ -236,7 +236,6 @@ export default function Weight() {
   const [newWeight, setNewWeight] = useState('')
   const [newDate, setNewDate] = useState(todayStr())
   const [newNotes, setNewNotes] = useState('')
-  const [logging, setLogging] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const duplicateWarningDismissedRef = useRef(false)
@@ -261,9 +260,27 @@ export default function Weight() {
       })
   }, [chartLogs, settings.weight_unit])
 
+  const log = useAsyncAction(async (w: number) => {
+        const real = await weightAPI.log({
+          weight: displayToLbs(w, settings.weight_unit),
+          notes: newNotes.trim(),
+          logged_at: dayToInstant(newDate),
+        })
+        setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
+        setNewNotes('')
+        setNewDate(todayStr())
+        setShowNotes(false)
+        duplicateWarningDismissedRef.current = false
+        reload()
+        weightAPI.stats().then(setStats).catch(() => {})
+        const days = PERIOD_DAYS[period]
+        const from = days != null ? daysAgoStr(days) : undefined
+        weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
+  }, 'Failed to log weight')
+
   const handleLog = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (logging) return
+    if (log.busy) return
     const w = parseFloat(newWeight)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
@@ -276,31 +293,9 @@ export default function Weight() {
       return
     }
 
-    setLogging(true)
     setError(null)
     setShowDuplicateWarning(false)
-
-    try {
-      const real = await weightAPI.log({
-        weight: displayToLbs(w, settings.weight_unit),
-        notes: newNotes.trim(),
-        logged_at: dayToInstant(newDate),
-      })
-      setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
-      setNewNotes('')
-      setNewDate(todayStr())
-      setShowNotes(false)
-      duplicateWarningDismissedRef.current = false
-      reload()
-      weightAPI.stats().then(setStats).catch(() => {})
-      const days = PERIOD_DAYS[period]
-      const from = days != null ? daysAgoStr(days) : undefined
-      weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
-    } catch (err: any) {
-      setError(apiErrorMessage(err, 'Failed to log weight'))
-    } finally {
-      setLogging(false)
-    }
+    void log.run(w)
   }
 
   if (initialLoading) return <Loading />
@@ -309,7 +304,7 @@ export default function Weight() {
     return (
       <div className="alert-error">
         <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
+        <span>{error || log.error}</span>
       </div>
     )
   }
@@ -355,10 +350,10 @@ export default function Weight() {
         action={<span className="badge-brand"><Calendar className="w-3 h-3" /> {wUnit}</span>}
       />
 
-      {error && (
+      {(error || log.error) && (
         <div className="alert-error" role="alert" aria-live="polite">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{error || log.error}</span>
         </div>
       )}
 
@@ -449,10 +444,10 @@ export default function Weight() {
 
           <button
             type="submit"
-            disabled={!(parseFloat(newWeight) > 0) || logging}
+            disabled={!(parseFloat(newWeight) > 0) || log.busy}
             className="btn-primary btn-lg w-full"
           >
-            <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log Weight'}
+            <Plus className="w-4 h-4" /> {log.busy ? 'Logging…' : 'Log Weight'}
           </button>
           <p className="input-help flex items-center justify-center gap-1.5 text-center">
             <Sunrise className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />

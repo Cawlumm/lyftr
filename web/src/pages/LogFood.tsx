@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -138,8 +138,6 @@ export default function LogFood() {
   const [servings, setServings] = useState(1)
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Derived from the list rather than tracked, so a star clicked on any tab is reflected
   // everywhere the same food appears — including the detail view.
@@ -273,26 +271,23 @@ export default function LogFood() {
     }
   }
 
+  const save = useAsyncAction(async (item: types.FoodSearchResult) => {
+        const payload = {
+          ...scaleServing(item, servings),
+          meal,
+          logged_at: dayToInstant(date),
+        }
+        if (editId) {
+          await foodAPI.update(editId, payload)
+        } else {
+          await foodAPI.log(payload)
+        }
+        navigate('/food', { replace: true })
+  }, 'Failed to save')
+
   const handleLog = async () => {
-    if (!selected || saving) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const payload = {
-        ...scaleServing(selected, servings),
-        meal,
-        logged_at: dayToInstant(date),
-      }
-      if (editId) {
-        await foodAPI.update(editId, payload)
-      } else {
-        await foodAPI.log(payload)
-      }
-      navigate('/food', { replace: true })
-    } catch (err: any) {
-      setSaveError(apiErrorMessage(err, 'Failed to save'))
-      setSaving(false)
-    }
+    if (!selected || save.busy) return
+    void save.run(selected)
   }
 
   if (phase === 'scan') {
@@ -524,10 +519,10 @@ export default function LogFood() {
       {/* Detail phase */}
       {phase === 'detail' && selected && (
         <div className="space-y-4 pb-32">
-          {saveError && (
+          {save.error && (
             <div className="alert-error">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{saveError}</span>
+              <span>{save.error}</span>
             </div>
           )}
 
@@ -664,10 +659,10 @@ export default function LogFood() {
         <div className="fixed bottom-0 inset-x-0 p-4 bg-surface-base/95 backdrop-blur-sm border-t border-surface-border safe-area-bottom">
           <button
             onClick={handleLog}
-            disabled={saving}
+            disabled={save.busy}
             className="btn-primary btn-lg w-full"
           >
-            {saving ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
+            {save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
           </button>
         </div>
       )}

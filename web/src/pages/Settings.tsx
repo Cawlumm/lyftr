@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { memberSince } from '@lyftr/shared'
+import { useAsyncAction, memberSince } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -64,7 +64,6 @@ export default function Settings() {
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
@@ -150,19 +149,17 @@ export default function Settings() {
     } catch { /* local state already switched; the next save retries the write */ }
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    setError(null)
+  // `err.message` here was the raw JS message — for an axios failure that reads
+  // "Request failed with status code 400", which is true and tells the user nothing.
+  const save = useAsyncAction(async () => {
+    await updateSettings(formData)
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+  }, 'Failed to save settings')
+
+  const handleSave = () => {
     setSuccess(false)
-    try {
-      await updateSettings(formData)
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save settings')
-    } finally {
-      setSaving(false)
-    }
+    void save.run()
   }
 
   if (loading) {
@@ -177,10 +174,10 @@ export default function Settings() {
     <div className="space-y-5 animate-slide-up max-w-2xl">
       <PageHeader title="Settings" subtitle="Preferences and account configuration" />
 
-      {error && (
+      {(error || save.error) && (
         <div className="alert-error">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{error || save.error}</span>
         </div>
       )}
 
@@ -386,10 +383,10 @@ export default function Settings() {
           <p className="text-xs text-tx-muted">Save calorie and macro targets</p>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={save.busy}
             className="btn-primary btn-sm"
           >
-            <Check className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save targets'}
+            <Check className="w-3.5 h-3.5" /> {save.busy ? 'Saving...' : 'Save targets'}
           </button>
         </div>
       </Section>

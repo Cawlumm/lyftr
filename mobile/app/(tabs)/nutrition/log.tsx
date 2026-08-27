@@ -5,8 +5,7 @@ import * as Haptics from 'expo-haptics'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
 } from 'lucide-react-native'
-import { apiErrorMessage,
-  dayToInstant, entryDay, todayStr,
+import { useAsyncAction, dayToInstant, entryDay, todayStr,
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
@@ -125,8 +124,6 @@ export default function LogFood() {
 
   const isToggling = (item: FoodSearchResult) =>
     togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -230,28 +227,25 @@ export default function LogFood() {
     setServingsStr(String(next))
   }
 
+  const save = useAsyncAction(async (item: FoodSearchResult) => {
+        const payload = {
+          ...scaleServing(item, servings),
+          meal,
+          logged_at: dayToInstant(date),
+        }
+        if (editId) {
+          await client.foodAPI.update(editId, payload)
+        } else {
+          await client.foodAPI.log(payload)
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+        // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
+        router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(MEAL_LABELS[meal])}`)
+  }, 'Failed to save')
+
   const handleLog = async () => {
-    if (!selected || saving) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const payload = {
-        ...scaleServing(selected, servings),
-        meal,
-        logged_at: dayToInstant(date),
-      }
-      if (editId) {
-        await client.foodAPI.update(editId, payload)
-      } else {
-        await client.foodAPI.log(payload)
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
-      router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(MEAL_LABELS[meal])}`)
-    } catch (err: any) {
-      setSaveError(apiErrorMessage(err, 'Failed to save'))
-      setSaving(false)
-    }
+    if (!selected || save.busy) return
+    void save.run(selected)
   }
 
   const goBack = () => {
@@ -457,10 +451,10 @@ export default function LogFood() {
         <>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
             <View className="gap-4">
-              {saveError ? (
+              {save.error ? (
                 <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
                   <AlertCircle size={18} color={isDark ? brand.errorSoft : brand.error} />
-                  <AppText variant="body" color="error" className="flex-1">{saveError}</AppText>
+                  <AppText variant="body" color="error" className="flex-1">{save.error}</AppText>
                 </View>
               ) : null}
 
@@ -581,10 +575,10 @@ export default function LogFood() {
           {/* Sticky log button */}
           <View className="border-t border-surface-border bg-surface-base pb-6 pt-3">
             <Button
-              title={saving ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
+              title={save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
               onPress={handleLog}
-              loading={saving}
-              disabled={saving}
+              loading={save.busy}
+              disabled={save.busy}
             />
           </View>
           <NumericKeyboardAccessory />
