@@ -68,7 +68,7 @@ export function SettingsRow({
         </View>
       ) : null}
       <View className="flex-1 pr-3">
-        <AppText variant="bodySemibold" className={destructive ? 'text-error-400' : ''}>
+        <AppText variant="bodySemibold" color={destructive ? 'error' : undefined}>
           {label}
         </AppText>
         {description ? (

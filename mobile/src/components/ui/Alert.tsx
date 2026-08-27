@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { View } from 'react-native'
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from 'lucide-react-native'
+import { semanticInk } from '../../theme/theme'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
@@ -15,11 +16,11 @@ type Variant = 'error' | 'success' | 'warning' | 'info'
 // idea; screens built on the standard ui kit should use this one.
 // The `Soft` tokens are the 400s — web's alerts colour their text and icon at 400, not
 // the 500 used for the tint and border.
-const TONES: Record<Variant, { icon: typeof AlertCircle; tone: 'errorSoft' | 'successSoft' | 'warningSoft' | 'cyanLight' }> = {
-  error: { icon: AlertCircle, tone: 'errorSoft' },
-  success: { icon: CheckCircle2, tone: 'successSoft' },
-  warning: { icon: TriangleAlert, tone: 'warningSoft' },
-  info: { icon: Info, tone: 'cyanLight' },
+const ICONS: Record<Variant, typeof AlertCircle> = {
+  error: AlertCircle,
+  success: CheckCircle2,
+  warning: TriangleAlert,
+  info: Info,
 }
 
 const SURFACES: Record<Variant, string> = {
@@ -39,9 +40,9 @@ interface Props {
 }
 
 export function Alert({ variant, children, className = '', size = 'default' }: Props) {
-  const { brand } = useTheme()
-  const { icon: Icon, tone } = TONES[variant]
-  const color = brand[tone]
+  const { isDark } = useTheme()
+  const Icon = ICONS[variant]
+  const color = semanticInk[isDark ? 'dark' : 'light'][variant]
   const compact = size === 'compact'
 
   return (

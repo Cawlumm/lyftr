@@ -4,10 +4,11 @@ import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
 import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
-  AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
+  Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
+import { semanticInk } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {
@@ -27,7 +28,8 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent, brand, isDark } = useTheme()
+  const warningInk = semanticInk[isDark ? 'dark' : 'light'].warning
 
   const [value, setValue] = useState('')
   const [date, setDate] = useState(todayStr())
@@ -95,27 +97,24 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
 
         <View className="gap-4">
           {(error || save.error) ? (
-            <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-              <AlertCircle size={16} color={brand.errorSoft} />
-              <Text className="flex-1 font-sans text-sm text-error-400">{error || save.error}</Text>
-            </View>
+            <Alert variant="error" size="compact">{error || save.error}</Alert>
           ) : null}
 
           {showDuplicateWarning && lastLog ? (
             <View className="flex-row items-start gap-3 rounded-xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
+              <AlertCircle size={16} color={warningInk} style={{ marginTop: 2 }} />
               <View className="min-w-0 flex-1">
-                <Text className="font-sans-semibold text-sm text-warning-400">
+                <AppText variant="bodySemibold" color="warning">
                   Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
-                </Text>
+                </AppText>
                 <View className="mt-2 flex-row gap-2">
                   <Pressable onPress={() => setShowDuplicateWarning(false)}
                     className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-1 active:opacity-70">
                     <AppText variant="caption" color="secondary">Cancel</AppText>
                   </Pressable>
                   <Pressable onPress={() => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) }}
-                    className="rounded-lg border border-warning-500/30 bg-warning-500/20 px-3 py-1 active:opacity-70">
-                    <Text className="font-sans-semibold text-xs text-warning-400">Log Anyway</Text>
+                    className="rounded-lg bg-warning-500 px-3 py-1 active:opacity-80">
+                    <Text className="font-sans-semibold text-xs" style={{ color: brand.warningText }}>Log Anyway</Text>
                   </Pressable>
                 </View>
               </View>

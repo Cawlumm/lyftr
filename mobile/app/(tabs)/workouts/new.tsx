@@ -73,10 +73,6 @@ export default function AddWorkout() {
     fetchSettings()
   }, [fetchSettings])
 
-  // Web scrolls the window to top on error; here the ScrollView.
-  useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
@@ -180,6 +176,11 @@ export default function AddWorkout() {
     // Web navigates to /workouts; pop back to the list (it reloads on focus).
     router.dismissTo('/workouts')
   }, 'Failed to create workout')
+
+  // Web scrolls the window to top on error; here the ScrollView.
+  useEffect(() => {
+    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error, save.error])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }

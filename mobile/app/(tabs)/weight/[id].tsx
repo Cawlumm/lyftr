@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
+import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
 import { useAsyncAction, apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
-import {
+import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -17,7 +17,7 @@ export default function WeightDetail() {
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [log, setLog] = useState<WeightLog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -105,10 +105,7 @@ export default function WeightDetail() {
             <ArrowLeft size={16} color={colors.txMuted} />
             <AppText variant="body" color="muted">Weight</AppText>
           </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error || 'Entry not found'}</Text>
-          </View>
+          <Alert variant="error" size="compact">{error || 'Entry not found'}</Alert>
         </View>
       </Screen>
     )
@@ -184,10 +181,7 @@ export default function WeightDetail() {
               <AppText variant="heading" className="mb-4">Edit Entry</AppText>
               <View className="gap-4">
                 {editError || saveEdit.error ? (
-                  <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-                    <AlertCircle size={16} color={brand.errorSoft} />
-                    <Text className="flex-1 font-sans text-sm text-error-400">{editError || saveEdit.error}</Text>
-                  </View>
+                  <Alert variant="error" size="compact">{editError || saveEdit.error}</Alert>
                 ) : null}
 
                 <StepperTile

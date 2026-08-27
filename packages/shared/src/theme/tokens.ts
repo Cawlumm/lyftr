@@ -55,20 +55,51 @@ export const palette = {
     DEFAULT: '#00b8d9',
   },
   violet: { 400: '#a78bfa', 500: '#8b5cf6', 600: '#7c3aed', DEFAULT: '#8b5cf6' },
-  success: { 400: '#4ade80', 500: '#22c55e', DEFAULT: '#22c55e' },
-  warning: { 400: '#facc15', 500: '#eab308', DEFAULT: '#eab308' },
-  error: { 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', DEFAULT: '#ef4444' },
+  success: { 400: '#4ade80', 500: '#22c55e', 800: '#166534', DEFAULT: '#22c55e' },
+  warning: { 400: '#facc15', 500: '#eab308', 800: '#854d0e', DEFAULT: '#eab308' },
+  error: { 400: '#f87171', 500: '#ef4444', 600: '#dc2626', 700: '#b91c1c', 800: '#991b1b', DEFAULT: '#ef4444' },
 } as const
 
 export const accents = {
   // Darker cyan for accents sitting on light surfaces (the web login link colour).
   // Tailwind's cyan-600 — outside the brand ramp, which is tuned for dark surfaces.
   cyanEdge: '#0891b2',
+  // For text on a brand-tinted alert in light mode: cyanEdge measures 3.4:1 there,
+  // below AA. This rung clears it on both the /10 and /20 tints.
+  cyanEdgeDeep: '#155e75',
   // Near-black text on a solid warning-500 fill (e.g. "Apply all"), where both white
   // and the normal text colour fail contrast.
   warningText: '#1a1400',
   gradient: [palette.brand[500], palette.violet[500]] as const,
 } as const
+
+// THE RULE: text on a tinted feedback surface must clear WCAG AA (4.5:1) against that
+// tint, in BOTH themes. alertContrast.test.ts fails the build if any pair below does not.
+//
+// The 400s were used for this originally, copied from web's .alert-* classes where they
+// sit on a dark surface and read fine. Mobile is light-first and web has a light theme,
+// and on a white card the same pairing measures 2.4:1 for error and 1.4:1 for warning.
+// Every alert in both apps was below AA in a theme a user can actually be in.
+//
+// No single rung clears both themes - that is why this is a pair rather than a constant.
+// The light values are the lightest rungs that pass on both the /10 and /20 tints.
+// Same shape as `accent`: darker on light, lighter on dark.
+export const semanticInk = {
+  light: {
+    error: palette.error[700],
+    warning: palette.warning[800],
+    success: palette.success[800],
+    info: accents.cyanEdgeDeep,
+  },
+  dark: {
+    error: palette.error[400],
+    warning: palette.warning[400],
+    success: palette.success[400],
+    info: palette.brand[300],
+  },
+} as const
+
+export type SemanticTone = keyof typeof semanticInk['light']
 
 export const GRADIENT_CSS = `linear-gradient(135deg, ${palette.brand[500]} 0%, ${palette.violet[500]} 100%)`
 
@@ -87,6 +118,10 @@ export function cssVars(mode: 'light' | 'dark'): Record<string, string> {
     '--tx-secondary': s.txSecondary,
     '--tx-muted': s.txMuted,
     '--tx-inverse': s.txInverse,
+    '--alert-error': semanticInk[mode].error,
+    '--alert-warning': semanticInk[mode].warning,
+    '--alert-success': semanticInk[mode].success,
+    '--alert-info': semanticInk[mode].info,
     'color-scheme': mode,
   }
 }

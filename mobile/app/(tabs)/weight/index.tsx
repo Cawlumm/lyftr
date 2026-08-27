@@ -8,7 +8,7 @@ import {
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import { useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
-import {
+import { Alert,
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
 } from '../../../src/components/ui'
@@ -17,6 +17,7 @@ import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
+import { semanticInk } from '../../../src/theme/theme'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -29,7 +30,8 @@ export default function Weight() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent, brand, isDark } = useTheme()
+  const warningInk = semanticInk[isDark ? 'dark' : 'light'].warning
 
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<WeightStats | null>(null)
@@ -215,13 +217,6 @@ export default function Weight() {
               }
             />
 
-            {error || log.error ? (
-              <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-                <AlertCircle size={18} color={brand.errorSoft} />
-                <Text className="flex-1 font-sans text-sm text-error-400">{error || log.error}</Text>
-              </View>
-            ) : null}
-
             {/* Quick log — kept at the top so entry is reachable on first paint. */}
             <Card>
               <View className="mb-3 flex-row items-center justify-between">
@@ -280,11 +275,15 @@ export default function Weight() {
                   </Pressable>
                 )}
 
+                {error || log.error ? (
+                  <Alert variant="error" size="compact">{error || log.error}</Alert>
+                ) : null}
+
                 {showDuplicateWarning && items.length > 0 ? (
                   <View className="flex-row items-start gap-3 rounded-xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-                    <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
+                    <AlertCircle size={16} color={warningInk} style={{ marginTop: 2 }} />
                     <View className="min-w-0 flex-1">
-                      <Text className="font-sans-semibold text-sm text-warning-400">
+                      <Text className="font-sans-semibold text-sm" style={{ color: warningInk }}>
                         Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
                       </Text>
                       <View className="mt-2 flex-row gap-2">
@@ -300,9 +299,9 @@ export default function Weight() {
                             setShowDuplicateWarning(false)
                             handleLog()
                           }}
-                          className="rounded-lg border border-warning-500/30 bg-warning-500/20 px-3 py-1 active:opacity-70"
+                          className="rounded-lg bg-warning-500 px-3 py-1 active:opacity-80"
                         >
-                          <Text className="font-sans-semibold text-xs text-warning-400">Log Anyway</Text>
+                          <Text className="font-sans-semibold text-xs" style={{ color: brand.warningText }}>Log Anyway</Text>
                         </Pressable>
                       </View>
                     </View>

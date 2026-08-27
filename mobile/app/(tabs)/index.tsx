@@ -7,10 +7,10 @@ import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
-import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { Alert, AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -143,10 +143,7 @@ export default function Dashboard() {
     return (
       <Screen>
         <View className="py-4">
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error}</Text>
-          </View>
+          <Alert variant="error" size="compact">{error}</Alert>
         </View>
       </Screen>
     )
@@ -291,7 +288,7 @@ export default function Dashboard() {
                   <Timer size={18} color={brand.warningSoft} />
                 </View>
                 <View>
-                  <Text className="font-sans-semibold text-sm text-warning-400">Workout in progress</Text>
+                  <AppText variant="bodySemibold" color="warning">Workout in progress</AppText>
                   <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{session.name} — tap to resume</Text>
                 </View>
               </View>
@@ -358,7 +355,7 @@ export default function Dashboard() {
                 const isFuture = day > now
                 return (
                   <View key={i} className="items-center gap-1.5">
-                    <Text className={`text-[10px] font-sans-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>{format(day, 'EEEEE')}</Text>
+                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{format(day, 'EEEEE')}</AppText>
                     <View className={`h-3.5 w-3.5 rounded-full ${
                       hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
                     }`} />

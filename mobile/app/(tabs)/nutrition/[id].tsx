@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
-import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
 import { useAsyncAction, entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
-import {
+import { Alert,
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
@@ -19,7 +19,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 export default function NutritionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -53,10 +53,7 @@ export default function NutritionDetail() {
             <ArrowLeft size={16} color={colors.txMuted} />
             <AppText variant="body" color="muted">Nutrition</AppText>
           </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error || 'Entry not found'}</Text>
-          </View>
+          <Alert variant="error" size="compact">{error || 'Entry not found'}</Alert>
         </View>
       </Screen>
     )
