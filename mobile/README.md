@@ -13,28 +13,111 @@ Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). U
 - **expo-camera** (barcode, later), **expo-haptics** (rest timer, later)
 
 ## Run it (development)
-From the **repo root** (npm workspaces):
+
 ```bash
-npm install                     # installs shared + mobile
-npx expo install --fix          # (in mobile/) align native module versions to the SDK
-cd mobile && npx expo start      # Metro dev server
-```
-Then on your **phone**: open **Expo Go**, connect over Wi‑Fi / **Tailscale** (or
-`npx expo start --tunnel`), and scan the QR. Once native modules (SecureStore, camera,
-haptics) are in play, build a **dev client** instead of Expo Go:
-```bash
-eas build --profile development --platform ios   # cloud build, no Mac needed
+npm install                                    # repo root, npm workspaces
+cd mobile
+npx expo install --fix                         # align native modules to the SDK
+npm start                                      # Metro; press `a` for a booted emulator
 ```
 
-On a **laptop**: `npx expo start --web` (quick UI checks), or press `i` (iOS Simulator,
-Mac only) / `a` (Android emulator).
+Open the project in **Expo Go** on the device. Editing JS reloads in seconds — no build,
+no EAS, no cloud quota. This is the day-to-day loop.
+
+Two things that will waste your afternoon if you don't know them:
+
+**`npx expo start` may crash before Metro binds.** There is a bug in `@expo/cli`'s startup
+dependency check — it reads a `fetch` response body twice:
+
+```
+TypeError: Body is unusable: Body has already been read
+  at getNativeModuleVersionsAsync (@expo/cli/src/api/getNativeModuleVersions.ts:47)
+```
+
+Skip the check: `EXPO_NO_DEPENDENCY_VALIDATION=1 npx expo start`. Nothing is wrong with the
+project. Metro then serves normally — confirmed by curling the manifest, which comes back
+`200` with `"runtimeVersion":"exposdk:54.0.0"`.
+
+**Expo Go logs a warning about updates, and it is harmless:**
+
+```
+The expo-updates system is disabled due to an invalid configuration.
+```
+
+That is `"level":"warn"`, emitted by Expo Go's *own* bundled `expo-updates` because a local
+dev project has no update URL. This repo does not depend on `expo-updates` at all. Do not
+read it as the cause of an unrelated failure — it has been mistaken for one before.
+
+If the device cannot reach Metro (`java.io.IOException: Failed to download remote update`),
+that is the network between them, not the project — a host firewall on the Metro port is the
+usual cause. `npx expo start --tunnel` routes via ngrok and sidesteps it.
+
+**If the device cannot reach Metro**, the symptom is a splash screen that never advances
+rather than an error. `npm run android` handles this for you - Expo CLI runs `adb reverse`
+when it launches the app - so this only bites when you attach to an app that is already
+running. The fallback is one command, which is what Expo's own device guide prescribes:
+
+```bash
+adb reverse tcp:8081 tcp:8081     # Metro
+adb reverse tcp:3000 tcp:3000     # the backend, if 10.0.2.2 is firewalled too
+```
+
+**`npm run doctor`** runs `expo-doctor`: installed native modules against the SDK, and app
+config that has drifted from what the build expects. Worth running after any dependency
+change and before blaming the app for a build failure.
+
+### Metro and the monorepo — deliberately not configured
+
+`mobile/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since
+SDK 52 `expo/metro-config` detects the monorepo and sets both, and [the docs say to delete
+the manual versions](https://docs.expo.dev/guides/monorepos/) rather than keep them in
+step. Ours were the pre-52 recipe and they were actively harmful: they pointed
+`watchFolders` at the workspace ROOT, so `metro-file-map` crawled `.git`, `backend/data`
+and every session worktree under `.claude` — and died with `Failed to start watch mode`,
+followed by a NativeWind `TypeError` reading a file map that was never built.
+
+What Expo picks on its own is narrower and correct:
+
+```
+watchFolders: [ node_modules, packages/shared, mobile, web ]
+```
+
+So `@lyftr/shared` still transpiles from source (verified: a dev bundle contains
+`packages/shared/src/utils/number.ts`), with nothing to keep in step by hand. If you ever
+need to re-add config here, check whether Expo already does it first.
+
+### Why there is no development build
+
+Expo Go bundles the Expo SDK, and everything this app uses is in it — every device test in
+this repo's history ran that way. The one thing Expo Go cannot apply is a **config plugin**:
+`expo-network-security-config` (#79) is native XML, so the user-CA/cleartext policy is
+simply absent there.
+
+That gap is covered on the real artifact rather than by hand. The release workflow runs
+`aapt2 dump xmltree` over the built APK and fails if `networkSecurityConfig` is missing, so
+the plugin cannot stop applying without the release failing.
+
+What a development client would add is JS iteration against native code nobody here has
+added yet — so there is no `expo-dev-client` dependency and no `development` profile. Add
+both together the day you add a native module Expo Go lacks — and note that `expo start`
+then stops meaning Expo Go ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)),
+so say which one you want.
 
 ## Point at your backend
-The **Server URL** field in the Settings tab configures the backend origin (validated via
-`GET /api/v1/info`). Leave blank for the default. For the VM dev backend use the LAN IP or
-the Tailscale URL, e.g. `https://claude-code.tail2b1098.ts.net:3000`. Demo login:
-`demo@lyftr.local` / `password123` — present on a dev backend and on the hosted demo, but
-not on a production instance unless it sets `DEMO_MODE=true`.
+The **Server URL** field — on the sign-in screen and in the Settings tab — sets the
+backend origin, validated via `GET /api/v1/info`. Nothing is baked in: a fresh install
+talks to nothing until you set one. An explicit `http://` or `https://` is required;
+the scheme is never guessed.
+
+You type it once and it persists. Nothing is baked into the bundle, which is the point: the same build has to work against anyone's server.
+
+Over a LAN or a VPN, use that machine's address — `npx expo start --tunnel` if the
+network blocks the direct route.
+
+Demo login `demo@lyftr.local` / `password123` exists on a dev backend and on the hosted
+demo. `DEMO_MODE` defaults to on whenever `ENV` is unset or not `production`, so a
+self-hosted instance that sets neither variable **will** have that account with that
+published password. Set `ENV=production` (or `DEMO_MODE=false`) on anything real.
 
 ## Native networking config
 `network_security_config.xml` is an Android
