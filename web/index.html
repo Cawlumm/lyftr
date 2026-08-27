@@ -6,10 +6,45 @@
     <link rel="icon" type="image/png" href="/favicon-transparent.png" />
     <link rel="apple-touch-icon" href="/favicon-transparent.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Lyfter - Workout Tracking</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@700;800;900&display=swap" rel="stylesheet" />
+    <title>Lyftr — Workout &amp; Nutrition Tracker</title>
+    <meta
+      name="description"
+      content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
+    />
+    <meta name="theme-color" content="#00b8d9" />
+
+    <!--
+      Every self-hosted instance ships this file, so a crawler that finds someone's server
+      would be indexing their private training log. noindex is the privacy-correct default;
+      the marketing site at lyftr-app.pages.dev is what should rank. Social unfurlers read
+      the og:* tags below regardless of this directive, so shared links still preview.
+
+      No canonical here on purpose: an individual's own instance pointing at the project's
+      marketing page would be claiming to be a copy of it, which it isn't.
+    -->
+    <meta name="robots" content="noindex, nofollow" />
+
+    <!--
+      og:url is deliberately absent — unfurlers fall back to the URL actually being shared,
+      which is right whether that is the public demo or someone's own hostname.
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lyftr" />
+    <meta property="og:title" content="Lyftr — Workout &amp; Nutrition Tracker" />
+    <meta
+      property="og:description"
+      content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
+    />
+    <meta property="og:image" content="https://lyftr-app.pages.dev/og-image.png" />
+    <meta property="og:image:alt" content="Lyftr — self-hosted workout tracker on phone and desktop" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Lyftr — Workout &amp; Nutrition Tracker" />
+    <meta
+      name="twitter:description"
+      content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
+    />
+    <meta name="twitter:image" content="https://lyftr-app.pages.dev/og-image.png" />
+
   </head>
   <body>
     <div id="root"></div>

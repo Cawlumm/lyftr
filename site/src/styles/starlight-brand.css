@@ -1,10 +1,17 @@
+/* The docs theme names these families but nothing ever loaded them — the landing page's
+   Google Fonts <link> was on the landing page only, so every Starlight page fell back to
+   system-ui. Importing them here is what actually makes the docs use the brand typeface,
+   and it keeps the fonts self-hosted. Vite emits one copy shared with the landing page. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
 /* Brand the Starlight docs theme with Lyftr's electric-cyan accent (#00b8d9). */
 :root {
   --sl-color-accent-low: #003d4d;
   --sl-color-accent: #00b8d9;
   --sl-color-accent-high: #b0f1fe;
-  --sl-font: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --sl-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --sl-font: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* Light mode: use a slightly deeper cyan so it stays legible on white. */

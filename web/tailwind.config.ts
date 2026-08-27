@@ -9,10 +9,12 @@ export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
+      // '<name> Variable' is what @fontsource-variable registers; the bare name stays next in
+      // each stack so a locally-installed copy still beats the system fallback.
       fontFamily: {
-        sans:    ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        display: ['Outfit', 'Plus Jakarta Sans', 'sans-serif'],
-        mono:    ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans:    ['Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Outfit Variable', 'Outfit', 'Plus Jakarta Sans Variable', 'sans-serif'],
+        mono:    ['JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
         // Surface/text tokens stay CSS-variable-backed so one class works in both

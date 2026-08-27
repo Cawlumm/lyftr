@@ -11,9 +11,9 @@ Yes. Lyftr is open source under the **MIT license**. No subscription, no paywall
 ## How is it different from Hevy, Strong, Wger, or FitNotes?
 
 - **Hevy / Strong** — polished, but cloud-only, increasingly paywalled, and your data lives on
-  someone else's server.
-- **Wger** — a solid self-hosted option; Lyftr's focus is a more modern, mobile-first UI and a
-  simpler one-command deploy.
+  someone else's server. Long answers: [vs Hevy](/compare/vs-hevy/), [vs Strong](/compare/vs-strong/).
+- **Wger** — a solid self-hosted option, and a more mature one; Lyftr's focus is a more modern,
+  mobile-first UI and a simpler one-command deploy. Long answer: [vs wger](/compare/vs-wger/).
 - **FitNotes** — local-only, with no sync or server deployment story.
 
 Lyftr is for people who want a modern, mobile-first workout tracker they **fully own** and can run

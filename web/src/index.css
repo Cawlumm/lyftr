@@ -1,3 +1,12 @@
+/* Fonts are bundled, not fetched from fonts.googleapis.com. For a self-hosted app that is a
+   correctness fix before it is a privacy one: an instance on a LAN with no outbound internet
+   could never load the CDN stylesheet, so it silently fell back to system fonts. Bundling also
+   removes a render-blocking third-party request and stops handing every visitor's IP to Google.
+   JetBrains Mono was declared in tailwind.config.ts but never loaded at all. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/jetbrains-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
