@@ -25,8 +25,21 @@ describe('apiErrorMessage', () => {
     expect(apiErrorMessage({ response: { status: 405, data: {} } }, 'fallback')).toMatch(/misconfigured/i)
   })
 
-  it('maps 5xx to a server error', () => {
-    expect(apiErrorMessage({ response: { status: 503, data: {} } }, 'fallback')).toMatch(/server error/i)
+  // A proxy saying the backend is not answering IT is worth retrying in a moment; our own
+  // code failing will fail the same way until someone reads the logs. Self-hosted stacks
+  // produce the first one on every `docker compose up -d`.
+  it('tells a restarting proxy apart from our own code failing', () => {
+    for (const status of [502, 503, 504]) {
+      expect(apiErrorMessage({ response: { status, data: {} } }, 'fallback')).toMatch(/restarting or unreachable/i)
+    }
+    expect(apiErrorMessage({ response: { status: 500, data: {} } }, 'fallback')).toMatch(/server error/i)
+  })
+
+  it('names an HTML page for what it is, rather than blaming the app', () => {
+    const html = '<!DOCTYPE html><html><body>502 Bad Gateway</body></html>'
+    const msg = apiErrorMessage({ response: { status: 502, data: html } }, 'Failed to save')
+    expect(msg).toMatch(/web page/i)
+    expect(msg).not.toBe('Failed to save')
   })
 
   it('uses the fallback for other responses without a server error', () => {

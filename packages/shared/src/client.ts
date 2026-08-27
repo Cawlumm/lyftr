@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios'
 import * as types from './types'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 import { normalizeServerUrl } from './utils/serverUrl'
-import { networkFailureMessage } from './utils/networkError'
+import { networkFailureMessage, type MessageDetail } from './utils/networkError'
 import { withLoggedOn, utcOffsetMinutes } from './utils/dateUtils'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
@@ -32,7 +32,7 @@ export interface ClientOptions {
 // masquerade as "Registration failed." Response-less failures go to the classifier,
 // which separates a blocked-cleartext or untrusted-certificate failure from a genuinely
 // unreachable server — they are indistinguishable from the axios error alone.
-export const apiErrorMessage = (err: any, fallback: string): string => {
+export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetail = 'brief'): string => {
   if (err?.response) {
     const serverError = err.response.data?.error
     if (serverError) return serverError
@@ -40,10 +40,26 @@ export const apiErrorMessage = (err: any, fallback: string): string => {
     if (status === 404 || status === 405) {
       return "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings."
     }
+    // A reverse proxy answers with its own HTML page when the app behind it is down,
+    // restarting, or was never there — the body is a document, not our {"error"} envelope.
+    // wger's client models this case explicitly (ErrorType.html) because self-hosted setups
+    // meet it every time the stack is updated. Falling through to the caller's fallback
+    // would report "Couldn't save your workout", hiding an infrastructure problem behind
+    // what reads as an app bug.
+    const body = err.response.data
+    if (typeof body === 'string' && /^\s*<(!doctype|html)/i.test(body)) {
+      return 'That address returned a web page, not the Lyftr API. Check Server settings.'
+    }
+    // 502/503/504 is the proxy saying the backend is not answering IT — distinct from a
+    // 500, which is our own code failing. One is worth retrying in a moment; the other
+    // will fail the same way until someone looks at the logs.
+    if (status === 502 || status === 503 || status === 504) {
+      return 'The server is restarting or unreachable. Try again in a moment.'
+    }
     if (status >= 500) return 'Server error. Please try again shortly.'
     return fallback
   }
-  return networkFailureMessage(err)
+  return networkFailureMessage(err, detail)
 }
 
 // Probe a server's public /info endpoint to confirm it's reachable and is a Lyftr
@@ -59,7 +75,7 @@ export const testServerConnection = async (
     }
     return { ok: true, info }
   } catch (err) {
-    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.") }
+    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.", 'full') }
   }
 }
 

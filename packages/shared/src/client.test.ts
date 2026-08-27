@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { createClient } from './client'
+import { apiErrorMessage, createClient } from './client'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 
 const memStorage = (): StorageAdapter => {
@@ -458,5 +458,30 @@ describe('a token refresh nobody answers (#145)', () => {
     await expect(client.userAPI.me()).rejects.toBeDefined()
 
     expect(refreshes).toBe(2)
+  })
+})
+
+// What a self-hoster meets every time they update the stack: nginx is up, the app behind
+// it is not, and the reply is a web page rather than our envelope. Reporting the caller's
+// fallback there ("Couldn't save your workout") blames the app for an infrastructure
+// problem and sends the user looking in the wrong place. wger's client models this
+// explicitly for the same reason.
+describe('apiErrorMessage on a reply that is not ours', () => {
+  const replied = (status: number, data: any) => ({ response: { status, data } })
+
+  it('names an HTML page for what it is', () => {
+    const msg = apiErrorMessage(replied(502, '<!DOCTYPE html><html><body>502 Bad Gateway</body></html>'), 'Failed to save')
+    expect(msg).toMatch(/web page/i)
+    expect(msg).not.toBe('Failed to save')
+  })
+
+  it('tells a restarting proxy apart from our own code failing', () => {
+    expect(apiErrorMessage(replied(503, {}), 'x')).toMatch(/restarting or unreachable/i)
+    expect(apiErrorMessage(replied(500, {}), 'x')).toMatch(/Server error/i)
+  })
+
+  it('still prefers what the server actually said', () => {
+    expect(apiErrorMessage(replied(422, { error: 'Password must be at least 8 characters.' }), 'x'))
+      .toBe('Password must be at least 8 characters.')
   })
 })
