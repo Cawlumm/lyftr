@@ -1,24 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
+import { useServerList, types } from '@lyftr/shared'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { types } from '@lyftr/shared'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
 
 // Must match the server's default page size: a short page is what signals the end.
 const PAGE_SIZE = 50
+const DEBOUNCE_MS = 250
 
 export default function WorkoutExercisePicker() {
   const navigate = useNavigate()
   const { session, addExercise } = useWorkoutSession()
-  const [exercises, setExercises] = useState<types.Exercise[]>([])
   const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
-  const [exhausted, setExhausted] = useState(false)
-  // Identifies the newest request so a slow earlier one cannot overwrite it.
-  const reqRef = useRef(0)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [query])
 
   const selectedIds = session?.exercises.map(e => e.exercise_id) ?? []
 
@@ -26,30 +27,19 @@ export default function WorkoutExercisePicker() {
   // into the browser to slice it here — this screen used to render the first 40 of
   // whatever it had downloaded and tell the user to refine their search, which was
   // a truncation dressed up as advice.
-  const load = useCallback(async (q: string, nextPage: number, append = false) => {
-    const id = ++reqRef.current
-    setLoading(true)
-    try {
-      const data = await exerciseAPI.list({ ...(q ? { q } : {}), page: nextPage }) || []
-      // Typing faster than the network otherwise leaves the list showing results for
-      // a query the user has already moved on from.
-      if (reqRef.current !== id) return
-      setExercises(prev => (append ? [...prev, ...data] : data))
-      setExhausted(data.length < PAGE_SIZE)
-      setPage(nextPage)
-    } catch { /* a failed search keeps the previous list rather than blanking it */ }
-    finally { if (reqRef.current === id) setLoading(false) }
-  }, [])
+  const fetcher = useCallback(
+    (offset: number, limit: number) =>
+      exerciseAPI
+        .list({ ...(debouncedQuery ? { q: debouncedQuery } : {}), page: offset / limit + 1 })
+        .then(data => data ?? []),
+    [debouncedQuery]
+  )
 
-  useEffect(() => { load('', 1) }, [load])
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setExhausted(false)
-      load(query, 1)
-    }, 250)
-    return () => clearTimeout(t)
-  }, [query, load])
+  const { items: exercises, loadMore, hasMore, loading, initialLoading } = useServerList<types.Exercise>({
+    fetcher,
+    pageSize: PAGE_SIZE,
+    deps: [debouncedQuery],
+  })
 
   const handleSelect = (exercise: types.Exercise) => {
     const newEx: types.ActiveSessionExercise = {
@@ -84,7 +74,7 @@ export default function WorkoutExercisePicker() {
         <div>
           <h1 className="font-display font-bold text-xl text-tx-primary">Add Exercise</h1>
           <p className="text-xs text-tx-muted">
-            {available.length} loaded{exhausted ? '' : '…'}
+            {available.length} loaded{hasMore ? '…' : ''}
           </p>
         </div>
       </div>
@@ -104,7 +94,7 @@ export default function WorkoutExercisePicker() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto -mx-4 px-4">
-        {loading && exercises.length === 0 ? (
+        {initialLoading ? (
           <div className="flex items-center justify-center py-12 text-tx-muted text-sm">
             <Dumbbell className="w-5 h-5 mr-2 animate-pulse text-brand-500" />
             Loading…
@@ -149,10 +139,10 @@ export default function WorkoutExercisePicker() {
                 </div>
               </button>
             ))}
-            {!exhausted && (
+            {hasMore && (
               <button
                 type="button"
-                onClick={() => load(query, page + 1, true)}
+                onClick={loadMore}
                 disabled={loading}
                 className="btn-secondary btn-sm w-full my-3"
               >
