@@ -55,17 +55,6 @@ export default defineConfig({
           ],
         },
         {
-          // These are the pages that answer the question people actually search — "is there a
-          // free Hevy alternative", "wger or something lighter". The FAQ has a one-line version
-          // of each; these are the long answers, and they link back to it.
-          label: 'Compare',
-          items: [
-            { label: 'vs Hevy', slug: 'compare/vs-hevy' },
-            { label: 'vs Strong', slug: 'compare/vs-strong' },
-            { label: 'vs wger', slug: 'compare/vs-wger' },
-          ],
-        },
-        {
           label: 'Help',
           items: [
             { label: 'FAQ', slug: 'faq' },
