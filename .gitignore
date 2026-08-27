@@ -56,11 +56,6 @@ temp/
 docs/*.md
 !docs/TESTING.md
 !docs/API_CHANGES.md
-# docs/LISTINGS.md is tracked for the same reason as the two above: it is not a record of
-# intentions but a runbook with a date in it — awesome-selfhosted will not accept Lyftr
-# before 2026-09-06, and their house rules for the entry are not guessable. Left untracked,
-# that gate and its reasoning stop existing for everyone but whoever wrote them down.
-!docs/LISTINGS.md
 docs/*.txt
 
 # Local Claude context
