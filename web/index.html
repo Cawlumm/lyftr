@@ -35,7 +35,15 @@
       property="og:description"
       content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
     />
+    <!--
+      Absolute, and pointing at the stable /og-image.png rather than the landing page's
+      hashed /_astro/banner.<hash>.png, which changes on every site build. A relative path
+      would be unreachable to an unfurler when the instance is on a LAN.
+      Dimensions are declared so the card can be laid out before the 590 KB is fetched.
+    -->
     <meta property="og:image" content="https://lyftr-app.pages.dev/og-image.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
     <meta property="og:image:alt" content="Lyftr — self-hosted workout tracker on phone and desktop" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Lyftr — Workout &amp; Nutrition Tracker" />
@@ -44,6 +52,7 @@
       content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
     />
     <meta name="twitter:image" content="https://lyftr-app.pages.dev/og-image.png" />
+    <meta name="twitter:image:alt" content="Lyftr — self-hosted workout tracker on phone and desktop" />
 
   </head>
   <body>
