@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr } from '@lyftr/shared'
+import { useAsyncAction, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -56,7 +56,8 @@ export default function AddWorkout() {
 
   const [showPicker, setShowPicker] = useState(false)
   const [showProgramPicker, setShowProgramPicker] = useState(false)
-  const [loading, setLoading] = useState(false)
+  // Only what the FORM can say before anything is sent. What the SERVER says lives
+  // on `save` below; both render in the same alert.
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({
@@ -164,29 +165,27 @@ export default function AddWorkout() {
     }))
   }, [])
 
+  const save = useAsyncAction(async () => {
+    // Exact web payload (the spread leaks `date` — backend ignores it; keep it).
+    const payload = {
+    ...formData,
+    duration: formData.duration * 60,
+    started_at: dayToInstant(formData.date),
+    exercises: formData.exercises.map((ex) => ({
+    ...ex,
+    sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+    })),
+    }
+    await client.workoutAPI.create(payload)
+    // Web navigates to /workouts; pop back to the list (it reloads on focus).
+    router.dismissTo('/workouts')
+  }, 'Failed to create workout')
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
-    setLoading(true)
-    try {
-      // Exact web payload (the spread leaks `date` — backend ignores it; keep it).
-      const payload = {
-        ...formData,
-        duration: formData.duration * 60,
-        started_at: dayToInstant(formData.date),
-        exercises: formData.exercises.map((ex) => ({
-          ...ex,
-          sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
-        })),
-      }
-      await client.workoutAPI.create(payload)
-      // Web navigates to /workouts; pop back to the list (it reloads on focus).
-      router.dismissTo('/workouts')
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to create workout'))
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
   }
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
@@ -222,10 +221,10 @@ export default function AddWorkout() {
           </View>
 
           {/* Form/request error — boxed alert (authui AuthError pattern) */}
-          {error ? (
+          {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
             </View>
           ) : null}
 
@@ -358,7 +357,7 @@ export default function AddWorkout() {
           -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Workout" className="flex-1" onPress={handleSubmit} loading={loading} />
+        <Button title="Save Workout" className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}

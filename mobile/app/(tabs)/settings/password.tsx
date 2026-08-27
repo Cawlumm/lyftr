@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, ShieldCheck } from 'lucide-react-native'
-import { apiErrorMessage, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
+import { useAsyncAction, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import {
   Alert,
   AppText,
@@ -30,33 +30,27 @@ export default function ChangePasswordScreen() {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
   const rules = newPasswordRules({ password: next, confirm, current })
 
   const back = () => (router.canGoBack() ? router.back() : router.navigate('/settings'))
 
+  const save = useAsyncAction(async () => {
+    // The shared client persists the returned token pair, so this device stays signed
+    // in while every other one is evicted.
+    await client.userAPI.changePassword({ current_password: current, new_password: next })
+    setCurrent(''); setNext(''); setConfirm('')
+    setDone(true)
+  }, "Couldn't change your password. Please try again.")
+
   const submit = async () => {
-    setError(null)
     // The rules render under the fields as the user types and the button stays disabled
     // until they pass, so this is a backstop. The alert below is server failures only —
     // a wrong current password, or a change that landed elsewhere first.
     if (!rules.ready) return
 
-    setSaving(true)
-    try {
-      // The shared client persists the returned token pair, so this device stays signed
-      // in while every other one is evicted.
-      await client.userAPI.changePassword({ current_password: current, new_password: next })
-      setCurrent(''); setNext(''); setConfirm('')
-      setDone(true)
-    } catch (err: any) {
-      setError(apiErrorMessage(err, "Couldn't change your password. Please try again."))
-    } finally {
-      setSaving(false)
-    }
+    void save.run()
   }
 
   const backLink = (
@@ -139,13 +133,13 @@ export default function ChangePasswordScreen() {
             {/* Form-level, so it belongs beside the action it blocked rather than hanging
                 off one field — pinning it to the confirm box pointed the user at the wrong
                 input for an error about the current password. */}
-            {error ? <Alert variant="error">{error}</Alert> : null}
+            {save.error ? <Alert variant="error">{save.error}</Alert> : null}
 
             <View className="flex-row gap-2">
               <Button
                 title="Update password"
                 onPress={submit}
-                loading={saving}
+                loading={save.busy}
                 disabled={!rules.ready}
                 className="flex-1"
               />
@@ -153,7 +147,7 @@ export default function ChangePasswordScreen() {
                 title="Cancel"
                 variant="secondary"
                 onPress={back}
-                disabled={saving}
+                disabled={save.busy}
                 className="flex-1"
               />
             </View>
