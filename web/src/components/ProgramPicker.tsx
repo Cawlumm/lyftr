@@ -36,7 +36,7 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
   const subtitle = dayPickFor ? 'Pick a day to pre-fill exercises' : 'Pick a program to pre-fill exercises'
 
   // Portalled to document.body like every other overlay here (ExercisePicker,
-  // DiscardConfirm, QuickWeighInSheet, BarcodeScanner, Toast). Rendered inline it
+  // ConfirmSheet, QuickWeighInSheet, BarcodeScanner, Toast). Rendered inline it
   // sat inside AddWorkout's `.animate-slide-up`, whose `animation-fill-mode: both`
   // leaves `transform: translateY(0)` applied for good. A transform — even an
   // identity one — makes that element the containing block for `position: fixed`
