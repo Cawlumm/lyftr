@@ -1,5 +1,5 @@
+import { ConfirmSheet } from '../components/ui'
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
+import { useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
@@ -26,7 +26,6 @@ export default function ProgramDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
@@ -72,17 +71,14 @@ export default function ProgramDetail() {
     navigate('/workout/active')
   }
 
-  const handleDelete = async () => {
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the confirm quietly
+  // closed and the user was left guessing whether the tap had registered. It stays
+  // up now and says why.
+  const remove = useAsyncAction(async () => {
     if (!program) return
-    setDeleting(true)
-    try {
-      await programAPI.delete(program.id)
-      navigate('/programs', { replace: true })
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+    await programAPI.delete(program.id)
+    navigate('/programs', { replace: true })
+  }, 'Failed to delete program')
 
   if (loading) {
     return (
@@ -177,25 +173,19 @@ export default function ProgramDetail() {
       </div>
 
       {/* Delete confirm — bottom sheet */}
-      {confirming && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Program?</h3>
-            <p className="text-sm text-tx-muted mb-5">"{program.name}" will be permanently deleted.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirming(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Cancel
-              </button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirming}
+        icon={Trash2}
+        destructive
+        title="Delete Program?"
+        message={`"${program.name}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
+      />
 
       {/* Auto-progression review banner (#40) — approve the targets you beat last workout */}
       {suggestions.length > 0 && (

@@ -1,5 +1,5 @@
+import { ConfirmSheet } from '../components/ui'
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -32,7 +32,6 @@ export default function WorkoutDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -48,17 +47,14 @@ export default function WorkoutDetail() {
     load()
   }, [id])
 
-  const handleDelete = async () => {
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the confirm quietly
+  // closed and the user was left guessing whether the tap had registered. It stays
+  // up now and says why.
+  const remove = useAsyncAction(async () => {
     if (!workout) return
-    setDeleting(true)
-    try {
-      await workoutAPI.delete(workout.id)
-      navigate('/workouts', { replace: true })
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+    await workoutAPI.delete(workout.id)
+    navigate('/workouts', { replace: true })
+  }, 'Failed to delete workout')
 
   if (loading) {
     return (
@@ -111,25 +107,19 @@ export default function WorkoutDetail() {
       </div>
 
       {/* Delete confirm — bottom sheet */}
-      {confirming && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">"{workout.name}" will be permanently deleted.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirming(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Cancel
-              </button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirming}
+        icon={Trash2}
+        destructive
+        title="Delete Workout?"
+        message={`"${workout.name}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
+      />
 
       {/* Header */}
       <div className="card p-4">

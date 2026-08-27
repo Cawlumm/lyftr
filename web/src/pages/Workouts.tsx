@@ -10,14 +10,13 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, calcVolume } from '@lyftr/shared'
+import { useAsyncAction, types, workoutDay, dayToLocalDate, calcVolume } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const portalRef = useRef<HTMLDivElement>(null)
@@ -34,16 +33,13 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
   const durationMin = Math.round(workout.duration / 60)
   const totalVolume = displayVolume(calcVolume(workout), wUnit)
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await workoutAPI.delete(workout.id)
-      onDelete(workout.id)
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the card quietly came
+  // back and the user was left guessing whether the tap had registered. The confirm
+  // stays up now and says why, which is the same rule the sheets follow.
+  const remove = useAsyncAction(async () => {
+    await workoutAPI.delete(workout.id)
+    onDelete(workout.id)
+  }, 'Failed to delete workout')
 
   if (confirming) {
     return (
@@ -56,15 +52,16 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
             <div>
               <p className="text-sm font-semibold text-tx-primary">Delete "{workout.name}"?</p>
               <p className="text-xs text-tx-muted">This cannot be undone</p>
+              {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setConfirming(false)} className="btn-secondary btn-sm">
               Cancel
             </button>
-            <button onClick={handleDelete} disabled={deleting} className="btn-danger-solid btn-sm disabled:opacity-50">
+            <button onClick={() => { void remove.run() }} disabled={remove.busy} className="btn-danger-solid btn-sm disabled:opacity-50">
               <Trash2 className="w-3 h-3" />
-              {deleting ? 'Deleting…' : 'Delete'}
+              {remove.busy ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </div>

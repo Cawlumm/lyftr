@@ -7,7 +7,7 @@ import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import ProgramPicker from '../components/ProgramPicker'
 import RestPicker from '../components/RestPicker'
-import { types, todayStr, dayToInstant } from '@lyftr/shared'
+import { useAsyncAction, types, todayStr, dayToInstant } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string
@@ -23,12 +23,13 @@ export default function AddWorkout() {
   const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [showProgramPicker, setShowProgramPicker] = useState(false)
-  const [loading, setLoading] = useState(false)
+  // `error` is for what the FORM can tell the user before anything is sent (a missing
+  // name, an empty day). What the SERVER says lives on the hook below — different
+  // questions, kept apart on purpose, and rendered in the same place.
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, date: todayStr(), exercises: [] })
 
-  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
   const loadFromProgram = (_program: types.Program, day: types.ProgramDay) => {
     const newMap: Record<number, types.Exercise> = { ...pickerExercises }
@@ -83,28 +84,28 @@ export default function AddWorkout() {
     })
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = useAsyncAction(async () => {
+    const payload = {
+      ...formData,
+      duration: formData.duration * 60,
+      started_at: dayToInstant(formData.date),
+      exercises: formData.exercises.map(ex => ({
+        ...ex,
+        sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+      })),
+    }
+    await workoutAPI.create(payload)
+    navigate('/workouts')
+  }, 'Failed to create workout')
+
+  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.error])
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim()) { setError('Workout name required'); return }
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
-    setLoading(true)
-    try {
-      const payload = {
-        ...formData,
-        duration: formData.duration * 60,
-        started_at: dayToInstant(formData.date),
-        exercises: formData.exercises.map(ex => ({
-          ...ex,
-          sets: ex.sets.map(s => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
-        })),
-      }
-      await workoutAPI.create(payload)
-      navigate('/workouts')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create workout')
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
   }
 
   const selectedIds = formData.exercises.map(e => e.exercise_id)
@@ -124,10 +125,10 @@ export default function AddWorkout() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
+        {(error || save.error) && (
           <div className="alert-error">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{error || save.error}</span>
           </div>
         )}
 
@@ -272,9 +273,9 @@ export default function AddWorkout() {
           <button type="button" onClick={() => navigate(-1)} className="flex-1 px-4 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium">
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+          <button type="submit" disabled={save.busy} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
             <Dumbbell className="w-4 h-4" />
-            {loading ? 'Saving…' : 'Save Workout'}
+            {save.busy ? 'Saving…' : 'Save Workout'}
           </button>
         </div>
       </form>
