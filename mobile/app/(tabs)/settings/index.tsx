@@ -149,7 +149,8 @@ export default function SettingsScreen() {
     setDeleting(true)
     try {
       await client.userAPI.deleteAccount()
-      // logout clears the token + user; the tab layout's auth guard redirects to sign-in.
+      // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
+      // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
       await logout()
     } catch (err: any) {
       setDeleting(false)

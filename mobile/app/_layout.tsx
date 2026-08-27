@@ -98,7 +98,6 @@ export default function RootLayout() {
     colorScheme.set(mode)
   }, [mode])
 
-
   return (
     <SafeAreaProvider>
       <StatusBar style={isDark ? 'light' : 'dark'} />
