@@ -1,4 +1,4 @@
-import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue } from './number'
+import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue, sanitizeNumericInput } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only
 // through WeightInput's buttons; those moved to StepperTile (#91), so it's tested
@@ -66,5 +66,90 @@ describe('clampValue', () => {
     expect(clampValue('')).toBe(0)
     expect(clampValue('abc')).toBe(0)
     expect(clampValue('abc', 5)).toBe(5)
+  })
+})
+
+// #141: a German user could not enter a decimal weight at all. Android's decimal-pad
+// draws the locale's separator and the field deleted it as "not a digit", so these are
+// the cases that bug is made of - plus the ones wger hit when they fixed the same report
+// against their Flutter app (wger-project/flutter#1147).
+describe('sanitizeNumericInput', () => {
+  const dec = (s: string) => sanitizeNumericInput(s, 'decimal')
+
+  it('accepts a comma as the decimal separator - the reported bug', () => {
+    expect(dec('12,5')).toBe('12.5')
+  })
+
+  it('accepts a dot too, whatever the locale', () => {
+    // The keypad may emit either: a numeric keyboard cannot be pinned to a locale.
+    expect(dec('12.5')).toBe('12.5')
+  })
+
+  it('keeps a half-typed separator, so the fraction digit can still be typed', () => {
+    expect(dec('12,')).toBe('12.')
+    expect(dec('12.')).toBe('12.')
+  })
+
+  it('takes the FIRST separator, whichever kinds appear', () => {
+    // A TextInput re-sends the whole field per keystroke and the cursor can sit inside a
+    // prefilled value, so preferring the last would turn one keypress in "82,5" into 825
+    // - a silent 10x that backspace cannot undo.
+    expect(dec('82,5,')).toBe('82.5')
+    expect(dec('12.5.')).toBe('12.5')
+  })
+
+  it('does not guess which character was grouping - same rule as wger', () => {
+    // Telling grouping from a decimal needs the locale's own separator, and then the
+    // other character is grouping by definition (react-aria and Expensify both do that).
+    // No locale is injected here, so a pasted grouped number keeps the first separator
+    // rather than being second-guessed. Typing is unaffected, which is the reported path.
+    expect(dec('1.234,5')).toBe('1.2345')
+    expect(dec('1,234.5')).toBe('1.2345')
+  })
+
+  it('never reads whitespace as a separator', () => {
+    // fr, ru, sv, pl, cs, fi, nb and uk group with a space.
+    expect(dec('12,50 kg')).toBe('12.50')
+    expect(dec('12,5 ')).toBe('12.5')
+  })
+
+  it('drops everything that is not a digit or a separator', () => {
+    expect(dec('abc12,5kg')).toBe('12.5')
+    expect(dec('-12,5')).toBe('12.5')
+  })
+
+  it('does not detect grouping - it cannot be, mid-type', () => {
+    // "1," arrives with nothing after it, so a grouping-aware rule works on paste and
+    // lies while typing. 1,200 is 1.2 by both routes, deliberately. wger agrees.
+    expect(dec('1,200')).toBe('1.200')
+  })
+
+  it('refuses a separator in numeric mode, so reps stay whole', () => {
+    expect(sanitizeNumericInput('8,5', 'numeric')).toBe('85')
+    expect(sanitizeNumericInput('8.5', 'numeric')).toBe('85')
+  })
+
+  // Ported from Dart's intl (number_parser_base.dart), which is what wger's own
+  // NumberFormat.parse runs on. Their widget's filter is ASCII-only and strips these
+  // before the parser ever sees them, so this is a case their app still gets wrong.
+  it('folds localised digits instead of deleting them', () => {
+    expect(dec('١٢٫٥')).toBe('12.5') // ar_EG: Arabic-Indic
+    expect(dec('۱۲٫۵')).toBe('12.5') // fa: Extended Arabic-Indic
+    expect(sanitizeNumericInput('٨٥', 'numeric')).toBe('85')
+  })
+
+  it('reads U+066B, the decimal separator those keypads emit', () => {
+    // Folding the digits alone would leave this as 125 - a silent 10x, worse than the
+    // zero it fixes. Dart lists U+066B as DECIMAL_SEP for both fa and ar_EG.
+    expect(dec('12٫5')).toBe('12.5')
+  })
+
+  it('drops U+066C, their group separator, like any other thousands mark', () => {
+    expect(dec('1٬234٫5')).toBe('1234.5')
+  })
+
+  it('leaves an empty field empty', () => {
+    expect(dec('')).toBe('')
+    expect(dec(',')).toBe('.')
   })
 })

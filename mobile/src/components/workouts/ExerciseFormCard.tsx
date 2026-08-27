@@ -5,7 +5,7 @@ import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { useNumericText } from '@lyftr/shared'
+import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {
@@ -61,9 +61,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
 }) {
   const [text, setText] = useNumericText(value)
   const emit = (raw: string) => {
-    let v = raw.replace(/[^0-9.]/g, '')
-    const i = v.indexOf('.')
-    if (i !== -1) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/\./g, '')
+    const v = sanitizeNumericInput(raw, 'decimal')
     setText(v)
     onChange(v)
   }
@@ -160,7 +158,7 @@ function ExerciseFormCardBase({
               <TextInput
                 ref={(r) => { repsRefs.current[setIdx] = r }}
                 value={set.reps ? String(set.reps) : ''}
-                onChangeText={(t) => onUpdateSet(index, setIdx, 'reps', t.replace(/[^0-9]/g, ''))}
+                onChangeText={(t) => onUpdateSet(index, setIdx, 'reps', sanitizeNumericInput(t, 'numeric'))}
                 keyboardType="number-pad"
                 returnKeyType="next"
                 submitBehavior="submit"
