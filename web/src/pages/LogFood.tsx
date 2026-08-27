@@ -290,7 +290,7 @@ export default function LogFood() {
       }
       navigate('/food', { replace: true })
     } catch (err: any) {
-      setSaveError(err?.response?.data?.error || 'Failed to save')
+      setSaveError(apiErrorMessage(err, 'Failed to save'))
       setSaving(false)
     }
   }

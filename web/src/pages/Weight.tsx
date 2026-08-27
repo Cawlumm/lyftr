@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
+import { apiErrorMessage, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
@@ -297,7 +297,7 @@ export default function Weight() {
       const from = days != null ? daysAgoStr(days) : undefined
       weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
     } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to log weight')
+      setError(apiErrorMessage(err, 'Failed to log weight'))
     } finally {
       setLogging(false)
     }

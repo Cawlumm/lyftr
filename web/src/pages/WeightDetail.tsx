@@ -7,7 +7,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { apiErrorMessage, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
@@ -45,7 +45,7 @@ export default function WeightDetail() {
         setEditDate(entryDay(data))
         setEditNotes(data.notes ?? '')
       })
-      .catch(err => setError(err?.response?.data?.error || 'Failed to load entry'))
+      .catch(err => setError(apiErrorMessage(err, 'Failed to load entry')))
       .finally(() => setLoading(false))
   }, [id])
 
@@ -78,7 +78,7 @@ export default function WeightDetail() {
       setLog(updated)
       setEditing(false)
     } catch (err: any) {
-      setEditError(err?.response?.data?.error || 'Failed to save')
+      setEditError(apiErrorMessage(err, 'Failed to save'))
     } finally {
       setSaving(false)
     }

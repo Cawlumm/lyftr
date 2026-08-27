@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
 } from 'lucide-react-native'
-import {
+import { apiErrorMessage,
   dayToInstant, entryDay, todayStr,
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
@@ -249,7 +249,7 @@ export default function LogFood() {
       // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
       router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(MEAL_LABELS[meal])}`)
     } catch (err: any) {
-      setSaveError(err?.response?.data?.error || 'Failed to save')
+      setSaveError(apiErrorMessage(err, 'Failed to save'))
       setSaving(false)
     }
   }
