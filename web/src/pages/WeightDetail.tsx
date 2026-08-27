@@ -1,5 +1,5 @@
+import { ConfirmSheet } from '../components/ui'
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
@@ -30,7 +30,6 @@ export default function WeightDetail() {
 
   // Delete confirm
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useBodyScrollLock(confirming)
   useEscapeKey(confirming, () => setConfirming(false))
@@ -83,16 +82,16 @@ export default function WeightDetail() {
     void saveEdit.run(log)
   }
 
-  const handleDelete = async () => {
-    if (!log || deleting) return
-    setDeleting(true)
-    try {
-      await weightAPI.delete(log.id)
-      navigate('/weight', { replace: true })
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
+  // Was a bare `catch` that closed the confirm and left the entry there — the same
+  // silent failure as every other delete in the app before this branch.
+  const remove = useAsyncAction(async (entry: types.WeightLog) => {
+    await weightAPI.delete(entry.id)
+    navigate('/weight', { replace: true })
+  }, 'Failed to delete entry')
+
+  const handleDelete = () => {
+    if (!log || remove.busy) return
+    void remove.run(log)
   }
 
   if (loading) {
@@ -239,34 +238,19 @@ export default function WeightDetail() {
       )}
 
       {/* Delete confirm — bottom sheet */}
-      {confirming && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Entry?</h3>
-            <p className="text-sm text-tx-muted mb-5">
-              {format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirming(false)}
-                className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirming}
+        icon={Trash2}
+        destructive
+        title="Delete Entry?"
+        message={`${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={handleDelete}
+        onCancel={() => { setConfirming(false); remove.reset() }}
+      />
     </div>
   )
 }

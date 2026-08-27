@@ -18,7 +18,7 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react-native'
-import {
+import { useAsyncAction,
   memberSince,
   normalizeServerUrl,
   testServerConnection,
@@ -72,7 +72,6 @@ export default function SettingsScreen() {
   // Macro/calorie targets are the one batch-saved (server-side) block — mirror web:
   // edit locally as text, PUT on "Save". Everything else writes on change.
   const [targets, setTargets] = useState({ calorie_target: '', protein_target: '', carb_target: '', fat_target: '' })
-  const [saving, setSaving] = useState(false)
 
   const [showCustomRest, setShowCustomRest] = useState(false)
 
@@ -83,7 +82,6 @@ export default function SettingsScreen() {
   const [testing, setTesting] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -112,22 +110,17 @@ export default function SettingsScreen() {
   const onDigits = (key: keyof typeof targets) => (t: string) =>
     setTargets((p) => ({ ...p, [key]: sanitizeNumericInput(t, 'numeric') }))
 
-  const handleSaveTargets = async () => {
-    setSaving(true)
-    try {
-      await updateSettings({
-        calorie_target: parseInt(targets.calorie_target) || 0,
-        protein_target: parseInt(targets.protein_target) || 0,
-        carb_target: parseInt(targets.carb_target) || 0,
-        fat_target: parseInt(targets.fat_target) || 0,
-      })
-      setToast({ variant: 'success', title: 'Targets saved' })
-    } catch (err: any) {
-      setToast({ variant: 'error', title: 'Could not save targets', description: err?.message })
-    } finally {
-      setSaving(false)
-    }
-  }
+  const saveTargets = useAsyncAction(async () => {
+    await updateSettings({
+      calorie_target: parseInt(targets.calorie_target) || 0,
+      protein_target: parseInt(targets.protein_target) || 0,
+      carb_target: parseInt(targets.carb_target) || 0,
+      fat_target: parseInt(targets.fat_target) || 0,
+    })
+    setToast({ variant: 'success', title: 'Targets saved' })
+  }, 'Could not save targets')
+
+  const handleSaveTargets = () => { void saveTargets.run() }
 
   const saveServer = async () => {
     setTesting(true)
@@ -145,19 +138,26 @@ export default function SettingsScreen() {
     setTesting(false)
   }
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true)
-    try {
-      await client.userAPI.deleteAccount()
-      // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
-      // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
-      await logout()
-    } catch (err: any) {
-      setDeleting(false)
+  const deleteAccount = useAsyncAction(async () => {
+    await client.userAPI.deleteAccount()
+    // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
+    // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
+    await logout()
+  }, 'Could not delete account')
+
+  // These two report through the toast rather than an inline alert, so the message is
+  // read off the hook when it changes. It used to be `err?.message`, which for an axios
+  // error is the string "Request failed with status code 400" - true, and useless.
+  useEffect(() => {
+    if (saveTargets.error) setToast({ variant: 'error', title: 'Could not save targets', description: saveTargets.error })
+  }, [saveTargets.error])
+
+  useEffect(() => {
+    if (deleteAccount.error) {
       setConfirmDelete(false)
-      setToast({ variant: 'error', title: 'Could not delete account', description: err?.message })
+      setToast({ variant: 'error', title: 'Could not delete account', description: deleteAccount.error })
     }
-  }
+  }, [deleteAccount.error])
 
   if (!loaded) return <Loading />
 
@@ -337,7 +337,7 @@ export default function SettingsScreen() {
                 onChangeText={onDigits('fat_target')}
                 rightSlot={<Muted className="text-xs">g</Muted>}
               />
-              <Button title="Save targets" onPress={handleSaveTargets} loading={saving} className="mt-1" />
+              <Button title="Save targets" onPress={handleSaveTargets} loading={saveTargets.busy} className="mt-1" />
             </View>
           </SettingsGroup>
 
@@ -413,8 +413,8 @@ export default function SettingsScreen() {
         message="This permanently deletes your account and all of your data. This can't be undone."
         confirmLabel="Delete account"
         busyLabel="Deleting…"
-        busy={deleting}
-        onConfirm={handleDeleteAccount}
+        busy={deleteAccount.busy}
+        onConfirm={() => { void deleteAccount.run() }}
         onCancel={() => setConfirmDelete(false)}
       />
     </Screen>
