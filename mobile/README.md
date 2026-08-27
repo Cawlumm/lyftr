@@ -99,9 +99,9 @@ the plugin cannot stop applying without the release failing.
 
 What a development client would add is JS iteration against native code nobody here has
 added yet — so there is no `expo-dev-client` dependency and no `development` profile. Add
-both together the day you add a native module Expo Go lacks; `src/devFlow.test.ts` fails
-until you decide which profile gets it, and note that `expo start` then stops meaning Expo
-Go ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)).
+both together the day you add a native module Expo Go lacks — and note that `expo start`
+then stops meaning Expo Go ([launch target](https://docs.expo.dev/more/expo-cli/#launch-target)),
+so say which one you want.
 
 ## Point at your backend
 The **Server URL** field — on the sign-in screen and in the Settings tab — sets the
@@ -109,7 +109,7 @@ backend origin, validated via `GET /api/v1/info`. Nothing is baked in: a fresh i
 talks to nothing until you set one. An explicit `http://` or `https://` is required;
 the scheme is never guessed.
 
-You type it once and it persists; `src/devFlow.test.ts` fails if a developer-machine address is hardcoded in app source instead of being entered here.
+You type it once and it persists. Nothing is baked into the bundle, which is the point: the same build has to work against anyone's server.
 
 Over a LAN or a VPN, use that machine's address — `npx expo start --tunnel` if the
 network blocks the direct route.
