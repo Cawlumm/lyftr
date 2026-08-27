@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, Scale, X } from 'lucide-react-native'
+import { Scale, X } from 'lucide-react-native'
 import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
-import { semanticInk } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {
@@ -28,8 +27,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand, isDark } = useTheme()
-  const warningInk = semanticInk[isDark ? 'dark' : 'light'].warning
+  const { colors, accent } = useTheme()
 
   const [value, setValue] = useState('')
   const [date, setDate] = useState(todayStr())
@@ -101,24 +99,19 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           ) : null}
 
           {showDuplicateWarning && lastLog ? (
-            <View className="flex-row items-start gap-3 rounded-xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <AlertCircle size={16} color={warningInk} style={{ marginTop: 2 }} />
-              <View className="min-w-0 flex-1">
-                <AppText variant="bodySemibold" color="warning">
-                  Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
-                </AppText>
-                <View className="mt-2 flex-row gap-2">
-                  <Pressable onPress={() => setShowDuplicateWarning(false)}
-                    className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-1 active:opacity-70">
-                    <AppText variant="caption" color="secondary">Cancel</AppText>
-                  </Pressable>
-                  <Pressable onPress={() => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) }}
-                    className="rounded-lg bg-warning-500 px-3 py-1 active:opacity-80">
-                    <Text className="font-sans-semibold text-xs" style={{ color: brand.warningText }}>Log Anyway</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
+            <Alert
+              variant="warning"
+              actions={[
+                { label: 'Cancel', onPress: () => setShowDuplicateWarning(false) },
+                {
+                  label: 'Log Anyway',
+                  primary: true,
+                  onPress: () => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) },
+                },
+              ]}
+            >
+              Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
+            </Alert>
           ) : null}
 
           <StepperTile
