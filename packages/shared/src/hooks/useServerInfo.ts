@@ -57,3 +57,12 @@ export function useServerInfoFor(base: string, probe: Probe): ServerInfo | null 
 export function registrationOpen(info: ServerInfo | null | undefined): boolean {
   return info?.registration_open !== false
 }
+
+// Whether to offer one-tap demo sign-in. Only an explicit true counts — the inverse of
+// registrationOpen() above, and deliberately so. A wrongly-shown "Create account" link
+// costs a 403 on submit; a wrongly-shown demo button asks someone to sign in as an account
+// that was never seeded, which fails and looks like the app is broken. So an old backend,
+// an unreachable one, or a still-loading probe all mean no button.
+export function demoMode(info: ServerInfo | null | undefined): boolean {
+  return info?.demo_mode === true
+}

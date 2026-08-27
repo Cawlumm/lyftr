@@ -169,8 +169,12 @@ const jsonLd = {
                 Deploy in one command
               </a>
             </div>
+            {/* The demo's login screen now offers one-tap sign-in, so the credentials are a
+                fallback rather than an instruction. Keeping them stated means this line is
+                true both before and after the demo redeploys with that button. */}
             <p class="mt-4 text-sm text-tx-muted">
-              Demo login <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
+              One tap to sign in — no account needed. Or use
+              <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
               <code class="font-mono text-tx-secondary">password123</code> · resets hourly
             </p>
           </div>

@@ -4,7 +4,7 @@ import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-rea
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion, registrationOpen } from '@lyftr/shared'
+import { formatVersion, registrationOpen, demoMode } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 import PasswordField from '../components/ui/PasswordField'
@@ -168,10 +168,10 @@ export default function Login() {
             </button>
 
             {/* Divider — only when something follows it that is genuinely an alternative
-                way in. In a production build the demo button is absent, so on a server
-                with registration closed there is nothing below but a statement, and an
-                "or" heading it reads like the start of an option that never arrives. */}
-            {(import.meta.env.DEV || registrationOpen(serverInfo)) && (
+                way in. Where there is no demo account and registration is closed there is
+                nothing below but a statement, and an "or" heading it reads like the start
+                of an option that never arrives. */}
+            {(demoMode(serverInfo) || registrationOpen(serverInfo)) && (
               <div className="relative flex items-center my-6">
                 <div className="flex-1 h-px bg-surface-border" />
                 <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
@@ -179,8 +179,15 @@ export default function Login() {
               </div>
             )}
 
-            {/* Demo button — dev only */}
-            {import.meta.env.DEV && (
+            {/* Demo button — shown when the SERVER says it seeded a demo account, not when
+                this happens to be a dev build. The old import.meta.env.DEV gate was decided
+                at build time, which got it wrong in both directions: the public demo runs a
+                production build, so the button was missing from the one place it exists for
+                (leaving the landing page to ask strangers to type demo@lyftr.local by hand),
+                while a dev build pointed at a DEMO_MODE=off server offered a sign-in that
+                401s. config.C.DemoMode is the same flag that decides whether seed.DemoUser
+                runs, so the button appears exactly where the account does. */}
+            {demoMode(serverInfo) && (
               <button
                 type="button"
                 onClick={handleDemoLogin}

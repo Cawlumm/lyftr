@@ -18,6 +18,8 @@ control, with no subscription and no feature that can be moved behind a paywall 
 | Where data lives | One SQLite file on your server | Hevy's cloud |
 | Routines / programs | Unlimited | Free tier is capped at a handful |
 | History retention | Everything, forever | Free tier caps graph history |
+| Personal records | Yes | Yes |
+| Auto-progression suggestions | Yes | Yes |
 | Runs without internet | Yes, on your LAN | No |
 | Social feed | No | Yes |
 | iOS app | Not yet — web works on iOS Safari | Yes |
@@ -38,7 +40,9 @@ Being straight about this matters more than winning the comparison.
 ## Where Lyftr is better
 
 - **Nothing is metered.** Unlimited routines, unlimited history, every feature on day one. There is
-  no Pro tier because there is no company that needs one.
+  no Pro tier because there is no company that needs one. That includes the two things lifters
+  most often upgrade for: **personal-record detection** and **auto-progression suggestions**,
+  which stage the next session's target weight from your own history.
 - **The data is a file you own.** Your entire training history is one SQLite file. Back it up by
   copying it. Move it to another server by copying it. Read it with any SQLite browser. No export
   request, no waiting, no format you cannot open in ten years.
@@ -53,9 +57,9 @@ Listed plainly so nobody installs it expecting these:
 - **No in-app export button.** The answer to portability is that you already have the whole
   database file — but there is no "download my data as CSV" screen. See the
   [backups guide](/backups/).
-- **No automatic personal-record detection.** Planned, not shipped.
 - **No custom exercises.** The library is 800+ movements; you cannot yet add your own.
 - **No iOS app.** Android APK and web only.
+- **No social feed**, and none is planned.
 
 ## Who should pick which
 

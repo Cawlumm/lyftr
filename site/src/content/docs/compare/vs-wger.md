@@ -21,6 +21,7 @@ with a phone-first interface, and it deliberately does less.
 | Interface | Mobile-first web + Android APK | Web + Android, iOS, F-Droid, Flathub |
 | Maturity | Started 2026 | Over a decade |
 | Custom exercises | Not yet | Yes, with community contribution |
+| Auto-progression | Yes | Yes |
 | Gym / trainer management | No | Yes |
 | REST API | Yes | Yes |
 | Nutrition & bodyweight | Yes | Yes |

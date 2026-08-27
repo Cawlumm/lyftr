@@ -18,6 +18,8 @@ rather run it themselves.
 | Where data lives | One SQLite file on your server | Strong's cloud |
 | Custom routines | Unlimited | Free tier is capped at a handful |
 | Data export | You hold the database file | Export is a Pro feature |
+| Personal records | Yes | Yes |
+| Auto-progression suggestions | Yes | Yes |
 | Runs without internet | Yes, on your LAN | No |
 | Nutrition tracking | Yes, with barcode scanning | No |
 | iOS app | Not yet — web works on iOS Safari | Yes |
@@ -41,6 +43,9 @@ rather run it themselves.
   holding it.
 - **Nutrition is included.** Strong is a lifting log. Lyftr also tracks food (with barcode
   scanning) and bodyweight, so one instance covers training and diet.
+- **Personal records and progression are not upsells.** Lyftr detects PRs and stages
+  auto-progression suggestions for the next session from your own history — the analytics tier
+  other apps charge for.
 - **You are not renting access to your own past.** This is the whole argument. Everything else is
   detail.
 
@@ -48,7 +53,6 @@ rather run it themselves.
 
 - **No in-app export button** — you have the database file instead. See the
   [backups guide](/backups/).
-- **No automatic personal-record detection.** Planned.
 - **No custom exercises.** 800+ built in; adding your own is not yet supported.
 - **No iOS app, no Apple Watch, no Health sync.**
 
