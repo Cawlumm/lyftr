@@ -104,7 +104,7 @@ func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	utils.OK(c, gin.H{"refreshed": n})

@@ -59,7 +59,7 @@ func (h *Handler) LogWeight(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -107,7 +107,7 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 	}
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {

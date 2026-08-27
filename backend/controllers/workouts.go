@@ -69,7 +69,7 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.CreateWorkoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -115,7 +115,7 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	}
 	var req models.CreateWorkoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {

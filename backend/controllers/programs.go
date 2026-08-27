@@ -74,7 +74,7 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.CreateProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -101,7 +101,7 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	}
 	var req models.CreateProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -152,7 +152,7 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 	}
 	var req models.ResolveSuggestionsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {

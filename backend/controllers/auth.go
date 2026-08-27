@@ -10,10 +10,9 @@ import (
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
-var validate = validator.New()
+var validate = utils.NewValidator()
 
 // RegistrationClosedMessage is what a rejected signup sees. One constant so the two
 // ways of being closed (REGISTRATION=closed, and first-user with the slot taken) are
@@ -54,7 +53,7 @@ func (h *Handler) Register(c *gin.Context) {
 
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -117,7 +116,7 @@ func (h *Handler) Register(c *gin.Context) {
 func (h *Handler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -161,7 +160,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	var req models.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -226,7 +225,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 func (h *Handler) RefreshToken(c *gin.Context) {
 	var req models.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 

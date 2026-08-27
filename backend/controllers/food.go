@@ -67,7 +67,7 @@ func (h *Handler) LogFood(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.LogFoodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	// Same normalisation the favourites path applies, and for a reason that only exists
@@ -130,7 +130,7 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 
 	var req models.LogFoodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	// Same normalisation the favourites path applies, and for a reason that only exists
@@ -515,7 +515,7 @@ func (h *Handler) CreateSavedFood(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.SaveFoodRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	// Surrounding whitespace is not a distinguishing feature of a food:
