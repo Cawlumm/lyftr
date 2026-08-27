@@ -7,7 +7,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { apiErrorMessage, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
@@ -26,7 +26,6 @@ export default function WeightDetail() {
   const [editWeight, setEditWeight] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
-  const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
   // Delete confirm
@@ -58,30 +57,30 @@ export default function WeightDetail() {
     setEditing(true)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const saveEdit = useAsyncAction(async (entry: types.WeightLog) => {
+    const updated = await weightAPI.update(entry.id, {
+      weight: resolveWeightLbs(editWeight, entry.weight, settings.weight_unit),
+      notes: editNotes.trim(),
+      logged_at: dayToInstant(editDate, entry.logged_at),
+    })
+    setLog(updated)
+    setEditing(false)
+  }, 'Failed to save')
+
+  // `editError` is what this page can say about the value in the box; the hook carries
+  // what the server said. The entry is passed to run() because the guard below is what
+  // proves it is not null.
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!log || saving) return
+    if (!log || saveEdit.busy) return
     const w = parseFloat(editWeight)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
       setEditError(wErr)
       return
     }
-    setSaving(true)
     setEditError('')
-    try {
-      const updated = await weightAPI.update(log.id, {
-        weight: resolveWeightLbs(editWeight, log.weight, settings.weight_unit),
-        notes: editNotes.trim(),
-        logged_at: dayToInstant(editDate, log.logged_at),
-      })
-      setLog(updated)
-      setEditing(false)
-    } catch (err: any) {
-      setEditError(apiErrorMessage(err, 'Failed to save'))
-    } finally {
-      setSaving(false)
-    }
+    void saveEdit.run(log)
   }
 
   const handleDelete = async () => {
@@ -178,10 +177,10 @@ export default function WeightDetail() {
         <div className="card p-5">
           <h2 className="section-title mb-4">Edit Entry</h2>
           <form onSubmit={handleSave} className="space-y-4">
-            {editError && (
+            {(editError || saveEdit.error) && (
               <div className="alert-error" role="alert">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{editError}</span>
+                <span>{editError || saveEdit.error}</span>
               </div>
             )}
 
@@ -228,11 +227,11 @@ export default function WeightDetail() {
               </button>
               <button
                 type="submit"
-                disabled={!(parseFloat(editWeight) > 0) || saving}
+                disabled={!(parseFloat(editWeight) > 0) || saveEdit.busy}
                 className="flex-1 btn-primary py-2.5 rounded-xl flex items-center justify-center gap-1.5"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving…' : 'Save'}
+                {saveEdit.busy ? 'Saving…' : 'Save'}
               </button>
             </div>
           </form>

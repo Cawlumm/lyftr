@@ -28,7 +28,6 @@ export default function WeightDetail() {
   const [editWeight, setEditWeight] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
-  const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
   // Delete confirm
@@ -60,32 +59,32 @@ export default function WeightDetail() {
     setEditing(true)
   }
 
-  const handleSave = async () => {
-    if (!log || saving) return
+  const saveEdit = useAsyncAction(async (entry: WeightLog) => {
+    const updated = await client.weightAPI.update(entry.id, {
+      // resolveWeightLbs keeps the original lbs when the shown 0.1 value is unchanged
+      // (avoids kg round-trip drift); only converts when the user actually edited it.
+      weight: resolveWeightLbs(editWeight, entry.weight, unit),
+      notes: editNotes.trim(),
+      logged_at: dayToInstant(editDate, entry.logged_at),
+    })
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    setLog(updated)
+    setEditing(false)
+  }, 'Failed to save')
+
+  // `editError` is what this screen can say about the value in the box; the hook carries
+  // what the server said. The entry is passed to run() because the guard above is what
+  // proves it is not null.
+  const handleSave = () => {
+    if (!log || saveEdit.busy) return
     const w = parseFloat(editWeight)
     const wErr = weightError(w, unit)
     if (wErr) {
       setEditError(wErr)
       return
     }
-    setSaving(true)
     setEditError('')
-    try {
-      const updated = await client.weightAPI.update(log.id, {
-        // resolveWeightLbs keeps the original lbs when the shown 0.1 value is unchanged
-        // (avoids kg round-trip drift); only converts when the user actually edited it.
-        weight: resolveWeightLbs(editWeight, log.weight, unit),
-        notes: editNotes.trim(),
-        logged_at: dayToInstant(editDate, log.logged_at),
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      setLog(updated)
-      setEditing(false)
-    } catch (err) {
-      setEditError(apiErrorMessage(err, 'Failed to save'))
-    } finally {
-      setSaving(false)
-    }
+    void saveEdit.run(log)
   }
 
   // The catch here just closed up and left the screen unchanged, which is
@@ -184,10 +183,10 @@ export default function WeightDetail() {
             <Card>
               <AppText variant="heading" className="mb-4">Edit Entry</AppText>
               <View className="gap-4">
-                {editError ? (
+                {editError || saveEdit.error ? (
                   <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
                     <AlertCircle size={16} color={brand.errorSoft} />
-                    <Text className="flex-1 font-sans text-sm text-error-400">{editError}</Text>
+                    <Text className="flex-1 font-sans text-sm text-error-400">{editError || saveEdit.error}</Text>
                   </View>
                 ) : null}
 
@@ -223,7 +222,7 @@ export default function WeightDetail() {
                     <Button title="Cancel" variant="secondary" onPress={() => { setEditing(false); setEditError('') }} />
                   </View>
                   <View className="flex-1">
-                    <Button title={saving ? 'Saving…' : 'Save'} onPress={handleSave} loading={saving} disabled={!(parseFloat(editWeight) > 0) || saving} />
+                    <Button title={saveEdit.busy ? 'Saving…' : 'Save'} onPress={handleSave} loading={saveEdit.busy} disabled={!(parseFloat(editWeight) > 0) || saveEdit.busy} />
                   </View>
                 </View>
               </View>
