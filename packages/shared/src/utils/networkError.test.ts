@@ -58,6 +58,12 @@ describe('classifyNetworkError', () => {
     expect(classifyNetworkError({ code: 'ECONNABORTED', message: 'timeout of 8000ms exceeded' })).toBe('timeout')
   })
 
+  // The shape Android actually produced when a refresh POST was black-holed: no axios
+  // code, no _timedOut, just the native word on the XHR.
+  it('reports a timeout that only the native detail names', () => {
+    expect(classifyNetworkError({ request: { _response: 'timeout' } })).toBe('timeout')
+  })
+
   it('reports a timeout flagged on the XHR', () => {
     expect(classifyNetworkError({ code: 'ERR_NETWORK', request: { _timedOut: true } })).toBe('timeout')
   })

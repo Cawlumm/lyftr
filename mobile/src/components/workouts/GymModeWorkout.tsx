@@ -9,7 +9,7 @@ import {
   Play, Plus, Repeat, Timer, Trash2, X,
 } from 'lucide-react-native'
 import {
-  displayToLbs, displayWeight, weightShort, type Exercise,
+  apiErrorMessage, displayToLbs, displayWeight, weightShort, type Exercise,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
 import { RestPicker } from './RestPicker'
@@ -86,6 +86,7 @@ export function GymModeWorkout() {
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [showPicker, setShowPicker] = useState(false)
 
   const setPhase = (p: typeof phase) => setGymState(p, activeIdx, activeSetIdx)
@@ -120,15 +121,19 @@ export function GymModeWorkout() {
 
   const handleFinish = async () => {
     setSaving(true)
+    setSaveError('')
     try {
       const created = await client.workoutAPI.create(buildPayload())
       setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
       cancelSession()
       minimizeGym()
       router.replace('/workouts')
-    } catch {
+    } catch (err: any) {
+      // This used to swallow the error and dismiss the sheet, so a finish that failed
+      // looked exactly like a finish that was never registered - the report in #145.
+      // Keep the sheet up, say why, leave the session intact, let them tap again.
+      setSaveError(apiErrorMessage(err, 'Failed to save workout'))
       setSaving(false)
-      setConfirmFinish(false)
     }
   }
 
@@ -165,7 +170,8 @@ export function GymModeWorkout() {
         title="Finish Workout?"
         message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
         confirmLabel="Finish" busyLabel="Saving…" cancelLabel="Keep Going" busy={saving}
-        onConfirm={handleFinish} onCancel={() => setConfirmFinish(false)}
+        error={saveError}
+        onConfirm={handleFinish} onCancel={() => { setConfirmFinish(false); setSaveError('') }}
       />
       <ConfirmSheet
         open={confirmCancel}

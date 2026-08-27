@@ -19,6 +19,9 @@ export interface ConfirmSheetProps {
   /** Shown in a tinted circular badge above the title — the app-confirm idiom. */
   icon?: LucideIcon
   busy?: boolean
+  /** Why the last confirm failed. Keeps the sheet up so the retry is under the finger
+   *  that just tapped, instead of dismissing to a banner somewhere off-screen. */
+  error?: string
   onConfirm: () => void
   onCancel: () => void
 }
@@ -29,7 +32,7 @@ export interface ConfirmSheetProps {
 // chrome (slide-up, scrim, insets, grabber) lives in the generic Sheet.
 export function ConfirmSheet({
   open, title, message, confirmLabel, busyLabel, cancelLabel = 'Cancel',
-  destructive = false, icon: Icon, busy = false, onConfirm, onCancel,
+  destructive = false, icon: Icon, busy = false, error, onConfirm, onCancel,
 }: ConfirmSheetProps) {
   const { brand, accent, isDark } = useTheme()
   // errorSoft reads on dark, error on light — same split as IconButton.
@@ -50,6 +53,12 @@ export function ConfirmSheet({
 
         <AppText variant="heading" className="mb-1.5 text-center">{title}</AppText>
         <AppText variant="body" color="muted" className="mb-6 text-center">{message}</AppText>
+
+        {error ? (
+          <View className="mb-5 rounded-xl border border-error-500/20 bg-error-500/10 px-3.5 py-3">
+            <AppText variant="caption" color="error" className="text-center">{error}</AppText>
+          </View>
+        ) : null}
 
         <View className="flex-row gap-3">
           <View className="flex-1">
