@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { AlertCircle } from 'lucide-react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 
@@ -53,7 +54,12 @@ export default function ConfirmSheet({
         <h3 className="font-display font-bold text-lg text-tx-primary mb-1">{title}</h3>
         <p className="text-sm text-tx-muted mb-5">{message}</p>
 
-        {error && <div className="alert-error mb-5 text-sm">{error}</div>}
+        {error && (
+          <div className="alert-error mb-5" role="alert">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
 
         <div className="flex gap-3">
           <button
