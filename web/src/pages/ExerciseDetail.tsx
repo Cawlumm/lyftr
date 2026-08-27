@@ -9,7 +9,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { types } from '@lyftr/shared'
+import { types, formatNumber } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
@@ -199,11 +199,11 @@ export default function ExerciseDetail() {
             <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Your Best</p>
           </div>
           <div className="flex items-end gap-2">
-            <span className="text-2xl font-bold text-tx-primary tabular-nums">{displayWeight(pr.weight, wUnit)}</span>
+            <span className="text-2xl font-bold text-tx-primary tabular-nums">{formatNumber(displayWeight(pr.weight, wUnit))}</span>
             <span className="text-sm text-tx-muted mb-0.5">{wUnit} × {pr.reps} reps</span>
           </div>
           <p className="text-xs text-tx-muted mt-1">
-            Est. 1RM: {displayWeight(pr.estimated_1rm, wUnit)} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
+            Est. 1RM: {formatNumber(displayWeight(pr.estimated_1rm, wUnit))} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
           </p>
         </div>
       )}

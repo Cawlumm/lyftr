@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
 import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
-import { displayVolume, type Workout, workoutDay, dayToLocalDate} from '@lyftr/shared'
+import { displayVolume, type Workout, workoutDay, dayToLocalDate, formatNumber } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -31,7 +31,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
   // The meta line has ~3 items competing for one row next to the trash/chevron
   // gutter — compact big volumes ("18.7k") so nothing truncates or wraps.
   const compact = (n: number) =>
-    n >= 10000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k` : n.toLocaleString()
+    n >= 10000 ? `${formatNumber(+(n / 1000).toFixed(1))}k` : formatNumber(n, { grouped: true })
   const totalVolume = displayVolume(
     workout.exercises?.reduce(
       (total, e) => total + (e.sets?.reduce((s, set) => s + (set.reps || 0) * (set.weight || 0), 0) || 0),

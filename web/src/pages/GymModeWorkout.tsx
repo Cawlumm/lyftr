@@ -6,7 +6,7 @@ import {
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import { types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
+import { types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange, formatNumber, toLocaleText } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -599,7 +599,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
             Target{' '}
             <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? set.target_reps : '—'} reps</span>
             {set.target_weight > 0 && (
-              <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
+              <> · <span className="font-semibold text-tx-secondary tabular-nums">{formatNumber(displayWeight(set.target_weight, wUnit))} {wUnit}</span></>
             )}
           </p>
         )}
@@ -634,7 +634,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               inputMode="decimal"
               value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
               onChange={v => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), wUnit))}
-              placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'}
+              placeholder={set.target_weight > 0 ? toLocaleText(String(displayWeight(set.target_weight, wUnit))) : '0'}
               disabled={set.completed}
               aria-label="Weight"
             />

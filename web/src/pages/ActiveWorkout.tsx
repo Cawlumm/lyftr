@@ -10,7 +10,7 @@ import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../s
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import { muscleColor } from '../utils/exerciseUtils'
-import { formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { formatElapsed, useElapsedSeconds, toLocaleText } from '@lyftr/shared'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const [editing, setEditing] = useState(false)
@@ -335,7 +335,7 @@ export default function ActiveWorkout() {
                           value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                           onChange={v => updateSet(exIdx, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, wUnit))}
                           unit={wUnit}
-                          placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
+                          placeholder={set.target_weight > 0 ? toLocaleText(String(displayWeight(set.target_weight, wUnit))) : '—'}
                           disabled={set.completed}
                         />
 

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatNumber } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -17,7 +17,7 @@ function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit:
         ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
         : 'bg-surface-raised text-tx-secondary'
     }`}>
-      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : 'BW'}
+      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${formatNumber(displayWeight(set.weight, unit))} ${unit}` : 'BW'}
     </div>
   )
 }
@@ -176,7 +176,7 @@ export default function WorkoutDetail() {
               <p className="text-xs text-tx-muted">Volume</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">
-              {totalVolume > 0 ? `${totalVolume.toLocaleString()}` : '—'}
+              {totalVolume > 0 ? `${formatNumber(totalVolume, { grouped: true })}` : '—'}
               {totalVolume > 0 && <span className="text-xs font-normal text-tx-muted ml-0.5">{wUnit}</span>}
             </p>
           </div>
@@ -227,13 +227,13 @@ export default function WorkoutDetail() {
                         {ex.exercise.muscle_group}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
+                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{exVol > 0 ? ` · ${formatNumber(exVol, { grouped: true })} ${wUnit}` : ''}</span>
                   </div>
                 </div>
                 {maxWeight > 0 && (
                   <div className="text-right flex-shrink-0 mr-1">
                     <p className="text-[10px] text-tx-muted uppercase tracking-wide">best</p>
-                    <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} {wUnit}</p>
+                    <p className="text-sm font-bold text-brand-400 tabular-nums">{formatNumber(maxWeight)} {wUnit}</p>
                   </div>
                 )}
                 <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />

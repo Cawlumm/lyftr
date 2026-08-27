@@ -1,3 +1,5 @@
+import { formatNumber } from './number'
+
 // Format whole seconds as m:ss (e.g. 90 → "1:30"). Shared by the rest banner and
 // the minimized session-pill chip.
 export function fmtClock(totalSeconds: number): string {
@@ -30,9 +32,14 @@ export const restLabel = (s: number): string => (s % 60 === 0 && s >= 60 ? `${s 
 
 // "8", "8–12", or an em dash when there's nothing to show. Used for the planned
 // reps/weight spread across an exercise's sets in gym mode.
+//
+// Through formatNumber because this feeds gym mode's Weight tile as well as its Reps
+// tile: reps are whole and read the same anywhere, but a 45.5 kg spread has to draw as
+// "45,5" wherever a comma is the decimal mark. String() here was the last place a weight
+// reached the screen without asking the shared formatter.
 export const numericRange = (values: number[]): string => {
   if (values.length === 0) return '—'
   const lo = Math.min(...values)
   const hi = Math.max(...values)
-  return lo === hi ? String(lo) : `${lo}–${hi}`
+  return lo === hi ? formatNumber(lo) : `${formatNumber(lo)}–${formatNumber(hi)}`
 }

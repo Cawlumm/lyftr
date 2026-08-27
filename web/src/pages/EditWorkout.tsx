@@ -5,7 +5,7 @@ import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
-import { types } from '@lyftr/shared'
+import { types, formatNumber } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string
@@ -17,7 +17,7 @@ interface WorkoutFormData {
 export default function EditWorkout() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { settings } = useSettingsStore()
+  const { settings, loaded: settingsLoaded } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [showPicker, setShowPicker] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -36,6 +36,9 @@ export default function EditWorkout() {
   useEffect(() => {
     const workoutId = Number(id)
     if (!workoutId) { navigate('/workouts'); return }
+    // Wait for settings: the conversion below reads weight_unit, and this fetch used to
+    // win the race against it. See the note on the deps array.
+    if (!settingsLoaded) return
     workoutAPI.get(workoutId)
       .then(workout => {
         const map: Record<number, types.Exercise> = {}
@@ -56,7 +59,7 @@ export default function EditWorkout() {
       })
       .catch(() => setError('Failed to load workout'))
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, settingsLoaded])
 
   const addExercise = (exercise: types.Exercise) => {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))
@@ -181,7 +184,7 @@ export default function EditWorkout() {
           <div className="grid grid-cols-3 gap-2 p-3 bg-brand-500/10 border border-brand-500/20 rounded-lg">
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{formData.exercises.length}</div><div className="text-xs text-tx-muted">Exercises</div></div>
             <div className="text-center"><div className="text-sm font-bold text-brand-500">{totalSets}</div><div className="text-xs text-tx-muted">Sets</div></div>
-            <div className="text-center"><div className="text-sm font-bold text-brand-500">{Math.round(totalWeight)}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
+            <div className="text-center"><div className="text-sm font-bold text-brand-500">{formatNumber(Math.round(totalWeight))}</div><div className="text-xs text-tx-muted">Total {wUnit}</div></div>
           </div>
         )}
 

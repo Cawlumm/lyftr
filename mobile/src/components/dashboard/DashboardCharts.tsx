@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
+import { formatNumber } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -106,7 +107,7 @@ export function VolumeBarChart({ data, width, unit, height = 130 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(xCenter(sel!) - 55, 0, Math.max(0, width - 110)), top: 0, maxWidth: 130 }}>
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {selPt.volume.toLocaleString()} {unit}
+            {formatNumber(selPt.volume, { grouped: true })} {unit}
           </AppText>
           <AppText variant="caption" color="muted" numberOfLines={1}>{selPt.name}</AppText>
         </View>
@@ -150,7 +151,7 @@ export function WeightSparkline({ data, width, unit, height = 48 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(sp.x - 45, 0, Math.max(0, width - 90)), top: -6 }}>
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[sel].weight} {unit} · {data[sel].date}
+            {formatNumber(data[sel].weight)} {unit} · {data[sel].date}
           </AppText>
         </View>
       ) : null}
@@ -219,7 +220,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
           <AppText variant="caption" color="muted" className="capitalize" numberOfLines={1}>{selSlice.d.name}</AppText>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{selSlice.d.value}</AppText>
           <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
-            {Math.round((selSlice.d.value / total) * 100)}%
+            {formatNumber(Math.round((selSlice.d.value / total) * 100))}%
           </AppText>
         </View>
       ) : (

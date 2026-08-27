@@ -1,8 +1,9 @@
 import { memo } from 'react'
 import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { NumericInput } from '../ui/NumericInput'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from 'lucide-react-native'
-import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
+import { displayToLbs, displayWeight, toLocaleText, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -12,22 +13,20 @@ const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Hr
 
 const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
-
-// Both cells of a set row. A component rather than two inline TextInputs because each
-// row needs its own text buffer, and these render inside a .map over the sets - a hook
-// cannot be called in a loop.
+// Both cells of a set row. A component rather than two inline NumericInputs because each
+// row needs its own text buffer, and because these render inside a .map over the sets —
+// the buffer is a hook, and a hook cannot be called in a loop.
 //
-// The buffer is half of #141. The parent re-derives `value` from a *number* every
-// keystroke, so typing "12." stores Number("12.") === 12, re-renders as "12", and RN
-// pushes that back into the native field - deleting the separator before the fractional
-// digit can be typed. ExerciseFormCard's WeightCell already had a buffer and says why;
-// this one, which backs the *default* List layout, never got the same treatment, so a
-// decimal weight could not be entered here by any route.
+// The buffer is what makes a separator enterable at all: the parent re-derives `value`
+// from a number every keystroke, so typing "12." stores Number("12.") === 12, re-renders
+// as "12", and RN's TextInput pushes that back into the native field — deleting the
+// separator before the fractional digit can be typed. That is what made #141 look fixed
+// while the List view, the *default* layout, still could not accept 12,5 or 12.5.
 //
-// No selectTextOnFocus, unlike the log/edit form: these are live sets being corrected
-// mid-workout, so a tap should land where it was aimed rather than replacing the value.
-// That is the case sanitizeNumericInput's first-separator-wins rule exists for - the
-// cursor can sit inside a prefilled "82,5".
+// Note there is no selectTextOnFocus here, unlike the log/edit form: these are live sets
+// being corrected mid-workout, so a tap should land where it was aimed rather than
+// replacing the value. That is the case sanitizeNumericInput's first-separator-wins rule
+// exists for — the cursor can sit inside a prefilled "82,5".
 function SetCell({ value, editable, mode, placeholder, placeholderColor, accessibilityLabel, onChange }: {
   value: string
   editable: boolean
@@ -38,17 +37,12 @@ function SetCell({ value, editable, mode, placeholder, placeholderColor, accessi
   accessibilityLabel: string
   onChange: (next: string) => void
 }) {
-  const [text, setText] = useNumericText(value)
   return (
-    <TextInput
-      value={text}
+    <NumericInput
+      value={value}
+      onChangeText={onChange}
+      inputMode={mode}
       editable={editable}
-      onChangeText={(t) => {
-        const v = sanitizeNumericInput(t, mode)
-        setText(v)
-        onChange(v)
-      }}
-      keyboardType={mode === 'numeric' ? 'number-pad' : 'decimal-pad'}
       inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
       placeholder={placeholder}
       placeholderTextColor={placeholderColor}
@@ -171,7 +165,7 @@ function ActiveExerciseCardBase({
                   editable={!set.completed}
                   value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''}
                   onChange={(v) => onUpdateSet(index, setIdx, 'actual_weight', displayToLbs(Number(v) || 0, weightUnit))}
-                  placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '—'}
+                  placeholder={set.target_weight > 0 ? toLocaleText(String(displayWeight(set.target_weight, wUnit))) : '—'}
                   placeholderColor={colors.txMuted}
                   accessibilityLabel={`Weight, set ${set.set_number}, ${ex.exercise.name}`}
                 />

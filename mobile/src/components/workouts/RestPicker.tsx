@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Clock, Minus, Pencil, Plus, TimerOff } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { sanitizeNumericInput } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { NumericInput } from '../ui/NumericInput'
 
 interface Props {
   value: number
@@ -96,10 +96,10 @@ export function RestPicker({ value, onChange }: Props) {
             <Minus size={16} color={colors.txSecondary} />
           </Pressable>
           <View className="h-11 w-28 flex-row items-center rounded-lg border border-surface-border bg-surface-overlay px-3">
-            <TextInput
+            <NumericInput
               value={String(value)}
-              onChangeText={(raw) => onChange(clamp(Number(sanitizeNumericInput(raw, 'numeric')) || 0))}
-              keyboardType="number-pad"
+              onChangeText={(v) => onChange(clamp(Number(v) || 0))}
+              inputMode="numeric"
               returnKeyType="done"
               selectTextOnFocus
               accessibilityLabel="Rest seconds"

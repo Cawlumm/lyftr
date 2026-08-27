@@ -3,7 +3,7 @@ import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
 import { format } from 'date-fns'
-import { dayToLocalDate } from '@lyftr/shared'
+import { dayToLocalDate, formatNumber } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { MACRO_COLORS } from './nutritionMeta'
@@ -58,13 +58,13 @@ export function MacroRing({ value, target, color, label }: {
         </Svg>
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <AppText variant="caption" style={{ color, fontVariant: ['tabular-nums'], fontWeight: '700' }}>
-            {hasTarget ? `${Math.round(pct * 100)}%` : '—'}
+            {hasTarget ? `${formatNumber(Math.round(pct * 100))}%` : '—'}
           </AppText>
         </View>
       </View>
       <View className="items-center">
-        <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(fin(value))}g</AppText>
-        <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{hasTarget ? `${label} / ${Math.round(fin(target))}g` : label}</AppText>
+        <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(fin(value)))}g</AppText>
+        <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{hasTarget ? `${label} / ${formatNumber(Math.round(fin(target)))}g` : label}</AppText>
       </View>
     </View>
   )
@@ -125,9 +125,9 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
         {/* y grid: baseline + max */}
         <Line x1={yAxisW} y1={yAt(0)} x2={width} y2={yAt(0)} stroke={colors.border} strokeWidth={1} />
         <SvgText x={yAxisW - 6} y={yAt(maxTotal) + 4} fontSize={10} fill={colors.txMuted} textAnchor="end">
-          {Math.round(maxTotal)}g
+          {formatNumber(Math.round(maxTotal))}g
         </SvgText>
-        <SvgText x={yAxisW - 6} y={yAt(0) + 4} fontSize={10} fill={colors.txMuted} textAnchor="end">0g</SvgText>
+        <SvgText x={yAxisW - 6} y={yAt(0) + 4} fontSize={10} fill={colors.txMuted} textAnchor="end">{formatNumber(0)}g</SvgText>
 
         {/* stacked areas (n>=2) or stacked bars (n===1) */}
         {n >= 2
@@ -179,7 +179,7 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
                   <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: m.color }} />
                   <AppText variant="caption" color="muted">{m.label}</AppText>
                 </View>
-                <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(fin(m.value))}g</AppText>
+                <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(fin(m.value)))}g</AppText>
               </View>
             ))}
           </View>

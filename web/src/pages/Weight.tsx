@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
+import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatNumber } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
@@ -100,7 +100,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
   // Callout: flip left if dot near right edge, flip below if dot near top
   const calloutFlipH = last[0] > W * 0.65
   const calloutFlipV = last[1] < PT + 30
-  const calloutLabel = String(round1(points[points.length - 1].weight))
+  const calloutLabel = formatNumber(round1(points[points.length - 1].weight))
   const calloutW = calloutLabel.length * 9 + 16
   const calloutX = calloutFlipH ? last[0] - calloutW - 8 : last[0] + 8
   const calloutY = calloutFlipV ? last[1] + 10 : last[1] - 28
@@ -120,7 +120,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
         >
           <div className="bg-surface-raised border border-surface-border rounded-xl px-3 py-2 shadow-card text-xs whitespace-nowrap">
             <p className="font-bold tabular-nums text-tx-primary text-sm">
-              {round1(activePoint.weight)} <span className="font-normal text-tx-muted">{wUnit}</span>
+              {formatNumber(round1(activePoint.weight))} <span className="font-normal text-tx-muted">{wUnit}</span>
             </p>
             <p className="text-tx-muted mt-0.5">{format(activePoint.date, 'MMM d, yyyy')}</p>
           </div>
@@ -370,7 +370,7 @@ export default function Weight() {
             <h2 className="section-title">Log Weight</h2>
           </div>
           {items.length > 0 && (
-            <span className="text-[11px] text-tx-muted">last: {displayWeight(items[0].weight, settings.weight_unit)} {wUnit}</span>
+            <span className="text-[11px] text-tx-muted">last: {formatNumber(displayWeight(items[0].weight, settings.weight_unit))} {wUnit}</span>
           )}
         </div>
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
@@ -422,7 +422,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({formatNumber(displayWeight(items[0].weight, settings.weight_unit))} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
@@ -474,17 +474,17 @@ export default function Weight() {
               <div>
                 <p className="stat-label mb-2">Current Weight</p>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl">{current}</span>
+                  <span className="stat-value text-5xl">{formatNumber(current)}</span>
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
               </div>
               <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass}`}>
                 <TrendIcon className="w-4 h-4" />
-                {Math.abs(change)} {wUnit}
+                {formatNumber(Math.abs(change))} {wUnit}
               </div>
             </div>
             <p className="text-xs text-tx-muted mt-3">
-              {Math.abs(change)} {wUnit} {changeWord} over {period}
+              {formatNumber(Math.abs(change))} {wUnit} {changeWord} over {period}
             </p>
           </>
         )}
@@ -503,7 +503,7 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            <span className="stat-value text-xl">{Math.round(s.value)}</span>
+            <span className="stat-value text-xl">{formatNumber(Math.round(s.value))}</span>
             <span className="text-xs text-tx-muted ml-1">{wUnit}</span>
           </div>
         ))}
@@ -550,7 +550,7 @@ export default function Weight() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-tx-primary tabular-nums">
-                      {Math.round(displayW)} {wUnit}
+                      {formatNumber(Math.round(displayW))} {wUnit}
                     </p>
                     <p className="text-xs text-tx-muted mt-0.5">
                       {format(dayToLocalDate(entryDay(entry)), 'MMM d, yyyy')}
@@ -560,7 +560,7 @@ export default function Weight() {
                         {deltaLbs !== 0 && (
                           <span className={`flex items-center gap-0.5 text-xs font-medium tabular-nums flex-shrink-0 ${deltaLbs < 0 ? 'text-success-400' : 'text-error-400'}`}>
                             {deltaLbs < 0 ? <TrendingDown className="w-3 h-3" /> : <TrendingUp className="w-3 h-3" />}
-                            {Math.round(displayDelta)}
+                            {formatNumber(Math.round(displayDelta))}
                           </span>
                         )}
                         {deltaLbs !== 0 && entry.notes && <span className="text-tx-muted/40 text-xs flex-shrink-0">·</span>}

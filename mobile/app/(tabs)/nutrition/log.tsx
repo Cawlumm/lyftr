@@ -7,8 +7,7 @@ import {
 } from 'lucide-react-native'
 import {
   dayToInstant, entryDay, todayStr,
-  type FoodSearchResult, type SavedFood,
-} from '@lyftr/shared'
+  type FoodSearchResult, type SavedFood, formatNumber } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, IconButton, Label, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
@@ -482,7 +481,7 @@ export default function LogFood() {
                         <AppText variant="body" color="muted">kcal</AppText>
                       </View>
                       {selected.serving_size ? (
-                        <AppText variant="caption" color="muted" className="mt-1">per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-1">per {servings === 1 ? '' : `${formatNumber(servings)} × `}{selected.serving_size}</AppText>
                       ) : null}
                     </View>
                     {pro + carb + fat_ > 0 ? (
@@ -518,7 +517,7 @@ export default function LogFood() {
                       { label: 'Fiber', value: fib, color: colors.txSecondary, bg: colors.muted, border: colors.border },
                     ].map((m) => (
                       <View key={m.label} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>
-                        <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{m.value}g</AppText>
+                        <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{formatNumber(m.value)}g</AppText>
                         <AppText variant="caption" color="muted" style={{ fontSize: 10 }} className="mt-0.5">{m.label}</AppText>
                       </View>
                     ))}

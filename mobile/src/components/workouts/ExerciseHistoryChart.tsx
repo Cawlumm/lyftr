@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
+import { formatNumber } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -71,7 +72,7 @@ function niceScale(min: number, max: number, count = 3): { lo: number; hi: numbe
   return { lo, hi, ticks }
 }
 
-const fmtTick = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1))
+const fmtTick = (v: number) => formatNumber(v, Number.isInteger(v) ? {} : { decimals: 1 })
 
 export function ExerciseHistoryChart({
   data,
@@ -202,7 +203,7 @@ export function ExerciseHistoryChart({
           }}
         >
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[selected].weight} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
+            {formatNumber(data[selected].weight)} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
           </AppText>
           {data[selected].sub ? (
             <AppText variant="caption" color="muted">{data[selected].sub}</AppText>

@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatNumber } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -475,7 +475,7 @@ export default function Dashboard() {
                         {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                         {mins > 0 ? ` · ${mins} min` : ''}
                         {totalSets > 0 ? ` · ${totalSets} sets` : ''}
-                        {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}
+                        {totalVolume > 0 ? ` · ${formatNumber(totalVolume, { grouped: true })} ${wUnit}` : ''}
                       </AppText>
                     </View>
                     <LinkRow label="All" onPress={() => router.navigate('/workouts')} />
@@ -493,7 +493,7 @@ export default function Dashboard() {
                           </View>
                           {best ? (
                             <Text className="text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
-                              {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, unit)}${wUnit}` : ' BW'}
+                              {sets.length}×{best.weight > 0 ? ` ${formatNumber(displayWeight(best.weight, unit))}${wUnit}` : ' BW'}
                             </Text>
                           ) : null}
                         </View>
@@ -573,10 +573,10 @@ export default function Dashboard() {
             {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
             <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
             <View className="mb-3 flex-row items-baseline gap-1.5">
-              <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
-              <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
+              <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(food.total_calories))}</Text>
+              <AppText variant="caption" color="muted">/ {formatNumber(settings.calorie_target)} kcal</AppText>
               <View className="flex-1" />
-              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(calPct)}%</AppText>
+              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(calPct))}%</AppText>
             </View>
             <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
             <View className="gap-3">
@@ -589,7 +589,7 @@ export default function Dashboard() {
                   <View className="mb-1 flex-row items-center justify-between">
                     <AppText variant="caption" color="muted">{m.label}</AppText>
                     <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                      {Math.round(m.val)}g<Text className="font-sans font-normal text-tx-muted"> / {m.target}g</Text>
+                      {formatNumber(Math.round(m.val))}g<Text className="font-sans font-normal text-tx-muted"> / {formatNumber(m.target)}g</Text>
                     </Text>
                   </View>
                   <ProgressBar pct={m.pct} color={m.color} />
@@ -623,7 +623,7 @@ export default function Dashboard() {
               <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className="active:scale-[0.99]" accessibilityLabel="Log weight">
                 <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-baseline gap-1.5">
-                    <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
+                    <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{formatNumber(displayWeight(weightLogs[0].weight, unit))}</AppText>
                     <AppText variant="caption" color="muted">{wUnit}</AppText>
                   </View>
                   <View className="flex-row items-center gap-2">
@@ -632,7 +632,7 @@ export default function Dashboard() {
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
-                          7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, unit))} {wUnit}
+                          7d · {delta < 0 ? '↓' : '↑'}{formatNumber(Math.abs(displayWeight(delta, unit)))} {wUnit}
                         </Text>
                       )
                     })()}

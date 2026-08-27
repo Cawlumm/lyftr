@@ -7,14 +7,14 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types, formatNumber } from '@lyftr/shared'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
 export default function WeightDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { settings } = useSettingsStore()
+  const { settings, loaded: settingsLoaded } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
   const [log, setLog] = useState<types.WeightLog | null>(null)
@@ -38,6 +38,9 @@ export default function WeightDetail() {
   useEscapeKey(editing, () => { setEditing(false); setEditError('') })
 
   useEffect(() => {
+    // Settings first: displayWeight below reads weight_unit, and this fetch used to beat
+    // it, prefilling the edit field with raw lbs while the label already said kg.
+    if (!settingsLoaded) return
     weightAPI.get(Number(id))
       .then(data => {
         setLog(data)
@@ -47,7 +50,7 @@ export default function WeightDetail() {
       })
       .catch(err => setError(err?.response?.data?.error || 'Failed to load entry'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, settingsLoaded])
 
   const startEdit = () => {
     if (!log) return
@@ -158,7 +161,7 @@ export default function WeightDetail() {
             ) : (
               <>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl tabular-nums">{displayWeight(log.weight, settings.weight_unit)}</span>
+                  <span className="stat-value text-5xl tabular-nums">{formatNumber(displayWeight(log.weight, settings.weight_unit))}</span>
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
                 <p className="text-sm text-tx-muted mt-1">
@@ -246,7 +249,7 @@ export default function WeightDetail() {
             <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
             <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Entry?</h3>
             <p className="text-sm text-tx-muted mb-5">
-              {format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
+              {format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · {formatNumber(displayWeight(log.weight, settings.weight_unit))} {wUnit} will be permanently deleted.
             </p>
             <div className="flex gap-3">
               <button

@@ -7,6 +7,7 @@ import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteCon
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal } from './nutritionMeta'
+import { formatNumber } from '@lyftr/shared'
 
 // Compact meal tag shown on each row now that meals share one list (icon + label in the
 // meal's tint). 8-digit hex (#RRGGBBAA) for the fill/border is fine on RN core Views.
@@ -73,7 +74,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     <View className="mt-1 flex-row flex-wrap items-center gap-x-3 gap-y-1">
       <View className="flex-row items-center gap-1">
         <Flame size={12} color={colors.txMuted} />
-        <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)} kcal</AppText>
+        <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(entry.calories))} kcal</AppText>
       </View>
       {([
         ['P', entry.protein, MACRO_TEXT.protein],
@@ -82,11 +83,11 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       ] as const).map(([label, value, color]) => (
         <View key={label} className="flex-row items-center gap-1">
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
-          <AppText variant="caption" color="secondary" style={{ fontVariant: ['tabular-nums'] }}>{value.toFixed(0)}g</AppText>
+          <AppText variant="caption" color="secondary" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(value, { decimals: 0 })}g</AppText>
           <AppText variant="caption" color="muted">{label}</AppText>
         </View>
       ))}
-      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
+      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {formatNumber(entry.servings)}</AppText> : null}
     </View>
   )
 

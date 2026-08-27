@@ -159,3 +159,110 @@ export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): 
   }
   return out
 }
+
+// Locale, injected once at startup. One input, one derived value, and they cannot
+// disagree - which is the point.
+//
+// `locale` is what Intl formats with, and formatNumber is the only thing that draws a
+// number. The decimal character used for PARSING is then read back out of that same
+// formatter rather than accepted from the caller, because the two arriving separately is
+// a real hazard: on iOS the Number Format setting is independent of the language, so
+// expo-localization can report a German separator while the language tag says en-US. The
+// field would draw "102,5" and the caption beside it "102.5" - exactly the split this
+// change exists to remove.
+//
+// JavaScript has no number parser (Intl.NumberFormat exposes format and formatToParts and
+// nothing that reads a string back), so sanitizeNumericInput is ours to write and needs
+// that character. wger does not have this problem: Dart's intl ships NumberFormat.tryParse,
+// so their widget formats and parses from one object.
+//
+// `decimal` and `group` used to be accepted here too. Both are gone: `group` was never
+// read once grouping detection was dropped, and the `decimal` "fallback for a runtime
+// without Intl" was unreachable - formatNumber would have thrown on the line above it.
+let separators = { decimal: '.' }
+let localeTag: string | undefined
+
+export function configureNumberLocale(next: { locale?: string | null }): void {
+  // An invalid tag makes `new Intl.NumberFormat(tag)` throw RangeError - and it would
+  // throw at render, on every one of the ~24 call sites, long after the bad value was
+  // accepted here. Probe once and degrade to the runtime default instead.
+  let tag: string | undefined = next.locale || undefined
+  if (tag) {
+    try {
+      new Intl.NumberFormat(tag).format(1)
+    } catch {
+      tag = undefined
+    }
+  }
+  localeTag = tag
+  formatters.clear()
+
+  // Whatever Intl draws a decimal point as, that is what the parser accepts. \p{Nd} and
+  // not [0-9]: ar-EG formats 1.1 as "١٫١", so stripping only ASCII digits would leave the
+  // whole string and hand the parser three characters instead of one separator.
+  separators = { decimal: formatNumber(1.1).replace(/\p{Nd}/gu, '') || '.' }
+}
+
+// Constructing an Intl.NumberFormat is expensive enough to matter in a list that
+// re-renders per keystroke, and they are immutable, so keep them. Cleared above whenever
+// the locale changes, so the cache cannot outlive the setting it was built from.
+const formatters = new Map<string, Intl.NumberFormat>()
+function formatterFor(grouped: boolean, decimals?: number): Intl.NumberFormat {
+  const key = `${localeTag ?? ''}|${grouped}|${decimals ?? ''}`
+  let f = formatters.get(key)
+  if (!f) {
+    const opts: Intl.NumberFormatOptions = { useGrouping: grouped }
+    if (decimals !== undefined) {
+      opts.minimumFractionDigits = decimals
+      opts.maximumFractionDigits = decimals
+    }
+    f = new Intl.NumberFormat(localeTag, opts)
+    formatters.set(key, f)
+  }
+  return f
+}
+
+// The other half of the round trip. sanitizeNumericInput returns what the *field*
+// shows, in the locale's own notation; these two convert between that and the number
+// the app stores, which is always canonical.
+//
+// Without both halves the trip is asymmetric: a German user types "12,5", it is stored
+// as 12.5, and the field redraws as "12.5" - the app quietly rewriting what they typed.
+// wger states the principle well: display and parsing go through the same format, so a
+// value can never be mis-read because of a separator mismatch between locales.
+
+/** Canonical field text -> what to draw, in the locale's notation. Text-level on
+ * purpose: it has to survive a half-typed "12.", which Number() would round to 12 and
+ * so delete the separator the user just pressed. */
+export function toLocaleText(canonical: string): string {
+  // Guard the type rather than trusting it: the en-US fast path returned a non-string
+  // unchanged while every comma locale threw on .split, so a mistyped caller would have
+  // crashed for exactly the users this change exists for — and passed in the tests.
+  if (typeof canonical !== 'string') return ''
+  return separators.decimal === '.' ? canonical : canonical.split('.').join(separators.decimal)
+}
+
+// The third and last piece: a number the app holds -> the text a person reads. Cards,
+// chips, captions, chart ticks.
+//
+// This is a thin wrapper over Intl.NumberFormat rather than a hand-rolled formatter,
+// because the hand-rolled one was a worse copy of a built-in. It produced byte-identical
+// output to Intl for en-US, de-DE and fr-FR - and got en-IN wrong, rendering 12,345,678.9
+// where the lakh/crore system wants 1,23,45,678.9. Grouping is not "every three digits";
+// it is CLDR data, and Intl already carries it.
+//
+// Kept as a named function rather than calling Intl at each site so there is still one
+// place that decides how a number looks, which is what numberDisplay.guard.test.ts
+// enforces - and one place to change if Intl ever proves unreliable under Hermes.
+//
+// Grouping is opt-in: "1 234,5" reads worse than "1234,5" for a bodyweight, while a
+// volume total wants it. The caller knows which it has.
+export function formatNumber(
+  value: number | string | null | undefined,
+  opts: { decimals?: number; grouped?: boolean } = {},
+): string {
+  if (value === null || value === undefined || value === '') return ''
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n)) return ''
+  return formatterFor(Boolean(opts.grouped), opts.decimals).format(n)
+}

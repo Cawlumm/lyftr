@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood, formatNumber } from '@lyftr/shared'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -60,13 +60,13 @@ function FoodResultRow(
         <p className="text-sm font-semibold text-tx-primary truncate">{item.name}</p>
         {item.brand && <p className="text-xs text-tx-muted truncate mt-0.5">{item.brand}</p>}
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          <span className="text-xs font-semibold text-tx-secondary tabular-nums">{Math.round(item.calories)} kcal</span>
+          <span className="text-xs font-semibold text-tx-secondary tabular-nums">{formatNumber(Math.round(item.calories))} kcal</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-emerald-400 tabular-nums">{item.protein.toFixed(0)}g P</span>
+          <span className="text-xs text-emerald-400 tabular-nums">{formatNumber(item.protein, { decimals: 0 })}g P</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-amber-400 tabular-nums">{item.carbs.toFixed(0)}g C</span>
+          <span className="text-xs text-amber-400 tabular-nums">{formatNumber(item.carbs, { decimals: 0 })}g C</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-violet-400 tabular-nums">{item.fat.toFixed(0)}g F</span>
+          <span className="text-xs text-violet-400 tabular-nums">{formatNumber(item.fat, { decimals: 0 })}g F</span>
           {item.serving_size && (
             <>
               <span className="text-[10px] text-tx-muted">·</span>
@@ -557,7 +557,7 @@ export default function LogFood() {
                   </div>
                   {selected.serving_size && (
                     <p className="text-xs text-tx-muted mt-1">
-                      per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}
+                      per {servings === 1 ? '' : `${formatNumber(servings)} × `}{selected.serving_size}
                     </p>
                   )}
                 </div>
@@ -594,7 +594,7 @@ export default function LogFood() {
                   { label: 'Fiber',   value: fib,  color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
                 ].map(m => (
                   <div key={m.label} className={`rounded-xl border p-2.5 text-center ${m.bg}`}>
-                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}g</p>
+                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{formatNumber(m.value)}g</p>
                     <p className="text-[10px] text-tx-muted mt-0.5">{m.label}</p>
                   </div>
                 ))}

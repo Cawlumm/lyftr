@@ -165,3 +165,91 @@ was an interim stand-in).
 Screens have not been migrated onto the new primitives yet (`Section`/`Stat`/
 `OptionPill`/`ListRow` duplicate patterns still inlined in `(tabs)/*`) — adopt them
 as screens are next touched.
+
+## 8. Numbers — the app stores canonical, the screen shows the user's notation
+
+Half of Europe writes twelve and a half as `12,5`. Android's `decimal-pad` shows the
+**locale's** separator, and on those keypads there is often no full stop at all — so a
+field that strips "anything that isn't a digit or a dot" makes decimals unenterable for
+those users. That was #141.
+
+RN makes sanitizing mandatory rather than defensive: `ReactEditText` replaces Android's
+`KeyListener` specifically to *"permit all keyboard input through"*, so `keyboardType`
+constrains what is **drawn**, never what arrives.
+
+| Layer | Notation |
+|---|---|
+| stores, API, arithmetic | canonical `.` |
+| a numeric field's buffer | canonical `.` |
+| anything a person reads | the locale's |
+
+**Four functions, all in `@lyftr/shared` (`utils/number.ts`). Do not add a fifth.**
+
+| | |
+|---|---|
+| `configureNumberLocale({ locale })` | called **once**, in `src/lib/lyftr.ts`, with the device's language tag |
+| `sanitizeNumericInput(raw, mode)` | typed text → canonical |
+| `toLocaleText(canonical)` | a field's buffer → what that field draws |
+| `formatNumber(n, {decimals, grouped})` | a stored number → text a person reads |
+
+Never `String(n)`, `n.toFixed(1)` or `` `${n}` `` for text a user reads.
+
+### Numeric input: use `NumericInput`, never a raw `TextInput`
+
+The first three above are *primitives*. No screen calls them directly — a field that got
+one of the three right and another wrong is how #141 survived #143. Two layers instead:
+
+| | |
+|---|---|
+| `<NumericInput>` (`src/components/ui/`) | a `TextInput` that already sanitizes, buffers and localises. Styling, refs and keyboard props pass through, so it drops in wherever a `TextInput` was |
+| `useNumericField(value, onChange, mode)` (`@lyftr/shared`) | the same three, as props to spread — for a field you cannot wrap, i.e. one rendered by `<Field>`, which owns its own `TextInput`. Settings' four macro targets are the only current case |
+
+Both feed from one implementation, so a new rule (a thousands separator, a max precision)
+is one edit. `packages/shared/src/hooks/useNumericField.guard.test.ts` fails the build if a
+field declares a numeric `keyboardType` itself or calls `sanitizeNumericInput` directly.
+
+This is the shape every comparable project lands on, because no framework hands it to you
+for free on RN: `TextInput` has no `inputFormatters` (Flutter's hook, and why wger needs no
+wrapper), `onKeyPress` is not cancelable, and Android's `ReactEditText` installs a key
+listener that permits all input through. react-aria pairs `useNumberField` with Spectrum's
+`<NumberField>`; Expensify pairs `LocaleDigitUtils` with `AmountTextInput`; both after
+shipping this same bug (Expensify/App#10108 is #141 in Spanish).
+
+Adobe's `@internationalized/number` solves this properly, including the partial-input case
+(`isValidPartialNumber`) — and we cannot use it: its parser calls `formatToParts` in four
+places, which Hermes leaves unimplemented on iOS. That is why our separator is derived from
+`format()` instead.
+
+`formatNumber` is a thin wrapper over `Intl.NumberFormat` — grouping is CLDR data, not
+arithmetic, and a hand-rolled version got `en-IN` wrong (`12,345,678.9` where lakh/crore
+wants `1,23,45,678.9`).
+
+**Parsing has no equivalent.** `Intl.NumberFormat.prototype.parse` does not exist, so
+`sanitizeNumericInput` is ours to write — and it needs to know which character the keypad
+calls a decimal. That character is read back out of the formatter rather than passed in
+separately, so a field and the caption beside it can never disagree. (iOS lets the Number
+Format setting differ from the language, which is exactly how they could.)
+
+This asymmetry is why wger's equivalent looks simpler: Dart's `intl` ships
+`NumberFormat.tryParse`, so their widget formats and parses from one object.
+
+### Gotchas
+
+- **Numbers that aren't for reading stay canonical** — SVG path data, keys, ids, query
+  params. `DashboardCharts.tsx` builds paths with `toFixed(1)`; localise that and the
+  path parser reads the comma as a coordinate separator and the chart collapses.
+- **Whitespace is never a separator.** `fr`, `ru`, `sv`, `pl`, `cs`, `fi`, `nb`, `uk` use
+  a *space* as their group character and `expo-localization` passes it through verbatim.
+- **Grouping is never detected.** A `TextInput` re-sends the whole field on each keystroke,
+  so `"1,"` arrives with nothing after it and reads as a decimal. `1,200` on en-US is
+  therefore `1.2` **whether typed or pasted** — the two agree on purpose. An earlier
+  grouping-aware rule made them disagree (`1.2` typed, `1200` pasted), which meant the same
+  characters meant different numbers depending on how they arrived. Pinned by
+  `number.test.ts` and again in `number.fuzz.test.ts`, which fails if someone "fixes" it.
+- **A locale-dependent test must name its locale.** A test that never calls
+  `configureNumberLocale` is an en-US test — the one locale these bugs never appear in.
+  `src/components/ui/NumberField.locale.test.tsx` is the rendered-component shape.
+- **A field whose `value` is re-derived from a number needs a `useNumericText` buffer**,
+  or the parent's round-trip through `Number()` deletes the separator before the
+  fractional digit can be typed. This is what left the List view broken after #141 was
+  first "fixed" — see `ActiveExerciseCard`'s `WeightCell`.

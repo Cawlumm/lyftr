@@ -18,8 +18,7 @@ import {
   weightShort,
   type Exercise,
   type ExerciseHistoryPoint,
-  type PersonalRecord,
-} from '@lyftr/shared'
+  type PersonalRecord, formatNumber } from '@lyftr/shared'
 import { AppText, Screen, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
@@ -240,7 +239,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
               <View className="mt-3 flex-row items-end gap-2">
                 <Text className="font-display text-3xl text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                  {displayWeight(pr.weight, wUnit)}
+                  {formatNumber(displayWeight(pr.weight, wUnit))}
                 </Text>
                 <AppText variant="body" color="muted" className="mb-1">{wUnit} × {pr.reps} reps</AppText>
               </View>
@@ -248,7 +247,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               <View className="mt-3 flex-row items-center justify-between border-t border-warning-500/15 pt-3">
                 <AppText variant="caption" color="muted">Estimated 1RM</AppText>
                 <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>
-                  {displayWeight(pr.estimated_1rm, wUnit)} {wUnit}
+                  {formatNumber(displayWeight(pr.estimated_1rm, wUnit))} {wUnit}
                 </AppText>
               </View>
             </View>

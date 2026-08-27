@@ -1,4 +1,5 @@
 import { fmtClock, nextIncompleteSet, formatElapsed, restLabel, numericRange } from './workoutSets'
+import { configureNumberLocale } from './number'
 
 describe('fmtClock', () => {
   it('formats seconds as m:ss with zero-padding', () => {
@@ -63,5 +64,16 @@ describe('numericRange', () => {
 
   it('shows an em dash for no values', () => {
     expect(numericRange([])).toBe('—')
+  })
+
+  // This feeds gym mode's Weight tile, not just Reps. It used to build its string with
+  // String()/template interpolation, so a 45.5 kg spread drew "45.5" on a device that
+  // writes 45,5 — the one weight left reaching a screen without the shared formatter.
+  it('draws a decimal spread in the reader notation', () => {
+    configureNumberLocale({ locale: 'de-DE' })
+    expect(numericRange([45.5])).toBe('45,5')
+    expect(numericRange([45.5, 60])).toBe('45,5–60')
+    configureNumberLocale({ locale: 'en-US' })
+    expect(numericRange([45.5, 60])).toBe('45.5–60')
   })
 })

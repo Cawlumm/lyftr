@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatNumber } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -324,7 +324,7 @@ export default function Dashboard() {
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_calories)}
+            {formatNumber(Math.round(food.total_calories))}
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -337,7 +337,7 @@ export default function Dashboard() {
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+            {formatNumber(Math.round(food.total_protein))}<span className="text-xs text-tx-muted font-normal">g</span>
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
@@ -373,7 +373,7 @@ export default function Dashboard() {
                 <YAxis hide />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v.toLocaleString()} ${wUnit}`, 'Volume']}
+                  formatter={(v: number) => [`${formatNumber(v, { grouped: true })} ${wUnit}`, 'Volume']}
                   labelFormatter={(label: string) => chartData.find(d => d.date === label)?.name || label}
                   cursor={{ fill: 'rgba(99,102,241,0.08)', radius: 4 }}
                 />
@@ -497,7 +497,7 @@ export default function Dashboard() {
                     {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
-                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
+                    {totalVolume > 0 && ` · ${formatNumber(totalVolume, { grouped: true })} ${wUnit}`}
                   </p>
                 </div>
                 <Link to="/workouts" className="flex items-center gap-0.5 text-xs text-brand-400 hover:text-brand-300 flex-shrink-0 transition-colors">
@@ -534,7 +534,7 @@ export default function Dashboard() {
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, settings.weight_unit)}${wUnit}` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${formatNumber(displayWeight(best.weight, settings.weight_unit))}${wUnit}` : ' BW'}
                         </span>
                       )}
                     </div>
@@ -580,11 +580,11 @@ export default function Dashboard() {
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
-              {Math.round(food.total_calories)}
+              {formatNumber(Math.round(food.total_calories))}
             </span>
-            <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
+            <span className="text-xs text-tx-muted">/ {formatNumber(settings.calorie_target)} kcal</span>
             <div className="flex-1" />
-            <span className="text-xs text-tx-muted tabular-nums">{Math.round(calPct)}%</span>
+            <span className="text-xs text-tx-muted tabular-nums">{formatNumber(Math.round(calPct))}%</span>
           </div>
           <div className="progress-track mb-4">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -601,8 +601,8 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                    {Math.round(m.val)}g
-                    <span className="text-tx-muted font-normal"> / {m.target}g</span>
+                    {formatNumber(Math.round(m.val))}g
+                    <span className="text-tx-muted font-normal"> / {formatNumber(m.target)}g</span>
                   </span>
                 </div>
                 <div className="progress-track">
@@ -659,7 +659,7 @@ export default function Dashboard() {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
-                      `${v} sets (${Math.round((v / totalMuscSets) * 100)}%)`,
+                      `${v} sets (${formatNumber(Math.round((v / totalMuscSets) * 100))}%)`,
                       props.payload?.name ?? '',
                     ]}
                   />
@@ -735,7 +735,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-2xl font-bold text-tx-primary tabular-nums leading-none">
-                  {displayWeight(weightLogs[0].weight, settings.weight_unit)}
+                  {formatNumber(displayWeight(weightLogs[0].weight, settings.weight_unit))}
                 </span>
                 <span className="text-sm text-tx-muted">{wUnit}</span>
               </div>
@@ -747,7 +747,7 @@ export default function Dashboard() {
                   }
                   return (
                     <span className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
-                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, settings.weight_unit))} {wUnit}
+                      7d · {delta < 0 ? '↓' : '↑'}{formatNumber(Math.abs(displayWeight(delta, settings.weight_unit)))} {wUnit}
                     </span>
                   )
                 })()}

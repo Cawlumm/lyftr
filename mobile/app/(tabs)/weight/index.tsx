@@ -7,7 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatNumber } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -236,7 +236,7 @@ export default function Weight() {
                 </View>
                 {items.length > 0 ? (
                   <AppText variant="caption" color="muted">
-                    last: {displayWeight(items[0].weight, unit)} {wUnit}
+                    last: {formatNumber(displayWeight(items[0].weight, unit))} {wUnit}
                   </AppText>
                 ) : null}
               </View>
@@ -290,7 +290,7 @@ export default function Weight() {
                     <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
                     <View className="min-w-0 flex-1">
                       <Text className="font-sans-semibold text-sm text-warning-400">
-                        Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                        Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({formatNumber(displayWeight(items[0].weight, unit))} {wUnit}). Log again anyway?
                       </Text>
                       <View className="mt-2 flex-row gap-2">
                         <Pressable
@@ -340,19 +340,19 @@ export default function Weight() {
                     <View>
                       <Label className="mb-2">Current Weight</Label>
                       <View className="flex-row items-end gap-2">
-                        <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{current}</AppText>
+                        <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{formatNumber(current)}</AppText>
                         <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                       </View>
                     </View>
                     <View className={`flex-row items-center gap-1.5 rounded-lg border px-3 py-1.5 ${trendPill}`}>
                       <TrendIcon size={16} color={trendText} />
                       <Text className="font-sans-semibold text-sm" style={{ color: trendText, fontVariant: ['tabular-nums'] }}>
-                        {Math.abs(change)} {wUnit}
+                        {formatNumber(Math.abs(change))} {wUnit}
                       </Text>
                     </View>
                   </View>
                   <AppText variant="caption" color="muted" className="mt-3">
-                    {Math.abs(change)} {wUnit} {changeWord} over {period}
+                    {formatNumber(Math.abs(change))} {wUnit} {changeWord} over {period}
                   </AppText>
                 </>
               )}
@@ -367,7 +367,7 @@ export default function Weight() {
                     <Label numberOfLines={1}>{s.label}</Label>
                   </View>
                   <View className="flex-row items-end gap-1">
-                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(s.value)}</AppText>
+                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{formatNumber(Math.round(s.value))}</AppText>
                     <AppText variant="caption" color="muted" className="mb-0.5">{wUnit}</AppText>
                   </View>
                 </Card>

@@ -8,8 +8,7 @@ import {
 } from 'lucide-react-native'
 import {
   activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
-  weightShort, type Program, type ProgramSet,
-} from '@lyftr/shared'
+  weightShort, type Program, type ProgramSet, formatNumber } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -38,7 +37,7 @@ function SetChip({ set, isBest, hasSuggestion, unit }: { set: ProgramSet; isBest
     >
       <AppText variant="caption" color={hasSuggestion ? 'secondary' : isBest ? 'brand' : 'secondary'} style={{ fontVariant: ['tabular-nums'] }}>
         {set.target_reps > 0 ? set.target_reps : '—'} ×{' '}
-        {set.target_weight > 0 ? `${displayWeight(set.target_weight, unit)} ${unit}` : 'BW'}
+        {set.target_weight > 0 ? `${formatNumber(displayWeight(set.target_weight, unit))} ${unit}` : 'BW'}
       </AppText>
     </View>
   )
@@ -500,7 +499,7 @@ export default function ProgramDetail() {
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
                         <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
-                          {sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
+                          {sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${formatNumber(maxTarget)} ${wUnit}` : ''}
                         </AppText>
                       </View>
                     </View>

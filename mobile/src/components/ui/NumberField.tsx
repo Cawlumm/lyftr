@@ -1,6 +1,5 @@
-import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
-import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
+import { NumericInput } from './NumericInput'
 
 interface Props {
   value: string
@@ -15,8 +14,9 @@ interface Props {
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
-// StepperTile (the tile is the visual container). Robust partial-entry typing via
-// useNumericText; the parent owns conversion/validation in onChange.
+// StepperTile (the tile is the visual container). The number handling is NumericInput's;
+// this only adds the type scale and the disabled treatment. The parent owns conversion
+// and validation in onChange.
 export function NumberField({
   value,
   onChange,
@@ -27,23 +27,18 @@ export function NumberField({
   inputAccessoryViewID,
 }: Props) {
   const { colors } = useTheme()
-  const [text, setText] = useNumericText(value)
   return (
-    <TextInput
-      value={text}
+    <NumericInput
+      value={value}
+      onChangeText={onChange}
+      inputMode={inputMode}
       editable={!disabled}
       placeholder={placeholder}
       placeholderTextColor={colors.txMuted}
-      keyboardType={inputMode === 'numeric' ? 'number-pad' : 'decimal-pad'}
       returnKeyType="done"
       selectTextOnFocus
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}
-      onChangeText={(raw) => {
-        const v = sanitizeNumericInput(raw, inputMode)
-        setText(v)
-        onChange(v)
-      }}
       // tabular-nums keeps the value from jittering as digits change (web parity).
       className={`w-full py-1 text-center font-display-heavy text-3xl text-tx-primary ${disabled ? 'opacity-40' : ''}`}
       style={{ fontVariant: ['tabular-nums'] }}
