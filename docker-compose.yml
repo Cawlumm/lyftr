@@ -16,6 +16,7 @@ services:
       - DB_PATH=/app/data/lyftr.db
       - REGISTRATION=${REGISTRATION:-open}
       - DEMO_MODE=${DEMO_MODE:-false}
+      - TRUSTED_PROXIES=${TRUSTED_PROXIES:-172.28.0.0/16}
     expose:
       - "3000"
     healthcheck:
@@ -23,6 +24,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - lyftr
 
   frontend:
     image: cwlumm/lyftr-frontend:latest
@@ -40,3 +43,14 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+    networks:
+      - lyftr
+
+# Pin the bundled reverse-proxy hop to a dedicated network rather than trusting all
+# private ranges. Keep this subnet separate from real LAN/VPN client ranges; if your
+# host already uses 172.28.0.0/16, choose another here and update TRUSTED_PROXIES too.
+networks:
+  lyftr:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
