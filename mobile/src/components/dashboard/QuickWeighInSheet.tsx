@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, Scale, X } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
@@ -33,7 +33,6 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const [date, setDate] = useState(todayStr())
   const [notes, setNotes] = useState('')
   const [showExtras, setShowExtras] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const [dupDismissed, setDupDismissed] = useState(false)
@@ -46,13 +45,23 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
     setNotes('')
     setShowExtras(false)
     setError('')
-    setSaving(false)
     setShowDuplicateWarning(false)
     setDupDismissed(false)
   }, [open, lastValue])
 
+  const save = useAsyncAction(async (w: number) => {
+    const log = await client.weightAPI.log({
+      weight: displayToLbs(w, unit),
+      notes: notes.trim(),
+      logged_at: dayToInstant(date),
+    })
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onSuccess(log)
+    onClose()
+  }, 'Failed to save')
+
   const submit = async (forceDismissed = false) => {
-    if (saving) return
+    if (save.busy) return
     const w = parseFloat(value)
     const wErr = weightError(w, unit)
     if (wErr) {
@@ -63,22 +72,9 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       setShowDuplicateWarning(true)
       return
     }
-    setSaving(true)
     setError('')
     setShowDuplicateWarning(false)
-    try {
-      const log = await client.weightAPI.log({
-        weight: displayToLbs(w, unit),
-        notes: notes.trim(),
-        logged_at: dayToInstant(date),
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      onSuccess(log)
-      onClose()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
-      setSaving(false)
-    }
+    void save.run(w)
   }
 
   return (
@@ -98,10 +94,10 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
         </View>
 
         <View className="gap-4">
-          {error ? (
+          {(error || save.error) ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
               <AlertCircle size={16} color={brand.errorSoft} />
-              <Text className="flex-1 font-sans text-sm text-error-400">{error}</Text>
+              <Text className="flex-1 font-sans text-sm text-error-400">{error || save.error}</Text>
             </View>
           ) : null}
 
@@ -161,10 +157,10 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           )}
 
           <Button
-            title={saving ? 'Saving…' : 'Save'}
+            title={save.busy ? 'Saving…' : 'Save'}
             onPress={() => submit()}
-            loading={saving}
-            disabled={!(parseFloat(value) > 0) || saving}
+            loading={save.busy}
+            disabled={!(parseFloat(value) > 0) || save.busy}
           />
         </View>
       </View>
