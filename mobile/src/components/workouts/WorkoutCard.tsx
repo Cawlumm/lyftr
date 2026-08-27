@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { format } from 'date-fns'
 import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
-import { displayVolume, type Workout, workoutDay, dayToLocalDate} from '@lyftr/shared'
+import { useAsyncAction, displayVolume, type Workout, workoutDay, dayToLocalDate} from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -23,7 +23,6 @@ interface Props {
 // the menu is a native ActionSheet and Delete routes through the shared ConfirmSheet.
 export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
   const { colors } = useTheme()
-  const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -40,17 +39,13 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
     unit
   )
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await client.workoutAPI.delete(workout.id)
-      onDeleted(workout.id)
-    } catch {
-      // Web parity: a failed delete quietly restores the card.
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.workoutAPI.delete(workout.id)
+    onDeleted(workout.id)
+  }, 'Failed to delete workout')
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
@@ -104,7 +99,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
-          disabled={deleting}
+          disabled={remove.busy}
         />
         <ChevronRight size={16} color={colors.txMuted} />
       </Card>
@@ -143,9 +138,10 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${workout.name}"` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </Pressable>
   )

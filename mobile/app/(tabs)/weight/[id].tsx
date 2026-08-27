@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
@@ -33,7 +33,6 @@ export default function WeightDetail() {
 
   // Delete confirm
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/weight'))
 
@@ -89,17 +88,13 @@ export default function WeightDetail() {
     }
   }
 
-  const handleDelete = async () => {
-    if (!log || deleting) return
-    setDeleting(true)
-    try {
-      await client.weightAPI.delete(log.id)
-      goBack() // the list refetches on focus
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!log) return
+    await client.weightAPI.delete(log.id)
+    goBack() // the list refetches on focus
+  }, 'Failed to delete entry')
 
   if (loading) return <Loading />
 
@@ -146,9 +141,9 @@ export default function WeightDetail() {
                   accessibilityRole="button"
                   accessibilityLabel="Delete entry"
                   onPress={() => setConfirming(true)}
-                  disabled={deleting}
+                  disabled={remove.busy}
                   hitSlop={6}
-                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
                 >
                   <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
                 </Pressable>
@@ -243,9 +238,10 @@ export default function WeightDetail() {
           subject: `${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
         })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
       {/* iOS Done bar above the numeric keyboard (the edit weight NumberField links it). */}
       <NumericKeyboardAccessory />

@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { useAsyncAction, entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -25,7 +25,6 @@ export default function NutritionDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/nutrition'))
 
@@ -36,17 +35,13 @@ export default function NutritionDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
-  const handleDelete = async () => {
-    if (!entry || deleting) return
-    setDeleting(true)
-    try {
-      await client.foodAPI.delete(entry.id)
-      goBack() // the dashboard refetches on focus
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!entry) return
+    await client.foodAPI.delete(entry.id)
+    goBack() // the dashboard refetches on focus
+  }, 'Failed to delete entry')
 
   if (loading) return <Loading />
 
@@ -115,9 +110,9 @@ export default function NutritionDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Delete entry"
                 onPress={() => setConfirming(true)}
-                disabled={deleting}
+                disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -191,9 +186,10 @@ export default function NutritionDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete entry?', subject: `"${entry.name}"` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </Screen>
   )

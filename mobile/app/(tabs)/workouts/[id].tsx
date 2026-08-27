@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -60,7 +60,6 @@ export default function WorkoutDetail() {
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
@@ -88,16 +87,13 @@ export default function WorkoutDetail() {
 
   // Web's portal bottom-sheet confirm, ported 1:1 to a slide-up ConfirmSheet
   // (replaces the interim OS Alert) — closer to the web app the user knows.
-  const handleDelete = async () => {
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
     if (!workout) return
-    setDeleting(true)
-    try {
-      await client.workoutAPI.delete(workout.id)
-      goBack() // list refetches on focus
-    } catch {
-      setDeleting(false)
-    }
-  }
+    await client.workoutAPI.delete(workout.id)
+    goBack() // list refetches on focus
+  }, 'Failed to delete workout')
 
   if (loading) return <Loading />
 
@@ -156,9 +152,9 @@ export default function WorkoutDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Delete workout"
                 onPress={() => setConfirming(true)}
-                disabled={deleting}
+                disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -169,9 +165,10 @@ export default function WorkoutDetail() {
           <ConfirmSheet
             {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${workout.name}"` })}
             open={confirming}
-            busy={deleting}
-            onConfirm={handleDelete}
-            onCancel={() => setConfirming(false)}
+            busy={remove.busy}
+            error={remove.error}
+            onConfirm={() => { void remove.run() }}
+            onCancel={() => { setConfirming(false); remove.reset() }}
           />
 
           {/* Header card */}

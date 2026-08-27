@@ -4,7 +4,7 @@ import { router, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play, Sun } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import {
+import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
   sessionNameForDay, todaysDay,
 } from '@lyftr/shared'
@@ -32,7 +32,6 @@ const activeHref = '/workouts/active' as unknown as Href
 export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const { colors, accent } = useTheme()
   const { session, startSession } = useWorkoutSession()
-  const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
@@ -66,17 +65,13 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
     pickProgramDay(program, (_p, day) => beginSession(day), setDayPickFor, () => router.push(`/programs/${program.id}`))
   }
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await client.programAPI.delete(program.id)
-      onDeleted(program.id)
-    } catch {
-      // Web parity: a failed delete quietly restores the card.
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.programAPI.delete(program.id)
+    onDeleted(program.id)
+  }, 'Failed to delete program')
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
@@ -130,7 +125,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           variant="solid"
           size="sm"
           onPress={handleStart}
-          disabled={deleting}
+          disabled={remove.busy}
         />
         <IconButton
           icon={MoreVertical}
@@ -138,7 +133,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
-          disabled={deleting}
+          disabled={remove.busy}
         />
         <ChevronRight size={16} color={colors.txMuted} />
       </Card>
@@ -167,9 +162,10 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete Program?', subject: `"${program.name}"` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
 
       <DayPickerSheet program={dayPickFor} onSelect={(_p, day) => beginSession(day)} onClose={() => setDayPickFor(null)} />
