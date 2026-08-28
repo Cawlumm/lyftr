@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { hydrateStores, useAuthStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from './lyftr'
+import { applyThemeClass, hydrateStores, useAuthStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from './lyftr'
 import { storage } from './storage'
+import { surfaces } from '@lyftr/shared'
 
 // main.tsx awaits hydrateStores() before the first render. Everything that depends on
 // that ordering is invisible from the store code itself, so this pins the contract:
@@ -71,6 +72,25 @@ describe('hydrateStores', () => {
     await hydrateStores()
 
     expect(document.documentElement.classList.contains('dark')).toBe(false)
+  })
+
+  // theme-color tints browser chrome and the installed app's status bar, so a stale value
+  // is a cyan stripe above a near-black app. It cannot be a prefers-color-scheme media
+  // query — the theme lives in localStorage — so it has to be rewritten here instead.
+  it('repaints theme-color to match the surface the page renders on', async () => {
+    const meta = document.createElement('meta')
+    meta.setAttribute('name', 'theme-color')
+    meta.setAttribute('content', '#00b8d9')
+    document.head.appendChild(meta)
+
+    localStorage.setItem('theme', 'light')
+    await hydrateStores()
+    expect(meta.getAttribute('content')).toBe(surfaces.light.base)
+
+    applyThemeClass('dark')
+    expect(meta.getAttribute('content')).toBe(surfaces.dark.base)
+
+    meta.remove()
   })
 })
 
