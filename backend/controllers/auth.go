@@ -17,7 +17,7 @@ var validate = utils.NewValidator()
 // RegistrationClosedMessage is what a rejected signup sees. One constant so the two
 // ways of being closed (REGISTRATION=closed, and first-user with the slot taken) are
 // indistinguishable to a caller — and so the handler and its tests cannot drift.
-const RegistrationClosedMessage = "registration is closed on this server"
+const RegistrationClosedMessage = "Registration is closed on this server."
 
 // registrationOpen reports whether a new account may be created right now. Errors are
 // reported as closed: advertising an open instance because a COUNT failed is the wrong
@@ -86,7 +86,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	if utils.IsUniqueViolation(err) {
-		utils.Conflict(c, "email already registered")
+		utils.Conflict(c, "That email is already registered.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -131,14 +131,14 @@ func (h *Handler) Login(c *gin.Context) {
 		// anyone asking exactly which addresses are registered — undoing the point of
 		// giving both cases the same message.
 		utils.BurnPasswordComparison(req.Password)
-		utils.Unauthorized(c, "invalid email or password")
+		utils.Unauthorized(c, "Invalid email or password.")
 		return
 	}
 	if utils.DBError(c, err) {
 		return
 	}
 	if !utils.CheckPassword(req.Password, user.Password) {
-		utils.Unauthorized(c, "invalid email or password")
+		utils.Unauthorized(c, "Invalid email or password.")
 		return
 	}
 
@@ -172,7 +172,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	// token was minted would otherwise resolve to the wrong row or to none at all.
 	user, err := h.s.User.GetByID(uid)
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "account no longer exists")
+		utils.Unauthorized(c, "That account no longer exists.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -180,14 +180,14 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 
 	if !utils.CheckPassword(req.CurrentPassword, user.Password) {
-		utils.Unauthorized(c, "current password is incorrect")
+		utils.Unauthorized(c, "Your current password is incorrect.")
 		return
 	}
 	// Rejected before hashing. Allowing it would burn a bcrypt round to no effect and,
 	// worse, still bump token_version — signing every other device out for a change
 	// that never happened.
 	if req.CurrentPassword == req.NewPassword {
-		utils.BadRequest(c, "new password must be different from the current one")
+		utils.BadRequest(c, "Your new password must be different from your current one.")
 		return
 	}
 
@@ -204,7 +204,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	version, err := h.s.User.ChangePassword(uid, user.Password, newHash)
 	if errors.Is(err, stores.ErrPasswordChanged) {
-		utils.Conflict(c, "password was changed elsewhere, please try again")
+		utils.Conflict(c, "Your password was changed elsewhere. Please try again.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -215,7 +215,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	if err != nil {
 		// The password did change — reporting a failure here would send the user off to
 		// retry with a password that no longer works. Say what happened instead.
-		utils.Unauthorized(c, "password changed, please sign in again")
+		utils.Unauthorized(c, "Your password changed. Please sign in again.")
 		return
 	}
 
@@ -231,7 +231,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	claims, err := utils.ValidateToken(req.RefreshToken)
 	if err != nil || claims.Type != "refresh" {
-		utils.Unauthorized(c, "invalid refresh token")
+		utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
 		return
 	}
 
@@ -242,14 +242,14 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// fresh access tokens for a month.
 	current, err := h.s.User.TokenVersion(claims.UserID)
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "invalid refresh token")
+		utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
 		return
 	}
 	if utils.DBError(c, err) {
 		return
 	}
 	if utils.NormalizeTokenVersion(claims.TokenVersion) != current {
-		utils.Unauthorized(c, "session expired, please sign in again")
+		utils.Unauthorized(c, "Your session expired. Please sign in again.")
 		return
 	}
 

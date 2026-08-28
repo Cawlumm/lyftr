@@ -51,12 +51,12 @@ func (h *Handler) GetWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid workout id")
+		utils.BadRequest(c, "That workout id isn't valid.")
 		return
 	}
 	w, err := h.s.Workout.Get(uid, wid)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "workout not found")
+		utils.NotFound(c, "That workout no longer exists.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -96,7 +96,7 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	// never fails the already-saved workout.
 	w, progression, err := h.s.CreateWorkoutWithProgression(uid, req)
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "one or more exercises do not exist")
+		utils.BadRequest(c, "One or more of those exercises no longer exist.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -110,7 +110,7 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid workout id")
+		utils.BadRequest(c, "That workout id isn't valid.")
 		return
 	}
 	var req models.CreateWorkoutRequest
@@ -138,11 +138,11 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	}
 	w, err := h.s.Workout.Update(uid, wid, req)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "workout not found")
+		utils.NotFound(c, "That workout no longer exists.")
 		return
 	}
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "one or more exercises do not exist")
+		utils.BadRequest(c, "One or more of those exercises no longer exist.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -155,7 +155,7 @@ func (h *Handler) DeleteWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid workout id")
+		utils.BadRequest(c, "That workout id isn't valid.")
 		return
 	}
 	n, err := h.s.Workout.Delete(uid, wid)
@@ -163,7 +163,7 @@ func (h *Handler) DeleteWorkout(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "workout not found")
+		utils.NotFound(c, "That workout no longer exists.")
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})

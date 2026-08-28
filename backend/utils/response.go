@@ -31,7 +31,7 @@ func NotFound(c *gin.Context, msg string) {
 }
 
 func InternalError(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong on the server."})
 }
 
 // ValidationError reports a request whose fields broke a rule. The message is built

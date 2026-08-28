@@ -301,11 +301,11 @@ func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]o
 }
 
 // with no upstream configured.
-var errNoCatalog = errors.New("no exercise catalog configured")
+var errNoCatalog = errors.New("This server has no exercise catalog configured.")
 
 // ErrNoCatalog is returned by the cache-management operations on an instance with
 // no upstream configured.
-var ErrNoCatalog = errors.New("no exercise catalog configured")
+var ErrNoCatalog = errors.New("This server has no exercise catalog configured.")
 
 // CachedCount reports how many catalog rows this instance currently holds.
 //

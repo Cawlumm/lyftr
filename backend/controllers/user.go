@@ -13,7 +13,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	uid := middleware.UserID(c)
 	u, err := h.s.User.GetMe(uid)
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "account no longer exists")
+		utils.Unauthorized(c, "That account no longer exists.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -60,11 +60,11 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		// that silently reverts every day boundary to UTC — a 200 OK, a stored value
 		// that is neither null nor rejected, and nothing to point at afterwards.
 		if *req.Timezone == "" {
-			utils.BadRequest(c, "timezone cannot be empty")
+			utils.BadRequest(c, "Timezone can't be empty.")
 			return
 		}
 		if _, err := ParseLocation(*req.Timezone); err != nil {
-			utils.BadRequest(c, "unknown timezone: "+*req.Timezone)
+			utils.BadRequest(c, "Unknown timezone: "+*req.Timezone+".")
 			return
 		}
 	}

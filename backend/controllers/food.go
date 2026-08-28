@@ -33,7 +33,7 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 	// only to answer "what is today" when the parameter is omitted.
 	date, ok := h.resolveQueryDay(uid, c.Query("date"))
 	if !ok {
-		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		utils.BadRequest(c, "Date must be in YYYY-MM-DD format.")
 		return
 	}
 	logs, err := h.s.Food.ListByDay(uid, date)
@@ -48,13 +48,13 @@ func (h *Handler) GetFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid id")
+		utils.BadRequest(c, "That id isn't valid.")
 		return
 	}
 
 	f, err := h.s.Food.Get(uid, lid)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "log entry not found")
+		utils.NotFound(c, "That entry no longer exists.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -82,23 +82,23 @@ func (h *Handler) LogFood(c *gin.Context) {
 		return
 	}
 	if len(req.Name) > 200 {
-		utils.BadRequest(c, "name exceeds 200 characters")
+		utils.BadRequest(c, "Name must be 200 characters or fewer.")
 		return
 	}
 	if len(req.Brand) > 200 {
-		utils.BadRequest(c, "brand exceeds 200 characters")
+		utils.BadRequest(c, "Brand must be 200 characters or fewer.")
 		return
 	}
 	if len(req.ServingSize) > 100 {
-		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		utils.BadRequest(c, "Serving size must be 100 characters or fewer.")
 		return
 	}
 	if len(req.Barcode) > 50 {
-		utils.BadRequest(c, "barcode exceeds 50 characters")
+		utils.BadRequest(c, "Barcode must be 50 characters or fewer.")
 		return
 	}
 	if len(req.ImageURL) > 500 {
-		utils.BadRequest(c, "image_url exceeds 500 characters")
+		utils.BadRequest(c, "Image URL must be 500 characters or fewer.")
 		return
 	}
 
@@ -109,7 +109,7 @@ func (h *Handler) LogFood(c *gin.Context) {
 
 	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
 	if !ok {
-		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		utils.BadRequest(c, "Logged on must be in YYYY-MM-DD format.")
 		return
 	}
 
@@ -124,7 +124,7 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid id")
+		utils.BadRequest(c, "That id isn't valid.")
 		return
 	}
 
@@ -145,23 +145,23 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 		return
 	}
 	if len(req.Name) > 200 {
-		utils.BadRequest(c, "name exceeds 200 characters")
+		utils.BadRequest(c, "Name must be 200 characters or fewer.")
 		return
 	}
 	if len(req.Brand) > 200 {
-		utils.BadRequest(c, "brand exceeds 200 characters")
+		utils.BadRequest(c, "Brand must be 200 characters or fewer.")
 		return
 	}
 	if len(req.ServingSize) > 100 {
-		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		utils.BadRequest(c, "Serving size must be 100 characters or fewer.")
 		return
 	}
 	if len(req.Barcode) > 50 {
-		utils.BadRequest(c, "barcode exceeds 50 characters")
+		utils.BadRequest(c, "Barcode must be 50 characters or fewer.")
 		return
 	}
 	if len(req.ImageURL) > 500 {
-		utils.BadRequest(c, "image_url exceeds 500 characters")
+		utils.BadRequest(c, "Image URL must be 500 characters or fewer.")
 		return
 	}
 	req.LoggedAt = normalizeLoggedAt(req.LoggedAt)
@@ -171,13 +171,13 @@ func (h *Handler) UpdateFoodLog(c *gin.Context) {
 
 	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
 	if !ok {
-		utils.BadRequest(c, "logged_on must be YYYY-MM-DD")
+		utils.BadRequest(c, "Logged on must be in YYYY-MM-DD format.")
 		return
 	}
 
 	f, err := h.s.Food.Update(uid, lid, req, day)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "log entry not found")
+		utils.NotFound(c, "That entry no longer exists.")
 		return
 	}
 	if utils.DBError(c, err) {
@@ -190,7 +190,7 @@ func (h *Handler) DeleteFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid id")
+		utils.BadRequest(c, "That id isn't valid.")
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *Handler) DeleteFoodLog(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "log entry not found")
+		utils.NotFound(c, "That entry no longer exists.")
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})
@@ -209,7 +209,7 @@ func (h *Handler) GetDailyStats(c *gin.Context) {
 	uid := middleware.UserID(c)
 	date, ok := h.resolveQueryDay(uid, c.Query("date"))
 	if !ok {
-		utils.BadRequest(c, "date must be YYYY-MM-DD")
+		utils.BadRequest(c, "Date must be in YYYY-MM-DD format.")
 		return
 	}
 	stats, err := h.s.Food.DailyMacros(uid, date)
@@ -360,7 +360,7 @@ func doOFFRequest(ctx context.Context, rawURL string) ([]byte, int, error) {
 func (h *Handler) SearchFood(c *gin.Context) {
 	q := c.Query("q")
 	if q == "" {
-		utils.BadRequest(c, "q is required")
+		utils.BadRequest(c, "A search term is required.")
 		return
 	}
 
@@ -386,11 +386,11 @@ func (h *Handler) SearchFood(c *gin.Context) {
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			log.Printf("[food/search] OFF timeout after %dms", elapsed.Milliseconds())
-			utils.ServiceUnavailable(c, "food search timed out — try again")
+			utils.ServiceUnavailable(c, "The food database didn't respond in time. Try again.")
 			return
 		}
 		log.Printf("[food/search] OFF network error: %v", err)
-		utils.ServiceUnavailable(c, "could not reach food database")
+		utils.ServiceUnavailable(c, "Couldn't reach the food database.")
 		return
 	}
 
@@ -398,15 +398,15 @@ func (h *Handler) SearchFood(c *gin.Context) {
 	case status == 429:
 		log.Printf("[food/search] OFF rate limit hit")
 		c.Header("Retry-After", "60")
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests — wait a moment and try again"})
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests. Wait a moment and try again."})
 		return
 	case status >= 500:
 		log.Printf("[food/search] OFF upstream error: %d", status)
-		utils.ServiceUnavailable(c, "food search temporarily unavailable")
+		utils.ServiceUnavailable(c, "Food search is temporarily unavailable.")
 		return
 	case status != 200:
 		log.Printf("[food/search] OFF unexpected status: %d", status)
-		utils.ServiceUnavailable(c, "food search temporarily unavailable")
+		utils.ServiceUnavailable(c, "Food search is temporarily unavailable.")
 		return
 	}
 
@@ -440,13 +440,13 @@ type offBarcodeResponse struct {
 func (h *Handler) LookupBarcode(c *gin.Context) {
 	code := c.Param("code")
 	if code == "" {
-		utils.BadRequest(c, "barcode is required")
+		utils.BadRequest(c, "A barcode is required.")
 		return
 	}
 
 	matched, err := regexp.MatchString(`^\d{6,14}$`, code)
 	if err != nil || !matched {
-		utils.BadRequest(c, "Invalid barcode format")
+		utils.BadRequest(c, "That barcode isn't valid.")
 		return
 	}
 
@@ -464,11 +464,11 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			log.Printf("[food/barcode] OFF timeout after %dms", elapsed.Milliseconds())
-			utils.ServiceUnavailable(c, "barcode lookup timed out — try again")
+			utils.ServiceUnavailable(c, "The food database didn't respond in time. Try again.")
 			return
 		}
 		log.Printf("[food/barcode] OFF network error: %v", err)
-		utils.ServiceUnavailable(c, "could not reach food database")
+		utils.ServiceUnavailable(c, "Couldn't reach the food database.")
 		return
 	}
 
@@ -476,11 +476,11 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 	case status == 429:
 		log.Printf("[food/barcode] OFF rate limit hit")
 		c.Header("Retry-After", "60")
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many requests — wait a moment and try again"})
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests. Wait a moment and try again."})
 		return
 	case status >= 500:
 		log.Printf("[food/barcode] OFF upstream error: %d", status)
-		utils.ServiceUnavailable(c, "barcode lookup temporarily unavailable")
+		utils.ServiceUnavailable(c, "Barcode lookup is temporarily unavailable.")
 		return
 	}
 
@@ -492,7 +492,7 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 	}
 
 	if !strings.HasPrefix(parsed.Status, "success") || parsed.Product.ProductName == "" {
-		utils.NotFound(c, "product not found")
+		utils.NotFound(c, "No product matched that barcode.")
 		return
 	}
 
@@ -531,19 +531,19 @@ func (h *Handler) CreateSavedFood(c *gin.Context) {
 		return
 	}
 	if len(req.Name) > 200 {
-		utils.BadRequest(c, "name exceeds 200 characters")
+		utils.BadRequest(c, "Name must be 200 characters or fewer.")
 		return
 	}
 	if len(req.Brand) > 200 {
-		utils.BadRequest(c, "brand exceeds 200 characters")
+		utils.BadRequest(c, "Brand must be 200 characters or fewer.")
 		return
 	}
 	if len(req.ServingSize) > 100 {
-		utils.BadRequest(c, "serving_size exceeds 100 characters")
+		utils.BadRequest(c, "Serving size must be 100 characters or fewer.")
 		return
 	}
 	if len(req.Barcode) > 50 {
-		utils.BadRequest(c, "barcode exceeds 50 characters")
+		utils.BadRequest(c, "Barcode must be 50 characters or fewer.")
 		return
 	}
 
@@ -571,7 +571,7 @@ func (h *Handler) DeleteSavedFood(c *gin.Context) {
 	uid := middleware.UserID(c)
 	fid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "invalid id")
+		utils.BadRequest(c, "That id isn't valid.")
 		return
 	}
 
@@ -580,7 +580,7 @@ func (h *Handler) DeleteSavedFood(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "saved food not found")
+		utils.NotFound(c, "That saved food no longer exists.")
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})
