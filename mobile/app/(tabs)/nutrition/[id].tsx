@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { useAsyncAction, entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import { Alert,
   AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -31,7 +31,7 @@ export default function NutritionDetail() {
   useEffect(() => {
     client.foodAPI.get(Number(id))
       .then(setEntry)
-      .catch(() => setError('Failed to load entry'))
+      .catch((err) => setError(apiErrorMessage(err, 'Failed to load entry')))
       .finally(() => setLoading(false))
   }, [id])
 

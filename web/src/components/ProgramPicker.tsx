@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, BookOpen, ChevronRight, Dumbbell, AlertCircle, Moon } from 'lucide-react'
 import { programAPI } from '../services/api'
-import { workoutDays, dayLabel, todaysDay, types } from '@lyftr/shared'
+import { apiErrorMessage, workoutDays, dayLabel, todaysDay, types } from '@lyftr/shared'
 
 interface Props {
   onSelect: (program: types.Program, day: types.ProgramDay) => void
@@ -21,7 +21,7 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
   useEffect(() => {
     programAPI.list()
       .then(data => setPrograms(data || []))
-      .catch(() => setError('Failed to load programs'))
+      .catch(err => setError(apiErrorMessage(err, 'Failed to load programs')))
       .finally(() => setLoading(false))
   }, [])
 

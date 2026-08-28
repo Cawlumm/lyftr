@@ -19,7 +19,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -112,10 +112,10 @@ export default function LogFood() {
           : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       }
-    } catch {
-      setFavoriteError(existing
+    } catch (err) {
+      setFavoriteError(apiErrorMessage(err, existing
         ? `Couldn't remove ${item.name} from Favorites.`
-        : `Couldn't add ${item.name} to Favorites.`)
+        : `Couldn't add ${item.name} to Favorites.`))
     } finally {
       inFlightFavorites.current.delete(key)
       setTogglingFavorite(new Set(inFlightFavorites.current))

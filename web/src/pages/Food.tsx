@@ -136,8 +136,8 @@ export default function Food() {
       setLogs(prev => prev.filter(l => l.id !== id))
       setDeleteConfirmId(null)
       foodAPI.stats(selectedDate).then(setStats).catch(() => {})
-    } catch {
-      setError('Failed to delete entry')
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to delete entry'))
     } finally {
       setDeletingId(null)
     }

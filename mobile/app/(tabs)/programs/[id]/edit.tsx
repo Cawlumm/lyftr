@@ -3,7 +3,7 @@ import { Platform, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
 import { AppText, Button, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
@@ -81,7 +81,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(() => { if (!cancelled) setError('Failed to load program') })
+      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, 'Failed to load program')) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

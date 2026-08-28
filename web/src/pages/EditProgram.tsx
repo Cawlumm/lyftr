@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, BookOpen, FileText, Dumbbell, CalendarDays } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
-import { useAsyncAction, hasWorkoutExercises, types } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, hasWorkoutExercises, types } from '@lyftr/shared'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
 import type { DayDraft } from '../components/programs/types'
 
@@ -56,7 +56,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(() => { setError('Failed to load program'); })
+      .catch(err => { setError(apiErrorMessage(err, 'Failed to load program')); })
       .finally(() => setInitialLoading(false))
   }, [id])
 

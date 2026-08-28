@@ -5,7 +5,7 @@ import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
-import { useAsyncAction, types } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, types } from '@lyftr/shared'
 
 interface WorkoutFormData {
   name: string
@@ -55,7 +55,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(() => setError('Failed to load workout'))
+      .catch(err => setError(apiErrorMessage(err, 'Failed to load workout')))
       .finally(() => setInitialLoading(false))
   }, [id])
 

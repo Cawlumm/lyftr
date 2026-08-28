@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
+import { apiErrorMessage, activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
 import { AppText, IconButton, Screen } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -28,7 +28,7 @@ export default function StartWorkout() {
     client.programAPI
       .list()
       .then((data) => setPrograms(data || []))
-      .catch(() => setError('Failed to load programs'))
+      .catch((err) => setError(apiErrorMessage(err, 'Failed to load programs')))
       .finally(() => setLoading(false))
   }, [])
 

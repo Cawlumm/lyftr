@@ -27,6 +27,9 @@ export default function ProgramDetail() {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
+  // Separate from `error`, which replaces the whole page: a failed resolve must leave the
+  // program on screen so the same buttons are still under the finger to retry.
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
@@ -35,11 +38,12 @@ export default function ProgramDetail() {
   const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
     if (!program || resolving) return
     setResolving(true)
+    setResolveError(null)
     try {
       const updated = await programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
-    } catch {
-      /* leave the banner in place so the user can retry */
+    } catch (err) {
+      setResolveError(apiErrorMessage(err, "Couldn't save those targets."))
     } finally {
       setResolving(false)
     }
@@ -237,6 +241,12 @@ export default function ProgramDetail() {
                 ? <>Show less <ChevronUp className="w-3.5 h-3.5" /></>
                 : <>Show all {suggestions.length} <ChevronDown className="w-3.5 h-3.5" /></>}
             </button>
+          )}
+          {resolveError && (
+            <div className="flex items-start gap-2 px-4 py-2.5 border-t border-surface-border/60 text-sm text-error-400">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span className="flex-1">{resolveError}</span>
+            </div>
           )}
           <div className="flex gap-2 px-4 py-3 border-t border-surface-border/60">
             <button

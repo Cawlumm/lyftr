@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {
+  apiErrorMessage,
   displayWeight,
   weightShort,
   type Exercise,
@@ -100,6 +101,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [chartWidth, setChartWidth] = useState(0)
 
   useEffect(() => {
@@ -121,7 +123,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch(() => { if (!cancelled) goBack() })
+      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, 'Failed to load exercise')) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +135,23 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     const cutoff = subDays(new Date(), days).getTime()
     return history.filter((h) => new Date(h.date).getTime() >= cutoff)
   }, [history, historyPeriod])
+
+  // A dropped connection used to goBack() — off the screen, no explanation, nothing to
+  // retry. Say what happened and leave them where they tapped.
+  if (error) {
+    return (
+      <Screen>
+        <Pressable onPress={goBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back" className="flex-row items-center gap-2 py-2 active:opacity-60">
+          <ArrowLeft size={16} color={colors.txMuted} />
+          <AppText variant="body" color="muted">Back</AppText>
+        </Pressable>
+        <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
+          <AlertCircle size={20} color={brand.error} />
+          <AppText variant="body" color="error" className="flex-1">{error}</AppText>
+        </View>
+      </Screen>
+    )
+  }
 
   if (loading || !exercise) return <LoadingPulse />
 

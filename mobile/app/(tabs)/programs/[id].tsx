@@ -78,6 +78,9 @@ export default function ProgramDetail() {
   const [error, setError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
+  // Separate from `error`, which replaces the whole screen: a failed resolve must leave the
+  // program on screen so the same buttons are still under the thumb to retry.
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
@@ -101,12 +104,13 @@ export default function ProgramDetail() {
   const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
     if (!program || resolving) return
     setResolving(true)
+    setResolveError(null)
     ++requestSeq.current
     try {
       const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
-    } catch {
-      // leave the banner in place so the user can retry
+    } catch (err) {
+      setResolveError(apiErrorMessage(err, "Couldn't save those targets."))
     } finally {
       // Invalidate any focus refetch still in flight from before this point — its
       // response can't be trusted to reflect this write, whichever order it lands in.
@@ -344,6 +348,12 @@ export default function ProgramDetail() {
                   </AppText>
                   {showAllSuggestions ? <ChevronUp size={14} color={warningColor} /> : <ChevronDown size={14} color={warningColor} />}
                 </Pressable>
+              )}
+              {resolveError && (
+                <View className="flex-row items-start gap-2 px-4 py-2.5 border-t border-surface-border/60">
+                  <AlertCircle size={16} color={brand.error} />
+                  <AppText variant="caption" color="error" className="flex-1">{resolveError}</AppText>
+                </View>
               )}
               <View className="flex-row gap-2 px-4 py-3 border-t border-surface-border/60">
                 <Pressable

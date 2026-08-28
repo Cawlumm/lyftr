@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
 import { AlertCircle, BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
+import { apiErrorMessage, workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
 import { AppText, EmptyState, Field, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
@@ -28,7 +28,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
   useEffect(() => {
     client.programAPI.list()
       .then((data) => setPrograms(data || []))
-      .catch(() => setError('Failed to load programs'))
+      .catch((err) => setError(apiErrorMessage(err, 'Failed to load programs')))
       .finally(() => setLoading(false))
   }, [])
 

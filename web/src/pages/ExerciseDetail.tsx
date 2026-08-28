@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
@@ -9,7 +9,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { types } from '@lyftr/shared'
+import { apiErrorMessage, types } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
@@ -45,6 +45,7 @@ export default function ExerciseDetail() {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -66,7 +67,7 @@ export default function ExerciseDetail() {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch(() => navigate(-1))
+      .catch(err => setError(apiErrorMessage(err, 'Failed to load exercise')))
       .finally(() => setLoading(false))
   }, [exerciseId])
 
@@ -79,6 +80,22 @@ export default function ExerciseDetail() {
 
   const bodyColor = isDark ? '#162240' : '#e2e8f0'
   const highlightColors = ['#0e7490', '#22d3ee'] // [secondary=cyan-700, primary=cyan-400]
+
+  // A dropped connection used to navigate(-1) — off the screen, no explanation, nothing to
+  // retry. Say what happened and leave them where they tapped.
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="alert-error">
+          <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+      </div>
+    )
+  }
 
   if (loading || !exercise) {
     return (

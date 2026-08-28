@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
@@ -108,7 +108,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(() => setError('Failed to load workout'))
+      .catch((err) => setError(apiErrorMessage(err, 'Failed to load workout')))
       .finally(() => setInitialLoading(false))
     // Web effect deps: [id] only — settings are fetched before a user can navigate here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
