@@ -21,8 +21,8 @@ import (
 //
 // demo_mode lets the login screen offer a one-tap sign-in rather than asking a stranger to
 // type demo@lyftr.local. It is the same flag that decides whether seed.DemoUser runs, so the
-// button only ever appears where the account exists. Nothing is disclosed: DEMO_MODE is off
-// outside development, and where it is on the credentials are already public.
+// button only ever appears where the account exists. Nothing is disclosed: DEMO_MODE is
+// opt-in everywhere, and wherever it is on the credentials are already public.
 func (h *Handler) ServerInfo(c *gin.Context) {
 	open, err := h.registrationOpen()
 	if err != nil {
