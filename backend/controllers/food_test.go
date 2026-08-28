@@ -684,8 +684,10 @@ func TestOffProductToResult_fallsBackTo100g(t *testing.T) {
 	if r.Calories != 265 {
 		t.Errorf("expected per-100g calories 265, got %v", r.Calories)
 	}
-	if r.ServingSize != "per 100g" {
-		t.Errorf("expected 'per 100g' label, got %q", r.ServingSize)
+	// Without the preposition: the clients render "per {serving_size}", so a label of
+	// "per 100g" showed as "per per 100g". Seen in the browser on every search result.
+	if r.ServingSize != "100 g" {
+		t.Errorf("expected '100 g' label, got %q", r.ServingSize)
 	}
 }
 

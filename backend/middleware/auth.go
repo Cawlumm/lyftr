@@ -14,20 +14,20 @@ func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			utils.Unauthorized(c, "missing or invalid authorization header")
+			utils.Unauthorized(c, "You need to sign in to do that.")
 			c.Abort()
 			return
 		}
 
 		claims, err := utils.ValidateToken(strings.TrimPrefix(header, "Bearer "))
 		if err != nil {
-			utils.Unauthorized(c, "invalid or expired token")
+			utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
 			c.Abort()
 			return
 		}
 
 		if claims.Type != "access" {
-			utils.Unauthorized(c, "invalid token type")
+			utils.Unauthorized(c, "That token can't be used here.")
 			c.Abort()
 			return
 		}

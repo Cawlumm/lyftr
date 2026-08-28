@@ -22,7 +22,7 @@ func PasswordTooLong(plain string) bool {
 
 // PasswordTooLongMessage is the one wording for the limit, so the two handlers and the
 // reset-password command cannot describe it differently.
-const PasswordTooLongMessage = "password must be 72 bytes or fewer (accented letters and emoji count for more than one)"
+const PasswordTooLongMessage = "Password must be 72 bytes or fewer — accented letters and emoji count for more than one."
 
 func HashPassword(plain string) (string, error) {
 	b, err := bcrypt.GenerateFromPassword([]byte(plain), bcrypt.DefaultCost)
