@@ -102,7 +102,11 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     const [ws, ps, fs, wl, wst] = await Promise.all([
-      client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
+      // Uncaught on purpose, mirroring web: this is the primary request, and it is
+      // what lets a total outage reject load() and reach the ErrorState below. With
+      // all five caught, load() could never fail, so the error screen was
+      // unreachable and an outage rendered every tile at 0, silently.
+      client.workoutAPI.list({ limit: 84 }),
       client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
@@ -127,14 +131,19 @@ export default function Dashboard() {
   useFocusEffect(
     useCallback(() => {
       if (!focusedOnce.current) { focusedOnce.current = true; return }
-      load()
+      // A failed refocus refetch keeps the stale-but-real data already on screen;
+      // replacing a populated dashboard with an error over a background refresh
+      // would be the louder wrong. The catch exists because load() can reject now.
+      load().catch(() => {})
     }, [load])
   )
 
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await load()
+    // Same shape as the refocus refetch: pull-to-refresh over live data keeps the
+    // data on a failure; the spinner stopping with nothing changed is the signal.
+    await load().catch(() => {})
     setRefreshing(false)
   }, [load])
 

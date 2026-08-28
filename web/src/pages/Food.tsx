@@ -13,7 +13,8 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
-import { foodAPI, userAPI } from '../services/api'
+import { foodAPI } from '../services/api'
+import { useSettingsStore } from '../stores/settings'
 import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 
@@ -71,7 +72,10 @@ export default function Food() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [logs, setLogs] = useState<types.FoodLog[]>([])
   const [stats, setStats] = useState<types.DailyStats | null>(null)
-  const [settings, setSettings] = useState<types.UserSettings | null>(null)
+  // From the store, not a page-local fetch: this page carried a fourth copy of the
+  // fallback settings literal, invisible to the store's loadFailed flag. The store
+  // fetch no-ops when loaded and retries when the last read fell back.
+  const { settings, fetch: fetchSettings } = useSettingsStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Separate from `error`, which reports a failed action (a delete) while the day's
@@ -99,27 +103,21 @@ export default function Food() {
         date, total_calories: 0, total_protein: 0, total_carbs: 0,
         total_fat: 0, total_fiber: 0, workout_count: 0,
       }
-      const [logData, statsData, settingsData] = await Promise.all([
+      const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
         foodAPI.stats(date).catch(() => defaultStats),
-        settings
-          ? Promise.resolve(settings)
-          : userAPI.getSettings().catch(() => ({
-              user_id: 0, weight_unit: 'lbs' as const,
-              calorie_target: 2000, protein_target: 150, carb_target: 250, fat_target: 65,
-            })),
       ])
       setLogs(logData || [])
       setStats(statsData)
-      if (!settings) setSettings(settingsData as types.UserSettings)
     } catch (err: any) {
       setLoadError(apiErrorMessage(err, "Couldn't load your food log."))
     } finally {
       hasLoadedRef.current = true
       setLoading(false)
     }
-  }, [settings])
+  }, [])
 
+  useEffect(() => { void fetchSettings() }, [fetchSettings])
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
 
   useEffect(() => {
