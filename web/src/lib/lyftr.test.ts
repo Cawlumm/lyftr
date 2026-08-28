@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hydrateStores, useAuthStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from './lyftr'
 import { storage } from './storage'
+import { surfaces } from '@lyftr/shared'
 
 // main.tsx awaits hydrateStores() before the first render. Everything that depends on
 // that ordering is invisible from the store code itself, so this pins the contract:
@@ -71,6 +72,29 @@ describe('hydrateStores', () => {
     await hydrateStores()
 
     expect(document.documentElement.classList.contains('dark')).toBe(false)
+  })
+
+  // Browsers diff theme-color to decide whether to repaint their chrome, and editing the
+  // existing element's content is not reliably seen as a change — the address bar stayed
+  // stale until a reload. So the assertion is not just "the value is right" but "the node
+  // was replaced", which is the part that makes the repaint happen. Exactly one must
+  // survive, or the browser reads whichever it likes.
+  it('replaces the theme-color element so the browser repaints its chrome', async () => {
+    const original = document.createElement('meta')
+    original.setAttribute('name', 'theme-color')
+    original.setAttribute('content', surfaces.dark.base)
+    document.head.appendChild(original)
+
+    localStorage.setItem('theme', 'light')
+    await hydrateStores()
+
+    const tags = document.head.querySelectorAll('meta[name="theme-color"]')
+    expect(tags).toHaveLength(1)
+    expect(tags[0].getAttribute('content')).toBe(surfaces.light.base)
+    expect(tags[0]).not.toBe(original)
+    expect(original.isConnected).toBe(false)
+
+    tags[0].remove()
   })
 })
 

@@ -33,6 +33,42 @@ func TestServerInfo(t *testing.T) {
 	}
 }
 
+// The one-tap demo sign-in is gated on this flag, so the flag is the only thing standing
+// between a stranger's convenience and a self-hoster's login screen advertising an account
+// that does not exist there. Both directions are asserted: reporting true where DEMO_MODE is
+// off would put a button on every self-hosted instance that 401s when pressed.
+func TestServerInfoReportsDemoMode(t *testing.T) {
+	demoMode := func(t *testing.T) any {
+		t.Helper()
+		c, w := newContext(0, "GET", "/api/v1/info", nil)
+		th.ServerInfo(c)
+		data := decodeResponse(t, w)["data"].(map[string]any)
+		return data["demo_mode"]
+	}
+
+	t.Run("off by default", func(t *testing.T) {
+		setupTestDB(t)
+		prev := config.C.DemoMode
+		t.Cleanup(func() { config.C.DemoMode = prev })
+
+		config.C.DemoMode = false
+		if got := demoMode(t); got != false {
+			t.Errorf("demo_mode = %v, want false", got)
+		}
+	})
+
+	t.Run("on where the demo user is seeded", func(t *testing.T) {
+		setupTestDB(t)
+		prev := config.C.DemoMode
+		t.Cleanup(func() { config.C.DemoMode = prev })
+
+		config.C.DemoMode = true
+		if got := demoMode(t); got != true {
+			t.Errorf("demo_mode = %v, want true", got)
+		}
+	})
+}
+
 // The flag both clients read to decide whether to offer "Create account". Under
 // first-user it has to flip the moment the owner claims the instance — a static value
 // per mode would keep advertising an open server that now 403s.

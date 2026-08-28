@@ -1,3 +1,10 @@
+/* Bundled rather than fetched from fonts.googleapis.com: it was a render-blocking
+   third-party request on the LCP path, and it handed every visitor's IP to Google.
+   Vite dedupes these with the docs theme's copy, so one set of files ships. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/jetbrains-mono';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

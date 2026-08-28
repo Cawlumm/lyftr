@@ -17,6 +17,9 @@
     "lint": "eslint . --max-warnings=52"
   },
   "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/outfit": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
     "@lyftr/shared": "*",
     "@tanstack/react-virtual": "^3.13.24",
     "axios": "^1.6.2",
