@@ -160,6 +160,8 @@ export default function Layout() {
   const { session, gymOpen, gymPhase } = useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
+  // The one condition that decides whether the gym overlay is covering the app.
+  const gymOverlayUp = !!session && settings.workout_layout === 'gym' && gymOpen
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-base">
@@ -176,14 +178,18 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-6xl mx-auto w-full min-w-0 overflow-x-hidden px-5 py-7 animate-fade-in">
+      {/* inert while the gym overlay is up: aria-modal hides this from assistive tech,
+          but only inert stops Tab walking into the controls underneath — Finish and
+          Remove set among them, invisible but clickable. */}
+      <main
+        inert={gymOverlayUp}
+        className="flex-1 max-w-6xl mx-auto w-full min-w-0 overflow-x-hidden px-5 py-7 animate-fade-in"
+      >
         <Outlet />
       </main>
 
       {/* Gym mode overlay — rendered at root so it persists across routes */}
-      {session && settings.workout_layout === 'gym' && gymOpen && (
-        <GymModeWorkout wUnit={wUnit} />
-      )}
+      {gymOverlayUp && <GymModeWorkout wUnit={wUnit} />}
 
       {/* Rest timer floating panel — only INSIDE the workout, on the gym overview /
           exercise-info screens. The set screen docks its own copy (pushes content up),
