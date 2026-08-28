@@ -507,7 +507,7 @@ export default function Dashboard() {
                   <p className="text-xs text-tx-muted mt-0.5">
                     {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
-                    {totalSets > 0 && ` · ${totalSets} sets`}
+                    {totalSets > 0 && ` · ${totalSets} set${totalSets === 1 ? '' : 's'}`}
                     {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
                   </p>
                 </div>
@@ -630,7 +630,7 @@ export default function Dashboard() {
           <SectionHeader
             icon={Dumbbell}
             title="Muscle Balance"
-            right={<span className="text-xs text-tx-muted">{workouts.length} workouts</span>}
+            right={<span className="text-xs text-tx-muted">{workouts.length} workout{workouts.length === 1 ? '' : 's'}</span>}
             className="mb-1"
           />
 
@@ -670,7 +670,7 @@ export default function Dashboard() {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
-                      `${v} sets (${Math.round((v / totalMuscSets) * 100)}%)`,
+                      `${v} set${v === 1 ? '' : 's'} (${Math.round((v / totalMuscSets) * 100)}%)`,
                       props.payload?.name ?? '',
                     ]}
                   />

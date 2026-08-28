@@ -226,7 +226,7 @@ export default function WorkoutDetail() {
                         {ex.exercise.muscle_group}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
+                    <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
                   </div>
                 </div>
                 {maxWeight > 0 && (

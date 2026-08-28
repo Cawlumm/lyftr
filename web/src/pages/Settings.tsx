@@ -139,7 +139,7 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg({ text: `Refreshed ${res.refreshed.toLocaleString()} exercises`, failed: false })
+      setSeedMsg({ text: `Refreshed ${res.refreshed.toLocaleString()} exercise${res.refreshed === 1 ? '' : 's'}`, failed: false })
       loadCacheStatus()
     } catch (err: any) {
       setSeedMsg({ text: apiErrorMessage(err, "Couldn't refresh the cache."), failed: true })
