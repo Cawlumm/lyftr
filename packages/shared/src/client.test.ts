@@ -481,7 +481,7 @@ describe('apiErrorMessage on a reply that is not ours', () => {
   })
 
   it('still prefers what the server actually said', () => {
-    expect(apiErrorMessage(replied(422, { error: 'Password must be at least 8 characters.' }), 'x'))
-      .toBe('Password must be at least 8 characters.')
+    expect(apiErrorMessage(replied(422, { error: 'Password must be at least 8 characters in length.' }), 'x'))
+      .toBe('Password must be at least 8 characters in length.')
   })
 })

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // The rule these all serve: whatever we put in "error" is read by a person, because the
@@ -48,7 +50,7 @@ func TestValidationMessageUsesJSONFieldNames(t *testing.T) {
 	}
 	msg := messageFor(t, settings{})
 
-	if msg != "Calorie target is required." {
+	if msg != "Calorie target is a required field." {
 		t.Fatalf("got %q", msg)
 	}
 }
@@ -61,25 +63,28 @@ func TestValidationMessageReportsEveryFailedRule(t *testing.T) {
 	if !strings.Contains(msg, "Email must be a valid email address.") {
 		t.Fatalf("missing the email sentence: %s", msg)
 	}
-	if !strings.Contains(msg, "Password must be at least 8 characters.") {
+	if !strings.Contains(msg, "Password must be at least 8 characters in length.") {
 		t.Fatalf("missing the password sentence: %s", msg)
 	}
 }
 
+// Most of these sentences are the library's, not ours — pinned so a validator upgrade
+// cannot quietly reword what a user reads. The oneof case is ours: the default renders the
+// options as a Go slice.
 func TestValidationMessagePerTag(t *testing.T) {
 	cases := []struct {
 		name string
 		in   any
 		want string
 	}{
-		{"required", signup{Password: "longenough"}, "Email is required."},
+		{"required", signup{Password: "longenough"}, "Email is a required field."},
 		{"email", signup{Email: "nope", Password: "longenough"}, "Email must be a valid email address."},
-		{"min on a string counts characters", signup{Email: "a@b.co", Password: "short"}, "Password must be at least 8 characters."},
+		{"min on a string counts characters", signup{Email: "a@b.co", Password: "short"}, "Password must be at least 8 characters in length."},
 		{"oneof lists the options", entry{Meal: "brunch", Servings: 1}, "Meal must be one of: breakfast, lunch, dinner, snacks."},
-		{"gte=0 reads as a floor, not a bound", entry{Meal: "lunch", Calories: -5, Servings: 1}, "Calories can't be negative."},
-		{"gt=0 says greater than zero", entry{Meal: "lunch", Servings: 0}, "Servings must be greater than zero."},
-		{"lte gives the ceiling", entry{Meal: "lunch", Servings: 5000}, "Servings must be 2000 or less."},
-		{"max on a string counts characters", entry{Meal: "lunch", Servings: 1, Note: strings.Repeat("x", 501)}, "Note must be 500 characters or fewer."},
+		{"gte=0 reads as a floor", entry{Meal: "lunch", Calories: -5, Servings: 1}, "Calories must be 0 or greater."},
+		{"gt=0 excludes the floor", entry{Meal: "lunch", Servings: 0}, "Servings must be greater than 0."},
+		{"lte gives the ceiling", entry{Meal: "lunch", Servings: 5000}, "Servings must be 2,000 or less."},
+		{"max on a string counts characters", entry{Meal: "lunch", Servings: 1, Note: strings.Repeat("x", 501)}, "Note must be a maximum of 500 characters in length."},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -138,14 +143,54 @@ func TestBindMessageNamesTheFieldWithTheWrongType(t *testing.T) {
 	}
 }
 
-// An unmapped tag must still produce a sentence rather than falling through to the dump.
-func TestValidationMessageFallsBackWithoutLeaking(t *testing.T) {
+// A tag nobody here has written a sentence for still reads as one — this is what moving to
+// the library's translations bought. Before, `alphanum` fell through to "Code isn't valid."
+func TestValidationMessageCoversTagsWeNeverWrote(t *testing.T) {
 	type odd struct {
 		Code string `json:"code" validate:"alphanum"`
 	}
 	msg := messageFor(t, odd{Code: "!!!"})
 
-	if msg != "Code isn't valid." {
+	if msg != "Code can only contain alphanumeric characters." {
 		t.Fatalf("got %q", msg)
+	}
+}
+
+// The guard that keeps the whole file honest. Translate returns fe.Error() verbatim for a
+// tag with no translation — and fe.Error() is the struct dump this package exists to keep
+// out of a response. Struct-level tags are ours to register, so it is a live risk every
+// time someone adds one, not a theoretical branch.
+func TestValidationMessageNeverLeaksAnUntranslatedTag(t *testing.T) {
+	type custom struct {
+		Days int `json:"days" validate:"required"`
+	}
+	v := NewValidator()
+	v.RegisterStructValidation(func(sl validator.StructLevel) {
+		sl.ReportError(sl.Current().Interface().(custom).Days, "Days", "Days", "notranslationforthis", "")
+	}, custom{})
+
+	msg := validationMessage(v.Struct(custom{Days: 1}))
+
+	if strings.Contains(msg, "Key:") || strings.Contains(msg, "Error:Field validation") {
+		t.Fatalf("leaked the struct dump: %s", msg)
+	}
+	if msg != "Days isn't valid." {
+		t.Fatalf("got %q", msg)
+	}
+}
+
+// The two struct-level tags this repo actually registers get real sentences, from the same
+// limits the rules are built from.
+func TestValidationMessageTranslatesOurStructTags(t *testing.T) {
+	type capped struct {
+		Sets int `json:"sets" validate:"required"`
+	}
+	v := NewValidator()
+	v.RegisterStructValidation(func(sl validator.StructLevel) {
+		sl.ReportError(sl.Current().Interface().(capped).Sets, "Sets", "Sets", "maxtotalsets", "")
+	}, capped{})
+
+	if got := validationMessage(v.Struct(capped{Sets: 1})); got != "A workout can't have more than 500 sets." {
+		t.Fatalf("got %q", got)
 	}
 }
