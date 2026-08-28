@@ -1,6 +1,5 @@
 // App-wide singletons: one API client + the Zustand stores, all bound to the mobile
 // SecureStore/AsyncStorage adapter. Import these hooks anywhere in the app.
-import { router } from 'expo-router'
 import * as Localization from 'expo-localization'
 import {
   createClient,
@@ -16,13 +15,18 @@ import {
 import { storage } from './storage'
 
 export const client = createClient(storage, {
-  // When a token refresh fails, the session is dead — kick back to login.
+  // A failed refresh means the session is dead. Say that ONCE, in the one place that
+  // owns it - the store - and let app/_layout.tsx's gate move the user. This used to
+  // also call router.replace('/login') while leaving isAuthenticated true, so the gate
+  // saw an authed user in the (auth) group and sent them back; the screens refetched, the
+  // refresh failed again, and the two bounced until React threw "Maximum update depth
+  // exceeded" and the app stopped answering presses until it was force-quit (#145).
+  //
+  // Fire-and-forget because this runs inside an axios interceptor, which cannot await.
+  // logout() clears the same storage keys the interceptor already cleared, which is
+  // harmless, and flips isAuthenticated - the part that was missing.
   onAuthFailure: () => {
-    try {
-      router.replace('/login')
-    } catch {
-      // router may not be mounted yet during cold start; the auth gate will catch it.
-    }
+    void useAuthStore.getState().logout()
   },
 })
 

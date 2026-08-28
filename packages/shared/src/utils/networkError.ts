@@ -34,6 +34,12 @@ export const nativeErrorDetail = (err: any): string => {
 // Ordered most-specific first: a hostname mismatch and a missing trust anchor are both
 // SSL failures, so the narrow patterns have to win before the generic SSL ones.
 const PATTERNS: ReadonlyArray<[RegExp, NetworkFailure]> = [
+  // React Native reports a timed-out request as the bare string 'timeout' on the XHR,
+  // and does NOT reliably set _timedOut or axios's ECONNABORTED the way the web adapter
+  // does - observed on Android against a black-holed refresh POST (#145), where this fell
+  // through to the generic copy with '(timeout)' tacked on the end. The word that matters
+  // to the user is that the server was too slow, not that the URL might be wrong.
+  [/^timeout$/i, 'timeout'],
   [/CLEARTEXT communication to .* not permitted/i, 'cleartext-blocked'],
   [/App Transport Security policy requires the use of a secure connection/i, 'cleartext-blocked'],
   [/Hostname .* not verified/i, 'hostname-mismatch'],
