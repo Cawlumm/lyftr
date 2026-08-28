@@ -125,21 +125,48 @@ func TestBindMessage(t *testing.T) {
 	}
 }
 
+// The field is named, and the SHAPE it wanted is said in English. The previous version of
+// this test only rejected "UnmarshalTypeError" — the name of the error type — which is why
+// "expected float64" reached users unnoticed. Go type names are checked for explicitly now.
 func TestBindMessageNamesTheFieldWithTheWrongType(t *testing.T) {
-	var target struct {
-		Calories float64 `json:"calories"`
+	cases := []struct {
+		name string
+		into any
+		body string
+		want string
+	}{
+		{"number", &struct {
+			Calories float64 `json:"calories"`
+		}{}, `{"calories":"lots"}`, "Calories must be a number."},
+		{"text", &struct {
+			Name string `json:"name"`
+		}{}, `{"name":12}`, "Name must be text."},
+		{"boolean", &struct {
+			IsWarmup bool `json:"is_warmup"`
+		}{}, `{"is_warmup":"yes"}`, "Is warmup must be true or false."},
+		{"list", &struct {
+			Sets []int `json:"sets"`
+		}{}, `{"sets":3}`, "Sets must be a list."},
+		{"pointer is followed", &struct {
+			ProgramID *int64 `json:"program_id"`
+		}{}, `{"program_id":"seven"}`, "Program id must be a number."},
 	}
-	err := json.Unmarshal([]byte(`{"calories":"lots"}`), &target)
-	if err == nil {
-		t.Fatal("expected a type error")
-	}
-
-	got := BindMessage(err)
-	if !strings.Contains(got, "Calories") {
-		t.Fatalf("should name the offending field: %s", got)
-	}
-	if strings.Contains(got, "UnmarshalTypeError") {
-		t.Fatalf("leaks the Go error type: %s", got)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := json.Unmarshal([]byte(tc.body), tc.into)
+			if err == nil {
+				t.Fatal("expected a type error")
+			}
+			got := BindMessage(err)
+			if got != tc.want {
+				t.Fatalf("got %q, want %q", got, tc.want)
+			}
+			for _, goName := range []string{"float64", "int64", "int", "string", "bool", "[]", "*", "UnmarshalTypeError"} {
+				if strings.Contains(got, goName) {
+					t.Fatalf("leaks the Go type %q: %s", goName, got)
+				}
+			}
+		})
 	}
 }
 

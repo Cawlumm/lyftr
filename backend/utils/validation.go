@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/go-playground/locales/en"
@@ -144,6 +145,34 @@ func validationMessage(err error) string {
 	return strings.Join(parts, " ")
 }
 
+// shapeName says what a field wanted in words a person can act on. typeErr.Type is a Go
+// type, and printing it put "expected float64" in front of someone logging a meal — the
+// same leak this file exists to stop, one size smaller and past a test that only checked
+// for the name of the *error* type. Empty means we have no better word than "wrong type".
+func shapeName(t reflect.Type) string {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t == reflect.TypeOf(time.Time{}) {
+		return "a date"
+	}
+	switch t.Kind() {
+	case reflect.Bool:
+		return "true or false"
+	case reflect.String:
+		return "text"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return "a number"
+	case reflect.Slice, reflect.Array:
+		return "a list"
+	case reflect.Map, reflect.Struct:
+		return "an object"
+	}
+	return ""
+}
+
 // BindMessage renders a request body we could not read at all. These are not user
 // mistakes so much as client bugs or truncated uploads, but the person holding the phone
 // still has to be told something — and "unexpected EOF" is not it.
@@ -151,7 +180,10 @@ func BindMessage(err error) string {
 	var typeErr *json.UnmarshalTypeError
 	if errors.As(err, &typeErr) {
 		if typeErr.Field != "" {
-			return fmt.Sprintf("%s has the wrong type — expected %s.", label(typeErr.Field), typeErr.Type)
+			if want := shapeName(typeErr.Type); want != "" {
+				return fmt.Sprintf("%s must be %s.", label(typeErr.Field), want)
+			}
+			return fmt.Sprintf("%s has the wrong type.", label(typeErr.Field))
 		}
 		return "The request body had a field of the wrong type."
 	}
