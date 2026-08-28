@@ -1,7 +1,6 @@
-/* Fonts are bundled rather than fetched from fonts.googleapis.com. Two reasons: the CDN
-   stylesheet is a render-blocking third-party request on the LCP path, and shipping every
-   visitor's IP to Google sits badly with a project whose whole argument is owning your data.
-   Vite dedupes these across the landing page and the docs theme, so one copy ships. */
+/* Bundled rather than fetched from fonts.googleapis.com: it was a render-blocking
+   third-party request on the LCP path, and it handed every visitor's IP to Google.
+   Vite dedupes these with the docs theme's copy, so one set of files ships. */
 @import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/outfit';
 @import '@fontsource-variable/jetbrains-mono';

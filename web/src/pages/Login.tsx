@@ -179,14 +179,10 @@ export default function Login() {
               </div>
             )}
 
-            {/* Demo button — shown when the SERVER says it seeded a demo account, not when
-                this happens to be a dev build. The old import.meta.env.DEV gate was decided
-                at build time, which got it wrong in both directions: the public demo runs a
-                production build, so the button was missing from the one place it exists for
-                (leaving the landing page to ask strangers to type demo@lyftr.local by hand),
-                while a dev build pointed at a DEMO_MODE=off server offered a sign-in that
-                401s. config.C.DemoMode is the same flag that decides whether seed.DemoUser
-                runs, so the button appears exactly where the account does. */}
+            {/* Gated on the server, not on import.meta.env.DEV, which is decided at build
+                time and so was wrong both ways: absent from the public demo (a production
+                build) and present against a DEMO_MODE=off server, where it 401s. DemoMode is
+                the same flag that seeds the account, so the button follows the account. */}
             {demoMode(serverInfo) && (
               <button
                 type="button"

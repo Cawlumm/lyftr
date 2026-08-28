@@ -1,7 +1,5 @@
-/* The docs theme names these families but nothing ever loaded them — the landing page's
-   Google Fonts <link> was on the landing page only, so every Starlight page fell back to
-   system-ui. Importing them here is what actually makes the docs use the brand typeface,
-   and it keeps the fonts self-hosted. Vite emits one copy shared with the landing page. */
+/* The docs theme named these families but nothing loaded them — the Google Fonts <link>
+   only ever existed on the landing page, so every Starlight page fell back to system-ui. */
 @import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
 

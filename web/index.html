@@ -14,29 +14,15 @@
     <meta name="theme-color" content="#00b8d9" />
 
     <!--
-      Every self-hosted instance ships this exact file, which is the constraint that decides
-      everything in this head. A crawler that finds someone's server would otherwise index
-      their private training log, so noindex is the correct default and the marketing site
-      at lyftr-app.pages.dev is what should rank instead.
+      Every self-hosted instance ships this file, so a crawler that finds someone's server
+      would be indexing their private training log.
 
-      No canonical, on purpose: an individual's own instance pointing at the project's
-      marketing page would be claiming to be a copy of it, which it isn't.
-
-      No og:* or twitter:* tags either, and that is also on purpose. They would have to name
-      an absolute image URL, and the only one available at build time is the project's own
-      CDN — so every private instance shared in a chat would make that chat service fetch an
-      image from lyftr-app.pages.dev, carrying the instance hostname in the Referer. Handing
-      a third party the address of someone's private server is precisely what this app exists
-      to avoid, and it would be a strange thing to do one commit after removing Google Fonts
-      for the same reason. Jellyfin, wger and HedgeDoc all reach the same conclusion; Mealie
-      is the counterexample, and it ships a raw.githubusercontent.com image to every install.
-
-      A shared link still previews: unfurlers fall back to <title> and the description above
-      when no OG tags are present. It is a text card instead of a banner, which is the right
-      trade for a page that is somebody's private gym log.
+      No og:* tags for the same reason: they need an absolute image URL, and the only one
+      available at build time is the project's CDN — so sharing a private instance in a chat
+      would tell that CDN the instance hostname. Links still preview from the title and
+      description above.
     -->
     <meta name="robots" content="noindex, nofollow" />
-
   </head>
   <body>
     <div id="root"></div>

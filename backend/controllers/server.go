@@ -19,12 +19,10 @@ import (
 // Register is what actually closes the door — and only the boolean is exposed, never the
 // mode, so a scanner learns nothing it could not learn by POSTing once.
 //
-// demo_mode lets the login screen offer a one-tap sign-in instead of asking a stranger to
-// type demo@lyftr.local by hand — the sharpest drop-off point between the landing page and
-// someone actually seeing the app. Gating on the server's own flag is what keeps that button
-// off every self-hosted instance: it is only ever true where seed.DemoUser has run, so there
-// is always an account behind it. It discloses nothing — DEMO_MODE defaults off outside
-// development, and where it is on the credentials are published on the marketing site anyway.
+// demo_mode lets the login screen offer a one-tap sign-in rather than asking a stranger to
+// type demo@lyftr.local. It is the same flag that decides whether seed.DemoUser runs, so the
+// button only ever appears where the account exists. Nothing is disclosed: DEMO_MODE is off
+// outside development, and where it is on the credentials are already public.
 func (h *Handler) ServerInfo(c *gin.Context) {
 	open, err := h.registrationOpen()
 	if err != nil {
