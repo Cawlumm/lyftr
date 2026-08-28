@@ -35,9 +35,9 @@ func InternalError(c *gin.Context) {
 }
 
 // ValidationError reports a request whose fields broke a rule. The message is built
-// by ValidationMessage rather than taken from err.Error(), which is a Go struct dump.
+// by validationMessage rather than taken from err.Error(), which is a Go struct dump.
 func ValidationError(c *gin.Context, err error) {
-	c.JSON(http.StatusUnprocessableEntity, gin.H{"error": ValidationMessage(err)})
+	c.JSON(http.StatusUnprocessableEntity, gin.H{"error": validationMessage(err)})
 }
 
 func Conflict(c *gin.Context, msg string) {

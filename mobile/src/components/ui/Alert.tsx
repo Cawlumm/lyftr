@@ -2,10 +2,10 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { AlertCircle, CheckCircle2, Info, TriangleAlert } from 'lucide-react-native'
 import { semanticInk } from '../../theme/theme'
+import type { SemanticTone } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
-type Variant = 'error' | 'success' | 'warning' | 'info'
 
 // Mirrors the web `.alert-*` primitives in web/src/index.css: tinted background at 10%,
 // border at 20%, matching foreground, leading icon, same radius and padding.
@@ -13,36 +13,29 @@ type Variant = 'error' | 'success' | 'warning' | 'info'
 // Foreground comes from semanticInk, not a fixed shade: the 400s these classes were
 // written with fail WCAG AA on a light surface, and this app is light-first. See
 // packages/shared's alertContrast test, which holds every pairing to 4.5:1.
-const ICONS: Record<Variant, typeof AlertCircle> = {
+const ICONS: Record<SemanticTone, typeof AlertCircle> = {
   error: AlertCircle,
   success: CheckCircle2,
   warning: TriangleAlert,
   info: Info,
 }
 
-const SURFACES: Record<Variant, string> = {
+const SURFACES: Record<SemanticTone, string> = {
   error: 'bg-error-500/10 border-error-500/20',
   success: 'bg-success-500/10 border-success-500/20',
   warning: 'bg-warning-500/10 border-warning-500/20',
   info: 'bg-brand-500/10 border-brand-500/20',
 }
 
-const FILLS: Record<Variant, string> = {
+const FILLS: Record<SemanticTone, string> = {
   error: 'bg-error-500',
   success: 'bg-success-500',
   warning: 'bg-warning-500',
   info: 'bg-brand-500',
 }
 
-export interface AlertAction {
-  label: string
-  onPress: () => void
-  /** The one that commits. Solid fill, so it reads as the answer rather than a hint. */
-  primary?: boolean
-}
-
 interface Props {
-  variant: Variant
+  variant: SemanticTone
   children: ReactNode
   className?: string
   /** 'compact' for dense surfaces — inside a sheet, where a full-size alert outweighs
@@ -50,8 +43,9 @@ interface Props {
   size?: 'default' | 'compact'
   /** Turns the alert into an inline confirm. Both weight-logging surfaces ask "already
    *  logged today, log again anyway?" and both had hand-rolled this row — identically,
-   *  including the amber-on-amber confirm that measured 1.4:1 and had to be fixed twice. */
-  actions?: AlertAction[]
+   *  including the amber-on-amber confirm that measured 1.4:1 and had to be fixed twice.
+   *  `primary` is the one that commits: solid fill, so it reads as the answer, not a hint. */
+  actions?: { label: string; onPress: () => void; primary?: boolean }[]
 }
 
 export function Alert({ variant, children, className = '', size = 'default', actions }: Props) {

@@ -8,7 +8,7 @@ import { withLoggedOn, utcOffsetMinutes } from './utils/dateUtils'
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy (web).
 const API_BASE_PATH = '/api/v1'
-export const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
+const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
 
 export interface ServerInfo {
   name: string
@@ -16,15 +16,6 @@ export interface ServerInfo {
   // Optional: a backend older than the REGISTRATION feature omits it. Read it through
   // registrationOpen() so "absent" means open rather than closed.
   registration_open?: boolean
-}
-
-export interface ClientOptions {
-  // Called after a token refresh fails — the session is dead. Web passes a
-  // `location.href = '/login'`; mobile passes `router.replace('/login')`.
-  onAuthFailure?: () => void
-  // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
-  // When set, the stored server_url is ignored.
-  baseUrlOverride?: string
 }
 
 // Turn an axios error into an actionable message. Proxy misconfig (404/405) is
@@ -114,7 +105,17 @@ const sessionWasRevoked = (err: any): boolean => {
 // Build a fully-wired API client bound to a platform storage adapter. All token
 // reads/writes and the base-URL resolution go through `storage`, so the same code
 // runs on web (localStorage) and mobile (SecureStore/AsyncStorage).
-export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) {
+export function createClient(
+  storage: StorageAdapter,
+  opts: {
+    // Called after a token refresh fails — the session is dead. Web passes a
+    // `location.href = '/login'`; mobile passes `router.replace('/login')`.
+    onAuthFailure?: () => void
+    // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
+    // When set, the stored server_url is ignored.
+    baseUrlOverride?: string
+  } = {},
+) {
   // Resolved per-request so a "Server settings" change takes effect immediately.
   const resolveAPIBase = async (): Promise<string> => {
     if (opts.baseUrlOverride) return opts.baseUrlOverride

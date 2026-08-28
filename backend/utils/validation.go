@@ -46,9 +46,6 @@ func NewValidator() *validator.Validate {
 // label turns a JSON field name into something readable at the start of a sentence:
 // "calorie_target" -> "Calorie target".
 func label(field string) string {
-	if field == "" {
-		return "This field"
-	}
 	spaced := strings.ReplaceAll(field, "_", " ")
 	return strings.ToUpper(spaced[:1]) + spaced[1:]
 }
@@ -66,30 +63,28 @@ func fieldMessage(e validator.FieldError) string {
 		return fmt.Sprintf("%s is required.", name)
 	case "email":
 		return fmt.Sprintf("%s must be a valid email address.", name)
-	case "min":
+	// min/gte and max/lte are the same sentence to a reader — "at least", "or less" — and
+	// differ only in whether the bound is inclusive, which no error message says out loud.
+	// Kept apart, the pairs were four cases producing two strings, and `lte` on a string
+	// counted characters while saying "must be 2000 or less".
+	case "min", "gte":
 		if isText {
 			return fmt.Sprintf("%s must be at least %s characters.", name, param)
 		}
-		return fmt.Sprintf("%s must be at least %s.", name, param)
-	case "max":
-		if isText {
-			return fmt.Sprintf("%s must be %s characters or fewer.", name, param)
-		}
-		return fmt.Sprintf("%s must be %s or less.", name, param)
-	case "gte":
 		if param == "0" {
 			return fmt.Sprintf("%s can't be negative.", name)
 		}
 		return fmt.Sprintf("%s must be at least %s.", name, param)
+	case "max", "lte":
+		if isText {
+			return fmt.Sprintf("%s must be %s characters or fewer.", name, param)
+		}
+		return fmt.Sprintf("%s must be %s or less.", name, param)
 	case "gt":
 		if param == "0" {
 			return fmt.Sprintf("%s must be greater than zero.", name)
 		}
 		return fmt.Sprintf("%s must be greater than %s.", name, param)
-	case "lte":
-		return fmt.Sprintf("%s must be %s or less.", name, param)
-	case "lt":
-		return fmt.Sprintf("%s must be less than %s.", name, param)
 	case "oneof":
 		return fmt.Sprintf("%s must be one of: %s.", name, strings.ReplaceAll(param, " ", ", "))
 	default:
@@ -99,10 +94,10 @@ func fieldMessage(e validator.FieldError) string {
 	}
 }
 
-// ValidationMessage renders a validator failure. Every failed rule is reported, not just
+// validationMessage renders a validator failure. Every failed rule is reported, not just
 // the first: a sign-up form with a bad email AND a short password should say both, or the
 // user fixes one and gets turned away again.
-func ValidationMessage(err error) string {
+func validationMessage(err error) string {
 	var fieldErrs validator.ValidationErrors
 	if !errors.As(err, &fieldErrs) || len(fieldErrs) == 0 {
 		return "Some of the details you entered aren't valid."
@@ -138,7 +133,7 @@ func BindMessage(err error) string {
 	// gin also surfaces validator failures through Bind when binding tags are used.
 	var fieldErrs validator.ValidationErrors
 	if errors.As(err, &fieldErrs) {
-		return ValidationMessage(err)
+		return validationMessage(err)
 	}
 
 	return "The request couldn't be read."

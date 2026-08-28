@@ -37,12 +37,7 @@ export default function WeightDetail() {
 
   useEffect(() => {
     weightAPI.get(Number(id))
-      .then(data => {
-        setLog(data)
-        setEditWeight(String(displayWeight(data.weight, settings.weight_unit)))
-        setEditDate(entryDay(data))
-        setEditNotes(data.notes ?? '')
-      })
+      .then(setLog)
       .catch(err => setError(apiErrorMessage(err, 'Failed to load entry')))
       .finally(() => setLoading(false))
   }, [id])
@@ -88,11 +83,6 @@ export default function WeightDetail() {
     await weightAPI.delete(entry.id)
     navigate('/weight', { replace: true })
   }, 'Failed to delete entry')
-
-  const handleDelete = () => {
-    if (!log || remove.busy) return
-    void remove.run(log)
-  }
 
   if (loading) {
     return (
@@ -248,7 +238,7 @@ export default function WeightDetail() {
         busyLabel="Deleting…"
         busy={remove.busy}
         error={remove.error}
-        onConfirm={handleDelete}
+        onConfirm={() => { if (!remove.busy) void remove.run(log) }}
         onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </div>

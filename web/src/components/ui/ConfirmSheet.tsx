@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertCircle } from 'lucide-react'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
@@ -8,7 +8,7 @@ interface Props {
   open: boolean
   title: string
   /** Body copy under the title — what is about to happen, or what will be lost. */
-  message: ReactNode
+  message: string
   confirmLabel: string
   /** Confirm label while `busy`. Defaults to the confirm label. */
   busyLabel?: string
@@ -29,8 +29,7 @@ interface Props {
 // scrim, same rounded-top panel, same grabber, same Cancel/confirm pair — and they had
 // drifted: some disabled the confirm while busy and some did not, and none of them had
 // anywhere to put an error, so a confirm that failed just closed and left the user
-// looking at an unchanged list. `DiscardConfirm` was an earlier, narrower attempt at the
-// same de-duplication (it says so in its own comment); this replaces it.
+// looking at an unchanged list.
 //
 // Mirrors mobile's ConfirmSheet prop-for-prop, `error` included, so a fix to how a failed
 // confirmation behaves is one change on each platform rather than eight.

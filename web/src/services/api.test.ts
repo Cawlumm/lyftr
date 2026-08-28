@@ -1,15 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { apiUrl, apiErrorMessage } from './api'
-
-describe('apiUrl', () => {
-  it('builds the same-origin path when no origin is given', () => {
-    expect(apiUrl()).toBe('/api/v1')
-  })
-
-  it('prefixes an absolute origin', () => {
-    expect(apiUrl('http://localhost:3000')).toBe('http://localhost:3000/api/v1')
-  })
-})
+import { apiErrorMessage } from './api'
 
 describe('apiErrorMessage', () => {
   it('passes through a structured server error', () => {

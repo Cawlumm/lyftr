@@ -28,7 +28,7 @@ func messageFor(t *testing.T, v any) string {
 	if err == nil {
 		t.Fatal("expected the struct to fail validation")
 	}
-	return ValidationMessage(err)
+	return validationMessage(err)
 }
 
 func TestValidationMessageNeverLeaksTheStructDump(t *testing.T) {

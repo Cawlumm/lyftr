@@ -179,6 +179,38 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     )
   }
 
+  // The two confirms, declared once. Each phase below returns its own tree, and all
+  // three ended with a byte-identical copy of this pair — nothing in it varies by
+  // phase, so it was three places to forget the same change.
+  const confirms = (
+    <>
+      <ConfirmSheet
+        open={confirmFinish}
+        icon={Flag}
+        title="Finish Workout?"
+        message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
+        confirmLabel="Finish"
+        busyLabel="Saving…"
+        cancelLabel="Keep Going"
+        busy={finish.busy}
+        error={finish.error}
+        onConfirm={() => { void finish.run() }}
+        onCancel={() => { setConfirmFinish(false); finish.reset() }}
+      />
+      <ConfirmSheet
+        open={confirmCancel}
+        icon={Trash2}
+        destructive
+        title="Discard workout?"
+        message="This ends the workout without saving — all progress is lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Going"
+        onConfirm={() => { cancelSession(); handleMinimize() }}
+        onCancel={() => setConfirmCancel(false)}
+      />
+    </>
+  )
+
   // ── Overview ──────────────────────────────────────────────────────────
   if (phase === 'overview') {
     return (
@@ -279,30 +311,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           )}
         </div>
 
-        <ConfirmSheet
-          open={confirmFinish}
-          icon={Flag}
-          title="Finish Workout?"
-          message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
-          confirmLabel="Finish"
-          busyLabel="Saving…"
-          cancelLabel="Keep Going"
-          busy={finish.busy}
-          error={finish.error}
-          onConfirm={() => { void finish.run() }}
-          onCancel={() => { setConfirmFinish(false); finish.reset() }}
-        />
-        <ConfirmSheet
-          open={confirmCancel}
-          icon={Trash2}
-          destructive
-          title="Discard workout?"
-          message="This ends the workout without saving — all progress is lost."
-          confirmLabel="Discard"
-          cancelLabel="Keep Going"
-          onConfirm={() => { cancelSession(); handleMinimize() }}
-          onCancel={() => setConfirmCancel(false)}
-        />
+        {confirms}
       </div>
     )
   }
@@ -459,30 +468,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </button>
         </div>
 
-        <ConfirmSheet
-          open={confirmFinish}
-          icon={Flag}
-          title="Finish Workout?"
-          message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
-          confirmLabel="Finish"
-          busyLabel="Saving…"
-          cancelLabel="Keep Going"
-          busy={finish.busy}
-          error={finish.error}
-          onConfirm={() => { void finish.run() }}
-          onCancel={() => { setConfirmFinish(false); finish.reset() }}
-        />
-        <ConfirmSheet
-          open={confirmCancel}
-          icon={Trash2}
-          destructive
-          title="Discard workout?"
-          message="This ends the workout without saving — all progress is lost."
-          confirmLabel="Discard"
-          cancelLabel="Keep Going"
-          onConfirm={() => { cancelSession(); handleMinimize() }}
-          onCancel={() => setConfirmCancel(false)}
-        />
+        {confirms}
       </div>
     )
   }
@@ -748,33 +734,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           content up instead of covering it. Renders null when no rest is active. */}
       <RestTimerBanner docked />
 
-      {/* ── Finish confirm ── */}
-      <ConfirmSheet
-        open={confirmFinish}
-        icon={Flag}
-        title="Finish Workout?"
-        message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
-        confirmLabel="Finish"
-        busyLabel="Saving…"
-        cancelLabel="Keep Going"
-        busy={finish.busy}
-        error={finish.error}
-        onConfirm={() => { void finish.run() }}
-        onCancel={() => { setConfirmFinish(false); finish.reset() }}
-      />
-
-      {/* ── Cancel confirm ── */}
-      <ConfirmSheet
-        open={confirmCancel}
-        icon={Trash2}
-        destructive
-        title="Discard workout?"
-        message="This ends the workout without saving — all progress is lost."
-        confirmLabel="Discard"
-        cancelLabel="Keep Going"
-        onConfirm={() => { cancelSession(); handleMinimize() }}
-        onCancel={() => setConfirmCancel(false)}
-      />
+      {confirms}
     </div>
   )
 }

@@ -57,14 +57,20 @@ export default function Weight() {
     refetchStats()
   }, [fetchSettings, refetchStats])
 
-  // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh of all
-  // three sources (history list + stats + chart), same affordance as the Workouts list.
+  // Every screen refresh means "this screen's data is stale" across all three sources
+  // (history list + stats + chart) — one awaitable callback so they can't drift apart.
+  const refreshAll = useCallback(
+    () => Promise.all([reload(), refetchStats(), refetchChart()]),
+    [reload, refetchStats, refetchChart]
+  )
+
+  // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh.
   const [pulling, setPulling] = useState(false)
   const onPullRefresh = useCallback(async () => {
     setPulling(true)
-    await Promise.all([reload(), refetchStats(), refetchChart()])
+    await refreshAll()
     setPulling(false)
-  }, [reload, refetchStats, refetchChart])
+  }, [refreshAll])
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
@@ -94,10 +100,8 @@ export default function Weight() {
         focusedOnce.current = true
         return
       }
-      reload()
-      refetchStats()
-      refetchChart()
-    }, [reload, refetchStats, refetchChart])
+      refreshAll()
+    }, [refreshAll])
   )
 
   // Oldest → newest for the chart. Weight in the display unit; `sub` feeds the tap bubble.
@@ -123,9 +127,7 @@ export default function Weight() {
         setNewDate(todayStr())
         setShowNotes(false)
         duplicateWarningDismissedRef.current = false
-        reload()
-        refetchStats()
-        refetchChart()
+        refreshAll()
   }, 'Failed to log weight')
 
   const handleLog = async () => {
@@ -366,13 +368,11 @@ export default function Weight() {
                 </View>
               </View>
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartData.length === 0 ? (
+                {chartData.length < 2 ? (
                   <View className="h-44 items-center justify-center">
-                    <AppText variant="body" color="muted">No data for this period</AppText>
-                  </View>
-                ) : chartData.length === 1 ? (
-                  <View className="h-44 items-center justify-center">
-                    <AppText variant="body" color="muted">Log another entry to see the trend</AppText>
+                    <AppText variant="body" color="muted">
+                      {chartData.length === 0 ? 'No data for this period' : 'Log another entry to see the trend'}
+                    </AppText>
                   </View>
                 ) : (
                   <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} readoutNote="" height={180} />
@@ -388,7 +388,7 @@ export default function Weight() {
             item={item}
             next={items[index + 1]}
             unit={unit}
-            onDeleted={() => { reload(); refetchStats(); refetchChart() }}
+            onDeleted={refreshAll}
           />
         )}
         ListFooterComponent={
