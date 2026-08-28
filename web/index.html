@@ -11,9 +11,27 @@
       name="description"
       content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
     />
-    <!-- Dark-first, matching surfaces.dark.base and the store's default. applyThemeClass()
-         rewrites this on load and on every toggle; this value is what the browser paints
-         in the moment before that runs. -->
+    <!--
+      Static on purpose, and it does not follow the theme toggle. Three things were tried
+      before settling here:
+
+      Rewriting it from JS on every toggle works — the attribute tweens between surfaces —
+      but browsers do not reliably repaint their chrome from it without a reload, so the
+      colour was right in the DOM and stale on screen.
+
+      A prefers-color-scheme pair is the usual advice and is wrong for this app: the theme
+      comes from localStorage and defaults to dark whatever the OS says, so a light-mode OS
+      would paint a light bar over a dark app.
+
+      What actually repaints browser-drawn UI on a toggle is `color-scheme`, which
+      packages/shared/src/theme/tokens.ts emits into :root and .dark. That covers
+      scrollbars and form controls with no JavaScript. Safari 26 no longer reads
+      theme-color at all and takes the page background, which body already sets from the
+      same tokens.
+
+      So this is one value matching surfaces.dark.base and the store's dark-first default —
+      the same thing GitHub ships alongside its own light/dark toggle.
+    -->
     <meta name="theme-color" content="#070d1a" />
 
     <!--

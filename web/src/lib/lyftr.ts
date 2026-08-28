@@ -6,7 +6,6 @@ import {
   createSettingsStore,
   createThemeStore,
   createWorkoutSession,
-  surfaces,
 } from '@lyftr/shared'
 import { storage } from './storage'
 
@@ -42,17 +41,12 @@ export const useThemeStore = createThemeStore(storage, 'dark')
 // store because the store is platform-agnostic; called once before the first render
 // and again on every change, so the class and the store never disagree.
 //
-// theme-color rides along because it tints browser chrome — Android Chrome's address
-// bar, Safari's top bar, and the status bar once the app is installed to a home screen.
-// It cannot be a media query: this app's theme comes from localStorage, so keying the
-// chrome off prefers-color-scheme would leave it showing the OS preference while the app
-// showed the user's. Reading surfaces[mode].base keeps it on the same token the page
-// paints with, rather than a hex copied here and left to drift.
+// Nothing here touches theme-color. That tag stays static in index.html — see the comment
+// there. What actually repaints the browser's own UI on a toggle is `color-scheme`, which
+// the token plugin emits into :root and .dark, so it switches with this class and needs no
+// JavaScript at all.
 export const applyThemeClass = (mode: 'light' | 'dark') => {
   document.documentElement.classList.toggle('dark', mode === 'dark')
-  document
-    .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', surfaces[mode].base)
 }
 
 // Load everything persisted before the first render. localStorage is synchronous, so
