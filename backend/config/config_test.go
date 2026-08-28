@@ -17,7 +17,7 @@ func TestGetEnvBool(t *testing.T) {
 		{"false", true, false},
 		{"FALSE", true, false},
 		{"0", true, false},
-		// Unset falls back — this is what makes DEMO_MODE default to ENV=development.
+		// Unset falls back to whatever the caller passed.
 		{"", true, true},
 		{"", false, false},
 		// Unparseable falls back rather than reading as false: DEMO_MODE=ture should
@@ -33,6 +33,33 @@ func TestGetEnvBool(t *testing.T) {
 		if got := getEnvBool("LYFTR_TEST_BOOL", tc.fallback); got != tc.want {
 			t.Errorf("getEnvBool(%q, %v) = %v, want %v", tc.raw, tc.fallback, got, tc.want)
 		}
+	}
+}
+
+// The demo account's password is published in the documentation, so the only safe
+// default is off. It used to key off `env == "development"`, and ENV itself defaults to
+// "development" — meaning anyone running the binary without setting either variable
+// seeded that account on their own instance. This pins the default so it cannot drift
+// back: nothing set means no demo account, and therefore no demo button either, since
+// both read this one flag.
+func TestDemoModeDefaultsOff(t *testing.T) {
+	t.Setenv("DEMO_MODE", "")
+	t.Setenv("ENV", "")
+	Load()
+	if C.DemoMode {
+		t.Error("DemoMode with nothing set = true, want false")
+	}
+
+	t.Setenv("ENV", "development")
+	Load()
+	if C.DemoMode {
+		t.Error("DemoMode under ENV=development = true, want false — development is not consent")
+	}
+
+	t.Setenv("DEMO_MODE", "true")
+	Load()
+	if !C.DemoMode {
+		t.Error("DemoMode with DEMO_MODE=true = false, want true")
 	}
 }
 

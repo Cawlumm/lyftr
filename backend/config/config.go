@@ -86,9 +86,17 @@ func Load() {
 		OEDBBaseURL: getEnv("OEDB_BASE_URL", ""),
 
 		Registration: getEnv("REGISTRATION", RegistrationOpen),
-		// Contributors following CONTRIBUTING.md get the demo account without setting
-		// anything; a self-hoster or the Fly demo has to ask for it.
-		DemoMode: getEnvBool("DEMO_MODE", env == "development"),
+		// Opt-in everywhere, including development. This used to default to
+		// `env == "development"`, and ENV itself defaults to "development" — so running
+		// the binary without setting either seeded demo@lyftr.local with a password
+		// published in the docs. Every real deployment already names this explicitly
+		// (compose sets DEMO_MODE=${DEMO_MODE:-false}, fly.toml sets it true), and the
+		// configuration docs already stated the default was false, so this makes the
+		// code agree with what was published rather than changing the contract.
+		//
+		// It also decides the one-tap demo button on the login screen, via demo_mode on
+		// /api/v1/info: the button follows the account because it reads the same flag.
+		DemoMode: getEnvBool("DEMO_MODE", false),
 	}
 
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {
