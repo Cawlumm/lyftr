@@ -214,7 +214,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   // ── Overview ──────────────────────────────────────────────────────────
   if (phase === 'overview') {
     return (
-      <div className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="Workout" className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-surface-border flex-shrink-0">
           <div>
             <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-0.5">Workout</p>
@@ -340,7 +340,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     ]
 
     return (
-      <div className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
+      <div role="dialog" aria-modal="true" aria-label="Workout" className="fixed inset-0 z-[60] bg-surface-base overflow-y-auto flex flex-col">
         <TopBar s={session} onBack={() => isFirst ? setPhase('overview') : setGymState('exercise', activeIdx - 1, 0)} />
 
         <div className="flex-1 overflow-y-auto">
@@ -520,7 +520,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   const hideCompleteForRest = restingHere && clampedSetIdx === restNextSet
 
   return (
-    <div className="fixed inset-0 z-[60] bg-surface-base flex flex-col">
+    <div role="dialog" aria-modal="true" aria-label="Workout" className="fixed inset-0 z-[60] bg-surface-base flex flex-col">
       <TopBar s={session} onBack={() => setPhase('exercise-info')} />
 
       {/* Exercise name + muscle (compact) */}
