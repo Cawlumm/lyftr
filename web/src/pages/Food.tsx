@@ -15,7 +15,7 @@ import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types } from '@lyftr/shared'
+import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
@@ -438,7 +438,7 @@ export default function Food() {
               </defs>
               <XAxis
                 dataKey="date"
-                tickFormatter={d => format(dayToLocalDate(d), 'M/d')}
+                tickFormatter={d => formatDay(d, 'M/d')}
                 tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
                 axisLine={false}
                 tickLine={false}
@@ -459,7 +459,7 @@ export default function Food() {
                   fontSize: '12px',
                   color: 'var(--color-tx-primary)',
                 }}
-                labelFormatter={d => format(dayToLocalDate(d), 'MMM d')}
+                labelFormatter={d => formatDay(d, 'MMM d')}
                 formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
                 cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
               />

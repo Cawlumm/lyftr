@@ -14,6 +14,7 @@ import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
 import Logo from './Logo'
+import ErrorBoundary from './ErrorBoundary'
 
 const NAV = [
   { path: '/',          label: 'Home',     icon: Home },
@@ -179,7 +180,12 @@ export default function Layout() {
         inert={gymOverlayUp}
         className="flex-1 max-w-6xl mx-auto w-full min-w-0 overflow-x-hidden px-5 py-7 animate-fade-in"
       >
-        <Outlet />
+        {/* Keyed on the path so the boundary RESETS on navigation: without the key a
+            crash on one route would follow the user to every other one, turning a bad
+            row on /workouts into an app that looks broken everywhere. */}
+        <ErrorBoundary key={pathname} subject="this page">
+          <Outlet />
+        </ErrorBoundary>
       </main>
 
       {/* Gym mode overlay — rendered at root so it persists across routes */}

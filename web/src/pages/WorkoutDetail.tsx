@@ -1,13 +1,12 @@
 import { ConfirmSheet, ErrorState } from '../components/ui'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { format } from 'date-fns'
 import {
   ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, Loader, Pause, TimerOff,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -148,7 +147,7 @@ export default function WorkoutDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{workout.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              {format(dayToLocalDate(workoutDay(workout)), 'EEEE, MMMM d, yyyy')}
+              {formatDay(workoutDay(workout), 'EEEE, MMMM d, yyyy')}
             </p>
           </div>
         </div>

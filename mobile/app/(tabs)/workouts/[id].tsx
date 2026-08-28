@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
-import { format } from 'date-fns'
 import {
   ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
-import { useAsyncAction, apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -177,7 +176,7 @@ export default function WorkoutDetail() {
               <View className="flex-1">
                 <AppText variant="heading">{workout.name}</AppText>
                 <AppText variant="body" color="muted" className="mt-0.5">
-                  {format(dayToLocalDate(workoutDay(workout)), 'EEEE, MMMM d, yyyy')}
+                  {formatDay(workoutDay(workout), 'EEEE, MMMM d, yyyy')}
                 </AppText>
               </View>
             </View>

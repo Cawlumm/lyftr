@@ -13,6 +13,54 @@ type GymUiState = { phase: GymPhase; exIdx: number; setIdx: number }
 
 const DEFAULT_GYM_UI: GymUiState = { phase: 'overview', exIdx: 0, setIdx: 0 }
 
+// Persisted state is not trusted input. The old hydrate wrapped only JSON.parse, which
+// catches `{{{not json` and nothing else -- so any VALID json of the wrong shape parsed
+// clean and then killed the first consumer to reach into it. Measured against the live
+// app: `"hello"`, `[1,2,3]`, `{"name":"X"}` and `{"name":"X","exercises":null}` each
+// rendered a white screen on boot, still signed in, unrecoverable without devtools.
+// A user cannot clear their own localStorage; a session written by an older build, or a
+// half-finished write, is enough to reach this. Shape-check, and treat a value we cannot
+// read as no session at all -- losing an unreadable session beats losing the app.
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  typeof v === 'object' && v !== null && !Array.isArray(v)
+
+// Only what the consumers actually walk: every screen maps exercises, then maps sets.
+// Field-by-field validation would be a second copy of the type to keep in step.
+function parseSession(raw: string | null): types.ActiveSession | null {
+  if (!raw) return null
+  let val: unknown
+  try {
+    val = JSON.parse(raw)
+  } catch {
+    return null
+  }
+  if (!isRecord(val)) return null
+  if (!Array.isArray(val.exercises)) return null
+  if (!val.exercises.every(ex => isRecord(ex) && Array.isArray(ex.sets))) return null
+  if (typeof val.name !== 'string') return null
+  return val as unknown as types.ActiveSession
+}
+
+function parseGymUi(raw: string | null): GymUiState {
+  if (!raw) return DEFAULT_GYM_UI
+  let val: unknown
+  try {
+    val = JSON.parse(raw)
+  } catch {
+    return DEFAULT_GYM_UI
+  }
+  if (!isRecord(val)) return DEFAULT_GYM_UI
+  const phase = val.phase
+  const known = phase === 'overview' || phase === 'exercise-info' || phase === 'exercise'
+  const idx = (v: unknown) => (Number.isInteger(v) && (v as number) >= 0 ? (v as number) : 0)
+  return {
+    phase: known ? phase : DEFAULT_GYM_UI.phase,
+    // A non-finite index indexes past the array and reads undefined downstream.
+    exIdx: idx(val.exIdx),
+    setIdx: idx(val.setIdx),
+  }
+}
+
 export interface WorkoutSessionStore {
   session: types.ActiveSession | null
   gymOpen: boolean
@@ -91,18 +139,11 @@ export function createWorkoutSession(storage: StorageAdapter) {
         storage.get(WORKOUT_SESSION_KEY),
         storage.get(GYM_UI_KEY),
       ])
-      let session: types.ActiveSession | null = null
-      try {
-        session = sessionRaw ? JSON.parse(sessionRaw) : null
-      } catch {
-        session = null
-      }
-      let gym = DEFAULT_GYM_UI
-      try {
-        gym = gymRaw ? JSON.parse(gymRaw) : DEFAULT_GYM_UI
-      } catch {
-        gym = DEFAULT_GYM_UI
-      }
+      const session = parseSession(sessionRaw)
+      const gym = parseGymUi(gymRaw)
+      // An unreadable session is dropped from storage too, so the next boot is clean
+      // rather than re-parsing the same corrupt value forever.
+      if (sessionRaw && !session) void storage.remove(WORKOUT_SESSION_KEY)
       // Deliberately does NOT touch rest-timer fields (ephemeral) or gymOpen (the
       // user decides per-launch whether the gym sheet is expanded).
       set({ session, gymPhase: gym.phase, gymExIdx: gym.exIdx, gymSetIdx: gym.setIdx, isHydrated: true })

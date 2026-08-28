@@ -84,6 +84,22 @@ export function useServerList<T>({
     try {
       const page = await fetcher(currentOffset, pageSize)
       if (myId !== reqIdRef.current) return // superseded by a newer fetch — drop it
+      // A response that is not a list takes the whole app down, not just this list:
+      // the spread below throws, React unmounts the tree, and with no error boundary
+      // anywhere the screen goes white — no nav, nothing to click, dead until a manual
+      // reload. Measured with {"data": null} and with {} from a stubbed endpoint, which
+      // is what a half-deployed backend or a proxy in front of the wrong service sends.
+      //
+      // Reported as a failure rather than coerced to []: an empty array here would draw
+      // "No workouts found", which is the same lie about the user's data that the rest
+      // of this work exists to remove.
+      if (!Array.isArray(page)) {
+        if (myId === reqIdRef.current) {
+          setHasMore(false)
+          setError('The server sent something we could not read.')
+        }
+        return
+      }
       setError(null)
       setItems(prev => (replace ? page : [...prev, ...page]))
       offsetRef.current = currentOffset + page.length

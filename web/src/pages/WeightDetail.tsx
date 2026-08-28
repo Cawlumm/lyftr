@@ -1,13 +1,12 @@
 import { ConfirmSheet } from '../components/ui'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
@@ -154,7 +153,7 @@ export default function WeightDetail() {
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
                 <p className="text-sm text-tx-muted mt-1">
-                  {format(dayToLocalDate(entryDay(log)), 'EEEE, MMMM d, yyyy')}
+                  {formatDay(entryDay(log), 'EEEE, MMMM d, yyyy')}
                 </p>
                 {log.notes && (
                   <p className="text-sm text-tx-secondary mt-2 italic">"{log.notes}"</p>
@@ -237,7 +236,7 @@ export default function WeightDetail() {
         icon={Trash2}
         destructive
         title="Delete Entry?"
-        message={`${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
+        message={`${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
         confirmLabel="Delete"
         busyLabel="Deleting…"
         busy={remove.busy}

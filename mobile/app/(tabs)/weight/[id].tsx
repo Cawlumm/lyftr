@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
@@ -171,7 +170,7 @@ export default function WeightDetail() {
                       <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                     </View>
                     <AppText variant="body" color="muted" className="mt-1">
-                      {format(dayToLocalDate(entryDay(log)), 'EEEE, MMMM d, yyyy')}
+                      {formatDay(entryDay(log), 'EEEE, MMMM d, yyyy')}
                     </AppText>
                     {log.notes ? (
                       <AppText variant="body" color="secondary" className="mt-2 italic">"{log.notes}"</AppText>
@@ -235,7 +234,7 @@ export default function WeightDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({
           title: 'Delete Entry?',
-          subject: `${format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
+          subject: `${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
         })}
         open={confirming}
         busy={remove.busy}

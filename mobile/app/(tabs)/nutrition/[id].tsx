@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { format } from 'date-fns'
 import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, isNotFound, useAsyncAction, entryDay, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -86,7 +85,7 @@ export default function NutritionDetail() {
     ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
     { label: 'Servings', value: String(entry.servings), tabular: true },
     { label: 'Meal', value: MEAL_LABELS[meal] },
-    { label: 'Logged', value: format(dayToLocalDate(entryDay(entry)), 'EEE, MMM d, yyyy') },
+    { label: 'Logged', value: formatDay(entryDay(entry), 'EEE, MMM d, yyyy') },
   ]
 
   return (

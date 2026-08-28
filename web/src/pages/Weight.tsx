@@ -9,7 +9,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
+import { useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { ListError } from '../components/ui'
 import { weightAPI } from '../services/api'
@@ -413,7 +413,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
@@ -547,7 +547,7 @@ export default function Weight() {
                       {Math.round(displayW)} {wUnit}
                     </p>
                     <p className="text-xs text-tx-muted mt-0.5">
-                      {format(dayToLocalDate(entryDay(entry)), 'MMM d, yyyy')}
+                      {formatDay(entryDay(entry), 'MMM d, yyyy')}
                     </p>
                     {(deltaLbs !== 0 || entry.notes) && (
                       <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
