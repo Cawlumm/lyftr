@@ -65,7 +65,7 @@ export default function ProgramDetail() {
         setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, 'Failed to load program'))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       } finally {
         setLoading(false)
       }

@@ -29,7 +29,7 @@ export default function StartWorkout() {
     client.programAPI
       .list()
       .then((data) => setPrograms(data || []))
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load programs')))
+      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
   }, [retryKey])
 

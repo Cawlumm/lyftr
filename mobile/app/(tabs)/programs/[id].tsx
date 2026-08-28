@@ -150,7 +150,7 @@ export default function ProgramDetail() {
             loadedRef.current = true
           }
         } catch (err) {
-          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, 'Failed to load program'))
+          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, "The server didn't say what went wrong."))
         } finally {
           if (!cancelled) setLoading(false)
         }

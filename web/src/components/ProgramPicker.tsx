@@ -21,7 +21,7 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
   useEffect(() => {
     programAPI.list()
       .then(data => setPrograms(data || []))
-      .catch(err => setError(apiErrorMessage(err, 'Failed to load programs')))
+      .catch(err => setError(apiErrorMessage(err, "Couldn't load your programs.")))
       .finally(() => setLoading(false))
   }, [])
 

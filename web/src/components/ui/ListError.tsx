@@ -11,6 +11,15 @@ import ErrorState from './ErrorState'
 // button above it still work, so the state replaces the rows and nothing else. Retry
 // resumes from where it stopped rather than reloading, so nothing already on screen is
 // thrown away to recover the page that failed.
-export default function ListError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <ErrorState size="section" title="Couldn't load these" message={message} onRetry={onRetry} />
+export default function ListError(
+  { subject, message, onRetry }: { subject: string; message: string; onRetry: () => void },
+) {
+  return (
+    <ErrorState
+      size="section"
+      title={`Couldn't load ${subject}`}
+      message={message}
+      onRetry={onRetry}
+    />
+  )
 }

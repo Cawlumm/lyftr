@@ -48,7 +48,7 @@ export default function WorkoutDetail() {
         setWorkout(data)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, 'Failed to load workout'))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       } finally {
         setLoading(false)
       }

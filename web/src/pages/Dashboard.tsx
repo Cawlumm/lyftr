@@ -116,7 +116,7 @@ export default function Dashboard() {
         setWeightLogs(wl || [])
         setWeightStats(wst)
       })
-      .catch(err => setError(apiErrorMessage(err, 'Failed to load')))
+      .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
   }, [TODAY, retryKey, fetchSettings])
 

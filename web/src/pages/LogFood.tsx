@@ -214,7 +214,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(err => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
+    }).catch(err => setEditError(apiErrorMessage(err, "The server didn't say what went wrong.")))
   }, [editId, navigate, editRetry])
 
   useEffect(() => {
@@ -308,7 +308,7 @@ export default function LogFood() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load that entry"
+        title="Couldn't load this entry"
         message={editError}
         onRetry={() => { setEditError(null); setEditRetry(k => k + 1) }}
         secondary={<button onClick={() => navigate('/food')} className="btn-secondary btn-sm">Back to food</button>}

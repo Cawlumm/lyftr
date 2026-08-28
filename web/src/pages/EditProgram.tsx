@@ -62,7 +62,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(err => { setLoadError(apiErrorMessage(err, "Couldn't load this program.")); })
+      .catch(err => { setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")); })
       .finally(() => setInitialLoading(false))
   }, [id, retryKey])
 

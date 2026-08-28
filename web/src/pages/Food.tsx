@@ -110,7 +110,7 @@ export default function Food() {
       setLogs(logData || [])
       setStats(statsData)
     } catch (err: any) {
-      setLoadError(apiErrorMessage(err, "Couldn't load your food log."))
+      setLoadError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
       hasLoadedRef.current = true
       setLoading(false)
@@ -141,7 +141,7 @@ export default function Food() {
       setDeleteConfirmId(null)
       foodAPI.stats(selectedDate).then(setStats).catch(() => {})
     } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to delete entry'))
+      setError(apiErrorMessage(err, "Couldn't delete that entry."))
     } finally {
       setDeletingId(null)
     }

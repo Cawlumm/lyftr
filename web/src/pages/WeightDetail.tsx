@@ -43,7 +43,7 @@ export default function WeightDetail() {
       .then(setLog)
       .catch(err => {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "Couldn't load this entry."))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       })
       .finally(() => setLoading(false))
   }, [id, retryKey])

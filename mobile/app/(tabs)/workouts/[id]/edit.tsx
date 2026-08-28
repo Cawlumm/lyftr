@@ -112,7 +112,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch((err) => setLoadError(apiErrorMessage(err, "Couldn't load this workout.")))
+      .catch((err) => setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setInitialLoading(false))
     // Web effect deps: [id] only — settings are fetched before a user can navigate here.
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -97,7 +97,7 @@ export default function Nutrition() {
       setLogs(logData || [])
       setStats(statsData)
     } catch (err: any) {
-      setError(apiErrorMessage(err, 'Failed to load food data'))
+      setError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
       hasLoadedRef.current = true
     }

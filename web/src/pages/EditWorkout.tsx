@@ -61,7 +61,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(err => setLoadError(apiErrorMessage(err, "Couldn't load this workout.")))
+      .catch(err => setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setInitialLoading(false))
   }, [id, retryKey])
 

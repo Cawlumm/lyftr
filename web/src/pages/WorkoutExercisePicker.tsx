@@ -113,7 +113,7 @@ export default function WorkoutExercisePicker() {
           // reads as an empty catalogue rather than a connection that dropped.
           error ? (
             <div className="py-4">
-              <ListError message={error} onRetry={retry} />
+              <ListError subject="these exercises" message={error} onRetry={retry} />
             </div>
           ) : (
             <div className="flex items-center justify-center py-12 text-tx-muted text-sm">

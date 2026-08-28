@@ -126,7 +126,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, 'Failed to load exercise')) })
+      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

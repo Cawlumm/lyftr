@@ -530,7 +530,7 @@ export default function Weight() {
 
       {/* History — the error sits outside the items guard on purpose: a failed first
           page leaves items empty, and the guard alone rendered nothing whatsoever. */}
-      {listError && <ListError message={listError} onRetry={retryList} />}
+      {listError && <ListError subject="your weight history" message={listError} onRetry={retryList} />}
 
       {items.length > 0 && (
         <>

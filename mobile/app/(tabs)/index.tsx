@@ -122,7 +122,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load')))
+      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 
@@ -162,7 +162,7 @@ export default function Dashboard() {
           onRetry={() => {
             setError(null)
             setLoading(true)
-            load().catch((err) => setError(apiErrorMessage(err, 'Failed to load'))).finally(() => setLoading(false))
+            load().catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong."))).finally(() => setLoading(false))
           }}
         />
       </Screen>

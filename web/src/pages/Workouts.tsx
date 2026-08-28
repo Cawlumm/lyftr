@@ -284,7 +284,7 @@ export default function Workouts() {
           // workouts found · Log a workout to get started" to someone with eight months
           // of history, because their wifi dropped, is the worst thing this screen can do.
           listError ? (
-            <ListError message={listError} onRetry={retryList} />
+            <ListError subject="your workouts" message={listError} onRetry={retryList} />
           ) : (
             <EmptyState
               icon={Dumbbell}
@@ -299,7 +299,7 @@ export default function Workouts() {
               onDelete={() => reload()}
             />)}
             <div ref={sentinelRef} />
-            {listError && <ListError message={listError} onRetry={retryList} />}
+            {listError && <ListError subject="your workouts" message={listError} onRetry={retryList} />}
             {hasMore && loading && (
               <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
             )}

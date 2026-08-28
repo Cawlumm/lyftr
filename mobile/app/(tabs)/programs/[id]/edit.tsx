@@ -85,7 +85,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch((err) => { if (!cancelled) setLoadError(apiErrorMessage(err, "Couldn't load this program.")) })
+      .catch((err) => { if (!cancelled) setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps

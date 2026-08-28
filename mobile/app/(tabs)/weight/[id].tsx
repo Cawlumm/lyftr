@@ -49,7 +49,7 @@ export default function WeightDetail() {
       })
       .catch((err) => {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "Couldn't load this entry."))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps

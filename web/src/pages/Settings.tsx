@@ -120,7 +120,7 @@ export default function Settings() {
         fat_target: s.fat_target,
       })
     } catch (err: any) {
-      setError(apiErrorMessage(err, 'Failed to load settings'))
+      setError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
       setLoading(false)
     }

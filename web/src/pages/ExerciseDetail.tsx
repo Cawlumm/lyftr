@@ -78,7 +78,7 @@ export default function ExerciseDetail() {
       })
       .catch(err => {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, 'Failed to load exercise'))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       })
       .finally(() => setLoading(false))
   }, [exerciseId, retryKey])

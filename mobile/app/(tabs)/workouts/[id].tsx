@@ -76,7 +76,7 @@ export default function WorkoutDetail() {
         const data = await client.workoutAPI.get(Number(id))
         if (!cancelled) setWorkout(data)
       } catch (err) {
-        if (!cancelled) setError(apiErrorMessage(err, 'Failed to load workout'))
+        if (!cancelled) setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       } finally {
         if (!cancelled) setLoading(false)
       }
