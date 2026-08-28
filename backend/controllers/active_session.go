@@ -27,7 +27,7 @@ func (h *Handler) UpsertActiveSession(c *gin.Context) {
 		Data string `json:"data" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		utils.BadRequest(c, err.Error())
+		utils.BadRequest(c, utils.BindMessage(err))
 		return
 	}
 	if utils.DBError(c, h.s.ActiveSession.Upsert(uid, body.Data)) {
