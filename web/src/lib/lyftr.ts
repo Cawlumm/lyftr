@@ -6,6 +6,7 @@ import {
   createSettingsStore,
   createThemeStore,
   createWorkoutSession,
+  surfaces,
 } from '@lyftr/shared'
 import { storage } from './storage'
 
@@ -37,16 +38,30 @@ export const useWorkoutSession = createWorkoutSession(storage)
 // Dark-first on web (mobile is light-first, per product).
 export const useThemeStore = createThemeStore(storage, 'dark')
 
-// The <html class="dark"> toggle every CSS variable cascades from. Kept out of the
-// store because the store is platform-agnostic; called once before the first render
-// and again on every change, so the class and the store never disagree.
+// Replaces the theme-color tag rather than editing it. Browsers diff this value to decide
+// whether to repaint their chrome, and setAttribute('content', …) on the existing element
+// is not always seen as a change — which is why the address bar used to lag until a
+// reload. Removing the node and inserting a fresh one is unambiguous.
 //
-// Nothing here touches theme-color. That tag stays static in index.html — see the comment
-// there. What actually repaints the browser's own UI on a toggle is `color-scheme`, which
-// the token plugin emits into :root and .dark, so it switches with this class and needs no
-// JavaScript at all.
+// Not a prefers-color-scheme pair: this theme lives in localStorage and defaults to dark
+// whatever the OS reports, so an OS query would paint a light bar over a dark app.
+const paintThemeColor = (color: string) => {
+  document.head.querySelectorAll('meta[name="theme-color"]').forEach(m => m.remove())
+  const meta = document.createElement('meta')
+  meta.setAttribute('name', 'theme-color')
+  meta.setAttribute('content', color)
+  document.head.appendChild(meta)
+}
+
+// The <html class="dark"> toggle every CSS variable cascades from, plus the browser chrome
+// so the two move together. Kept out of the store because the store is platform-agnostic;
+// called once before the first render and again on every change, so the class and the store
+// never disagree. `color-scheme` (emitted into :root and .dark by the token plugin) already
+// handles scrollbars and form controls with no JavaScript; this covers the address bar,
+// which CSS cannot reach.
 export const applyThemeClass = (mode: 'light' | 'dark') => {
   document.documentElement.classList.toggle('dark', mode === 'dark')
+  paintThemeColor(surfaces[mode].base)
 }
 
 // Load everything persisted before the first render. localStorage is synchronous, so
