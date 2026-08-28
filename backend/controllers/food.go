@@ -323,7 +323,10 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 		carb = p.Nutriments.Carbohydrates100g
 		fat = p.Nutriments.Fat100g
 		fiber = p.Nutriments.Fiber100g
-		servingLabel = "per 100g"
+		// "100 g", not "per 100g": the serving branch above passes through
+		// OpenFoodFacts' own label ("30 g", "250 ml"), which carries no preposition, and
+		// the clients supply the "per". Including it here produced "per per 100g".
+		servingLabel = "100 g"
 	}
 
 	return models.FoodSearchResult{

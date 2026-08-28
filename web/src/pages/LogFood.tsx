@@ -579,7 +579,11 @@ export default function LogFood() {
                   </div>
                   {selected.serving_size && (
                     <p className="text-xs text-tx-muted mt-1">
-                      per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}
+                      {/* The label comes from OpenFoodFacts, which is free text — and rows
+                          logged before the backend stopped prefixing it still read "per
+                          100g". Supplying a second "per" gave "per per 100g". */}
+                      per {servings === 1 ? '' : `${servings} × `}
+                      {selected.serving_size.replace(/^per\s+/i, '')}
                     </p>
                   )}
                 </div>

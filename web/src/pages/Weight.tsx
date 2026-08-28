@@ -304,14 +304,6 @@ export default function Weight() {
 
   if (initialLoading) return <Loading />
 
-  if (error && items.length === 0) {
-    return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error || log.error}</span>
-      </div>
-    )
-  }
 
   // Period stats computed from chartLogs (period-scoped server fetch).
   // For "All" period prefer server-computed stats since they're not capped at 1000.
