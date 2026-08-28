@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { AlertCircle, ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
+import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -21,7 +21,7 @@ import {
   type ExerciseHistoryPoint,
   type PersonalRecord,
 } from '@lyftr/shared'
-import { AppText, Screen, SegmentedControl } from '../ui'
+import { AppText, Button, ErrorState, Screen, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -102,6 +102,9 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
   const [chartWidth, setChartWidth] = useState(0)
 
   useEffect(() => {
@@ -127,7 +130,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId])
+  }, [exerciseId, retryKey])
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -141,14 +144,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   if (error) {
     return (
       <Screen>
-        <Pressable onPress={goBack} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back" className="flex-row items-center gap-2 py-2 active:opacity-60">
-          <ArrowLeft size={16} color={colors.txMuted} />
-          <AppText variant="body" color="muted">Back</AppText>
-        </Pressable>
-        <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-          <AlertCircle size={20} color={brand.error} />
-          <AppText variant="body" color="error" className="flex-1">{error}</AppText>
-        </View>
+        <ErrorState
+          size="page"
+          title="Couldn't load this exercise"
+          message={error}
+          onRetry={() => { setError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Go back" variant="secondary" onPress={goBack} />}
+        />
       </Screen>
     )
   }

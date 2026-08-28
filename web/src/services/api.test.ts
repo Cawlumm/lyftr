@@ -25,11 +25,21 @@ describe('apiErrorMessage', () => {
     expect(apiErrorMessage({ response: { status: 500, data: {} } }, 'fallback')).toMatch(/server error/i)
   })
 
-  it('names an HTML page for what it is, rather than blaming the app', () => {
+  // This asserted /web page/ for an HTML-bodied 502, which pinned the wrong answer:
+  // every reverse proxy serves its 502 as HTML, so the body sniff fired first and told
+  // a self-hoster to check Server settings while their backend was merely restarting.
+  // Status is the stronger signal and is now read first.
+  it('reads an HTML 502 from a proxy as a restart, not as a wrong address', () => {
     const html = '<!DOCTYPE html><html><body>502 Bad Gateway</body></html>'
     const msg = apiErrorMessage({ response: { status: 502, data: html } }, 'Failed to save')
-    expect(msg).toMatch(/web page/i)
+    expect(msg).toMatch(/restarting or unreachable/i)
     expect(msg).not.toBe('Failed to save')
+  })
+
+  // The sniff still earns its keep where the status explains nothing on its own.
+  it('names an HTML body when the status does not already explain it', () => {
+    const html = '<html><body>Welcome to nginx</body></html>'
+    expect(apiErrorMessage({ response: { status: 500, data: html } }, 'x')).toMatch(/web page/i)
   })
 
   it('uses the fallback for other responses without a server error', () => {

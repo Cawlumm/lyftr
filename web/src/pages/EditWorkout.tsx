@@ -6,6 +6,7 @@ import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../st
 import WeightInput from '../components/WeightInput'
 import ExercisePicker from '../components/ExercisePicker'
 import { apiErrorMessage, useAsyncAction, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 
 interface WorkoutFormData {
   name: string
@@ -25,6 +26,11 @@ export default function EditWorkout() {
   // name, an empty day). What the SERVER says lives on the hook below — different
   // questions, kept apart on purpose, and rendered in the same place.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field: there is nothing to edit, and the header would
+  // otherwise assert "0 exercises" about a workout that has several.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
@@ -55,9 +61,9 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(err => setError(apiErrorMessage(err, 'Failed to load workout')))
+      .catch(err => setLoadError(apiErrorMessage(err, "Couldn't load this workout.")))
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   const addExercise = (exercise: types.Exercise) => {
     setPickerExercises(prev => ({ ...prev, [exercise.id]: exercise }))
@@ -122,6 +128,18 @@ export default function EditWorkout() {
       <div className="flex items-center justify-center py-20">
         <Dumbbell className="w-6 h-6 text-brand-500 animate-pulse" />
       </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load this workout"
+        message={loadError}
+        onRetry={() => { setLoadError(null); setInitialLoading(true); setRetryKey(k => k + 1) }}
+        secondary={<button onClick={() => navigate('/workouts')} className="btn-secondary btn-sm">Back to workouts</button>}
+      />
     )
   }
 

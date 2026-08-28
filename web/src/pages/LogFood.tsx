@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -200,6 +201,7 @@ export default function LogFood() {
   const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
+  const [editRetry, setEditRetry] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -213,7 +215,7 @@ export default function LogFood() {
       setDate(entryDay(entry))
       setPhase('detail')
     }).catch(err => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
-  }, [editId, navigate])
+  }, [editId, navigate, editRetry])
 
   useEffect(() => {
     foodAPI.list(todayStr()).then(logs => {
@@ -296,6 +298,20 @@ export default function LogFood() {
       <BarcodeScanner
         onResult={handleBarcodeResult}
         onClose={() => setPhase('search')}
+      />
+    )
+  }
+
+  // The route exists to edit ONE entry; if that entry never arrived there is nothing
+  // to show but the search screen, which answers a question the user did not ask.
+  if (editId && editError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load that entry"
+        message={editError}
+        onRetry={() => { setEditError(null); setEditRetry(k => k + 1) }}
+        secondary={<button onClick={() => navigate('/food')} className="btn-secondary btn-sm">Back to food</button>}
       />
     )
   }

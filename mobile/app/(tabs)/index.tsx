@@ -10,7 +10,7 @@ import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
 import { apiErrorMessage, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
-import { Alert, AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const [chartWidth, setChartWidth] = useState(0)
@@ -140,11 +141,21 @@ export default function Dashboard() {
   if (loading) return <DashboardSkeleton />
 
   if (error) {
+    // Every tile here is another request's answer, so a failed load has no honest
+    // partial view — the cards would all read 0, which says "you did nothing this
+    // week" rather than "we could not ask".
     return (
       <Screen>
-        <View className="py-4">
-          <Alert variant="error" size="compact">{error}</Alert>
-        </View>
+        <ErrorState
+          size="page"
+          title="Couldn't load your dashboard"
+          message={error}
+          onRetry={() => {
+            setError(null)
+            setLoading(true)
+            load().catch((err) => setError(apiErrorMessage(err, 'Failed to load'))).finally(() => setLoading(false))
+          }}
+        />
       </Screen>
     )
   }

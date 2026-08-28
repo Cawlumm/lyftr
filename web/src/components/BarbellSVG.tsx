@@ -1,25 +1,76 @@
-// Bent barbell from brand-logo.html design system
-export default function BarbellSVG() {
+import type { BarbellInk, BarbellMarkData } from '@lyftr/shared'
+import { BARBELL } from '@lyftr/shared'
+
+// Renders a barbell mark from shared geometry. The coordinates live in
+// packages/shared/src/brand/barbell.ts because this file and mobile's BarbellMark used to
+// carry the same path string and the same eight rects, typed out twice.
+//
+// `ink` maps a palette slot to a colour, so one drawing serves the logo (brand cyan, bar
+// in currentColor) and the error state (muted, so it reads as a state and not as branding).
+const DEFAULT_INK: Record<BarbellInk, string> = {
+  bar: 'currentColor',
+  plate: '#00b8d9',
+  plateEdge: '#0891b2',
+  highlight: '#7eeeff',
+}
+
+const spin = (r?: readonly [number, number, number]) =>
+  r ? { transform: `rotate(${r[0]} ${r[1]} ${r[2]})` } : {}
+
+export function BarbellMark({
+  mark = BARBELL,
+  ink,
+  className = '',
+  width,
+  height,
+}: {
+  mark?: BarbellMarkData
+  ink?: Partial<Record<BarbellInk, string>>
+  className?: string
+  width?: number
+  height?: number
+}) {
+  const paint = { ...DEFAULT_INK, ...ink }
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
-      {/* Bent bar (under load) — currentColor so it adapts to light/dark */}
-      <path d="M4 16 Q20 25 36 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
-
-      {/* Collar dots */}
-      <circle cx="10.2" cy="18.8" r="1" fill="#475569" />
-      <circle cx="29.8" cy="18.8" r="1" fill="#475569" />
-
-      {/* Left plates */}
-      <rect x="3" y="10" width="3" height="18" rx="0.8" fill="#0891b2" />
-      <rect x="6" y="8" width="4" height="22" rx="1" fill="#00b8d9" />
-
-      {/* Right plates */}
-      <rect x="34" y="10" width="3" height="18" rx="0.8" fill="#0891b2" />
-      <rect x="30" y="8" width="4" height="22" rx="1" fill="#00b8d9" />
-
-      {/* Highlights */}
-      <rect x="7.2" y="10.5" width="1.2" height="17" rx="0.5" fill="#7eeeff" opacity="0.55" />
-      <rect x="31.6" y="10.5" width="1.2" height="17" rx="0.5" fill="#7eeeff" opacity="0.55" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox={mark.viewBox}
+      width={width}
+      height={height}
+      className={className}
+      role="presentation"
+      aria-hidden="true"
+    >
+      {mark.shapes.map((s, i) =>
+        s.kind === 'stroke' ? (
+          <path
+            key={i}
+            d={s.d}
+            fill="none"
+            stroke={paint[s.ink]}
+            strokeWidth={s.width}
+            strokeLinecap={s.cap ?? 'round'}
+            {...spin(s.rotate)}
+          />
+        ) : (
+          <rect
+            key={i}
+            x={s.x}
+            y={s.y}
+            width={s.w}
+            height={s.h}
+            rx={s.rx}
+            fill={paint[s.ink]}
+            opacity={s.opacity}
+            {...spin(s.rotate)}
+          />
+        ),
+      )}
     </svg>
   )
+}
+
+/** The brand mark at its original fixed size, for the logo lockup. */
+export default function BarbellSVG() {
+  return <BarbellMark width={40} height={40} />
 }

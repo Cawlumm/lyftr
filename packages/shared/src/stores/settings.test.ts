@@ -235,3 +235,38 @@ describe('settings store — a write that fails', () => {
     expect(store.getState().settings.protein_target).toBe(150)
   })
 })
+
+describe('settings store — a read that fails', () => {
+  // Measured in a browser before this flag existed: with the GET failing, the settings
+  // page rendered the DEFAULTS in its target inputs with no error, and pressing Save
+  // sent {calorie_target: 2000, ...} over real targets of 3175. A failed read plus one
+  // ordinary click destroyed them. `loaded` alone cannot express that, because it is
+  // true in both cases.
+  it("flags that the values are substitutes, not the users own", async () => {
+    const failing = {
+      userAPI: {
+        getSettings: async () => { throw new Error('network') },
+        updateSettings: async (p: Partial<UserSettings>) => ({ ...serverSettings(), ...p }),
+      },
+    } as unknown as LyftrClient
+    const store = createSettingsStore(failing, createMemoryStorage())
+
+    await store.getState().fetch()
+
+    // Still usable — blocking every screen on a settings read would be worse...
+    expect(store.getState().loaded).toBe(true)
+    // ...but the app now knows these are not the user's numbers.
+    expect(store.getState().loadFailed).toBe(true)
+    expect(store.getState().settings.calorie_target).toBe(2000)
+  })
+
+  it('is clear when the read succeeds', async () => {
+    const { client } = fakeClient(serverSettings({ calorie_target: 3175 }))
+    const store = createSettingsStore(client, createMemoryStorage())
+
+    await store.getState().fetch()
+
+    expect(store.getState().loadFailed).toBe(false)
+    expect(store.getState().settings.calorie_target).toBe(3175)
+  })
+})

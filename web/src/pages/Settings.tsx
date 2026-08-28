@@ -7,6 +7,7 @@ import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import { exerciseAPI, userAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
+import { ErrorState } from '../components/ui'
 import { ConfirmSheet } from '../components/ui'
 import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
@@ -67,6 +68,7 @@ export default function Settings() {
   const serverInfo = useServerInfo()
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
+  const settingsLoadFailed = useSettingsStore(s => s.loadFailed)
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -80,7 +82,10 @@ export default function Settings() {
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
-  const [seedMsg, setSeedMsg] = useState<string | null>(null)
+  // Carries whether it FAILED, not just what it said. Both outcomes used to land in
+  // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
+  // right now." were the same small grey text — a failure that does not read as one.
+  const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
 
   const [formData, setFormData] = useState({
     weight_unit: storedSettings.weight_unit,
@@ -98,27 +103,33 @@ export default function Settings() {
     } catch { /* cache status is a best-effort probe; absence just hides the count */ }
   }, [])
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        await fetchSettings()
-        const s = useSettingsStore.getState().settings
-        setFormData({
-          weight_unit: s.weight_unit,
-          calorie_target: s.calorie_target,
-          protein_target: s.protein_target,
-          carb_target: s.carb_target,
-          fat_target: s.fat_target,
-        })
-      } catch (err: any) {
-        setError(apiErrorMessage(err, 'Failed to load settings'))
-      } finally {
-        setLoading(false)
-      }
+  // Lifted out of the effect so Retry runs the SAME routine. It did not, at first:
+  // the button called fetchSettings() alone, the store recovered the real targets, and
+  // the form went on showing the defaults it had been seeded with — so the next Save
+  // would have written them over the numbers that had just come back.
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      await fetchSettings()
+      const s = useSettingsStore.getState().settings
+      setFormData({
+        weight_unit: s.weight_unit,
+        calorie_target: s.calorie_target,
+        protein_target: s.protein_target,
+        carb_target: s.carb_target,
+        fat_target: s.fat_target,
+      })
+    } catch (err: any) {
+      setError(apiErrorMessage(err, 'Failed to load settings'))
+    } finally {
+      setLoading(false)
     }
+  }, [fetchSettings])
+
+  useEffect(() => {
     load()
     loadCacheStatus()
-  }, [loadCacheStatus])
+  }, [load, loadCacheStatus])
 
   // No polling: nothing populates the cache in the background any more. It fills as
   // a side-effect of reads, and these two actions are synchronous.
@@ -128,10 +139,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg(`Refreshed ${res.refreshed.toLocaleString()} exercises`)
+      setSeedMsg({ text: `Refreshed ${res.refreshed.toLocaleString()} exercises`, failed: false })
       loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg(apiErrorMessage(err, 'Refresh failed'))
+      setSeedMsg({ text: apiErrorMessage(err, "Couldn't refresh the cache."), failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -142,10 +153,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
+      setSeedMsg({ text: `Cleared ${res.cleared.toLocaleString()} unused exercises`, failed: false })
       loadCacheStatus()
     } catch (err) {
-      setSeedMsg(apiErrorMessage(err, 'Clear failed'))
+      setSeedMsg({ text: apiErrorMessage(err, "Couldn't clear the cache."), failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -197,6 +208,8 @@ export default function Settings() {
       </div>
     )
   }
+
+
 
   return (
     <div className="space-y-5 animate-slide-up max-w-2xl">
@@ -337,7 +350,27 @@ export default function Settings() {
         })()}
       </Section>
 
-      {/* Goals & Units */}
+      {/* Goals & Units — the only server-backed, editable block on this page.
+
+          Gated on its own rather than page-level, because almost nothing else here
+          needs the server: theme, workout layout and the rest timer are device prefs,
+          sign out is local, and the API server row is the very control someone needs
+          WHEN the server cannot be reached. Blanking the page took that away at
+          exactly the wrong moment.
+
+          What must not survive the failure is this section: the store falls back to
+          defaults, so the inputs showed 2000/150/250/65 and Save PUT them over real
+          targets of 3175/205/310/88. Measured, not theorised. */}
+      {settingsLoadFailed ? (
+        <Section title="Goals & Units">
+          <ErrorState
+            size="section"
+            title="Couldn't load your goals"
+            message="These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
+            onRetry={() => { void load() }}
+          />
+        </Section>
+      ) : (
       <Section title="Goals & Units">
         <SettingRow
           label="Weight unit"
@@ -422,6 +455,7 @@ export default function Settings() {
           </button>
         </div>
       </Section>
+      )}
 
       {/* Server info */}
       <Section title="Self-Hosted Instance">
@@ -457,7 +491,9 @@ export default function Settings() {
 
         {seedMsg && (
           <div className="py-2 px-1">
-            <p className="text-xs text-tx-muted">{seedMsg}</p>
+            <p className={`text-xs ${seedMsg.failed ? 'text-[color:var(--alert-error)]' : 'text-tx-muted'}`}>
+              {seedMsg.text}
+            </p>
           </div>
         )}
 

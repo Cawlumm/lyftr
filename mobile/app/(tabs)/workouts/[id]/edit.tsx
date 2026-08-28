@@ -6,7 +6,7 @@ import {
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { apiErrorMessage, useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
+import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
@@ -62,6 +62,10 @@ export default function EditWorkout() {
   // Only what the FORM can say before anything is sent. What the SERVER says lives
   // on `save` below; both render in the same alert.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field — there is nothing to edit.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', date: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
@@ -108,11 +112,11 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load workout')))
+      .catch((err) => setLoadError(apiErrorMessage(err, "Couldn't load this workout.")))
       .finally(() => setInitialLoading(false))
     // Web effect deps: [id] only — settings are fetched before a user can navigate here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
@@ -208,6 +212,20 @@ export default function EditWorkout() {
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
     setError('')
     void save.run()
+  }
+
+  if (loadError) {
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title="Couldn't load this workout"
+          message={loadError}
+          onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Back to workouts" variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
   }
 
   if (initialLoading) return <Loading />

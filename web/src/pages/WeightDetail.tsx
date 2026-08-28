@@ -7,7 +7,8 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { useAsyncAction, apiErrorMessage, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
@@ -20,6 +21,8 @@ export default function WeightDetail() {
   const [log, setLog] = useState<types.WeightLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   // Edit mode
   const [editing, setEditing] = useState(false)
@@ -38,9 +41,12 @@ export default function WeightDetail() {
   useEffect(() => {
     weightAPI.get(Number(id))
       .then(setLog)
-      .catch(err => setError(apiErrorMessage(err, 'Failed to load entry')))
+      .catch(err => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "Couldn't load this entry."))
+      })
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   const startEdit = () => {
     if (!log) return
@@ -94,15 +100,13 @@ export default function WeightDetail() {
 
   if (error || !log) {
     return (
-      <div className="space-y-4">
-        <Link to="/weight" className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Weight
-        </Link>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || 'Entry not found'}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this entry"
+        message={error ?? 'That entry no longer exists.'}
+        onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
+        secondary={<Link to="/weight" className="btn-secondary btn-sm">Back to weight</Link>}
+      />
     )
   }
 

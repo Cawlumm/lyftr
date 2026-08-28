@@ -4,9 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { useAsyncAction, apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import { Alert,
-  AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
+  AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -22,6 +22,8 @@ export default function WeightDetail() {
   const [log, setLog] = useState<WeightLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   // Edit mode
   const [editing, setEditing] = useState(false)
@@ -45,10 +47,13 @@ export default function WeightDetail() {
         // Deep-link from the list kebab's Edit action opens straight into edit mode.
         if (edit) setEditing(true)
       })
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load entry')))
+      .catch((err) => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "Couldn't load this entry."))
+      })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const startEdit = () => {
     if (!log) return
@@ -100,12 +105,14 @@ export default function WeightDetail() {
   if (error || !log) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Weight</AppText>
-          </Pressable>
-          <Alert variant="error" size="compact">{error || 'Entry not found'}</Alert>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this entry"
+            message={error ?? 'That entry no longer exists.'}
+            onRetry={error && !gone ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to weight" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )

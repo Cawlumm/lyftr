@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
-  AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
+  Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -10,6 +10,7 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
+import { ErrorState } from '../components/ui'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services/api'
@@ -89,6 +90,10 @@ export default function Dashboard() {
   const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect to gain a retry button;
+  // this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const wUnit = weightShort(settings.weight_unit)
@@ -112,16 +117,21 @@ export default function Dashboard() {
       })
       .catch(err => setError(apiErrorMessage(err, 'Failed to load')))
       .finally(() => setLoading(false))
-  }, [TODAY])
+  }, [TODAY, retryKey])
 
   if (loading) return <Loading />
 
+  // The dashboard is nothing but other requests' answers, so when the load fails there
+  // is no honest partial view to show — every tile would read 0, which states "you did
+  // nothing this week" rather than "we could not ask".
   if (error) {
     return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load your dashboard"
+        message={error}
+        onRetry={() => { setError(null); setLoading(true); setRetryKey(k => k + 1) }}
+      />
     )
   }
 

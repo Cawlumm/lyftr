@@ -41,6 +41,11 @@ const BASE_DEFAULTS: types.UserSettings = {
 export interface SettingsStore {
   settings: types.UserSettings
   loaded: boolean
+  // True when `loaded` is standing on DEFAULTS because the read failed, not on the
+  // user's own settings. The distinction is not cosmetic: a screen that offers to
+  // save while this is true will write the defaults over whatever the server still
+  // holds — a failed read plus one ordinary click, and the targets are gone.
+  loadFailed: boolean
   // Device-only prefs, no network. Call before first render.
   hydratePrefs: () => Promise<void>
   fetch: () => Promise<void>
@@ -89,6 +94,7 @@ export function createSettingsStore(
   return create<SettingsStore>((set, get) => ({
     settings: BASE_DEFAULTS,
     loaded: false,
+    loadFailed: false,
 
     // The three client-only prefs, read from device storage with no network call.
     //
@@ -103,7 +109,10 @@ export function createSettingsStore(
     },
 
     fetch: async () => {
-      if (get().loaded) return
+      // `loaded` alone would make this a no-op forever after a failed read, because the
+      // failure path sets it too — so a Retry button would do nothing at all. A load that
+      // fell back to defaults is exactly the one worth attempting again.
+      if (get().loaded && !get().loadFailed) return
       const prefs = await clientPrefs(storage)
       try {
         const s = await client.userAPI.getSettings()
@@ -111,7 +120,7 @@ export function createSettingsStore(
         // Awaiting the PATCH would put a write on the critical path of loading
         // settings — on a stalled connection every screen that gates on `loaded`
         // waits for a socket timeout instead of showing data already in hand.
-        set({ settings: { ...s, ...prefs }, loaded: true })
+        set({ settings: { ...s, ...prefs }, loaded: true, loadFailed: false })
         void syncTimezone(s).then((synced) => {
           // Only the timezone is written back. Splatting the whole response would
           // undo anything the user changed while the PATCH was in flight — flipping
@@ -122,7 +131,10 @@ export function createSettingsStore(
           }
         })
       } catch {
-        set({ settings: { ...get().settings, ...prefs }, loaded: true })
+        // Still `loaded`, because blocking every screen on a settings read would be
+        // worse — but flagged, so a screen that can WRITE these values knows they are
+        // substitutes rather than the user's.
+        set({ settings: { ...get().settings, ...prefs }, loaded: true, loadFailed: true })
       }
     },
 
@@ -185,6 +197,7 @@ export function createSettingsStore(
           rest_seconds_default: state.settings.rest_seconds_default,
         },
         loaded: false,
+        loadFailed: false,
       })),
   }))
 }

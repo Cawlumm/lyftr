@@ -10,7 +10,7 @@ import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
   weightShort, type Program, type ProgramSet,
 } from '@lyftr/shared'
-import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -76,6 +76,9 @@ export default function ProgramDetail() {
   const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
   // Separate from `error`, which replaces the whole screen: a failed resolve must leave the
@@ -154,7 +157,10 @@ export default function ProgramDetail() {
       }
       load()
       return () => { cancelled = true }
-    }, [id])
+    // retryKey is not read in the body — it IS the trigger. Changing it gives the
+    // callback a new identity, which is what makes useFocusEffect run the load again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, retryKey])
   )
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
@@ -184,15 +190,14 @@ export default function ProgramDetail() {
   if (error || !program) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Back</AppText>
-          </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-            <AlertCircle size={20} color={isDark ? brand.errorSoft : brand.error} />
-            <AppText variant="body" color="error" className="flex-1">{error || 'Program not found'}</AppText>
-          </View>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this program"
+            message={error ?? 'That program no longer exists.'}
+            onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )

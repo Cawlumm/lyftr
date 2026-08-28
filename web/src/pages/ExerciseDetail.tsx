@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { AlertCircle, ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
+import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
 import { format, subDays } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
@@ -9,7 +9,8 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { apiErrorMessage, types } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
@@ -46,6 +47,14 @@ export default function ExerciseDetail() {
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A 404 is not a retryable failure: the row is gone, and a Try again button that
+  // cannot ever succeed is worse than no button. Tracked separately from the message
+  // because the message alone cannot say which kind of failure produced it.
+  const [gone, setGone] = useState(false)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect to gain a retry button;
+  // this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -67,9 +76,12 @@ export default function ExerciseDetail() {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch(err => setError(apiErrorMessage(err, 'Failed to load exercise')))
+      .catch(err => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, 'Failed to load exercise'))
+      })
       .finally(() => setLoading(false))
-  }, [exerciseId])
+  }, [exerciseId, retryKey])
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -85,15 +97,13 @@ export default function ExerciseDetail() {
   // retry. Say what happened and leave them where they tapped.
   if (error) {
     return (
-      <div className="space-y-4">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </button>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this exercise"
+        message={error}
+        onRetry={gone ? undefined : () => { setError(null); setRetryKey(k => k + 1) }}
+        secondary={<button onClick={() => navigate(-1)} className="btn-secondary btn-sm">Go back</button>}
+      />
     )
   }
 

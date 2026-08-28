@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { apiErrorMessage, useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
-import { AppText, Button, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
+import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
@@ -40,6 +40,10 @@ export default function EditProgram() {
   // Only what the FORM can say before anything is sent. What the SERVER says lives
   // on `save` below; both render in the same alert.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field — there is nothing to edit.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
   const scrollRef = useRef<ScrollView>(null)
@@ -81,11 +85,11 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, 'Failed to load program')) })
+      .catch((err) => { if (!cancelled) setLoadError(apiErrorMessage(err, "Couldn't load this program.")) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
@@ -132,6 +136,20 @@ export default function EditProgram() {
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
     setError('')
     void save.run()
+  }
+
+  if (loadError) {
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title="Couldn't load this program"
+          message={loadError}
+          onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
   }
 
   if (initialLoading) return <Loading />

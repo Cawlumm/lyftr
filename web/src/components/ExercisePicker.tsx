@@ -83,9 +83,15 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
         </button>
         <div>
           <h2 className="font-display font-bold text-xl text-tx-primary">Add Exercise</h2>
-          <p className="text-xs text-tx-muted">
-            {available.length} loaded{hasMore ? '…' : ''}
-          </p>
+          {/* Derived from the rows we actually hold, so it is only true if the fetch
+              landed. On a failure `available` is empty and this read "0 loaded" directly
+              above a message saying we could not load anything — the same claim the
+              error state exists to stop. */}
+          {!error && (
+            <p className="text-xs text-tx-muted">
+              {available.length} loaded{hasMore ? '…' : ''}
+            </p>
+          )}
         </div>
       </div>
 

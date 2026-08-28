@@ -3,10 +3,10 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { format } from 'date-fns'
 import {
-  AlertCircle, ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
+  ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from 'lucide-react-native'
 import { useAsyncAction, apiErrorMessage, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
-import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -55,11 +55,14 @@ export default function WorkoutDetail() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
   const restOn = settings.rest_enabled ?? true
-  const { colors, brand, accent, isDark } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [workout, setWorkout] = useState<Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function WorkoutDetail() {
     }
     load()
     return () => { cancelled = true }
-  }, [id])
+  }, [id, retryKey])
 
   // Deep links can land here with no history — fall back to the list route.
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
@@ -101,18 +104,14 @@ export default function WorkoutDetail() {
   if (error || !workout) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Back</AppText>
-          </Pressable>
-          {/* Boxed request-error alert (authui AuthError pattern) */}
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-            <AlertCircle size={20} color={isDark ? brand.errorSoft : brand.error} />
-            <AppText variant="body" color="error" className="flex-1">
-              {error || 'Workout not found'}
-            </AppText>
-          </View>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this workout"
+            message={error ?? 'That workout no longer exists.'}
+            onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to workouts" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )

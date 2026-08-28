@@ -30,6 +30,7 @@ import {
   AppText,
   Button,
   ConfirmSheet,
+  ErrorState,
   Field,
   IconButton,
   Loading,
@@ -59,6 +60,11 @@ export default function SettingsScreen() {
 
   const settings = useSettingsStore((s) => s.settings)
   const loaded = useSettingsStore((s) => s.loaded)
+  // True when `loaded` is standing on defaults because the read failed. Only the
+  // server-backed block is gated on it: theme, layout, rest timer and the backend URL
+  // are device-side, and the URL row is the very control someone needs WHEN the
+  // server cannot be reached.
+  const settingsLoadFailed = useSettingsStore((s) => s.loadFailed)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const updateSettings = useSettingsStore((s) => s.update)
   const setWorkoutLayout = useSettingsStore((s) => s.setWorkoutLayout)
@@ -304,7 +310,21 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
 
-          {/* Units & Targets */}
+          {/* Units & Targets — the only server-backed, editable block on this screen.
+
+              Withheld rather than filled with defaults: the store falls back to
+              2000/150/250/65 so the rest of the app keeps working, and Save would PUT
+              those straight over the user's real targets. */}
+          {settingsLoadFailed ? (
+            <SettingsGroup title="Units & Targets">
+              <ErrorState
+                size="section"
+                title="Couldn't load your goals"
+                message="These are your saved targets and units, so we won't guess at them. Everything else here still works."
+                onRetry={() => { void fetchSettings() }}
+              />
+            </SettingsGroup>
+          ) : (
           <SettingsGroup title="Units & Targets" footnote="Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.">
             <SettingsRow
               icon={Scale}
@@ -352,6 +372,7 @@ export default function SettingsScreen() {
               <Button title="Save targets" onPress={handleSaveTargets} loading={saveTargets.busy} className="mt-1" />
             </View>
           </SettingsGroup>
+          )}
 
           {/* Server */}
           <SettingsGroup title="Server" footnote="The self-hosted backend this app talks to. Leave the URL blank to use the default.">

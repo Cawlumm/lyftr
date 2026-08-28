@@ -240,7 +240,11 @@ export default function Workouts() {
         }
       />
 
-      {/* Summary */}
+      {/* Summary — derived from `workouts`, so it is only true if the list arrived.
+          On a failed load the array is empty and these read "0 logged · 0 sessions",
+          which is a claim about the user's training, not a blank. The search box and
+          Log Workout below still work, so they stay; only the derived numbers go. */}
+      {!listError && (
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Total', value: workouts.length.toString(), unit: 'logged' },
@@ -260,6 +264,7 @@ export default function Workouts() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Search */}
       <div className="relative">

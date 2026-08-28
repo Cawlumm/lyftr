@@ -1,4 +1,4 @@
-import { ConfirmSheet } from '../components/ui'
+import { ConfirmSheet, ErrorState } from '../components/ui'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { apiErrorMessage, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
@@ -25,6 +25,14 @@ export default function ProgramDetail() {
   const [program, setProgram] = useState<types.Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A 404 is not a retryable failure: the row is gone, and a Try again button that
+  // cannot ever succeed is worse than no button. Tracked separately from the message
+  // because the message alone cannot say which kind of failure produced it.
+  const [gone, setGone] = useState(false)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect on five pages to gain a
+  // retry button; this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
   // Separate from `error`, which replaces the whole page: a failed resolve must leave the
@@ -56,13 +64,14 @@ export default function ProgramDetail() {
         setProgram(data)
         setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
+        setGone(isNotFound(err))
         setError(apiErrorMessage(err, 'Failed to load program'))
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [id])
+  }, [id, retryKey])
 
   const days = program?.days ?? []
   const selectedDay = days[selectedDayIdx]
@@ -94,15 +103,13 @@ export default function ProgramDetail() {
 
   if (error || !program) {
     return (
-      <div className="space-y-4">
-        <Link to="/programs" className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || 'Program not found'}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this program"
+        message={error ?? 'That program no longer exists.'}
+        onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
+        secondary={<Link to="/programs" className="btn-secondary btn-sm">Back to programs</Link>}
+      />
     )
   }
 

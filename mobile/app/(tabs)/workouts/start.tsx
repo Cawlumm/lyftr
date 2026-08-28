@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { apiErrorMessage, activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
-import { AppText, IconButton, Screen } from '../../../src/components/ui'
+import { AppText, ErrorState, IconButton, Screen } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -21,6 +21,7 @@ export default function StartWorkout() {
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [retryKey, setRetryKey] = useState(0)
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export default function StartWorkout() {
       .then((data) => setPrograms(data || []))
       .catch((err) => setError(apiErrorMessage(err, 'Failed to load programs')))
       .finally(() => setLoading(false))
-  }, [])
+  }, [retryKey])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
@@ -108,10 +109,15 @@ export default function StartWorkout() {
               <AppText variant="subheading">Start from Program</AppText>
             </View>
 
+            {/* Section-scoped: starting an empty workout does not need this list, so
+                only the program picker area is replaced. */}
             {error ? (
-              <View className="mb-3 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-                <AppText variant="body" color="error">{error}</AppText>
-              </View>
+              <ErrorState
+                size="section"
+                title="Couldn't load your programs"
+                message={error}
+                onRetry={() => { setError(''); setRetryKey((k) => k + 1) }}
+              />
             ) : null}
 
             {loading ? (

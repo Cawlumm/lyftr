@@ -1,13 +1,13 @@
-import { ConfirmSheet } from '../components/ui'
+import { ConfirmSheet, ErrorState } from '../components/ui'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import {
-  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader, Pause, TimerOff,
+  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, Loader, Pause, TimerOff,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -31,6 +31,14 @@ export default function WorkoutDetail() {
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A 404 is not a retryable failure: the row is gone, and a Try again button that
+  // cannot ever succeed is worse than no button. Tracked separately from the message
+  // because the message alone cannot say which kind of failure produced it.
+  const [gone, setGone] = useState(false)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect on five pages to gain a
+  // retry button; this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
@@ -39,13 +47,14 @@ export default function WorkoutDetail() {
         const data = await workoutAPI.get(Number(id))
         setWorkout(data)
       } catch (err: any) {
+        setGone(isNotFound(err))
         setError(apiErrorMessage(err, 'Failed to load workout'))
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [id])
+  }, [id, retryKey])
 
   // Was `catch { setDeleting(false); setConfirming(false) }` — the confirm quietly
   // closed and the user was left guessing whether the tap had registered. It stays
@@ -66,15 +75,13 @@ export default function WorkoutDetail() {
 
   if (error || !workout) {
     return (
-      <div className="space-y-4">
-        <Link to="/workouts" className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || 'Workout not found'}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this workout"
+        message={error ?? 'That workout no longer exists.'}
+        onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
+        secondary={<Link to="/workouts" className="btn-secondary btn-sm">Back to workouts</Link>}
+      />
     )
   }
 

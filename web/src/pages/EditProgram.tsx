@@ -4,6 +4,7 @@ import { ArrowLeft, AlertCircle, BookOpen, FileText, Dumbbell, CalendarDays } fr
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
 import { apiErrorMessage, useAsyncAction, hasWorkoutExercises, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
 import type { DayDraft } from '../components/programs/types'
 
@@ -23,6 +24,11 @@ export default function EditProgram() {
   // name, an empty day). What the SERVER says lives on the hook below — different
   // questions, kept apart on purpose, and rendered in the same place.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field: there is nothing to edit, and the header would
+  // otherwise assert "0 exercises" about a workout that has several.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
 
@@ -56,9 +62,9 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(err => { setError(apiErrorMessage(err, 'Failed to load program')); })
+      .catch(err => { setLoadError(apiErrorMessage(err, "Couldn't load this program.")); })
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   const cacheExercise = (ex: types.Exercise) => setPickerExercises(prev => ({ ...prev, [ex.id]: ex }))
 
@@ -100,6 +106,18 @@ export default function EditProgram() {
       <div className="flex items-center justify-center py-20">
         <Dumbbell className="w-6 h-6 text-brand-500 animate-pulse" />
       </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load this program"
+        message={loadError}
+        onRetry={() => { setLoadError(null); setInitialLoading(true); setRetryKey(k => k + 1) }}
+        secondary={<button onClick={() => navigate('/programs')} className="btn-secondary btn-sm">Back to programs</button>}
+      />
     )
   }
 
