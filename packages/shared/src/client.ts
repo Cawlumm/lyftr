@@ -69,6 +69,36 @@ export const testServerConnection = async (
 
 const unwrap = <T>(res: { data: { data: T } }) => res.data.data
 
+// The bound every ordinary request shares, INCLUDING the token refresh below. Named
+// rather than inlined because the refresh is issued on the bare `axios` export (using
+// `api` would recurse straight back into the interceptor that calls it), and a bare
+// axios call silently inherits axios's own default of `timeout: 0` — wait forever.
+// That gap is #145: a request 401s, the refresh goes out over gym wifi that has just
+// stopped forwarding, and nothing ever settles it. The caller's promise stays pending,
+// so a button gated on `saving` is disabled for the rest of the process's life while the
+// app around it keeps rendering — which is exactly "action buttons stop responding …
+// requires a full app restart".
+const REQUEST_TIMEOUT = 20000
+
+// Was the session actually revoked, or did we just not hear back? Only the server can
+// answer that, and only 400/401/403 are it answering: the refresh token is missing,
+// malformed, expired, or superseded. A timeout, a dropped connection, a 5xx, a proxy's
+// 502/504 — those are silence, and silence is not a verdict. Signing out on silence
+// would end a session, and with it an in-progress workout, every time someone walks past
+// a dead spot in their gym's wifi. Verified: before this, restoring connectivity after a
+// hung refresh dropped a live workout straight to the login screen.
+//
+// wger's Flutter client draws the same line and says so in the same terms — "pure network
+// errors keep the session intact so offline use continues to work" — but puts 5xx on the
+// revoked side, clearing on any non-200. We deliberately keep 5xx here, because both these
+// apps talk to a box the user owns: `docker compose up -d` to update the backend means a
+// reverse proxy answering 502 for a few seconds, and that must not sign someone out
+// mid-workout. A genuinely dead refresh token still 401s, so nothing is left hanging.
+const sessionWasRevoked = (err: any): boolean => {
+  const status = err?.response?.status
+  return status === 400 || status === 401 || status === 403
+}
+
 // Build a fully-wired API client bound to a platform storage adapter. All token
 // reads/writes and the base-URL resolution go through `storage`, so the same code
 // runs on web (localStorage) and mobile (SecureStore/AsyncStorage).
@@ -92,7 +122,7 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
   // testServerConnection stays at 8s because there the whole point is to fail fast.
   const api: AxiosInstance = axios.create({
     headers: { 'Content-Type': 'application/json' },
-    timeout: 20000,
+    timeout: REQUEST_TIMEOUT,
   })
 
   api.interceptors.request.use(async (config) => {
@@ -101,6 +131,36 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
     if (token) config.headers.Authorization = `Bearer ${token}`
     return config
   })
+
+  // Single-flight. A screen that mounts and fires five reads gets five 401s at once, and
+  // without this each one opens its own refresh: five round-trips where one would do, five
+  // rotations of a token the server invalidates as it reissues it, and last-writer-wins
+  // over the storage key. On the network this bug is actually about, it is also five
+  // separate REQUEST_TIMEOUT waits. wger's Flutter client shares one future the same way
+  // (`_refreshInFlight ??= _runRefresh().whenComplete(...)`), and it is what the axios
+  // ecosystem's isRefreshing-flag-plus-queue recipe reduces to once the queue is a promise.
+  let refreshInFlight: Promise<string> | null = null
+
+  const refreshSession = async (): Promise<string> => {
+    const refreshToken = await storage.get(STORAGE_KEYS.refresh)
+    const base = await resolveAPIBase()
+    const res = await axios.post(
+      `${base}/auth/refresh`,
+      { refresh_token: refreshToken },
+      { timeout: REQUEST_TIMEOUT },
+    )
+    const newToken = res.data.data.token
+    await storage.set(STORAGE_KEYS.access, newToken)
+    if (res.data.data.refresh_token) {
+      await storage.set(STORAGE_KEYS.refresh, res.data.data.refresh_token)
+    }
+    return newToken
+  }
+
+  const refreshOnce = (): Promise<string> => {
+    refreshInFlight ??= refreshSession().finally(() => { refreshInFlight = null })
+    return refreshInFlight
+  }
 
   api.interceptors.response.use(
     (response) => response,
@@ -116,21 +176,27 @@ export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) 
       if (error.response?.status === 401 && !original._retry && !isCredentialCheck) {
         original._retry = true
         try {
-          const refreshToken = await storage.get(STORAGE_KEYS.refresh)
-          const base = await resolveAPIBase()
-          const res = await axios.post(`${base}/auth/refresh`, { refresh_token: refreshToken })
-          const newToken = res.data.data.token
-          await storage.set(STORAGE_KEYS.access, newToken)
+          // Set the header from the token this call returns rather than letting the
+          // request interceptor re-read storage: a queued retry that reads storage can
+          // pick up a token a later rotation has already replaced.
+          const newToken = await refreshOnce()
           original.headers.Authorization = `Bearer ${newToken}`
-          if (res.data.data.refresh_token) {
-            await storage.set(STORAGE_KEYS.refresh, res.data.data.refresh_token)
-          }
           return api(original)
-        } catch {
-          await storage.remove(STORAGE_KEYS.access)
-          await storage.remove(STORAGE_KEYS.refresh)
-          await storage.remove(STORAGE_KEYS.user)
-          opts.onAuthFailure?.()
+        } catch (refreshError) {
+          if (sessionWasRevoked(refreshError)) {
+            await storage.remove(STORAGE_KEYS.access)
+            await storage.remove(STORAGE_KEYS.refresh)
+            await storage.remove(STORAGE_KEYS.user)
+            opts.onAuthFailure?.()
+          } else {
+            // Silence leaves the session alone — and the caller hears about the silence,
+            // not about the 401 that started this. Rejecting with the original error made
+            // a screen show the server's "invalid or expired token", which reads as "your
+            // login is broken" when the session is fine and the phone simply could not
+            // reach the server. The refresh error routes through networkFailureMessage to
+            // "the server didn't respond in time", which is both true and actionable.
+            return Promise.reject(refreshError)
+          }
         }
       }
       return Promise.reject(error)

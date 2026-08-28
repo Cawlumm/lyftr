@@ -3,7 +3,7 @@ import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
-import { weightShort, type Exercise, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { apiErrorMessage, weightShort, type Exercise, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -64,9 +64,13 @@ export default function ActiveWorkout() {
       cancelSession()
       router.replace('/workouts')
     } catch (err: any) {
-      setSaveError(err?.response?.data?.error || 'Failed to save workout')
+      // apiErrorMessage, not err.response.data.error: the failure this path exists for
+      // has no response at all (#145 - the request timed out on gym wifi), and the raw
+      // read would fall through to a generic string that says nothing about why.
+      setSaveError(apiErrorMessage(err, 'Failed to save workout'))
       setSaving(false)
-      setConfirmFinish(false)
+      // Sheet stays OPEN. The session is intact and the server may be reachable again
+      // in a moment, so the retry belongs under the finger that just tapped Finish.
     }
   }
 
@@ -201,12 +205,6 @@ export default function ActiveWorkout() {
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >
-        {saveError ? (
-          <View className="rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-            <AppText variant="body" color="error">{saveError}</AppText>
-          </View>
-        ) : null}
-
         {session.exercises.length === 0 ? (
           <View className="items-center gap-1 py-16">
             <Dumbbell size={28} color={colors.txMuted} />
@@ -258,8 +256,9 @@ export default function ActiveWorkout() {
         busyLabel="Saving…"
         cancelLabel="Keep Going"
         busy={saving}
+        error={saveError}
         onConfirm={handleFinish}
-        onCancel={() => setConfirmFinish(false)}
+        onCancel={() => { setConfirmFinish(false); setSaveError('') }}
       />
 
       {/* Cancel confirm */}
