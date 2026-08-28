@@ -116,7 +116,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                     </div>
                     <p className="text-xs text-tx-muted ml-8">{exercise?.muscle_group} • {exercise?.equipment}</p>
                   </div>
-                  <button type="button" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                  <button type="button" aria-label="Remove exercise" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                     <Trash2 className="w-4 h-4 text-error-400" />
                   </button>
                 </div>
@@ -143,7 +143,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">Target Sets</label>
-                    <span className="text-xs text-tx-muted">{workoutEx.sets.length} sets</span>
+                    <span className="text-xs text-tx-muted">{workoutEx.sets.length} set{workoutEx.sets.length === 1 ? '' : 's'}</span>
                   </div>
                   {workoutEx.sets.map((set, setIdx) => (
                     <div key={setIdx} className="flex gap-2 items-end bg-surface-raised/40 p-3 rounded-lg border border-surface-border/50">
@@ -159,7 +159,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                         <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Weight</label>
                         <WeightInput size="sm" value={set.target_weight ? String(set.target_weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'target_weight', v)} unit={wUnit} placeholder="135" />
                       </div>
-                      <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                      <button type="button" aria-label="Remove set" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                         <Trash2 className="w-4 h-4 text-error-400" />
                       </button>
                     </div>

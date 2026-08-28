@@ -58,10 +58,10 @@ export default function ProgramDaysEditor({ days, onChange, pickerExercises, onC
           <div key={idx} className={`border rounded-lg overflow-hidden ${day.is_rest_day ? 'border-surface-border bg-surface-muted/20' : 'border-surface-border bg-surface-muted/30'}`}>
             <div className="flex items-center gap-2 p-3">
               <div className="flex flex-col flex-shrink-0">
-                <button type="button" onClick={() => moveDay(idx, -1)} disabled={idx === 0} className="p-0.5 text-tx-muted hover:text-tx-primary disabled:opacity-20 transition-colors">
+                <button type="button" aria-label="Move day up" onClick={() => moveDay(idx, -1)} disabled={idx === 0} className="p-0.5 text-tx-muted hover:text-tx-primary disabled:opacity-20 transition-colors">
                   <ChevronUp className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" onClick={() => moveDay(idx, 1)} disabled={idx === days.length - 1} className="p-0.5 text-tx-muted hover:text-tx-primary disabled:opacity-20 transition-colors">
+                <button type="button" aria-label="Move day down" onClick={() => moveDay(idx, 1)} disabled={idx === days.length - 1} className="p-0.5 text-tx-muted hover:text-tx-primary disabled:opacity-20 transition-colors">
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -96,12 +96,12 @@ export default function ProgramDaysEditor({ days, onChange, pickerExercises, onC
               </div>
 
               {!day.is_rest_day && (
-                <button type="button" onClick={() => setExpanded(isOpen ? null : idx)} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors flex-shrink-0">
+                <button type="button" aria-label={isOpen ? 'Collapse day' : 'Expand day'} aria-expanded={isOpen} onClick={() => setExpanded(isOpen ? null : idx)} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors flex-shrink-0">
                   {isOpen ? <ChevronCollapse className="w-4 h-4 text-tx-muted rotate-90" /> : <ChevronRight className="w-4 h-4 text-tx-muted" />}
                 </button>
               )}
 
-              <button type="button" onClick={() => removeDay(idx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+              <button type="button" aria-label="Remove day" onClick={() => removeDay(idx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                 <Trash2 className="w-4 h-4 text-error-400" />
               </button>
             </div>

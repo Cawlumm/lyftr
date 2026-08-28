@@ -37,10 +37,13 @@ describe('DayExercisesEditor', () => {
     expect(screen.getByText(/No exercises yet/)).toBeTruthy()
   })
 
+  // This asserted "1 sets", which pinned the missing singular. The program side of
+  // the app already used the {n} set{n === 1 ? '' : 's'} idiom in ten places; the
+  // workout side did not, and this row was one of the gaps.
   it('shows the cached exercise name and its set count', () => {
     renderEditor([draft()])
     expect(screen.getByText('Bench Press')).toBeTruthy()
-    expect(screen.getByText('1 sets')).toBeTruthy()
+    expect(screen.getByText('1 set')).toBeTruthy()
   })
 
   it('Add Set appends a set copying the previous set\'s reps/weight', () => {

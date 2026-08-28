@@ -256,7 +256,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                           {ex.exercise.muscle_group}
                         </span>
-                        <span className="text-[10px] text-tx-muted">{ex.sets.length} sets</span>
+                        <span className="text-[10px] text-tx-muted">{ex.sets.length} set{ex.sets.length === 1 ? '' : 's'}</span>
                       </div>
                     </div>
                     {done && <CheckCircle2 className="w-4 h-4 text-brand-400 flex-shrink-0" />}

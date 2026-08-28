@@ -102,7 +102,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                 </span>
               )}
               {durationMin > 0 && <span className="text-tx-muted/40 text-xs">·</span>}
-              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercises</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercise{(workout.exercises?.length || 0) === 1 ? '' : 's'}</span>
               {totalVolume > 0 && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>

@@ -340,7 +340,13 @@ export default function ActiveWorkout() {
                         />
 
                         {/* Complete toggle */}
+                        {/* The most-pressed control in the app, and it had no
+                            accessible name and no state: a screen reader announced
+                            "button" with no way to tell a done set from a pending one.
+                            aria-pressed carries what the fill colour conveys visually. */}
                         <button
+                          aria-label={`Set ${set.set_number}, mark done`}
+                          aria-pressed={!!set.completed}
                           onClick={() => handleCompleteSet(exIdx, setIdx)}
                           className={`flex items-center justify-center transition-colors min-h-[3rem] ${
                             set.completed
