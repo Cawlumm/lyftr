@@ -14,7 +14,7 @@ import {
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, userAPI } from '../services/api'
-import { todayStr, dayToLocalDate, MACRO_COLORS, types } from '@lyftr/shared'
+import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types } from '@lyftr/shared'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -107,7 +107,7 @@ export default function Food() {
       setStats(statsData)
       if (!settings) setSettings(settingsData as types.UserSettings)
     } catch (err: any) {
-      setError(err.message || 'Failed to load food data')
+      setError(apiErrorMessage(err, 'Failed to load food data'))
     } finally {
       hasLoadedRef.current = true
       setLoading(false)

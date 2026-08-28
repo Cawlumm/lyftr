@@ -9,7 +9,7 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
@@ -52,7 +52,7 @@ export default function ProgramDetail() {
         setProgram(data)
         setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
-        setError(err.message || 'Failed to load program')
+        setError(apiErrorMessage(err, 'Failed to load program'))
       } finally {
         setLoading(false)
       }

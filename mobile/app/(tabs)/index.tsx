@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { apiErrorMessage, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
 import { Alert, AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -117,7 +117,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError(err?.message || 'Failed to load'))
+      .catch((err) => setError(apiErrorMessage(err, 'Failed to load')))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 

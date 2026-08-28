@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useAsyncAction, memberSince } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, memberSince } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -101,7 +101,7 @@ export default function Settings() {
           fat_target: s.fat_target,
         })
       } catch (err: any) {
-        setError(err.message || 'Failed to load settings')
+        setError(apiErrorMessage(err, 'Failed to load settings'))
       } finally {
         setLoading(false)
       }
@@ -121,7 +121,7 @@ export default function Settings() {
       setSeedMsg(`Refreshed ${res.refreshed.toLocaleString()} exercises`)
       loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg(err.message || 'Refresh failed')
+      setSeedMsg(apiErrorMessage(err, 'Refresh failed'))
     } finally {
       setSeedAction(null)
     }
@@ -135,7 +135,7 @@ export default function Settings() {
       setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
       loadCacheStatus()
     } catch (err) {
-      setSeedMsg(err instanceof Error ? err.message : 'Clear failed')
+      setSeedMsg(apiErrorMessage(err, 'Clear failed'))
     } finally {
       setSeedAction(null)
     }

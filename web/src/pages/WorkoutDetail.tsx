@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, types, workoutDay, dayToLocalDate, restLabel, calcVolume, countWorkingSets, exerciseVolume } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -39,7 +39,7 @@ export default function WorkoutDetail() {
         const data = await workoutAPI.get(Number(id))
         setWorkout(data)
       } catch (err: any) {
-        setError(err.message || 'Failed to load workout')
+        setError(apiErrorMessage(err, 'Failed to load workout'))
       } finally {
         setLoading(false)
       }

@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { apiErrorMessage, workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -110,7 +110,7 @@ export default function Dashboard() {
         setWeightStats(wst)
         setSettings(s || DEFAULT_SETTINGS)
       })
-      .catch(err => setError(err.message || 'Failed to load'))
+      .catch(err => setError(apiErrorMessage(err, 'Failed to load')))
       .finally(() => setLoading(false))
   }, [TODAY])
 
