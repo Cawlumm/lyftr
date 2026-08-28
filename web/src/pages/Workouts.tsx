@@ -5,6 +5,7 @@ import { Dumbbell, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, Chevro
 import { useNavigate, useLocation } from 'react-router-dom'
 import Loading from '../components/Loading'
 import EmptyState from '../components/ui/EmptyState'
+import { ListError } from '../components/ui'
 import PageHeader from '../components/ui/PageHeader'
 import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
@@ -217,7 +218,10 @@ export default function Workouts() {
     return () => clearTimeout(t)
   }, [search])
 
-  const { items: workouts, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Workout>({
+  const {
+    items: workouts, sentinelRef, hasMore, loading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.Workout>({
     fetcher: (offset, limit) => workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     deps: [debouncedSearch],
   })
@@ -271,11 +275,18 @@ export default function Workouts() {
       {/* Workout list */}
       <div className="space-y-2">
         {workouts.length === 0 && !loading ? (
-          <EmptyState
-            icon={Dumbbell}
-            title="No workouts found"
-            subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
-          />
+          // An empty list because the fetch failed is not an empty list. Saying "No
+          // workouts found · Log a workout to get started" to someone with eight months
+          // of history, because their wifi dropped, is the worst thing this screen can do.
+          listError ? (
+            <ListError message={listError} onRetry={retryList} />
+          ) : (
+            <EmptyState
+              icon={Dumbbell}
+              title="No workouts found"
+              subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+            />
+          )
         ) : (
           <>
             {workouts.map(w => <WorkoutCard key={w.id} workout={w}
@@ -283,6 +294,7 @@ export default function Workouts() {
               onDelete={() => reload()}
             />)}
             <div ref={sentinelRef} />
+            {listError && <ListError message={listError} onRetry={retryList} />}
             {hasMore && loading && (
               <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
             )}

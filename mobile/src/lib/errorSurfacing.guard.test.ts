@@ -19,7 +19,11 @@ const PATTERNS = [
   //   setError('…')
   /\}\s*catch\s*\{\n\s*set\w*Error\(/,
   // .catch(() => goBack()) — bounced off the screen, no explanation, nothing to retry.
-  /\.catch\(\(\)\s*=>[^\n]*(goBack\(\)|router\.back\(\))/,
+  // router.replace and .push count too: the first draft of this guard listed only
+  // goBack/back, and walked straight past nutrition/log.tsx, which answered a failed
+  // edit-load by replacing the route. Any navigation away from the failure is the
+  // same eviction — the user loses the screen and is told nothing.
+  /\.catch\(\(\)\s*=>[^\n]*(goBack\(\)|router\.(back|replace|push)\()/,
 ]
 
 it('never surfaces a failure it threw the cause away for', () => {

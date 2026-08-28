@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useServerList, types } from '@lyftr/shared'
+import { ListError } from './ui'
 import { exerciseAPI } from '../services/api'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
 
@@ -42,7 +43,9 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
     [debouncedQuery]
   )
 
-  const { items: exercises, loadMore, hasMore, loading, initialLoading } = useServerList<types.Exercise>({
+  const {
+    items: exercises, loadMore, hasMore, loading, initialLoading, error, retry,
+  } = useServerList<types.Exercise>({
     fetcher,
     pageSize: PAGE_SIZE,
     deps: [debouncedQuery],
@@ -109,9 +112,17 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
             Loading exercises…
           </div>
         ) : available.length === 0 ? (
-          <div className="flex items-center justify-center py-16 text-tx-muted text-sm">
-            No exercises found
-          </div>
+          // "No exercises found" is only true if we heard back. On a failed fetch it
+          // reads as an empty catalogue rather than a connection that dropped.
+          error ? (
+            <div className="p-4">
+              <ListError message={error} onRetry={retry} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-16 text-tx-muted text-sm">
+              No exercises found
+            </div>
+          )
         ) : (
           <div
             className="px-4 py-2 relative"

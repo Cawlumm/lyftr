@@ -199,6 +199,7 @@ export default function LogFood() {
 
   const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -211,7 +212,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(() => navigate('/food', { replace: true }))
+    }).catch(err => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
   }, [editId, navigate])
 
   useEffect(() => {
@@ -352,6 +353,15 @@ export default function LogFood() {
           above, so a failure has to be visible whichever one the user pressed. Sitting
           inside the search phase meant a failed star on the detail view said nothing at
           all and simply snapped back to unfilled. */}
+      {/* An entry we were asked to edit but could not load. This used to redirect to
+          /food, so a dropped connection silently threw away the edit the user opened. */}
+      {editError && (
+        <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
+          <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
+          <p className="text-xs text-error-400">{editError}</p>
+        </div>
+      )}
+
       {favoriteError && (
         <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
           <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />

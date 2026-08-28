@@ -126,11 +126,29 @@ export function createSettingsStore(
       }
     },
 
+    // Optimistic, then reconciled — but the optimism has to be undone when the write
+    // fails, or the app shows kg while the server still holds lbs and the next launch
+    // silently flips it back. Rolling back HERE rather than at each call site is what
+    // makes that true for every caller, including the ones that only toggle.
+    //
+    // Rethrows: the caller still has to say what happened. Rollback answers "what does
+    // the app believe", not "does the user know".
     update: async (patch) => {
+      const before = get().settings
       set((state) => ({ settings: { ...state.settings, ...patch } }))
-      const updated = await client.userAPI.updateSettings(patch)
-      const prefs = await clientPrefs(storage)
-      set({ settings: { ...updated, ...prefs } })
+      try {
+        const updated = await client.userAPI.updateSettings(patch)
+        const prefs = await clientPrefs(storage)
+        set({ settings: { ...updated, ...prefs } })
+      } catch (err) {
+        // Restore only the keys this patch touched: anything else may have been
+        // changed by another action while the write was in flight.
+        const rollback = Object.fromEntries(
+          Object.keys(patch).map((k) => [k, before[k as keyof types.UserSettings]]),
+        ) as Partial<types.UserSettings>
+        set((state) => ({ settings: { ...state.settings, ...rollback } }))
+        throw err
+      }
     },
 
     setWorkoutLayout: async (layout) => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useServerList, types } from '@lyftr/shared'
+import { ListError } from '../components/ui'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
@@ -35,7 +36,9 @@ export default function WorkoutExercisePicker() {
     [debouncedQuery]
   )
 
-  const { items: exercises, loadMore, hasMore, loading, initialLoading } = useServerList<types.Exercise>({
+  const {
+    items: exercises, loadMore, hasMore, loading, initialLoading, error, retry,
+  } = useServerList<types.Exercise>({
     fetcher,
     pageSize: PAGE_SIZE,
     deps: [debouncedQuery],
@@ -100,9 +103,17 @@ export default function WorkoutExercisePicker() {
             Loading…
           </div>
         ) : available.length === 0 ? (
-          <div className="flex items-center justify-center py-12 text-tx-muted text-sm">
-            No exercises found
-          </div>
+          // "No exercises found" is only true if we heard back. On a failed fetch it
+          // reads as an empty catalogue rather than a connection that dropped.
+          error ? (
+            <div className="py-4">
+              <ListError message={error} onRetry={retry} />
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-12 text-tx-muted text-sm">
+              No exercises found
+            </div>
+          )
         ) : (
           <div className="space-y-1">
             {available.map(ex => (

@@ -125,6 +125,7 @@ export default function LogFood() {
   const isToggling = (item: FoodSearchResult) =>
     togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -141,7 +142,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(() => router.replace('/nutrition'))
+    }).catch((err) => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
   }, [editId])
 
   // Recent (today, deduped ≤10) + favourites.
@@ -306,6 +307,15 @@ export default function LogFood() {
           above, so a failure has to be visible whichever one the user pressed. Sitting
           inside the search phase meant a failed star on the detail screen said nothing
           at all and simply snapped back to unfilled. */}
+      {/* An entry we were asked to edit but could not load. This used to replace the
+          route with /nutrition, so a dropped connection silently threw away the edit
+          the user opened. */}
+      {editError ? (
+        <View className="pb-3">
+          <Alert variant="error">{editError}</Alert>
+        </View>
+      ) : null}
+
       {favoriteError ? (
         <View className="pb-3">
           <Alert variant="error">{favoriteError}</Alert>

@@ -5,8 +5,9 @@ import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
-import { exerciseAPI } from '../services/api'
+import { exerciseAPI, userAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
+import { ConfirmSheet } from '../components/ui'
 import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
 import {
@@ -67,6 +68,7 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
@@ -142,11 +144,18 @@ export default function Settings() {
   }
 
 
+  // The store rolls its own optimistic patch back when the write fails, so the app no
+  // longer shows a unit the server never accepted. Saying so is still this page's job —
+  // a toggle that flips back on its own, silently, is its own small mystery.
   const handleUnitChange = async (unit: 'lbs' | 'kg') => {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
+    setError(null)
     try {
       await updateSettings({ ...formData, weight_unit: unit })
-    } catch { /* local state already switched; the next save retries the write */ }
+    } catch (err) {
+      setFormData(prev => ({ ...prev, weight_unit: unit === 'lbs' ? 'kg' : 'lbs' }))
+      setError(apiErrorMessage(err, "Couldn't change the weight unit."))
+    }
   }
 
   // `err.message` here was the raw JS message — for an axios failure that reads
@@ -156,6 +165,17 @@ export default function Settings() {
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
   }, 'Failed to save settings')
+
+  // Mobile has had this since it shipped; web rendered the button and wired nothing to
+  // it, so "Delete account" was a control that did nothing at all — worse than absent,
+  // because it reads as a feature that is simply broken.
+  //
+  // logout() is what moves the user out: it clears the tokens, which flips the route
+  // guard. Nothing navigates by hand, exactly as on mobile.
+  const deleteAccount = useAsyncAction(async () => {
+    await userAPI.deleteAccount()
+    await logout()
+  }, 'Could not delete account')
 
   const handleSave = () => {
     setSuccess(false)
@@ -461,11 +481,27 @@ export default function Settings() {
           </button>
         </SettingRow>
         <SettingRow label="Delete account" description="Permanently delete all your data">
-          <button className="btn-danger btn-sm">
+          <button onClick={() => setConfirmDelete(true)} className="btn-danger btn-sm">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
         </SettingRow>
       </Section>
+
+      {/* error stays on the sheet: a failed delete has to answer under the same finger
+          that pressed Delete, not as a banner at the top of a scrolled settings page. */}
+      <ConfirmSheet
+        open={confirmDelete}
+        icon={Trash2}
+        destructive
+        title="Delete account?"
+        message="This permanently deletes your account and all of your data. This can't be undone."
+        confirmLabel="Delete account"
+        busyLabel="Deleting…"
+        busy={deleteAccount.busy}
+        error={deleteAccount.error ?? undefined}
+        onConfirm={() => { void deleteAccount.run() }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }

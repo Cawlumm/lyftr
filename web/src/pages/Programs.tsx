@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
+import { ListError } from '../components/ui'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAsyncAction, types } from '@lyftr/shared'
@@ -246,7 +247,10 @@ export default function Programs() {
     return () => clearTimeout(t)
   }, [search])
 
-  const { items: programs, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Program>({
+  const {
+    items: programs, sentinelRef, hasMore, loading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.Program>({
     fetcher: (offset, limit) => programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     deps: [debouncedSearch],
   })
@@ -294,6 +298,11 @@ export default function Programs() {
 
       <div className="space-y-2">
         {programs.length === 0 && !loading ? (
+          // A failed fetch leaves the list empty too, and "No programs found · Create a
+          // program to get started" is a lie told to someone who has six.
+          listError ? (
+            <ListError message={listError} onRetry={retryList} />
+          ) : (
           <div className="empty-state">
             <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
               <BookOpen className="w-6 h-6 text-tx-muted" />
@@ -301,6 +310,7 @@ export default function Programs() {
             <p className="text-sm font-medium text-tx-primary mb-1">No programs found</p>
             <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Create a program to get started'}</p>
           </div>
+          )
         ) : (
           <>
             {programs.map(p => (
@@ -312,6 +322,7 @@ export default function Programs() {
               />
             ))}
             <div ref={sentinelRef} />
+            {listError && <ListError message={listError} onRetry={retryList} />}
             {hasMore && loading && (
               <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
             )}

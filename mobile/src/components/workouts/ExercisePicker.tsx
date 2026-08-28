@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from '
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
-import { AppText, IconButton } from '../ui'
+import { Alert, AppText, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
@@ -78,7 +78,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
     [debouncedQuery]
   )
 
-  const { items: exercises, loadMore, hasMore, initialLoading } = useServerInfiniteList<Exercise>({
+  const {
+    items: exercises, loadMore, hasMore, initialLoading, error: listError, retry: retryList,
+  } = useServerInfiniteList<Exercise>({
     fetcher,
     pageSize: PAGE_SIZE,
     deps: [debouncedQuery],
@@ -149,9 +151,19 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
-              <View className="items-center py-16">
-                <AppText variant="body" color="muted">No exercises found</AppText>
-              </View>
+              // "No exercises found" is only true if we heard back. On a failed fetch
+              // it reads as an empty catalogue rather than a connection that dropped.
+              listError ? (
+                <View className="px-1 py-3">
+                  <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                    {listError}
+                  </Alert>
+                </View>
+              ) : (
+                <View className="items-center py-16">
+                  <AppText variant="body" color="muted">No exercises found</AppText>
+                </View>
+              )
             }
             ListFooterComponent={
               hasMore && exercises.length > 0 ? (

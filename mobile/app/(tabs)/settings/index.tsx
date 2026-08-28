@@ -122,6 +122,14 @@ export default function SettingsScreen() {
 
   const handleSaveTargets = () => { void saveTargets.run() }
 
+  // The unit toggle used to call updateSettings() bare, so a failed PUT was a floating
+  // rejection: nothing told the user, and the app kept showing the unit the server had
+  // refused until the next launch quietly flipped it back. The store rolls the value
+  // back now; this is what says why.
+  const changeUnit = useAsyncAction(async (unit: 'lbs' | 'kg') => {
+    await updateSettings({ weight_unit: unit })
+  }, 'Could not change the weight unit')
+
   const saveServer = async () => {
     setTesting(true)
     setServerMsg(null)
@@ -151,6 +159,10 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (saveTargets.error) setToast({ variant: 'error', title: 'Could not save targets', description: saveTargets.error })
   }, [saveTargets.error])
+
+  useEffect(() => {
+    if (changeUnit.error) setToast({ variant: 'error', title: 'Could not change units', description: changeUnit.error })
+  }, [changeUnit.error])
 
   useEffect(() => {
     if (deleteAccount.error) {
@@ -300,7 +312,7 @@ export default function SettingsScreen() {
               below={
                 <SegmentedControl
                   value={settings.weight_unit}
-                  onChange={(u) => updateSettings({ weight_unit: u })}
+                  onChange={(u) => { void changeUnit.run(u) }}
                   options={[
                     { value: 'lbs', label: 'lbs' },
                     { value: 'kg', label: 'kg' },

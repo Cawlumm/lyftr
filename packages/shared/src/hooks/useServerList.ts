@@ -19,12 +19,15 @@
 // delete. `refreshing` marks the deps-change case so a screen can show a subtle cue over
 // the stale results.
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { apiErrorMessage } from '../client'
 
 interface Options<T> {
   fetcher: (offset: number, limit: number) => Promise<T[]>
   pageSize?: number
   // Changing any dep resets the list and re-fetches from offset 0 (e.g. search query)
   deps?: readonly unknown[]
+  // Shown when the server gives us nothing better to say.
+  errorFallback?: string
 }
 
 interface Result<T> {
@@ -43,17 +46,25 @@ interface Result<T> {
   // Background revalidate; returns the fetch promise so a caller (e.g. pull-to-refresh)
   // can await completion to drive its own spinner.
   reload: () => Promise<void>
+  // Why the last fetch failed, or null. A page that never arrived used to just set
+  // hasMore=false, so the list stopped exactly like a list that had reached its end —
+  // the one shape a reader cannot tell from success. Render it, with retry().
+  error: string | null
+  // Resume from wherever we stopped. Keeps whatever already loaded.
+  retry: () => void
 }
 
 export function useServerList<T>({
   fetcher,
   pageSize = 20,
   deps = [],
+  errorFallback = "Couldn't load this list.",
 }: Options<T>): Result<T> {
   const [items, setItems] = useState<T[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const offsetRef = useRef(0)
   // Tracks whether a fetch is in flight to prevent double-fetches (onEndReached can
   // fire repeatedly during momentum scrolling)
@@ -73,13 +84,21 @@ export function useServerList<T>({
     try {
       const page = await fetcher(currentOffset, pageSize)
       if (myId !== reqIdRef.current) return // superseded by a newer fetch — drop it
+      setError(null)
       setItems(prev => (replace ? page : [...prev, ...page]))
       offsetRef.current = currentOffset + page.length
       setHasMore(page.length === pageSize)
-    } catch {
+    } catch (err) {
       // Web lets rejections escape (harmless in a browser); on RN an unhandled
       // rejection is red-box noise — keep what loaded and stop paginating instead.
-      if (myId === reqIdRef.current) setHasMore(false)
+      //
+      // Stopping quietly was the whole bug: hasMore=false renders exactly like
+      // reaching the end of the data, so a dropped connection looked like "that is
+      // all there is". Name it and let the screen offer retry().
+      if (myId === reqIdRef.current) {
+        setHasMore(false)
+        setError(apiErrorMessage(err, errorFallback))
+      }
     } finally {
       // Only the latest fetch owns the shared flags — a stale response bows out without
       // flipping loading/fetching out from under the request that superseded it.
@@ -89,7 +108,7 @@ export function useServerList<T>({
         setLoading(false)
       }
     }
-  }, [fetcher, pageSize])
+  }, [fetcher, pageSize, errorFallback])
 
   // Deps change (e.g. the search query): reset pagination and refetch page 0, but keep
   // the previous results on screen until the fresh page replaces them (stale-while-
@@ -98,6 +117,7 @@ export function useServerList<T>({
   useEffect(() => {
     offsetRef.current = 0
     setHasMore(true)
+    setError(null)
     fetchingRef.current = false
     setRefreshing(true)
     fetchPage(0, true).finally(() => setRefreshing(false))
@@ -114,5 +134,18 @@ export function useServerList<T>({
   // the fetch itself on success.
   const reload = useCallback(() => fetchPage(0, true), [fetchPage])
 
-  return { items, loadMore, hasMore, loading, initialLoading: loading && !initializedRef.current, refreshing, reload }
+  // Resume, rather than reload: the pages already on screen are fine, it was the next
+  // one that never came. hasMore has to go back up first — loadMore checks it, and the
+  // failure is what set it false.
+  const retry = useCallback(() => {
+    setError(null)
+    setHasMore(true)
+    fetchPage(offsetRef.current, offsetRef.current === 0)
+  }, [fetchPage])
+
+  return {
+    items, loadMore, hasMore, loading,
+    initialLoading: loading && !initializedRef.current,
+    refreshing, reload, error, retry,
+  }
 }

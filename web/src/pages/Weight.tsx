@@ -11,6 +11,7 @@ import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import { useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
+import { ListError } from '../components/ui'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 
@@ -213,7 +214,10 @@ export default function Weight() {
   const [error, setError] = useState<string | null>(null)
 
   // Paginated history list
-  const { items, sentinelRef, hasMore, loading: listLoading, initialLoading, reload } = useServerInfiniteList<types.WeightLog>({
+  const {
+    items, sentinelRef, hasMore, loading: listLoading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.WeightLog>({
     fetcher: (offset, limit) => weightAPI.list({ offset, limit }),
   })
 
@@ -524,7 +528,10 @@ export default function Weight() {
         )}
       </div>
 
-      {/* History */}
+      {/* History — the error sits outside the items guard on purpose: a failed first
+          page leaves items empty, and the guard alone rendered nothing whatsoever. */}
+      {listError && <ListError message={listError} onRetry={retryList} />}
+
       {items.length > 0 && (
         <>
           <h2 className="section-title px-1">History</h2>
