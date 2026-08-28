@@ -32,12 +32,15 @@ import {
 //
 // The label keeps a `min-w` floor so wrapping actually triggers: with `min-w-0` alone it
 // would shrink to nothing and the pair would stay jammed on one line forever.
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+// `descriptionTone` lets a row report its own failure in place of its description. A row
+// like the unit toggle sits far down a long page, and the page-level banner is at the very
+// top — measured at 809px above the control, off-screen, which is the same as saying nothing.
+function SettingRow({ label, description, descriptionTone, children }: { label: string; description?: string; descriptionTone?: 'error'; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
       <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
-        {description && <p className="text-xs text-tx-muted mt-0.5">{description}</p>}
+        {description && <p className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
       </div>
       {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
       <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
@@ -69,6 +72,11 @@ export default function Settings() {
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  // Not the page-level `error`: that renders in a banner at the very top, and the unit
+  // toggle sits ~800px down a long settings page. Measured in a browser — the toggle
+  // flicked back to lbs while the explanation was off-screen above, which is the
+  // "say it where the tap was" failure this whole branch exists to stop.
+  const [unitError, setUnitError] = useState<string | null>(null)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
@@ -149,12 +157,12 @@ export default function Settings() {
   // a toggle that flips back on its own, silently, is its own small mystery.
   const handleUnitChange = async (unit: 'lbs' | 'kg') => {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
-    setError(null)
+    setUnitError(null)
     try {
       await updateSettings({ ...formData, weight_unit: unit })
     } catch (err) {
       setFormData(prev => ({ ...prev, weight_unit: unit === 'lbs' ? 'kg' : 'lbs' }))
-      setError(apiErrorMessage(err, "Couldn't change the weight unit."))
+      setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
     }
   }
 
@@ -331,7 +339,11 @@ export default function Settings() {
 
       {/* Goals & Units */}
       <Section title="Goals & Units">
-        <SettingRow label="Weight unit" description="Changes apply immediately across the app">
+        <SettingRow
+          label="Weight unit"
+          description={unitError ?? 'Changes apply immediately across the app'}
+          descriptionTone={unitError ? 'error' : undefined}
+        >
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
             {(['lbs', 'kg'] as const).map(unit => (
               <button

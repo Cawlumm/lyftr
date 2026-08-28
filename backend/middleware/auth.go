@@ -21,7 +21,7 @@ func Auth() gin.HandlerFunc {
 
 		claims, err := utils.ValidateToken(strings.TrimPrefix(header, "Bearer "))
 		if err != nil {
-			utils.Unauthorized(c, "That link is invalid or has expired.")
+			utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
 			c.Abort()
 			return
 		}
