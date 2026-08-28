@@ -150,7 +150,7 @@ export default function EditWorkout() {
   return (
     <div className="space-y-6 animate-slide-up pb-10">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
+        <button aria-label="Go back" onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
           <ArrowLeft className="w-5 h-5 text-tx-muted" />
         </button>
         <div>
@@ -233,7 +233,7 @@ export default function EditWorkout() {
                       </div>
                       <p className="text-xs text-tx-muted ml-8">{exercise?.muscle_group} • {exercise?.equipment}</p>
                     </div>
-                    <button type="button" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                    <button type="button" aria-label="Remove exercise" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                       <Trash2 className="w-4 h-4 text-error-400" />
                     </button>
                   </div>
@@ -262,7 +262,7 @@ export default function EditWorkout() {
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
                           <WeightInput size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
                         </div>
-                        <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                        <button type="button" aria-label="Remove set" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                           <Trash2 className="w-4 h-4 text-error-400" />
                         </button>
                       </div>

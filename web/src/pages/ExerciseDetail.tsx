@@ -126,6 +126,7 @@ export default function ExerciseDetail() {
       {/* Header */}
       <div className="flex items-start gap-3">
         <button
+          aria-label="Go back"
           onClick={() => navigate(-1)}
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors mt-0.5 flex-shrink-0"
         >

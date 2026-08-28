@@ -69,6 +69,7 @@ export default function WorkoutExercisePicker() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 flex-shrink-0">
         <button
+          aria-label="Back to workout"
           onClick={() => navigate('/workout/active')}
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
         >

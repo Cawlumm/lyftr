@@ -127,7 +127,7 @@ export default function EditProgram() {
   return (
     <div className="space-y-6 animate-slide-up pb-10">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
+        <button aria-label="Go back" onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
           <ArrowLeft className="w-5 h-5 text-tx-muted" />
         </button>
         <div>

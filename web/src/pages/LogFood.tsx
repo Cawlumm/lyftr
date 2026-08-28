@@ -328,6 +328,7 @@ export default function LogFood() {
       {/* Header with breadcrumb */}
       <div className="flex items-center gap-3 mb-5">
         <button
+          aria-label="Go back"
           onClick={() => phase === 'detail' && !editId ? setPhase('search') : navigate(-1)}
           className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-muted active:scale-95 transition-all flex-shrink-0"
         >

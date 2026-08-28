@@ -174,6 +174,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           {/* Desktop hover icons */}
           <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
+              aria-label={`Edit ${workout.name}`}
               onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
               className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
             >
