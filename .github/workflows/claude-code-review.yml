@@ -93,7 +93,9 @@ jobs:
           # so instructions written there would be mistaken for a path.
           claude_args: >-
             --allowedTools "mcp__github_inline_comment__create_inline_comment"
-            --append-system-prompt "Before reviewing, read REVIEW.md at the repository root
-            and treat it as this repository's review policy: it sets what counts as
-            Important here, the conventions to always check, the nit cap, and what not to
-            report. It takes precedence over your default calibration where they differ." 
+            --append-system-prompt "Read REVIEW.md at the repository root and follow it as
+            this repository's review policy. It sets severity calibration, the nit cap, the
+            evidence bar and what not to report, and takes precedence over your default
+            calibration. It deliberately does not restate the project's standards: those
+            are in CLAUDE.md, which you already read, and REVIEW.md tells you how to weigh
+            a violation of them." 
