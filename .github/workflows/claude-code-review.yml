@@ -57,9 +57,34 @@ jobs:
       # step runs with a token in the environment.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 1
+          # Full history: the size check below diffs base...head, which a shallow clone
+          # cannot resolve.
+          fetch-depth: 0
           # Don't leave the token in .git/config for later steps to pick up.
           persist-credentials: false
+
+      # Cost ceiling, separate from the merge gate in ci.yml. A review's spend scales with
+      # the diff, and this draws on the subscription's usage, so an accidental
+      # ten-thousand-line diff should cost nothing rather than a lot. Same exclusions as
+      # the size gate: a lockfile refresh is not thinking work.
+      #
+      # Note the fork guard above already means an outside contributor cannot trigger a
+      # review at all — GitHub withholds secrets from fork PRs. This bounds OUR OWN
+      # mistakes, which is the realistic case.
+      - name: Skip the review if the diff is too large to be worth reading
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --numstat "$BASE...$HEAD" --             . ':(exclude)**/package-lock.json' ':(exclude)**/*.lock'             ':(exclude)**/*.tsbuildinfo' ':(exclude)**/dist/**' ':(exclude)**/*.snap'             | awk '{ a += $1; d += $2 } END { print (a + d) + 0 }')
+          echo "REVIEWABLE=$CHANGED" >> "$GITHUB_ENV"
+          if [ "$CHANGED" -gt 2000 ]; then
+            echo "TOO_BIG=true" >> "$GITHUB_ENV"
+            echo "::notice::Review skipped — ${CHANGED} reviewable lines is past the 2000 line ceiling. Split the PR, and CI's 'PR size' check will say the same."
+          else
+            echo "TOO_BIG=false" >> "$GITHUB_ENV"
+          fi
 
       - name: Say what is missing, rather than failing on auth
         if: env.CONFIGURED != 'true'
@@ -67,7 +92,7 @@ jobs:
           echo "::notice::Review skipped — CLAUDE_CODE_OAUTH_TOKEN is not set."
           echo "To enable:  claude setup-token   then   gh secret set CLAUDE_CODE_OAUTH_TOKEN"
 
-      - if: env.CONFIGURED == 'true'
+      - if: env.CONFIGURED == 'true' && env.TOO_BIG != 'true'
         uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

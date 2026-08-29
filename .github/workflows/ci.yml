@@ -254,6 +254,50 @@ jobs:
           echo "version output: $out"
           echo "$out" | grep -q 'smoke-9.9.9'
 
+  # A PR nobody can hold in their head is not reviewable, by a person or by the bot.
+  #
+  # Industry practice is to LABEL rather than block — CodelyTV's labeler defaults to
+  # xs<=10, s<=100, m<=500, l<=1000, xl>1000 with failing switched off, and oven-sh/bun
+  # has no size labels at all. Blocking is the stricter choice, taken here because this
+  # repo has one maintainer and no second pair of eyes to catch what a huge diff hides.
+  #
+  # 2000 is calibrated against real history rather than a round number: recent PRs here
+  # ran 155-836 lines, and the largest planned slices are ~1100 and ~1300, so this leaves
+  # headroom for legitimately mechanical work while still catching a dump.
+  #
+  # Lockfiles and generated output are excluded — a lockfile refresh is thousands of lines
+  # nobody reads, and counting it would punish routine maintenance.
+  #
+  # Escape hatch: apply the `oversized-pr` label. Some changes genuinely cannot be split
+  # (a vendored dependency, a migration). The label makes that a deliberate, visible
+  # decision rather than something the tooling quietly allows.
+  pr-size:
+    name: PR size
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Measure reviewable churn
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -euo pipefail
+          LIMIT=2000
+          CHANGED=$(git diff --numstat "$BASE...$HEAD" --             . ':(exclude)**/package-lock.json' ':(exclude)**/*.lock'             ':(exclude)**/*.tsbuildinfo' ':(exclude)**/dist/**' ':(exclude)**/*.snap'             | awk '{ a += $1; d += $2 } END { print (a + d) + 0 }')
+          echo "reviewable churn: ${CHANGED} lines (limit ${LIMIT}, lockfiles and generated files excluded)"
+          if [ "$CHANGED" -le "$LIMIT" ]; then exit 0; fi
+          if echo "$LABELS" | grep -q '"oversized-pr"'; then
+            echo "::notice::${CHANGED} lines is over the ${LIMIT} limit, allowed by the oversized-pr label."
+            exit 0
+          fi
+          echo "::error::This PR changes ${CHANGED} reviewable lines; the limit is ${LIMIT}."
+          echo "Split it, or apply the 'oversized-pr' label if it genuinely cannot be split."
+          exit 1
+
   build-backend:
     name: Build & push backend image
     needs: [test, unit, e2e, version-smoke]
