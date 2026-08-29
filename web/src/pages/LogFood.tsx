@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
-import { ErrorState } from '../components/ui'
+import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -131,6 +131,12 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<types.FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<types.FoodSearchResult[]>([])
   const [savedFoods, setSavedFoods] = useState<types.SavedFood[]>([])
+  // Each list's own failure. Kept separate from the page: one of these failing is not a
+  // reason to withhold search, and an empty list that failed to load must not draw the
+  // same "nothing here" as a list that really is empty.
+  const [recentError, setRecentError] = useState<string | null>(null)
+  const [savedError, setSavedError] = useState<string | null>(null)
+  const [listReload, setListReload] = useState(0)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
@@ -230,9 +236,12 @@ export default function LogFood() {
         }
       }
       setRecentItems(items)
-    }).catch(() => {})
-    savedFoodsAPI.list().then(setSavedFoods).catch(() => {})
-  }, [])
+      setRecentError(null)
+    }).catch(err => setRecentError(apiErrorMessage(err, "Couldn't load what you logged today.")))
+    savedFoodsAPI.list()
+      .then(list => { setSavedFoods(list); setSavedError(null) })
+      .catch(err => setSavedError(apiErrorMessage(err, "Couldn't load your favourites.")))
+  }, [listReload])
 
   useEffect(() => {
     if (tab !== 'all') return
@@ -464,7 +473,9 @@ export default function LogFood() {
             )}
 
             {tab === 'recent' && (
-              recentItems.length === 0
+              recentError
+                ? <ListError subject="what you logged today" message={recentError} onRetry={() => { setRecentError(null); setListReload(n => n + 1) }} />
+                : recentItems.length === 0
                 ? (
                   <div className="px-4 py-14 text-center">
                     <Utensils className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
@@ -485,7 +496,9 @@ export default function LogFood() {
             )}
 
             {tab === 'myfoods' && (
-              savedFoods.length === 0
+              savedError
+                ? <ListError subject="your favourites" message={savedError} onRetry={() => { setSavedError(null); setListReload(n => n + 1) }} />
+                : savedFoods.length === 0
                 ? (
                   <div className="px-4 py-14 text-center">
                     <Star className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
