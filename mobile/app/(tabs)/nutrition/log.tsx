@@ -5,8 +5,7 @@ import * as Haptics from 'expo-haptics'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
 } from 'lucide-react-native'
-import {
-  dayToInstant, entryDay, todayStr,
+import { useAsyncAction, dayToInstant, entryDay, todayStr,
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
@@ -20,7 +19,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -113,10 +112,10 @@ export default function LogFood() {
           : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
       }
-    } catch {
-      setFavoriteError(existing
+    } catch (err) {
+      setFavoriteError(apiErrorMessage(err, existing
         ? `Couldn't remove ${item.name} from Favorites.`
-        : `Couldn't add ${item.name} to Favorites.`)
+        : `Couldn't add ${item.name} to Favorites.`))
     } finally {
       inFlightFavorites.current.delete(key)
       setTogglingFavorite(new Set(inFlightFavorites.current))
@@ -125,9 +124,8 @@ export default function LogFood() {
 
   const isToggling = (item: FoodSearchResult) =>
     togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -144,7 +142,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(() => router.replace('/nutrition'))
+    }).catch((err) => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
   }, [editId])
 
   // Recent (today, deduped ≤10) + favourites.
@@ -230,28 +228,25 @@ export default function LogFood() {
     setServingsStr(String(next))
   }
 
+  const save = useAsyncAction(async (item: FoodSearchResult) => {
+        const payload = {
+          ...scaleServing(item, servings),
+          meal,
+          logged_at: dayToInstant(date),
+        }
+        if (editId) {
+          await client.foodAPI.update(editId, payload)
+        } else {
+          await client.foodAPI.log(payload)
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+        // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
+        router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(MEAL_LABELS[meal])}`)
+  }, 'Failed to save')
+
   const handleLog = async () => {
-    if (!selected || saving) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const payload = {
-        ...scaleServing(selected, servings),
-        meal,
-        logged_at: dayToInstant(date),
-      }
-      if (editId) {
-        await client.foodAPI.update(editId, payload)
-      } else {
-        await client.foodAPI.log(payload)
-      }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
-      router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(MEAL_LABELS[meal])}`)
-    } catch (err: any) {
-      setSaveError(err?.response?.data?.error || 'Failed to save')
-      setSaving(false)
-    }
+    if (!selected || save.busy) return
+    void save.run(selected)
   }
 
   const goBack = () => {
@@ -312,6 +307,15 @@ export default function LogFood() {
           above, so a failure has to be visible whichever one the user pressed. Sitting
           inside the search phase meant a failed star on the detail screen said nothing
           at all and simply snapped back to unfilled. */}
+      {/* An entry we were asked to edit but could not load. This used to replace the
+          route with /nutrition, so a dropped connection silently threw away the edit
+          the user opened. */}
+      {editError ? (
+        <View className="pb-3">
+          <Alert variant="error">{editError}</Alert>
+        </View>
+      ) : null}
+
       {favoriteError ? (
         <View className="pb-3">
           <Alert variant="error">{favoriteError}</Alert>
@@ -457,10 +461,10 @@ export default function LogFood() {
         <>
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
             <View className="gap-4">
-              {saveError ? (
+              {save.error ? (
                 <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
                   <AlertCircle size={18} color={isDark ? brand.errorSoft : brand.error} />
-                  <AppText variant="body" color="error" className="flex-1">{saveError}</AppText>
+                  <AppText variant="body" color="error" className="flex-1">{save.error}</AppText>
                 </View>
               ) : null}
 
@@ -581,10 +585,10 @@ export default function LogFood() {
           {/* Sticky log button */}
           <View className="border-t border-surface-border bg-surface-base pb-6 pt-3">
             <Button
-              title={saving ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
+              title={save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
               onPress={handleLog}
-              loading={saving}
-              disabled={saving}
+              loading={save.busy}
+              disabled={save.busy}
             />
           </View>
           <NumericKeyboardAccessory />

@@ -2,13 +2,13 @@ import axios, { AxiosInstance } from 'axios'
 import * as types from './types'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 import { normalizeServerUrl } from './utils/serverUrl'
-import { networkFailureMessage } from './utils/networkError'
+import { networkFailureMessage, type MessageDetail } from './utils/networkError'
 import { withLoggedOn, utcOffsetMinutes } from './utils/dateUtils'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy (web).
 const API_BASE_PATH = '/api/v1'
-export const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
+const apiUrl = (origin = '') => `${origin}${API_BASE_PATH}`
 
 export interface ServerInfo {
   name: string
@@ -22,21 +22,19 @@ export interface ServerInfo {
   demo_mode?: boolean
 }
 
-export interface ClientOptions {
-  // Called after a token refresh fails — the session is dead. Web passes a
-  // `location.href = '/login'`; mobile passes `router.replace('/login')`.
-  onAuthFailure?: () => void
-  // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
-  // When set, the stored server_url is ignored.
-  baseUrlOverride?: string
-}
-
 // Turn an axios error into an actionable message. Proxy misconfig (404/405) is
 // distinguished from real auth and server errors, so connectivity problems don't
 // masquerade as "Registration failed." Response-less failures go to the classifier,
 // which separates a blocked-cleartext or untrusted-certificate failure from a genuinely
 // unreachable server — they are indistinguishable from the axios error alone.
-export const apiErrorMessage = (err: any, fallback: string): string => {
+// Whether the server answered "that is not here" rather than failing to answer.
+//
+// The difference decides whether a screen may offer Try again. Retrying a row that does
+// not exist fails identically every time, so the button is a promise the app cannot keep;
+// the way out of a 404 is the escape hatch, not the retry. Anything else — a timeout, a
+// 5xx, a dropped connection — may well succeed on a second attempt.
+export const isNotFound = (err: any): boolean => err?.response?.status === 404
+export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetail = 'brief'): string => {
   if (err?.response) {
     const serverError = err.response.data?.error
     if (serverError) return serverError
@@ -44,10 +42,28 @@ export const apiErrorMessage = (err: any, fallback: string): string => {
     if (status === 404 || status === 405) {
       return "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings."
     }
+    // Ordered ABOVE the HTML sniff on purpose. Every reverse proxy — nginx, Caddy,
+    // Traefik — serves its 502 as an HTML page, so sniffing for a document first
+    // diagnosed a restarting backend as "check Server settings": wrong, and wrong in the
+    // most self-hosted moment there is, when the settings are fine and the stack is
+    // mid-upgrade. Status is the stronger signal when we have one.
+    if (status === 502 || status === 503 || status === 504) {
+      return 'The server is restarting or unreachable. Try again in a moment.'
+    }
+    // A reverse proxy answers with its own HTML page when the app behind it is down,
+    // restarting, or was never there — the body is a document, not our {"error"} envelope.
+    // wger's client models this case explicitly (ErrorType.html) because self-hosted setups
+    // meet it every time the stack is updated. Falling through to the caller's fallback
+    // would report "Couldn't save your workout", hiding an infrastructure problem behind
+    // what reads as an app bug.
+    const body = err.response.data
+    if (typeof body === 'string' && /^\s*<(!doctype|html)/i.test(body)) {
+      return 'That address returned a web page, not the Lyftr API. Check Server settings.'
+    }
     if (status >= 500) return 'Server error. Please try again shortly.'
     return fallback
   }
-  return networkFailureMessage(err)
+  return networkFailureMessage(err, detail)
 }
 
 // Probe a server's public /info endpoint to confirm it's reachable and is a Lyftr
@@ -63,7 +79,7 @@ export const testServerConnection = async (
     }
     return { ok: true, info }
   } catch (err) {
-    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.") }
+    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.", 'full') }
   }
 }
 
@@ -102,7 +118,17 @@ const sessionWasRevoked = (err: any): boolean => {
 // Build a fully-wired API client bound to a platform storage adapter. All token
 // reads/writes and the base-URL resolution go through `storage`, so the same code
 // runs on web (localStorage) and mobile (SecureStore/AsyncStorage).
-export function createClient(storage: StorageAdapter, opts: ClientOptions = {}) {
+export function createClient(
+  storage: StorageAdapter,
+  opts: {
+    // Called after a token refresh fails — the session is dead. Web passes a
+    // `location.href = '/login'`; mobile passes `router.replace('/login')`.
+    onAuthFailure?: () => void
+    // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
+    // When set, the stored server_url is ignored.
+    baseUrlOverride?: string
+  } = {},
+) {
   // Resolved per-request so a "Server settings" change takes effect immediately.
   const resolveAPIBase = async (): Promise<string> => {
     if (opts.baseUrlOverride) return opts.baseUrlOverride

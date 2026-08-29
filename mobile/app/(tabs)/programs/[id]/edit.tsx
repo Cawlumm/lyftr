@@ -3,8 +3,8 @@ import { Platform, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
-import { AppText, Button, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
+import { apiErrorMessage, useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
+import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
@@ -36,9 +36,14 @@ export default function EditProgram() {
   const wUnit = weightShort(settings.weight_unit)
   const { brand, isDark } = useTheme()
 
-  const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  // Only what the FORM can say before anything is sent. What the SERVER says lives
+  // on `save` below; both render in the same alert.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field — there is nothing to edit.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
   const scrollRef = useRef<ScrollView>(null)
@@ -47,9 +52,6 @@ export default function EditProgram() {
     fetchSettings()
   }, [fetchSettings])
 
-  useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
 
   useEffect(() => {
     const programId = Number(id)
@@ -83,55 +85,71 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(() => { if (!cancelled) setError('Failed to load program') })
+      .catch((err) => { if (!cancelled) setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
   const cacheExercise = (ex: Exercise) => setPickerExercises((prev) => ({ ...prev, [ex.id]: ex }))
+
+  const save = useAsyncAction(async () => {
+    const payload = {
+    name: formData.name,
+    notes: formData.notes,
+    // Declares this client round-trips day ids: without it, deleting every
+    // existing day and adding only new (id-less) ones is indistinguishable
+    // from a legacy payload and the server would positionally re-attribute
+    // the deleted days' workout history to the new days.
+    day_ids_known: true,
+    days: formData.days.map((d) => ({
+    id: d.id,
+    order_index: d.order_index,
+    is_rest_day: d.is_rest_day,
+    name: d.name,
+    exercises: d.exercises.map((ex) => ({
+    exercise_id: ex.exercise_id,
+    notes: ex.notes,
+    rest_seconds: ex.rest_seconds,
+    sets: ex.sets.map((s) => ({
+    set_number: s.set_number,
+    target_reps: s.reps,
+    target_weight: displayToLbs(s.weight, settings.weight_unit),
+    })),
+    })),
+    })),
+    }
+    await client.programAPI.update(Number(id), payload)
+    router.dismissTo('/programs')
+  }, 'Failed to update program')
+
+  useEffect(() => {
+    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error, save.error])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Program name required'); return }
     if (formData.days.length === 0) { setError('Add at least one day'); return }
     const hasAnyExercise = hasWorkoutExercises(formData.days)
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
-    setLoading(true)
-    try {
-      const payload = {
-        name: formData.name,
-        notes: formData.notes,
-        // Declares this client round-trips day ids: without it, deleting every
-        // existing day and adding only new (id-less) ones is indistinguishable
-        // from a legacy payload and the server would positionally re-attribute
-        // the deleted days' workout history to the new days.
-        day_ids_known: true,
-        days: formData.days.map((d) => ({
-          id: d.id,
-          order_index: d.order_index,
-          is_rest_day: d.is_rest_day,
-          name: d.name,
-          exercises: d.exercises.map((ex) => ({
-            exercise_id: ex.exercise_id,
-            notes: ex.notes,
-            rest_seconds: ex.rest_seconds,
-            sets: ex.sets.map((s) => ({
-              set_number: s.set_number,
-              target_reps: s.reps,
-              target_weight: displayToLbs(s.weight, settings.weight_unit),
-            })),
-          })),
-        })),
-      }
-      await client.programAPI.update(Number(id), payload)
-      router.dismissTo('/programs')
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to update program'))
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
+  }
+
+  if (loadError) {
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title="Couldn't load this program"
+          message={loadError}
+          onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
   }
 
   if (initialLoading) return <Loading />
@@ -160,10 +178,10 @@ export default function EditProgram() {
             </View>
           </View>
 
-          {error ? (
+          {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
             </View>
           ) : null}
 
@@ -206,7 +224,7 @@ export default function EditProgram() {
 
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Changes" className="flex-1" onPress={handleSubmit} loading={loading} />
+        <Button title="Save Changes" className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />

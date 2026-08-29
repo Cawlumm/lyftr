@@ -4,11 +4,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { format, subDays, addDays } from 'date-fns'
 import {
-  AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
+  CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
-  AppText, Card, DateInput, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
+  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
 } from '../../../src/components/ui'
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
@@ -51,7 +51,7 @@ const mealForNow = (): Meal => {
 }
 
 export default function Nutrition() {
-  const { colors, brand, accent, isDark } = useTheme()
+  const { colors, brand, accent } = useTheme()
   const { width: windowWidth } = useWindowDimensions()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -97,7 +97,7 @@ export default function Nutrition() {
       setLogs(logData || [])
       setStats(statsData)
     } catch (err: any) {
-      setError(err?.message || 'Failed to load food data')
+      setError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
       hasLoadedRef.current = true
     }
@@ -236,11 +236,16 @@ export default function Nutrition() {
                 action={<IconButton icon={Plus} variant="solid" size="md" label="Log Food" onPress={() => openLog(mealForNow())} />}
               />
 
+              {/* Rings at 0 kcal and four empty meal sections say "you have eaten
+                  nothing today", which is a different sentence from "we could not
+                  ask" — and only one of them is true. */}
               {error ? (
-                <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-                  <AlertCircle size={18} color={isDark ? brand.errorSoft : brand.error} />
-                  <AppText variant="body" color="error" className="flex-1">{error}</AppText>
-                </View>
+                <ErrorState
+                  size="page"
+                  title="Couldn't load your food log"
+                  message={error}
+                  onRetry={() => { void loadDay(selectedDate) }}
+                />
               ) : null}
 
               {/* Diary (per-day log) vs Trends (multi-day chart) */}

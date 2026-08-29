@@ -18,6 +18,4 @@ export const {
   savedFoodsAPI,
 } = client
 
-export { apiUrl, apiErrorMessage, testServerConnection, type ServerInfo } from '@lyftr/shared'
-
-export default client.api
+export { apiErrorMessage, testServerConnection, type ServerInfo } from '@lyftr/shared'

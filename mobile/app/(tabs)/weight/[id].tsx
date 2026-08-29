@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
-import {
-  AppText, Button, Card, ConfirmSheet, DateInput, Field, Label, Loading, NumberField,
+import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
+import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
+import { Alert,
+  AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -16,23 +16,23 @@ export default function WeightDetail() {
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [log, setLog] = useState<WeightLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   // Edit mode
   const [editing, setEditing] = useState(false)
   const [editWeight, setEditWeight] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
-  const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
   // Delete confirm
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/weight'))
 
@@ -46,10 +46,13 @@ export default function WeightDetail() {
         // Deep-link from the list kebab's Edit action opens straight into edit mode.
         if (edit) setEditing(true)
       })
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load entry')))
+      .catch((err) => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const startEdit = () => {
     if (!log) return
@@ -60,60 +63,55 @@ export default function WeightDetail() {
     setEditing(true)
   }
 
-  const handleSave = async () => {
-    if (!log || saving) return
+  const saveEdit = useAsyncAction(async (entry: WeightLog) => {
+    const updated = await client.weightAPI.update(entry.id, {
+      // resolveWeightLbs keeps the original lbs when the shown 0.1 value is unchanged
+      // (avoids kg round-trip drift); only converts when the user actually edited it.
+      weight: resolveWeightLbs(editWeight, entry.weight, unit),
+      notes: editNotes.trim(),
+      logged_at: dayToInstant(editDate, entry.logged_at),
+    })
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    setLog(updated)
+    setEditing(false)
+  }, 'Failed to save')
+
+  // `editError` is what this screen can say about the value in the box; the hook carries
+  // what the server said. The entry is passed to run() because the guard above is what
+  // proves it is not null.
+  const handleSave = () => {
+    if (!log || saveEdit.busy) return
     const w = parseFloat(editWeight)
     const wErr = weightError(w, unit)
     if (wErr) {
       setEditError(wErr)
       return
     }
-    setSaving(true)
     setEditError('')
-    try {
-      const updated = await client.weightAPI.update(log.id, {
-        // resolveWeightLbs keeps the original lbs when the shown 0.1 value is unchanged
-        // (avoids kg round-trip drift); only converts when the user actually edited it.
-        weight: resolveWeightLbs(editWeight, log.weight, unit),
-        notes: editNotes.trim(),
-        logged_at: dayToInstant(editDate, log.logged_at),
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      setLog(updated)
-      setEditing(false)
-    } catch (err) {
-      setEditError(apiErrorMessage(err, 'Failed to save'))
-    } finally {
-      setSaving(false)
-    }
+    void saveEdit.run(log)
   }
 
-  const handleDelete = async () => {
-    if (!log || deleting) return
-    setDeleting(true)
-    try {
-      await client.weightAPI.delete(log.id)
-      goBack() // the list refetches on focus
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!log) return
+    await client.weightAPI.delete(log.id)
+    goBack() // the list refetches on focus
+  }, 'Failed to delete entry')
 
   if (loading) return <Loading />
 
   if (error || !log) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Weight</AppText>
-          </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error || 'Entry not found'}</Text>
-          </View>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this entry"
+            message={error ?? 'That entry no longer exists.'}
+            onRetry={error && !gone ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to weight" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )
@@ -145,9 +143,9 @@ export default function WeightDetail() {
                   accessibilityRole="button"
                   accessibilityLabel="Delete entry"
                   onPress={() => setConfirming(true)}
-                  disabled={deleting}
+                  disabled={remove.busy}
                   hitSlop={6}
-                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
                 >
                   <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
                 </Pressable>
@@ -188,11 +186,8 @@ export default function WeightDetail() {
             <Card>
               <AppText variant="heading" className="mb-4">Edit Entry</AppText>
               <View className="gap-4">
-                {editError ? (
-                  <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-                    <AlertCircle size={16} color={brand.errorSoft} />
-                    <Text className="flex-1 font-sans text-sm text-error-400">{editError}</Text>
-                  </View>
+                {editError || saveEdit.error ? (
+                  <Alert variant="error" size="compact">{editError || saveEdit.error}</Alert>
                 ) : null}
 
                 <StepperTile
@@ -227,7 +222,7 @@ export default function WeightDetail() {
                     <Button title="Cancel" variant="secondary" onPress={() => { setEditing(false); setEditError('') }} />
                   </View>
                   <View className="flex-1">
-                    <Button title={saving ? 'Saving…' : 'Save'} onPress={handleSave} loading={saving} disabled={!(parseFloat(editWeight) > 0) || saving} />
+                    <Button title={saveEdit.busy ? 'Saving…' : 'Save'} onPress={handleSave} loading={saveEdit.busy} disabled={!(parseFloat(editWeight) > 0) || saveEdit.busy} />
                   </View>
                 </View>
               </View>
@@ -242,9 +237,10 @@ export default function WeightDetail() {
           subject: `${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
         })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
       {/* iOS Done bar above the numeric keyboard (the edit weight NumberField links it). */}
       <NumericKeyboardAccessory />

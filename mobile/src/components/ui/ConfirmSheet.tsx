@@ -2,6 +2,7 @@ import { View } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
+import { Alert } from './Alert'
 import { SheetButton } from './SheetButton'
 import { Sheet } from './Sheet'
 
@@ -54,11 +55,7 @@ export function ConfirmSheet({
         <AppText variant="heading" className="mb-1.5 text-center">{title}</AppText>
         <AppText variant="body" color="muted" className="mb-6 text-center">{message}</AppText>
 
-        {error ? (
-          <View className="mb-5 rounded-xl border border-error-500/20 bg-error-500/10 px-3.5 py-3">
-            <AppText variant="caption" color="error" className="text-center">{error}</AppText>
-          </View>
-        ) : null}
+        {error ? <Alert variant="error" size="compact" className="mb-5">{error}</Alert> : null}
 
         <View className="flex-row gap-3">
           <View className="flex-1">

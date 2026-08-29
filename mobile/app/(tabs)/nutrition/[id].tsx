@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { apiErrorMessage, isNotFound, useAsyncAction, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
-  AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
+  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
@@ -18,49 +18,48 @@ import { useTheme } from '../../../src/theme/useTheme'
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 export default function NutritionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/nutrition'))
 
   useEffect(() => {
     client.foodAPI.get(Number(id))
       .then(setEntry)
-      .catch(() => setError('Failed to load entry'))
+      .catch((err) => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      })
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
-  const handleDelete = async () => {
-    if (!entry || deleting) return
-    setDeleting(true)
-    try {
-      await client.foodAPI.delete(entry.id)
-      goBack() // the dashboard refetches on focus
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!entry) return
+    await client.foodAPI.delete(entry.id)
+    goBack() // the dashboard refetches on focus
+  }, 'Failed to delete entry')
 
   if (loading) return <Loading />
 
   if (error || !entry) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Nutrition</AppText>
-          </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error || 'Entry not found'}</Text>
-          </View>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this entry"
+            message={error ?? 'That entry no longer exists.'}
+            onRetry={error && !gone ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to nutrition" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )
@@ -114,9 +113,9 @@ export default function NutritionDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Delete entry"
                 onPress={() => setConfirming(true)}
-                disabled={deleting}
+                disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -190,9 +189,10 @@ export default function NutritionDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete entry?', subject: `"${entry.name}"` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </Screen>
   )

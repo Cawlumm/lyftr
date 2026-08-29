@@ -18,7 +18,7 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react-native'
-import {
+import { useAsyncAction,
   memberSince,
   normalizeServerUrl,
   testServerConnection,
@@ -30,6 +30,7 @@ import {
   AppText,
   Button,
   ConfirmSheet,
+  ErrorState,
   Field,
   IconButton,
   Loading,
@@ -59,6 +60,11 @@ export default function SettingsScreen() {
 
   const settings = useSettingsStore((s) => s.settings)
   const loaded = useSettingsStore((s) => s.loaded)
+  // True when `loaded` is standing on defaults because the read failed. Only the
+  // server-backed block is gated on it: theme, layout, rest timer and the backend URL
+  // are device-side, and the URL row is the very control someone needs WHEN the
+  // server cannot be reached.
+  const settingsLoadFailed = useSettingsStore((s) => s.loadFailed)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const updateSettings = useSettingsStore((s) => s.update)
   const setWorkoutLayout = useSettingsStore((s) => s.setWorkoutLayout)
@@ -72,7 +78,6 @@ export default function SettingsScreen() {
   // Macro/calorie targets are the one batch-saved (server-side) block — mirror web:
   // edit locally as text, PUT on "Save". Everything else writes on change.
   const [targets, setTargets] = useState({ calorie_target: '', protein_target: '', carb_target: '', fat_target: '' })
-  const [saving, setSaving] = useState(false)
 
   const [showCustomRest, setShowCustomRest] = useState(false)
 
@@ -83,7 +88,6 @@ export default function SettingsScreen() {
   const [testing, setTesting] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -112,22 +116,25 @@ export default function SettingsScreen() {
   const onDigits = (key: keyof typeof targets) => (t: string) =>
     setTargets((p) => ({ ...p, [key]: sanitizeNumericInput(t, 'numeric') }))
 
-  const handleSaveTargets = async () => {
-    setSaving(true)
-    try {
-      await updateSettings({
-        calorie_target: parseInt(targets.calorie_target) || 0,
-        protein_target: parseInt(targets.protein_target) || 0,
-        carb_target: parseInt(targets.carb_target) || 0,
-        fat_target: parseInt(targets.fat_target) || 0,
-      })
-      setToast({ variant: 'success', title: 'Targets saved' })
-    } catch (err: any) {
-      setToast({ variant: 'error', title: 'Could not save targets', description: err?.message })
-    } finally {
-      setSaving(false)
-    }
-  }
+  const saveTargets = useAsyncAction(async () => {
+    await updateSettings({
+      calorie_target: parseInt(targets.calorie_target) || 0,
+      protein_target: parseInt(targets.protein_target) || 0,
+      carb_target: parseInt(targets.carb_target) || 0,
+      fat_target: parseInt(targets.fat_target) || 0,
+    })
+    setToast({ variant: 'success', title: 'Targets saved' })
+  }, 'Could not save targets')
+
+  const handleSaveTargets = () => { void saveTargets.run() }
+
+  // The unit toggle used to call updateSettings() bare, so a failed PUT was a floating
+  // rejection: nothing told the user, and the app kept showing the unit the server had
+  // refused until the next launch quietly flipped it back. The store rolls the value
+  // back now; this is what says why.
+  const changeUnit = useAsyncAction(async (unit: 'lbs' | 'kg') => {
+    await updateSettings({ weight_unit: unit })
+  }, 'Could not change the weight unit')
 
   const saveServer = async () => {
     setTesting(true)
@@ -145,19 +152,30 @@ export default function SettingsScreen() {
     setTesting(false)
   }
 
-  const handleDeleteAccount = async () => {
-    setDeleting(true)
-    try {
-      await client.userAPI.deleteAccount()
-      // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
-      // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
-      await logout()
-    } catch (err: any) {
-      setDeleting(false)
+  const deleteAccount = useAsyncAction(async () => {
+    await client.userAPI.deleteAccount()
+    // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
+    // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
+    await logout()
+  }, 'Could not delete account')
+
+  // These two report through the toast rather than an inline alert, so the message is
+  // read off the hook when it changes. It used to be `err?.message`, which for an axios
+  // error is the string "Request failed with status code 400" - true, and useless.
+  useEffect(() => {
+    if (saveTargets.error) setToast({ variant: 'error', title: 'Could not save targets', description: saveTargets.error })
+  }, [saveTargets.error])
+
+  useEffect(() => {
+    if (changeUnit.error) setToast({ variant: 'error', title: 'Could not change units', description: changeUnit.error })
+  }, [changeUnit.error])
+
+  useEffect(() => {
+    if (deleteAccount.error) {
       setConfirmDelete(false)
-      setToast({ variant: 'error', title: 'Could not delete account', description: err?.message })
+      setToast({ variant: 'error', title: 'Could not delete account', description: deleteAccount.error })
     }
-  }
+  }, [deleteAccount.error])
 
   if (!loaded) return <Loading />
 
@@ -292,7 +310,21 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
 
-          {/* Units & Targets */}
+          {/* Units & Targets — the only server-backed, editable block on this screen.
+
+              Withheld rather than filled with defaults: the store falls back to
+              2000/150/250/65 so the rest of the app keeps working, and Save would PUT
+              those straight over the user's real targets. */}
+          {settingsLoadFailed ? (
+            <SettingsGroup title="Units & Targets">
+              <ErrorState
+                size="section"
+                title="Couldn't load your goals"
+                message="These are your saved targets and units, so we won't guess at them. Everything else here still works."
+                onRetry={() => { void fetchSettings() }}
+              />
+            </SettingsGroup>
+          ) : (
           <SettingsGroup title="Units & Targets" footnote="Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.">
             <SettingsRow
               icon={Scale}
@@ -300,7 +332,7 @@ export default function SettingsScreen() {
               below={
                 <SegmentedControl
                   value={settings.weight_unit}
-                  onChange={(u) => updateSettings({ weight_unit: u })}
+                  onChange={(u) => { void changeUnit.run(u) }}
                   options={[
                     { value: 'lbs', label: 'lbs' },
                     { value: 'kg', label: 'kg' },
@@ -337,9 +369,10 @@ export default function SettingsScreen() {
                 onChangeText={onDigits('fat_target')}
                 rightSlot={<Muted className="text-xs">g</Muted>}
               />
-              <Button title="Save targets" onPress={handleSaveTargets} loading={saving} className="mt-1" />
+              <Button title="Save targets" onPress={handleSaveTargets} loading={saveTargets.busy} className="mt-1" />
             </View>
           </SettingsGroup>
+          )}
 
           {/* Server */}
           <SettingsGroup title="Server" footnote="The self-hosted backend this app talks to. Leave the URL blank to use the default.">
@@ -368,7 +401,7 @@ export default function SettingsScreen() {
                 keyboardType="url"
                 placeholder="https://your-server.example.com"
               />
-              {serverMsg ? <AppText variant="caption" className="mt-2 text-brand-400">{serverMsg}</AppText> : null}
+              {serverMsg ? <AppText variant="caption" color="brand" className="mt-2">{serverMsg}</AppText> : null}
               {insecureServer ? (
                 <View className="mt-2 flex-row items-start gap-1.5">
                   <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
@@ -413,8 +446,8 @@ export default function SettingsScreen() {
         message="This permanently deletes your account and all of your data. This can't be undone."
         confirmLabel="Delete account"
         busyLabel="Deleting…"
-        busy={deleting}
-        onConfirm={handleDeleteAccount}
+        busy={deleteAccount.busy}
+        onConfirm={() => { void deleteAccount.run() }}
         onCancel={() => setConfirmDelete(false)}
       />
     </Screen>

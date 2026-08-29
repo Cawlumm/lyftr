@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, Scale, X } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { Scale, X } from 'lucide-react-native'
+import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
 import {
-  AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
+  Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
@@ -27,13 +27,12 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent } = useTheme()
 
   const [value, setValue] = useState('')
   const [date, setDate] = useState(todayStr())
   const [notes, setNotes] = useState('')
   const [showExtras, setShowExtras] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const [dupDismissed, setDupDismissed] = useState(false)
@@ -46,13 +45,23 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
     setNotes('')
     setShowExtras(false)
     setError('')
-    setSaving(false)
     setShowDuplicateWarning(false)
     setDupDismissed(false)
   }, [open, lastValue])
 
+  const save = useAsyncAction(async (w: number) => {
+    const log = await client.weightAPI.log({
+      weight: displayToLbs(w, unit),
+      notes: notes.trim(),
+      logged_at: dayToInstant(date),
+    })
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onSuccess(log)
+    onClose()
+  }, 'Failed to save')
+
   const submit = async (forceDismissed = false) => {
-    if (saving) return
+    if (save.busy) return
     const w = parseFloat(value)
     const wErr = weightError(w, unit)
     if (wErr) {
@@ -63,22 +72,9 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
       setShowDuplicateWarning(true)
       return
     }
-    setSaving(true)
     setError('')
     setShowDuplicateWarning(false)
-    try {
-      const log = await client.weightAPI.log({
-        weight: displayToLbs(w, unit),
-        notes: notes.trim(),
-        logged_at: dayToInstant(date),
-      })
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      onSuccess(log)
-      onClose()
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to save'))
-      setSaving(false)
-    }
+    void save.run(w)
   }
 
   return (
@@ -98,32 +94,24 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
         </View>
 
         <View className="gap-4">
-          {error ? (
-            <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-              <AlertCircle size={16} color={brand.errorSoft} />
-              <Text className="flex-1 font-sans text-sm text-error-400">{error}</Text>
-            </View>
+          {(error || save.error) ? (
+            <Alert variant="error" size="compact">{error || save.error}</Alert>
           ) : null}
 
           {showDuplicateWarning && lastLog ? (
-            <View className="flex-row items-start gap-3 rounded-xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-              <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
-              <View className="min-w-0 flex-1">
-                <Text className="font-sans-semibold text-sm text-warning-400">
-                  Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
-                </Text>
-                <View className="mt-2 flex-row gap-2">
-                  <Pressable onPress={() => setShowDuplicateWarning(false)}
-                    className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-1 active:opacity-70">
-                    <AppText variant="caption" color="secondary">Cancel</AppText>
-                  </Pressable>
-                  <Pressable onPress={() => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) }}
-                    className="rounded-lg border border-warning-500/30 bg-warning-500/20 px-3 py-1 active:opacity-70">
-                    <Text className="font-sans-semibold text-xs text-warning-400">Log Anyway</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
+            <Alert
+              variant="warning"
+              actions={[
+                { label: 'Cancel', onPress: () => setShowDuplicateWarning(false) },
+                {
+                  label: 'Log Anyway',
+                  primary: true,
+                  onPress: () => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) },
+                },
+              ]}
+            >
+              Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
+            </Alert>
           ) : null}
 
           <StepperTile
@@ -161,10 +149,10 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           )}
 
           <Button
-            title={saving ? 'Saving…' : 'Save'}
+            title={save.busy ? 'Saving…' : 'Save'}
             onPress={() => submit()}
-            loading={saving}
-            disabled={!(parseFloat(value) > 0) || saving}
+            loading={save.busy}
+            disabled={!(parseFloat(value) > 0) || save.busy}
           />
         </View>
       </View>

@@ -5,8 +5,8 @@ import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
+import { apiErrorMessage, useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay } from '@lyftr/shared'
+import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
@@ -58,9 +58,14 @@ export default function EditWorkout() {
   const { brand, accent, isDark } = useTheme()
 
   const [showPicker, setShowPicker] = useState(false)
-  const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  // Only what the FORM can say before anything is sent. What the SERVER says lives
+  // on `save` below; both render in the same alert.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field — there is nothing to edit.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', date: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
@@ -70,9 +75,6 @@ export default function EditWorkout() {
     fetchSettings()
   }, [fetchSettings])
 
-  useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
 
   useEffect(() => {
     const workoutId = Number(id)
@@ -110,11 +112,11 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(() => setError('Failed to load workout'))
+      .catch((err) => setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setInitialLoading(false))
     // Web effect deps: [id] only — settings are fetched before a user can navigate here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id])
+  }, [id, retryKey])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
@@ -182,32 +184,48 @@ export default function EditWorkout() {
     }))
   }, [])
 
+  const save = useAsyncAction(async () => {
+    const payload = {
+    ...formData,
+    duration: formData.duration * 60,
+    // Move only the day; keep the logged time-of-day from the original timestamp.
+    started_at: formData.date
+    ? dayToInstant(formData.date, originalStartedAt || undefined)
+    : originalStartedAt || new Date().toISOString(),
+    exercises: formData.exercises.map((ex) => ({
+    ...ex,
+    sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+    })),
+    }
+    await client.workoutAPI.update(Number(id), payload)
+    // Web navigates to /workouts. Pop past the (stale) detail screen back to the
+    // list — the detail refetches on next visit; the list reloads on focus.
+    router.dismissTo('/workouts')
+  }, 'Failed to update workout')
+
+  useEffect(() => {
+    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error, save.error])
+
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }
     if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
-    setLoading(true)
-    try {
-      const payload = {
-        ...formData,
-        duration: formData.duration * 60,
-        // Move only the day; keep the logged time-of-day from the original timestamp.
-        started_at: formData.date
-          ? dayToInstant(formData.date, originalStartedAt || undefined)
-          : originalStartedAt || new Date().toISOString(),
-        exercises: formData.exercises.map((ex) => ({
-          ...ex,
-          sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
-        })),
-      }
-      await client.workoutAPI.update(Number(id), payload)
-      // Web navigates to /workouts. Pop past the (stale) detail screen back to the
-      // list — the detail refetches on next visit; the list reloads on focus.
-      router.dismissTo('/workouts')
-    } catch (err) {
-      setError(apiErrorMessage(err, 'Failed to update workout'))
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
+  }
+
+  if (loadError) {
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title="Couldn't load this workout"
+          message={loadError}
+          onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Back to workouts" variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
   }
 
   if (initialLoading) return <Loading />
@@ -244,10 +262,10 @@ export default function EditWorkout() {
             </View>
           </View>
 
-          {error ? (
+          {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
             </View>
           ) : null}
 
@@ -361,7 +379,7 @@ export default function EditWorkout() {
           -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Changes" className="flex-1" onPress={handleSubmit} loading={loading} />
+        <Button title="Save Changes" className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}

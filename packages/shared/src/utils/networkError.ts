@@ -69,7 +69,36 @@ export const classifyNetworkError = (err: any): NetworkFailure => {
 // evaluates it. Mentioning it on mobile sends self-hosters chasing a non-existent problem.
 const isWeb = (): boolean => typeof document !== 'undefined'
 
-export const networkFailureMessage = (err: any): string => {
+// The same failure has to be said two different ways, because it is read in two very
+// different moments.
+//
+// 'full' is for someone who is configuring a server and wants the fix: the sign-in
+// screen and the Server-settings probe. Those explanations are long on purpose - they
+// carry hard-won detail about cleartext policy and CA trust that a self-hoster cannot
+// get anywhere else.
+//
+// 'brief' is for someone who is USING the app and just tapped a button. Mid-set, the
+// certificate explanation is 313 characters - eight lines inside a Finish Workout sheet,
+// pushing the buttons toward the fold - to tell them something they cannot act on until
+// they are off the gym floor anyway. It says what happened and where the fix lives, and
+// stops. NN/g's error guidance and progressive disclosure both land here: the most
+// important information first, the details where they are actionable.
+export type MessageDetail = 'brief' | 'full'
+
+// Each one names the cause and, where the fix is somewhere the user can go, points at it.
+// A short message that offers no way forward is not brief, it is unhelpful.
+const BRIEF: Record<NetworkFailure, string> = {
+  'cleartext-blocked': 'Blocked because the server URL uses http://. Check Server settings.',
+  'certificate-untrusted': "The server's certificate isn't trusted by this device. Check Server settings.",
+  'hostname-mismatch': "The server's certificate doesn't cover this address. Check Server settings.",
+  timeout: "The server didn't respond in time. Try again in a moment.",
+  unreachable: "Couldn't reach the server. Check that it's running.",
+  // No raw native string here: in full it is diagnostic gold, in a sheet it is noise.
+  unknown: "Can't reach the server right now.",
+}
+
+export const networkFailureMessage = (err: any, detail: MessageDetail = 'brief'): string => {
+  if (detail === 'brief') return BRIEF[classifyNetworkError(err)]
   switch (classifyNetworkError(err)) {
     // Deliberately does NOT say "update the app". This build already permits cleartext, so
     // if the OS still blocked it the cause is something an update can't fix — most likely

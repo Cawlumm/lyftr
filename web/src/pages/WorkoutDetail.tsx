@@ -1,12 +1,12 @@
+import { ConfirmSheet, ErrorState } from '../components/ui'
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, AlertCircle, Loader, Pause, TimerOff,
+  ArrowLeft, Clock, Dumbbell, TrendingUp, Edit2, Trash2, ChevronRight, Loader, Pause, TimerOff,
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -30,8 +30,15 @@ export default function WorkoutDetail() {
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // A 404 is not a retryable failure: the row is gone, and a Try again button that
+  // cannot ever succeed is worse than no button. Tracked separately from the message
+  // because the message alone cannot say which kind of failure produced it.
+  const [gone, setGone] = useState(false)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect on five pages to gain a
+  // retry button; this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -39,25 +46,23 @@ export default function WorkoutDetail() {
         const data = await workoutAPI.get(Number(id))
         setWorkout(data)
       } catch (err: any) {
-        setError(err.message || 'Failed to load workout')
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [id])
+  }, [id, retryKey])
 
-  const handleDelete = async () => {
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the confirm quietly
+  // closed and the user was left guessing whether the tap had registered. It stays
+  // up now and says why.
+  const remove = useAsyncAction(async () => {
     if (!workout) return
-    setDeleting(true)
-    try {
-      await workoutAPI.delete(workout.id)
-      navigate('/workouts', { replace: true })
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+    await workoutAPI.delete(workout.id)
+    navigate('/workouts', { replace: true })
+  }, 'Failed to delete workout')
 
   if (loading) {
     return (
@@ -69,15 +74,13 @@ export default function WorkoutDetail() {
 
   if (error || !workout) {
     return (
-      <div className="space-y-4">
-        <Link to="/workouts" className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Link>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || 'Workout not found'}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this workout"
+        message={error ?? 'That workout no longer exists.'}
+        onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
+        secondary={<Link to="/workouts" className="btn-secondary btn-sm">Back to workouts</Link>}
+      />
     )
   }
 
@@ -112,25 +115,19 @@ export default function WorkoutDetail() {
       </div>
 
       {/* Delete confirm — bottom sheet */}
-      {confirming && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">"{workout.name}" will be permanently deleted.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setConfirming(false)} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Cancel
-              </button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" />
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirming}
+        icon={Trash2}
+        destructive
+        title="Delete Workout?"
+        message={`"${workout.name}" will be permanently deleted.`}
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
+      />
 
       {/* Header */}
       <div className="card p-4">

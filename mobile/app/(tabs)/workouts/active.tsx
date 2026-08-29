@@ -3,7 +3,7 @@ import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
-import { apiErrorMessage, weightShort, type Exercise, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -35,8 +35,6 @@ export default function ActiveWorkout() {
   const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const [saving, setSaving] = useState(false)
   const [activeExIdx, setActiveExIdx] = useState(0)
   const [showPicker, setShowPicker] = useState(false)
 
@@ -55,24 +53,16 @@ export default function ActiveWorkout() {
 
   const goHome = () => router.replace('/workouts')
 
-  const handleFinish = async () => {
-    setSaving(true)
-    setSaveError('')
-    try {
-      const created = await client.workoutAPI.create(buildPayload())
-      setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
-      cancelSession()
-      router.replace('/workouts')
-    } catch (err: any) {
-      // apiErrorMessage, not err.response.data.error: the failure this path exists for
-      // has no response at all (#145 - the request timed out on gym wifi), and the raw
-      // read would fall through to a generic string that says nothing about why.
-      setSaveError(apiErrorMessage(err, 'Failed to save workout'))
-      setSaving(false)
-      // Sheet stays OPEN. The session is intact and the server may be reachable again
-      // in a moment, so the retry belongs under the finger that just tapped Finish.
-    }
-  }
+  // The sheet stays OPEN when this fails. The session is intact and the server may
+  // be reachable again in a moment, so the retry belongs under the finger that just
+  // tapped Finish - the alternative, dismissing to a banner at the top of a scrolled
+  // list, is what #145 felt like from the user's seat.
+  const finish = useAsyncAction(async () => {
+    const created = await client.workoutAPI.create(buildPayload())
+    setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
+    cancelSession()
+    router.replace('/workouts')
+  }, 'Failed to save workout')
 
   const jumpToExercise = useCallback((idx: number) => {
     setActiveExIdx(idx)
@@ -255,10 +245,10 @@ export default function ActiveWorkout() {
         confirmLabel="Finish"
         busyLabel="Saving…"
         cancelLabel="Keep Going"
-        busy={saving}
-        error={saveError}
-        onConfirm={handleFinish}
-        onCancel={() => { setConfirmFinish(false); setSaveError('') }}
+        busy={finish.busy}
+        error={finish.error}
+        onConfirm={() => { void finish.run() }}
+        onCancel={() => { setConfirmFinish(false); finish.reset() }}
       />
 
       {/* Cancel confirm */}

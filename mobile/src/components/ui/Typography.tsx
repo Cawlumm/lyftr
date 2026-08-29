@@ -1,5 +1,7 @@
 import { ReactNode } from 'react'
 import { Text as RNText, TextProps, TextStyle } from 'react-native'
+import { semanticInk, type SemanticTone } from '@lyftr/shared'
+import { useTheme } from '../../theme/useTheme'
 
 // The ONLY sanctioned way to render text. The brand fonts (Outfit for display,
 // Plus Jakarta Sans for body) are loaded per-weight in app/_layout.tsx — each weight
@@ -47,11 +49,24 @@ const COLOR: Record<TextColor, string> = {
   secondary: 'text-tx-secondary',
   muted: 'text-tx-muted',
   inverse: 'text-tx-inverse',
-  brand: 'text-brand-500',
-  success: 'text-success-500',
-  warning: 'text-warning-400',
-  error: 'text-error-400',
+  brand: '',
+  success: '',
+  warning: '',
+  error: '',
   white: 'text-white',
+}
+
+// The four semantic colours resolve per theme rather than to a fixed shade. They
+// used to be text-error-400 and friends, which measure 2.8:1 (error) and 1.5:1
+// (warning) on a light card, below WCAG AA — and mobile is light-first, so every
+// field error and destructive label in the app was failing it. semanticInk is the
+// one place those pairings are decided, and alertContrast.test.ts fails the build if
+// any of them stops clearing AA.
+const SEMANTIC: Partial<Record<TextColor, SemanticTone>> = {
+  brand: 'info',
+  success: 'success',
+  warning: 'warning',
+  error: 'error',
 }
 
 // Small print defaults to the softer text color so callers don't have to repeat it.
@@ -85,11 +100,17 @@ export function AppText({
   style,
   ...rest
 }: AppTextProps) {
-  const resolved = COLOR[color ?? DEFAULT_COLOR[variant]]
+  const { isDark } = useTheme()
+  const key = color ?? DEFAULT_COLOR[variant]
+  const tone = SEMANTIC[key]
+  const inkStyle: TextStyle | undefined = tone
+    ? { color: semanticInk[isDark ? 'dark' : 'light'][tone] }
+    : undefined
+  const styles = [variant === 'numeric' ? TABULAR : undefined, inkStyle, style].filter(Boolean)
   return (
     <RNText
-      className={`${VARIANT[variant]} ${resolved} ${className}`}
-      style={variant === 'numeric' ? [TABULAR, style] : style}
+      className={`${VARIANT[variant]} ${COLOR[key]} ${className}`}
+      style={styles}
       {...rest}
     />
   )

@@ -6,11 +6,11 @@ import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
-import {
+import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
   weightShort, type Program, type ProgramSet,
 } from '@lyftr/shared'
-import { AppText, ConfirmSheet, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -76,9 +76,14 @@ export default function ProgramDetail() {
   const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
+  // Separate from `error`, which replaces the whole screen: a failed resolve must leave the
+  // program on screen so the same buttons are still under the thumb to retry.
+  const [resolveError, setResolveError] = useState<string | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
@@ -102,12 +107,13 @@ export default function ProgramDetail() {
   const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
     if (!program || resolving) return
     setResolving(true)
+    setResolveError(null)
     ++requestSeq.current
     try {
       const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
-    } catch {
-      // leave the banner in place so the user can retry
+    } catch (err) {
+      setResolveError(apiErrorMessage(err, "Couldn't save those targets."))
     } finally {
       // Invalidate any focus refetch still in flight from before this point — its
       // response can't be trusted to reflect this write, whichever order it lands in.
@@ -144,14 +150,17 @@ export default function ProgramDetail() {
             loadedRef.current = true
           }
         } catch (err) {
-          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, 'Failed to load program'))
+          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, "The server didn't say what went wrong."))
         } finally {
           if (!cancelled) setLoading(false)
         }
       }
       load()
       return () => { cancelled = true }
-    }, [id])
+    // retryKey is not read in the body — it IS the trigger. Changing it gives the
+    // callback a new identity, which is what makes useFocusEffect run the load again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, retryKey])
   )
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
@@ -168,31 +177,27 @@ export default function ProgramDetail() {
     router.navigate(activeHref)
   }
 
-  const handleDelete = async () => {
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
     if (!program) return
-    setDeleting(true)
-    try {
-      await client.programAPI.delete(program.id)
-      goBack() // list refetches on focus
-    } catch {
-      setDeleting(false)
-    }
-  }
+    await client.programAPI.delete(program.id)
+    goBack() // list refetches on focus
+  }, 'Failed to delete program')
 
   if (loading) return <Loading />
 
   if (error || !program) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Back</AppText>
-          </Pressable>
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
-            <AlertCircle size={20} color={isDark ? brand.errorSoft : brand.error} />
-            <AppText variant="body" color="error" className="flex-1">{error || 'Program not found'}</AppText>
-          </View>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this program"
+            message={error ?? 'That program no longer exists.'}
+            onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )
@@ -275,9 +280,9 @@ export default function ProgramDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Delete program"
                 onPress={() => setConfirming(true)}
-                disabled={deleting}
+                disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -287,9 +292,10 @@ export default function ProgramDetail() {
           <ConfirmSheet
             {...deleteConfirmProps({ title: 'Delete Program?', subject: `"${program.name}"` })}
             open={confirming}
-            busy={deleting}
-            onConfirm={handleDelete}
-            onCancel={() => setConfirming(false)}
+            busy={remove.busy}
+            error={remove.error}
+            onConfirm={() => { void remove.run() }}
+            onCancel={() => { setConfirming(false); remove.reset() }}
           />
 
           {/* Auto-progression review banner (#40) — approve the targets you beat last workout */}
@@ -347,6 +353,12 @@ export default function ProgramDetail() {
                   </AppText>
                   {showAllSuggestions ? <ChevronUp size={14} color={warningColor} /> : <ChevronDown size={14} color={warningColor} />}
                 </Pressable>
+              )}
+              {resolveError && (
+                <View className="flex-row items-start gap-2 px-4 py-2.5 border-t border-surface-border/60">
+                  <AlertCircle size={16} color={brand.error} />
+                  <AppText variant="caption" color="error" className="flex-1">{resolveError}</AppText>
+                </View>
               )}
               <View className="flex-row gap-2 px-4 py-3 border-t border-surface-border/60">
                 <Pressable

@@ -14,13 +14,14 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {
+  apiErrorMessage,
   displayWeight,
   weightShort,
   type Exercise,
   type ExerciseHistoryPoint,
   type PersonalRecord,
 } from '@lyftr/shared'
-import { AppText, Screen, SegmentedControl } from '../ui'
+import { AppText, Button, ErrorState, Screen, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -100,6 +101,10 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
   const [chartWidth, setChartWidth] = useState(0)
 
   useEffect(() => {
@@ -121,11 +126,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch(() => { if (!cancelled) goBack() })
+      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseId])
+  }, [exerciseId, retryKey])
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -133,6 +138,22 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     const cutoff = subDays(new Date(), days).getTime()
     return history.filter((h) => new Date(h.date).getTime() >= cutoff)
   }, [history, historyPeriod])
+
+  // A dropped connection used to goBack() — off the screen, no explanation, nothing to
+  // retry. Say what happened and leave them where they tapped.
+  if (error) {
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title="Couldn't load this exercise"
+          message={error}
+          onRetry={() => { setError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title="Go back" variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
+  }
 
   if (loading || !exercise) return <LoadingPulse />
 

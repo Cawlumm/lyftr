@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
-  AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
+  Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -10,13 +10,14 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
+import { ErrorState } from '../components/ui'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
-import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services/api'
+import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -24,10 +25,7 @@ const DEFAULT_FOOD: types.DailyStats = {
   date: '',
   total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
-const DEFAULT_SETTINGS: types.UserSettings = {
-  user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
-  protein_target: 150, carb_target: 250, fat_target: 65, timezone: 'UTC',
-}
+
 
 function MuscleSparkline({ values, color, isTop }: { values: number[], color: string, isTop: boolean }) {
   if (values.length < 2) return <div className="w-14 h-6 flex-shrink-0" />
@@ -79,49 +77,62 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
   const { user } = useAuthStore()
-  const { settings: storedSettings } = useSettingsStore()
+  // Settings come from the store, not a page-local fetch. This page used to make
+  // its OWN /settings request with its OWN defaults literal — a third copy of the
+  // fallback the store already owns, and one the store's loadFailed flag could
+  // never see. The store fetch no-ops when already loaded and retries when the
+  // last read fell back, so this costs nothing on the happy path.
+  const { settings, fetch: fetchSettings } = useSettingsStore()
 
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [programs, setPrograms] = useState<types.Program[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
-  const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect to gain a retry button;
+  // this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
+    void fetchSettings()
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
       programAPI.list({ limit: 100 }).catch(() => []), // backend's max — Up Next must see every program
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       weightAPI.list({ limit: 14 }).catch(() => []),
       weightAPI.stats().catch(() => null),
-      userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
     ])
-      .then(([ws, ps, fs, wl, wst, s]) => {
+      .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
         setPrograms(ps || [])
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
-        setSettings(s || DEFAULT_SETTINGS)
       })
-      .catch(err => setError(err.message || 'Failed to load'))
+      .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
-  }, [TODAY])
+  }, [TODAY, retryKey, fetchSettings])
 
   if (loading) return <Loading />
 
+  // The dashboard is nothing but other requests' answers, so when the load fails there
+  // is no honest partial view to show — every tile would read 0, which states "you did
+  // nothing this week" rather than "we could not ask".
   if (error) {
     return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load your dashboard"
+        message={error}
+        onRetry={() => { setError(null); setLoading(true); setRetryKey(k => k + 1) }}
+      />
     )
   }
 

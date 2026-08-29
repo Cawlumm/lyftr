@@ -7,10 +7,10 @@ import {
   eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
 } from 'date-fns'
 import {
-  Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
+  Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
-import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { apiErrorMessage, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -93,6 +93,7 @@ export default function Dashboard() {
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const [chartWidth, setChartWidth] = useState(0)
@@ -101,7 +102,11 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     const [ws, ps, fs, wl, wst] = await Promise.all([
-      client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
+      // Uncaught on purpose, mirroring web: this is the primary request, and it is
+      // what lets a total outage reject load() and reach the ErrorState below. With
+      // all five caught, load() could never fail, so the error screen was
+      // unreachable and an outage rendered every tile at 0, silently.
+      client.workoutAPI.list({ limit: 84 }),
       client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
       client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
@@ -117,7 +122,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError(err?.message || 'Failed to load'))
+      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 
@@ -126,28 +131,40 @@ export default function Dashboard() {
   useFocusEffect(
     useCallback(() => {
       if (!focusedOnce.current) { focusedOnce.current = true; return }
-      load()
+      // A failed refocus refetch keeps the stale-but-real data already on screen;
+      // replacing a populated dashboard with an error over a background refresh
+      // would be the louder wrong. The catch exists because load() can reject now.
+      load().catch(() => {})
     }, [load])
   )
 
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await load()
+    // Same shape as the refocus refetch: pull-to-refresh over live data keeps the
+    // data on a failure; the spinner stopping with nothing changed is the signal.
+    await load().catch(() => {})
     setRefreshing(false)
   }, [load])
 
   if (loading) return <DashboardSkeleton />
 
   if (error) {
+    // Every tile here is another request's answer, so a failed load has no honest
+    // partial view — the cards would all read 0, which says "you did nothing this
+    // week" rather than "we could not ask".
     return (
       <Screen>
-        <View className="py-4">
-          <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
-            <AlertCircle size={18} color={brand.errorSoft} />
-            <Text className="flex-1 font-sans text-sm text-error-400">{error}</Text>
-          </View>
-        </View>
+        <ErrorState
+          size="page"
+          title="Couldn't load your dashboard"
+          message={error}
+          onRetry={() => {
+            setError(null)
+            setLoading(true)
+            load().catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong."))).finally(() => setLoading(false))
+          }}
+        />
       </Screen>
     )
   }
@@ -291,7 +308,7 @@ export default function Dashboard() {
                   <Timer size={18} color={brand.warningSoft} />
                 </View>
                 <View>
-                  <Text className="font-sans-semibold text-sm text-warning-400">Workout in progress</Text>
+                  <AppText variant="bodySemibold" color="warning">Workout in progress</AppText>
                   <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{session.name} — tap to resume</Text>
                 </View>
               </View>
@@ -358,7 +375,7 @@ export default function Dashboard() {
                 const isFuture = day > now
                 return (
                   <View key={i} className="items-center gap-1.5">
-                    <Text className={`text-[10px] font-sans-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>{format(day, 'EEEEE')}</Text>
+                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{format(day, 'EEEEE')}</AppText>
                     <View className={`h-3.5 w-3.5 rounded-full ${
                       hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
                     }`} />

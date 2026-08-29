@@ -1,12 +1,13 @@
+import { ConfirmSheet } from '../components/ui'
 import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
@@ -19,18 +20,18 @@ export default function WeightDetail() {
   const [log, setLog] = useState<types.WeightLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
 
   // Edit mode
   const [editing, setEditing] = useState(false)
   const [editWeight, setEditWeight] = useState('')
   const [editDate, setEditDate] = useState('')
   const [editNotes, setEditNotes] = useState('')
-  const [saving, setSaving] = useState(false)
   const [editError, setEditError] = useState('')
 
   // Delete confirm
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useBodyScrollLock(confirming)
   useEscapeKey(confirming, () => setConfirming(false))
@@ -38,15 +39,13 @@ export default function WeightDetail() {
 
   useEffect(() => {
     weightAPI.get(Number(id))
-      .then(data => {
-        setLog(data)
-        setEditWeight(String(displayWeight(data.weight, settings.weight_unit)))
-        setEditDate(entryDay(data))
-        setEditNotes(data.notes ?? '')
+      .then(setLog)
+      .catch(err => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
       })
-      .catch(err => setError(err?.response?.data?.error || 'Failed to load entry'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   const startEdit = () => {
     if (!log) return
@@ -57,43 +56,38 @@ export default function WeightDetail() {
     setEditing(true)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const saveEdit = useAsyncAction(async (entry: types.WeightLog) => {
+    const updated = await weightAPI.update(entry.id, {
+      weight: resolveWeightLbs(editWeight, entry.weight, settings.weight_unit),
+      notes: editNotes.trim(),
+      logged_at: dayToInstant(editDate, entry.logged_at),
+    })
+    setLog(updated)
+    setEditing(false)
+  }, 'Failed to save')
+
+  // `editError` is what this page can say about the value in the box; the hook carries
+  // what the server said. The entry is passed to run() because the guard below is what
+  // proves it is not null.
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!log || saving) return
+    if (!log || saveEdit.busy) return
     const w = parseFloat(editWeight)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
       setEditError(wErr)
       return
     }
-    setSaving(true)
     setEditError('')
-    try {
-      const updated = await weightAPI.update(log.id, {
-        weight: resolveWeightLbs(editWeight, log.weight, settings.weight_unit),
-        notes: editNotes.trim(),
-        logged_at: dayToInstant(editDate, log.logged_at),
-      })
-      setLog(updated)
-      setEditing(false)
-    } catch (err: any) {
-      setEditError(err?.response?.data?.error || 'Failed to save')
-    } finally {
-      setSaving(false)
-    }
+    void saveEdit.run(log)
   }
 
-  const handleDelete = async () => {
-    if (!log || deleting) return
-    setDeleting(true)
-    try {
-      await weightAPI.delete(log.id)
-      navigate('/weight', { replace: true })
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // Was a bare `catch` that closed the confirm and left the entry there — the same
+  // silent failure as every other delete in the app before this branch.
+  const remove = useAsyncAction(async (entry: types.WeightLog) => {
+    await weightAPI.delete(entry.id)
+    navigate('/weight', { replace: true })
+  }, 'Failed to delete entry')
 
   if (loading) {
     return (
@@ -105,15 +99,13 @@ export default function WeightDetail() {
 
   if (error || !log) {
     return (
-      <div className="space-y-4">
-        <Link to="/weight" className="flex items-center gap-2 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Weight
-        </Link>
-        <div className="alert-error">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || 'Entry not found'}</span>
-        </div>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load this entry"
+        message={error ?? 'That entry no longer exists.'}
+        onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
+        secondary={<Link to="/weight" className="btn-secondary btn-sm">Back to weight</Link>}
+      />
     )
   }
 
@@ -177,10 +169,10 @@ export default function WeightDetail() {
         <div className="card p-5">
           <h2 className="section-title mb-4">Edit Entry</h2>
           <form onSubmit={handleSave} className="space-y-4">
-            {editError && (
+            {(editError || saveEdit.error) && (
               <div className="alert-error" role="alert">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{editError}</span>
+                <span>{editError || saveEdit.error}</span>
               </div>
             )}
 
@@ -227,11 +219,11 @@ export default function WeightDetail() {
               </button>
               <button
                 type="submit"
-                disabled={!(parseFloat(editWeight) > 0) || saving}
+                disabled={!(parseFloat(editWeight) > 0) || saveEdit.busy}
                 className="flex-1 btn-primary py-2.5 rounded-xl flex items-center justify-center gap-1.5"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving…' : 'Save'}
+                {saveEdit.busy ? 'Saving…' : 'Save'}
               </button>
             </div>
           </form>
@@ -239,34 +231,19 @@ export default function WeightDetail() {
       )}
 
       {/* Delete confirm — bottom sheet */}
-      {confirming && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Entry?</h3>
-            <p className="text-sm text-tx-muted mb-5">
-              {formatDay(entryDay(log), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirming(false)}
-                className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-3 bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirming}
+        icon={Trash2}
+        destructive
+        title="Delete Entry?"
+        message={`${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
+        confirmLabel="Delete"
+        busyLabel="Deleting…"
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { if (!remove.busy) void remove.run(log) }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
+      />
     </div>
   )
 }
