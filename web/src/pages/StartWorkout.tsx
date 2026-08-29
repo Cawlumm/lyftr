@@ -26,6 +26,7 @@ export default function StartWorkout() {
     <div className="space-y-6 animate-slide-up">
       <div className="flex items-center gap-3">
         <button
+          aria-label="Go back"
           onClick={() => navigate(-1)}
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
         >

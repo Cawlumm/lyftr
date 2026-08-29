@@ -95,12 +95,14 @@ export default function WorkoutDetail() {
         </Link>
         <div className="flex items-center gap-1">
           <button
+            aria-label="Edit workout"
             onClick={() => navigate(`/workouts/${workout.id}/edit`)}
             className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
+            aria-label="Delete workout"
             onClick={() => setConfirming(true)}
             className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
           >
@@ -226,7 +228,7 @@ export default function WorkoutDetail() {
                         {ex.exercise.muscle_group}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted truncate">{sets.length} sets{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
+                    <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
                   </div>
                 </div>
                 {maxWeight > 0 && (

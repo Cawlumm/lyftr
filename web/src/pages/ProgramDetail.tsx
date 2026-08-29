@@ -162,12 +162,14 @@ export default function ProgramDetail() {
             <Play className="w-3.5 h-3.5" /> Start Workout
           </button>
           <button
+            aria-label="Edit program"
             onClick={() => navigate(`/programs/${program.id}/edit`)}
             className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
+            aria-label="Delete program"
             onClick={() => setConfirming(true)}
             className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
           >

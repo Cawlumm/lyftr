@@ -131,12 +131,12 @@ export default function EditWorkout() {
   return (
     <div className="space-y-6 animate-slide-up pb-10">
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
+        <button aria-label="Go back" onClick={() => navigate(-1)} className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
           <ArrowLeft className="w-5 h-5 text-tx-muted" />
         </button>
         <div>
           <h1 className="font-display font-bold text-2xl text-tx-primary">Edit Workout</h1>
-          <p className="text-xs text-tx-muted">{formData.exercises.length} exercises • {totalSets} sets</p>
+          <p className="text-xs text-tx-muted">{formData.exercises.length} exercise{formData.exercises.length === 1 ? '' : 's'} • {totalSets} set{totalSets === 1 ? '' : 's'}</p>
         </div>
       </div>
 
@@ -214,7 +214,7 @@ export default function EditWorkout() {
                       </div>
                       <p className="text-xs text-tx-muted ml-8">{exercise?.muscle_group} • {exercise?.equipment}</p>
                     </div>
-                    <button type="button" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                    <button type="button" aria-label="Remove exercise" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                       <Trash2 className="w-4 h-4 text-error-400" />
                     </button>
                   </div>
@@ -227,7 +227,7 @@ export default function EditWorkout() {
                   <div className="space-y-2 mb-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">Sets</label>
-                      <span className="text-xs text-tx-muted">{workoutEx.sets.length} sets</span>
+                      <span className="text-xs text-tx-muted">{workoutEx.sets.length} set{workoutEx.sets.length === 1 ? '' : 's'}</span>
                     </div>
                     {workoutEx.sets.map((set, setIdx) => (
                       <div key={setIdx} className="flex gap-2 items-end bg-surface-raised/40 p-3 rounded-lg border border-surface-border/50">
@@ -243,7 +243,7 @@ export default function EditWorkout() {
                           <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Weight</label>
                           <WeightInput size="sm" value={set.weight ? String(set.weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'weight', v)} unit={wUnit} placeholder="225" />
                         </div>
-                        <button type="button" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                        <button type="button" aria-label="Remove set" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                           <Trash2 className="w-4 h-4 text-error-400" />
                         </button>
                       </div>

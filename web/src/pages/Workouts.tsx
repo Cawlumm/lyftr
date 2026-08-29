@@ -102,7 +102,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                 </span>
               )}
               {durationMin > 0 && <span className="text-tx-muted/40 text-xs">·</span>}
-              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercises</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercise{(workout.exercises?.length || 0) === 1 ? '' : 's'}</span>
               {totalVolume > 0 && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
@@ -176,6 +176,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           {/* Desktop hover icons */}
           <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
+              aria-label={`Edit ${workout.name}`}
               onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
               className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
             >

@@ -224,7 +224,7 @@ function ProgramCard({
               className="p-2 hover:bg-brand-500/10 rounded-lg transition-colors" title={canQuickStart ? 'Start workout' : 'Rest day today — open program'}>
               <Play className="w-4 h-4 text-brand-500" />
             </button>
-            <button onClick={e => { e.stopPropagation(); onEdit(program.id) }}
+            <button aria-label={`Edit ${program.name}`} onClick={e => { e.stopPropagation(); onEdit(program.id) }}
               className="p-2 hover:bg-surface-muted rounded-lg transition-colors">
               <Edit2 className="w-4 h-4 text-brand-500" />
             </button>
