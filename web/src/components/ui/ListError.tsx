@@ -2,10 +2,13 @@ import ErrorState from './ErrorState'
 
 // A page of a list that never arrived.
 //
-// useServerList used to answer a failed fetch by setting hasMore=false, which renders
+// useServerList still answers a failed fetch by setting hasMore=false, which renders
 // identically to reaching the end of the data — the one outcome a reader cannot tell
-// from success. So the list simply stopped, and on a flaky connection "you have 12
-// workouts" and "you have 12 workouts so far" looked the same.
+// from success. The list simply stops, and on a flaky connection "you have 12 workouts"
+// and "you have 12 workouts so far" look the same.
+//
+// This component is the replacement for that silence; the hook starts reporting the
+// failure, and the lists start rendering this, in the lists slice. Nothing calls it yet.
 //
 // A list failure is section-scoped, not page-scoped: the search box and the create
 // button above it still work, so the state replaces the rows and nothing else. Retry

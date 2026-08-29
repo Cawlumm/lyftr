@@ -23,7 +23,7 @@ export function BarbellMark({
   plateEdge?: string
   highlight?: boolean
 }) {
-  const ink: Record<BarbellInk, string> = { bar, plate, plateEdge, highlight: '#7eeeff' }
+  const ink: Record<BarbellInk, string> = { bar, plate, plateEdge, highlight: '#7eeeff', collar: '#475569' }
   const spin = (r?: readonly [number, number, number]) =>
     r ? { transform: `rotate(${r[0]} ${r[1]} ${r[2]})` } : {}
 
