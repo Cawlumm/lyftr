@@ -38,7 +38,10 @@ export default function ConfirmSheet({
   destructive = false, icon: Icon, busy = false, error, onConfirm, onCancel,
 }: Props) {
   useBodyScrollLock(open)
-  useEscapeKey(open, onCancel) // Escape dismisses — always the non-destructive choice.
+  // Escape dismisses — always the non-destructive choice — but not while the confirmed
+  // action is in flight: dismissing then leaves the request to fail into a sheet that is
+  // no longer there, which is the silent failure this component exists to prevent.
+  useEscapeKey(open && !busy, onCancel)
   if (!open) return null
 
   return createPortal(
@@ -63,7 +66,8 @@ export default function ConfirmSheet({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
+            disabled={busy}
+            className="flex-1 py-3 disabled:opacity-50 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
           >
             {cancelLabel}
           </button>
