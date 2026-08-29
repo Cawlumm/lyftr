@@ -254,6 +254,60 @@ jobs:
           echo "version output: $out"
           echo "$out" | grep -q 'smoke-9.9.9'
 
+  # Size is reported, never enforced — the convention kubernetes/kubernetes uses, and the
+  # default of every size-labeller in the wild (CodelyTV ships fail_if_xl: false;
+  # oven-sh/bun has no size labels at all).
+  #
+  # A label is better feedback than a block or a comment: it shows in the PR list without
+  # notifying anyone, it is filterable, and it never has to be argued with. Some large
+  # PRs are legitimate — a vendored dependency, a migration, one mechanical rename across
+  # forty files — and a gate that has to be overridden teaches people to override gates.
+  #
+  # Thresholds are Kubernetes': XS 0-9, S 10-29, M 30-99, L 100-499, XL 500-999, XXL
+  # 1000+, "ignoring generated files". Lockfiles, build output and snapshots do not count;
+  # a lockfile refresh is thousands of lines nobody reads.
+  pr-size:
+    name: PR size
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # to apply the size label
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Label by reviewable churn
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --numstat "$BASE...$HEAD" --             . ':(exclude)**/package-lock.json' ':(exclude)**/*.lock'             ':(exclude)**/*.tsbuildinfo' ':(exclude)**/dist/**' ':(exclude)**/*.snap'             | awk '{ a += $1; d += $2 } END { print (a + d) + 0 }')
+
+          if   [ "$CHANGED" -lt 10 ];   then SIZE=XS
+          elif [ "$CHANGED" -lt 30 ];   then SIZE=S
+          elif [ "$CHANGED" -lt 100 ];  then SIZE=M
+          elif [ "$CHANGED" -lt 500 ];  then SIZE=L
+          elif [ "$CHANGED" -lt 1000 ]; then SIZE=XL
+          else SIZE=XXL
+          fi
+          echo "reviewable churn: ${CHANGED} lines -> size/${SIZE}"
+
+          # Replace any previous size label so the PR carries exactly one.
+          for old in XS S M L XL XXL; do
+            [ "$old" = "$SIZE" ] || gh pr edit "$PR" --remove-label "size/$old" 2>/dev/null || true
+          done
+          gh pr edit "$PR" --add-label "size/$SIZE"
+
+          # Past the point where a review stops being useful, say so once, in the run
+          # summary. Advisory: this job never fails.
+          if [ "$CHANGED" -gt 5000 ]; then
+            echo "::warning::This PR changes ${CHANGED} reviewable lines. Past 5000 the automated review is skipped entirely, and a diff this size is hard for anyone to hold in their head — consider splitting it."
+          fi
+
   build-backend:
     name: Build & push backend image
     needs: [test, unit, e2e, version-smoke]
