@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
-import { format } from 'date-fns'
-import { dayToLocalDate } from '@lyftr/shared'
+import { formatDay } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { MACRO_COLORS } from './nutritionMeta'
@@ -115,7 +114,7 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
   // Thin x-labels so they never overlap (recharts auto-skips too).
   const maxLabels = Math.max(2, Math.floor(plotW / 44))
   const every = Math.ceil(n / maxLabels)
-  const fmt = (d: string) => format(dayToLocalDate(d), 'M/d')
+  const fmt = (d: string) => formatDay(d, 'M/d')
 
   const selPt = sel != null ? data[sel] : null
 
@@ -167,7 +166,7 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2.5 py-1.5"
           style={{ left: clamp(xAt(sel!) - 60, 0, Math.max(0, width - 120)), top: 0, width: 120 }}
         >
-          <AppText variant="caption" color="muted">{format(dayToLocalDate(selPt.date), 'MMM d')}</AppText>
+          <AppText variant="caption" color="muted">{formatDay(selPt.date, 'MMM d')}</AppText>
           <View className="mt-0.5 gap-0.5">
             {[
               { label: 'Protein', value: selPt.protein, color: MACRO_COLORS.protein },

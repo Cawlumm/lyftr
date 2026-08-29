@@ -1,4 +1,4 @@
-import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince } from './dateUtils'
+import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, UNKNOWN_DAY } from './dateUtils'
 
 
 describe('dayToInstant', () => {
@@ -148,6 +148,81 @@ describe('dayToLocalDate', () => {
     for (const day of ['2026-01-01', '2026-03-08', '2026-11-01', '2026-12-31']) {
       expect(instantToDay(dayToLocalDate(day).toISOString())).toBe(day)
     }
+  })
+})
+
+// An unreadable instant used to become the string "NaN-NaN-NaN", which is not obviously
+// wrong to anything downstream: it groups, it sorts, and it compares unequal to every
+// real day. A row with a missing started_at therefore formed its own silent bucket, and
+// withLoggedOn posted it to the server as the row's day.
+describe('instantToDay — an unreadable instant has no day', () => {
+  it.each(['', 'not-a-date', 'undefined', '2026-13-45T99:99:99Z'])(
+    'returns empty string for %p rather than a NaN-shaped day', (bad) => {
+      const day = instantToDay(bad)
+      expect(day).toBe('')
+      expect(day).not.toContain('NaN')
+    })
+
+  it('still reads a real instant', () => {
+    expect(instantToDay('2026-08-01T10:00:00Z')).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('entryDay falls through to logged_on when the instant is unreadable', () => {
+    expect(entryDay({ logged_on: '2026-08-01', logged_at: 'not-a-date' })).toBe('2026-08-01')
+    // and reports "unknown" rather than a fake day when there is no stored day either
+    expect(entryDay({ logged_at: 'not-a-date' })).toBe('')
+  })
+
+  it('workoutDay reports unknown rather than a fake day', () => {
+    expect(workoutDay({ started_at: 'not-a-date' })).toBe('')
+    expect(workoutDay({ started_at: '', tz_offset_minutes: -240 })).toBe('')
+  })
+
+  it('withLoggedOn sends no day rather than a NaN one, so the server falls back', () => {
+    const sent = withLoggedOn({ logged_at: 'not-a-date' })
+    expect(sent.logged_on).toBe('')
+    expect(sent.logged_on).not.toContain('NaN')
+  })
+})
+
+// The idiom this replaces had no safe outcome for an unknown day: it either threw
+// RangeError out of date-fns and unmounted the route, or -- for '' -- rendered a
+// confident "Jan 1, 1900". Both were observed in the running app.
+describe('formatDay', () => {
+  it('draws a real day', () => {
+    expect(formatDay('2026-08-01', 'MMM d, yyyy')).toBe('Aug 1, 2026')
+    expect(formatDay('2026-08-01', 'M/d')).toBe('8/1')
+  })
+
+  it.each([
+    ['empty', ''],
+    ['the NaN-shaped day instantToDay used to build', 'NaN-NaN-NaN'],
+    ['an instant, not a day', '2026-08-01T10:00:00Z'],
+    ['a rolled-over month', '2026-13-45'],
+    ['a rolled-over day', '2026-02-31'],
+    ['null', null],
+    ['undefined', undefined],
+  ])('reads as unknown when the day is %s', (_label, day) => {
+    expect(formatDay(day as string, 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
+  })
+
+  it('never renders a 1900 for a day it could not read', () => {
+    // The specific lie: Number('') === 0, and new Date(0, -1, 1) is a valid 1899.
+    expect(formatDay('', 'MMM d, yyyy')).not.toContain('1900')
+    expect(formatDay('', 'MMM d, yyyy')).not.toContain('1899')
+  })
+
+  it('never throws, whatever it is handed', () => {
+    for (const bad of ['', 'x', 'NaN-NaN-NaN', '9999999-01-01', '0000-00-00']) {
+      expect(() => formatDay(bad, 'EEEE, MMMM d, yyyy')).not.toThrow()
+    }
+  })
+
+  it('composes with the day helpers, so an unreadable row reads as unknown end to end', () => {
+    expect(formatDay(workoutDay({ started_at: 'not-a-date' }), 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
+    expect(formatDay(entryDay({ logged_at: '' }), 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
+    expect(formatDay(workoutDay({ started_at: '2026-08-01T10:00:00Z', tz_offset_minutes: 0 }), 'MMM d, yyyy'))
+      .toBe('Aug 1, 2026')
   })
 })
 
