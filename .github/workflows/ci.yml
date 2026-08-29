@@ -22,11 +22,14 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+  # No paths-ignore on pull_request, deliberately. A workflow skipped at the TRIGGER
+  # leaves its checks Pending forever, and main requires these checks — so a
+  # markdown-only PR would be permanently unmergeable. The `changes` job below already
+  # filters per job, so a docs-only PR still runs nothing but that one cheap job; it just
+  # runs it, and reports the checks as skipped, which counts as passed.
+  # `push` keeps its paths-ignore: no branch protection depends on those runs.
   pull_request:
     branches: [main]
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
 
 # Least privilege — nothing in this workflow needs to write via GITHUB_TOKEN (image pushes and
 # the Fly deploy use their own secrets). Matches mobile-ci.yml's prior explicit read-only scope,
