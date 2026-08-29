@@ -125,13 +125,6 @@ const jsonLd = {
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-
     <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
   </head>
 
@@ -175,8 +168,12 @@ const jsonLd = {
                 Deploy in one command
               </a>
             </div>
+            {/* The demo's login screen now offers one-tap sign-in, so the credentials are a
+                fallback rather than an instruction. Keeping them stated means this line is
+                true both before and after the demo redeploys with that button. */}
             <p class="mt-4 text-sm text-tx-muted">
-              Demo login <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
+              One tap to sign in — no account needed. Or use
+              <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
               <code class="font-mono text-tx-secondary">password123</code> · resets hourly
             </p>
           </div>

@@ -91,3 +91,6 @@ web/playwright-report/
 # The rule exists because the convention alone did not hold: without it the same mistake
 # landed twice, and the second time it reached main.
 mobile/.maestro/
+
+# tsc --incremental caches. Regenerated on every build; never useful in a diff.
+*.tsbuildinfo

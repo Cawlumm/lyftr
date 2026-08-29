@@ -6,10 +6,12 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      // '<name> Variable' is what @fontsource-variable registers; the bare name is kept next
+      // in each stack so a locally-installed copy still wins over the system fallback.
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        display: ['Outfit', 'Plus Jakarta Sans', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans: ['Plus Jakarta Sans Variable', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Outfit Variable', 'Outfit', 'Plus Jakarta Sans Variable', 'sans-serif'],
+        mono: ['JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', 'monospace'],
       },
       colors: {
         surface: {

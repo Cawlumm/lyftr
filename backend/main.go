@@ -91,8 +91,15 @@ func main() {
 	config.Load()
 	db.Connect()
 	warnIfUnclaimed()
-	// The demo account's credentials are published, so it is not something a self-hosted
-	// instance should get by default — only the public demo and local development ask for
+	// The demo account's credentials are published, so nothing gets it without asking:
+	// DEMO_MODE is opt-in everywhere, development included. Only the Fly demo (fly.toml)
+	// and a contributor who types DEMO_MODE=true turn it on.
+	//
+	// The else branch is not redundant. Turning the flag off stops the account being
+	// created and hides the one-tap button, but it cannot un-create one already in the
+	// database — and deleting it here would risk taking real workouts with it, since
+	// someone may have trained under that login. So an existing account keeps working and
+	// this warns at every startup until the operator removes it or changes its password.
 	if config.C.DemoMode {
 		seed.DemoUser(db.DB)
 	} else {

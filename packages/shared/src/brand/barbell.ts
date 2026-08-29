@@ -12,7 +12,7 @@
 
 /** Palette slots. A renderer decides what each one actually is, so the same mark can be
  *  all-white on a gradient, cyan on a chip, or muted as an error state. */
-export type BarbellInk = 'bar' | 'plate' | 'plateEdge' | 'highlight'
+export type BarbellInk = 'bar' | 'plate' | 'plateEdge' | 'highlight' | 'collar'
 
 export interface BarbellStroke {
   kind: 'stroke'
@@ -62,6 +62,13 @@ export const BARBELL: BarbellMarkData = {
   viewBox: '0 0 40 40',
   shapes: [
     { kind: 'stroke', d: 'M4 16 Q20 25 36 16', ink: 'bar', width: 2.6, cap: 'round' },
+    // The collar dots, drawn as circles in the original web markup. A rect whose rx is
+    // half its side IS a circle in both SVG and react-native-svg, so they ride the fill
+    // primitive both renderers already have rather than earning a third shape kind.
+    // They were dropped when this geometry was lifted from mobile's copy, which never
+    // had them — a silent change to the web logo, restored here.
+    { kind: 'fill', x: 9.2, y: 17.8, w: 2, h: 2, rx: 1, ink: 'collar' },
+    { kind: 'fill', x: 28.8, y: 17.8, w: 2, h: 2, rx: 1, ink: 'collar' },
     ...plates(6, 3),
     ...plates(30, 34),
   ],

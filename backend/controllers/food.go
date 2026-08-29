@@ -43,7 +43,6 @@ func (h *Handler) ListFoodLogs(c *gin.Context) {
 	utils.OK(c, logs)
 }
 
-
 func (h *Handler) GetFoodLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)

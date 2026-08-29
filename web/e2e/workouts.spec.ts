@@ -314,6 +314,35 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(page.getByRole('button', { name: /start workout/i })).toBeVisible({ timeout: 3000 })
   })
 
+  // The overlay covers the app but was not announced as covering it. aria-modal tells
+  // assistive tech to ignore what is behind; inert is what actually stops Tab walking
+  // into it. Both matter: without inert, Finish and Remove set are invisible but still
+  // reachable by keyboard, and pressing one of them mid-workout is unrecoverable.
+  test('the gym overlay is a modal dialog and the app behind it is inert', async ({ page }) => {
+    await seedGymSession(page, 'E2E A11y Test', 'Bench Press',
+      [{ set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false }]
+    )
+
+    await page.goto('/workout/active')
+    const dialog = page.getByRole('dialog', { name: 'Workout' })
+    await expect(dialog).toBeVisible({ timeout: 5000 })
+    await expect(dialog).toHaveAttribute('aria-modal', 'true')
+
+    // The page behind is marked inert, so nothing inside it can take focus.
+    await expect(page.locator('main')).toHaveAttribute('inert', /.*/)
+
+    // Walk the keyboard a while; focus must never land behind the overlay.
+    for (let i = 0; i < 25; i++) {
+      await page.keyboard.press('Tab')
+      const escaped = await page.evaluate(() => {
+        const el = document.activeElement
+        if (!el || el === document.body) return false
+        return el.closest('main') !== null   // main is the inert region
+      })
+      expect(escaped, `Tab #${i + 1} escaped into the inert page behind the dialog`).toBe(false)
+    }
+  })
+
   test('gym mode overview shows exercise list and stats', async ({ page }) => {
     await seedGymSession(page, 'E2E Stats Test', 'Bench Press', [
       { set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false },

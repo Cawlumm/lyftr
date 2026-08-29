@@ -166,7 +166,13 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-base">
-      <header className="sticky top-0 z-50 border-b border-surface-border bg-surface-base/95 backdrop-blur-sm">
+      {/* Opaque, not bg-surface-base/95. That class generated nothing: Tailwind cannot apply
+          an opacity modifier to a colour held in a CSS variable as a hex, so it was silently
+          dropped and this bar had no background at all — content scrolled under it behind a
+          4px blur. Opaque also gives iOS 26 Safari something to read: it tints its toolbar
+          from the background-color of sticky elements at the viewport edges, and a
+          transparent one leaves the tint stuck on whatever it sampled at load. */}
+      <header className="sticky top-0 z-50 border-b border-surface-border bg-surface-base">
         <div className="max-w-6xl mx-auto px-5 h-14 flex justify-between items-center">
           <Link to="/"><Logo size="md" /></Link>
           <UserMenu />
@@ -200,7 +206,9 @@ export default function Layout() {
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">
         <ActiveSessionBar />
-        <nav className="border-t border-surface-border bg-surface-base/95 backdrop-blur-sm">
+        {/* Opaque for the same two reasons as the header above — the /95 variant never
+            rendered, and Safari tints the bottom toolbar from this element. */}
+        <nav className="border-t border-surface-border bg-surface-base">
           <div className="max-w-6xl mx-auto flex">
             {NAV.map(({ path, label, icon: Icon }) => {
               const active = pathname === path

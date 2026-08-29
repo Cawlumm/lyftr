@@ -12,6 +12,7 @@ const DEFAULT_INK: Record<BarbellInk, string> = {
   plate: '#00b8d9',
   plateEdge: '#0891b2',
   highlight: '#7eeeff',
+  collar: '#475569',
 }
 
 const spin = (r?: readonly [number, number, number]) =>
@@ -23,12 +24,16 @@ export function BarbellMark({
   className = '',
   width,
   height,
+  highlight = true,
 }: {
   mark?: BarbellMarkData
   ink?: Partial<Record<BarbellInk, string>>
   className?: string
   width?: number
   height?: number
+  /** Specular strips. Off for a flat monochrome mark, where they read as a seam
+   *  rather than a shine — mobile's BarbellMark takes the same opt-out. */
+  highlight?: boolean
 }) {
   const paint = { ...DEFAULT_INK, ...ink }
   return (
@@ -41,7 +46,7 @@ export function BarbellMark({
       role="presentation"
       aria-hidden="true"
     >
-      {mark.shapes.map((s, i) =>
+      {mark.shapes.filter(s => highlight || s.ink !== 'highlight').map((s, i) =>
         s.kind === 'stroke' ? (
           <path
             key={i}

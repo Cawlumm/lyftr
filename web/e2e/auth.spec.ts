@@ -200,3 +200,31 @@ test('a password too long for bcrypt is refused before it can be submitted', asy
   await expect(page.getByText(/at most 72 characters/i)).toBeVisible()
   await expect(page.getByRole('button', { name: /create account/i })).toBeDisabled()
 })
+
+// The demo button used to be gated on import.meta.env.DEV, which is decided when the bundle
+// is built rather than by the server it ends up talking to. It is now gated on the server's
+// own demo_mode flag, and both directions matter enough to pin:
+//
+//   absent  — a self-hosted instance must never offer a sign-in as an account it never
+//             seeded. That is the failure with a real victim, and this suite runs against
+//             DEMO_MODE=off, so the assertion is against a genuine server rather than a mock.
+//   present — the public demo runs a production build, so the old gate hid the button from
+//             the one deployment that exists for it. Forced through a route intercept
+//             because this stack has no demo account to sign into.
+test('no demo sign-in button on a server without a demo account', async ({ page }) => {
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible()
+  await expect(page.getByRole('button', { name: /try demo account/i })).toHaveCount(0)
+})
+
+test('demo sign-in button appears when the server reports demo mode', async ({ page }) => {
+  await page.route('**/api/v1/info', async route => {
+    const res = await route.fetch()
+    const body = await res.json()
+    body.data.demo_mode = true
+    await route.fulfill({ response: res, json: body })
+  })
+
+  await page.goto('/login')
+  await expect(page.getByRole('button', { name: /try demo account/i })).toBeVisible()
+})

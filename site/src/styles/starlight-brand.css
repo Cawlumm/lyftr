@@ -1,10 +1,15 @@
+/* The docs theme named these families but nothing loaded them — the Google Fonts <link>
+   only ever existed on the landing page, so every Starlight page fell back to system-ui. */
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource-variable/jetbrains-mono';
+
 /* Brand the Starlight docs theme with Lyftr's electric-cyan accent (#00b8d9). */
 :root {
   --sl-color-accent-low: #003d4d;
   --sl-color-accent: #00b8d9;
   --sl-color-accent-high: #b0f1fe;
-  --sl-font: 'Plus Jakarta Sans', system-ui, sans-serif;
-  --sl-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --sl-font: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --sl-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* Light mode: use a slightly deeper cyan so it stays legible on white. */

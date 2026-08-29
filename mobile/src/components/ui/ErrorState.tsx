@@ -46,6 +46,12 @@ export function ErrorState({
   return (
     <View
       accessibilityRole="alert"
+      // The role alone is inert on React Native: a View is only exposed as an
+      // accessibility node when it is `accessible`, and setting that here would collapse
+      // the title, the message and the retry into one unreachable announcement. Android's
+      // actual mechanism for "something just went wrong" is a live region, which
+      // announces the new content without stealing focus and leaves the button tappable.
+      accessibilityLiveRegion="polite"
       className={`items-center justify-center px-6 ${page ? 'flex-1 py-16 gap-3' : 'py-10 gap-2.5'}`}
     >
       <BarbellBroken size={page ? 64 : 44} color={ink} />

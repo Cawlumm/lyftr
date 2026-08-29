@@ -16,6 +16,10 @@ export interface ServerInfo {
   // Optional: a backend older than the REGISTRATION feature omits it. Read it through
   // registrationOpen() so "absent" means open rather than closed.
   registration_open?: boolean
+  // Optional, and the opposite polarity to the field above: read through demoMode() so
+  // "absent" means no demo account. Guessing wrong here shows a sign-in button that 401s,
+  // whereas guessing wrong on registration only hides a link that would have worked.
+  demo_mode?: boolean
 }
 
 // Turn an axios error into an actionable message. Proxy misconfig (404/405) is

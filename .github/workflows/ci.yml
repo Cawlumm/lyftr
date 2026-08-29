@@ -91,7 +91,13 @@ jobs:
           go-version: '1.26'
           cache-dependency-path: backend/go.sum
       - run: cd backend && go mod download
-      - run: cd backend && go test ./controllers/ ./db/ ./routes/ -timeout 30s
+      # ./... not a hand-listed subset: this job ran 3 packages of 7, so utils/,
+      # stores/, config/ and oedb/ were invisible here. utils/ owns every error
+      # sentence the API emits, and this PR adds 223 lines of tests to it that
+      # would otherwise never gate a merge. Measured hermetic (httptest only, no
+      # outbound hosts) and ~23s total; -timeout is per package, and the slowest
+      # is 15s.
+      - run: cd backend && go test ./... -timeout 30s
 
   unit:
     name: Web unit tests

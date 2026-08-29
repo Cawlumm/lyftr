@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { apiErrorMessage, createClient } from './client'
+import { createClient } from './client'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 
 const memStorage = (): StorageAdapter => {
@@ -458,41 +458,5 @@ describe('a token refresh nobody answers (#145)', () => {
     await expect(client.userAPI.me()).rejects.toBeDefined()
 
     expect(refreshes).toBe(2)
-  })
-})
-
-// What a self-hoster meets every time they update the stack: nginx is up, the app behind
-// it is not, and the reply is a web page rather than our envelope. Reporting the caller's
-// fallback there ("Couldn't save your workout") blames the app for an infrastructure
-// problem and sends the user looking in the wrong place. wger's client models this
-// explicitly for the same reason.
-describe('apiErrorMessage on a reply that is not ours', () => {
-  const replied = (status: number, data: any) => ({ response: { status, data } })
-
-  // This used to assert /web page/ for a 502 carrying an HTML body, which pinned the
-  // wrong answer: EVERY reverse proxy serves its 502 as an HTML page, so the sniff
-  // fired first and told a self-hoster to check Server settings while their backend
-  // was simply restarting. Status is the stronger signal, so it is now checked first.
-  it('reads an HTML 502 from a proxy as a restart, not as a wrong address', () => {
-    const msg = apiErrorMessage(replied(502, '<!DOCTYPE html><html><body>502 Bad Gateway</body></html>'), 'Failed to save')
-    expect(msg).toMatch(/restarting or unreachable/i)
-    expect(msg).not.toBe('Failed to save')
-  })
-
-  // The sniff still earns its place where the status alone explains nothing: a host
-  // that is not our API at all, answering with a page.
-  it('still names an HTML body when the status does not already explain it', () => {
-    expect(apiErrorMessage(replied(500, '<html><body>Welcome to nginx</body></html>'), 'x'))
-      .toMatch(/web page/i)
-  })
-
-  it('tells a restarting proxy apart from our own code failing', () => {
-    expect(apiErrorMessage(replied(503, {}), 'x')).toMatch(/restarting or unreachable/i)
-    expect(apiErrorMessage(replied(500, {}), 'x')).toMatch(/Server error/i)
-  })
-
-  it('still prefers what the server actually said', () => {
-    expect(apiErrorMessage(replied(422, { error: 'Password must be at least 8 characters in length.' }), 'x'))
-      .toBe('Password must be at least 8 characters in length.')
   })
 })

@@ -4,7 +4,7 @@ import { AlertCircle, Zap, Dumbbell, Apple, TrendingUp, LogIn } from 'lucide-rea
 import { useAuthStore } from '../stores/auth'
 import { apiErrorMessage } from '../services/api'
 import { useServerInfo } from '../hooks/useServerInfo'
-import { formatVersion, registrationOpen } from '@lyftr/shared'
+import { formatVersion, registrationOpen, demoMode } from '@lyftr/shared'
 import Logo from '../components/Logo'
 import ServerSettings from '../components/ServerSettings'
 import PasswordField from '../components/ui/PasswordField'
@@ -168,10 +168,10 @@ export default function Login() {
             </button>
 
             {/* Divider — only when something follows it that is genuinely an alternative
-                way in. In a production build the demo button is absent, so on a server
-                with registration closed there is nothing below but a statement, and an
-                "or" heading it reads like the start of an option that never arrives. */}
-            {(import.meta.env.DEV || registrationOpen(serverInfo)) && (
+                way in. Where there is no demo account and registration is closed there is
+                nothing below but a statement, and an "or" heading it reads like the start
+                of an option that never arrives. */}
+            {(demoMode(serverInfo) || registrationOpen(serverInfo)) && (
               <div className="relative flex items-center my-6">
                 <div className="flex-1 h-px bg-surface-border" />
                 <span className="px-3 text-xs text-tx-muted uppercase tracking-wider">or</span>
@@ -179,8 +179,11 @@ export default function Login() {
               </div>
             )}
 
-            {/* Demo button — dev only */}
-            {import.meta.env.DEV && (
+            {/* Gated on the server, not on import.meta.env.DEV, which is decided at build
+                time and so was wrong both ways: absent from the public demo (a production
+                build) and present against a DEMO_MODE=off server, where it 401s. DemoMode is
+                the same flag that seeds the account, so the button follows the account. */}
+            {demoMode(serverInfo) && (
               <button
                 type="button"
                 onClick={handleDemoLogin}

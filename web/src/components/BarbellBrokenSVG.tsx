@@ -10,7 +10,11 @@ export default function BarbellBrokenSVG({ className = '' }: { className?: strin
     <BarbellMark
       mark={BARBELL_DROPPED}
       className={className}
-      ink={{ plate: 'currentColor', plateEdge: 'currentColor', highlight: 'currentColor' }}
+      // Same opt-out mobile's BarbellBroken takes: on a mark painted in one flat colour
+      // the specular strips are lighter streaks over the same hue, which reads as damage
+      // to the drawing rather than as shine. Dropping them keeps the two platforms one mark.
+      highlight={false}
+      ink={{ plate: 'currentColor', plateEdge: 'currentColor', collar: 'currentColor' }}
     />
   )
 }
