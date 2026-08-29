@@ -84,4 +84,18 @@ jobs:
           #   --allowedTools : the action starts the inline-comment MCP server only when
           #                    --allowedTools names it, even though the skill's own
           #                    frontmatter already declares the same tool
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
+          # REVIEW.md is the single source of the review policy — pointed at rather than
+          # inlined here, so the rules live in a reviewable file next to the code they
+          # describe instead of inside a YAML string. The checkout above puts it on disk.
+          #
+          # It is passed as an appended system prompt rather than appended to `prompt`,
+          # because /code-review reads everything after its flags as the review TARGET,
+          # so instructions written there would be mistaken for a path.
+          claude_args: >-
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
+            --append-system-prompt "Read REVIEW.md at the repository root and follow it as
+            this repository's review policy. It sets severity calibration, the nit cap, the
+            evidence bar and what not to report, and takes precedence over your default
+            calibration. It deliberately does not restate the project's standards: those
+            are in CLAUDE.md, which you already read, and REVIEW.md tells you how to weigh
+            a violation of them." 
