@@ -62,7 +62,9 @@ of the same finding recurring.
 
 ## Do not report
 
-- Anything CI already enforces: type checks, linters, `go vet`, the unit and e2e suites.
+- Anything CI already enforces: type checks, linters, the unit and e2e suites. Check what
+  CI actually runs before assuming — `CLAUDE.md` documents where its coverage stops, and
+  the gaps move.
 - Formatting, unless the PR itself introduced the inconsistency.
 - Lockfiles and generated files.
 - Test code that deliberately violates a production rule in order to exercise it.

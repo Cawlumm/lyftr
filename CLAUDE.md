@@ -139,24 +139,15 @@ input through"*, so `keyboardType` constrains what is **drawn**, never what arri
 
 ### Single points of truth — do not add a fourth way to write a number
 
-All in `packages/shared/src/utils/number.ts`, imported by both apps:
+In `packages/shared/src/utils/number.ts`, imported by both apps:
 
-- **`configureNumberLocale({ decimal, group })`** — called **once**, from
-  `mobile/src/lib/lyftr.ts`, with `expo-localization`'s native values. Injected rather
-  than detected for the same reason `detectTimezone` is: Hermes leaves
-  `Intl.NumberFormat#formatToParts` unimplemented on iOS (`PlatformIntlApple.mm` is a
-  literal `llvm_unreachable`), so detecting the separators would crash on half the fleet.
-  Web never calls it and keeps the en-US default — `<input type="number">` is localised by
-  the browser.
 - **`sanitizeNumericInput(raw, mode)`** — typed text → canonical. Every numeric
   `TextInput` on mobile goes through it; there is no second copy.
-- **`toLocaleText(canonical)`** — a field's canonical buffer → what that field draws.
-- **`formatNumber(n, { decimals, grouped })`** — a stored number → text a person reads.
-  Cards, chips, captions, chart ticks. Grouping is opt-in.
 
-Never `String(n)`, `n.toFixed(1)` or `` `${n}` `` for text a user reads — that is the
-fourth way, and it is how one row came to show `83,4` in the field and `83.4` in the
-caption beside it.
+**The display half of this — turning a stored number back into the reader's notation — is
+not merged yet.** Until it is, there is no shared formatter, so a screen that needs one is
+writing the first: put it in this module rather than in the screen, so the rule above stays
+true of one file. Do not document it here before it lands.
 
 ### Gotchas
 
@@ -170,14 +161,13 @@ caption beside it.
   `"1,"` arrives with nothing after it and is read as a decimal. `1,200` on en-US is `1.2`
   **whether typed or pasted** — they agree on purpose. An earlier grouping-aware rule made
   them disagree (`1.2` typed, `1200` pasted), so the same characters meant different numbers
-  depending on how they arrived. Pinned by `number.test.ts` and `number.fuzz.test.ts`.
+  depending on how they arrived. Pinned by `number.test.ts`.
 - **Non-ASCII digits are folded arithmetically** (U+0660–0669, U+06F0–06F9), not via
   `normalize('NFKC')` — NFKC folds fullwidth digits but leaves Arabic-Indic alone, so a
   test written with `１２` passes while the real case still logs a weight of 0.
-- **A locale-dependent test must say so.** `packages/shared` is plain `ts-jest` and the
-  en-US default comes from the module literal, so a test that does not call
-  `configureNumberLocale` is an en-US test — which is the one locale the bug never
-  appears in. See `NumberField.locale.test.tsx` for the rendered-component shape.
+- **A locale-dependent test must say so.** `packages/shared` is plain `ts-jest` with no
+  locale set up, so a test that does not establish one is an en-US test — and en-US is the
+  one locale where separator bugs never appear. Say which locale a test is asserting.
 
 ---
 
@@ -294,17 +284,23 @@ docker compose up -d                  # prod, needs .env with JWT_SECRET
 Gradle, no `eas build --local`. Build through the **EAS CLI** (cloud) or a CI runner:
 
 ```bash
-cd mobile && eas build --platform android --profile development
+cd mobile && eas build --platform android --profile preview
 ```
 
 A first local build is 10–25 min of toolchain download before it compiles anything, and
 `prebuild` writes an untracked `mobile/android/` and rewrites the `android`/`ios` scripts in
-`mobile/package.json`. The `development` profile (`mobile/eas.json`) is `developmentClient:
-true`, so it is a **one-time** cost — after installing it, JS changes load over `npx expo
-start` with no rebuild.
+`mobile/package.json`.
 
-Emulator notes: the backend is `http://10.0.2.2:3000` (the emulator's own loopback is
-itself). Maestro flows live in `mobile/.maestro/`.
+`mobile/eas.json` currently defines **`preview` and `production` only**. There is no
+`development` profile, so nothing here produces a `developmentClient` build; adding one is
+what you want if you need native modules on device, and it is a one-time cost.
+
+For JS-only work you usually need neither: **Expo Go plus `npx expo start` loads the
+working tree directly**, which is enough to drive the real screens against a real backend.
+
+Emulator notes: the backend is reachable at `http://10.0.2.2:3000` (the emulator's own
+loopback is itself), or over an `adb reverse` tunnel if one is set up — check
+`adb reverse --list` before assuming which. Maestro flows live in `mobile/.maestro/`.
 
 ---
 
