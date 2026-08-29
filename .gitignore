@@ -58,8 +58,11 @@ docs/*.md
 !docs/API_CHANGES.md
 docs/*.txt
 
-# Local Claude context
-CLAUDE.md
+# Personal Claude context. CLAUDE.md itself is COMMITTED — it is the project's shared
+# standards, and the PR review reads it from the checkout, so ignoring it meant the
+# reviewer was told to follow rules it could not see. Machine-specific notes belong in
+# ~/.claude/CLAUDE.md or a CLAUDE.local.md, not here.
+CLAUDE.local.md
 .claude/
 
 # Playwright artifacts
