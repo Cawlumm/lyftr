@@ -80,10 +80,15 @@
 
   /* Alerts */
   .alert         { @apply flex gap-3 items-start rounded-lg p-3.5 text-sm border; }
-  .alert-error   { @apply alert bg-error-500/10   border-error-500/20   text-error-400; }
-  .alert-success { @apply alert bg-success-500/10 border-success-500/20 text-success-400; }
-  .alert-info    { @apply alert bg-brand-500/10   border-brand-500/20   text-brand-400; }
-  .alert-warning { @apply alert bg-warning-500/10 border-warning-500/20 text-warning-400; }
+  /* Text colour comes from --alert-* (emitted per theme by the addBase plugin from
+     the shared tokens), not from a fixed 400. The 400s are legible on the dark
+     surface these classes were written against and measure 2.4:1 (error) and 1.4:1
+     (warning) on the light one, below WCAG AA. packages/shared's alertContrast test
+     fails the build if any pairing regresses. */
+  .alert-error   { @apply alert bg-error-500/10   border-error-500/20   text-[color:var(--alert-error)]; }
+  .alert-success { @apply alert bg-success-500/10 border-success-500/20 text-[color:var(--alert-success)]; }
+  .alert-info    { @apply alert bg-brand-500/10   border-brand-500/20   text-[color:var(--alert-info)]; }
+  .alert-warning { @apply alert bg-warning-500/10 border-warning-500/20 text-[color:var(--alert-warning)]; }
 
   /* Nav */
   .nav-item {
