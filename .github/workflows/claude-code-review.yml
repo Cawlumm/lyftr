@@ -1,0 +1,62 @@
+name: Claude Code Review
+
+# Runs the same `code-review` skill that /code-review runs locally, but on every PR
+# rather than only when someone remembers to ask. Of the six slices split off #150 so far,
+# exactly one got an independent review — and it found a font regression that tsc, lint,
+# three unit suites and the whole of CI had passed.
+#
+# Not the managed Code Review product: that is Team/Enterprise only and bills $15-25 per
+# review as usage credits. This authenticates with a subscription token instead, so review
+# cost comes out of the plan's included usage.
+#
+# Findings are advisory. The action posts inline comments; nothing here gates the merge.
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+# Least privilege by default, raised only where a job needs it — the pattern oven-sh/bun
+# uses on its Claude workflows.
+permissions:
+  contents: read
+
+jobs:
+  review:
+    # Drafts are work in progress; reviewing them burns tokens on code that is about to
+    # change. The skill skips drafts itself, but not starting the runner is cheaper.
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # A rapid re-push should replace the running review, not queue a second one behind it.
+    concurrency:
+      group: claude-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+
+    permissions:
+      contents: read
+      pull-requests: write   # write, not read: the review posts inline comments
+      issues: read
+      id-token: write        # required for the action's GitHub App authentication
+
+    steps:
+      # Pinned by commit, not by tag: a tag can be moved to point at other code, and this
+      # step runs with a token in the environment.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          # Don't leave the token in .git/config for later steps to pick up.
+          persist-credentials: false
+
+      - uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          # Both lines below are load-bearing and easy to lose:
+          #   --comment      : without it the findings go only to the workflow run log
+          #   --allowedTools : the action starts the inline-comment MCP server only when
+          #                    --allowedTools names it, even though the skill's own
+          #                    frontmatter already declares the same tool
+          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment"'
