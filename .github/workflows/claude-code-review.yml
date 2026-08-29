@@ -44,7 +44,13 @@ jobs:
       contents: read
       pull-requests: write   # write, not read: the review posts inline comments
       issues: read
-      id-token: write        # required for the action's GitHub App authentication
+      id-token: write
+
+    env:
+      # `secrets` is not available in a job-level `if:`, but it is in `env:` — and a step
+      # `if:` can read env. This is the only way to make the step conditional on the
+      # secret existing.
+      CONFIGURED: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
 
     steps:
       # Pinned by commit, not by tag: a tag can be moved to point at other code, and this
@@ -55,9 +61,21 @@ jobs:
           # Don't leave the token in .git/config for later steps to pick up.
           persist-credentials: false
 
-      - uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
+      - name: Say what is missing, rather than failing on auth
+        if: env.CONFIGURED != 'true'
+        run: |
+          echo "::notice::Review skipped — CLAUDE_CODE_OAUTH_TOKEN is not set."
+          echo "To enable:  claude setup-token   then   gh secret set CLAUDE_CODE_OAUTH_TOKEN"
+
+      - if: env.CONFIGURED == 'true'
+        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Without this the action authenticates as the Claude GitHub App, which then has
+          # to be installed separately. The workflow's own token can post review comments
+          # given the pull-requests: write above, so passing it removes that second setup
+          # step entirely. Comments come from github-actions[bot] rather than claude[bot].
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
           plugins: "code-review@claude-code-plugins"
           prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
