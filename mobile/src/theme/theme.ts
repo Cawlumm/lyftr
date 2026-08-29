@@ -1,4 +1,4 @@
-import { accents, palette, surfaces, type SurfaceTokens } from '@lyftr/shared'
+import { accents, semanticInk, palette, surfaces, type SurfaceTokens } from '@lyftr/shared'
 
 // Light + dark palettes and brand tokens, imported from @lyftr/shared so the two apps
 // cannot drift. Web consumes the same values as CSS custom properties (emitted by the
@@ -27,3 +27,6 @@ export const brand = {
   // screen's other warningColor usages routing through brand/useTheme().
   warningText: accents.warningText,
 }
+
+// Re-exported so components import their theme from one place.
+export { semanticInk }
