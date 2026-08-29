@@ -203,6 +203,67 @@ describe('workoutSession hydrate (async storage adaptation)', () => {
     expect(s.gymPhase).toBe('overview')
   })
 
+  // Valid JSON of the WRONG SHAPE used to sail past the JSON.parse try/catch and kill
+  // the first consumer that walked it — a white screen on boot, still signed in, with
+  // no in-app way out (a user cannot clear their own localStorage). Each of these was
+  // reproduced against the running web app before the guard went in.
+  it.each([
+    ['a bare string', '"hello"'],
+    ['an array', '[1,2,3]'],
+    ['an object with no exercises', '{"name":"X"}'],
+    ['exercises explicitly null', '{"name":"X","exercises":null}'],
+    ['exercises holding non-objects', '{"name":"X","exercises":[1,2]}'],
+    ['an exercise with no sets', '{"name":"X","exercises":[{"exercise_id":1}]}'],
+    ['a nameless session', '{"exercises":[]}'],
+    ['the literal null', 'null'],
+  ])('hydrate() discards a session that is %s', async (_label, raw) => {
+    const { store } = setup({ [WORKOUT_SESSION_KEY]: raw })
+    await store().hydrate()
+    expect(store().session).toBeNull()
+    expect(store().isHydrated).toBe(true)
+  })
+
+  it('hydrate() keeps a well-shaped session with exercises and sets', async () => {
+    const session = {
+      name: 'Push A', started_at: '2026-07-01T10:00:00Z',
+      exercises: [{ exercise_id: 1, exercise: { id: 1, name: 'Bench' }, notes: '', sets: [] }],
+    }
+    const { store } = setup({ [WORKOUT_SESSION_KEY]: JSON.stringify(session) })
+    await store().hydrate()
+    expect(store().session?.exercises).toHaveLength(1)
+  })
+
+  it('hydrate() clears an unreadable session from storage so the next boot is clean', async () => {
+    const { store, storage } = setup({ [WORKOUT_SESSION_KEY]: '{"name":"X"}' })
+    await store().hydrate()
+    expect(await storage.get(WORKOUT_SESSION_KEY)).toBeNull()
+  })
+
+  it('hydrate() does not clear storage when there was nothing to read', async () => {
+    const { store, storage } = setup()
+    const removed: string[] = []
+    const realRemove = storage.remove.bind(storage)
+    storage.remove = async (k: string) => { removed.push(k); return realRemove(k) }
+    await store().hydrate()
+    expect(removed).not.toContain(WORKOUT_SESSION_KEY)
+  })
+
+  // Same class, on the gym UI blob: a bad phase drove an unrenderable screen and a
+  // non-integer index read undefined off the exercises array.
+  // Each bad field falls back on its own — an unreadable phase does not discard indices
+  // that were perfectly good, which is what makes this a fallback and not a reset.
+  it.each([
+    ['a bare string', '"hello"', 'overview', 0, 0],
+    ['an unknown phase', '{"phase":"nope","exIdx":2,"setIdx":1}', 'overview', 2, 1],
+    ['a non-integer index', '{"phase":"exercise","exIdx":1.5,"setIdx":-3}', 'exercise', 0, 0],
+  ])('hydrate() falls back on gym UI that is %s', async (_l, raw, phase, exIdx, setIdx) => {
+    const { store } = setup({ [GYM_UI_KEY]: raw })
+    await store().hydrate()
+    expect(store().gymPhase).toBe(phase)
+    expect(store().gymExIdx).toBe(exIdx)
+    expect(store().gymSetIdx).toBe(setIdx)
+  })
+
   it('hydrate() never resurrects rest-timer state', async () => {
     const { store } = setup({
       // Even if a rogue writer stuffed rest fields into the session blob, they are

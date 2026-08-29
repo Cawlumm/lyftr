@@ -16,7 +16,7 @@ import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, dayToLocalDate, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -148,7 +148,7 @@ export default function Dashboard() {
 
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
-    date: format(dayToLocalDate(workoutDay(w)), 'M/d'),
+    date: formatDay(workoutDay(w), 'M/d'),
     volume: displayVolume(calcVolume(w), settings.weight_unit),
     name: w.name,
   }))
@@ -215,7 +215,7 @@ export default function Dashboard() {
 
   // Weight sparkline
   const sparkData = [...weightLogs].reverse().map(l => ({
-    date: format(dayToLocalDate(entryDay(l)), 'M/d'),
+    date: formatDay(entryDay(l), 'M/d'),
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
@@ -494,7 +494,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
                   <p className="text-xs text-tx-muted mt-0.5">
-                    {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
+                    {formatDay(workoutDay(lastWorkout), 'MMM d')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} sets`}
                     {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}

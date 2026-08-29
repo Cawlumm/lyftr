@@ -9,7 +9,7 @@ import {
 import {
   Activity, AlertCircle, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, dayToLocalDate, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting } from '@lyftr/shared'
+import { activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -175,7 +175,7 @@ export default function Dashboard() {
   }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
-    date: format(dayToLocalDate(workoutDay(w)), 'M/d'),
+    date: formatDay(workoutDay(w), 'M/d'),
     volume: displayVolume(calcVolume(w), unit),
     name: w.name,
   }))
@@ -229,7 +229,7 @@ export default function Dashboard() {
   const fatPct = Math.min(100, (food.total_fat / settings.fat_target) * 100) || 0
 
   const sparkData = [...weightLogs].reverse().map((l) => ({
-    date: format(dayToLocalDate(entryDay(l)), 'M/d'),
+    date: formatDay(entryDay(l), 'M/d'),
     weight: displayWeight(l.weight, unit),
   }))
 
@@ -472,7 +472,7 @@ export default function Dashboard() {
                       <Label className="mb-1">Last workout</Label>
                       <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
                       <AppText variant="caption" color="muted" className="mt-0.5">
-                        {format(dayToLocalDate(workoutDay(lastWorkout)), 'MMM d')}
+                        {formatDay(workoutDay(lastWorkout), 'MMM d')}
                         {mins > 0 ? ` · ${mins} min` : ''}
                         {totalSets > 0 ? ` · ${totalSets} sets` : ''}
                         {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}

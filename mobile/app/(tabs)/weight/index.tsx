@@ -7,7 +7,7 @@ import {
   Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
 import {
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -290,7 +290,7 @@ export default function Weight() {
                     <AlertCircle size={16} color={brand.warningSoft} style={{ marginTop: 2 }} />
                     <View className="min-w-0 flex-1">
                       <Text className="font-sans-semibold text-sm text-warning-400">
-                        Already logged on {format(dayToLocalDate(entryDay(items[0])), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                        Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
                       </Text>
                       <View className="mt-2 flex-row gap-2">
                         <Pressable

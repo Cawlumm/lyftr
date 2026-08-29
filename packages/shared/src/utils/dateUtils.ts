@@ -1,3 +1,4 @@
+import { format } from 'date-fns'
 // The one place a calendar day is produced or read on the client.
 //
 // The model, which is the one Fitbit, Garmin, Strava and Health Connect all use: a
@@ -37,6 +38,13 @@ export const todayStr = (): string => {
  */
 export const instantToDay = (iso: string): string => {
   const d = new Date(iso)
+  // An unreadable instant has no day, and must not be given one that looks real.
+  // This used to build the string from NaN components and hand back "NaN-NaN-NaN",
+  // which is a plausible-looking key: it groups, it sorts, it compares unequal to
+  // every real day, so a row with a missing started_at quietly formed its own bucket
+  // instead of being recognised as unknown. '' is falsy, so callers that already
+  // guard (entryDay's `logged_on || ...`) fall through correctly.
+  if (Number.isNaN(d.getTime())) return ''
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
@@ -86,6 +94,12 @@ export const dayToLocalDate = (yyyyMmDd: string): Date => {
   const [y, m, d] = yyyyMmDd.split('-').map(Number)
   return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0)
 }
+// NOT total: given anything that is not a YYYY-MM-DD day it returns an Invalid Date,
+// and date-fns `format` throws RangeError on one rather than rendering a placeholder.
+// Every display site is the idiom `format(dayToLocalDate(x), pattern)`, so an unknown
+// day throws where it is drawn. That is contained by the route ErrorBoundary today; the
+// real repair is one guarded day-formatter shared by both apps, which needs date-fns in
+// @lyftr/shared and so is its own change.
 /**
  * The local calendar day `n` days before today.
  *
@@ -153,6 +167,36 @@ export const workoutDay = (w: { started_at: string; tz_offset_minutes?: number }
   if (w.tz_offset_minutes == null) return instantToDay(w.started_at)
   const shifted = new Date(new Date(w.started_at).getTime() + w.tz_offset_minutes * 60_000)
   return Number.isNaN(shifted.getTime()) ? instantToDay(w.started_at) : shifted.toISOString().slice(0, 10)
+}
+
+/** What a date reads as when we do not know it. Same mark `memberSince` already uses. */
+export const UNKNOWN_DAY = '—'
+
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * A calendar day, drawn. The single point of truth for turning a `YYYY-MM-DD` into text
+ * a person reads — the day equivalent of `formatNumber`, and the only place the idiom
+ * `format(dayToLocalDate(x), pattern)` should appear.
+ *
+ * It exists because that idiom has no safe outcome when the day is unknown, and both of
+ * its unsafe ones were observed in the running app. `dayToLocalDate` is not total: given
+ * "NaN-NaN-NaN" (what `instantToDay` used to build from an unreadable instant) it yields
+ * an Invalid Date and date-fns `format` throws RangeError, unmounting the whole route —
+ * one bad row in a list of ten took the page down. Given `''` it is worse than that: the
+ * components parse as 0, `new Date(0, -1, 1)` is a perfectly valid 1899, and the row
+ * renders "Jan 1, 1900" as though it were the day the workout happened.
+ *
+ * A day we cannot read has to read as unknown. Validating the day STRING rather than the
+ * resulting Date is what separates the two cases, since only one of them is NaN.
+ */
+export const formatDay = (day: string | null | undefined, pattern: string): string => {
+  if (!day || !DAY_RE.test(day)) return UNKNOWN_DAY
+  const d = dayToLocalDate(day)
+  // '2026-13-45' matches the shape but rolls over into another month; a day that does
+  // not survive the round trip was never a real one.
+  if (Number.isNaN(d.getTime()) || instantToDay(d.toISOString()) !== day) return UNKNOWN_DAY
+  return format(d, pattern)
 }
 
 const MONTH_NAMES = [

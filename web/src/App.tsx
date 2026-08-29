@@ -67,6 +67,11 @@ function App() {
             <Route path="/weight/:id" element={<WeightDetail />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/settings/password" element={<ChangePassword />} />
+            {/* Signed in, there was no catch-all at all — only the signed-OUT branch had
+                one — so any unknown path matched no route and React Router rendered
+                nothing: a white screen, still signed in, with no nav to click. A stale
+                bookmark or a mistyped URL was enough. Inside Layout so the nav survives. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" />} />

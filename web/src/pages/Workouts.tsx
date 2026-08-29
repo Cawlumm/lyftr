@@ -10,7 +10,7 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { types, workoutDay, dayToLocalDate, calcVolume } from '@lyftr/shared'
+import { types, workoutDay, calcVolume, formatDay } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
@@ -94,7 +94,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
-            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(dayToLocalDate(workoutDay(workout)), 'MMM d, yyyy')}</p>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDay(workoutDay(workout), 'MMM d, yyyy')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
               {durationMin > 0 && (
                 <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">

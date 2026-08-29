@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { format } from 'date-fns'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
@@ -162,7 +161,7 @@ export default function WeightDetail() {
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
                 <p className="text-sm text-tx-muted mt-1">
-                  {format(dayToLocalDate(entryDay(log)), 'EEEE, MMMM d, yyyy')}
+                  {formatDay(entryDay(log), 'EEEE, MMMM d, yyyy')}
                 </p>
                 {log.notes && (
                   <p className="text-sm text-tx-secondary mt-2 italic">"{log.notes}"</p>
@@ -246,7 +245,7 @@ export default function WeightDetail() {
             <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
             <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Delete Entry?</h3>
             <p className="text-sm text-tx-muted mb-5">
-              {format(dayToLocalDate(entryDay(log)), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
+              {formatDay(entryDay(log), 'MMMM d, yyyy')} · {displayWeight(log.weight, settings.weight_unit)} {wUnit} will be permanently deleted.
             </p>
             <div className="flex gap-3">
               <button
