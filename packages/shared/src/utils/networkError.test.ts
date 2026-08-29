@@ -119,18 +119,59 @@ describe('networkFailureMessage', () => {
   })
 
   it('tells a private-CA user how to install their certificate', () => {
-    const msg = networkFailureMessage(rnError('Trust anchor for certification path not found.'))
+    const msg = networkFailureMessage(rnError('Trust anchor for certification path not found.'), 'full')
     expect(msg).toMatch(/certificate/i)
     expect(msg).toMatch(/Encryption & credentials/)
   })
 
   it('appends the raw native reason when it matches nothing, rather than guessing', () => {
-    const msg = networkFailureMessage(rnError('brand new platform error'))
+    const msg = networkFailureMessage(rnError('brand new platform error'), 'full')
     expect(msg).toContain('brand new platform error')
   })
 
   // testEnvironment is 'node', so `document` is undefined — the native wording applies.
   it('omits the CORS hint when there is no document (native)', () => {
-    expect(networkFailureMessage({ message: 'Network Error', request: {} })).not.toMatch(/CORS/)
+    expect(networkFailureMessage({ message: 'Network Error', request: {} }, 'full')).not.toMatch(/CORS/)
+  })
+})
+
+// The same failure, read in two moments. Configuring a server, you want the fix and will
+// read four lines to get it. Mid-set with a Finish sheet open, you want to know whether to
+// tap again — and the certificate explanation is 313 characters, which is eight lines
+// inside that sheet, about something you cannot change until you are off the gym floor.
+describe('brief vs full', () => {
+  const cert = { request: { _response: 'Trust anchor for certification path not found' } }
+  const timedOut = { code: 'ECONNABORTED' }
+
+  it('defaults to brief, because most call sites are in-flow', () => {
+    expect(networkFailureMessage(cert)).toBe(networkFailureMessage(cert, 'brief'))
+  })
+
+  it('keeps every brief message short enough to sit in a sheet', () => {
+    for (const err of [cert, timedOut, { request: { _response: 'CLEARTEXT communication to 10.0.0.2 not permitted' } },
+                       { request: { _response: 'Hostname lyftr.lan not verified' } },
+                       { request: { _response: 'Failed to connect to /10.0.0.2:3000' } },
+                       { message: 'something we have never seen' }]) {
+      const msg = networkFailureMessage(err, 'brief')
+      expect(msg.length).toBeLessThanOrEqual(90)
+    }
+  })
+
+  it('still points somewhere when the fix is not "try again"', () => {
+    expect(networkFailureMessage(cert, 'brief')).toMatch(/Server settings/)
+  })
+
+  it('keeps the long explanation for the screen where it can be acted on', () => {
+    const full = networkFailureMessage(cert, 'full')
+    expect(full.length).toBeGreaterThan(200)
+    expect(full).toMatch(/reverse proxy/)
+  })
+
+  // In full it is the one thing that saves a self-hoster whose failure we did not classify.
+  // In a sheet it is a raw native string in the middle of a sentence.
+  it('carries the raw native reason only in full', () => {
+    const odd = { request: { _response: 'ENETUNREACH somewhere deep in okhttp' } }
+    expect(networkFailureMessage(odd, 'full')).toMatch(/ENETUNREACH/)
+    expect(networkFailureMessage(odd, 'brief')).not.toMatch(/ENETUNREACH/)
   })
 })

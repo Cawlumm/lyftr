@@ -47,7 +47,7 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
       } catch (err: any) {
         // Same message logic as the web login page: server-provided error if present,
         // else a status-aware hint (network/CORS, 5xx, misconfigured URL) via apiErrorMessage.
-        set({ error: apiErrorMessage(err, 'Invalid email or password.'), isLoading: false })
+        set({ error: apiErrorMessage(err, 'Invalid email or password.', 'full'), isLoading: false })
         throw err
       }
     },
@@ -61,7 +61,7 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
         await storage.set(STORAGE_KEYS.user, JSON.stringify(data.user))
         set({ user: data.user, isAuthenticated: true, isLoading: false })
       } catch (err: any) {
-        set({ error: apiErrorMessage(err, 'Registration failed.'), isLoading: false })
+        set({ error: apiErrorMessage(err, 'Registration failed.', 'full'), isLoading: false })
         throw err
       }
     },
