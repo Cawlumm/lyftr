@@ -251,6 +251,28 @@ jobs:
           echo "version output: $out"
           echo "$out" | grep -q 'smoke-9.9.9'
 
+  # The single check branch protection should require.
+  #
+  # Requiring the test jobs directly does not work here: every one of them is
+  # path-filtered, so a mobile-only PR SKIPS the Go job, and GitHub counts a skipped
+  # required check as not-passed. The PR would wait for a job that is never going to run.
+  #
+  # This job always runs and fails only if something upstream actually failed or was
+  # cancelled. Skipped is fine — it means the filter correctly decided that area was not
+  # touched. Add a new test job to `needs` and it is gated too, without touching settings.
+  gate:
+    name: CI gate
+    if: always()
+    needs: [changes, test, unit, mobile, e2e, version-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: |
+          echo "One or more required jobs did not pass:"
+          echo '${{ toJSON(needs) }}'
+          exit 1
+
   build-backend:
     name: Build & push backend image
     needs: [test, unit, e2e, version-smoke]

@@ -22,9 +22,17 @@ permissions:
 
 jobs:
   review:
-    # Drafts are work in progress; reviewing them burns tokens on code that is about to
-    # change. The skill skips drafts itself, but not starting the runner is cheaper.
-    if: github.event.pull_request.draft == false
+    # Two guards, both about not wasting a runner:
+    #   draft      - work in progress; the skill skips drafts itself, but not starting the
+    #                runner at all is cheaper.
+    #   same-repo  - this repo is public with 25 forks, and GitHub withholds secrets from
+    #                fork pull requests. Without this the job starts, finds an empty
+    #                CLAUDE_CODE_OAUTH_TOKEN and fails on auth, putting a red X on an
+    #                outside contributor's first PR for no reason. Skipping is honest:
+    #                a fork PR genuinely cannot be reviewed by this workflow.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
