@@ -38,14 +38,14 @@ backend/
   middleware/auth.go    — JWT validation middleware
   models/models.go      — all structs + request types
   routes/routes.go      — all routes, protected vs public
-  seed/exercises.go     — async exercise seeding from free-exercise-db
-  seed/users.go         — demo user seeding
+  stores/exercise.go    — exercise store, incl. free-exercise-db seeding
+  seed/users.go         — demo user seeding (see also seed/demo_data.go)
   utils/response.go     — utils.OK / utils.BadRequest helpers
 
 web/src/
   pages/                — one file per page/route
   services/api.ts       — all API calls (axios), typed
-  types/index.ts        — shared TypeScript types
+  (types come from @lyftr/shared, re-exported via services/api.ts)
   App.tsx               — React Router routes
 ```
 
@@ -238,8 +238,11 @@ answering 502 must not evict anyone.
 
 - SQLite FK: `workout_exercises` and `program_exercises` reference `exercises(id)` with no cascade. Never DELETE from exercises while user data exists.
 - Go 1.26 required — Dockerfile must use `golang:1.26-alpine`
-- Build command: `go build -ldflags="-s -w" -o lyftr-api .` (not `./...`)
-- Exercise seeding uses `sync/atomic.Bool` to prevent concurrent seeds
+- Build via `backend/build.sh`, which both Dockerfiles invoke — never `go build` by hand.
+  It is the single source of the version ldflag
+  (`-X …/config.buildVersion=${VERSION:-dev}`), and CI's `version-smoke` job asserts on
+  the value, so a binary built without it is one CI rejects. Note `.`, not `./...`:
+  package main spans several files.
 
 ---
 
@@ -300,7 +303,10 @@ working tree directly**, which is enough to drive the real screens against a rea
 
 Emulator notes: the backend is reachable at `http://10.0.2.2:3000` (the emulator's own
 loopback is itself), or over an `adb reverse` tunnel if one is set up — check
-`adb reverse --list` before assuming which. Maestro flows live in `mobile/.maestro/`.
+`adb reverse --list` before assuming which.
+
+Maestro flows are **not** in the repo: `mobile/.maestro/` is gitignored, so a fresh
+checkout has none and yours are yours alone.
 
 ---
 

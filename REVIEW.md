@@ -4,8 +4,8 @@ How the automated review on each PR should judge and report. Findings are adviso
 nothing here blocks a merge directly — but `main` requires review threads to be resolved,
 so an unresolved finding does hold a merge until someone answers it.
 
-**This file does not restate the project's standards.** Those live in `CLAUDE.md`, at the
-repository root and in subdirectories, and the review already reads them. Duplicating a
+**This file does not restate the project's standards.** Those live in `CLAUDE.md` at the
+repository root, and the review already reads it. Duplicating a
 rule here would create two copies to keep in step, and the copies would drift. This file
 is only about severity, volume, evidence, and what to leave alone.
 
