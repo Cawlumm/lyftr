@@ -253,7 +253,7 @@ answering 502 must not evict anyone.
 
 ---
 
-## Demo Credentials
+## Demo mode
 
 - Email: `demo@lyftr.local` / Password: `password123`
 - Pre-seeded: PPL program + 8 weeks of workouts
@@ -305,78 +305,6 @@ start` with no rebuild.
 
 Emulator notes: the backend is `http://10.0.2.2:3000` (the emulator's own loopback is
 itself). Maestro flows live in `mobile/.maestro/`.
-
----
-
-## Roadmap & Feature Specs
-
-### 1. Nutrition Page Polish (IN PROGRESS)
-`web/src/pages/Food.tsx` exists but needs:
-- Daily summary bar at top: calories ring + macro breakdown (protein/carbs/fat)
-- Meals accordion: Breakfast / Lunch / Dinner / Snacks — each collapsible, shows entries
-- Add food form: name, meal selector, calories, protein, carbs, fat, servings, serving size
-- Barcode field optional (future camera scan)
-- Targets pulled from `userAPI.getSettings()` → `calorie_target`, `protein_target`, etc.
-- API: `foodAPI.list(date)`, `foodAPI.log(payload)`, `foodAPI.delete(id)`, `foodAPI.stats(date)`
-
-### 2. Weight Tracking Page Polish (IN PROGRESS)
-`web/src/pages/Weight.tsx` exists but needs:
-- Recharts LineChart: bodyweight over last 30/90 days (toggle)
-- Stats strip: current weight, 7-day avg, total change since first log
-- Log weight form: weight input + optional notes + date picker
-- Unit-aware: display kg if `weight_unit === 'kg'`, convert from lbs storage
-- API: `weightAPI.list({ limit })`, `weightAPI.log(payload)`, `weightAPI.delete(id)`
-
-### 3. Dashboard Redesign (DONE)
-Shipped on both web (`web/src/pages/Dashboard.tsx`) and mobile (`mobile/app/(tabs)/index.tsx` +
-`mobile/src/components/dashboard/`). Key points (for reference):
-- KPI strip: this week workouts | today calories | today protein
-- Volume trend BarChart (last 7 workouts, recharts)
-- Mon–Sun dot strip for current week
-- Last workout card with exercise rows + best set chips
-- Nutrition card compact view
-- Weight sparkline (only if ≥2 entries)
-- Empty states for each section — no crash on fresh account
-
-### 4. PWA / Installable (BUILT, UNMERGED)
-Implemented on `feature/pwa-installable` (33f5369, pushed, no PR) — `vite-plugin-pwa`,
-service worker, icons, splash screens, offline page. **Five weeks stale and it does not
-merge cleanly:** six conflicts, two of them structural — `web/package-lock.json` was
-deleted on main when the monorepo moved to one root lockfile, and `web/src/stores/auth.ts`
-moved into `@lyftr/shared`. It also still ships `apple-mobile-web-app-title` as "Lyfter",
-which would put the typo on people's home screens. Reviving it is its own PR.
-
-### 5. Personal Records (PR) Tracking (DONE)
-Shipped. `GET /api/v1/exercises/:id/prs` and `/history` exist in `routes/routes.go`, the
-"Your Best" card renders on `ExerciseDetail.tsx`, and it is covered by
-`controllers/exercises_test.go` (`TestGetExercisePRs_*`) plus e2e in `exercises.spec.ts`.
-
-### 5b. Auto-progression suggestions (DONE)
-Also shipped (#40) — `POST /api/v1/programs/:id/suggestions/resolve` accepts or dismisses
-staged next-session targets computed from history. Worth knowing: PRs and progression are
-the two features Hevy and Strong charge for, so anything describing Lyftr should say it has
-them. This section was marked PLANNED long after both landed, and that stale line has
-already caused one round of published copy to understate the project.
-
-### 6. Workout Templates from History (PLANNED)
-- "Repeat this workout" button on WorkoutDetail page
-- Pre-fills AddWorkout form with same exercises + last used weights
-- User can adjust before saving
-
-### 8. Social / Share (FUTURE)
-- Share workout summary as image (html-to-image or canvas)
-- Public profile URL: `/u/:username` — shows recent workouts, PRs (opt-in)
-
-### 9. iOS Native App (FUTURE)
-- Swift + SwiftUI
-- Same API, JWT auth
-- Offline mode with local SQLite sync
-- Not starting until web is fully polished
-
-### 10. Hosted Option (FUTURE)
-- Single-tenant: one DB per user on managed infra
-- Stripe for billing
-- Same codebase, env flag `HOSTED=true` disables self-host features
 
 ---
 
@@ -480,9 +408,8 @@ ignored.
 ## Working without a specific brief
 
 For anyone — contributor or agent — picking up work with no ticket in hand:
-1. Check the roadmap above — work top-to-bottom on PLANNED items. Treat its statuses as
-   indicative: they have gone stale before, so confirm against the code before relying on
-   one.
+1. Work from the issue tracker, not from this file. Priorities and status live where they
+   can be closed; a list here goes stale silently and has done before.
 2. Follow conventions exactly — no new patterns without reason
 3. Mobile layout always primary, desktop secondary
 4. Run through empty state + null guard checklist before marking done
