@@ -75,24 +75,50 @@ describe('ExercisePicker', () => {
 
   // A slow earlier response must not overwrite a newer one. Without a sequence
   // guard the list ends up showing results for a query the user has moved past.
+  //
+  // Both requests are searches, spaced past the debounce, rather than relying on
+  // the opening fetch: a keystroke that lands before the mount timer fires now
+  // cancels it, so the opening request is not reliably in flight to race with.
   it('ignores a stale response that arrives after a newer one', async () => {
     let releaseFirst: (v: types.Exercise[]) => void = () => {}
     listMock
+      .mockImplementationOnce(() => Promise.resolve(fullPage('Unfiltered')))
       .mockImplementationOnce(() => new Promise(resolve => { releaseFirst = resolve }))
       .mockImplementation(() => Promise.resolve([exercise(2, 'Front Squat')]))
 
     render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
-    fireEvent.change(screen.getByPlaceholderText(/search exercises/i), { target: { value: 'squat' } })
+    const box = screen.getByPlaceholderText(/search exercises/i)
 
+    // First search: fires, then hangs.
+    fireEvent.change(box, { target: { value: 'squa' } })
+    await waitFor(() => expect(listMock).toHaveBeenCalledTimes(2))
+
+    // Second search, after the debounce window, resolves while the first is open.
+    fireEvent.change(box, { target: { value: 'squat' } })
     expect(await screen.findByText('Front Squat')).toBeTruthy()
 
-    // The initial unfiltered page lands late; it must not replace the search results.
-    releaseFirst([exercise(1, 'Stale Unfiltered Row')])
+    // The stale first search lands late and must not replace the newer results.
+    releaseFirst([exercise(1, 'Stale Row')])
 
     await waitFor(() => {
-      expect(screen.queryByText('Stale Unfiltered Row')).toBeNull()
+      expect(screen.queryByText('Stale Row')).toBeNull()
     })
     expect(screen.getByText('Front Squat')).toBeTruthy()
+  })
+
+  // Opening the picker used to fetch page 1 twice: an initial load effect and a
+  // debounced query effect both fired on mount, and the debounce only staggered
+  // them. Cheap to reintroduce, invisible without a count.
+  it('fetches the first page exactly once on open', async () => {
+    listMock.mockResolvedValue(fullPage('Exercise'))
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+
+    await waitFor(() => expect(listMock).toHaveBeenCalled())
+    // Let the debounce window pass, so a second mount-time load would land.
+    await new Promise(r => setTimeout(r, 400))
+
+    const firstPageCalls = listMock.mock.calls.filter(([params]) => (params?.page ?? 1) === 1)
+    expect(firstPageCalls).toHaveLength(1)
   })
 
   it('asks the server for each page rather than filtering locally', async () => {

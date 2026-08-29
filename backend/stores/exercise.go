@@ -321,9 +321,10 @@ func (s *ExerciseStore) CachedCount() (int, error) { return s.Count() }
 // upstream without importing the catalog. New exercises arrive the same way every
 // other row did — the first time someone's search returns one.
 //
-// It reads the bulk export and intersects locally rather than fetching each row
-// by id, because oedb has no batch-by-ids endpoint: refreshing 873 rows one at a
-// time would be 873 requests against a 60/minute limit, or about a quarter hour.
+// It asks for exactly the rows it holds, in batches of a hundred. This used to
+// read the whole export and intersect locally, because oedb had no way to fetch
+// a named set — so refreshing thirty exercises cost a 300 KB response, and the
+// only alternative was one request per row against a per-minute limit.
 func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
@@ -337,38 +338,31 @@ func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	items, err := s.catalog.Export(ctx)
+	items, err := s.catalog.ListByIDs(ctx, held)
 	if err != nil {
 		return 0, err
 	}
 
-	keep := items[:0]
-	for _, it := range items {
-		if held[it.ID] {
-			keep = append(keep, it)
-		}
-	}
-
-	out, err := s.Materialize(keep, s.catalog.BaseURL())
+	out, err := s.Materialize(items, s.catalog.BaseURL())
 	if err != nil {
 		return 0, err
 	}
 	return len(out), nil
 }
 
-func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
+func (s *ExerciseStore) cachedOedbIDs() ([]string, error) {
 	rows, err := s.db.Query(`SELECT oedb_id FROM exercises WHERE oedb_id IS NOT NULL AND oedb_id != ''`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	held := map[string]bool{}
+	var held []string
 	for rows.Next() {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		held[id] = true
+		held = append(held, id)
 	}
 	return held, rows.Err()
 }
