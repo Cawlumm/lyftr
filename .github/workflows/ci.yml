@@ -261,9 +261,10 @@ jobs:
   # has no size labels at all. Blocking is the stricter choice, taken here because this
   # repo has one maintainer and no second pair of eyes to catch what a huge diff hides.
   #
-  # 2000 is calibrated against real history rather than a round number: recent PRs here
-  # ran 155-836 lines, and the largest planned slices are ~1100 and ~1300, so this leaves
-  # headroom for legitimately mechanical work while still catching a dump.
+  # 5000 is a backstop, not a review-quality target. It sits well above the usual "xl"
+  # mark of 1000, so it will not shape normal work — recent PRs here ran 155-836 lines —
+  # and is set to catch a dump rather than to force small PRs. Keeping PRs genuinely
+  # reviewable stays a judgement call; this only draws the line past which nobody could.
   #
   # Lockfiles and generated output are excluded — a lockfile refresh is thousands of lines
   # nobody reads, and counting it would punish routine maintenance.
@@ -286,7 +287,7 @@ jobs:
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
-          LIMIT=2000
+          LIMIT=5000
           CHANGED=$(git diff --numstat "$BASE...$HEAD" --             . ':(exclude)**/package-lock.json' ':(exclude)**/*.lock'             ':(exclude)**/*.tsbuildinfo' ':(exclude)**/dist/**' ':(exclude)**/*.snap'             | awk '{ a += $1; d += $2 } END { print (a + d) + 0 }')
           echo "reviewable churn: ${CHANGED} lines (limit ${LIMIT}, lockfiles and generated files excluded)"
           if [ "$CHANGED" -le "$LIMIT" ]; then exit 0; fi

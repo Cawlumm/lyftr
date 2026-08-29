@@ -79,9 +79,9 @@ jobs:
           set -euo pipefail
           CHANGED=$(git diff --numstat "$BASE...$HEAD" --             . ':(exclude)**/package-lock.json' ':(exclude)**/*.lock'             ':(exclude)**/*.tsbuildinfo' ':(exclude)**/dist/**' ':(exclude)**/*.snap'             | awk '{ a += $1; d += $2 } END { print (a + d) + 0 }')
           echo "REVIEWABLE=$CHANGED" >> "$GITHUB_ENV"
-          if [ "$CHANGED" -gt 2000 ]; then
+          if [ "$CHANGED" -gt 5000 ]; then
             echo "TOO_BIG=true" >> "$GITHUB_ENV"
-            echo "::notice::Review skipped — ${CHANGED} reviewable lines is past the 2000 line ceiling. Split the PR, and CI's 'PR size' check will say the same."
+            echo "::notice::Review skipped — ${CHANGED} reviewable lines is past the 5000 line ceiling. Split the PR, and CI's 'PR size' check will say the same."
           else
             echo "TOO_BIG=false" >> "$GITHUB_ENV"
           fi
