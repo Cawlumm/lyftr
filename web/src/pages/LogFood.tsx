@@ -6,7 +6,8 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, apiErrorMessage, findSavedFood } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
@@ -138,8 +139,6 @@ export default function LogFood() {
   const [servings, setServings] = useState(1)
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Derived from the list rather than tracked, so a star clicked on any tab is reflected
   // everywhere the same food appears — including the detail view.
@@ -201,6 +200,8 @@ export default function LogFood() {
 
   const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [favoriteError, setFavoriteError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [editRetry, setEditRetry] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -213,8 +214,8 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(() => navigate('/food', { replace: true }))
-  }, [editId, navigate])
+    }).catch(err => setEditError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+  }, [editId, navigate, editRetry])
 
   useEffect(() => {
     foodAPI.list(todayStr()).then(logs => {
@@ -273,26 +274,23 @@ export default function LogFood() {
     }
   }
 
+  const save = useAsyncAction(async (item: types.FoodSearchResult) => {
+        const payload = {
+          ...scaleServing(item, servings),
+          meal,
+          logged_at: dayToInstant(date),
+        }
+        if (editId) {
+          await foodAPI.update(editId, payload)
+        } else {
+          await foodAPI.log(payload)
+        }
+        navigate('/food', { replace: true })
+  }, 'Failed to save')
+
   const handleLog = async () => {
-    if (!selected || saving) return
-    setSaving(true)
-    setSaveError(null)
-    try {
-      const payload = {
-        ...scaleServing(selected, servings),
-        meal,
-        logged_at: dayToInstant(date),
-      }
-      if (editId) {
-        await foodAPI.update(editId, payload)
-      } else {
-        await foodAPI.log(payload)
-      }
-      navigate('/food', { replace: true })
-    } catch (err: any) {
-      setSaveError(err?.response?.data?.error || 'Failed to save')
-      setSaving(false)
-    }
+    if (!selected || save.busy) return
+    void save.run(selected)
   }
 
   if (phase === 'scan') {
@@ -300,6 +298,20 @@ export default function LogFood() {
       <BarcodeScanner
         onResult={handleBarcodeResult}
         onClose={() => setPhase('search')}
+      />
+    )
+  }
+
+  // The route exists to edit ONE entry; if that entry never arrived there is nothing
+  // to show but the search screen, which answers a question the user did not ask.
+  if (editId && editError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load this entry"
+        message={editError}
+        onRetry={() => { setEditError(null); setEditRetry(k => k + 1) }}
+        secondary={<button onClick={() => navigate('/food')} className="btn-secondary btn-sm">Back to food</button>}
       />
     )
   }
@@ -358,6 +370,15 @@ export default function LogFood() {
           above, so a failure has to be visible whichever one the user pressed. Sitting
           inside the search phase meant a failed star on the detail view said nothing at
           all and simply snapped back to unfilled. */}
+      {/* An entry we were asked to edit but could not load. This used to redirect to
+          /food, so a dropped connection silently threw away the edit the user opened. */}
+      {editError && (
+        <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
+          <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
+          <p className="text-xs text-error-400">{editError}</p>
+        </div>
+      )}
+
       {favoriteError && (
         <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
           <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
@@ -525,10 +546,10 @@ export default function LogFood() {
       {/* Detail phase */}
       {phase === 'detail' && selected && (
         <div className="space-y-4 pb-32">
-          {saveError && (
+          {save.error && (
             <div className="alert-error">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{saveError}</span>
+              <span>{save.error}</span>
             </div>
           )}
 
@@ -558,7 +579,11 @@ export default function LogFood() {
                   </div>
                   {selected.serving_size && (
                     <p className="text-xs text-tx-muted mt-1">
-                      per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}
+                      {/* The label comes from OpenFoodFacts, which is free text — and rows
+                          logged before the backend stopped prefixing it still read "per
+                          100g". Supplying a second "per" gave "per per 100g". */}
+                      per {servings === 1 ? '' : `${servings} × `}
+                      {selected.serving_size.replace(/^per\s+/i, '')}
                     </p>
                   )}
                 </div>
@@ -665,10 +690,10 @@ export default function LogFood() {
         <div className="fixed bottom-0 inset-x-0 p-4 bg-surface-base/95 backdrop-blur-sm border-t border-surface-border safe-area-bottom">
           <button
             onClick={handleLog}
-            disabled={saving}
+            disabled={save.busy}
             className="btn-primary btn-lg w-full"
           >
-            {saving ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
+            {save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
           </button>
         </div>
       )}

@@ -6,9 +6,10 @@ import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
+import { ListError } from '../components/ui'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { types } from '@lyftr/shared'
+import { useAsyncAction, types } from '@lyftr/shared'
 
 import {
   todaysDay, dayLabel, isDayStartable, programExerciseCount, programSetCount, sessionNameForDay,
@@ -56,18 +57,14 @@ function ProgramCard({
     navigate('/workout/active')
   }
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await programAPI.delete(program.id)
-      onDelete(program.id)
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the card quietly came
+  // back and the user was left guessing whether the tap had registered. The confirm
+  // stays up now and says why, which is the same rule the sheets follow.
+  const remove = useAsyncAction(async () => {
+    await programAPI.delete(program.id)
+    onDelete(program.id)
+  }, 'Failed to delete program')
 
   if (confirming) {
     return (
@@ -80,6 +77,7 @@ function ProgramCard({
             <div>
               <p className="text-sm font-semibold text-tx-primary">Delete "{program.name}"?</p>
               <p className="text-xs text-tx-muted">This cannot be undone</p>
+              {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -90,12 +88,12 @@ function ProgramCard({
               Cancel
             </button>
             <button
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={() => { void remove.run() }}
+              disabled={remove.busy}
               className="px-3 py-1.5 text-xs bg-error-500 hover:bg-error-600 disabled:opacity-50 text-white rounded-lg transition-colors font-medium flex items-center gap-1"
             >
               <Trash2 className="w-3 h-3" />
-              {deleting ? 'Deleting…' : 'Delete'}
+              {remove.busy ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </div>
@@ -249,7 +247,10 @@ export default function Programs() {
     return () => clearTimeout(t)
   }, [search])
 
-  const { items: programs, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Program>({
+  const {
+    items: programs, sentinelRef, hasMore, loading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.Program>({
     fetcher: (offset, limit) => programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     deps: [debouncedSearch],
   })
@@ -297,6 +298,11 @@ export default function Programs() {
 
       <div className="space-y-2">
         {programs.length === 0 && !loading ? (
+          // A failed fetch leaves the list empty too, and "No programs found · Create a
+          // program to get started" is a lie told to someone who has six.
+          listError ? (
+            <ListError subject="your programs" message={listError} onRetry={retryList} />
+          ) : (
           <div className="empty-state">
             <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
               <BookOpen className="w-6 h-6 text-tx-muted" />
@@ -304,6 +310,7 @@ export default function Programs() {
             <p className="text-sm font-medium text-tx-primary mb-1">No programs found</p>
             <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Create a program to get started'}</p>
           </div>
+          )
         ) : (
           <>
             {programs.map(p => (
@@ -315,6 +322,7 @@ export default function Programs() {
               />
             ))}
             <div ref={sentinelRef} />
+            {listError && <ListError subject="your programs" message={listError} onRetry={retryList} />}
             {hasMore && loading && (
               <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
             )}

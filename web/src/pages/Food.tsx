@@ -13,8 +13,10 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
-import { foodAPI, userAPI } from '../services/api'
-import { todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
+import { foodAPI } from '../services/api'
+import { useSettingsStore } from '../stores/settings'
+import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -70,9 +72,16 @@ export default function Food() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [logs, setLogs] = useState<types.FoodLog[]>([])
   const [stats, setStats] = useState<types.DailyStats | null>(null)
-  const [settings, setSettings] = useState<types.UserSettings | null>(null)
+  // From the store, not a page-local fetch: this page carried a fourth copy of the
+  // fallback settings literal, invisible to the store's loadFailed flag. The store
+  // fetch no-ops when loaded and retries when the last read fell back.
+  const { settings, fetch: fetchSettings } = useSettingsStore()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Separate from `error`, which reports a failed action (a delete) while the day's
+  // data is still on screen. This one means the day itself never arrived, so there is
+  // no ring, no total and no meal list worth drawing.
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<types.FoodHistoryPoint[]>([])
@@ -88,32 +97,27 @@ export default function Food() {
     setLogs([])
     setStats(null)
     setError(null)
+    setLoadError(null)
     try {
       const defaultStats: types.DailyStats = {
         date, total_calories: 0, total_protein: 0, total_carbs: 0,
         total_fat: 0, total_fiber: 0, workout_count: 0,
       }
-      const [logData, statsData, settingsData] = await Promise.all([
+      const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
         foodAPI.stats(date).catch(() => defaultStats),
-        settings
-          ? Promise.resolve(settings)
-          : userAPI.getSettings().catch(() => ({
-              user_id: 0, weight_unit: 'lbs' as const,
-              calorie_target: 2000, protein_target: 150, carb_target: 250, fat_target: 65,
-            })),
       ])
       setLogs(logData || [])
       setStats(statsData)
-      if (!settings) setSettings(settingsData as types.UserSettings)
     } catch (err: any) {
-      setError(err.message || 'Failed to load food data')
+      setLoadError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
       hasLoadedRef.current = true
       setLoading(false)
     }
-  }, [settings])
+  }, [])
 
+  useEffect(() => { void fetchSettings() }, [fetchSettings])
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
 
   useEffect(() => {
@@ -136,14 +140,27 @@ export default function Food() {
       setLogs(prev => prev.filter(l => l.id !== id))
       setDeleteConfirmId(null)
       foodAPI.stats(selectedDate).then(setStats).catch(() => {})
-    } catch {
-      setError('Failed to delete entry')
+    } catch (err) {
+      setError(apiErrorMessage(err, "Couldn't delete that entry."))
     } finally {
       setDeletingId(null)
     }
   }
 
   if (loading && !hasLoadedRef.current) return <Loading />
+
+  // Rings at 0 kcal and four empty meal sections say "you have eaten nothing today".
+  // That is a different sentence from "we could not ask", and only one of them is true.
+  if (loadError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load your food log"
+        message={loadError}
+        onRetry={() => loadDay(selectedDate)}
+      />
+    )
+  }
 
   const s = stats
   const totalCals = s?.total_calories ?? 0

@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   CheckCircle2, Plus, X, Dumbbell, Flag, ChevronRight, ChevronLeft, Play,
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import { types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
+import { useAsyncAction, types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -16,7 +15,7 @@ import RestTimerBanner from '../components/RestTimerBanner'
 import { workoutAPI } from '../services/api'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import DiscardConfirm from '../components/DiscardConfirm'
+import { ConfirmSheet } from '../components/ui'
 import { displayWeight, displayToLbs } from '../stores/settings'
 
 function buildBodyData(exercise: types.Exercise): IExerciseData[] {
@@ -75,8 +74,6 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState('')
 
   const setPhase = (p: typeof phase) => setGymState(p, activeIdx, activeSetIdx)
   const onSetActiveIdx = (i: number) => setGymState(phase, i, 0)
@@ -95,24 +92,19 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     prevLenRef.current = exerciseCount
   }, [exerciseCount])
 
+  // This used to set the message and then dismiss the sheet that displays it, so the
+  // explanation was rendered nowhere and a failed finish looked like a dead button.
+  // The sheet stays open now; the session is intact and the retry is one tap away.
+  const finish = useAsyncAction(async () => {
+    const saved = await workoutAPI.create(buildPayload())
+    cancelSession()
+    minimizeGym()
+    // Surface the routine auto-progression as a toast on the workouts list (#40).
+    navigate('/workouts', saved?.progression ? { state: { progression: saved.progression } } : undefined)
+  }, 'Failed to save workout')
+
   if (!session) return null
 
-  const handleFinish = async () => {
-    setSaving(true)
-    setSaveError('')
-    try {
-      const payload = buildPayload()
-      const saved = await workoutAPI.create(payload)
-      cancelSession()
-      minimizeGym()
-      // Surface the routine auto-progression as a toast on the workouts list (#40).
-      navigate('/workouts', saved?.progression ? { state: { progression: saved.progression } } : undefined)
-    } catch (err: any) {
-      setSaveError(err.response?.data?.error || 'Failed to save workout')
-      setSaving(false)
-      setConfirmFinish(false)
-    }
-  }
 
   const handleMinimize = () => {
     minimizeGym()
@@ -186,6 +178,38 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
       </div>
     )
   }
+
+  // The two confirms, declared once. Each phase below returns its own tree, and all
+  // three ended with a byte-identical copy of this pair — nothing in it varies by
+  // phase, so it was three places to forget the same change.
+  const confirms = (
+    <>
+      <ConfirmSheet
+        open={confirmFinish}
+        icon={Flag}
+        title="Finish Workout?"
+        message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
+        confirmLabel="Finish"
+        busyLabel="Saving…"
+        cancelLabel="Keep Going"
+        busy={finish.busy}
+        error={finish.error}
+        onConfirm={() => { void finish.run() }}
+        onCancel={() => { setConfirmFinish(false); finish.reset() }}
+      />
+      <ConfirmSheet
+        open={confirmCancel}
+        icon={Trash2}
+        destructive
+        title="Discard workout?"
+        message="This ends the workout without saving — all progress is lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Going"
+        onConfirm={() => { cancelSession(); handleMinimize() }}
+        onCancel={() => setConfirmCancel(false)}
+      />
+    </>
+  )
 
   // ── Overview ──────────────────────────────────────────────────────────
   if (phase === 'overview') {
@@ -287,24 +311,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           )}
         </div>
 
-        {confirmFinish && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Finish Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">{completedSets} of {totalSets} sets completed. Workout will be saved.</p>
-              {saveError && <p className="text-xs text-error-400 mb-3">{saveError}</p>}
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmFinish(false)} disabled={saving} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 disabled:opacity-50 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={handleFinish} disabled={saving} className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Flag className="w-3.5 h-3.5" />{saving ? 'Saving…' : 'Finish'}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
+        {confirms}
       </div>
     )
   }
@@ -461,24 +468,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </button>
         </div>
 
-        {confirmFinish && createPortal(
-          <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-            <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-              <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-              <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Finish Workout?</h3>
-              <p className="text-sm text-tx-muted mb-5">{completedSets} of {totalSets} sets completed. Workout will be saved.</p>
-              {saveError && <p className="text-xs text-error-400 mb-3">{saveError}</p>}
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmFinish(false)} disabled={saving} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 disabled:opacity-50 text-tx-secondary rounded-xl transition-colors font-medium text-sm">Keep Going</button>
-                <button onClick={handleFinish} disabled={saving} className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                  <Flag className="w-3.5 h-3.5" />{saving ? 'Saving…' : 'Finish'}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-        <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
+        {confirms}
       </div>
     )
   }
@@ -744,30 +734,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           content up instead of covering it. Renders null when no rest is active. */}
       <RestTimerBanner docked />
 
-      {/* ── Finish confirm ── */}
-      {confirmFinish && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Finish Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">{completedSets} of {totalSets} sets completed. Workout will be saved.</p>
-            {saveError && <p className="text-xs text-error-400 mb-3">{saveError}</p>}
-            <div className="flex gap-3">
-              <button onClick={() => setConfirmFinish(false)} disabled={saving} className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 disabled:opacity-50 text-tx-secondary rounded-xl transition-colors font-medium text-sm">
-                Keep Going
-              </button>
-              <button onClick={handleFinish} disabled={saving} className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5">
-                <Flag className="w-3.5 h-3.5" />
-                {saving ? 'Saving…' : 'Finish'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ── Cancel confirm ── */}
-      <DiscardConfirm open={confirmCancel} onKeep={() => setConfirmCancel(false)} onDiscard={() => { cancelSession(); handleMinimize() }} />
+      {confirms}
     </div>
   )
 }
