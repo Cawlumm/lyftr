@@ -9,9 +9,9 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { ListError } from '../components/ui'
+import { ErrorState, ListError } from '../components/ui'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 
@@ -224,17 +224,36 @@ export default function Weight() {
   // Chart data — re-fetched when period changes
   const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
 
+  // Both of these used to swallow their failure. Nothing recorded it, so the aggregates
+  // below fell back to 0 and the page rendered three measurements it had never received.
+  const [chartError, setChartError] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+
   useEffect(() => {
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
     weightAPI.list({ limit: 1000, from })
-      .then(data => setChartLogs(data || []))
-      .catch(() => { /* chart keeps the previous series rather than blanking on a failed refetch */ })
-  }, [period])
+      // chartLogs is deliberately left alone on failure: a failed refetch keeps the
+      // series already on screen rather than blanking a chart that was working.
+      .then(data => { setChartLogs(data || []); setChartError(null) })
+      .catch(err => setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")))
+  }, [period, retryKey])
 
   useEffect(() => {
-    weightAPI.stats().then(setStats).catch(() => {})
-  }, [])
+    weightAPI.stats()
+      .then(data => { setStats(data); setStatsError(null) })
+      .catch(err => setStatsError(apiErrorMessage(err, "Couldn't load your weight stats.")))
+  }, [retryKey])
+
+  // One control puts all three reads back, so a reader never has to work out which of
+  // them failed to know what to press.
+  const retryAll = () => {
+    setChartError(null)
+    setStatsError(null)
+    setRetryKey(k => k + 1)
+    retryList()
+  }
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
@@ -321,6 +340,13 @@ export default function Weight() {
   const maxLbs = useServerAggregate
     ? (stats!.max ?? 0)
     : (periodValues.length > 0 ? Math.max(...periodValues) : 0)
+
+  // A number we never received is not zero, and neither is the average of nothing. With
+  // no values to aggregate the tiles read "—" whatever the reason: an outage otherwise
+  // renders "0 lb" in the same type as a real measurement, and a new account is told its
+  // lowest ever weight was zero. Which of the two it is, the hero and the chart say.
+  const loadFailed = chartError != null || statsError != null || listError != null
+  const aggregatesUnknown = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
 
   const current = displayWeight(currentLbs, settings.weight_unit)
   const change = displayWeight(changeLbs, settings.weight_unit)
@@ -454,7 +480,17 @@ export default function Weight() {
 
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
-        {items.length === 0 ? (
+        {items.length === 0 && loadFailed ? (
+          // Empty and unreachable look identical from here, so the empty copy cannot be
+          // the default: it told someone with years of entries that they had never
+          // weighed themselves, and invited them to fix it against a server that was down.
+          <ErrorState
+            size="section"
+            title="Couldn't load your weight"
+            message={listError ?? chartError ?? statsError ?? ''}
+            onRetry={retryAll}
+          />
+        ) : items.length === 0 ? (
           <div className="text-center py-2">
             <p className="stat-label mb-1">Current Weight</p>
             <p className="text-tx-muted text-sm">The scale doesn't know you exist yet. Fix that.</p>
@@ -494,8 +530,8 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            <span className="stat-value text-xl">{Math.round(s.value)}</span>
-            <span className="text-xs text-tx-muted ml-1">{wUnit}</span>
+            <span className="stat-value text-xl">{aggregatesUnknown ? '—' : Math.round(s.value)}</span>
+            {!aggregatesUnknown && <span className="text-xs text-tx-muted ml-1">{wUnit}</span>}
           </div>
         ))}
       </div>
@@ -507,7 +543,9 @@ export default function Weight() {
           <PeriodSelector options={PERIODS} value={period} onChange={setPeriod} />
         </div>
 
-        {chartPoints.length === 0 ? (
+        {chartPoints.length === 0 && chartError ? (
+          <ErrorState size="section" title="Couldn't load your trend" message={chartError} onRetry={retryAll} />
+        ) : chartPoints.length === 0 ? (
           <div className="flex items-center justify-center h-44 text-tx-muted text-sm">
             No data for this period
           </div>
