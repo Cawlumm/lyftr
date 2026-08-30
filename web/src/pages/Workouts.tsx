@@ -248,11 +248,15 @@ export default function Workouts() {
       {!listError && (
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: workouts.length.toString(), unit: 'logged' },
+          // One page of an infinite list, so this is what has loaded, not how many exist:
+          // with more pages outstanding it is a lower bound and says so, rather than
+          // reporting a page size as a training history.
+          { label: 'Total', value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: 'logged' },
           // The month the workout was logged in, not the month its UTC instant lands in —
           // a session near a month boundary belongs to the month the lifter trained in.
           { label: 'This Month', value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: 'sessions' },
-          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min' },
+          // The mean of no sessions is not zero minutes.
+          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: 'min' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">

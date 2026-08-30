@@ -257,6 +257,20 @@ export default function Programs() {
 
   if (initialLoading) return <Loading />
 
+  // Three separate claims these tiles used to make without having the numbers.
+  //
+  // `programs` is one page of an infinite list, so its length is what has loaded, not how
+  // many exist: with 25 programs on the server the Total tile read "20 programs" on a
+  // perfectly healthy connection. While more pages remain it is a lower bound, and says so.
+  //
+  // A failed read leaves the list empty too, and 0 then means "we never heard back"
+  // rather than "you have none" — indistinguishable from the empty account below it.
+  const countUnknown = programs.length === 0 && listError != null
+  const totalLabel = countUnknown ? '—' : hasMore ? `${programs.length}+` : programs.length.toString()
+  const avgLabel = countUnknown || programs.length === 0
+    ? '—'
+    : Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length).toString()
+
   return (
     <div className="space-y-5 animate-slide-up">
       <PageHeader
@@ -271,8 +285,8 @@ export default function Programs() {
 
       <div className="grid grid-cols-2 gap-3">
         {[
-          { label: 'Total', value: programs.length.toString(), unit: 'programs', icon: BookOpen },
-          { label: 'Avg Exercises', value: programs.length > 0 ? Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length).toString() : '0', unit: 'per program', icon: Dumbbell },
+          { label: 'Total', value: totalLabel, unit: 'programs', icon: BookOpen },
+          { label: 'Avg Exercises', value: avgLabel, unit: 'per program', icon: Dumbbell },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">
