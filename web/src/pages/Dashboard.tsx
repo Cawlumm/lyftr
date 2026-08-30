@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
-  Play, Timer, TrendingUp, Scale, Activity, Plus,
+  Play, Timer, TrendingUp, Scale, Activity, Plus, AlertCircle,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -97,17 +97,28 @@ export default function Dashboard() {
   // this does the same job in three lines.
   const [retryKey, setRetryKey] = useState(0)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // The four secondary reads are caught so one dead endpoint cannot blank a working
+  // dashboard — that part is deliberate. What was missing is that they then said nothing:
+  // a 500 from /food/stats substituted DEFAULT_FOOD and rendered today as 0 kcal, which
+  // is what "hasn't eaten yet" looks like. The page stays up; the numbers it never
+  // received read "—", and one marker names what is missing.
+  const [missing, setMissing] = useState<string[]>([])
+  const foodMissing = missing.includes("today's food")
+  const weightMissing = missing.includes('your weight')
+
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
     void fetchSettings()
+    const absent = new Set<string>()
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
-      programAPI.list({ limit: 100 }).catch(() => []), // backend's max — Up Next must see every program
-      foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
-      weightAPI.list({ limit: 14 }).catch(() => []),
-      weightAPI.stats().catch(() => null),
+      // backend's max — Up Next must see every program
+      programAPI.list({ limit: 100 }).catch(() => { absent.add('your programs'); return [] }),
+      foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => { absent.add("today's food"); return DEFAULT_FOOD }),
+      weightAPI.list({ limit: 14 }).catch(() => { absent.add('your weight'); return [] }),
+      weightAPI.stats().catch(() => { absent.add('your weight'); return null }),
     ])
       .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
@@ -115,6 +126,7 @@ export default function Dashboard() {
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
+        setMissing([...absent])
       })
       .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
@@ -254,6 +266,19 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {missing.length > 0 && (
+        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <span>Couldn't load {missing.join(' or ')}. Everything else is up to date.</span>
+          <button
+            onClick={() => { setLoading(true); setRetryKey(k => k + 1) }}
+            className="underline hover:text-tx-primary"
+          >
+            Try again
+          </button>
+        </div>
+      )}
+
       {/* ── Active session banner ──────────────────── */}
       {session && (
         <Link
@@ -335,7 +360,7 @@ export default function Dashboard() {
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_calories)}
+            {foodMissing ? '—' : Math.round(food.total_calories)}
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -348,7 +373,7 @@ export default function Dashboard() {
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+            {foodMissing ? '—' : Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
@@ -591,7 +616,7 @@ export default function Dashboard() {
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
-              {Math.round(food.total_calories)}
+              {foodMissing ? '—' : Math.round(food.total_calories)}
             </span>
             <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
             <div className="flex-1" />
@@ -612,7 +637,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                    {Math.round(m.val)}g
+                    {foodMissing ? '—' : `${Math.round(m.val)}g`}
                     <span className="text-tx-muted font-normal"> / {m.target}g</span>
                   </span>
                 </div>
@@ -722,7 +747,10 @@ export default function Dashboard() {
           className="mb-2"
         />
 
-        {weightLogs.length === 0 ? (
+        {weightLogs.length === 0 && weightMissing ? (
+          // Not the "log your first weight" prompt: this reader may have years of them.
+          <p className="text-sm text-tx-muted">Couldn't load your weight.</p>
+        ) : weightLogs.length === 0 ? (
           <button
             type="button"
             onClick={() => setSheetOpen(true)}

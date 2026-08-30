@@ -72,6 +72,11 @@ export default function Food() {
   const [selectedDate, setSelectedDate] = useState(todayStr())
   const [logs, setLogs] = useState<types.FoodLog[]>([])
   const [stats, setStats] = useState<types.DailyStats | null>(null)
+  // The day's entries are the primary read and already fail the page. These two are
+  // caught so one of them cannot blank a working day — but caught silently they
+  // substituted zeros and an empty chart, which is what "ate nothing" looks like.
+  const [missing, setMissing] = useState<string[]>([])
+  const [historyKey, setHistoryKey] = useState(0)
   // From the store, not a page-local fetch: this page carried a fourth copy of the
   // fallback settings literal, invisible to the store's loadFailed flag. The store
   // fetch no-ops when loaded and retries when the last read fell back.
@@ -103,12 +108,14 @@ export default function Food() {
         date, total_calories: 0, total_protein: 0, total_carbs: 0,
         total_fat: 0, total_fiber: 0, workout_count: 0,
       }
+      let statsFailed = false
       const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
-        foodAPI.stats(date).catch(() => defaultStats),
+        foodAPI.stats(date).catch(() => { statsFailed = true; return defaultStats }),
       ])
       setLogs(logData || [])
       setStats(statsData)
+      setMissing(m => statsFailed ? [...new Set([...m, "today's totals"])] : m.filter(x => x !== "today's totals"))
     } catch (err: any) {
       setLoadError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
@@ -124,10 +131,10 @@ export default function Food() {
     setHistoryLoading(true)
     const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
     foodAPI.history(days)
-      .then(data => setHistoryData(data || []))
-      .catch(() => {})
+      .then(data => { setHistoryData(data || []); setMissing(m => m.filter(x => x !== 'your history')) })
+      .catch(() => setMissing(m => [...new Set([...m, 'your history'])]))
       .finally(() => setHistoryLoading(false))
-  }, [historyPeriod])
+  }, [historyPeriod, historyKey])
 
   const openLog = (meal: types.FoodLog['meal']) => {
     navigate(`/food/log?meal=${meal}&date=${selectedDate}`)
@@ -153,16 +160,21 @@ export default function Food() {
   // That is a different sentence from "we could not ask", and only one of them is true.
   if (loadError) {
     return (
-      <ErrorState
-        size="page"
-        title="Couldn't load your food log"
-        message={loadError}
-        onRetry={() => loadDay(selectedDate)}
-      />
+      <div className="space-y-4 animate-slide-up">
+        <PageHeader title="Nutrition" subtitle="Macros & meals" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your food log"
+          message={loadError}
+          onRetry={() => loadDay(selectedDate)}
+        />
+      </div>
     )
   }
 
   const s = stats
+  const statsMissing = missing.includes("today's totals")
+  const historyMissing = missing.includes('your history')
   const totalCals = s?.total_calories ?? 0
   const calTarget = settings?.calorie_target ?? 2000
   const remaining = calTarget - totalCals
@@ -197,6 +209,19 @@ export default function Food() {
         <div className="alert-error">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span>{error}</span>
+        </div>
+      )}
+
+      {missing.length > 0 && (
+        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <span>Couldn't load {missing.join(' or ')}. Everything else is up to date.</span>
+          <button
+            onClick={() => { void loadDay(selectedDate); setHistoryKey(k => k + 1) }}
+            className="underline hover:text-tx-primary"
+          >
+            Try again
+          </button>
         </div>
       )}
 
@@ -244,7 +269,7 @@ export default function Food() {
             <div>
               <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-bold tabular-nums text-tx-primary">{Math.round(totalCals)}</span>
+                <span className="text-4xl font-bold tabular-nums text-tx-primary">{statsMissing ? '—' : Math.round(totalCals)}</span>
                 <span className="text-sm text-tx-muted">/ {calTarget}</span>
               </div>
             </div>
@@ -417,7 +442,9 @@ export default function Food() {
         ) : historyData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
-            <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+            <p className="text-xs text-tx-muted">
+              {historyMissing ? "Couldn't load your history." : 'No data yet — start logging meals'}
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>

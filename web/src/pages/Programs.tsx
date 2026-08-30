@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
 import PageHeader from '../components/ui/PageHeader'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { ListError } from '../components/ui'
+import { ErrorState, ListError } from '../components/ui'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAsyncAction, types } from '@lyftr/shared'
@@ -256,6 +256,26 @@ export default function Programs() {
   })
 
   if (initialLoading) return <Loading />
+
+  // Everything on this page is downstream of one request, so when it fails with nothing
+  // on screen the page failed — not a section of it. A section-sized error stranded among
+  // empty tiles and a search box that filters nothing is three dead regions and a note;
+  // one page-level error is the same information said once. The section-scoped ListError
+  // below stays for the case it is actually for: a later page failing under rows that
+  // did arrive.
+  if (listError && programs.length === 0) {
+    return (
+      <div className="space-y-5 animate-slide-up">
+        <PageHeader title="Programs" subtitle="Reusable workout templates" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your programs"
+          message={listError}
+          onRetry={retryList}
+        />
+      </div>
+    )
+  }
 
   // Three separate claims these tiles used to make without having the numbers.
   //

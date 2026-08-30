@@ -5,7 +5,7 @@ import { Dumbbell, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, Chevro
 import { useNavigate, useLocation } from 'react-router-dom'
 import Loading from '../components/Loading'
 import EmptyState from '../components/ui/EmptyState'
-import { ListError } from '../components/ui'
+import { ErrorState, ListError } from '../components/ui'
 import PageHeader from '../components/ui/PageHeader'
 import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
@@ -228,6 +228,26 @@ export default function Workouts() {
   })
 
   if (initialLoading) return <Loading />
+
+  // Everything on this page is downstream of one request, so when it fails with nothing
+  // on screen the page failed — not a section of it. A section-sized error stranded among
+  // empty tiles and a search box that filters nothing is three dead regions and a note;
+  // one page-level error is the same information said once. The section-scoped ListError
+  // below stays for the case it is actually for: a later page failing under rows that
+  // did arrive.
+  if (listError && workouts.length === 0) {
+    return (
+      <div className="space-y-5 animate-slide-up">
+        <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your workouts"
+          message={listError}
+          onRetry={retryList}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">

@@ -346,6 +346,18 @@ export default function Weight() {
   // renders "0 lb" in the same type as a real measurement, and a new account is told its
   // lowest ever weight was zero. Which of the two it is, the hero and the chart say.
   const loadFailed = chartError != null || statsError != null || listError != null
+
+  // Scope the error to the scope of the failure. Three sections failing separately is
+  // three problems and gets three errors; three sections failing because the server is
+  // down is ONE problem, and four retry buttons for it are four ways to say "reload".
+  const everythingFailed = chartError != null && statsError != null && listError != null
+    && items.length === 0 && periodValues.length === 0
+
+  // The other half of that rule: when a refetch fails but the previous answer is still
+  // on screen, blanking it would throw away data we have. It stays — labelled, because
+  // stale numbers presented as current is the one thing worse than showing none.
+  const staleData = !everythingFailed && (chartError != null || statsError != null)
+    && (periodValues.length > 0 || stats != null)
   const aggregatesUnknown = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
 
   const current = displayWeight(currentLbs, settings.weight_unit)
@@ -363,6 +375,23 @@ export default function Weight() {
         ? 'bg-success-500/10 border-success-500/20 text-success-400'
         : 'bg-error-500/10 border-error-500/20 text-error-400'
   const changeWord = change === 0 ? 'no change' : change < 0 ? 'lost' : 'gained'
+
+  // Title and subtitle stay, so the reader still knows where they are; the header's
+  // action does not. On an error screen the primary action is the retry, and a
+  // btn-primary beside it that leads to a save which cannot succeed outranks it.
+  if (everythingFailed) {
+    return (
+      <div className="space-y-5 animate-slide-up">
+        <PageHeader title="Weight" subtitle="Track your body weight over time" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your weight"
+          message={listError ?? chartError ?? statsError ?? ''}
+          onRetry={retryAll}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">
@@ -477,6 +506,14 @@ export default function Weight() {
           </p>
         </form>
       </div>
+
+      {staleData && (
+        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <span>Showing the last data we loaded — we couldn't refresh it.</span>
+          <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
+        </div>
+      )}
 
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
