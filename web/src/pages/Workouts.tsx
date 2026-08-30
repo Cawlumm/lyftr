@@ -5,19 +5,19 @@ import { Dumbbell, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, Chevro
 import { useNavigate, useLocation } from 'react-router-dom'
 import Loading from '../components/Loading'
 import EmptyState from '../components/ui/EmptyState'
+import { ErrorState, ListError } from '../components/ui'
 import PageHeader from '../components/ui/PageHeader'
 import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { types, workoutDay, calcVolume, formatDay } from '@lyftr/shared'
+import { useAsyncAction, types, workoutDay, calcVolume, formatDay } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const portalRef = useRef<HTMLDivElement>(null)
@@ -34,16 +34,13 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
   const durationMin = Math.round(workout.duration / 60)
   const totalVolume = displayVolume(calcVolume(workout), wUnit)
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await workoutAPI.delete(workout.id)
-      onDelete(workout.id)
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // Was `catch { setDeleting(false); setConfirming(false) }` — the card quietly came
+  // back and the user was left guessing whether the tap had registered. The confirm
+  // stays up now and says why, which is the same rule the sheets follow.
+  const remove = useAsyncAction(async () => {
+    await workoutAPI.delete(workout.id)
+    onDelete(workout.id)
+  }, 'Failed to delete workout')
 
   if (confirming) {
     return (
@@ -56,15 +53,16 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
             <div>
               <p className="text-sm font-semibold text-tx-primary">Delete "{workout.name}"?</p>
               <p className="text-xs text-tx-muted">This cannot be undone</p>
+              {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setConfirming(false)} className="btn-secondary btn-sm">
               Cancel
             </button>
-            <button onClick={handleDelete} disabled={deleting} className="btn-danger-solid btn-sm disabled:opacity-50">
+            <button onClick={() => { void remove.run() }} disabled={remove.busy} className="btn-danger-solid btn-sm disabled:opacity-50">
               <Trash2 className="w-3 h-3" />
-              {deleting ? 'Deleting…' : 'Delete'}
+              {remove.busy ? 'Deleting…' : 'Delete'}
             </button>
           </div>
         </div>
@@ -221,12 +219,35 @@ export default function Workouts() {
     return () => clearTimeout(t)
   }, [search])
 
-  const { items: workouts, sentinelRef, hasMore, loading, initialLoading, reload } = useServerInfiniteList<types.Workout>({
+  const {
+    items: workouts, sentinelRef, hasMore, loading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.Workout>({
     fetcher: (offset, limit) => workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     deps: [debouncedSearch],
   })
 
   if (initialLoading) return <Loading />
+
+  // Everything on this page is downstream of one request, so when it fails with nothing
+  // on screen the page failed — not a section of it. A section-sized error stranded among
+  // empty tiles and a search box that filters nothing is three dead regions and a note;
+  // one page-level error is the same information said once. The section-scoped ListError
+  // below stays for the case it is actually for: a later page failing under rows that
+  // did arrive.
+  if (listError && workouts.length === 0) {
+    return (
+      <div className="space-y-5 animate-slide-up">
+        <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your workouts"
+          message={listError}
+          onRetry={retryList}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-5 animate-slide-up">
@@ -240,14 +261,22 @@ export default function Workouts() {
         }
       />
 
-      {/* Summary */}
+      {/* Summary — derived from `workouts`, so it is only true if the list arrived.
+          On a failed load the array is empty and these read "0 logged · 0 sessions",
+          which is a claim about the user's training, not a blank. The search box and
+          Log Workout below still work, so they stay; only the derived numbers go. */}
+      {!listError && (
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total', value: workouts.length.toString(), unit: 'logged' },
+          // One page of an infinite list, so this is what has loaded, not how many exist:
+          // with more pages outstanding it is a lower bound and says so, rather than
+          // reporting a page size as a training history.
+          { label: 'Total', value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: 'logged' },
           // The month the workout was logged in, not the month its UTC instant lands in —
           // a session near a month boundary belongs to the month the lifter trained in.
           { label: 'This Month', value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: 'sessions' },
-          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '0', unit: 'min' },
+          // The mean of no sessions is not zero minutes.
+          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: 'min' },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">
@@ -260,6 +289,7 @@ export default function Workouts() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Search */}
       <div className="relative">
@@ -275,11 +305,18 @@ export default function Workouts() {
       {/* Workout list */}
       <div className="space-y-2">
         {workouts.length === 0 && !loading ? (
-          <EmptyState
-            icon={Dumbbell}
-            title="No workouts found"
-            subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
-          />
+          // An empty list because the fetch failed is not an empty list. Saying "No
+          // workouts found · Log a workout to get started" to someone with eight months
+          // of history, because their wifi dropped, is the worst thing this screen can do.
+          listError ? (
+            <ListError subject="your workouts" message={listError} onRetry={retryList} />
+          ) : (
+            <EmptyState
+              icon={Dumbbell}
+              title="No workouts found"
+              subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+            />
+          )
         ) : (
           <>
             {workouts.map(w => <WorkoutCard key={w.id} workout={w}
@@ -287,6 +324,7 @@ export default function Workouts() {
               onDelete={() => reload()}
             />)}
             <div ref={sentinelRef} />
+            {listError && <ListError subject="your workouts" message={listError} onRetry={retryList} />}
             {hasMore && loading && (
               <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
             )}

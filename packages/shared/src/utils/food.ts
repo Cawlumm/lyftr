@@ -86,3 +86,22 @@ export function findSavedFood(
 export function normaliseFoodKey(value: string | undefined): string {
   return (value ?? '').trim()
 }
+
+// A 200 is not the same as an answer we can read.
+//
+// The day's totals are fetched with a `.catch` that substitutes zeros, which handles a
+// 500 — but a response that succeeds and carries the wrong shape never reaches it. The
+// web dashboard then ran Math.round over a missing field and rendered "NaN" beside the
+// calorie ring, and the food screen rendered "0", which is the "hasn't eaten yet" lie
+// this whole change exists to remove.
+//
+// So the shape is checked where the value is read, and anything unreadable is treated as
+// a failed load rather than as data. Only the numbers the screens actually use are
+// required: a server that grows a field must not make an older client call the payload
+// broken.
+export function isDailyStats(value: unknown): value is import('../types').DailyStats {
+  if (typeof value !== 'object' || value === null) return false
+  const v = value as Record<string, unknown>
+  return typeof v.total_calories === 'number' && Number.isFinite(v.total_calories)
+    && typeof v.total_protein === 'number' && Number.isFinite(v.total_protein)
+}

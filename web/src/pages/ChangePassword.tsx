@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, Loader, ShieldCheck } from 'lucide-react'
 import { userAPI } from '../services/api'
 import { useAuthStore } from '../stores/auth'
-import { apiErrorMessage, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
+import { useAsyncAction, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import PageHeader from '../components/ui/PageHeader'
 import PasswordField, { Rule } from '../components/ui/PasswordField'
 
@@ -16,31 +16,25 @@ export default function ChangePassword() {
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
   const rules = newPasswordRules({ password: next, confirm, current })
 
+  const save = useAsyncAction(async () => {
+    await userAPI.changePassword({ current_password: current, new_password: next })
+    setCurrent(''); setNext(''); setConfirm('')
+    setDone(true)
+  }, "Couldn't change your password. Please try again.")
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError(null)
 
     // The rules above already show these states while typing and the button is disabled
     // until they pass, so this is a backstop rather than the primary feedback — a form
     // can still be submitted by other means, and the server is the real authority.
     if (!rules.ready) return
 
-    setSaving(true)
-    try {
-      await userAPI.changePassword({ current_password: current, new_password: next })
-      setCurrent(''); setNext(''); setConfirm('')
-      setDone(true)
-    } catch (err) {
-      setError(apiErrorMessage(err, "Couldn't change your password. Please try again."))
-    } finally {
-      setSaving(false)
-    }
+    void save.run()
   }
 
   // Success replaces the form. Leaving three filled-looking boxes under a success banner
@@ -128,20 +122,20 @@ export default function ChangePassword() {
         {/* Server-side failures only — a wrong current password, or a change that landed
             elsewhere first. Everything checkable in the browser is a Rule above, so this
             box appearing always means the request was actually made and refused. */}
-        {error && (
+        {save.error && (
           <div className="alert-error">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{save.error}</span>
           </div>
         )}
 
         <div className="flex gap-2 pt-1">
           <button
             type="submit"
-            disabled={saving || !rules.ready}
+            disabled={save.busy || !rules.ready}
             className="btn-primary btn-sm flex-1 flex items-center justify-center gap-2"
           >
-            {saving ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Saving</> : 'Update password'}
+            {save.busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Saving</> : 'Update password'}
           </button>
           <Link to="/settings" className="btn-secondary btn-sm flex-1 flex items-center justify-center">
             Cancel

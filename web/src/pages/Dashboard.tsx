@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
-  AlertCircle, Play, Timer, TrendingUp, Scale, Activity, Plus,
+  Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -10,13 +10,14 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
+import { ErrorState, StatFailure } from '../components/ui'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
-import { workoutAPI, foodAPI, weightAPI, userAPI, programAPI } from '../services/api'
+import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -24,10 +25,7 @@ const DEFAULT_FOOD: types.DailyStats = {
   date: '',
   total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
-const DEFAULT_SETTINGS: types.UserSettings = {
-  user_id: 0, weight_unit: 'lbs', calorie_target: 2000,
-  protein_target: 150, carb_target: 250, fat_target: 65, timezone: 'UTC',
-}
+
 
 function MuscleSparkline({ values, color, isTop }: { values: number[], color: string, isTop: boolean }) {
   if (values.length < 2) return <div className="w-14 h-6 flex-shrink-0" />
@@ -79,49 +77,87 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
   const { user } = useAuthStore()
-  const { settings: storedSettings } = useSettingsStore()
+  // Settings come from the store, not a page-local fetch. This page used to make
+  // its OWN /settings request with its OWN defaults literal — a third copy of the
+  // fallback the store already owns, and one the store's loadFailed flag could
+  // never see. The store fetch no-ops when already loaded and retries when the
+  // last read fell back, so this costs nothing on the happy path.
+  const { settings, fetch: fetchSettings } = useSettingsStore()
 
   const [workouts, setWorkouts] = useState<types.Workout[]>([])
   const [programs, setPrograms] = useState<types.Program[]>([])
   const [food, setFood] = useState<types.DailyStats>(DEFAULT_FOOD)
   const [weightLogs, setWeightLogs] = useState<types.WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
-  const [settings, setSettings] = useState<types.UserSettings>(storedSettings)
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect to gain a retry button;
+  // this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
   const [sheetOpen, setSheetOpen] = useState(false)
+  // The four secondary reads are caught so one dead endpoint cannot blank a working
+  // dashboard — that part is deliberate. What was missing is that they then said nothing:
+  // a 500 from /food/stats substituted DEFAULT_FOOD and rendered today as 0 kcal, which
+  // is what "hasn't eaten yet" looks like. The page stays up; the numbers it never
+  // received read "—", and one marker names what is missing.
+  // Name -> what the server actually said. Keeping the message matters for the two
+  // areas big enough to show one: a card that never loaded can say why, and a generic
+  // sentence there would be us inventing a cause we were handed.
+  const [missing, setMissing] = useState<Record<string, string>>({})
+  const FALLBACK = "The server didn't say what went wrong."
+
+  const foodMissing = "today's food" in missing
+  const weightMissing = 'your weight' in missing
+
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
+  const retry = () => { setLoading(true); setRetryKey(k => k + 1) }
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
+    void fetchSettings()
+    const absent: Record<string, string> = {}
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
-      programAPI.list({ limit: 100 }).catch(() => []), // backend's max — Up Next must see every program
-      foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
-      weightAPI.list({ limit: 14 }).catch(() => []),
-      weightAPI.stats().catch(() => null),
-      userAPI.getSettings().catch(() => DEFAULT_SETTINGS),
+      // backend's max — Up Next must see every program
+      programAPI.list({ limit: 100 })
+        .catch(err => { absent['your programs'] = apiErrorMessage(err, FALLBACK); return [] }),
+      foodAPI.stats(format(TODAY, 'yyyy-MM-dd'))
+        // A 200 carrying the wrong shape never reaches the catch. Unchecked, the missing
+        // field went through Math.round and the ring read "NaN".
+        .then(fs => isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable')))
+        .catch(err => { absent["today's food"] = apiErrorMessage(err, FALLBACK); return DEFAULT_FOOD }),
+      weightAPI.list({ limit: 14 })
+        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return [] }),
+      weightAPI.stats()
+        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return null }),
     ])
-      .then(([ws, ps, fs, wl, wst, s]) => {
+      .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
         setPrograms(ps || [])
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
-        setSettings(s || DEFAULT_SETTINGS)
+        setMissing(absent)
       })
-      .catch(err => setError(err.message || 'Failed to load'))
+      .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
-  }, [TODAY])
+  }, [TODAY, retryKey, fetchSettings])
 
   if (loading) return <Loading />
 
+  // The dashboard is nothing but other requests' answers, so when the load fails there
+  // is no honest partial view to show — every tile would read 0, which states "you did
+  // nothing this week" rather than "we could not ask".
   if (error) {
     return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
+      <ErrorState
+        size="page"
+        title="Couldn't load your dashboard"
+        message={error}
+        onRetry={() => { setError(null); setLoading(true); setRetryKey(k => k + 1) }}
+      />
     )
   }
 
@@ -323,12 +359,16 @@ export default function Dashboard() {
             <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Cals</span>
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
-          <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_calories)}
-          </p>
-          <div className="progress-track">
-            <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
-          </div>
+          {foodMissing ? (
+            <StatFailure label="Couldn't load today's calories" />
+          ) : (
+            <>
+              <p className="text-xl font-bold text-tx-primary leading-none">{Math.round(food.total_calories)}</p>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
+              </div>
+            </>
+          )}
         </div>
 
         <div className="card p-3 flex flex-col gap-1.5">
@@ -336,12 +376,18 @@ export default function Dashboard() {
             <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Protein</span>
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
-          <p className="text-xl font-bold text-tx-primary leading-none">
-            {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
-          </p>
-          <div className="progress-track">
-            <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
-          </div>
+          {foodMissing ? (
+            <StatFailure label="Couldn't load today's protein" />
+          ) : (
+            <>
+              <p className="text-xl font-bold text-tx-primary leading-none">
+                {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+              </p>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -577,10 +623,21 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          {foodMissing ? (
+            // The KPI strip above mirrors these two numbers and shows "—"; the sentence
+            // and the retry belong here, in the section that actually owns them.
+            <ErrorState
+              size="section"
+              title="Couldn't load today's food"
+              message="Something went wrong on our end."
+              onRetry={retry}
+            />
+          ) : (
+          <>
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
-              {Math.round(food.total_calories)}
+              {foodMissing ? '—' : Math.round(food.total_calories)}
             </span>
             <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
             <div className="flex-1" />
@@ -601,7 +658,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                    {Math.round(m.val)}g
+                    {foodMissing ? '—' : `${Math.round(m.val)}g`}
                     <span className="text-tx-muted font-normal"> / {m.target}g</span>
                   </span>
                 </div>
@@ -611,6 +668,8 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          </>
+          )}
         </div>
       </div>
 
@@ -711,7 +770,17 @@ export default function Dashboard() {
           className="mb-2"
         />
 
-        {weightLogs.length === 0 ? (
+        {weightLogs.length === 0 && weightMissing ? (
+          // Not the "log your first weight" prompt: this reader may have years of them.
+          // Card-sized, so it gets the section treatment — mark, sentence and a button —
+          // rather than the bare mark a stat tile has room for.
+          <ErrorState
+            size="section"
+            title="Couldn't load your weight"
+            message={missing['your weight']}
+            onRetry={retry}
+          />
+        ) : weightLogs.length === 0 ? (
           <button
             type="button"
             onClick={() => setSheetOpen(true)}

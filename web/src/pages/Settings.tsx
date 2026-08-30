@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { memberSince } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, memberSince } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
 import { useSettingsStore } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
-import { exerciseAPI } from '../services/api'
+import { exerciseAPI, userAPI } from '../services/api'
 import PageHeader from '../components/ui/PageHeader'
+import { ErrorState } from '../components/ui'
+import { ConfirmSheet } from '../components/ui'
 import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
 import {
@@ -31,12 +33,15 @@ import {
 //
 // The label keeps a `min-w` floor so wrapping actually triggers: with `min-w-0` alone it
 // would shrink to nothing and the pair would stay jammed on one line forever.
-function SettingRow({ label, description, children }: { label: string; description?: string; children: React.ReactNode }) {
+// `descriptionTone` lets a row report its own failure in place of its description. A row
+// like the unit toggle sits far down a long page, and the page-level banner is at the very
+// top — measured at 809px above the control, off-screen, which is the same as saying nothing.
+function SettingRow({ label, description, descriptionTone, children }: { label: string; description?: string; descriptionTone?: 'error'; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
       <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
-        {description && <p className="text-xs text-tx-muted mt-0.5">{description}</p>}
+        {description && <p className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
       </div>
       {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
       <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
@@ -63,15 +68,24 @@ export default function Settings() {
   const serverInfo = useServerInfo()
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
+  const settingsLoadFailed = useSettingsStore(s => s.loadFailed)
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  // Not the page-level `error`: that renders in a banner at the very top, and the unit
+  // toggle sits ~800px down a long settings page. Measured in a browser — the toggle
+  // flicked back to lbs while the explanation was off-screen above, which is the
+  // "say it where the tap was" failure this whole branch exists to stop.
+  const [unitError, setUnitError] = useState<string | null>(null)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
-  const [seedMsg, setSeedMsg] = useState<string | null>(null)
+  // Carries whether it FAILED, not just what it said. Both outcomes used to land in
+  // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
+  // right now." were the same small grey text — a failure that does not read as one.
+  const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
 
   const [formData, setFormData] = useState({
     weight_unit: storedSettings.weight_unit,
@@ -89,27 +103,33 @@ export default function Settings() {
     } catch { /* cache status is a best-effort probe; absence just hides the count */ }
   }, [])
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        await fetchSettings()
-        const s = useSettingsStore.getState().settings
-        setFormData({
-          weight_unit: s.weight_unit,
-          calorie_target: s.calorie_target,
-          protein_target: s.protein_target,
-          carb_target: s.carb_target,
-          fat_target: s.fat_target,
-        })
-      } catch (err: any) {
-        setError(err.message || 'Failed to load settings')
-      } finally {
-        setLoading(false)
-      }
+  // Lifted out of the effect so Retry runs the SAME routine. It did not, at first:
+  // the button called fetchSettings() alone, the store recovered the real targets, and
+  // the form went on showing the defaults it had been seeded with — so the next Save
+  // would have written them over the numbers that had just come back.
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      await fetchSettings()
+      const s = useSettingsStore.getState().settings
+      setFormData({
+        weight_unit: s.weight_unit,
+        calorie_target: s.calorie_target,
+        protein_target: s.protein_target,
+        carb_target: s.carb_target,
+        fat_target: s.fat_target,
+      })
+    } catch (err: any) {
+      setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+    } finally {
+      setLoading(false)
     }
+  }, [fetchSettings])
+
+  useEffect(() => {
     load()
     loadCacheStatus()
-  }, [loadCacheStatus])
+  }, [load, loadCacheStatus])
 
   // No polling: nothing populates the cache in the background any more. It fills as
   // a side-effect of reads, and these two actions are synchronous.
@@ -119,10 +139,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg(`Refreshed ${res.refreshed.toLocaleString()} exercise${res.refreshed === 1 ? '' : 's'}`)
+      setSeedMsg({ text: `Refreshed ${res.refreshed.toLocaleString()} exercise${res.refreshed === 1 ? '' : 's'}`, failed: false })
       loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg(err.message || 'Refresh failed')
+      setSeedMsg({ text: apiErrorMessage(err, "Couldn't refresh the cache."), failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -133,36 +153,52 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg(`Cleared ${res.cleared.toLocaleString()} unused exercises`)
+      setSeedMsg({ text: `Cleared ${res.cleared.toLocaleString()} unused exercises`, failed: false })
       loadCacheStatus()
     } catch (err) {
-      setSeedMsg(err instanceof Error ? err.message : 'Clear failed')
+      setSeedMsg({ text: apiErrorMessage(err, "Couldn't clear the cache."), failed: true })
     } finally {
       setSeedAction(null)
     }
   }
 
 
+  // The store rolls its own optimistic patch back when the write fails, so the app no
+  // longer shows a unit the server never accepted. Saying so is still this page's job —
+  // a toggle that flips back on its own, silently, is its own small mystery.
   const handleUnitChange = async (unit: 'lbs' | 'kg') => {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
+    setUnitError(null)
     try {
       await updateSettings({ ...formData, weight_unit: unit })
-    } catch { /* local state already switched; the next save retries the write */ }
+    } catch (err) {
+      setFormData(prev => ({ ...prev, weight_unit: unit === 'lbs' ? 'kg' : 'lbs' }))
+      setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
+    }
   }
 
-  const handleSave = async () => {
-    setSaving(true)
-    setError(null)
+  // `err.message` here was the raw JS message — for an axios failure that reads
+  // "Request failed with status code 400", which is true and tells the user nothing.
+  const save = useAsyncAction(async () => {
+    await updateSettings(formData)
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+  }, 'Failed to save settings')
+
+  // Mobile has had this since it shipped; web rendered the button and wired nothing to
+  // it, so "Delete account" was a control that did nothing at all — worse than absent,
+  // because it reads as a feature that is simply broken.
+  //
+  // logout() is what moves the user out: it clears the tokens, which flips the route
+  // guard. Nothing navigates by hand, exactly as on mobile.
+  const deleteAccount = useAsyncAction(async () => {
+    await userAPI.deleteAccount()
+    await logout()
+  }, 'Could not delete account')
+
+  const handleSave = () => {
     setSuccess(false)
-    try {
-      await updateSettings(formData)
-      setSuccess(true)
-      setTimeout(() => setSuccess(false), 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to save settings')
-    } finally {
-      setSaving(false)
-    }
+    void save.run()
   }
 
   if (loading) {
@@ -173,14 +209,16 @@ export default function Settings() {
     )
   }
 
+
+
   return (
     <div className="space-y-5 animate-slide-up max-w-2xl">
       <PageHeader title="Settings" subtitle="Preferences and account configuration" />
 
-      {error && (
+      {(error || save.error) && (
         <div className="alert-error">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{error || save.error}</span>
         </div>
       )}
 
@@ -312,9 +350,33 @@ export default function Settings() {
         })()}
       </Section>
 
-      {/* Goals & Units */}
+      {/* Goals & Units — the only server-backed, editable block on this page.
+
+          Gated on its own rather than page-level, because almost nothing else here
+          needs the server: theme, workout layout and the rest timer are device prefs,
+          sign out is local, and the API server row is the very control someone needs
+          WHEN the server cannot be reached. Blanking the page took that away at
+          exactly the wrong moment.
+
+          What must not survive the failure is this section: the store falls back to
+          defaults, so the inputs showed 2000/150/250/65 and Save PUT them over real
+          targets of 3175/205/310/88. Measured, not theorised. */}
+      {settingsLoadFailed ? (
+        <Section title="Goals & Units">
+          <ErrorState
+            size="section"
+            title="Couldn't load your goals"
+            message="These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
+            onRetry={() => { void load() }}
+          />
+        </Section>
+      ) : (
       <Section title="Goals & Units">
-        <SettingRow label="Weight unit" description="Changes apply immediately across the app">
+        <SettingRow
+          label="Weight unit"
+          description={unitError ?? 'Changes apply immediately across the app'}
+          descriptionTone={unitError ? 'error' : undefined}
+        >
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
             {(['lbs', 'kg'] as const).map(unit => (
               <button
@@ -386,13 +448,14 @@ export default function Settings() {
           <p className="text-xs text-tx-muted">Save calorie and macro targets</p>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={save.busy}
             className="btn-primary btn-sm"
           >
-            <Check className="w-3.5 h-3.5" /> {saving ? 'Saving...' : 'Save targets'}
+            <Check className="w-3.5 h-3.5" /> {save.busy ? 'Saving...' : 'Save targets'}
           </button>
         </div>
       </Section>
+      )}
 
       {/* Server info */}
       <Section title="Self-Hosted Instance">
@@ -428,7 +491,9 @@ export default function Settings() {
 
         {seedMsg && (
           <div className="py-2 px-1">
-            <p className="text-xs text-tx-muted">{seedMsg}</p>
+            <p className={`text-xs ${seedMsg.failed ? 'text-[color:var(--alert-error)]' : 'text-tx-muted'}`}>
+              {seedMsg.text}
+            </p>
           </div>
         )}
 
@@ -464,11 +529,27 @@ export default function Settings() {
           </button>
         </SettingRow>
         <SettingRow label="Delete account" description="Permanently delete all your data">
-          <button className="btn-danger btn-sm">
+          <button onClick={() => setConfirmDelete(true)} className="btn-danger btn-sm">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
         </SettingRow>
       </Section>
+
+      {/* error stays on the sheet: a failed delete has to answer under the same finger
+          that pressed Delete, not as a banner at the top of a scrolled settings page. */}
+      <ConfirmSheet
+        open={confirmDelete}
+        icon={Trash2}
+        destructive
+        title="Delete account?"
+        message="This permanently deletes your account and all of your data. This can't be undone."
+        confirmLabel="Delete account"
+        busyLabel="Deleting…"
+        busy={deleteAccount.busy}
+        error={deleteAccount.error ?? undefined}
+        onConfirm={() => { void deleteAccount.run() }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }

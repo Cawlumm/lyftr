@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import {
   Timer, CheckCircle2, Plus, Trash2, X, Dumbbell, Flag,
-  AlertCircle, ChevronRight, ChevronLeft, Info,
+  ChevronRight, ChevronLeft, Info,
 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
 import { muscleColor } from '../utils/exerciseUtils'
-import { formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { formatElapsed, useAsyncAction, useElapsedSeconds } from '@lyftr/shared'
+import { ConfirmSheet } from '../components/ui'
 
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const [editing, setEditing] = useState(false)
@@ -57,8 +57,6 @@ export default function ActiveWorkout() {
   const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
-  const [saveError, setSaveError] = useState('')
-  const [saving, setSaving] = useState(false)
   const [activeExIdx, setActiveExIdx] = useState(0)
 
   const cardRefs = useRef<(HTMLDivElement | null)[]>([])
@@ -67,6 +65,16 @@ export default function ActiveWorkout() {
   useEffect(() => {
     if (settings.workout_layout === 'gym' && session) openGym()
   }, [])
+
+  // The sheet stays open when this fails and shows why: the session is intact and the
+  // server may be reachable again in a moment, so the retry belongs under the same
+  // pointer. It used to dismiss to a banner at the top of a page the user had scrolled.
+  const finish = useAsyncAction(async () => {
+    const saved = await workoutAPI.create(buildPayload())
+    cancelSession()
+    // Surface the routine auto-progression as a toast on the workouts list (#40).
+    navigate('/workouts', saved?.progression ? { state: { progression: saved.progression } } : undefined)
+  }, 'Failed to save workout')
 
   // Workout elapsed timer
   if (!session) {
@@ -82,21 +90,6 @@ export default function ActiveWorkout() {
     )
   }
 
-  const handleFinish = async () => {
-    setSaving(true)
-    setSaveError('')
-    try {
-      const payload = buildPayload()
-      const saved = await workoutAPI.create(payload)
-      cancelSession()
-      // Surface the routine auto-progression as a toast on the workouts list (#40).
-      navigate('/workouts', saved?.progression ? { state: { progression: saved.progression } } : undefined)
-    } catch (err: any) {
-      setSaveError(err.response?.data?.error || 'Failed to save workout')
-      setSaving(false)
-      setConfirmFinish(false)
-    }
-  }
 
   const handleCompleteSet = (exIdx: number, setIdx: number) => {
     completeSet(exIdx, setIdx)
@@ -194,12 +187,6 @@ export default function ActiveWorkout() {
         )}
       </div>
 
-      {saveError && (
-        <div className="alert-error mb-4">
-          <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{saveError}</span>
-        </div>
-      )}
 
       {/* ── Exercise list ───────────────────────────────────── */}
       <>
@@ -447,61 +434,32 @@ export default function ActiveWorkout() {
       </>
 
       {/* ── Finish confirm ─────────────────────────────────── */}
-      {confirmFinish && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Finish Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">
-              {completedSets} of {totalSets} sets completed. Workout will be saved.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmFinish(false)}
-                className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
-              >
-                Keep Going
-              </button>
-              <button
-                onClick={handleFinish}
-                disabled={saving}
-                className="flex-1 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5"
-              >
-                <Flag className="w-3.5 h-3.5" />
-                {saving ? 'Saving…' : 'Finish'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirmFinish}
+        icon={Flag}
+        title="Finish Workout?"
+        message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
+        confirmLabel="Finish"
+        busyLabel="Saving…"
+        cancelLabel="Keep Going"
+        busy={finish.busy}
+        error={finish.error}
+        onConfirm={() => { void finish.run() }}
+        onCancel={() => { setConfirmFinish(false); finish.reset() }}
+      />
 
       {/* ── Cancel confirm ─────────────────────────────────── */}
-      {confirmCancel && createPortal(
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6">
-            <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mb-4 sm:hidden" />
-            <h3 className="font-display font-bold text-lg text-tx-primary mb-1">Cancel Workout?</h3>
-            <p className="text-sm text-tx-muted mb-5">All progress will be lost.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmCancel(false)}
-                className="flex-1 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
-              >
-                Keep Going
-              </button>
-              <button
-                onClick={() => { cancelSession(); navigate('/') }}
-                className="flex-1 py-3 bg-error-500 hover:bg-error-600 text-white rounded-xl transition-colors font-semibold text-sm flex items-center justify-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmSheet
+        open={confirmCancel}
+        icon={Trash2}
+        destructive
+        title="Cancel Workout?"
+        message="All progress will be lost."
+        confirmLabel="Cancel"
+        cancelLabel="Keep Going"
+        onConfirm={() => { cancelSession(); navigate('/') }}
+        onCancel={() => setConfirmCancel(false)}
+      />
     </div>
   )
 }
