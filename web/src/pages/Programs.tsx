@@ -285,9 +285,11 @@ export default function Programs() {
   //
   // A failed read leaves the list empty too, and 0 then means "we never heard back"
   // rather than "you have none" — indistinguishable from the empty account below it.
-  const countUnknown = programs.length === 0 && listError != null
-  const totalLabel = countUnknown ? '—' : hasMore ? `${programs.length}+` : programs.length.toString()
-  const avgLabel = countUnknown || programs.length === 0
+  // No failure branch here on purpose: the early return above fires on exactly
+  // "listError and nothing loaded", so by this point either rows arrived or the page is
+  // already showing its own error. A tile-level failure state would be unreachable.
+  const totalLabel = hasMore ? `${programs.length}+` : programs.length.toString()
+  const avgLabel = programs.length === 0
     ? '—'
     : Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length).toString()
 

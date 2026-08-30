@@ -11,7 +11,7 @@ import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 import { apiErrorMessage, useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
-import { ErrorState, ListError } from '../components/ui'
+import { ErrorState, ListError, StatFailure } from '../components/ui'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 
@@ -560,14 +560,6 @@ export default function Weight() {
       </div>
 
       {/* Stats row */}
-      {figuresFailed ? (
-        <ErrorState
-          size="section"
-          title="Couldn't load these figures"
-          message={statsError ?? chartError ?? ''}
-          onRetry={retryAll}
-        />
-      ) : (
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Avg', value: avg, tip: 'Average weight for selected period', icon: Activity, color: 'text-brand-400' },
@@ -580,17 +572,22 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            <span className="stat-value text-xl">{aggregatesUnknown ? '—' : Math.round(s.value)}</span>
-            {!aggregatesUnknown && <span className="text-xs text-tx-muted ml-1">{wUnit}</span>}
+            {figuresFailed ? (
+              <StatFailure label={`Couldn't load ${s.label.toLowerCase()} weight`} />
+            ) : (
+              <>
+                <span className="stat-value text-xl">{aggregatesUnknown ? '—' : Math.round(s.value)}</span>
+                {!aggregatesUnknown && <span className="text-xs text-tx-muted ml-1">{wUnit}</span>}
+              </>
+            )}
           </div>
         ))}
       </div>
-      )}
 
-      {figuresStale && (
+      {(figuresStale || figuresFailed) && (
         <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-          <span>Couldn't refresh these — showing the last we loaded.</span>
+          <span>{figuresFailed ? "Couldn't load these figures." : "Couldn't refresh these — showing the last we loaded."}</span>
           <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
         </div>
       )}

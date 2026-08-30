@@ -10,7 +10,7 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import SectionHeader from '../components/ui/SectionHeader'
-import { ErrorState } from '../components/ui'
+import { ErrorState, StatFailure } from '../components/ui'
 import PeriodSelector from '../components/PeriodSelector'
 import QuickWeighInSheet from '../components/QuickWeighInSheet'
 import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
@@ -342,48 +342,41 @@ export default function Dashboard() {
           <p className="text-[10px] text-tx-muted">sessions</p>
         </div>
 
-        {foodMissing ? (
-          // Cals and Protein are the same request, so they never fail apart. Two dashes
-          // with a warning glyph each was one message told twice in the two places least
-          // able to hold it; spanning their columns buys the room to say it once, in
-          // words, with a button the size of a button. Week keeps its own real figure.
-          <button
-            onClick={retry}
-            className="card p-3 col-span-2 flex items-center gap-2 text-left hover:bg-surface-muted/40 transition-colors"
-          >
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            <span className="text-[11px] leading-tight text-tx-muted">
-              Couldn't load today's food.{' '}
-              <span className="text-tx-primary underline">Try again</span>
-            </span>
-          </button>
-        ) : (
-          <>
-          <div className="card p-3 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Cals</span>
-              <Flame className="w-3 h-3 text-tx-muted" />
-            </div>
-            <p className="text-xl font-bold text-tx-primary leading-none">{Math.round(food.total_calories)}</p>
-            <div className="progress-track">
-              <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
-            </div>
+        <div className="card p-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Cals</span>
+            <Flame className="w-3 h-3 text-tx-muted" />
           </div>
+          {foodMissing ? (
+            <StatFailure label="Couldn't load today's calories" />
+          ) : (
+            <>
+              <p className="text-xl font-bold text-tx-primary leading-none">{Math.round(food.total_calories)}</p>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
+              </div>
+            </>
+          )}
+        </div>
 
-          <div className="card p-3 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Protein</span>
-              <Beef className="w-3 h-3 text-tx-muted" />
-            </div>
-            <p className="text-xl font-bold text-tx-primary leading-none">
-              {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
-            </p>
-            <div className="progress-track">
-              <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
-            </div>
+        <div className="card p-3 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Protein</span>
+            <Beef className="w-3 h-3 text-tx-muted" />
           </div>
-          </>
-        )}
+          {foodMissing ? (
+            <StatFailure label="Couldn't load today's protein" />
+          ) : (
+            <>
+              <p className="text-xl font-bold text-tx-primary leading-none">
+                {Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+              </p>
+              <div className="progress-track">
+                <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Volume trend chart ─────────────────────── */}
