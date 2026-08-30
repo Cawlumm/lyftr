@@ -16,7 +16,7 @@ import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
 import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
-import { ErrorState } from '../components/ui'
+import { ErrorState, StatFailure } from '../components/ui'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -440,16 +440,16 @@ export default function Food() {
           <div className="flex items-center justify-center h-48 text-xs text-tx-muted">Loading…</div>
         ) : historyData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
-            <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
             {historyMissing ? (
-              <div className="flex items-center gap-2 text-xs text-tx-muted">
-                <span>Couldn't load your history.</span>
-                <button onClick={() => setHistoryKey(k => k + 1)} className="underline hover:text-tx-primary">
-                  Try again
-                </button>
-              </div>
+              // The calendar belongs to the empty state, not to this one: stacked above
+              // the mark it read as two unrelated icons for one condition.
+              <StatFailure size="block" label="Couldn't load your history"
+                           onRetry={() => setHistoryKey(k => k + 1)} />
             ) : (
-              <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+              <>
+                <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
+                <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+              </>
             )}
           </div>
         ) : (

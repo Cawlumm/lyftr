@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { format, startOfWeek, isSameDay, eachDayOfInterval, endOfWeek, subWeeks } from 'date-fns'
 import {
   Dumbbell, Flame, ArrowRight, Beef, BookOpen,
-  Play, Timer, TrendingUp, Scale, Activity, Plus, AlertCircle,
+  Play, Timer, TrendingUp, Scale, Activity, Plus,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -760,11 +760,7 @@ export default function Dashboard() {
 
         {weightLogs.length === 0 && weightMissing ? (
           // Not the "log your first weight" prompt: this reader may have years of them.
-          <div className="flex items-center gap-2 text-sm text-tx-muted">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-400" />
-            <span>Couldn't load your weight.</span>
-            <button onClick={retry} className="underline hover:text-tx-primary">Try again</button>
-          </div>
+          <StatFailure size="block" label="Couldn't load your weight" onRetry={retry} />
         ) : weightLogs.length === 0 ? (
           <button
             type="button"
