@@ -584,10 +584,14 @@ export default function Weight() {
         ))}
       </div>
 
-      {(figuresStale || figuresFailed) && (
+      {/* Only the stale case earns a line here. When the figures never arrived the tiles
+          above are already showing the failure mark, and repeating it in words underneath
+          was the same thing said twice. Stale is different: the tiles are showing real
+          numbers, so nothing else on screen says they are out of date. */}
+      {figuresStale && (
         <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
           <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-          <span>{figuresFailed ? "Couldn't load these figures." : "Couldn't refresh these — showing the last we loaded."}</span>
+          <span>Couldn't refresh these — showing the last we loaded.</span>
           <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
         </div>
       )}
