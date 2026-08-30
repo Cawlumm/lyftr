@@ -328,8 +328,8 @@ export default function Weight() {
   // For "All" period prefer server-computed stats since they're not capped at 1000.
   const periodValues = chartLogs.map(l => l.weight) // raw lbs from DB, newest first
   const useServerAggregate = period === 'All' && stats != null
-  const currentLbs = periodValues[0] ?? stats?.latest ?? 0
-  const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? 0
+  const currentLbs = periodValues[0] ?? stats?.latest ?? items[0]?.weight ?? 0
+  const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? currentLbs
   const changeLbs = currentLbs - oldestLbs
   const avgLbs = useServerAggregate
     ? (stats!.avg ?? 0)
@@ -353,12 +353,23 @@ export default function Weight() {
   const everythingFailed = chartError != null && statsError != null && listError != null
     && items.length === 0 && periodValues.length === 0
 
-  // The other half of that rule: when a refetch fails but the previous answer is still
-  // on screen, blanking it would throw away data we have. It stays — labelled, because
-  // stale numbers presented as current is the one thing worse than showing none.
-  const staleData = !everythingFailed && (chartError != null || statsError != null)
-    && (periodValues.length > 0 || stats != null)
-  const aggregatesUnknown = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
+  // Nothing to aggregate. Two different reasons, and they are not the same sentence:
+  // an account with no entries yet reads "—", a section whose reads failed says so
+  // where the numbers would have been. A dash alone explains nothing, and the retry for
+  // it belongs beside it rather than in a banner at the top of the page.
+  // What the hero can honestly state. With the trend and stats reads both dead the old
+  // code fell through to 0 and rendered "0 lb · no change over 30d" — a measurement, in
+  // the same type as a real one — while the true latest weight sat in `items` below it.
+  const currentKnown = periodValues.length > 0 || stats != null || items.length > 0
+  const changeKnown = periodValues.length > 1
+  const noValues = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
+  const figuresFailed = noValues && (chartError != null || statsError != null)
+  const aggregatesUnknown = noValues && !figuresFailed
+
+  // We do hold values, but the refresh that would have updated them failed. Keep them —
+  // discarding data we have to report a failed refetch is worse — and say so under the
+  // figures it applies to.
+  const figuresStale = !everythingFailed && !noValues && (chartError != null || statsError != null)
 
   const current = displayWeight(currentLbs, settings.weight_unit)
   const change = displayWeight(changeLbs, settings.weight_unit)
@@ -507,14 +518,6 @@ export default function Weight() {
         </form>
       </div>
 
-      {staleData && (
-        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-          <span>Showing the last data we loaded — we couldn't refresh it.</span>
-          <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
-        </div>
-      )}
-
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
         {items.length === 0 && loadFailed ? (
@@ -538,23 +541,33 @@ export default function Weight() {
               <div>
                 <p className="stat-label mb-2">Current Weight</p>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl">{current}</span>
-                  <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
+                  <span className="stat-value text-5xl">{currentKnown ? current : '—'}</span>
+                  {currentKnown && <span className="text-tx-muted text-lg mb-1">{wUnit}</span>}
                 </div>
               </div>
-              <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass}`}>
+              <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass} ${changeKnown ? '' : 'hidden'}`}>
                 <TrendIcon className="w-4 h-4" />
                 {Math.abs(change)} {wUnit}
               </div>
             </div>
-            <p className="text-xs text-tx-muted mt-3">
-              {Math.abs(change)} {wUnit} {changeWord} over {period}
-            </p>
+            {changeKnown && (
+              <p className="text-xs text-tx-muted mt-3">
+                {Math.abs(change)} {wUnit} {changeWord} over {period}
+              </p>
+            )}
           </>
         )}
       </div>
 
       {/* Stats row */}
+      {figuresFailed ? (
+        <ErrorState
+          size="section"
+          title="Couldn't load these figures"
+          message={statsError ?? chartError ?? ''}
+          onRetry={retryAll}
+        />
+      ) : (
       <div className="grid grid-cols-3 gap-3">
         {[
           { label: 'Avg', value: avg, tip: 'Average weight for selected period', icon: Activity, color: 'text-brand-400' },
@@ -572,6 +585,15 @@ export default function Weight() {
           </div>
         ))}
       </div>
+      )}
+
+      {figuresStale && (
+        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <span>Couldn't refresh these — showing the last we loaded.</span>
+          <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
+        </div>
+      )}
 
       {/* Chart + period selector */}
       <div className="card p-5">

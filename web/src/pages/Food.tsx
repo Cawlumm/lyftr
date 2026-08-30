@@ -212,19 +212,6 @@ export default function Food() {
         </div>
       )}
 
-      {missing.length > 0 && (
-        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-          <span>Couldn't load {missing.join(' or ')}. Everything else is up to date.</span>
-          <button
-            onClick={() => { void loadDay(selectedDate); setHistoryKey(k => k + 1) }}
-            className="underline hover:text-tx-primary"
-          >
-            Try again
-          </button>
-        </div>
-      )}
-
       {/* Date navigator */}
       <div className="flex items-center gap-2">
         <button
@@ -262,14 +249,26 @@ export default function Food() {
       </div>
 
       {/* Macro summary card */}
-      {settings && (
+      {settings && statsMissing && (
+        // The totals are this card's entire content, so the failure is stated here
+        // rather than as a dash with its explanation somewhere else on the page.
+        <div className="card p-5">
+          <ErrorState
+            size="section"
+            title="Couldn't load today's totals"
+            message="Something went wrong on our end."
+            onRetry={() => void loadDay(selectedDate)}
+          />
+        </div>
+      )}
+      {settings && !statsMissing && (
         <div className="card p-5 space-y-5">
           {/* Calorie hero */}
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
               <div className="flex items-baseline gap-1.5">
-                <span className="text-4xl font-bold tabular-nums text-tx-primary">{statsMissing ? '—' : Math.round(totalCals)}</span>
+                <span className="text-4xl font-bold tabular-nums text-tx-primary">{Math.round(totalCals)}</span>
                 <span className="text-sm text-tx-muted">/ {calTarget}</span>
               </div>
             </div>
@@ -442,9 +441,16 @@ export default function Food() {
         ) : historyData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
-            <p className="text-xs text-tx-muted">
-              {historyMissing ? "Couldn't load your history." : 'No data yet — start logging meals'}
-            </p>
+            {historyMissing ? (
+              <div className="flex items-center gap-2 text-xs text-tx-muted">
+                <span>Couldn't load your history.</span>
+                <button onClick={() => setHistoryKey(k => k + 1)} className="underline hover:text-tx-primary">
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+            )}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>

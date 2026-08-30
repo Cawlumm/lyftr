@@ -107,6 +107,7 @@ export default function Dashboard() {
   const weightMissing = missing.includes('your weight')
 
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
+  const retry = () => { setLoading(true); setRetryKey(k => k + 1) }
   const wUnit = weightShort(settings.weight_unit)
 
   useEffect(() => {
@@ -265,19 +266,6 @@ export default function Dashboard() {
           {session ? 'Resume' : 'Start'}
         </button>
       </div>
-
-      {missing.length > 0 && (
-        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
-          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
-          <span>Couldn't load {missing.join(' or ')}. Everything else is up to date.</span>
-          <button
-            onClick={() => { setLoading(true); setRetryKey(k => k + 1) }}
-            className="underline hover:text-tx-primary"
-          >
-            Try again
-          </button>
-        </div>
-      )}
 
       {/* ── Active session banner ──────────────────── */}
       {session && (
@@ -613,6 +601,17 @@ export default function Dashboard() {
             </Link>
           </div>
 
+          {foodMissing ? (
+            // The KPI strip above mirrors these two numbers and shows "—"; the sentence
+            // and the retry belong here, in the section that actually owns them.
+            <ErrorState
+              size="section"
+              title="Couldn't load today's food"
+              message="Something went wrong on our end."
+              onRetry={retry}
+            />
+          ) : (
+          <>
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
@@ -647,6 +646,8 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          </>
+          )}
         </div>
       </div>
 
@@ -749,7 +750,11 @@ export default function Dashboard() {
 
         {weightLogs.length === 0 && weightMissing ? (
           // Not the "log your first weight" prompt: this reader may have years of them.
-          <p className="text-sm text-tx-muted">Couldn't load your weight.</p>
+          <div className="flex items-center gap-2 text-sm text-tx-muted">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-400" />
+            <span>Couldn't load your weight.</span>
+            <button onClick={retry} className="underline hover:text-tx-primary">Try again</button>
+          </div>
         ) : weightLogs.length === 0 ? (
           <button
             type="button"
