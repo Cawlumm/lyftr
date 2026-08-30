@@ -69,6 +69,30 @@ const TOOLTIP_STYLE = {
   color: 'var(--color-tx-primary, #f1f5f9)',
 }
 
+// A tile too small to hold a sentence. A bare dash is ambiguous — a reader cannot tell
+// "nothing yet" from "zero" from "we could not fetch it" — so the dash carries a warning
+// glyph and the pair is one button that retries.
+//
+// The reason is on the button's accessible name and its title rather than in a popover:
+// the Tooltip in this codebase opens on mouseenter only, so on the phones that are most
+// of our users it would never appear. The section that owns these numbers states the
+// failure in full underneath.
+function MissingFigure({ label, onRetry }: { label: string; onRetry: () => void }) {
+  // Padding with matching negative margin: the hit area reaches the 44px touch minimum
+  // without the glyph moving or the tile growing around it.
+  return (
+    <button
+      onClick={onRetry}
+      title={`${label} Tap to try again.`}
+      aria-label={`${label} Try again.`}
+      className="inline-flex items-center gap-1 -mx-2 -my-3 px-2 py-3 text-tx-muted hover:text-tx-primary transition-colors"
+    >
+      —
+      <AlertCircle className="w-3 h-3 text-amber-400" aria-hidden="true" />
+    </button>
+  )
+}
+
 export default function Dashboard() {
   // Sampled per mount, not at module load. As a module constant this went stale the
   // moment the tab outlived the day it was opened on — a tab left open across midnight
@@ -348,7 +372,9 @@ export default function Dashboard() {
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {foodMissing ? '—' : Math.round(food.total_calories)}
+            {foodMissing
+              ? <MissingFigure label="Couldn't load today's food." onRetry={retry} />
+              : Math.round(food.total_calories)}
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${calPct}%`, background: '#00b8d9' }} />
@@ -361,7 +387,9 @@ export default function Dashboard() {
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">
-            {foodMissing ? '—' : Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span>
+            {foodMissing
+              ? <MissingFigure label="Couldn't load today's food." onRetry={retry} />
+              : <>{Math.round(food.total_protein)}<span className="text-xs text-tx-muted font-normal">g</span></>}
           </p>
           <div className="progress-track">
             <div className="progress-bar" style={{ width: `${protPct}%`, background: '#f59e0b' }} />
