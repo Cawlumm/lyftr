@@ -1,4 +1,4 @@
-import { entryToResult, findSavedFood, normaliseFoodKey, savedToResult, scaleServing } from './food'
+import { entryToResult, findSavedFood, isDailyStats, normaliseFoodKey, savedToResult, scaleServing } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -167,5 +167,37 @@ describe('normaliseFoodKey', () => {
   it('trims and tolerates undefined', () => {
     expect(normaliseFoodKey('  Oats  ')).toBe('Oats')
     expect(normaliseFoodKey(undefined)).toBe('')
+  })
+})
+
+describe('isDailyStats', () => {
+  const ok = {
+    date: '2026-08-29', total_calories: 1840, total_protein: 128,
+    total_carbs: 190, total_fat: 61, total_fiber: 22, workout_count: 1,
+  }
+
+  it('accepts the real payload', () => {
+    expect(isDailyStats(ok)).toBe(true)
+  })
+
+  // A server that adds a field must not make an older client call the answer broken.
+  it('accepts a payload carrying fields it does not know about', () => {
+    expect(isDailyStats({ ...ok, total_alcohol: 3 })).toBe(true)
+  })
+
+  // Each of these arrived with a 200, so no catch ever fired for them. The dashboard
+  // rendered NaN and the food screen rendered 0 — a measurement — for every one.
+  it.each([
+    ['a string', 'nonsense'],
+    ['a number', 42],
+    ['an array', [1, 2, 3]],
+    ['null', null],
+    ['undefined', undefined],
+    ['an empty object', {}],
+    ['a partial object', { total_calories: 1840 }],
+    ['NaN in a number field', { ...ok, total_calories: NaN }],
+    ['a stringified number', { ...ok, total_calories: '1840' }],
+  ])('rejects %s', (_label, value) => {
+    expect(isDailyStats(value)).toBe(false)
   })
 })

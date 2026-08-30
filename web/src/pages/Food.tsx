@@ -15,7 +15,7 @@ import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
@@ -113,11 +113,15 @@ export default function Food() {
       let statsMessage = ''
       const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
-        foodAPI.stats(date).catch(err => {
-          statsFailed = true
-          statsMessage = apiErrorMessage(err, "The server didn't say what went wrong.")
-          return defaultStats
-        }),
+        foodAPI.stats(date)
+          // Same as the dashboard: a readable 200 is the only kind that counts as data.
+          // Unchecked this rendered 0 kcal, which is what "hasn't eaten yet" looks like.
+          .then(st => isDailyStats(st) ? st : Promise.reject(new Error('unreadable')))
+          .catch(err => {
+            statsFailed = true
+            statsMessage = apiErrorMessage(err, "The server didn't say what went wrong.")
+            return defaultStats
+          }),
       ])
       setLogs(logData || [])
       setStats(statsData)

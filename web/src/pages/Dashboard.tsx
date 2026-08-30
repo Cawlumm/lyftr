@@ -17,7 +17,7 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -124,6 +124,9 @@ export default function Dashboard() {
       programAPI.list({ limit: 100 })
         .catch(err => { absent['your programs'] = apiErrorMessage(err, FALLBACK); return [] }),
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd'))
+        // A 200 carrying the wrong shape never reaches the catch. Unchecked, the missing
+        // field went through Math.round and the ring read "NaN".
+        .then(fs => isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable')))
         .catch(err => { absent["today's food"] = apiErrorMessage(err, FALLBACK); return DEFAULT_FOOD }),
       weightAPI.list({ limit: 14 })
         .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return [] }),
