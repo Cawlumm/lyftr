@@ -102,9 +102,14 @@ export default function Dashboard() {
   // a 500 from /food/stats substituted DEFAULT_FOOD and rendered today as 0 kcal, which
   // is what "hasn't eaten yet" looks like. The page stays up; the numbers it never
   // received read "—", and one marker names what is missing.
-  const [missing, setMissing] = useState<string[]>([])
-  const foodMissing = missing.includes("today's food")
-  const weightMissing = missing.includes('your weight')
+  // Name -> what the server actually said. Keeping the message matters for the two
+  // areas big enough to show one: a card that never loaded can say why, and a generic
+  // sentence there would be us inventing a cause we were handed.
+  const [missing, setMissing] = useState<Record<string, string>>({})
+  const FALLBACK = "The server didn't say what went wrong."
+
+  const foodMissing = "today's food" in missing
+  const weightMissing = 'your weight' in missing
 
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const retry = () => { setLoading(true); setRetryKey(k => k + 1) }
@@ -112,14 +117,18 @@ export default function Dashboard() {
 
   useEffect(() => {
     void fetchSettings()
-    const absent = new Set<string>()
+    const absent: Record<string, string> = {}
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
       // backend's max — Up Next must see every program
-      programAPI.list({ limit: 100 }).catch(() => { absent.add('your programs'); return [] }),
-      foodAPI.stats(format(TODAY, 'yyyy-MM-dd')).catch(() => { absent.add("today's food"); return DEFAULT_FOOD }),
-      weightAPI.list({ limit: 14 }).catch(() => { absent.add('your weight'); return [] }),
-      weightAPI.stats().catch(() => { absent.add('your weight'); return null }),
+      programAPI.list({ limit: 100 })
+        .catch(err => { absent['your programs'] = apiErrorMessage(err, FALLBACK); return [] }),
+      foodAPI.stats(format(TODAY, 'yyyy-MM-dd'))
+        .catch(err => { absent["today's food"] = apiErrorMessage(err, FALLBACK); return DEFAULT_FOOD }),
+      weightAPI.list({ limit: 14 })
+        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return [] }),
+      weightAPI.stats()
+        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return null }),
     ])
       .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
@@ -127,7 +136,7 @@ export default function Dashboard() {
         setFood(fs || DEFAULT_FOOD)
         setWeightLogs(wl || [])
         setWeightStats(wst)
-        setMissing([...absent])
+        setMissing(absent)
       })
       .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
@@ -760,7 +769,14 @@ export default function Dashboard() {
 
         {weightLogs.length === 0 && weightMissing ? (
           // Not the "log your first weight" prompt: this reader may have years of them.
-          <StatFailure size="block" label="Couldn't load your weight" onRetry={retry} />
+          // Card-sized, so it gets the section treatment — mark, sentence and a button —
+          // rather than the bare mark a stat tile has room for.
+          <ErrorState
+            size="section"
+            title="Couldn't load your weight"
+            message={missing['your weight']}
+            onRetry={retry}
+          />
         ) : weightLogs.length === 0 ? (
           <button
             type="button"

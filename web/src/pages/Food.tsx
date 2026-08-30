@@ -16,7 +16,7 @@ import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
 import { apiErrorMessage, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
-import { ErrorState, StatFailure } from '../components/ui'
+import { ErrorState } from '../components/ui'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -75,7 +75,8 @@ export default function Food() {
   // The day's entries are the primary read and already fail the page. These two are
   // caught so one of them cannot blank a working day — but caught silently they
   // substituted zeros and an empty chart, which is what "ate nothing" looks like.
-  const [missing, setMissing] = useState<string[]>([])
+  // Name -> what the server said, for the areas with room to show it.
+  const [missing, setMissing] = useState<Record<string, string>>({})
   const [historyKey, setHistoryKey] = useState(0)
   // From the store, not a page-local fetch: this page carried a fourth copy of the
   // fallback settings literal, invisible to the store's loadFailed flag. The store
@@ -109,13 +110,23 @@ export default function Food() {
         total_fat: 0, total_fiber: 0, workout_count: 0,
       }
       let statsFailed = false
+      let statsMessage = ''
       const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
-        foodAPI.stats(date).catch(() => { statsFailed = true; return defaultStats }),
+        foodAPI.stats(date).catch(err => {
+          statsFailed = true
+          statsMessage = apiErrorMessage(err, "The server didn't say what went wrong.")
+          return defaultStats
+        }),
       ])
       setLogs(logData || [])
       setStats(statsData)
-      setMissing(m => statsFailed ? [...new Set([...m, "today's totals"])] : m.filter(x => x !== "today's totals"))
+      setMissing(m => {
+        const next = { ...m }
+        if (statsFailed) next["today's totals"] = statsMessage
+        else delete next["today's totals"]
+        return next
+      })
     } catch (err: any) {
       setLoadError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
@@ -131,8 +142,13 @@ export default function Food() {
     setHistoryLoading(true)
     const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
     foodAPI.history(days)
-      .then(data => { setHistoryData(data || []); setMissing(m => m.filter(x => x !== 'your history')) })
-      .catch(() => setMissing(m => [...new Set([...m, 'your history'])]))
+      .then(data => {
+        setHistoryData(data || [])
+        setMissing(m => { const next = { ...m }; delete next['your history']; return next })
+      })
+      .catch(err => setMissing(m => ({
+        ...m, 'your history': apiErrorMessage(err, "The server didn't say what went wrong."),
+      })))
       .finally(() => setHistoryLoading(false))
   }, [historyPeriod, historyKey])
 
@@ -173,8 +189,8 @@ export default function Food() {
   }
 
   const s = stats
-  const statsMissing = missing.includes("today's totals")
-  const historyMissing = missing.includes('your history')
+  const statsMissing = "today's totals" in missing
+  const historyMissing = 'your history' in missing
   const totalCals = s?.total_calories ?? 0
   const calTarget = settings?.calorie_target ?? 2000
   const remaining = calTarget - totalCals
@@ -441,10 +457,15 @@ export default function Food() {
         ) : historyData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             {historyMissing ? (
-              // The calendar belongs to the empty state, not to this one: stacked above
-              // the mark it read as two unrelated icons for one condition.
-              <StatFailure size="block" label="Couldn't load your history"
-                           onRetry={() => setHistoryKey(k => k + 1)} />
+              // Chart-sized, so it gets the section treatment. The calendar belongs to
+              // the empty state below, not here — stacked above this it read as two
+              // unrelated icons for one condition.
+              <ErrorState
+                size="section"
+                title="Couldn't load your history"
+                message={missing['your history']}
+                onRetry={() => setHistoryKey(k => k + 1)}
+              />
             ) : (
               <>
                 <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
