@@ -139,17 +139,25 @@ export default function Food() {
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
 
   useEffect(() => {
+    // Same race as the weight trend: 90d is a slower query than 7d, so without this a
+    // stale wide answer can overwrite the narrow one the user just asked for.
+    let cancelled = false
     setHistoryLoading(true)
     const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
     foodAPI.history(days)
       .then(data => {
+        if (cancelled) return
         setHistoryData(data || [])
         setMissing(m => { const next = { ...m }; delete next['your history']; return next })
       })
-      .catch(err => setMissing(m => ({
-        ...m, 'your history': apiErrorMessage(err, "The server didn't say what went wrong."),
-      })))
-      .finally(() => setHistoryLoading(false))
+      .catch(err => {
+        if (cancelled) return
+        setMissing(m => ({
+          ...m, 'your history': apiErrorMessage(err, "The server didn't say what went wrong."),
+        }))
+      })
+      .finally(() => { if (!cancelled) setHistoryLoading(false) })
+    return () => { cancelled = true }
   }, [historyPeriod, historyKey])
 
   const openLog = (meal: types.FoodLog['meal']) => {

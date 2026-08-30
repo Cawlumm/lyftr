@@ -230,20 +230,29 @@ export default function Weight() {
   const [statsError, setStatsError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
+  // `cancelled` is not tidiness, it is correctness. A wider window is a slower query, so
+  // tapping All and then 7d can land All's answer last — and the figures, the chart and
+  // the "over 7d" line would then all be describing a period the user is not looking at.
+  // Measured: 7d reads 182/181/183 and All reads 179/173/185, and without this the 7d
+  // view showed All's numbers.
   useEffect(() => {
+    let cancelled = false
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
     weightAPI.list({ limit: 1000, from })
       // chartLogs is deliberately left alone on failure: a failed refetch keeps the
       // series already on screen rather than blanking a chart that was working.
-      .then(data => { setChartLogs(data || []); setChartError(null) })
-      .catch(err => setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")))
+      .then(data => { if (!cancelled) { setChartLogs(data || []); setChartError(null) } })
+      .catch(err => { if (!cancelled) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
+    return () => { cancelled = true }
   }, [period, retryKey])
 
   useEffect(() => {
+    let cancelled = false
     weightAPI.stats()
-      .then(data => { setStats(data); setStatsError(null) })
-      .catch(err => setStatsError(apiErrorMessage(err, "Couldn't load your weight stats.")))
+      .then(data => { if (!cancelled) { setStats(data); setStatsError(null) } })
+      .catch(err => { if (!cancelled) setStatsError(apiErrorMessage(err, "Couldn't load your weight stats.")) })
+    return () => { cancelled = true }
   }, [retryKey])
 
   // One control puts all three reads back, so a reader never has to work out which of
