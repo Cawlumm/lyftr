@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
+import { Alert, AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -47,8 +47,10 @@ export default function Workouts() {
       client.workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     [debouncedSearch]
   )
-  const { items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload } =
-    useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
+  const {
+    items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
 
   // The stack keeps this screen mounted under the detail screen, so a delete made
   // there doesn't remount us the way the web SPA's re-navigation does — refetch on
@@ -176,7 +178,16 @@ export default function Workouts() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : listError ? (
+            // An empty list because the fetch failed is not an empty list. "Log a
+            // workout to get started", shown to someone with months of history because
+            // their signal dropped, is the worst thing this screen can say.
+            <View className="px-1 py-3">
+              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                {listError}
+              </Alert>
+            </View>
+          ) : (
             <EmptyState
               icon={Dumbbell}
               title="No workouts found"
@@ -185,7 +196,13 @@ export default function Workouts() {
           )
         }
         ListFooterComponent={
-          hasMore && loading && workouts.length > 0 ? (
+          listError && workouts.length > 0 ? (
+            <View className="px-1 py-3">
+              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                {listError}
+              </Alert>
+            </View>
+          ) : hasMore && loading && workouts.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>

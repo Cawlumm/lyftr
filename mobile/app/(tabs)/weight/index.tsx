@@ -7,7 +7,7 @@ import {
   Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { useAsyncAction, apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
+import { useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, DateInput, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StepperTile,
@@ -37,8 +37,10 @@ export default function Weight() {
 
   // Paginated history list (newest-first) — the FlatList data.
   const fetcher = useCallback((offset: number, limit: number) => client.weightAPI.list({ offset, limit }), [])
-  const { items, loadMore, hasMore, loading, initialLoading, reload } =
-    useServerInfiniteList<WeightLog>({ fetcher })
+  const {
+    items, loadMore, hasMore, loading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<WeightLog>({ fetcher })
 
   // Chart data — a separate period-scoped fetch (uncapped at 1000), re-fetched when the
   // period changes and after every successful log.
@@ -392,7 +394,13 @@ export default function Weight() {
           />
         )}
         ListFooterComponent={
-          hasMore && loading && items.length > 0 ? (
+          listError ? (
+            <View className="px-1 py-3">
+              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                {listError}
+              </Alert>
+            </View>
+          ) : hasMore && loading && items.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>

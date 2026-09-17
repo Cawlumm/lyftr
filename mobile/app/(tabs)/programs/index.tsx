@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
 import { programExerciseCount } from '@lyftr/shared'
-import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
+import { Alert, AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -29,8 +29,10 @@ export default function Programs() {
       client.programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     [debouncedSearch]
   )
-  const { items: programs, loadMore, hasMore, loading, initialLoading, refreshing, reload } =
-    useServerInfiniteList<Program>({ fetcher, deps: [debouncedSearch] })
+  const {
+    items: programs, loadMore, hasMore, loading, initialLoading, refreshing, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<Program>({ fetcher, deps: [debouncedSearch] })
 
   // The stack keeps this screen mounted under the detail/form screens; refetch on
   // re-focus so an edit/delete/create there reflects here. Skip the first focus (the
@@ -138,7 +140,15 @@ export default function Programs() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : listError ? (
+            // A failed fetch leaves the list empty too, and "Create a program to get
+            // started" is a lie told to someone who already has six.
+            <View className="px-1 py-3">
+              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                {listError}
+              </Alert>
+            </View>
+          ) : (
             <EmptyState
               icon={BookOpen}
               title="No programs found"
@@ -150,7 +160,13 @@ export default function Programs() {
           // Pagination-only spinner: `!dim` keeps it from firing during a full
           // (re)load — there the content is already grayed, so a footer spinner
           // would read as an unwanted "loading" in the middle.
-          hasMore && loading && !dim && programs.length > 0 ? (
+          listError && programs.length > 0 ? (
+            <View className="px-1 py-3">
+              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
+                {listError}
+              </Alert>
+            </View>
+          ) : hasMore && loading && !dim && programs.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
