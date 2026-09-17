@@ -4,7 +4,7 @@ import { useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
-  Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
+  Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import { useAsyncAction, apiErrorMessage, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
@@ -17,7 +17,6 @@ import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { semanticInk } from '../../../src/theme/theme'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
@@ -30,8 +29,7 @@ export default function Weight() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand, isDark } = useTheme()
-  const warningInk = semanticInk[isDark ? 'dark' : 'light'].warning
+  const { colors, accent, brand } = useTheme()
 
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<WeightStats | null>(null)
@@ -59,14 +57,20 @@ export default function Weight() {
     refetchStats()
   }, [fetchSettings, refetchStats])
 
-  // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh of all
-  // three sources (history list + stats + chart), same affordance as the Workouts list.
+  // Every screen refresh means "this screen's data is stale" across all three sources
+  // (history list + stats + chart) — one awaitable callback so they can't drift apart.
+  const refreshAll = useCallback(
+    () => Promise.all([reload(), refetchStats(), refetchChart()]),
+    [reload, refetchStats, refetchChart]
+  )
+
+  // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh.
   const [pulling, setPulling] = useState(false)
   const onPullRefresh = useCallback(async () => {
     setPulling(true)
-    await Promise.all([reload(), refetchStats(), refetchChart()])
+    await refreshAll()
     setPulling(false)
-  }, [reload, refetchStats, refetchChart])
+  }, [refreshAll])
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
@@ -96,10 +100,8 @@ export default function Weight() {
         focusedOnce.current = true
         return
       }
-      reload()
-      refetchStats()
-      refetchChart()
-    }, [reload, refetchStats, refetchChart])
+      refreshAll()
+    }, [refreshAll])
   )
 
   // Oldest → newest for the chart. Weight in the display unit; `sub` feeds the tap bubble.
@@ -125,9 +127,7 @@ export default function Weight() {
         setNewDate(todayStr())
         setShowNotes(false)
         duplicateWarningDismissedRef.current = false
-        reload()
-        refetchStats()
-        refetchChart()
+        refreshAll()
   }, 'Failed to log weight')
 
   const handleLog = async () => {
@@ -280,32 +280,23 @@ export default function Weight() {
                 ) : null}
 
                 {showDuplicateWarning && items.length > 0 ? (
-                  <View className="flex-row items-start gap-3 rounded-xl border border-warning-500/20 bg-warning-500/10 px-4 py-3">
-                    <AlertCircle size={16} color={warningInk} style={{ marginTop: 2 }} />
-                    <View className="min-w-0 flex-1">
-                      <Text className="font-sans-semibold text-sm" style={{ color: warningInk }}>
-                        Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
-                      </Text>
-                      <View className="mt-2 flex-row gap-2">
-                        <Pressable
-                          onPress={() => setShowDuplicateWarning(false)}
-                          className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-1 active:opacity-70"
-                        >
-                          <AppText variant="caption" color="secondary">Cancel</AppText>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => {
-                            duplicateWarningDismissedRef.current = true
-                            setShowDuplicateWarning(false)
-                            handleLog()
-                          }}
-                          className="rounded-lg bg-warning-500 px-3 py-1 active:opacity-80"
-                        >
-                          <Text className="font-sans-semibold text-xs" style={{ color: brand.warningText }}>Log Anyway</Text>
-                        </Pressable>
-                      </View>
-                    </View>
-                  </View>
+                  <Alert
+                    variant="warning"
+                    actions={[
+                      { label: 'Cancel', onPress: () => setShowDuplicateWarning(false) },
+                      {
+                        label: 'Log Anyway',
+                        primary: true,
+                        onPress: () => {
+                          duplicateWarningDismissedRef.current = true
+                          setShowDuplicateWarning(false)
+                          handleLog()
+                        },
+                      },
+                    ]}
+                  >
+                    Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                  </Alert>
                 ) : null}
 
                 <Button
@@ -377,13 +368,11 @@ export default function Weight() {
                 </View>
               </View>
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartData.length === 0 ? (
+                {chartData.length < 2 ? (
                   <View className="h-44 items-center justify-center">
-                    <AppText variant="body" color="muted">No data for this period</AppText>
-                  </View>
-                ) : chartData.length === 1 ? (
-                  <View className="h-44 items-center justify-center">
-                    <AppText variant="body" color="muted">Log another entry to see the trend</AppText>
+                    <AppText variant="body" color="muted">
+                      {chartData.length === 0 ? 'No data for this period' : 'Log another entry to see the trend'}
+                    </AppText>
                   </View>
                 ) : (
                   <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} readoutNote="" height={180} />
@@ -399,7 +388,7 @@ export default function Weight() {
             item={item}
             next={items[index + 1]}
             unit={unit}
-            onDeleted={() => { reload(); refetchStats(); refetchChart() }}
+            onDeleted={refreshAll}
           />
         )}
         ListFooterComponent={

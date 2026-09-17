@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
+import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
 import { EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
@@ -18,6 +19,8 @@ interface Props {
 // Must match the server's default page size: a short page is what tells us there
 // is nothing left for this query.
 const PAGE_SIZE = 50
+// Matches the search debounce used elsewhere on mobile (programs/workouts/weight).
+const DEBOUNCE_MS = 250
 
 function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
   return (
@@ -55,52 +58,31 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
 // back to the form without a store detour, hence Modal).
 export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   const { accent, colors } = useTheme()
-  const [exercises, setExercises] = useState<Exercise[]>([])
   const [query, setQuery] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [page, setPage] = useState(1)
-  const [exhausted, setExhausted] = useState(false)
-  // FlatList fires onEndReached more than once near the boundary; this keeps those
-  // repeats from each starting their own request for the same page.
-  const loadingRef = useRef(false)
-  // Identifies the newest request so a slow earlier one cannot overwrite it.
-  const reqRef = useRef(0)
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    return () => clearTimeout(t)
+  }, [query])
 
   // Every page comes from the server, which queries open-exercise-db. The client
   // used to cache the whole unfiltered catalog on first open and slice it locally;
   // that made each install a copy of a database it does not own, and on a phone it
   // is the difference between one 50-row response and ~873 rows of JSON.
-  const load = useCallback(async (q: string, nextPage: number, append = false) => {
-    // Only an append is skippable. Dropping a search because a page fetch is still
-    // in flight leaves the user looking at the unfiltered first page while their
-    // query appears to have done nothing.
-    if (append && loadingRef.current) return
-    const id = ++reqRef.current
-    loadingRef.current = true
-    setLoading(true)
-    try {
-      const data = (await client.exerciseAPI.list({ ...(q ? { q } : {}), page: nextPage })) || []
-      if (reqRef.current !== id) return // a newer request has taken over
-      setExercises((prev) => (append ? [...prev, ...data] : data))
-      setExhausted(data.length < PAGE_SIZE)
-      setPage(nextPage)
-    } catch {
-      // Web swallows picker fetch errors too — the empty state covers it.
-    } finally {
-      if (reqRef.current === id) {
-        loadingRef.current = false
-        setLoading(false)
-      }
-    }
-  }, [])
+  const fetcher = useCallback(
+    (offset: number, limit: number) =>
+      client.exerciseAPI
+        .list({ ...(debouncedQuery ? { q: debouncedQuery } : {}), page: offset / limit + 1 })
+        .then((data) => data ?? []),
+    [debouncedQuery]
+  )
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setExhausted(false)
-      load(query, 1)
-    }, query ? 250 : 0)
-    return () => clearTimeout(t)
-  }, [query, load])
+  const { items: exercises, loadMore, hasMore, initialLoading } = useServerInfiniteList<Exercise>({
+    fetcher,
+    pageSize: PAGE_SIZE,
+    deps: [debouncedQuery],
+  })
 
   const available = exercises.filter((e) => !selectedIds.includes(e.id))
 
@@ -120,7 +102,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
                 18px heading read undersized for a full-screen surface. */}
             <AppText variant="title">Add Exercise</AppText>
             <AppText variant="caption" color="muted">
-              {available.length} loaded{exhausted ? '' : '…'}
+              {available.length} loaded{hasMore ? '…' : ''}
             </AppText>
           </View>
         </View>
@@ -148,7 +130,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
         </View>
 
         {/* List */}
-        {loading && exercises.length === 0 ? (
+        {initialLoading ? (
           <View className="flex-row items-center justify-center gap-2 py-16">
             <ActivityIndicator color={accent} />
             <AppText variant="body" color="muted">Loading exercises…</AppText>
@@ -164,7 +146,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             // media so the thumbnails read as a column, not boxed cells.
             ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
             renderItem={({ item }) => <PickerRow exercise={item} onPress={() => onSelect(item)} />}
-            onEndReached={() => { if (!exhausted && !loading) load(query, page + 1, true) }}
+            onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
               <View className="items-center py-16">
@@ -172,7 +154,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               </View>
             }
             ListFooterComponent={
-              !exhausted && exercises.length > 0 ? (
+              hasMore && exercises.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">Loading more…</AppText>

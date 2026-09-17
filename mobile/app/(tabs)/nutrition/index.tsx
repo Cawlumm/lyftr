@@ -6,7 +6,7 @@ import { format, subDays, addDays } from 'date-fns'
 import {
   AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
   AppText, Card, DateInput, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
 } from '../../../src/components/ui'
@@ -97,7 +97,7 @@ export default function Nutrition() {
       setLogs(logData || [])
       setStats(statsData)
     } catch (err: any) {
-      setError(err?.message || 'Failed to load food data')
+      setError(apiErrorMessage(err, 'Failed to load food data'))
     } finally {
       hasLoadedRef.current = true
     }
