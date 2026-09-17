@@ -1437,11 +1437,16 @@ func TestGetFoodHistory_agreesWithDailyTotals(t *testing.T) {
 	uid := createTestUser(t)
 	setUserTimezone(t, uid, "America/New_York")
 
-	// A fixed instant with a hard-coded expected day, rather than deriving the day
-	// with the same zone lookup the endpoints use — that would let a wrong lookup
-	// agree with itself. 01:00 UTC on Aug 8 is 21:00 on Aug 7 in New York.
-	insertFoodLogAt(t, uid, "Late dinner", 700, time.Date(2026, 8, 8, 1, 0, 0, 0, time.UTC))
-	const day = "2026-08-07"
+	// The expected day is still worked out without the zone lookup the endpoints use —
+	// that would let a wrong lookup agree with itself — but no longer from a fixed date.
+	// It was pinned to Aug 2026 and asked for days=400, which is above the handler's 365
+	// cap and so silently became 30: the test passed until Aug 7 aged out of that window,
+	// then failed on its own. 01:00 UTC is always the previous calendar day in New York
+	// (21:00 in EDT, 20:00 in EST), so plain date arithmetic gives the answer.
+	now := time.Now().UTC()
+	at := time.Date(now.Year(), now.Month(), now.Day(), 1, 0, 0, 0, time.UTC).AddDate(0, 0, -10)
+	insertFoodLogAt(t, uid, "Late dinner", 700, at)
+	day := at.AddDate(0, 0, -1).Format("2006-01-02")
 
 	c, w := newContext(uid, http.MethodGet, "/api/v1/food/stats?date="+day, nil)
 	th.GetDailyStats(c)
@@ -1450,7 +1455,7 @@ func TestGetFoodHistory_agreesWithDailyTotals(t *testing.T) {
 		t.Fatalf("daily totals put the 21:00-local entry somewhere else: got %v for %s", dailyCals, day)
 	}
 
-	c, w = newContext(uid, http.MethodGet, "/api/v1/food/history?days=400", nil)
+	c, w = newContext(uid, http.MethodGet, "/api/v1/food/history?days=60", nil)
 	th.GetFoodHistory(c)
 	for _, p := range decodeResponse(t, w)["data"].([]any) {
 		if pt := p.(map[string]any); pt["date"].(string) == day {
