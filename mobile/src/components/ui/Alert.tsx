@@ -33,20 +33,26 @@ interface Props {
   variant: Variant
   children: ReactNode
   className?: string
+  /** 'compact' for dense surfaces — inside a sheet, where a full-size alert outweighs
+   *  the copy it is qualifying and pushes the buttons off a short screen. */
+  size?: 'default' | 'compact'
 }
 
-export function Alert({ variant, children, className = '' }: Props) {
+export function Alert({ variant, children, className = '', size = 'default' }: Props) {
   const { brand } = useTheme()
   const { icon: Icon, tone } = TONES[variant]
   const color = brand[tone]
+  const compact = size === 'compact'
 
   return (
     <View
       accessibilityRole="alert"
-      className={`flex-row items-start gap-3 rounded-lg border p-3.5 ${SURFACES[variant]} ${className}`}
+      className={`flex-row items-start rounded-lg border ${
+        compact ? 'gap-2.5 px-3 py-2.5' : 'gap-3 p-3.5'
+      } ${SURFACES[variant]} ${className}`}
     >
-      <Icon size={18} color={color} strokeWidth={2.2} style={{ marginTop: 1 }} />
-      <AppText variant="body" className="flex-1" style={{ color }}>
+      <Icon size={compact ? 15 : 18} color={color} strokeWidth={2.2} style={{ marginTop: compact ? 1.5 : 1 }} />
+      <AppText variant={compact ? 'caption' : 'body'} className="flex-1" style={{ color }}>
         {children}
       </AppText>
     </View>

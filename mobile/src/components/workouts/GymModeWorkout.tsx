@@ -9,7 +9,7 @@ import {
   Play, Plus, Repeat, Timer, Trash2, X,
 } from 'lucide-react-native'
 import {
-  apiErrorMessage, displayToLbs, displayWeight, weightShort, type Exercise,
+  useAsyncAction, displayToLbs, displayWeight, weightShort, type Exercise,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
 import { RestPicker } from './RestPicker'
@@ -85,8 +85,6 @@ export function GymModeWorkout() {
   const [imgFailed, setImgFailed] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState('')
   const [showPicker, setShowPicker] = useState(false)
 
   const setPhase = (p: typeof phase) => setGymState(p, activeIdx, activeSetIdx)
@@ -113,29 +111,24 @@ export function GymModeWorkout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeIdx, session?.exercises.length])
 
+  // The sheet stays OPEN when this fails. The session is intact and the server may
+  // be reachable again in a moment, so the retry belongs under the finger that just
+  // tapped Finish - the alternative, dismissing to a banner at the top of a scrolled
+  // list, is what #145 felt like from the user's seat.
+  const finish = useAsyncAction(async () => {
+    const created = await client.workoutAPI.create(buildPayload())
+    setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
+    cancelSession()
+    minimizeGym()
+    router.replace('/workouts')
+  }, 'Failed to save workout')
+
   if (!session) return null
 
   const totalSets = session.exercises.reduce((s, ex) => s + ex.sets.length, 0)
   const completedSets = session.exercises.reduce((s, ex) => s + ex.sets.filter((st) => st.completed).length, 0)
   const allDone = completedSets === totalSets && totalSets > 0
 
-  const handleFinish = async () => {
-    setSaving(true)
-    setSaveError('')
-    try {
-      const created = await client.workoutAPI.create(buildPayload())
-      setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
-      cancelSession()
-      minimizeGym()
-      router.replace('/workouts')
-    } catch (err: any) {
-      // This used to swallow the error and dismiss the sheet, so a finish that failed
-      // looked exactly like a finish that was never registered - the report in #145.
-      // Keep the sheet up, say why, leave the session intact, let them tap again.
-      setSaveError(apiErrorMessage(err, 'Failed to save workout'))
-      setSaving(false)
-    }
-  }
 
   const handleMinimize = () => {
     minimizeGym()
@@ -169,9 +162,9 @@ export function GymModeWorkout() {
         icon={Flag}
         title="Finish Workout?"
         message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
-        confirmLabel="Finish" busyLabel="Saving…" cancelLabel="Keep Going" busy={saving}
-        error={saveError}
-        onConfirm={handleFinish} onCancel={() => { setConfirmFinish(false); setSaveError('') }}
+        confirmLabel="Finish" busyLabel="Saving…" cancelLabel="Keep Going" busy={finish.busy}
+        error={finish.error}
+        onConfirm={() => { void finish.run() }} onCancel={() => { setConfirmFinish(false); finish.reset() }}
       />
       <ConfirmSheet
         open={confirmCancel}

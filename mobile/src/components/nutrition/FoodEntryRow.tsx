@@ -1,3 +1,4 @@
+import { useAsyncAction } from '@lyftr/shared'
 import { useState } from 'react'
 import { Image, Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
@@ -41,19 +42,15 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
   const { colors } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await client.foodAPI.delete(entry.id)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      onDeleted(entry.id)
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.foodAPI.delete(entry.id)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onDeleted(entry.id)
+  }, 'Failed to delete entry')
 
   const Thumb = ({ size = 44 }: { size?: number }) =>
     entry.image_url ? (
@@ -109,7 +106,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         variant="ghost"
         size="sm"
         onPress={() => setMenuOpen(true)}
-        disabled={deleting}
+        disabled={remove.busy}
       />
       <ChevronRight size={16} color={colors.txMuted} />
 
@@ -135,9 +132,10 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete entry?', subject: `"${entry.name}"` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </Pressable>
   )
