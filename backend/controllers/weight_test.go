@@ -731,21 +731,34 @@ func TestFoodHistory_neverReturnsANonDate(t *testing.T) {
 		 VALUES (?, 'unreadable', 'lunch', 100, 0, 0, 0, 1, 'not-a-timestamp', '')`, uid); err != nil {
 		t.Fatalf("seed unreadable food: %v", err)
 	}
+	// Relative, not pinned. This was seeded at 2026-08-05 and asked for days=3650, which
+	// is above the handler's 365 cap and silently became 30 — so once Aug 5 aged out, the
+	// history came back empty and the loop below checked nothing while the test passed.
+	good := time.Now().UTC().AddDate(0, 0, -5)
+	goodDay := good.Format("2006-01-02")
 	if _, err := db.DB.Exec(
 		`INSERT INTO food_logs (user_id, name, meal, calories, protein, carbs, fat, servings, logged_at, logged_on)
-		 VALUES (?, 'good', 'lunch', 200, 0, 0, 0, 1, '2026-08-05T12:00:00Z', '2026-08-05')`, uid); err != nil {
+		 VALUES (?, 'good', 'lunch', 200, 0, 0, 0, 1, ?, ?)`, uid, good.Format(time.RFC3339), goodDay); err != nil {
 		t.Fatalf("seed good food: %v", err)
 	}
 
-	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history?days=3650", nil)
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/history?days=60", nil)
 	th.GetFoodHistory(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
+	sawGood := false
 	for _, p := range decodeResponse(t, w)["data"].([]any) {
 		day := p.(map[string]any)["date"].(string)
 		if _, err := time.Parse("2006-01-02", day); err != nil {
 			t.Errorf("history returned %q as a date — clients parse this and the page throws", day)
 		}
+		if day == goodDay {
+			sawGood = true
+		}
+	}
+	// Without this an empty response passes, which is exactly how this test went quiet.
+	if !sawGood {
+		t.Errorf("history has no bucket for the readable entry on %s — the check above ran on nothing", goodDay)
 	}
 }
