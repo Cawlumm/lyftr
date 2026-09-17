@@ -6,7 +6,7 @@ import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
-import {
+import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
   weightShort, type Program, type ProgramSet,
 } from '@lyftr/shared'
@@ -76,7 +76,6 @@ export default function ProgramDetail() {
   const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [resolving, setResolving] = useState(false)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
@@ -168,16 +167,13 @@ export default function ProgramDetail() {
     router.navigate(activeHref)
   }
 
-  const handleDelete = async () => {
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
     if (!program) return
-    setDeleting(true)
-    try {
-      await client.programAPI.delete(program.id)
-      goBack() // list refetches on focus
-    } catch {
-      setDeleting(false)
-    }
-  }
+    await client.programAPI.delete(program.id)
+    goBack() // list refetches on focus
+  }, 'Failed to delete program')
 
   if (loading) return <Loading />
 
@@ -275,9 +271,9 @@ export default function ProgramDetail() {
                 accessibilityRole="button"
                 accessibilityLabel="Delete program"
                 onPress={() => setConfirming(true)}
-                disabled={deleting}
+                disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${deleting ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -287,9 +283,10 @@ export default function ProgramDetail() {
           <ConfirmSheet
             {...deleteConfirmProps({ title: 'Delete Program?', subject: `"${program.name}"` })}
             open={confirming}
-            busy={deleting}
-            onConfirm={handleDelete}
-            onCancel={() => setConfirming(false)}
+            busy={remove.busy}
+            error={remove.error}
+            onConfirm={() => { void remove.run() }}
+            onCancel={() => { setConfirming(false); remove.reset() }}
           />
 
           {/* Auto-progression review banner (#40) — approve the targets you beat last workout */}

@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MoreVertical, Scale, TrendingDown, TrendingUp } from 'lucide-react-native'
-import { displayWeight, entryDay, weightShort, type WeightLog, formatDay } from '@lyftr/shared'
+import { useAsyncAction, displayWeight, entryDay, weightShort, type WeightLog, formatDay } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -26,24 +26,20 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
   const wUnit = weightShort(unit)
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const deltaLbs = next ? item.weight - next.weight : 0
   const displayW = displayWeight(item.weight, unit)
   const displayDelta = displayWeight(Math.abs(deltaLbs), unit)
   const dateLabel = formatDay(entryDay(item), 'MMM d, yyyy')
 
-  const handleDelete = async () => {
-    setDeleting(true)
-    try {
-      await client.weightAPI.delete(item.id)
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      onDeleted(item.id)
-    } catch {
-      setDeleting(false)
-      setConfirming(false)
-    }
-  }
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.weightAPI.delete(item.id)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onDeleted(item.id)
+  }, 'Failed to delete entry')
 
   return (
     <Pressable onPress={() => router.push(`/weight/${item.id}`)} className="mb-2 active:scale-[0.99]">
@@ -77,7 +73,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
-          disabled={deleting}
+          disabled={remove.busy}
         />
         <ChevronRight size={16} color={colors.txMuted} />
       </Card>
@@ -108,9 +104,10 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
       <ConfirmSheet
         {...deleteConfirmProps({ title: 'Delete Entry?', subject: `${dateLabel} · ${Math.round(displayW)} ${wUnit}` })}
         open={confirming}
-        busy={deleting}
-        onConfirm={handleDelete}
-        onCancel={() => setConfirming(false)}
+        busy={remove.busy}
+        error={remove.error}
+        onConfirm={() => { void remove.run() }}
+        onCancel={() => { setConfirming(false); remove.reset() }}
       />
     </Pressable>
   )
