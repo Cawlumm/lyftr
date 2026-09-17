@@ -368,7 +368,7 @@ export default function SettingsScreen() {
                 keyboardType="url"
                 placeholder="https://your-server.example.com"
               />
-              {serverMsg ? <AppText variant="caption" className="mt-2 text-brand-400">{serverMsg}</AppText> : null}
+              {serverMsg ? <AppText variant="caption" color="brand" className="mt-2">{serverMsg}</AppText> : null}
               {insecureServer ? (
                 <View className="mt-2 flex-row items-start gap-1.5">
                   <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />

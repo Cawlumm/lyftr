@@ -71,9 +71,6 @@ export default function EditWorkout() {
     fetchSettings()
   }, [fetchSettings])
 
-  useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
 
   useEffect(() => {
     const workoutId = Number(id)
@@ -201,6 +198,10 @@ export default function EditWorkout() {
     // list — the detail refetches on next visit; the list reloads on focus.
     router.dismissTo('/workouts')
   }, 'Failed to update workout')
+
+  useEffect(() => {
+    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error, save.error])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Workout name required'); return }

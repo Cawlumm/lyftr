@@ -1,4 +1,5 @@
 import { Pressable, Text, ActivityIndicator } from 'react-native'
+import { semanticInk, type SemanticTone } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
@@ -12,11 +13,13 @@ interface Props {
   className?: string
 }
 
-const VARIANT: Record<ButtonVariant, { bg: string; text: string }> = {
+const VARIANT: Record<ButtonVariant, { bg: string; text: string; tone?: SemanticTone }> = {
   primary: { bg: 'bg-brand-500 active:bg-brand-700', text: 'text-white' },
   secondary: { bg: 'bg-surface-muted border border-surface-border', text: 'text-tx-primary' },
   ghost: { bg: '', text: 'text-tx-muted' },
-  danger: { bg: 'bg-error-500/10 border border-error-500/20', text: 'text-error-400' },
+  // Label colour comes from the theme: text-error-400 on this tint measures 2.4:1 on a
+  // light surface, and light is this app's default.
+  danger: { bg: 'bg-error-500/10 border border-error-500/20', text: '', tone: 'error' },
 }
 
 export function Button({
@@ -27,8 +30,9 @@ export function Button({
   disabled = false,
   className = '',
 }: Props) {
-  const { accent } = useTheme()
+  const { accent, isDark } = useTheme()
   const v = VARIANT[variant]
+  const toneColor = v.tone ? semanticInk[isDark ? 'dark' : 'light'][v.tone] : undefined
   const isDisabled = disabled || loading
   return (
     <Pressable
@@ -51,7 +55,7 @@ export function Button({
         // background, where a white spinner would vanish on the light theme.
         <ActivityIndicator color={variant === 'primary' ? '#fff' : accent} />
       ) : (
-        <Text className={`font-sans-bold text-sm ${v.text}`}>{title}</Text>
+        <Text className={`font-sans-bold text-sm ${v.text}`} style={toneColor ? { color: toneColor } : undefined}>{title}</Text>
       )}
     </Pressable>
   )

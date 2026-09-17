@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Text, TextInput, TextInputProps, View } from 'react-native'
+import { TextInput, TextInputProps, View } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import Reanimated, {
   useSharedValue,
@@ -8,7 +8,7 @@ import Reanimated, {
   interpolateColor,
 } from 'react-native-reanimated'
 import { useTheme } from '../../theme/useTheme'
-import { Label } from './Typography'
+import { AppText, Label } from './Typography'
 
 interface Props extends TextInputProps {
   label?: string
@@ -84,7 +84,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
         />
         {rightSlot ? <View style={{ marginLeft: 8 }}>{rightSlot}</View> : null}
       </Reanimated.View>
-      {error ? <Text className="font-sans text-xs text-error-400">{error}</Text> : null}
+      {error ? <AppText variant="caption" color="error">{error}</AppText> : null}
     </View>
   )
 }
