@@ -9,7 +9,8 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { types } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
@@ -45,6 +46,15 @@ export default function ExerciseDetail() {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // A 404 is not a retryable failure: the row is gone, and a Try again button that
+  // cannot ever succeed is worse than no button. Tracked separately from the message
+  // because the message alone cannot say which kind of failure produced it.
+  const [gone, setGone] = useState(false)
+  // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
+  // shape, but it would mean restructuring a working effect to gain a retry button;
+  // this does the same job in three lines.
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -66,9 +76,12 @@ export default function ExerciseDetail() {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch(() => navigate(-1))
+      .catch(err => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      })
       .finally(() => setLoading(false))
-  }, [exerciseId])
+  }, [exerciseId, retryKey])
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -79,6 +92,20 @@ export default function ExerciseDetail() {
 
   const bodyColor = isDark ? '#162240' : '#e2e8f0'
   const highlightColors = ['#0e7490', '#22d3ee'] // [secondary=cyan-700, primary=cyan-400]
+
+  // A dropped connection used to navigate(-1) — off the screen, no explanation, nothing to
+  // retry. Say what happened and leave them where they tapped.
+  if (error) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load this exercise"
+        message={error}
+        onRetry={gone ? undefined : () => { setError(null); setRetryKey(k => k + 1) }}
+        secondary={<button onClick={() => navigate(-1)} className="btn-secondary btn-sm">Go back</button>}
+      />
+    )
+  }
 
   if (loading || !exercise) {
     return (

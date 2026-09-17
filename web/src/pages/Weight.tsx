@@ -9,8 +9,9 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
+import { ErrorState, ListError, StatFailure } from '../components/ui'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs, displayWeight, round1 , weightError, maxWeight } from '../stores/settings'
 
@@ -213,30 +214,60 @@ export default function Weight() {
   const [error, setError] = useState<string | null>(null)
 
   // Paginated history list
-  const { items, sentinelRef, hasMore, loading: listLoading, initialLoading, reload } = useServerInfiniteList<types.WeightLog>({
+  const {
+    items, sentinelRef, hasMore, loading: listLoading, initialLoading, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<types.WeightLog>({
     fetcher: (offset, limit) => weightAPI.list({ offset, limit }),
   })
 
   // Chart data — re-fetched when period changes
   const [chartLogs, setChartLogs] = useState<types.WeightLog[]>([])
 
+  // Both of these used to swallow their failure. Nothing recorded it, so the aggregates
+  // below fell back to 0 and the page rendered three measurements it had never received.
+  const [chartError, setChartError] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+
+  // `cancelled` is not tidiness, it is correctness. A wider window is a slower query, so
+  // tapping All and then 7d can land All's answer last — and the figures, the chart and
+  // the "over 7d" line would then all be describing a period the user is not looking at.
+  // Measured: 7d reads 182/181/183 and All reads 179/173/185, and without this the 7d
+  // view showed All's numbers.
   useEffect(() => {
+    let cancelled = false
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
     weightAPI.list({ limit: 1000, from })
-      .then(data => setChartLogs(data || []))
-      .catch(() => { /* chart keeps the previous series rather than blanking on a failed refetch */ })
-  }, [period])
+      // chartLogs is deliberately left alone on failure: a failed refetch keeps the
+      // series already on screen rather than blanking a chart that was working.
+      .then(data => { if (!cancelled) { setChartLogs(data || []); setChartError(null) } })
+      .catch(err => { if (!cancelled) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
+    return () => { cancelled = true }
+  }, [period, retryKey])
 
   useEffect(() => {
-    weightAPI.stats().then(setStats).catch(() => {})
-  }, [])
+    let cancelled = false
+    weightAPI.stats()
+      .then(data => { if (!cancelled) { setStats(data); setStatsError(null) } })
+      .catch(err => { if (!cancelled) setStatsError(apiErrorMessage(err, "Couldn't load your weight stats.")) })
+    return () => { cancelled = true }
+  }, [retryKey])
+
+  // One control puts all three reads back, so a reader never has to work out which of
+  // them failed to know what to press.
+  const retryAll = () => {
+    setChartError(null)
+    setStatsError(null)
+    setRetryKey(k => k + 1)
+    retryList()
+  }
 
   // Log form
   const [newWeight, setNewWeight] = useState('')
   const [newDate, setNewDate] = useState(todayStr())
   const [newNotes, setNewNotes] = useState('')
-  const [logging, setLogging] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const duplicateWarningDismissedRef = useRef(false)
@@ -261,9 +292,27 @@ export default function Weight() {
       })
   }, [chartLogs, settings.weight_unit])
 
+  const log = useAsyncAction(async (w: number) => {
+        const real = await weightAPI.log({
+          weight: displayToLbs(w, settings.weight_unit),
+          notes: newNotes.trim(),
+          logged_at: dayToInstant(newDate),
+        })
+        setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
+        setNewNotes('')
+        setNewDate(todayStr())
+        setShowNotes(false)
+        duplicateWarningDismissedRef.current = false
+        reload()
+        weightAPI.stats().then(setStats).catch(() => {})
+        const days = PERIOD_DAYS[period]
+        const from = days != null ? daysAgoStr(days) : undefined
+        weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
+  }, 'Failed to log weight')
+
   const handleLog = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (logging) return
+    if (log.busy) return
     const w = parseFloat(newWeight)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
@@ -276,50 +325,20 @@ export default function Weight() {
       return
     }
 
-    setLogging(true)
     setError(null)
     setShowDuplicateWarning(false)
-
-    try {
-      const real = await weightAPI.log({
-        weight: displayToLbs(w, settings.weight_unit),
-        notes: newNotes.trim(),
-        logged_at: dayToInstant(newDate),
-      })
-      setNewWeight(String(displayWeight(real.weight, settings.weight_unit)))
-      setNewNotes('')
-      setNewDate(todayStr())
-      setShowNotes(false)
-      duplicateWarningDismissedRef.current = false
-      reload()
-      weightAPI.stats().then(setStats).catch(() => {})
-      const days = PERIOD_DAYS[period]
-      const from = days != null ? daysAgoStr(days) : undefined
-      weightAPI.list({ limit: 1000, from }).then(data => setChartLogs(data || [])).catch(() => {})
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to log weight')
-    } finally {
-      setLogging(false)
-    }
+    void log.run(w)
   }
 
   if (initialLoading) return <Loading />
 
-  if (error && items.length === 0) {
-    return (
-      <div className="alert-error">
-        <AlertCircle className="w-5 h-5 flex-shrink-0" />
-        <span>{error}</span>
-      </div>
-    )
-  }
 
   // Period stats computed from chartLogs (period-scoped server fetch).
   // For "All" period prefer server-computed stats since they're not capped at 1000.
   const periodValues = chartLogs.map(l => l.weight) // raw lbs from DB, newest first
   const useServerAggregate = period === 'All' && stats != null
-  const currentLbs = periodValues[0] ?? stats?.latest ?? 0
-  const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? 0
+  const currentLbs = periodValues[0] ?? stats?.latest ?? items[0]?.weight ?? 0
+  const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? currentLbs
   const changeLbs = currentLbs - oldestLbs
   const avgLbs = useServerAggregate
     ? (stats!.avg ?? 0)
@@ -330,6 +349,36 @@ export default function Weight() {
   const maxLbs = useServerAggregate
     ? (stats!.max ?? 0)
     : (periodValues.length > 0 ? Math.max(...periodValues) : 0)
+
+  // A number we never received is not zero, and neither is the average of nothing. With
+  // no values to aggregate the tiles read "—" whatever the reason: an outage otherwise
+  // renders "0 lb" in the same type as a real measurement, and a new account is told its
+  // lowest ever weight was zero. Which of the two it is, the hero and the chart say.
+  const loadFailed = chartError != null || statsError != null || listError != null
+
+  // Scope the error to the scope of the failure. Three sections failing separately is
+  // three problems and gets three errors; three sections failing because the server is
+  // down is ONE problem, and four retry buttons for it are four ways to say "reload".
+  const everythingFailed = chartError != null && statsError != null && listError != null
+    && items.length === 0 && periodValues.length === 0
+
+  // Nothing to aggregate. Two different reasons, and they are not the same sentence:
+  // an account with no entries yet reads "—", a section whose reads failed says so
+  // where the numbers would have been. A dash alone explains nothing, and the retry for
+  // it belongs beside it rather than in a banner at the top of the page.
+  // What the hero can honestly state. With the trend and stats reads both dead the old
+  // code fell through to 0 and rendered "0 lb · no change over 30d" — a measurement, in
+  // the same type as a real one — while the true latest weight sat in `items` below it.
+  const currentKnown = periodValues.length > 0 || stats != null || items.length > 0
+  const changeKnown = periodValues.length > 1
+  const noValues = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
+  const figuresFailed = noValues && (chartError != null || statsError != null)
+  const aggregatesUnknown = noValues && !figuresFailed
+
+  // We do hold values, but the refresh that would have updated them failed. Keep them —
+  // discarding data we have to report a failed refetch is worse — and say so under the
+  // figures it applies to.
+  const figuresStale = !everythingFailed && !noValues && (chartError != null || statsError != null)
 
   const current = displayWeight(currentLbs, settings.weight_unit)
   const change = displayWeight(changeLbs, settings.weight_unit)
@@ -347,6 +396,23 @@ export default function Weight() {
         : 'bg-error-500/10 border-error-500/20 text-error-400'
   const changeWord = change === 0 ? 'no change' : change < 0 ? 'lost' : 'gained'
 
+  // Title and subtitle stay, so the reader still knows where they are; the header's
+  // action does not. On an error screen the primary action is the retry, and a
+  // btn-primary beside it that leads to a save which cannot succeed outranks it.
+  if (everythingFailed) {
+    return (
+      <div className="space-y-5 animate-slide-up">
+        <PageHeader title="Weight" subtitle="Track your body weight over time" />
+        <ErrorState
+          size="page"
+          title="Couldn't load your weight"
+          message={listError ?? chartError ?? statsError ?? ''}
+          onRetry={retryAll}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5 animate-slide-up">
       <PageHeader
@@ -355,10 +421,10 @@ export default function Weight() {
         action={<span className="badge-brand"><Calendar className="w-3 h-3" /> {wUnit}</span>}
       />
 
-      {error && (
+      {(error || log.error) && (
         <div className="alert-error" role="alert" aria-live="polite">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{error || log.error}</span>
         </div>
       )}
 
@@ -449,10 +515,10 @@ export default function Weight() {
 
           <button
             type="submit"
-            disabled={!(parseFloat(newWeight) > 0) || logging}
+            disabled={!(parseFloat(newWeight) > 0) || log.busy}
             className="btn-primary btn-lg w-full"
           >
-            <Plus className="w-4 h-4" /> {logging ? 'Logging…' : 'Log Weight'}
+            <Plus className="w-4 h-4" /> {log.busy ? 'Logging…' : 'Log Weight'}
           </button>
           <p className="input-help flex items-center justify-center gap-1.5 text-center">
             <Sunrise className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
@@ -463,7 +529,17 @@ export default function Weight() {
 
       {/* Current weight hero */}
       <div className="card p-6 border-brand-500/20 bg-brand-500/5">
-        {items.length === 0 ? (
+        {items.length === 0 && loadFailed ? (
+          // Empty and unreachable look identical from here, so the empty copy cannot be
+          // the default: it told someone with years of entries that they had never
+          // weighed themselves, and invited them to fix it against a server that was down.
+          <ErrorState
+            size="section"
+            title="Couldn't load your weight"
+            message={listError ?? chartError ?? statsError ?? ''}
+            onRetry={retryAll}
+          />
+        ) : items.length === 0 ? (
           <div className="text-center py-2">
             <p className="stat-label mb-1">Current Weight</p>
             <p className="text-tx-muted text-sm">The scale doesn't know you exist yet. Fix that.</p>
@@ -474,18 +550,20 @@ export default function Weight() {
               <div>
                 <p className="stat-label mb-2">Current Weight</p>
                 <div className="flex items-end gap-2">
-                  <span className="stat-value text-5xl">{current}</span>
-                  <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
+                  <span className="stat-value text-5xl">{currentKnown ? current : '—'}</span>
+                  {currentKnown && <span className="text-tx-muted text-lg mb-1">{wUnit}</span>}
                 </div>
               </div>
-              <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass}`}>
+              <div className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-lg border ${trendClass} ${changeKnown ? '' : 'hidden'}`}>
                 <TrendIcon className="w-4 h-4" />
                 {Math.abs(change)} {wUnit}
               </div>
             </div>
-            <p className="text-xs text-tx-muted mt-3">
-              {Math.abs(change)} {wUnit} {changeWord} over {period}
-            </p>
+            {changeKnown && (
+              <p className="text-xs text-tx-muted mt-3">
+                {Math.abs(change)} {wUnit} {changeWord} over {period}
+              </p>
+            )}
           </>
         )}
       </div>
@@ -503,11 +581,29 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            <span className="stat-value text-xl">{Math.round(s.value)}</span>
-            <span className="text-xs text-tx-muted ml-1">{wUnit}</span>
+            {figuresFailed ? (
+              <StatFailure label={`Couldn't load ${s.label.toLowerCase()} weight`} />
+            ) : (
+              <>
+                <span className="stat-value text-xl">{aggregatesUnknown ? '—' : Math.round(s.value)}</span>
+                {!aggregatesUnknown && <span className="text-xs text-tx-muted ml-1">{wUnit}</span>}
+              </>
+            )}
           </div>
         ))}
       </div>
+
+      {/* Only the stale case earns a line here. When the figures never arrived the tiles
+          above are already showing the failure mark, and repeating it in words underneath
+          was the same thing said twice. Stale is different: the tiles are showing real
+          numbers, so nothing else on screen says they are out of date. */}
+      {figuresStale && (
+        <div className="flex items-center gap-2 px-1 text-xs text-tx-muted" role="status">
+          <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 text-amber-400" />
+          <span>Couldn't refresh these — showing the last we loaded.</span>
+          <button onClick={retryAll} className="underline hover:text-tx-primary">Try again</button>
+        </div>
+      )}
 
       {/* Chart + period selector */}
       <div className="card p-5">
@@ -516,7 +612,9 @@ export default function Weight() {
           <PeriodSelector options={PERIODS} value={period} onChange={setPeriod} />
         </div>
 
-        {chartPoints.length === 0 ? (
+        {chartPoints.length === 0 && chartError ? (
+          <ErrorState size="section" title="Couldn't load your trend" message={chartError} onRetry={retryAll} />
+        ) : chartPoints.length === 0 ? (
           <div className="flex items-center justify-center h-44 text-tx-muted text-sm">
             No data for this period
           </div>
@@ -529,7 +627,10 @@ export default function Weight() {
         )}
       </div>
 
-      {/* History */}
+      {/* History — the error sits outside the items guard on purpose: a failed first
+          page leaves items empty, and the guard alone rendered nothing whatsoever. */}
+      {listError && <ListError subject="your weight history" message={listError} onRetry={retryList} />}
+
       {items.length > 0 && (
         <>
           <h2 className="section-title px-1">History</h2>

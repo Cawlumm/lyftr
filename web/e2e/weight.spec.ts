@@ -143,4 +143,41 @@ test.describe('Weight', () => {
     await page.waitForURL('/weight', { timeout: 5000 })
     await expect(page.getByRole('heading', { name: 'Weight', exact: true })).toBeVisible()
   })
+
+  // A delete in flight cannot be dismissed. ConfirmSheet refuses Escape and Cancel while
+  // busy, and its own unit test proves that — but this page kept the Escape listener from
+  // the hand-rolled dialog ConfirmSheet replaced, and that listener ignored `busy`. Escape
+  // mid-delete closed the sheet, and the failure then landed with nowhere to be shown. A
+  // component test cannot see a page wiring its own second handler; only this can.
+  test('a delete in flight cannot be dismissed into silence', async ({ page }) => {
+    const headers = { Authorization: `Bearer ${authToken}` }
+    const r = await page.request.post(`${API}/weight`, {
+      headers,
+      data: { weight: 998, notes: 'E2E in-flight target', logged_at: new Date(Date.now() - 31 * 86400000).toISOString() },
+    })
+    const { data } = await r.json()
+
+    await page.goto(`/weight/${data.id}`)
+    await expect(page.getByText('Weight Entry')).toBeVisible()
+
+    // DELETE only, and only once the page is up: the detail screen loads from the same
+    // URL it deletes, so hanging every method would hang the page before the delete.
+    await page.route(`**/api/v1/weight/${data.id}`, route =>
+      route.request().method() === 'DELETE' ? undefined : route.fallback())
+
+    await page.getByRole('button', { name: 'Delete entry' }).click()
+    const sheet = page.getByRole('alertdialog', { name: 'Delete Entry?' })
+    await expect(sheet).toBeVisible()
+    await sheet.getByRole('button', { name: 'Delete' }).click()
+    await expect(sheet.getByRole('button', { name: 'Deleting…' })).toBeDisabled()
+
+    await page.keyboard.press('Escape')
+    await expect(sheet.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    // Still up after both ways out were tried. Checked after the Cancel assertion so the
+    // Escape has had a render to take effect in, rather than asserting on the same tick.
+    await expect(sheet).toBeVisible()
+
+    await page.unroute(`**/api/v1/weight/${data.id}`)
+    await page.request.delete(`${API}/weight/${data.id}`, { headers })
+  })
 })

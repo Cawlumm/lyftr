@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { useAsyncAction, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
 
@@ -25,7 +25,6 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
   const [date, setDate] = useState(todayStr())
   const [notes, setNotes] = useState('')
   const [showExtras, setShowExtras] = useState(false)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const duplicateWarningDismissedRef = useRef(false)
@@ -38,10 +37,19 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     setNotes('')
     setShowExtras(false)
     setError('')
-    setSaving(false)
     setShowDuplicateWarning(false)
     duplicateWarningDismissedRef.current = false
   }, [isOpen, lastValue])
+
+  const save = useAsyncAction(async (w: number) => {
+    const log = await weightAPI.log({
+      weight: displayToLbs(w, settings.weight_unit),
+      notes: notes.trim(),
+      logged_at: dayToInstant(date),
+    })
+    onSuccess(log)
+    onClose()
+  }, 'Failed to save')
 
   const handleClose = () => { setError(''); onClose() }
 
@@ -52,7 +60,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (saving) return
+    if (save.busy) return
     const w = parseFloat(value)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
@@ -65,21 +73,9 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       return
     }
 
-    setSaving(true)
     setError('')
     setShowDuplicateWarning(false)
-    try {
-      const log = await weightAPI.log({
-        weight: displayToLbs(w, settings.weight_unit),
-        notes: notes.trim(),
-        logged_at: dayToInstant(date),
-      })
-      onSuccess(log)
-      onClose()
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to save')
-      setSaving(false)
-    }
+    void save.run(w)
   }
 
   return createPortal((
@@ -111,10 +107,10 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
         </div>
 
         <form ref={formRef} onSubmit={handleSubmit} className="p-5 space-y-4">
-          {error && (
+          {(error || save.error) && (
             <div className="alert-error" role="alert" aria-live="polite">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+              <span>{error || save.error}</span>
             </div>
           )}
 
@@ -197,11 +193,11 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
 
           <button
             type="submit"
-            disabled={!(parseFloat(value) > 0) || saving}
+            disabled={!(parseFloat(value) > 0) || save.busy}
             className="btn-primary btn-lg w-full"
           >
             <Save className="w-4 h-4" />
-            {saving ? 'Saving…' : 'Save'}
+            {save.busy ? 'Saving…' : 'Save'}
           </button>
         </form>
       </div>

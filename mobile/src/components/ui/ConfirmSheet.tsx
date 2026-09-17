@@ -39,7 +39,9 @@ export function ConfirmSheet({
   const badgeIconColor = destructive ? (isDark ? brand.errorSoft : brand.error) : accent
 
   return (
-    <Sheet open={open} onClose={onCancel} haptic={destructive ? 'warning' : 'selection'}>
+    // Scrim tap and Android back both come through onClose, and neither may dismiss a
+    // confirmed action still in flight: the sheet is where its failure gets reported.
+    <Sheet open={open} onClose={busy ? () => {} : onCancel} haptic={destructive ? 'warning' : 'selection'}>
       <View className="px-6">
         {Icon ? (
           <View
@@ -62,7 +64,7 @@ export function ConfirmSheet({
 
         <View className="flex-row gap-3">
           <View className="flex-1">
-            <SheetButton label={cancelLabel} variant="muted" onPress={onCancel} />
+            <SheetButton label={cancelLabel} variant="muted" disabled={busy} onPress={onCancel} />
           </View>
           <View className="flex-1">
             <SheetButton

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, BookOpen, FileText, CalendarDays } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs } from '../stores/settings'
-import { hasWorkoutExercises, types } from '@lyftr/shared'
+import { useAsyncAction, hasWorkoutExercises, types } from '@lyftr/shared'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
 import type { DayDraft } from '../components/programs/types'
 
@@ -17,41 +17,42 @@ export default function AddProgram() {
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
-  const [loading, setLoading] = useState(false)
+  // `error` is for what the FORM can tell the user before anything is sent (a missing
+  // name, an empty day). What the SERVER says lives on the hook below — different
+  // questions, kept apart on purpose, and rendered in the same place.
   const [error, setError] = useState('')
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
 
-  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
   const cacheExercise = (ex: types.Exercise) => setPickerExercises(prev => ({ ...prev, [ex.id]: ex }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = useAsyncAction(async () => {
+    const payload = {
+      name: formData.name,
+      notes: formData.notes,
+      days: formData.days.map(d => ({
+        ...d,
+        exercises: d.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
+        })),
+      })),
+    }
+    await programAPI.create(payload)
+    navigate('/programs')
+  }, 'Failed to create program')
+
+  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.error])
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim()) { setError('Program name required'); return }
     if (formData.days.length === 0) { setError('Add at least one day'); return }
     const hasAnyExercise = hasWorkoutExercises(formData.days)
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
-    setLoading(true)
-    try {
-      const payload = {
-        name: formData.name,
-        notes: formData.notes,
-        days: formData.days.map(d => ({
-          ...d,
-          exercises: d.exercises.map(ex => ({
-            ...ex,
-            sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
-          })),
-        })),
-      }
-      await programAPI.create(payload)
-      navigate('/programs')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create program')
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
   }
 
   const totalExercises = formData.days.reduce((s, d) => s + d.exercises.length, 0)
@@ -72,10 +73,10 @@ export default function AddProgram() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
+        {(error || save.error) && (
           <div className="alert-error">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{error || save.error}</span>
           </div>
         )}
 
@@ -144,9 +145,9 @@ export default function AddProgram() {
           <button type="button" onClick={() => navigate(-1)} className="flex-1 px-4 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium">
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+          <button type="submit" disabled={save.busy} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
             <BookOpen className="w-4 h-4" />
-            {loading ? 'Saving…' : 'Save Program'}
+            {save.busy ? 'Saving…' : 'Save Program'}
           </button>
         </div>
       </form>

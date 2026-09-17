@@ -39,7 +39,7 @@ export default function Login() {
       await login('demo@lyftr.local', 'password123')
       navigate('/')
     } catch (err: any) {
-      setError(apiErrorMessage(err, 'Demo login failed'))
+      setError(apiErrorMessage(err, "Couldn't sign in to the demo account."))
     } finally {
       setLoading(false)
     }

@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, BookOpen, FileText, Dumbbell, CalendarDays } from 'lucide-react'
 import { programAPI } from '../services/api'
 import { useSettingsStore, weightShort, lbsToDisplay, displayToLbs } from '../stores/settings'
-import { hasWorkoutExercises, types } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, hasWorkoutExercises, types } from '@lyftr/shared'
+import { ErrorState } from '../components/ui'
 import ProgramDaysEditor from '../components/programs/ProgramDaysEditor'
 import type { DayDraft } from '../components/programs/types'
 
@@ -18,13 +19,19 @@ export default function EditProgram() {
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
-  const [loading, setLoading] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
+  // `error` is for what the FORM can tell the user before anything is sent (a missing
+  // name, an empty day). What the SERVER says lives on the hook below — different
+  // questions, kept apart on purpose, and rendered in the same place.
   const [error, setError] = useState('')
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field: there is nothing to edit, and the header would
+  // otherwise assert "0 exercises" about a workout that has several.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, types.Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
 
-  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
 
   useEffect(() => {
     const programId = Number(id)
@@ -55,43 +62,43 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(() => { setError('Failed to load program'); })
+      .catch(err => { setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")); })
       .finally(() => setInitialLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   const cacheExercise = (ex: types.Exercise) => setPickerExercises(prev => ({ ...prev, [ex.id]: ex }))
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const save = useAsyncAction(async () => {
+    const payload = {
+      name: formData.name,
+      notes: formData.notes,
+      // Declares this client round-trips day ids: without it, deleting every
+      // existing day and adding only new (id-less) ones is indistinguishable
+      // from a legacy payload and the server would positionally re-attribute
+      // the deleted days' workout history to the new days.
+      day_ids_known: true,
+      days: formData.days.map(d => ({
+        ...d,
+        exercises: d.exercises.map(ex => ({
+          ...ex,
+          sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
+        })),
+      })),
+    }
+    await programAPI.update(Number(id), payload)
+    navigate('/programs')
+  }, 'Failed to update program')
+
+  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.error])
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name.trim()) { setError('Program name required'); return }
     if (formData.days.length === 0) { setError('Add at least one day'); return }
     const hasAnyExercise = hasWorkoutExercises(formData.days)
     if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
-    setLoading(true)
-    try {
-      const payload = {
-        name: formData.name,
-        notes: formData.notes,
-        // Declares this client round-trips day ids: without it, deleting every
-        // existing day and adding only new (id-less) ones is indistinguishable
-        // from a legacy payload and the server would positionally re-attribute
-        // the deleted days' workout history to the new days.
-        day_ids_known: true,
-        days: formData.days.map(d => ({
-          ...d,
-          exercises: d.exercises.map(ex => ({
-            ...ex,
-            sets: ex.sets.map(s => ({ ...s, target_weight: displayToLbs(s.target_weight, settings.weight_unit) })),
-          })),
-        })),
-      }
-      await programAPI.update(Number(id), payload)
-      navigate('/programs')
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to update program')
-    } finally {
-      setLoading(false)
-    }
+    setError('')
+    void save.run()
   }
 
   if (initialLoading) {
@@ -99,6 +106,18 @@ export default function EditProgram() {
       <div className="flex items-center justify-center py-20">
         <Dumbbell className="w-6 h-6 text-brand-500 animate-pulse" />
       </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <ErrorState
+        size="page"
+        title="Couldn't load this program"
+        message={loadError}
+        onRetry={() => { setLoadError(null); setInitialLoading(true); setRetryKey(k => k + 1) }}
+        secondary={<button onClick={() => navigate('/programs')} className="btn-secondary btn-sm">Back to programs</button>}
+      />
     )
   }
 
@@ -120,10 +139,10 @@ export default function EditProgram() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
+        {(error || save.error) && (
           <div className="alert-error">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{error || save.error}</span>
           </div>
         )}
 
@@ -180,9 +199,9 @@ export default function EditProgram() {
           <button type="button" onClick={() => navigate(-1)} className="flex-1 px-4 py-3 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-lg transition-colors font-medium">
             Cancel
           </button>
-          <button type="submit" disabled={loading} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
+          <button type="submit" disabled={save.busy} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
             <BookOpen className="w-4 h-4" />
-            {loading ? 'Saving…' : 'Save Changes'}
+            {save.busy ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
       </form>

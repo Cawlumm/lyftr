@@ -106,4 +106,35 @@ describe('ExercisePicker', () => {
       expect(call[0]?.limit ?? 50).toBeLessThanOrEqual(100)
     }
   })
+  // A list that failed to load is not an empty list. Before useServerList reported its
+  // error, the catch set hasMore=false and nothing else, so the picker fell through to
+  // "No exercises found" — an empty catalogue, rather than a connection that dropped.
+  it('says the load failed instead of reporting an empty catalogue', async () => {
+    const err: any = new Error("timeout of 20000ms exceeded")
+    err.code = 'ECONNABORTED'
+    listMock.mockRejectedValue(err)
+
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+
+    await waitFor(() =>
+      expect(screen.getByText(/didn't respond in time/i)).toBeTruthy())
+    expect(screen.queryByText(/no exercises found/i)).toBeNull()
+    expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy()
+  })
+
+  // Retry resumes rather than reloading, and a success clears the message.
+  it('recovers when Try again succeeds', async () => {
+    const err: any = new Error("Network Error")
+    listMock
+      .mockRejectedValueOnce(err)
+      .mockResolvedValue([exercise(1, 'Barbell Squat')])
+
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+
+    await waitFor(() => expect(screen.getByText('Barbell Squat')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+  })
 })
