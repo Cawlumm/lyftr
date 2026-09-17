@@ -168,9 +168,12 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             ListFooterComponent={
               // A later page failing under rows that did arrive: without this the list
               // just stops, which reads as the end of the catalogue.
-              listError && exercises.length > 0 ? (
+              // Keyed on the rows actually listed, not on what loaded: with every loaded
+              // exercise already selected the list is empty, and the slot above would
+              // render the same failure a second time.
+              listError && available.length > 0 ? (
                 <ErrorState title="Couldn't load more exercises" message={listError} onRetry={retryList} />
-              ) : hasMore && exercises.length > 0 ? (
+              ) : hasMore && available.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">Loading more…</AppText>

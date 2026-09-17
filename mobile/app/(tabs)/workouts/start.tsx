@@ -125,6 +125,11 @@ export default function StartWorkout() {
                 <ActivityIndicator color={accent} />
                 <AppText variant="body" color="muted">Loading programs…</AppText>
               </View>
+            ) : error ? (
+              // The error above already owns this space. Stacking "No programs yet"
+              // under it tells a reader with ten programs both that the load failed and
+              // that they have none.
+              null
             ) : programs.length === 0 ? (
               <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
                 <BookOpen size={32} color={colors.txMuted} />

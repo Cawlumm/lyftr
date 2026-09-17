@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -65,7 +65,10 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 export default function Dashboard() {
-  const now = useMemo(() => new Date(), [])
+  // Re-read on every load rather than once at mount: this tab stays mounted for the
+  // life of the process, so an app left open overnight kept yesterday's header, week
+  // boundary and "today" dot while load() fetched the real today's food.
+  const [now, setNow] = useState(() => new Date())
   const session = useWorkoutSession((s) => s.session)
   const startSession = useWorkoutSession((s) => s.startSession)
   const user = useAuthStore((s) => s.user)
@@ -109,6 +112,7 @@ export default function Dashboard() {
   const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
 
   const load = useCallback(async () => {
+    setNow(new Date())
     const absent: Record<string, string> = {}
     const note = (what: string, err: unknown) => {
       absent[what] = apiErrorMessage(err, "The server didn't say what went wrong.")
@@ -120,7 +124,7 @@ export default function Dashboard() {
       // unreachable and an outage rendered every tile at 0, silently.
       client.workoutAPI.list({ limit: 84 }),
       client.programAPI.list({ limit: 100 }).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
-      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))
+      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))  // the real today, as load() re-reads it
         // A 200 carrying the wrong shape never reaches the catch; unchecked, the missing
         // field goes through Math.round and the card reads "NaN".
         .then((fs) => (isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable'))))
@@ -678,9 +682,10 @@ export default function Dashboard() {
                   </View>
                   <View className="flex-row items-center gap-2">
                     {(() => {
-                      // No stats is not "no change": say nothing rather than a trend we never got.
-                      if (weightStats == null) return null
-                      const delta = weightStats.change_7d
+                      // No stats is not "no change": say nothing rather than a trend we
+                      // never got — and a null or absent delta is no stats at all, not 0.
+                      const delta = weightStats?.change_7d
+                      if (typeof delta !== 'number' || !Number.isFinite(delta)) return null
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
-import { AlertCircle, BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
+import { BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { apiErrorMessage, workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
-import { AppText, EmptyState, Field, IconButton } from '../ui'
+import { AppText, EmptyState, ErrorState, Field, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
 import { pickProgramDay } from '../programs/DayPickerSheet'
@@ -18,19 +18,21 @@ interface Props {
 // skips the day step, same as web). One directed addition over web: a search field —
 // client-side name filter, since the program list is a single un-paginated fetch.
 export function ProgramPicker({ onSelect, onClose }: Props) {
-  const { colors, brand, accent, isDark } = useTheme()
+  const { colors, accent } = useTheme()
   const [programs, setPrograms] = useState<Program[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
+    setLoading(true)
     client.programAPI.list()
-      .then((data) => setPrograms(data || []))
+      .then((data) => { setPrograms(data || []); setError('') })
       .catch((err) => setError(apiErrorMessage(err, "Couldn't load your programs.")))
       .finally(() => setLoading(false))
-  }, [])
+  }, [retryKey])
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -116,10 +118,11 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                   <AppText variant="body" color="muted">Loading programs…</AppText>
                 </View>
               ) : error ? (
-                <View className="flex-row items-center gap-2 p-4">
-                  <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-                  <AppText variant="body" color="error">{error}</AppText>
-                </View>
+                <ErrorState
+                  title="Couldn't load your programs"
+                  message={error}
+                  onRetry={() => setRetryKey((k) => k + 1)}
+                />
               ) : shown.length === 0 ? (
                 <EmptyState
                   compact

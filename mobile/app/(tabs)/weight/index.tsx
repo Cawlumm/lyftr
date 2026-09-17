@@ -10,7 +10,7 @@ import {
 import { apiErrorMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
 import { Alert,
   AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
-  NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StatFailure, StepperTile,
+  NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, Skeleton, StatFailure, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
 import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
@@ -51,6 +51,10 @@ export default function Weight() {
   // failing would otherwise leave 30d's numbers under a 90d label, which is not stale
   // data, it is the wrong answer. Kept here so the screen can tell those apart.
   const [chartPeriod, setChartPeriod] = useState<Period | null>(null)
+  // In flight for the window now selected. Without this the provenance rule above reads
+  // as an answer: the figures went to "—" and the chart to "No data for this period"
+  // while the request for that period was still on the wire.
+  const [chartLoading, setChartLoading] = useState(true)
 
   // Both reads used to swallow their failure, so the figures below fell back to 0 and
   // the screen rendered measurements it had never received.
@@ -65,6 +69,7 @@ export default function Weight() {
   // Returns the fetch promise so pull-to-refresh can await a full refresh.
   const refetchChart = useCallback(() => {
     const id = ++chartRequest.current
+    setChartLoading(true)
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
     return client.weightAPI.list({ limit: 1000, from })
@@ -75,6 +80,7 @@ export default function Weight() {
         setChartError(null)
       })
       .catch((err) => { if (id === chartRequest.current) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
+      .finally(() => { if (id === chartRequest.current) setChartLoading(false) })
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])
 
@@ -210,6 +216,9 @@ export default function Weight() {
       : 0
   const minLbs = useServerAggregate ? stats!.min ?? 0 : periodValues.length > 0 ? Math.min(...periodValues) : 0
   const maxLbs = useServerAggregate ? stats!.max ?? 0 : periodValues.length > 0 ? Math.max(...periodValues) : 0
+
+  // The window selected has not been answered yet: not empty, not unknown, pending.
+  const chartPending = chartLoading && chartPeriod !== period
 
   // Scope the error to the scope of the failure: three reads failing because the server
   // is down is one problem, and gets one error with one retry.
@@ -447,7 +456,9 @@ export default function Weight() {
                     <s.icon size={14} color={s.color} />
                     <Label numberOfLines={1}>{s.label}</Label>
                   </View>
-                  {figuresFailed ? (
+                  {chartPending ? (
+                    <Skeleton width={56} height={22} />
+                  ) : figuresFailed ? (
                     <StatFailure label={`Couldn't load ${s.label.toLowerCase()} weight`} />
                   ) : (
                     <View className="flex-row items-end gap-1">
@@ -480,7 +491,11 @@ export default function Weight() {
                 </View>
               </View>
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartData.length === 0 && chartError ? (
+                {chartPending ? (
+                  <View className="h-44 justify-center gap-2 px-2">
+                    <Skeleton width="100%" height={120} radius={12} />
+                  </View>
+                ) : chartData.length === 0 && chartError ? (
                   <ErrorState title="Couldn't load your trend" message={chartError} onRetry={retryAll} />
                 ) : chartData.length < 2 ? (
                   <View className="h-44 items-center justify-center">

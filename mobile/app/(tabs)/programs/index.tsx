@@ -80,8 +80,9 @@ export default function Programs() {
   const dim = refreshing
 
   const stats = [
-    // `programs` is what has loaded, not how many exist: while pages remain it is a lower bound.
-    { label: 'Total', value: hasMore ? `${programs.length}+` : String(programs.length), unit: 'programs' },
+    // `programs` is what has loaded, not how many exist: while pages remain it is a lower
+    // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
+    { label: 'Total', value: hasMore || listError != null ? `${programs.length}+` : String(programs.length), unit: 'programs' },
     {
       label: 'Avg Exercises',
       value:

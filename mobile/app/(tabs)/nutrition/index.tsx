@@ -8,7 +8,7 @@ import {
 } from 'lucide-react-native'
 import { apiErrorMessage, isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
-  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, StatFailure, Toast,
+  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,
 } from '../../../src/components/ui'
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
@@ -89,10 +89,20 @@ export default function Nutrition() {
   // Reset paging to the first page when the day changes or the query changes.
   useEffect(() => { setVisibleCount(FOOD_PAGE) }, [selectedDate, foodQuery])
 
+  // Which day the logs and totals on screen answer, and whether the day now selected
+  // is still on the wire. Paging days is the same kind of window switch as the trend's
+  // period: yesterday's meals under today's date is not stale data, it is the wrong day.
+  const [loadedDate, setLoadedDate] = useState<string | null>(null)
+  const dayRequest = useRef(0)
+  // The day on screen right now, readable from a callback that was created for an
+  // earlier one (a delete's refetch outliving the day it was fired for).
+  const selectedDateRef = useRef(selectedDate)
+  selectedDateRef.current = selectedDate
+
   const loadDay = useCallback(async (date: string) => {
-    // Stale-while-revalidate: keep the previous day's logs/stats on screen until the new
-    // day's data lands, so paging days doesn't flash the hero/rings/list to empty (the
-    // same no-empty-flash behavior the Weight/Programs lists have). Only errors reset.
+    // Last request wins. Without this, paging back three days on a slow connection let
+    // whichever response landed last own the screen, regardless of the day showing.
+    const id = ++dayRequest.current
     setError(null)
     try {
       const defaultStats: DailyStats = {
@@ -110,13 +120,16 @@ export default function Nutrition() {
             return defaultStats
           }),
       ])
+      if (id !== dayRequest.current) return
       setLogs(logData || [])
       setStats(statsData)
       setStatsError(statsMessage)
+      setLoadedDate(date)
     } catch (err: any) {
+      if (id !== dayRequest.current) return
       setError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
-      hasLoadedRef.current = true
+      if (id === dayRequest.current) hasLoadedRef.current = true
     }
   }, [])
 
@@ -174,16 +187,23 @@ export default function Nutrition() {
 
   // Kebab-delete drops the row and refreshes the day's totals (rings + calorie hero).
   const onEntryDeleted = useCallback((entryId: number) => {
+    const day = selectedDate
     setLogs((prev) => prev.filter((l) => l.id !== entryId))
     // The row is gone from the list either way, so totals that fail to refresh here are
     // not stale, they are wrong — they still count the entry the reader just deleted.
     client.foodAPI.stats(selectedDate)
       .then((st) => {
+        // The reader may have paged to another day while this was in flight; these
+        // totals are not that day's to set, or to declare healthy.
+        if (day !== selectedDateRef.current) return
         if (!isDailyStats(st)) throw new Error('unreadable')
         setStats(st)
         setStatsError(null)
       })
-      .catch((err) => setStatsError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+      .catch((err) => {
+        if (day !== selectedDateRef.current) return
+        setStatsError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      })
   }, [selectedDate])
 
   if (!hasLoadedRef.current) return <NutritionSkeleton />
@@ -213,6 +233,8 @@ export default function Nutrition() {
     )
   }
 
+  // The selected day has not been answered yet: not empty, not zero, pending.
+  const dayPending = loadedDate !== selectedDate
   const totalCals = stats?.total_calories ?? 0
   const calTarget = settings.calorie_target || 2000
   const remaining = calTarget - totalCals
@@ -263,7 +285,9 @@ export default function Nutrition() {
   return (
     <Screen>
       <FlatList
-        data={isDiary ? visibleEntries : []}
+        // A day still on the wire owns none of these rows: they belong to the day
+        // before it, and rendering them under this date is the same lie as the totals.
+        data={isDiary && !dayPending ? visibleEntries : []}
         keyExtractor={(e) => String(e.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -331,8 +355,19 @@ export default function Nutrition() {
               </View>
 
               {/* Macro summary card — the totals are its entire content, so a failed
-                  read is stated here rather than as rings at 0. */}
-              {statsError ? (
+                  read is stated here rather than as rings at 0, and a day still on the
+                  wire is a skeleton rather than the previous day's numbers. */}
+              {dayPending ? (
+                <Card className="gap-4">
+                  <Skeleton width={140} height={34} />
+                  <Skeleton width="100%" height={10} radius={999} />
+                  <View className="flex-row justify-between">
+                    <Skeleton width={72} height={72} radius={36} />
+                    <Skeleton width={72} height={72} radius={36} />
+                    <Skeleton width={72} height={72} radius={36} />
+                  </View>
+                </Card>
+              ) : statsError ? (
                 <Card>
                   <ErrorState title="Couldn't load today's totals" message={statsError} onRetry={() => { void loadDay(selectedDate) }} />
                 </Card>
@@ -467,13 +502,13 @@ export default function Nutrition() {
             <View className="mt-8 gap-3 pb-3">
               <View className="flex-row items-center justify-between px-1">
                 <Label>{isToday ? "Today's Food" : 'Food'}</Label>
-                {dayEntries.length > 0 ? (
+                {dayEntries.length > 0 && !dayPending ? (
                   <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
                     {q ? `${filteredEntries.length} of ${dayEntries.length}` : `${dayEntries.length} ${dayEntries.length === 1 ? 'item' : 'items'}`}
                   </AppText>
                 ) : null}
               </View>
-              {dayEntries.length > 0 ? (
+              {dayEntries.length > 0 && !dayPending ? (
                 <SearchField value={foodQuery} onChangeText={setFoodQuery} placeholder="Search this day's food…" />
               ) : null}
             </View>
@@ -481,7 +516,9 @@ export default function Nutrition() {
           </View>
         }
         ListEmptyComponent={
-          !isDiary ? null : q ? (
+          !isDiary ? null : dayPending ? (
+            <SkeletonList count={3} />
+          ) : q ? (
             <View className="items-center px-4 py-8">
               <Utensils size={28} color={colors.txMuted} style={{ opacity: 0.4 }} />
               <AppText variant="body" color="muted" className="mt-2">No matches for “{foodQuery.trim()}”</AppText>

@@ -140,13 +140,16 @@ export default function Workouts() {
   }
 
   const now = new Date()
+  const mayHaveMore = hasMore || listError != null
   const month = format(now, 'yyyy-MM')
   const thisMonth = workouts.filter((w) => workoutDay(w).startsWith(month)).length
   const oldestLoadedDay = workouts.length > 0 ? workoutDay(workouts[workouts.length - 1]) : null
-  const monthCountKnown = !hasMore || (oldestLoadedDay != null && oldestLoadedDay < `${month}-01`)
+  const monthCountKnown = !mayHaveMore || (oldestLoadedDay != null && oldestLoadedDay < `${month}-01`)
   const stats = [
     // These summarize the *loaded* items; while pages remain, the total is a lower bound.
-    { label: 'Total', value: hasMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
+    // A failed page counts as "pages remain": the hook drops hasMore on error, and
+    // without listError here a dropped connection made the count look more certain.
+    { label: 'Total', value: mayHaveMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
     {
       label: 'This Month',
       // The month the workout was logged in, not the month its UTC instant lands in —
