@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Weight from './Weight'
 
@@ -61,14 +61,13 @@ describe('Weight figures', () => {
     list.mockImplementation((...args: unknown[]) =>
       isTrendCall(args) ? Promise.reject(new Error('trend is down')) : Promise.resolve(HISTORY))
 
-    const { container } = renderPage()
-    await waitFor(() => expect(stats).toHaveBeenCalled())
+    renderPage()
 
     // On All the tiles read /weight/stats, which answered — so they hold real figures
-    // and the trend's failure is confined to the chart.
-    const all = Array.from(container.querySelectorAll('button')).find(b => b.textContent === 'All')
-    expect(all).toBeTruthy()
-    all!.click()
+    // and the trend's failure is confined to the chart. findBy, not a synchronous
+    // query: until the first page of history lands the whole screen is the loader, and
+    // the period buttons do not exist to be clicked.
+    fireEvent.click(await screen.findByRole('button', { name: 'All' }))
 
     await waitFor(() => {
       expect(screen.getByText('182')).toBeTruthy()  // avg, from the aggregate
@@ -85,13 +84,12 @@ describe('Weight figures', () => {
       return from === ninetyDaysAgo ? Promise.reject(new Error('trend is down')) : Promise.resolve(HISTORY)
     })
 
-    const { container } = renderPage()
+    renderPage()
     // 30d's own figures are on screen first (the average of 183 and 181).
     await waitFor(() => expect(screen.getAllByText('182').length).toBeGreaterThan(0))
     expect(screen.queryByLabelText(/Couldn't load avg weight/i)).toBeNull()
 
-    const ninety = Array.from(container.querySelectorAll('button')).find(b => b.textContent === '90d')
-    ninety!.click()
+    fireEvent.click(await screen.findByRole('button', { name: '90d' }))
 
     // 30d's figures must not reappear under the 90d label; the failure takes their place.
     await waitFor(() => {
