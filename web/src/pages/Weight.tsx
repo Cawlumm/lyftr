@@ -227,6 +227,12 @@ export default function Weight() {
   // Both of these used to swallow their failure. Nothing recorded it, so the aggregates
   // below fell back to 0 and the page rendered three measurements it had never received.
   const [chartError, setChartError] = useState<string | null>(null)
+  // Which window chartLogs answers, and whether the window now selected has been
+  // answered at all. Keeping the series through a failure is right when the same
+  // question was asked again; under a different period it is not stale data, it is
+  // another window's answer wearing this window's label.
+  const [chartPeriod, setChartPeriod] = useState<Period | null>(null)
+  const [chartLoading, setChartLoading] = useState(true)
   const [statsError, setStatsError] = useState<string | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
@@ -239,11 +245,18 @@ export default function Weight() {
     let cancelled = false
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
+    setChartLoading(true)
     weightAPI.list({ limit: 1000, from })
       // chartLogs is deliberately left alone on failure: a failed refetch keeps the
       // series already on screen rather than blanking a chart that was working.
-      .then(data => { if (!cancelled) { setChartLogs(data || []); setChartError(null) } })
+      .then(data => {
+        if (cancelled) return
+        setChartLogs(data || [])
+        setChartPeriod(period)
+        setChartError(null)
+      })
       .catch(err => { if (!cancelled) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
+      .finally(() => { if (!cancelled) setChartLoading(false) })
     return () => { cancelled = true }
   }, [period, retryKey])
 
@@ -283,14 +296,16 @@ export default function Weight() {
 
   // Oldest → newest for the chart
   const chartPoints: ChartPoint[] = useMemo(() => {
-    return chartLogs
+    // Same provenance rule as the figures: a series fetched for another window is not
+    // this window's trend, however recent it is.
+    return (chartPeriod === period ? chartLogs : [])
       .slice()
       .reverse()
       .map(l => {
         const d = dayToLocalDate(entryDay(l))
         return { ts: d.getTime(), weight: lbsToDisplay(l.weight, settings.weight_unit), date: d }
       })
-  }, [chartLogs, settings.weight_unit])
+  }, [chartLogs, chartPeriod, period, settings.weight_unit])
 
   const log = useAsyncAction(async (w: number) => {
         const real = await weightAPI.log({
@@ -335,7 +350,10 @@ export default function Weight() {
 
   // Period stats computed from chartLogs (period-scoped server fetch).
   // For "All" period prefer server-computed stats since they're not capped at 1000.
-  const periodValues = chartLogs.map(l => l.weight) // raw lbs from DB, newest first
+  // The window on screen has not been answered yet: not empty, not unknown, pending.
+  const chartPending = chartLoading && chartPeriod !== period
+  const answeredLogs = chartPeriod === period ? chartLogs : []
+  const periodValues = answeredLogs.map(l => l.weight) // raw lbs from DB, newest first
   const useServerAggregate = period === 'All' && stats != null
   const currentLbs = periodValues[0] ?? stats?.latest ?? items[0]?.weight ?? 0
   const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? currentLbs
@@ -371,14 +389,19 @@ export default function Weight() {
   // the same type as a real one — while the true latest weight sat in `items` below it.
   const currentKnown = periodValues.length > 0 || stats != null || items.length > 0
   const changeKnown = periodValues.length > 1
-  const noValues = periodValues.length === 0 && (stats == null || stats.total_entries === 0)
-  const figuresFailed = noValues && (chartError != null || statsError != null)
+  // Each tile has exactly one source — the server aggregate on All, the trend read on
+  // every other period — so only that read's failure can explain it. Blamed on either,
+  // a failed trend beside a healthy stats call rendered "0 lb" and claimed it was the
+  // last figure we had loaded.
+  const tilesError = useServerAggregate ? statsError : chartError
+  const noValues = useServerAggregate ? stats!.total_entries === 0 : periodValues.length === 0
+  const figuresFailed = noValues && tilesError != null
   const aggregatesUnknown = noValues && !figuresFailed
 
   // We do hold values, but the refresh that would have updated them failed. Keep them —
   // discarding data we have to report a failed refetch is worse — and say so under the
   // figures it applies to.
-  const figuresStale = !everythingFailed && !noValues && (chartError != null || statsError != null)
+  const figuresStale = !everythingFailed && !noValues && tilesError != null
 
   const current = displayWeight(currentLbs, settings.weight_unit)
   const change = displayWeight(changeLbs, settings.weight_unit)
@@ -581,7 +604,9 @@ export default function Weight() {
               <span className="stat-label">{s.label}</span>
               <HelpTip content={s.tip} />
             </div>
-            {figuresFailed ? (
+            {chartPending ? (
+              <span className="inline-block h-6 w-14 rounded bg-surface-muted animate-pulse align-middle" />
+            ) : figuresFailed ? (
               <StatFailure label={`Couldn't load ${s.label.toLowerCase()} weight`} />
             ) : (
               <>
@@ -612,7 +637,9 @@ export default function Weight() {
           <PeriodSelector options={PERIODS} value={period} onChange={setPeriod} />
         </div>
 
-        {chartPoints.length === 0 && chartError ? (
+        {chartPending ? (
+          <div className="h-44 rounded-xl bg-surface-muted animate-pulse" role="status" aria-label="Loading your trend" />
+        ) : chartPoints.length === 0 && chartError ? (
           <ErrorState size="section" title="Couldn't load your trend" message={chartError} onRetry={retryAll} />
         ) : chartPoints.length === 0 ? (
           <div className="flex items-center justify-center h-44 text-tx-muted text-sm">
