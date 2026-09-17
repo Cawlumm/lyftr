@@ -12,6 +12,7 @@ export { Card } from './Card'
 export { Alert } from './Alert'
 export { ErrorState } from './ErrorState'
 export { BarbellBroken } from './BarbellBroken'
+export { StatFailure } from './StatFailure'
 
 // Headers (web-parity)
 export { PageHeader } from './PageHeader'

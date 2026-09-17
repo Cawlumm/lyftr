@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from '
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
-import { Alert, AppText, IconButton } from '../ui'
+import { AppText, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
@@ -158,11 +158,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               // "No exercises found" is only true if we heard back. On a failed fetch
               // it reads as an empty catalogue rather than a connection that dropped.
               listError ? (
-                <View className="px-1 py-3">
-                  <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
-                    {listError}
-                  </Alert>
-                </View>
+                <ErrorState title="Couldn't load exercises" message={listError} onRetry={retryList} />
               ) : (
                 <View className="items-center py-16">
                   <AppText variant="body" color="muted">No exercises found</AppText>
@@ -170,7 +166,11 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               )
             }
             ListFooterComponent={
-              hasMore && exercises.length > 0 ? (
+              // A later page failing under rows that did arrive: without this the list
+              // just stops, which reads as the end of the catalogue.
+              listError && exercises.length > 0 ? (
+                <ErrorState title="Couldn't load more exercises" message={listError} onRetry={retryList} />
+              ) : hasMore && exercises.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">Loading more…</AppText>

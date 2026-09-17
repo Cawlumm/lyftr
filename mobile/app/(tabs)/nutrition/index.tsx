@@ -6,9 +6,9 @@ import { format, subDays, addDays } from 'date-fns'
 import {
   CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { apiErrorMessage, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
 import {
-  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Toast,
+  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, StatFailure, Toast,
 } from '../../../src/components/ui'
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
@@ -63,6 +63,11 @@ export default function Nutrition() {
   const [logs, setLogs] = useState<FoodLog[]>([])
   const [stats, setStats] = useState<DailyStats | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // The totals and the history are caught so either can fail without blanking the diary.
+  // Caught is not the same as silent: each keeps what the server said, and the card it
+  // belongs to says so instead of rendering 0 kcal.
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [historyError, setHistoryError] = useState<string | null>(null)
 
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<MacroHistoryPoint[]>([])
@@ -90,12 +95,21 @@ export default function Nutrition() {
       const defaultStats: DailyStats = {
         date, total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
       }
+      let statsMessage: string | null = null
       const [logData, statsData] = await Promise.all([
         client.foodAPI.list(date),
-        client.foodAPI.stats(date).catch(() => defaultStats),
+        client.foodAPI.stats(date)
+          // A readable 200 is the only kind that counts as data; unchecked, a wrong shape
+          // rendered as 0 kcal, which is what "hasn't eaten yet" looks like.
+          .then((st) => (isDailyStats(st) ? st : Promise.reject(new Error('unreadable'))))
+          .catch((err) => {
+            statsMessage = apiErrorMessage(err, "The server didn't say what went wrong.")
+            return defaultStats
+          }),
       ])
       setLogs(logData || [])
       setStats(statsData)
+      setStatsError(statsMessage)
     } catch (err: any) {
       setError(apiErrorMessage(err, "The server didn't say what went wrong."))
     } finally {
@@ -106,14 +120,22 @@ export default function Nutrition() {
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, loadDay])
   useEffect(() => { fetchSettings() }, [fetchSettings])
 
+  // Only the latest request may write: 90d is a slower query than 7d, so a stale wide
+  // answer could otherwise overwrite the narrow one the user just asked for.
+  const historyRequest = useRef(0)
   const loadHistory = useCallback(() => {
+    const id = ++historyRequest.current
     setHistoryLoading(true)
     const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
     return client.foodAPI
       .history(days)
-      .then((data) => setHistoryData((data as MacroHistoryPoint[]) || []))
-      .catch(() => {})
-      .finally(() => setHistoryLoading(false))
+      .then((data) => {
+        if (id !== historyRequest.current) return
+        setHistoryData((data as MacroHistoryPoint[]) || [])
+        setHistoryError(null)
+      })
+      .catch((err) => { if (id === historyRequest.current) setHistoryError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
+      .finally(() => { if (id === historyRequest.current) setHistoryLoading(false) })
   }, [historyPeriod])
   useEffect(() => { loadHistory() }, [loadHistory])
 
@@ -154,6 +176,31 @@ export default function Nutrition() {
 
   if (!hasLoadedRef.current) return <NutritionSkeleton />
 
+  const toastView = toast ? (
+    <Toast variant="success" icon={CheckCircle2} title={toast} onDismiss={() => setToast(null)} />
+  ) : null
+
+  // Rings at 0 kcal and four empty meal sections say "you have eaten nothing today",
+  // which is a different sentence from "we could not ask" — and only one of them is
+  // true. Title stays; the Log Food action does not, since the save it leads to cannot
+  // reach the server either and would outrank the retry.
+  if (error) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-4 pt-4">
+          <PageHeader title="Nutrition" subtitle="Macros & meals" />
+          <ErrorState
+            size="page"
+            title="Couldn't load your food log"
+            message={error}
+            onRetry={() => { void loadDay(selectedDate) }}
+          />
+        </View>
+        {toastView}
+      </Screen>
+    )
+  }
+
   const totalCals = stats?.total_calories ?? 0
   const calTarget = settings.calorie_target || 2000
   const remaining = calTarget - totalCals
@@ -172,8 +219,9 @@ export default function Nutrition() {
 
   // Trends: average daily macros over the loaded history window.
   const histDays = historyData.length
+  // The average of nothing is not 0 g: with no days loaded the tiles read "—".
   const avgMacro = (key: 'protein' | 'carbs' | 'fat') =>
-    histDays ? Math.round(historyData.reduce((s, d) => s + (d[key] || 0), 0) / histDays) : 0
+    histDays ? String(Math.round(historyData.reduce((s, d) => s + (d[key] || 0), 0) / histDays)) : '—'
   const isDiary = view === 'diary'
   // Chart width: prefer the measured value, but seed a computed fallback (window − Screen
   // px-5 − Card p-4 = 72) so the chart renders immediately on first switch to Trends
@@ -236,18 +284,6 @@ export default function Nutrition() {
                 action={<IconButton icon={Plus} variant="solid" size="md" label="Log Food" onPress={() => openLog(mealForNow())} />}
               />
 
-              {/* Rings at 0 kcal and four empty meal sections say "you have eaten
-                  nothing today", which is a different sentence from "we could not
-                  ask" — and only one of them is true. */}
-              {error ? (
-                <ErrorState
-                  size="page"
-                  title="Couldn't load your food log"
-                  message={error}
-                  onRetry={() => { void loadDay(selectedDate) }}
-                />
-              ) : null}
-
               {/* Diary (per-day log) vs Trends (multi-day chart) */}
               <SegmentedControl options={VIEW_OPTIONS} value={view} onChange={setView} />
 
@@ -280,7 +316,13 @@ export default function Nutrition() {
                 </Pressable>
               </View>
 
-              {/* Macro summary card */}
+              {/* Macro summary card — the totals are its entire content, so a failed
+                  read is stated here rather than as rings at 0. */}
+              {statsError ? (
+                <Card>
+                  <ErrorState title="Couldn't load today's totals" message={statsError} onRetry={() => { void loadDay(selectedDate) }} />
+                </Card>
+              ) : (
               <Card className="gap-5">
                 {/* Calorie hero */}
                 <View className="flex-row items-center justify-between">
@@ -333,6 +375,7 @@ export default function Nutrition() {
                   </View>
                 </View>
               </Card>
+              )}
               </>
               ) : (
               <>
@@ -350,10 +393,14 @@ export default function Nutrition() {
                         <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: color }} />
                         <Label numberOfLines={1}>{label}</Label>
                       </View>
-                      <View className="flex-row items-end gap-1">
-                        <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{avgMacro(key)}</AppText>
-                        <AppText variant="caption" color="muted" className="mb-0.5">g</AppText>
-                      </View>
+                      {histDays === 0 && historyError ? (
+                        <StatFailure label={`Couldn't load average ${label.toLowerCase()}`} />
+                      ) : (
+                        <View className="flex-row items-end gap-1">
+                          <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{avgMacro(key)}</AppText>
+                          {histDays ? <AppText variant="caption" color="muted" className="mb-0.5">g</AppText> : null}
+                        </View>
+                      )}
                     </Card>
                   ))}
                 </View>
@@ -371,6 +418,8 @@ export default function Nutrition() {
                     <View className="h-48 items-center justify-center">
                       <AppText variant="caption" color="muted">Loading…</AppText>
                     </View>
+                  ) : historyData.length === 0 && historyError ? (
+                    <ErrorState title="Couldn't load your history" message={historyError} onRetry={() => { void loadHistory() }} />
                   ) : historyData.length === 0 ? (
                     <View className="h-48 items-center justify-center gap-2">
                       <CalendarDays size={32} color={colors.txMuted} style={{ opacity: 0.4 }} />
@@ -443,9 +492,7 @@ export default function Nutrition() {
       />
 
       {/* Success toast on arrival back from the log flow. */}
-      {toast ? (
-        <Toast variant="success" icon={CheckCircle2} title={toast} onDismiss={() => setToast(null)} />
-      ) : null}
+      {toastView}
     </Screen>
   )
 }

@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -93,6 +93,13 @@ export default function Dashboard() {
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The secondary reads are caught so one dead endpoint cannot blank a working dashboard.
+  // What they must not do is then say nothing: a failed /food/stats rendered today as
+  // 0 kcal, which is what "hasn't eaten yet" looks like. Name -> what the server said,
+  // so the card that never loaded can say why.
+  const [missing, setMissing] = useState<Record<string, string>>({})
+  const foodMissing = "today's food" in missing
+  const weightMissing = 'your weight' in missing
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
@@ -101,22 +108,31 @@ export default function Dashboard() {
   const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
 
   const load = useCallback(async () => {
+    const absent: Record<string, string> = {}
+    const note = (what: string, err: unknown) => {
+      absent[what] = apiErrorMessage(err, "The server didn't say what went wrong.")
+    }
     const [ws, ps, fs, wl, wst] = await Promise.all([
       // Uncaught on purpose, mirroring web: this is the primary request, and it is
       // what lets a total outage reject load() and reach the ErrorState below. With
       // all five caught, load() could never fail, so the error screen was
       // unreachable and an outage rendered every tile at 0, silently.
       client.workoutAPI.list({ limit: 84 }),
-      client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
-      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
-      client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
-      client.weightAPI.stats().catch(() => null),
+      client.programAPI.list({ limit: 100 }).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
+      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))
+        // A 200 carrying the wrong shape never reaches the catch; unchecked, the missing
+        // field goes through Math.round and the card reads "NaN".
+        .then((fs) => (isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable'))))
+        .catch((err) => { note("today's food", err); return DEFAULT_FOOD }),
+      client.weightAPI.list({ limit: 14 }).catch((err) => { note('your weight', err); return [] as WeightLog[] }),
+      client.weightAPI.stats().catch((err) => { note('your weight', err); return null }),
     ])
     setWorkouts(ws || [])
     setPrograms(ps || [])
     setFood(fs || DEFAULT_FOOD)
     setWeightLogs(wl || [])
     setWeightStats(wst)
+    setMissing(absent)
   }, [])
 
   useEffect(() => {
@@ -589,6 +605,10 @@ export default function Dashboard() {
           <Card>
             {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
             <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
+            {foodMissing ? (
+              <ErrorState title="Couldn't load today's food" message={missing["today's food"]} onRetry={onRefresh} />
+            ) : (
+            <>
             <View className="mb-3 flex-row items-baseline gap-1.5">
               <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
               <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
@@ -613,6 +633,8 @@ export default function Dashboard() {
                 </View>
               ))}
             </View>
+            </>
+            )}
           </Card>
 
           {/* ── Weight quick-log ── */}
@@ -623,7 +645,10 @@ export default function Dashboard() {
               right={<LinkRow label="View" onPress={() => router.navigate('/weight')} />}
               className="mb-2"
             />
-            {weightLogs.length === 0 ? (
+            {weightLogs.length === 0 && weightMissing ? (
+              // Not the "log your first weight" prompt: this reader may have years of them.
+              <ErrorState title="Couldn't load your weight" message={missing['your weight']} onRetry={onRefresh} />
+            ) : weightLogs.length === 0 ? (
               <Pressable
                 onPress={() => { hSelect(); setSheetOpen(true) }}
                 className="flex-row items-center gap-3 rounded-2xl border border-dashed border-brand-500/30 bg-brand-500/5 p-3.5 active:scale-[0.99]"
@@ -645,7 +670,9 @@ export default function Dashboard() {
                   </View>
                   <View className="flex-row items-center gap-2">
                     {(() => {
-                      const delta = weightStats?.change_7d ?? 0
+                      // No stats is not "no change": say nothing rather than a trend we never got.
+                      if (weightStats == null) return null
+                      const delta = weightStats.change_7d ?? 0
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>

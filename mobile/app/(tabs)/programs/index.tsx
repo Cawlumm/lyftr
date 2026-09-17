@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
 import { programExerciseCount } from '@lyftr/shared'
-import { Alert, AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -60,20 +60,34 @@ export default function Programs() {
   // the Workouts list.
   if (initialLoading) return <ProgramsSkeleton />
 
+  // Nothing arrived, so there is no screen to draw around the failure: tiles would read 0
+  // and the create button would sit beside a list we cannot show. One error for the page,
+  // under the same title. A later page failing under rows that did arrive is the footer's.
+  if (listError && programs.length === 0) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-5 py-4">
+          <PageHeader title="Programs" subtitle="Reusable workout templates" />
+          <ErrorState size="page" title="Couldn't load your programs" message={listError} onRetry={retryList} />
+        </View>
+      </Screen>
+    )
+  }
+
   // Stale-while-revalidate: dim the loaded content while a search re-fetches (the
   // previous results stay on screen until the fresh page lands). Pagination (loadMore)
   // is excluded so appending a page doesn't dim the whole list.
   const dim = refreshing
 
   const stats = [
-    // 1:1 with web: summarize the *loaded* items, not a server-side stat.
-    { label: 'Total', value: String(programs.length), unit: 'programs' },
+    // `programs` is what has loaded, not how many exist: while pages remain it is a lower bound.
+    { label: 'Total', value: hasMore ? `${programs.length}+` : String(programs.length), unit: 'programs' },
     {
       label: 'Avg Exercises',
       value:
         programs.length > 0
           ? String(Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length))
-          : '0',
+          : '—',
       unit: 'per program',
     },
   ]
@@ -140,15 +154,7 @@ export default function Programs() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : listError ? (
-            // A failed fetch leaves the list empty too, and "Create a program to get
-            // started" is a lie told to someone who already has six.
-            <View className="px-1 py-3">
-              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
-                {listError}
-              </Alert>
-            </View>
-          ) : (
+          loading ? null : (
             <EmptyState
               icon={BookOpen}
               title="No programs found"
@@ -161,11 +167,7 @@ export default function Programs() {
           // (re)load — there the content is already grayed, so a footer spinner
           // would read as an unwanted "loading" in the middle.
           listError && programs.length > 0 ? (
-            <View className="px-1 py-3">
-              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
-                {listError}
-              </Alert>
-            </View>
+            <ErrorState title="Couldn't load your programs" message={listError} onRetry={retryList} />
           ) : hasMore && loading && !dim && programs.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />

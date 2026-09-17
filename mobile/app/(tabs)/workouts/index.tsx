@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
-import { Alert, AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -78,11 +78,71 @@ export default function Workouts() {
   // placeholders read as faster and match where the real cards will land.
   if (initialLoading) return <WorkoutsSkeleton />
 
+  // Post-session confirmation. Saved = quiet success; discarded = tap-to-undo
+  // (restores the exact session snapshot and drops you back into it). Built before the
+  // early return so a list that fails to load does not swallow the outcome of a session.
+  const outcomeToast = outcome ? (
+    outcome.kind === 'saved' ? (
+      outcome.progression ? (
+        <Toast
+          variant={outcome.progression.is_pr ? 'warning' : 'success'}
+          icon={outcome.progression.is_pr ? Award : TrendingUp}
+          title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
+          description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
+          onPress={() => {
+            const programId = outcome.progression!.program_id
+            clearOutcome()
+            router.navigate(programHref(programId))
+          }}
+          onDismiss={clearOutcome}
+        />
+      ) : (
+        <Toast
+          variant="success"
+          icon={CheckCircle2}
+          title="Workout saved"
+          description="Tap to view"
+          onPress={() => {
+            clearOutcome()
+            router.push(`/workouts/${outcome.workoutId}`)
+          }}
+          onDismiss={clearOutcome}
+        />
+      )
+    ) : (
+      <Toast
+        variant="default"
+        icon={RotateCcw}
+        title="Workout discarded"
+        description="Tap to undo"
+        onPress={() => {
+          restoreSession(outcome.session)
+          clearOutcome()
+          router.push('/workouts/active')
+        }}
+        onDismiss={clearOutcome}
+      />
+    )
+  ) : null
+
+  // Nothing arrived, so there is no screen to draw around the failure. One error for the
+  // page, under the same title; a later page failing under loaded rows is the footer's.
+  if (listError && workouts.length === 0) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-5 py-4">
+          <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
+          <ErrorState size="page" title="Couldn't load your workouts" message={listError} onRetry={retryList} />
+        </View>
+        {outcomeToast}
+      </Screen>
+    )
+  }
 
   const now = new Date()
   const stats = [
-    // 1:1 with web: these summarize the *loaded* items, not a server-side stat.
-    { label: 'Total', value: String(workouts.length), unit: 'logged' },
+    // These summarize the *loaded* items; while pages remain, the total is a lower bound.
+    { label: 'Total', value: hasMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
     {
       label: 'This Month',
       // The month the workout was logged in, not the month its UTC instant lands in —
@@ -95,7 +155,7 @@ export default function Workouts() {
       value:
         workouts.length > 0
           ? String(Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60))
-          : '0',
+          : '—',
       unit: 'min',
     },
   ]
@@ -178,16 +238,7 @@ export default function Workouts() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : listError ? (
-            // An empty list because the fetch failed is not an empty list. "Log a
-            // workout to get started", shown to someone with months of history because
-            // their signal dropped, is the worst thing this screen can say.
-            <View className="px-1 py-3">
-              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
-                {listError}
-              </Alert>
-            </View>
-          ) : (
+          loading ? null : (
             <EmptyState
               icon={Dumbbell}
               title="No workouts found"
@@ -197,11 +248,7 @@ export default function Workouts() {
         }
         ListFooterComponent={
           listError && workouts.length > 0 ? (
-            <View className="px-1 py-3">
-              <Alert variant="error" actions={[{ label: 'Try again', onPress: retryList, primary: true }]}>
-                {listError}
-              </Alert>
-            </View>
+            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} />
           ) : hasMore && loading && workouts.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
@@ -210,51 +257,7 @@ export default function Workouts() {
         }
       />
 
-      {/* Post-session confirmation. Saved = quiet success; discarded = tap-to-undo
-          (restores the exact session snapshot and drops you back into it). */}
-      {outcome ? (
-        outcome.kind === 'saved' ? (
-          outcome.progression ? (
-            <Toast
-              variant={outcome.progression.is_pr ? 'warning' : 'success'}
-              icon={outcome.progression.is_pr ? Award : TrendingUp}
-              title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
-              description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
-              onPress={() => {
-                const programId = outcome.progression!.program_id
-                clearOutcome()
-                router.navigate(programHref(programId))
-              }}
-              onDismiss={clearOutcome}
-            />
-          ) : (
-            <Toast
-              variant="success"
-              icon={CheckCircle2}
-              title="Workout saved"
-              description="Tap to view"
-              onPress={() => {
-                clearOutcome()
-                router.push(`/workouts/${outcome.workoutId}`)
-              }}
-              onDismiss={clearOutcome}
-            />
-          )
-        ) : (
-          <Toast
-            variant="default"
-            icon={RotateCcw}
-            title="Workout discarded"
-            description="Tap to undo"
-            onPress={() => {
-              restoreSession(outcome.session)
-              clearOutcome()
-              router.push('/workouts/active')
-            }}
-            onDismiss={clearOutcome}
-          />
-        )
-      ) : null}
+      {outcomeToast}
     </Screen>
   )
 }
