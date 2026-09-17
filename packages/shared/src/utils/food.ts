@@ -96,12 +96,14 @@ export function normaliseFoodKey(value: string | undefined): string {
 // this whole change exists to remove.
 //
 // So the shape is checked where the value is read, and anything unreadable is treated as
-// a failed load rather than as data. Only the numbers the screens actually use are
-// required: a server that grows a field must not make an older client call the payload
-// broken.
+// a failed load rather than as data. Every macro a screen renders is required — the
+// dashboard's macro rows read carbs and fat too, so checking only calories and protein
+// let a payload missing those through to render NaN. Extra fields are still fine: a server
+// that grows one must not make an older client call the payload broken.
+const RENDERED_MACROS = ['total_calories', 'total_protein', 'total_carbs', 'total_fat'] as const
+
 export function isDailyStats(value: unknown): value is import('../types').DailyStats {
   if (typeof value !== 'object' || value === null) return false
   const v = value as Record<string, unknown>
-  return typeof v.total_calories === 'number' && Number.isFinite(v.total_calories)
-    && typeof v.total_protein === 'number' && Number.isFinite(v.total_protein)
+  return RENDERED_MACROS.every(k => typeof v[k] === 'number' && Number.isFinite(v[k]))
 }

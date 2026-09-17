@@ -624,12 +624,12 @@ export default function Dashboard() {
           </div>
 
           {foodMissing ? (
-            // The KPI strip above mirrors these two numbers and shows "—"; the sentence
-            // and the retry belong here, in the section that actually owns them.
+            // The KPI tiles above mirror these numbers with the bare failure mark; the
+            // sentence and the retry belong here, in the section that owns them.
             <ErrorState
               size="section"
               title="Couldn't load today's food"
-              message="Something went wrong on our end."
+              message={missing["today's food"]}
               onRetry={retry}
             />
           ) : (
@@ -637,7 +637,7 @@ export default function Dashboard() {
           {/* Calorie total */}
           <div className="flex items-baseline gap-1.5 mb-3">
             <span className="text-3xl font-bold text-tx-primary tabular-nums leading-none">
-              {foodMissing ? '—' : Math.round(food.total_calories)}
+              {Math.round(food.total_calories)}
             </span>
             <span className="text-xs text-tx-muted">/ {settings.calorie_target} kcal</span>
             <div className="flex-1" />
@@ -658,7 +658,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
-                    {foodMissing ? '—' : `${Math.round(m.val)}g`}
+                    {Math.round(m.val)}g
                     <span className="text-tx-muted font-normal"> / {m.target}g</span>
                   </span>
                 </div>

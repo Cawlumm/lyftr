@@ -305,18 +305,13 @@ export default function Workouts() {
       {/* Workout list */}
       <div className="space-y-2">
         {workouts.length === 0 && !loading ? (
-          // An empty list because the fetch failed is not an empty list. Saying "No
-          // workouts found · Log a workout to get started" to someone with eight months
-          // of history, because their wifi dropped, is the worst thing this screen can do.
-          listError ? (
-            <ListError subject="your workouts" message={listError} onRetry={retryList} />
-          ) : (
-            <EmptyState
-              icon={Dumbbell}
-              title="No workouts found"
-              subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
-            />
-          )
+          // A failed first page never reaches here — the early return above renders it —
+          // so an empty list at this point really is empty.
+          <EmptyState
+            icon={Dumbbell}
+            title="No workouts found"
+            subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+          />
         ) : (
           <>
             {workouts.map(w => <WorkoutCard key={w.id} workout={w}

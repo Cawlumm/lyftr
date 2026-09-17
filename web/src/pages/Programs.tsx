@@ -334,11 +334,8 @@ export default function Programs() {
 
       <div className="space-y-2">
         {programs.length === 0 && !loading ? (
-          // A failed fetch leaves the list empty too, and "No programs found · Create a
-          // program to get started" is a lie told to someone who has six.
-          listError ? (
-            <ListError subject="your programs" message={listError} onRetry={retryList} />
-          ) : (
+          // A failed first page never reaches here — the early return above renders it —
+          // so an empty list at this point really is empty.
           <div className="empty-state">
             <div className="w-12 h-12 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center mb-4">
               <BookOpen className="w-6 h-6 text-tx-muted" />
@@ -346,7 +343,6 @@ export default function Programs() {
             <p className="text-sm font-medium text-tx-primary mb-1">No programs found</p>
             <p className="text-xs text-tx-muted">{search ? 'Try a different search' : 'Create a program to get started'}</p>
           </div>
-          )
         ) : (
           <>
             {programs.map(p => (

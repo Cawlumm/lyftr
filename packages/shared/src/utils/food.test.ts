@@ -195,6 +195,10 @@ describe('isDailyStats', () => {
     ['undefined', undefined],
     ['an empty object', {}],
     ['a partial object', { total_calories: 1840 }],
+    // Calories and protein valid is not enough: the dashboard's macro rows read these too.
+    ['missing carbs', { ...ok, total_carbs: undefined }],
+    ['missing fat', { ...ok, total_fat: undefined }],
+    ['a stringified fat', { ...ok, total_fat: '61' }],
     ['NaN in a number field', { ...ok, total_calories: NaN }],
     ['a stringified number', { ...ok, total_calories: '1840' }],
   ])('rejects %s', (_label, value) => {

@@ -167,12 +167,15 @@ export default function Settings() {
   // longer shows a unit the server never accepted. Saying so is still this page's job —
   // a toggle that flips back on its own, silently, is its own small mystery.
   const handleUnitChange = async (unit: 'lbs' | 'kg') => {
+    // Captured before the optimistic write. Negating `unit` only happened to be right when
+    // the user switched; tapping the unit already selected and failing flipped them over.
+    const previous = formData.weight_unit
     setFormData(prev => ({ ...prev, weight_unit: unit }))
     setUnitError(null)
     try {
       await updateSettings({ ...formData, weight_unit: unit })
     } catch (err) {
-      setFormData(prev => ({ ...prev, weight_unit: unit === 'lbs' ? 'kg' : 'lbs' }))
+      setFormData(prev => ({ ...prev, weight_unit: previous }))
       setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
     }
   }
@@ -548,7 +551,7 @@ export default function Settings() {
         busy={deleteAccount.busy}
         error={deleteAccount.error ?? undefined}
         onConfirm={() => { void deleteAccount.run() }}
-        onCancel={() => setConfirmDelete(false)}
+        onCancel={() => { setConfirmDelete(false); deleteAccount.reset() }}
       />
     </div>
   )

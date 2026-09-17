@@ -4,7 +4,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'lucide-react'
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
-import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
@@ -33,8 +32,6 @@ export default function WeightDetail() {
   // Delete confirm
   const [confirming, setConfirming] = useState(false)
 
-  useBodyScrollLock(confirming)
-  useEscapeKey(confirming, () => setConfirming(false))
   useEscapeKey(editing, () => { setEditing(false); setEditError('') })
 
   useEffect(() => {
