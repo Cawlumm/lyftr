@@ -50,9 +50,6 @@ export default function AddProgram() {
     fetchSettings()
   }, [fetchSettings])
 
-  useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
 
@@ -81,6 +78,10 @@ export default function AddProgram() {
     await client.programAPI.create(payload)
     router.dismissTo('/programs')
   }, 'Failed to create program')
+
+  useEffect(() => {
+    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error, save.error])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError('Program name required'); return }
