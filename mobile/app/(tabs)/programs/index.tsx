@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
 import { programExerciseCount } from '@lyftr/shared'
-import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, StatFailure } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -29,8 +29,10 @@ export default function Programs() {
       client.programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     [debouncedSearch]
   )
-  const { items: programs, loadMore, hasMore, loading, initialLoading, refreshing, reload } =
-    useServerInfiniteList<Program>({ fetcher, deps: [debouncedSearch] })
+  const {
+    items: programs, loadMore, hasMore, loading, initialLoading, refreshing, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<Program>({ fetcher, deps: [debouncedSearch] })
 
   // The stack keeps this screen mounted under the detail/form screens; refetch on
   // re-focus so an edit/delete/create there reflects here. Skip the first focus (the
@@ -46,6 +48,19 @@ export default function Programs() {
     }, [reload])
   )
 
+  // Which query the rows on screen answer. Keeping the previous results while a new
+  // search runs is right — until that search fails, at which point the field says one
+  // thing and the rows below it another. Then they are not stale, they are a different
+  // query's answer, and the error takes their place.
+  const [answeredQuery, setAnsweredQuery] = useState('')
+  // Keyed on the hook's own loading flag, which is already true by the time this runs
+  // for a new query — `refreshing` is not, so this marked a query answered before its
+  // request had left, and a failure then kept the previous query's rows on screen.
+  useEffect(() => {
+    if (!loading && listError == null) setAnsweredQuery(debouncedSearch)
+  }, [loading, listError, debouncedSearch])
+  const queryAnswered = listError == null || answeredQuery === debouncedSearch
+
   const [pulling, setPulling] = useState(false)
   const onPullRefresh = useCallback(async () => {
     setPulling(true)
@@ -58,20 +73,40 @@ export default function Programs() {
   // the Workouts list.
   if (initialLoading) return <ProgramsSkeleton />
 
+  // Nothing arrived, so there is no screen to draw around the failure: tiles would read 0
+  // and the create button would sit beside a list we cannot show. One error for the page,
+  // under the same title. A later page failing under rows that did arrive is the footer's.
+  // Not while a search is running: taking the whole screen takes the field the query
+  // was typed into, and retry could then only re-run the request that just failed.
+  if (listError && programs.length === 0 && !debouncedSearch) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-5 py-4">
+          <PageHeader title="Programs" subtitle="Reusable workout templates" />
+          <ErrorState size="page" title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+        </View>
+      </Screen>
+    )
+  }
+
   // Stale-while-revalidate: dim the loaded content while a search re-fetches (the
   // previous results stay on screen until the fresh page lands). Pagination (loadMore)
   // is excluded so appending a page doesn't dim the whole list.
   const dim = refreshing
 
+  // Nothing loaded and the read failed: "0+ programs" is true of every account there
+  // has ever been. Reached with a search on screen; otherwise the page error owns this.
+  const countsUnknown = listError != null && (programs.length === 0 || !queryAnswered)
   const stats = [
-    // 1:1 with web: summarize the *loaded* items, not a server-side stat.
-    { label: 'Total', value: String(programs.length), unit: 'programs' },
+    // `programs` is what has loaded, not how many exist: while pages remain it is a lower
+    // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
+    { label: 'Total', value: hasMore || listError != null ? `${programs.length}+` : String(programs.length), unit: 'programs' },
     {
       label: 'Avg Exercises',
       value:
         programs.length > 0
           ? String(Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length))
-          : '0',
+          : '—',
       unit: 'per program',
     },
   ]
@@ -79,7 +114,7 @@ export default function Programs() {
   return (
     <Screen>
       <FlatList
-        data={programs}
+        data={queryAnswered ? programs : []}
         keyExtractor={(p) => String(p.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -112,10 +147,14 @@ export default function Programs() {
               {stats.map((s) => (
                 <Card key={s.label} className="flex-1 rounded-2xl">
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
+                  {countsUnknown ? (
+                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()}`} />
+                  ) : (
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{s.value}</AppText>
                     <AppText variant="caption" color="muted" className="mb-0.5" numberOfLines={1}>{s.unit}</AppText>
                   </View>
+                  )}
                 </Card>
               ))}
             </View>
@@ -138,7 +177,11 @@ export default function Programs() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : listError ? (
+            // Reached only with a search on screen; "No programs found" would blame the
+            // query for a request that never landed.
+            <ErrorState title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+          ) : (
             <EmptyState
               icon={BookOpen}
               title="No programs found"
@@ -150,7 +193,9 @@ export default function Programs() {
           // Pagination-only spinner: `!dim` keeps it from firing during a full
           // (re)load — there the content is already grayed, so a footer spinner
           // would read as an unwanted "loading" in the middle.
-          hasMore && loading && !dim && programs.length > 0 ? (
+          listError && programs.length > 0 ? (
+            <ErrorState title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+          ) : hasMore && loading && !dim && programs.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>

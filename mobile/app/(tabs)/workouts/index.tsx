@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -47,8 +47,10 @@ export default function Workouts() {
       client.workoutAPI.list({ offset, limit, q: debouncedSearch || undefined }),
     [debouncedSearch]
   )
-  const { items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload } =
-    useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
+  const {
+    items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
 
   // The stack keeps this screen mounted under the detail screen, so a delete made
   // there doesn't remount us the way the web SPA's re-navigation does — refetch on
@@ -65,6 +67,19 @@ export default function Workouts() {
   )
 
   // Pull-to-refresh: drive the native RefreshControl spinner off the reload promise.
+  // Which query the rows on screen answer. Keeping the previous results while a new
+  // search runs is right — until that search fails, at which point the field says one
+  // thing and the rows below it another. Then they are not stale, they are a different
+  // query's answer, and the error takes their place.
+  const [answeredQuery, setAnsweredQuery] = useState('')
+  // Keyed on the hook's own loading flag, which is already true by the time this runs
+  // for a new query — `refreshing` is not, so this marked a query answered before its
+  // request had left, and a failure then kept the previous query's rows on screen.
+  useEffect(() => {
+    if (!loading && listError == null) setAnsweredQuery(debouncedSearch)
+  }, [loading, listError, debouncedSearch])
+  const queryAnswered = listError == null || answeredQuery === debouncedSearch
+
   const [pulling, setPulling] = useState(false)
   const onPullRefresh = useCallback(async () => {
     setPulling(true)
@@ -76,16 +91,93 @@ export default function Workouts() {
   // placeholders read as faster and match where the real cards will land.
   if (initialLoading) return <WorkoutsSkeleton />
 
+  // Post-session confirmation. Saved = quiet success; discarded = tap-to-undo
+  // (restores the exact session snapshot and drops you back into it). Built before the
+  // early return so a list that fails to load does not swallow the outcome of a session.
+  const outcomeToast = outcome ? (
+    outcome.kind === 'saved' ? (
+      outcome.progression ? (
+        <Toast
+          variant={outcome.progression.is_pr ? 'warning' : 'success'}
+          icon={outcome.progression.is_pr ? Award : TrendingUp}
+          title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
+          description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
+          onPress={() => {
+            const programId = outcome.progression!.program_id
+            clearOutcome()
+            router.navigate(programHref(programId))
+          }}
+          onDismiss={clearOutcome}
+        />
+      ) : (
+        <Toast
+          variant="success"
+          icon={CheckCircle2}
+          title="Workout saved"
+          description="Tap to view"
+          onPress={() => {
+            clearOutcome()
+            router.push(`/workouts/${outcome.workoutId}`)
+          }}
+          onDismiss={clearOutcome}
+        />
+      )
+    ) : (
+      <Toast
+        variant="default"
+        icon={RotateCcw}
+        title="Workout discarded"
+        description="Tap to undo"
+        onPress={() => {
+          restoreSession(outcome.session)
+          clearOutcome()
+          router.push('/workouts/active')
+        }}
+        onDismiss={clearOutcome}
+      />
+    )
+  ) : null
+
+  // Nothing arrived, so there is no screen to draw around the failure. One error for the
+  // page, under the same title; a later page failing under loaded rows is the footer's.
+  //
+  // Not while a search is running, though: taking the whole screen takes the field the
+  // query was typed into, so the query cannot be cleared or changed and retry can only
+  // re-run the request that just failed. A search that fails keeps its search bar.
+  if (listError && workouts.length === 0 && !debouncedSearch) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-5 py-4">
+          <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
+          <ErrorState size="page" title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+        </View>
+        {outcomeToast}
+      </Screen>
+    )
+  }
 
   const now = new Date()
+  const mayHaveMore = hasMore || listError != null
+  // Nothing loaded and the read failed: these tiles have no figure to round down to.
+  // "0+ logged" is true of every account that ever existed, which is another way of
+  // saying nothing. Reached with a search on screen; otherwise the page error owns this.
+  const countsUnknown = listError != null && (workouts.length === 0 || !queryAnswered)
+  const month = format(now, 'yyyy-MM')
+  const thisMonth = workouts.filter((w) => workoutDay(w).startsWith(month)).length
+  const oldestLoadedDay = workouts.length > 0 ? workoutDay(workouts[workouts.length - 1]) : null
+  const monthCountKnown = !mayHaveMore || (oldestLoadedDay != null && oldestLoadedDay < `${month}-01`)
   const stats = [
-    // 1:1 with web: these summarize the *loaded* items, not a server-side stat.
-    { label: 'Total', value: String(workouts.length), unit: 'logged' },
+    // These summarize the *loaded* items; while pages remain, the total is a lower bound.
+    // A failed page counts as "pages remain": the hook drops hasMore on error, and
+    // without listError here a dropped connection made the count look more certain.
+    { label: 'Total', value: mayHaveMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
     {
       label: 'This Month',
       // The month the workout was logged in, not the month its UTC instant lands in —
       // a session near a month boundary belongs to the month the lifter trained in.
-      value: String(workouts.filter((w) => workoutDay(w).startsWith(format(now, 'yyyy-MM'))).length),
+      // Newest-first paging means we have seen the whole month only once a loaded row
+      // predates it; until then the count is a lower bound and says so, like Total.
+      value: monthCountKnown ? String(thisMonth) : `${thisMonth}+`,
       unit: 'sessions',
     },
     {
@@ -93,7 +185,7 @@ export default function Workouts() {
       value:
         workouts.length > 0
           ? String(Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60))
-          : '0',
+          : '—',
       unit: 'min',
     },
   ]
@@ -101,7 +193,7 @@ export default function Workouts() {
   return (
     <Screen>
       <FlatList
-        data={workouts}
+        data={queryAnswered ? workouts : []}
         keyExtractor={(w) => String(w.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -140,6 +232,9 @@ export default function Workouts() {
               {stats.map((s) => (
                 <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
+                  {countsUnknown ? (
+                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()}`} />
+                  ) : (
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
                       {s.value}
@@ -148,6 +243,7 @@ export default function Workouts() {
                       {s.unit}
                     </AppText>
                   </View>
+                  )}
                 </Card>
               ))}
             </View>
@@ -176,7 +272,11 @@ export default function Workouts() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : listError ? (
+            // Reached only with a search on screen (the early return covers the rest):
+            // "No workouts found" would blame the query for a request that never landed.
+            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+          ) : (
             <EmptyState
               icon={Dumbbell}
               title="No workouts found"
@@ -185,7 +285,9 @@ export default function Workouts() {
           )
         }
         ListFooterComponent={
-          hasMore && loading && workouts.length > 0 ? (
+          listError && workouts.length > 0 ? (
+            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+          ) : hasMore && loading && workouts.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
@@ -193,51 +295,7 @@ export default function Workouts() {
         }
       />
 
-      {/* Post-session confirmation. Saved = quiet success; discarded = tap-to-undo
-          (restores the exact session snapshot and drops you back into it). */}
-      {outcome ? (
-        outcome.kind === 'saved' ? (
-          outcome.progression ? (
-            <Toast
-              variant={outcome.progression.is_pr ? 'warning' : 'success'}
-              icon={outcome.progression.is_pr ? Award : TrendingUp}
-              title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
-              description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
-              onPress={() => {
-                const programId = outcome.progression!.program_id
-                clearOutcome()
-                router.navigate(programHref(programId))
-              }}
-              onDismiss={clearOutcome}
-            />
-          ) : (
-            <Toast
-              variant="success"
-              icon={CheckCircle2}
-              title="Workout saved"
-              description="Tap to view"
-              onPress={() => {
-                clearOutcome()
-                router.push(`/workouts/${outcome.workoutId}`)
-              }}
-              onDismiss={clearOutcome}
-            />
-          )
-        ) : (
-          <Toast
-            variant="default"
-            icon={RotateCcw}
-            title="Workout discarded"
-            description="Tap to undo"
-            onPress={() => {
-              restoreSession(outcome.session)
-              clearOutcome()
-              router.push('/workouts/active')
-            }}
-            onDismiss={clearOutcome}
-          />
-        )
-      ) : null}
+      {outcomeToast}
     </Screen>
   )
 }

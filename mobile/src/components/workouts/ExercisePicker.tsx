@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from '
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
-import { AppText, IconButton } from '../ui'
+import { AppText, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
@@ -78,7 +78,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
     [debouncedQuery]
   )
 
-  const { items: exercises, loadMore, hasMore, initialLoading } = useServerInfiniteList<Exercise>({
+  const {
+    items: exercises, loadMore, hasMore, initialLoading, error: listError, retry: retryList,
+  } = useServerInfiniteList<Exercise>({
     fetcher,
     pageSize: PAGE_SIZE,
     deps: [debouncedQuery],
@@ -101,9 +103,13 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             {/* Large title (matches the sibling "Log Workout" screen title) — the
                 18px heading read undersized for a full-screen surface. */}
             <AppText variant="title">Add Exercise</AppText>
-            <AppText variant="caption" color="muted">
-              {available.length} loaded{hasMore ? '…' : ''}
-            </AppText>
+            {/* Only true if the fetch landed — on a failure this read "0 loaded"
+                above a message saying we could not load anything. */}
+            {listError ? null : (
+              <AppText variant="caption" color="muted">
+                {available.length} loaded{hasMore ? '…' : ''}
+              </AppText>
+            )}
           </View>
         </View>
 
@@ -149,12 +155,25 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
-              <View className="items-center py-16">
-                <AppText variant="body" color="muted">No exercises found</AppText>
-              </View>
+              // "No exercises found" is only true if we heard back. On a failed fetch
+              // it reads as an empty catalogue rather than a connection that dropped.
+              listError ? (
+                <ErrorState title="Couldn't load exercises" message={listError} onRetry={retryList} />
+              ) : (
+                <View className="items-center py-16">
+                  <AppText variant="body" color="muted">No exercises found</AppText>
+                </View>
+              )
             }
             ListFooterComponent={
-              hasMore && exercises.length > 0 ? (
+              // A later page failing under rows that did arrive: without this the list
+              // just stops, which reads as the end of the catalogue.
+              // Keyed on the rows actually listed, not on what loaded: with every loaded
+              // exercise already selected the list is empty, and the slot above would
+              // render the same failure a second time.
+              listError && available.length > 0 ? (
+                <ErrorState title="Couldn't load more exercises" message={listError} onRetry={retryList} />
+              ) : hasMore && available.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">Loading more…</AppText>

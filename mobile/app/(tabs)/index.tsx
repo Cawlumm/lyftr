@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -9,8 +9,8 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
-import { Alert, AppText, Card, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
@@ -65,7 +65,10 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 export default function Dashboard() {
-  const now = useMemo(() => new Date(), [])
+  // Re-read on every load rather than once at mount: this tab stays mounted for the
+  // life of the process, so an app left open overnight kept yesterday's header, week
+  // boundary and "today" dot while load() fetched the real today's food.
+  const [now, setNow] = useState(() => new Date())
   const session = useWorkoutSession((s) => s.session)
   const startSession = useWorkoutSession((s) => s.startSession)
   const user = useAuthStore((s) => s.user)
@@ -93,6 +96,15 @@ export default function Dashboard() {
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // The secondary reads are caught so one dead endpoint cannot blank a working dashboard.
+  // What they must not do is then say nothing: a failed /food/stats rendered today as
+  // 0 kcal, which is what "hasn't eaten yet" looks like. Name -> what the server said,
+  // so the card that never loaded can say why.
+  const [missing, setMissing] = useState<Record<string, string>>({})
+  const foodMissing = "today's food" in missing
+  const weightMissing = 'your weight' in missing
+  const programsMissing = 'your programs' in missing
+
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
   const [chartWidth, setChartWidth] = useState(0)
@@ -100,24 +112,45 @@ export default function Dashboard() {
   const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
 
   const load = useCallback(async () => {
+    setNow(new Date())
+    // A 200 that is not a list is not an empty list. Unchecked, a half-deployed backend
+    // or a proxy in front of the wrong service rendered "No workouts logged yet" and
+    // "Log your first weight" — the empty-account screen, from a reply we could not read.
+    const rows = <T,>(v: T[] | null | undefined): T[] => {
+      if (!Array.isArray(v)) throw new Error('unreadable')
+      return v
+    }
+    const absent: Record<string, string> = {}
+    const note = (what: string, err: unknown) => {
+      absent[what] = apiErrorMessage(err, "The server didn't say what went wrong.")
+    }
     const [ws, ps, fs, wl, wst] = await Promise.all([
-      client.workoutAPI.list({ limit: 84 }).catch(() => [] as Workout[]),
-      client.programAPI.list({ limit: 100 }).catch(() => [] as Program[]), // backend's max — Up Next must see every program
-      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd')).catch(() => DEFAULT_FOOD),
-      client.weightAPI.list({ limit: 14 }).catch(() => [] as WeightLog[]),
-      client.weightAPI.stats().catch(() => null),
+      // Uncaught on purpose, mirroring web: this is the primary request, and it is
+      // what lets a total outage reject load() and reach the ErrorState below. With
+      // all five caught, load() could never fail, so the error screen was
+      // unreachable and an outage rendered every tile at 0, silently.
+      client.workoutAPI.list({ limit: 84 }).then(rows),
+      client.programAPI.list({ limit: 100 }).then(rows).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
+      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))  // the real today, as load() re-reads it
+        // A 200 carrying the wrong shape never reaches the catch; unchecked, the missing
+        // field goes through Math.round and the card reads "NaN".
+        .then((fs) => (isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable'))))
+        .catch((err) => { note("today's food", err); return DEFAULT_FOOD }),
+      client.weightAPI.list({ limit: 14 }).then(rows).catch((err) => { note('your weight', err); return [] as WeightLog[] }),
+      client.weightAPI.stats().catch((err) => { note('your weight', err); return null }),
     ])
-    setWorkouts(ws || [])
-    setPrograms(ps || [])
+    setWorkouts(ws)
+    setPrograms(ps)
     setFood(fs || DEFAULT_FOOD)
-    setWeightLogs(wl || [])
+    setWeightLogs(wl)
     setWeightStats(wst)
+    setMissing(absent)
   }, [])
 
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError(apiErrorMessage(err, 'Failed to load')))
+      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 
@@ -126,25 +159,40 @@ export default function Dashboard() {
   useFocusEffect(
     useCallback(() => {
       if (!focusedOnce.current) { focusedOnce.current = true; return }
-      load()
+      // A failed refocus refetch keeps the stale-but-real data already on screen;
+      // replacing a populated dashboard with an error over a background refresh
+      // would be the louder wrong. The catch exists because load() can reject now.
+      load().catch(() => {})
     }, [load])
   )
 
   const [refreshing, setRefreshing] = useState(false)
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    await load()
+    // Same shape as the refocus refetch: pull-to-refresh over live data keeps the
+    // data on a failure; the spinner stopping with nothing changed is the signal.
+    await load().catch(() => {})
     setRefreshing(false)
   }, [load])
 
   if (loading) return <DashboardSkeleton />
 
   if (error) {
+    // Every tile here is another request's answer, so a failed load has no honest
+    // partial view — the cards would all read 0, which says "you did nothing this
+    // week" rather than "we could not ask".
     return (
       <Screen>
-        <View className="py-4">
-          <Alert variant="error" size="compact">{error}</Alert>
-        </View>
+        <ErrorState
+          size="page"
+          title="Couldn't load your dashboard"
+          message={error}
+          onRetry={() => {
+            setError(null)
+            setLoading(true)
+            load().catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong."))).finally(() => setLoading(false))
+          }}
+        />
       </Screen>
     )
   }
@@ -331,6 +379,13 @@ export default function Dashboard() {
                 size="sm"
                 onPress={startUpNext}
               />
+            </Card>
+          ) : !session && programsMissing ? (
+            // Programs failed, so there is no "up next" to work out — and with nothing
+            // here the screen reads as an account with no routine, which is a claim we
+            // cannot make from a request that never answered.
+            <Card>
+              <ErrorState title="Couldn't load your programs" message={missing['your programs']} onRetry={onRefresh} />
             </Card>
           ) : null}
 
@@ -569,6 +624,10 @@ export default function Dashboard() {
           <Card>
             {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
             <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
+            {foodMissing ? (
+              <ErrorState title="Couldn't load today's food" message={missing["today's food"]} onRetry={onRefresh} />
+            ) : (
+            <>
             <View className="mb-3 flex-row items-baseline gap-1.5">
               <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
               <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
@@ -593,6 +652,8 @@ export default function Dashboard() {
                 </View>
               ))}
             </View>
+            </>
+            )}
           </Card>
 
           {/* ── Weight quick-log ── */}
@@ -603,7 +664,10 @@ export default function Dashboard() {
               right={<LinkRow label="View" onPress={() => router.navigate('/weight')} />}
               className="mb-2"
             />
-            {weightLogs.length === 0 ? (
+            {weightLogs.length === 0 && weightMissing ? (
+              // Not the "log your first weight" prompt: this reader may have years of them.
+              <ErrorState title="Couldn't load your weight" message={missing['your weight']} onRetry={onRefresh} />
+            ) : weightLogs.length === 0 ? (
               <Pressable
                 onPress={() => { hSelect(); setSheetOpen(true) }}
                 className="flex-row items-center gap-3 rounded-2xl border border-dashed border-brand-500/30 bg-brand-500/5 p-3.5 active:scale-[0.99]"
@@ -625,7 +689,10 @@ export default function Dashboard() {
                   </View>
                   <View className="flex-row items-center gap-2">
                     {(() => {
-                      const delta = weightStats?.change_7d ?? 0
+                      // No stats is not "no change": say nothing rather than a trend we
+                      // never got — and a null or absent delta is no stats at all, not 0.
+                      const delta = weightStats?.change_7d
+                      if (typeof delta !== 'number' || !Number.isFinite(delta)) return null
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
@@ -665,7 +732,10 @@ export default function Dashboard() {
                 new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
             )
           )
-          client.weightAPI.stats().then(setWeightStats).catch(() => {})
+          // Dropping the stats rather than keeping them: the entry just logged is in
+          // them, so a failed refetch leaves a 7d trend that is wrong, not merely old.
+          // The delta hides itself when they are absent.
+          client.weightAPI.stats().then(setWeightStats).catch(() => setWeightStats(null))
         }}
       />
     </Screen>

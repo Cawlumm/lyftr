@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { useAsyncAction, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
-import { Alert,
-  AppText, Card, ConfirmSheet, Loading, Screen, deleteConfirmProps,
+import { apiErrorMessage, isNotFound, useAsyncAction, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import {
+  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
@@ -23,6 +23,8 @@ export default function NutritionDetail() {
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [gone, setGone] = useState(false)
+  const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/nutrition'))
@@ -30,9 +32,12 @@ export default function NutritionDetail() {
   useEffect(() => {
     client.foodAPI.get(Number(id))
       .then(setEntry)
-      .catch(() => setError('Failed to load entry'))
+      .catch((err) => {
+        setGone(isNotFound(err))
+        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      })
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, retryKey])
 
   // The catch here just closed up and left the screen unchanged, which is
   // indistinguishable from a tap that never registered. It says why now.
@@ -47,12 +52,14 @@ export default function NutritionDetail() {
   if (error || !entry) {
     return (
       <Screen>
-        <View className="gap-4 py-4">
-          <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-2 self-start active:opacity-60">
-            <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Nutrition</AppText>
-          </Pressable>
-          <Alert variant="error" size="compact">{error || 'Entry not found'}</Alert>
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title="Couldn't load this entry"
+            message={error ?? 'That entry no longer exists.'}
+            onRetry={error && !gone ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title="Back to nutrition" variant="secondary" onPress={goBack} />}
+          />
         </View>
       </Screen>
     )
