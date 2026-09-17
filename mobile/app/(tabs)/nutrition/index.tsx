@@ -110,7 +110,12 @@ export default function Nutrition() {
       }
       let statsMessage: string | null = null
       const [logData, statsData] = await Promise.all([
-        client.foodAPI.list(date),
+        // Same rule as the totals beside it: a reply we cannot read is a failure, not a
+        // day with no food in it.
+        client.foodAPI.list(date).then((d) => {
+          if (!Array.isArray(d)) throw new Error('unreadable')
+          return d
+        }),
         client.foodAPI.stats(date)
           // A readable 200 is the only kind that counts as data; unchecked, a wrong shape
           // rendered as 0 kcal, which is what "hasn't eaten yet" looks like.
@@ -121,7 +126,7 @@ export default function Nutrition() {
           }),
       ])
       if (id !== dayRequest.current) return
-      setLogs(logData || [])
+      setLogs(logData)
       setStats(statsData)
       setStatsError(statsMessage)
       setLoadedDate(date)

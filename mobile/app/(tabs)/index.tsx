@@ -113,6 +113,13 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     setNow(new Date())
+    // A 200 that is not a list is not an empty list. Unchecked, a half-deployed backend
+    // or a proxy in front of the wrong service rendered "No workouts logged yet" and
+    // "Log your first weight" — the empty-account screen, from a reply we could not read.
+    const rows = <T,>(v: T[] | null | undefined): T[] => {
+      if (!Array.isArray(v)) throw new Error('unreadable')
+      return v
+    }
     const absent: Record<string, string> = {}
     const note = (what: string, err: unknown) => {
       absent[what] = apiErrorMessage(err, "The server didn't say what went wrong.")
@@ -122,20 +129,20 @@ export default function Dashboard() {
       // what lets a total outage reject load() and reach the ErrorState below. With
       // all five caught, load() could never fail, so the error screen was
       // unreachable and an outage rendered every tile at 0, silently.
-      client.workoutAPI.list({ limit: 84 }),
-      client.programAPI.list({ limit: 100 }).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
+      client.workoutAPI.list({ limit: 84 }).then(rows),
+      client.programAPI.list({ limit: 100 }).then(rows).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
       client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))  // the real today, as load() re-reads it
         // A 200 carrying the wrong shape never reaches the catch; unchecked, the missing
         // field goes through Math.round and the card reads "NaN".
         .then((fs) => (isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable'))))
         .catch((err) => { note("today's food", err); return DEFAULT_FOOD }),
-      client.weightAPI.list({ limit: 14 }).catch((err) => { note('your weight', err); return [] as WeightLog[] }),
+      client.weightAPI.list({ limit: 14 }).then(rows).catch((err) => { note('your weight', err); return [] as WeightLog[] }),
       client.weightAPI.stats().catch((err) => { note('your weight', err); return null }),
     ])
-    setWorkouts(ws || [])
-    setPrograms(ps || [])
+    setWorkouts(ws)
+    setPrograms(ps)
     setFood(fs || DEFAULT_FOOD)
-    setWeightLogs(wl || [])
+    setWeightLogs(wl)
     setWeightStats(wst)
     setMissing(absent)
   }, [])

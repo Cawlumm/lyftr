@@ -105,10 +105,20 @@ export default function Weight() {
 
   // One control puts all three reads back, so nobody has to work out which failed.
   // retryList, not reload: a failed later page is resumed rather than re-fetched from 0.
+  const [retrying, setRetrying] = useState(false)
+  const [heldPageError, setHeldPageError] = useState<string | null>(null)
+  // What the page-level error is saying right now, readable from retryAll, which runs
+  // before this render's derived values exist.
+  const pageErrorRef = useRef<string | null>(null)
   const retryAll = () => {
+    if (retrying) return
+    setHeldPageError(pageErrorRef.current)
+    setRetrying(true)
     retryList()
-    refetchStats()
-    refetchChart()
+    Promise.all([refetchStats(), refetchChart()]).finally(() => {
+      setRetrying(false)
+      setHeldPageError(null)
+    })
   }
 
   // Pull-to-refresh: drive the native RefreshControl spinner off a full refresh.
@@ -225,6 +235,15 @@ export default function Weight() {
   const loadFailed = chartError != null || statsError != null || listError != null
   const everythingFailed = chartError != null && statsError != null && listError != null
     && items.length === 0 && periodValues.length === 0
+  // Hold the page error across a retry. retryList clears its error the moment it is
+  // called, so without this the screen tore itself down into a half-broken one for as
+  // long as the requests took, then rebuilt the same error.
+  const pageError = everythingFailed
+    ? (listError ?? chartError ?? statsError ?? '')
+    : retrying
+      ? heldPageError
+      : null
+  pageErrorRef.current = pageError
 
   // A number we never received is not zero, and neither is the average of nothing: with
   // no values the tiles read "—" on a new account and the failure mark on an outage.
@@ -266,7 +285,7 @@ export default function Weight() {
 
   // Title and subtitle stay so the reader knows where they are; the unit chip does not,
   // and neither does the log form — a save that cannot succeed would outrank the retry.
-  if (everythingFailed) {
+  if (pageError != null) {
     return (
       <Screen>
         <View className="flex-1 gap-5 py-4">
@@ -274,8 +293,9 @@ export default function Weight() {
           <ErrorState
             size="page"
             title="Couldn't load your weight"
-            message={listError ?? chartError ?? statsError ?? ''}
+            message={pageError}
             onRetry={retryAll}
+            retrying={retrying}
           />
         </View>
       </Screen>
@@ -414,6 +434,7 @@ export default function Weight() {
                   title="Couldn't load your weight"
                   message={listError ?? chartError ?? statsError ?? ''}
                   onRetry={retryAll}
+                  retrying={retrying}
                 />
               ) : items.length === 0 ? (
                 <View className="items-center py-2">
@@ -496,7 +517,7 @@ export default function Weight() {
                     <Skeleton width="100%" height={120} radius={12} />
                   </View>
                 ) : chartData.length === 0 && chartError ? (
-                  <ErrorState title="Couldn't load your trend" message={chartError} onRetry={retryAll} />
+                  <ErrorState title="Couldn't load your trend" message={chartError} onRetry={retryAll} retrying={retrying} />
                 ) : chartData.length < 2 ? (
                   <View className="h-44 items-center justify-center">
                     <AppText variant="body" color="muted">

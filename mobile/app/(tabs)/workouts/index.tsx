@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -67,6 +67,19 @@ export default function Workouts() {
   )
 
   // Pull-to-refresh: drive the native RefreshControl spinner off the reload promise.
+  // Which query the rows on screen answer. Keeping the previous results while a new
+  // search runs is right — until that search fails, at which point the field says one
+  // thing and the rows below it another. Then they are not stale, they are a different
+  // query's answer, and the error takes their place.
+  const [answeredQuery, setAnsweredQuery] = useState('')
+  // Keyed on the hook's own loading flag, which is already true by the time this runs
+  // for a new query — `refreshing` is not, so this marked a query answered before its
+  // request had left, and a failure then kept the previous query's rows on screen.
+  useEffect(() => {
+    if (!loading && listError == null) setAnsweredQuery(debouncedSearch)
+  }, [loading, listError, debouncedSearch])
+  const queryAnswered = listError == null || answeredQuery === debouncedSearch
+
   const [pulling, setPulling] = useState(false)
   const onPullRefresh = useCallback(async () => {
     setPulling(true)
@@ -127,12 +140,16 @@ export default function Workouts() {
 
   // Nothing arrived, so there is no screen to draw around the failure. One error for the
   // page, under the same title; a later page failing under loaded rows is the footer's.
-  if (listError && workouts.length === 0) {
+  //
+  // Not while a search is running, though: taking the whole screen takes the field the
+  // query was typed into, so the query cannot be cleared or changed and retry can only
+  // re-run the request that just failed. A search that fails keeps its search bar.
+  if (listError && workouts.length === 0 && !debouncedSearch) {
     return (
       <Screen>
         <View className="flex-1 gap-5 py-4">
           <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
-          <ErrorState size="page" title="Couldn't load your workouts" message={listError} onRetry={retryList} />
+          <ErrorState size="page" title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
         </View>
         {outcomeToast}
       </Screen>
@@ -141,6 +158,10 @@ export default function Workouts() {
 
   const now = new Date()
   const mayHaveMore = hasMore || listError != null
+  // Nothing loaded and the read failed: these tiles have no figure to round down to.
+  // "0+ logged" is true of every account that ever existed, which is another way of
+  // saying nothing. Reached with a search on screen; otherwise the page error owns this.
+  const countsUnknown = listError != null && (workouts.length === 0 || !queryAnswered)
   const month = format(now, 'yyyy-MM')
   const thisMonth = workouts.filter((w) => workoutDay(w).startsWith(month)).length
   const oldestLoadedDay = workouts.length > 0 ? workoutDay(workouts[workouts.length - 1]) : null
@@ -172,7 +193,7 @@ export default function Workouts() {
   return (
     <Screen>
       <FlatList
-        data={workouts}
+        data={queryAnswered ? workouts : []}
         keyExtractor={(w) => String(w.id)}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
@@ -211,6 +232,9 @@ export default function Workouts() {
               {stats.map((s) => (
                 <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
+                  {countsUnknown ? (
+                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()}`} />
+                  ) : (
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
                       {s.value}
@@ -219,6 +243,7 @@ export default function Workouts() {
                       {s.unit}
                     </AppText>
                   </View>
+                  )}
                 </Card>
               ))}
             </View>
@@ -247,7 +272,11 @@ export default function Workouts() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : (
+          loading ? null : listError ? (
+            // Reached only with a search on screen (the early return covers the rest):
+            // "No workouts found" would blame the query for a request that never landed.
+            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+          ) : (
             <EmptyState
               icon={Dumbbell}
               title="No workouts found"
@@ -257,7 +286,7 @@ export default function Workouts() {
         }
         ListFooterComponent={
           listError && workouts.length > 0 ? (
-            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} />
+            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
           ) : hasMore && loading && workouts.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />

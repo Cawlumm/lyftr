@@ -25,6 +25,9 @@ interface Props {
   size?: 'page' | 'section'
   onRetry?: () => void
   retryLabel?: string
+  /** The retry is in flight. Without it the button looks untouched on a slow server,
+      and the only feedback is the screen rearranging around a request nobody can see. */
+  retrying?: boolean
   /** One escape hatch at most, for when retrying is not the answer. */
   secondary?: ReactNode
 }
@@ -35,6 +38,7 @@ export function ErrorState({
   size = 'section',
   onRetry,
   retryLabel = 'Try again',
+  retrying = false,
   secondary,
 }: Props) {
   const { isDark } = useTheme()
@@ -65,7 +69,9 @@ export function ErrorState({
       </View>
       {onRetry || secondary ? (
         <View className="mt-1 flex-row flex-wrap items-center justify-center gap-2">
-          {onRetry ? <Button title={retryLabel} onPress={onRetry} /> : null}
+          {onRetry ? (
+            <Button title={retrying ? 'Retrying…' : retryLabel} onPress={onRetry} loading={retrying} disabled={retrying} />
+          ) : null}
           {secondary}
         </View>
       ) : null}
