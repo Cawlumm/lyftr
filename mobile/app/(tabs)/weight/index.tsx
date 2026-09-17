@@ -4,12 +4,12 @@ import { useFocusEffect } from 'expo-router'
 import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
-  Activity, AlertCircle, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
+  Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
 import { apiErrorMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
 import { Alert,
-  AppText, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
+  AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, StatFailure, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
@@ -448,7 +448,9 @@ export default function Weight() {
 
             {figuresStale ? (
               <View className="flex-row flex-wrap items-center gap-2 px-1" accessibilityLiveRegion="polite">
-                <AlertCircle size={14} color={semanticInk[isDark ? 'dark' : 'light'].warning} />
+                {/* The same mark every other failure on this screen uses, in warning ink
+                    rather than error: these numbers are real, just not fresh. */}
+                <BarbellBroken size={20} color={semanticInk[isDark ? 'dark' : 'light'].warning} />
                 <AppText variant="caption" color="muted">Couldn't refresh these — showing the last we loaded.</AppText>
                 <Pressable onPress={retryAll} hitSlop={8} accessibilityRole="button" className="active:opacity-60">
                   <AppText variant="caption" color="secondary" className="underline">Try again</AppText>

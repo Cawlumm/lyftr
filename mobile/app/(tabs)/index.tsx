@@ -672,7 +672,7 @@ export default function Dashboard() {
                     {(() => {
                       // No stats is not "no change": say nothing rather than a trend we never got.
                       if (weightStats == null) return null
-                      const delta = weightStats.change_7d ?? 0
+                      const delta = weightStats.change_7d
                       if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
@@ -712,7 +712,10 @@ export default function Dashboard() {
                 new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
             )
           )
-          client.weightAPI.stats().then(setWeightStats).catch(() => {})
+          // Dropping the stats rather than keeping them: the entry just logged is in
+          // them, so a failed refetch leaves a 7d trend that is wrong, not merely old.
+          // The delta hides itself when they are absent.
+          client.weightAPI.stats().then(setWeightStats).catch(() => setWeightStats(null))
         }}
       />
     </Screen>

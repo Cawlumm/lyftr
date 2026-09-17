@@ -171,7 +171,15 @@ export default function Nutrition() {
   // Kebab-delete drops the row and refreshes the day's totals (rings + calorie hero).
   const onEntryDeleted = useCallback((entryId: number) => {
     setLogs((prev) => prev.filter((l) => l.id !== entryId))
-    client.foodAPI.stats(selectedDate).then(setStats).catch(() => {})
+    // The row is gone from the list either way, so totals that fail to refresh here are
+    // not stale, they are wrong — they still count the entry the reader just deleted.
+    client.foodAPI.stats(selectedDate)
+      .then((st) => {
+        if (!isDailyStats(st)) throw new Error('unreadable')
+        setStats(st)
+        setStatsError(null)
+      })
+      .catch((err) => setStatsError(apiErrorMessage(err, "The server didn't say what went wrong.")))
   }, [selectedDate])
 
   if (!hasLoadedRef.current) return <NutritionSkeleton />

@@ -110,7 +110,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
                 },
               ]}
             >
-              Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?
+              Already logged today ({lastValue} {wUnit}). Log again anyway?
             </Alert>
           ) : null}
 
