@@ -71,6 +71,9 @@ export default function Nutrition() {
 
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<MacroHistoryPoint[]>([])
+  // The window historyData answers — see the weight trend: a failed switch must not
+  // leave 7d's averages under a 90d heading.
+  const [historyDataPeriod, setHistoryDataPeriod] = useState<HistoryPeriod | null>(null)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [chartWidth, setChartWidth] = useState(0)
 
@@ -132,6 +135,7 @@ export default function Nutrition() {
       .then((data) => {
         if (id !== historyRequest.current) return
         setHistoryData((data as MacroHistoryPoint[]) || [])
+        setHistoryDataPeriod(historyPeriod)
         setHistoryError(null)
       })
       .catch((err) => { if (id === historyRequest.current) setHistoryError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
@@ -225,11 +229,13 @@ export default function Nutrition() {
   const hasMoreFood = visibleCount < filteredEntries.length
   const loadMoreFood = () => { if (hasMoreFood) setVisibleCount((c) => c + FOOD_PAGE) }
 
-  // Trends: average daily macros over the loaded history window.
-  const histDays = historyData.length
+  // Trends: average daily macros over the loaded history window — only the days that
+  // answer the window now on screen.
+  const historyPoints = historyDataPeriod === historyPeriod ? historyData : []
+  const histDays = historyPoints.length
   // The average of nothing is not 0 g: with no days loaded the tiles read "—".
   const avgMacro = (key: 'protein' | 'carbs' | 'fat') =>
-    histDays ? String(Math.round(historyData.reduce((s, d) => s + (d[key] || 0), 0) / histDays)) : '—'
+    histDays ? String(Math.round(historyPoints.reduce((s, d) => s + (d[key] || 0), 0) / histDays)) : '—'
   const isDiary = view === 'diary'
   // Chart width: prefer the measured value, but seed a computed fallback (window − Screen
   // px-5 − Card p-4 = 72) so the chart renders immediately on first switch to Trends
@@ -426,15 +432,15 @@ export default function Nutrition() {
                     <View className="h-48 items-center justify-center">
                       <AppText variant="caption" color="muted">Loading…</AppText>
                     </View>
-                  ) : historyData.length === 0 && historyError ? (
+                  ) : historyPoints.length === 0 && historyError ? (
                     <ErrorState title="Couldn't load your history" message={historyError} onRetry={() => { void loadHistory() }} />
-                  ) : historyData.length === 0 ? (
+                  ) : historyPoints.length === 0 ? (
                     <View className="h-48 items-center justify-center gap-2">
                       <CalendarDays size={32} color={colors.txMuted} style={{ opacity: 0.4 }} />
                       <AppText variant="caption" color="muted">No data yet — start logging meals</AppText>
                     </View>
                   ) : (
-                    <MacroHistoryChart data={historyData} width={chartW} height={220} />
+                    <MacroHistoryChart data={historyPoints} width={chartW} height={220} />
                   )}
                 </View>
                 {/* Legend */}

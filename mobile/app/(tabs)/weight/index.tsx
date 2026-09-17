@@ -46,6 +46,11 @@ export default function Weight() {
   // Chart data — a separate period-scoped fetch (uncapped at 1000), re-fetched when the
   // period changes and after every successful log.
   const [chartLogs, setChartLogs] = useState<WeightLog[]>([])
+  // Which window chartLogs answers. A failed refetch keeps the series on screen, and
+  // that is right when it is the same question asked again — but tapping 90d and
+  // failing would otherwise leave 30d's numbers under a 90d label, which is not stale
+  // data, it is the wrong answer. Kept here so the screen can tell those apart.
+  const [chartPeriod, setChartPeriod] = useState<Period | null>(null)
 
   // Both reads used to swallow their failure, so the figures below fell back to 0 and
   // the screen rendered measurements it had never received.
@@ -63,7 +68,12 @@ export default function Weight() {
     const days = PERIOD_DAYS[period]
     const from = days != null ? daysAgoStr(days) : undefined
     return client.weightAPI.list({ limit: 1000, from })
-      .then((data) => { if (id === chartRequest.current) { setChartLogs(data || []); setChartError(null) } })
+      .then((data) => {
+        if (id !== chartRequest.current) return
+        setChartLogs(data || [])
+        setChartPeriod(period)
+        setChartError(null)
+      })
       .catch((err) => { if (id === chartRequest.current) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])
@@ -138,11 +148,13 @@ export default function Weight() {
   // Oldest → newest for the chart. Weight in the display unit; `sub` feeds the tap bubble.
   const chartData: ChartPoint[] = useMemo(
     () =>
-      [...chartLogs].reverse().map((l) => {
+      // Same provenance rule as the figures: a series fetched for another window is not
+      // this window's trend, however recent it is.
+      (chartPeriod === period ? [...chartLogs] : []).reverse().map((l) => {
         const d = dayToLocalDate(entryDay(l))
         return { date: format(d, 'M/d'), weight: displayWeight(l.weight, unit), sub: format(d, 'MMM d, yyyy') }
       }),
-    [chartLogs, unit]
+    [chartLogs, chartPeriod, period, unit]
   )
   const [chartWidth, setChartWidth] = useState(0)
 
@@ -185,7 +197,8 @@ export default function Weight() {
 
   // Period stats computed from chartLogs (period-scoped server fetch). For "All" prefer
   // the server-computed aggregate since it isn't capped at 1000.
-  const periodValues = chartLogs.map((l) => l.weight) // raw lbs from DB, newest first
+  // Values only count for the period they were fetched for.
+  const periodValues = chartPeriod === period ? chartLogs.map((l) => l.weight) : [] // raw lbs, newest first
   const useServerAggregate = period === 'All' && stats != null
   const currentLbs = periodValues[0] ?? stats?.latest ?? items[0]?.weight ?? 0
   const oldestLbs = periodValues[periodValues.length - 1] ?? stats?.starting ?? currentLbs

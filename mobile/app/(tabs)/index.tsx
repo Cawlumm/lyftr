@@ -100,6 +100,7 @@ export default function Dashboard() {
   const [missing, setMissing] = useState<Record<string, string>>({})
   const foodMissing = "today's food" in missing
   const weightMissing = 'your weight' in missing
+  const programsMissing = 'your programs' in missing
 
   const [sheetOpen, setSheetOpen] = useState(false)
   const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
@@ -367,6 +368,13 @@ export default function Dashboard() {
                 size="sm"
                 onPress={startUpNext}
               />
+            </Card>
+          ) : !session && programsMissing ? (
+            // Programs failed, so there is no "up next" to work out — and with nothing
+            // here the screen reads as an account with no routine, which is a claim we
+            // cannot make from a request that never answered.
+            <Card>
+              <ErrorState title="Couldn't load your programs" message={missing['your programs']} onRetry={onRefresh} />
             </Card>
           ) : null}
 

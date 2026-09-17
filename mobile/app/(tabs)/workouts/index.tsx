@@ -140,6 +140,10 @@ export default function Workouts() {
   }
 
   const now = new Date()
+  const month = format(now, 'yyyy-MM')
+  const thisMonth = workouts.filter((w) => workoutDay(w).startsWith(month)).length
+  const oldestLoadedDay = workouts.length > 0 ? workoutDay(workouts[workouts.length - 1]) : null
+  const monthCountKnown = !hasMore || (oldestLoadedDay != null && oldestLoadedDay < `${month}-01`)
   const stats = [
     // These summarize the *loaded* items; while pages remain, the total is a lower bound.
     { label: 'Total', value: hasMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
@@ -147,7 +151,9 @@ export default function Workouts() {
       label: 'This Month',
       // The month the workout was logged in, not the month its UTC instant lands in —
       // a session near a month boundary belongs to the month the lifter trained in.
-      value: String(workouts.filter((w) => workoutDay(w).startsWith(format(now, 'yyyy-MM'))).length),
+      // Newest-first paging means we have seen the whole month only once a loaded row
+      // predates it; until then the count is a lower bound and says so, like Total.
+      value: monthCountKnown ? String(thisMonth) : `${thisMonth}+`,
       unit: 'sessions',
     },
     {
