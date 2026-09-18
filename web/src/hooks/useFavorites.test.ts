@@ -6,8 +6,8 @@ import { useFavorites, type SavedFood } from '@lyftr/shared'
 // @testing-library, which shared's plain-node jest does not carry (see useNumericText).
 
 const OATS: SavedFood = {
-  id: 42, user_id: 1, name: 'Oats', brand: 'Quaker',
-  calories: 300, protein: 10, carbs: 50, fat: 5, fiber: 3, serving_size: '40 g', barcode: '', created_at: '',
+  id: 42, name: 'Oats', brand: 'Quaker',
+  calories: 300, protein: 10, carbs: 50, fat: 5, fiber: 3, serving_size: '40 g', barcode: '',
 }
 const oats = { name: 'Oats', brand: 'Quaker', calories: 300, protein: 10, carbs: 50, fat: 5, fiber: 3, serving_size: '40 g', source: 'saved' as const }
 
