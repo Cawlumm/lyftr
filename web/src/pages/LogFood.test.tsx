@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import LogFood from './LogFood'
 
@@ -29,7 +29,7 @@ vi.mock('../services/api', () => ({
 // The real scanner needs a camera. This one hands back a code the way it would.
 vi.mock('../components/BarcodeScanner', () => ({
   default: ({ onResult }: { onResult: (code: string) => void }) => (
-    <button onClick={() => onResult('0123456789012')}>Simulate scan</button>
+    <button onClick={() => onResult('3017620422003')}>Simulate scan</button>
   ),
 }))
 
@@ -40,34 +40,74 @@ const scan = async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Simulate scan' }))
 }
 
+const scanButton = () => screen.getByRole('button', { name: 'Scan barcode' }) as HTMLButtonElement
+
 const httpError = (status: number, error?: string) =>
   Object.assign(new Error(`HTTP ${status}`), { response: { status, data: error ? { error } : {} } })
+
+const TIMEOUT = "The food database didn't respond in time. Try again."
 
 beforeEach(() => {
   vi.clearAllMocks()
 })
 
 describe('Barcode lookup', () => {
-  it('shows the lookup is running, and blocks a second scan while it does', async () => {
+  it('shows the scanned code while it is looked up, and blocks a second scan', async () => {
     barcode.mockReturnValue(new Promise(() => {}))
     renderPage()
 
     await scan()
 
-    expect(await screen.findByText('Looking up barcode…')).toBeTruthy()
-    expect((screen.getByRole('button', { name: 'Scan barcode' }) as HTMLButtonElement).disabled).toBe(true)
+    // The code, grouped as printed on the pack, is the proof the scan landed.
+    expect(await screen.findByText('3 017620 422003')).toBeTruthy()
+    expect(screen.getByText('Looking up this product…')).toBeTruthy()
+    expect(scanButton().disabled).toBe(true)
   })
 
   it("says what actually went wrong when the lookup fails, not that the product doesn't exist", async () => {
-    barcode.mockRejectedValue(httpError(503, "The food database didn't respond in time. Try again."))
+    barcode.mockRejectedValue(httpError(503, TIMEOUT))
     renderPage()
 
     await scan()
 
-    expect(await screen.findByText("The food database didn't respond in time. Try again.")).toBeTruthy()
+    expect(await screen.findByText("Couldn't look up this barcode")).toBeTruthy()
+    expect(screen.getByText(TIMEOUT)).toBeTruthy()
     expect(screen.queryByText(/not found/i)).toBeNull()
-    expect(screen.queryByText('Looking up barcode…')).toBeNull()
-    expect((screen.getByRole('button', { name: 'Scan barcode' }) as HTMLButtonElement).disabled).toBe(false)
+    expect(scanButton().disabled).toBe(false)
+  })
+
+  it('retries the same code without asking for another scan', async () => {
+    barcode.mockRejectedValueOnce(httpError(503, TIMEOUT))
+    barcode.mockResolvedValueOnce({ name: 'Nutella', calories: 539, protein: 6.3, carbs: 57.5, fat: 30.9, fiber: 0, serving_size: '100 g', source: 'off' })
+    renderPage()
+
+    await scan()
+    fireEvent.click(await screen.findByRole('button', { name: /try again/i }))
+
+    expect(await screen.findByText('Nutella')).toBeTruthy()
+    expect(barcode).toHaveBeenCalledTimes(2)
+    expect(barcode).toHaveBeenLastCalledWith('3017620422003')
+  })
+
+  it('lets a failed lookup be entered by hand instead', async () => {
+    barcode.mockRejectedValue(httpError(503, TIMEOUT))
+    renderPage()
+
+    await scan()
+    fireEvent.click(await screen.findByRole('button', { name: 'Enter it manually' }))
+
+    expect(await screen.findByText('New Entry')).toBeTruthy()
+  })
+
+  it('clears a failed lookup once the person starts searching instead', async () => {
+    barcode.mockRejectedValue(httpError(503, TIMEOUT))
+    renderPage()
+
+    await scan()
+    await screen.findByText("Couldn't look up this barcode")
+    fireEvent.change(screen.getByPlaceholderText('Search food…'), { target: { value: 'oats' } })
+
+    await waitFor(() => expect(screen.queryByText("Couldn't look up this barcode")).toBeNull())
   })
 
   it('opens a blank entry to fill in when the product really is not in the database', async () => {

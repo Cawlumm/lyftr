@@ -100,6 +100,38 @@ export function normaliseFoodKey(value: string | undefined): string {
 // dashboard's macro rows read carbs and fat too, so checking only calories and protein
 // let a payload missing those through to render NaN. Extra fields are still fine: a server
 // that grows one must not make an older client call the payload broken.
+// A scanned code, grouped the way it is printed under the bars on the pack, so the
+// person can check it against the jar in their hand: EAN-13 `3 017620 422003`, UPC-A
+// `0 12345 67890 5`, EAN-8 `1234 5670`. Anything else is shown as scanned.
+export function formatBarcode(code: string): string {
+  if (!/^\d+$/.test(code)) return code
+  switch (code.length) {
+    case 13: return `${code[0]} ${code.slice(1, 7)} ${code.slice(7)}`
+    case 12: return `${code[0]} ${code.slice(1, 6)} ${code.slice(6, 11)} ${code[11]}`
+    case 8: return `${code.slice(0, 4)} ${code.slice(4)}`
+    default: return code
+  }
+}
+
+// The bars of an EAN-13 (or UPC-A, which is EAN-13 with a leading 0), as 95 modules,
+// '1' for a bar — so a screen can draw the barcode that was scanned rather than a
+// generic glyph. Null for anything else; callers fall back to an icon.
+const EAN_L = ['0001101', '0011001', '0010011', '0111101', '0100011', '0110001', '0101111', '0111011', '0110111', '0001011']
+const EAN_G = ['0100111', '0110011', '0011011', '0100001', '0011101', '0111001', '0000101', '0010001', '0001001', '0010111']
+const EAN_R = ['1110010', '1100110', '1101100', '1000010', '1011100', '1001110', '1010000', '1000100', '1001000', '1110100']
+const EAN_PARITY = ['LLLLLL', 'LLGLGG', 'LLGGLG', 'LLGGGL', 'LGLLGG', 'LGGLLG', 'LGGGLL', 'LGLGLG', 'LGLGGL', 'LGGLGL']
+
+export function eanModules(code: string): string | null {
+  const c = code.length === 12 ? `0${code}` : code
+  if (!/^\d{13}$/.test(c)) return null
+  const parity = EAN_PARITY[Number(c[0])]
+  let bits = '101'
+  for (let i = 1; i <= 6; i++) bits += (parity[i - 1] === 'L' ? EAN_L : EAN_G)[Number(c[i])]
+  bits += '01010'
+  for (let i = 7; i <= 12; i++) bits += EAN_R[Number(c[i])]
+  return `${bits}101`
+}
+
 const RENDERED_MACROS = ['total_calories', 'total_protein', 'total_carbs', 'total_fat'] as const
 
 export function isDailyStats(value: unknown): value is import('../types').DailyStats {
