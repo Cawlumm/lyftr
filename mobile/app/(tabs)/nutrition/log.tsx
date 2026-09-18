@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -20,7 +20,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, findSavedFood, isNotFound, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -50,6 +50,10 @@ export default function LogFood() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
+  // server allows it 5). The scanner closes the moment it reads a code, so without
+  // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
+  const [lookingUp, setLookingUp] = useState(false)
 
   const [selected, setSelected] = useState<FoodSearchResult | null>(null)
   const [servingsStr, setServingsStr] = useState('1')
@@ -212,14 +216,21 @@ export default function LogFood() {
 
   const handleBarcodeResult = async (code: string) => {
     setPhase('search')
+    setSearchError(null)
+    setLookingUp(true)
     try {
       selectResult(await client.foodAPI.barcode(code))
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
+    } catch (err) {
+      // Only a 404 means the product isn't in the database. A timeout or an
+      // unreachable upstream is not an answer, and saying "not found" for it sent
+      // people to type in a product that does exist.
+      if (isNotFound(err)) {
         selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
       } else {
-        setSearchError('Product not found — enter details manually')
+        setSearchError(apiErrorMessage(err, "Couldn't look up that barcode."))
       }
+    } finally {
+      setLookingUp(false)
     }
   }
 
@@ -345,8 +356,10 @@ export default function LogFood() {
               </View>
               <Pressable
                 onPress={() => { hSelect(); setPhase('scan') }}
+                disabled={lookingUp}
                 accessibilityLabel="Scan barcode"
-                className="h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70"
+                accessibilityState={{ disabled: lookingUp }}
+                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''}`}
               >
                 <Scan size={20} color={colors.txSecondary} />
                 <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>Scan</AppText>
@@ -372,6 +385,12 @@ export default function LogFood() {
             ) : null}
 
             {/* Results */}
+            {lookingUp ? (
+              <Card className="items-center gap-3 px-4 py-14" accessibilityLiveRegion="polite">
+                <ActivityIndicator color={accent} />
+                <AppText variant="body" color="muted">Looking up barcode…</AppText>
+              </Card>
+            ) : (
             <Card className="overflow-hidden p-0">
               {tab === 'all' && quickAddCals !== null ? (
                 <Pressable
@@ -453,6 +472,7 @@ export default function LogFood() {
                 />
               )) : null}
             </Card>
+            )}
           </View>
         </ScrollView>
       ) : null}

@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
-  Star, AlertCircle, Utensils, Zap,
+  Star, AlertCircle, Loader, Utensils, Zap,
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
 import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import IconButton from '../components/ui/IconButton'
@@ -140,6 +140,10 @@ export default function LogFood() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
+  // server allows it 5). The scanner closes the moment it reads a code, so without
+  // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
+  const [lookingUp, setLookingUp] = useState(false)
 
   const [selected, setSelected] = useState<types.FoodSearchResult | null>(null)
   const [servings, setServings] = useState(1)
@@ -272,14 +276,21 @@ export default function LogFood() {
 
   const handleBarcodeResult = async (code: string) => {
     setPhase('search')
+    setSearchError(null)
+    setLookingUp(true)
     try {
       selectResult(await foodAPI.barcode(code))
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
+    } catch (err) {
+      // Only a 404 means the product isn't in the database. A timeout or an
+      // unreachable upstream is not an answer, and saying "not found" for it sent
+      // people to type in a product that does exist.
+      if (isNotFound(err)) {
         selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
       } else {
-        setSearchError('Product not found — enter details manually')
+        setSearchError(apiErrorMessage(err, "Couldn't look up that barcode."))
       }
+    } finally {
+      setLookingUp(false)
     }
   }
 
@@ -413,7 +424,8 @@ export default function LogFood() {
             </div>
             <button
               onClick={() => setPhase('scan')}
-              className="flex items-center gap-1.5 px-3.5 h-12 rounded-xl bg-surface-muted hover:bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors flex-shrink-0"
+              disabled={lookingUp}
+              className="flex items-center gap-1.5 px-3.5 h-12 rounded-xl bg-surface-muted hover:bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors flex-shrink-0 disabled:opacity-40 disabled:pointer-events-none"
               aria-label="Scan barcode"
             >
               <Scan className="w-5 h-5" />
@@ -446,6 +458,12 @@ export default function LogFood() {
           )}
 
           {/* Results */}
+          {lookingUp ? (
+            <div className="card px-4 py-14 flex flex-col items-center gap-3" role="status">
+              <Loader className="w-6 h-6 animate-spin text-brand-500" />
+              <p className="text-sm text-tx-muted">Looking up barcode…</p>
+            </div>
+          ) : (
           <div className="card overflow-hidden">
             {tab === 'all' && quickAddCals !== null && (
               <button
@@ -544,6 +562,7 @@ export default function LogFood() {
               />
             ))}
           </div>
+          )}
         </div>
       )}
 
