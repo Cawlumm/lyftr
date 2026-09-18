@@ -74,6 +74,7 @@ function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favo
   const food = entryToResult(entry)
   return (
     <FavoriteStar
+      size="compact"
       favorited={favorites.favoriteOf(food) !== undefined}
       busy={favorites.isToggling(food)}
       name={entry.name}

@@ -124,6 +124,7 @@ export default function NutritionDetail() {
             <View className="flex-row items-center gap-2">
               {favoritesLoaded ? (
                 <FavoriteStar
+                  size="header"
                   favorited={favorites.favoriteOf(food) !== undefined}
                   busy={favorites.isToggling(food)}
                   name={entry.name}
