@@ -10,7 +10,7 @@ import {
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
-import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
+import { FavoriteStar, FavoriteStarUnavailable } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -28,11 +28,12 @@ export default function NutritionDetail() {
   const [gone, setGone] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
-  // The star in the header (#138), drawn only once the favourites list has loaded: a
-  // failed load leaves it off rather than showing a favourite as not one.
+  // The star in the header (#138). Until the favourites list arrives the slot is held
+  // empty; if it fails, the slot shows the failure mark rather than an empty star, which
+  // would claim this food is not a favourite.
   const favorites = useFavorites(client.savedFoodsAPI)
   const { setSavedFoods } = favorites
-  const [favoritesLoaded, setFavoritesLoaded] = useState(false)
+  const [favoritesState, setFavoritesState] = useState<'loading' | 'ready' | 'failed'>('loading')
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/nutrition'))
 
@@ -48,8 +49,8 @@ export default function NutritionDetail() {
 
   useEffect(() => {
     client.savedFoodsAPI.list()
-      .then((list) => { setSavedFoods(list); setFavoritesLoaded(true) })
-      .catch(() => {})
+      .then((list) => { setSavedFoods(list); setFavoritesState('ready') })
+      .catch(() => setFavoritesState('failed'))
   }, [setSavedFoods])
 
   // The catch here just closed up and left the screen unchanged, which is
@@ -122,7 +123,7 @@ export default function NutritionDetail() {
               <AppText variant="body" color="muted">Nutrition</AppText>
             </Pressable>
             <View className="flex-row items-center gap-2">
-              {favoritesLoaded ? (
+              {favoritesState === 'ready' ? (
                 <FavoriteStar
                   size="header"
                   favorited={favorites.favoriteOf(food) !== undefined}
@@ -130,7 +131,11 @@ export default function NutritionDetail() {
                   name={entry.name}
                   onPress={toggleFavorite}
                 />
-              ) : null}
+              ) : favoritesState === 'failed' ? (
+                <FavoriteStarUnavailable size="header" />
+              ) : (
+                <View className="h-9 w-9" />
+              )}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit entry"
