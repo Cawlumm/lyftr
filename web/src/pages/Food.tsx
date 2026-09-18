@@ -13,10 +13,11 @@ import {
 } from 'recharts'
 import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
-import { foodAPI } from '../services/api'
+import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
+import FavoriteStar from '../components/FavoriteStar'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -66,6 +67,22 @@ function MacroRing({
 
 // ─── Food page ────────────────────────────────────────────────────────────────
 
+// A diary entry starred as the food it is. entryToResult divides the logged amount back
+// down to one serving, which is what a favourite stores, so starring "3 x Oats" favourites
+// Oats, and the star matches the same food on Recent, Favorites and Search.
+function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favorites }) {
+  const food = entryToResult(entry)
+  return (
+    <FavoriteStar
+      size="compact"
+      favorited={favorites.favoriteOf(food) !== undefined}
+      busy={favorites.isToggling(food)}
+      name={entry.name}
+      onClick={() => void favorites.toggle(food)}
+    />
+  )
+}
+
 export default function Food() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -96,6 +113,11 @@ export default function Food() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
+  // Stars on the diary rows (#138), drawn only once the favourites list has loaded: a
+  // failed load leaves them off rather than showing every entry as not a favourite.
+  const favorites = useFavorites(savedFoodsAPI)
+  const { setSavedFoods } = favorites
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false)
   const hasLoadedRef = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
@@ -141,6 +163,11 @@ export default function Food() {
 
   useEffect(() => { void fetchSettings() }, [fetchSettings])
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
+  useEffect(() => {
+    savedFoodsAPI.list()
+      .then(list => { setSavedFoods(list); setFavoritesLoaded(true) })
+      .catch(() => {})
+  }, [setSavedFoods])
 
   useEffect(() => {
     // Same race as the weight trend: 90d is a slower query than 7d, so without this a
@@ -233,10 +260,10 @@ export default function Food() {
         }
       />
 
-      {error && (
+      {(error || favorites.error) && (
         <div className="alert-error">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{error ?? favorites.error}</span>
         </div>
       )}
 
@@ -444,6 +471,7 @@ export default function Food() {
                               </div>
                               <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
                             </button>
+                            {favoritesLoaded && <EntryStar entry={entry} favorites={favorites} />}
                             <IconButton icon={Trash2} variant="danger" label="Delete" onClick={() => setDeleteConfirmId(entry.id)} />
                           </div>
                         )}

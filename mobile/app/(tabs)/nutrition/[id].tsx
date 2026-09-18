@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
+import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, isNotFound, useAsyncAction, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
-  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
+  Alert, AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
+import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -26,6 +28,11 @@ export default function NutritionDetail() {
   const [gone, setGone] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
+  // The star in the header (#138), drawn only once the favourites list has loaded: a
+  // failed load leaves it off rather than showing a favourite as not one.
+  const favorites = useFavorites(client.savedFoodsAPI)
+  const { setSavedFoods } = favorites
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false)
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/nutrition'))
 
@@ -38,6 +45,12 @@ export default function NutritionDetail() {
       })
       .finally(() => setLoading(false))
   }, [id, retryKey])
+
+  useEffect(() => {
+    client.savedFoodsAPI.list()
+      .then((list) => { setSavedFoods(list); setFavoritesLoaded(true) })
+      .catch(() => {})
+  }, [setSavedFoods])
 
   // The catch here just closed up and left the screen unchanged, which is
   // indistinguishable from a tap that never registered. It says why now.
@@ -63,6 +76,16 @@ export default function NutritionDetail() {
         </View>
       </Screen>
     )
+  }
+
+  // Starred as the food it is: entryToResult divides the logged amount back down to one
+  // serving, which is what a favourite stores, so the star matches the same food on the
+  // Recent, Favorites and Search tabs.
+  const food = entryToResult(entry)
+  const toggleFavorite = async () => {
+    const done = await favorites.toggle(food)
+    if (done === 'added') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    else if (done === 'removed') Haptics.selectionAsync().catch(() => {})
   }
 
   const meal = entry.meal as Meal
@@ -99,6 +122,15 @@ export default function NutritionDetail() {
               <AppText variant="body" color="muted">Nutrition</AppText>
             </Pressable>
             <View className="flex-row items-center gap-2">
+              {favoritesLoaded ? (
+                <FavoriteStar
+                  size="header"
+                  favorited={favorites.favoriteOf(food) !== undefined}
+                  busy={favorites.isToggling(food)}
+                  name={entry.name}
+                  onPress={toggleFavorite}
+                />
+              ) : null}
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Edit entry"
@@ -121,6 +153,9 @@ export default function NutritionDetail() {
               </Pressable>
             </View>
           </View>
+
+          {/* Said where the tap was: directly under the star that failed. */}
+          {favorites.error ? <Alert variant="error">{favorites.error}</Alert> : null}
 
           {/* Hero card */}
           <Card className="overflow-hidden p-0">

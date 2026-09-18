@@ -75,13 +75,15 @@ export function FoodResultRow({
 // carries the toggle state that the fill conveys visually.
 export function FavoriteStar(
   { favorited, busy = false, name, onPress, size = 'sm' }:
-  { favorited: boolean; busy?: boolean; name: string; onPress: () => void; size?: 'sm' | 'md' },
+  { favorited: boolean; busy?: boolean; name: string; onPress: () => void; size?: 'sm' | 'md' | 'header' },
 ) {
   const { colors, accent } = useTheme()
   // Same box, hit slop and press feedback as ui/IconButton — written out rather than
   // reusing it because a filled star needs an SVG `fill`, and adding a fill prop to the
   // shared primitive for one toggle is the wrong place to put it.
-  const box = size === 'sm' ? 'w-8 h-8 rounded-lg' : 'w-10 h-10 rounded-xl'
+  // `header` matches the h-9 icon actions every detail screen's header uses (weight,
+  // workouts and nutrition [id]), so the star reads as one of that set.
+  const box = size === 'sm' ? 'w-8 h-8 rounded-lg' : size === 'header' ? 'h-9 w-9 rounded-lg active:bg-surface-muted' : 'w-10 h-10 rounded-xl'
   return (
     <Pressable
       accessibilityRole="button"
@@ -89,11 +91,11 @@ export function FavoriteStar(
       accessibilityLabel={favorited ? `Remove ${name} from Favorites` : `Add ${name} to Favorites`}
       onPress={onPress}
       disabled={busy}
-      hitSlop={8}
+      hitSlop={size === 'header' ? 6 : 8}
       className={`items-center justify-center active:scale-95 ${box} ${busy ? 'opacity-40' : ''}`}
     >
       <Star
-        size={size === 'sm' ? 18 : 22}
+        size={size === 'sm' ? 18 : size === 'header' ? 17 : 22}
         color={favorited ? accent : colors.txMuted}
         fill={favorited ? accent : 'transparent'}
         strokeWidth={2.2}
