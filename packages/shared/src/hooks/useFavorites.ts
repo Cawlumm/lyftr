@@ -23,10 +23,12 @@ export interface Favorites {
   error: string | null
   setError: (error: string | null) => void
   /**
-   * Bumped by every toggle. A list load captures it and drops its own result if a toggle
-   * landed while it was in flight — otherwise a refresh issued just before a DELETE
-   * resolves comes back holding the row, puts the unstarred food back on screen, and the
-   * next tap deletes an id the server no longer has.
+   * Bumped when a toggle starts and again when it settles. A list load captures it and
+   * drops its own result if it moved while the load was in flight — otherwise a refresh
+   * issued just before a DELETE resolves comes back holding the row, puts the unstarred
+   * food back on screen, and the next tap deletes an id the server no longer has. The
+   * bump on settling is what catches that one: the refresh started *after* the toggle
+   * began, so only the toggle's end can move the value it captured.
    */
   epoch: React.MutableRefObject<number>
 }
@@ -96,6 +98,7 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
         : `Couldn't add ${item.name} to Favorites.`))
       return null
     } finally {
+      epoch.current += 1
       inFlight.current.delete(key)
       setToggling(new Set(inFlight.current))
     }
