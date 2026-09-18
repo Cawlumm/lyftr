@@ -60,7 +60,7 @@ export default function ErrorState({
         <p className={`font-display font-bold text-tx-primary ${page ? 'text-xl' : 'text-base'}`}>
           {title}
         </p>
-        <p className="text-sm text-tx-muted leading-relaxed">{message}</p>
+        <p className="text-sm text-tx-muted leading-relaxed text-pretty">{message}</p>
       </div>
       {(onRetry || secondary) && (
         <div className="flex flex-wrap items-center justify-center gap-2 mt-1">

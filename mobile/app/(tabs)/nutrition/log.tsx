@@ -10,17 +10,18 @@ import {
   type FoodSearchResult, type SavedFood,
 } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, DateInput, IconButton, Label, NumberField,
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
+import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, findSavedFood, savedToResult, scaleServing } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, findSavedFood, isNotFound, savedToResult, scaleServing } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -50,6 +51,12 @@ export default function LogFood() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
+  // server allows it 5). The scanner closes the moment it reads a code, so without
+  // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
+  // null: no lookup. error null: in flight. error set: failed, in the server's words.
+  const [lookup, setLookup] = useState<{ code: string; error: string | null } | null>(null)
+  const lookingUp = lookup !== null && lookup.error === null
 
   const [selected, setSelected] = useState<FoodSearchResult | null>(null)
   const [servingsStr, setServingsStr] = useState('1')
@@ -210,16 +217,23 @@ export default function LogFood() {
     setPhase('detail')
   }
 
-  const handleBarcodeResult = async (code: string) => {
+  const enterManually = () => {
+    setLookup(null)
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
+  }
+
+  const lookUpBarcode = async (code: string) => {
     setPhase('search')
+    setLookup({ code, error: null })
     try {
       selectResult(await client.foodAPI.barcode(code))
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
-      } else {
-        setSearchError('Product not found — enter details manually')
-      }
+      setLookup(null)
+    } catch (err) {
+      // Only a 404 means the product isn't in the database. A timeout or an
+      // unreachable upstream is not an answer, and saying "not found" for it sent
+      // people to type in a product that does exist.
+      if (isNotFound(err)) enterManually()
+      else setLookup({ code, error: apiErrorMessage(err, "Couldn't look up that barcode.") })
     }
   }
 
@@ -257,7 +271,7 @@ export default function LogFood() {
   }
 
   if (phase === 'scan') {
-    return <BarcodeScanner onResult={handleBarcodeResult} onClose={() => setPhase('search')} />
+    return <BarcodeScanner onResult={lookUpBarcode} onClose={() => setPhase('search')} />
   }
 
   const cal = selected ? Math.round(selected.calories * servings) : 0
@@ -340,13 +354,15 @@ export default function LogFood() {
                   loading={tab === 'all' && searching}
                   placeholder="Search food…"
                   value={query}
-                  onChangeText={(t) => { setQuery(t); if (t.trim()) setTab('all') }}
+                  onChangeText={(t) => { setQuery(t); if (t.trim()) setTab('all'); if (lookup?.error) setLookup(null) }}
                 />
               </View>
               <Pressable
                 onPress={() => { hSelect(); setPhase('scan') }}
+                disabled={lookingUp}
                 accessibilityLabel="Scan barcode"
-                className="h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70"
+                accessibilityState={{ disabled: lookingUp }}
+                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''}`}
               >
                 <Scan size={20} color={colors.txSecondary} />
                 <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>Scan</AppText>
@@ -354,7 +370,7 @@ export default function LogFood() {
             </View>
 
             {/* Tabs */}
-            <SegmentedControl options={TAB_OPTIONS} value={tab} onChange={setTab} />
+            <SegmentedControl options={TAB_OPTIONS} value={tab} onChange={(t) => { setTab(t); if (lookup?.error) setLookup(null) }} />
 
             {/* Above the tab content, not inside one branch: the star is on every tab, so
                 a failure starring a search result has to be visible on the search tab. */}
@@ -372,6 +388,20 @@ export default function LogFood() {
             ) : null}
 
             {/* Results */}
+            {lookup && lookup.error === null ? (
+              <BarcodeLookup code={lookup.code} />
+            ) : lookup?.error ? (
+              // In place of the results rather than a banner above them: the lookup is
+              // what failed, and both ways forward keep the code already scanned.
+              <Card>
+                <ErrorState
+                  title="Couldn't look up this barcode"
+                  message={lookup.error}
+                  onRetry={() => lookUpBarcode(lookup.code)}
+                  secondary={<Button title="Enter it manually" variant="secondary" onPress={enterManually} />}
+                />
+              </Card>
+            ) : (
             <Card className="overflow-hidden p-0">
               {tab === 'all' && quickAddCals !== null ? (
                 <Pressable
@@ -453,6 +483,7 @@ export default function LogFood() {
                 />
               )) : null}
             </Card>
+            )}
           </View>
         </ScrollView>
       ) : null}

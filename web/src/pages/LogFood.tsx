@@ -6,9 +6,10 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
 import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
+import BarcodeLookup from '../components/BarcodeLookup'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
@@ -140,6 +141,12 @@ export default function LogFood() {
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
+  // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
+  // server allows it 5). The scanner closes the moment it reads a code, so without
+  // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
+  // null: no lookup. error null: in flight. error set: failed, in the server's words.
+  const [lookup, setLookup] = useState<{ code: string; error: string | null } | null>(null)
+  const lookingUp = lookup !== null && lookup.error === null
 
   const [selected, setSelected] = useState<types.FoodSearchResult | null>(null)
   const [servings, setServings] = useState(1)
@@ -270,16 +277,23 @@ export default function LogFood() {
     setPhase('detail')
   }
 
-  const handleBarcodeResult = async (code: string) => {
+  const enterManually = () => {
+    setLookup(null)
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
+  }
+
+  const lookUpBarcode = async (code: string) => {
     setPhase('search')
+    setLookup({ code, error: null })
     try {
       selectResult(await foodAPI.barcode(code))
-    } catch (err: any) {
-      if (err?.response?.status === 404) {
-        selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
-      } else {
-        setSearchError('Product not found — enter details manually')
-      }
+      setLookup(null)
+    } catch (err) {
+      // Only a 404 means the product isn't in the database. A timeout or an
+      // unreachable upstream is not an answer, and saying "not found" for it sent
+      // people to type in a product that does exist.
+      if (isNotFound(err)) enterManually()
+      else setLookup({ code, error: apiErrorMessage(err, "Couldn't look up that barcode.") })
     }
   }
 
@@ -305,7 +319,7 @@ export default function LogFood() {
   if (phase === 'scan') {
     return (
       <BarcodeScanner
-        onResult={handleBarcodeResult}
+        onResult={lookUpBarcode}
         onClose={() => setPhase('search')}
       />
     )
@@ -398,7 +412,7 @@ export default function LogFood() {
                 autoFocus
                 type="text"
                 value={query}
-                onChange={e => { setQuery(e.target.value); if (e.target.value.trim()) setTab('all') }}
+                onChange={e => { setQuery(e.target.value); if (e.target.value.trim()) setTab('all'); if (lookup?.error) setLookup(null) }}
                 placeholder="Search food…"
                 className="input pl-10 pr-10 w-full h-12 text-base"
               />
@@ -413,7 +427,8 @@ export default function LogFood() {
             </div>
             <button
               onClick={() => setPhase('scan')}
-              className="flex items-center gap-1.5 px-3.5 h-12 rounded-xl bg-surface-muted hover:bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors flex-shrink-0"
+              disabled={lookingUp}
+              className="flex items-center gap-1.5 px-3.5 h-12 rounded-xl bg-surface-muted hover:bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors flex-shrink-0 disabled:opacity-40 disabled:pointer-events-none"
               aria-label="Scan barcode"
             >
               <Scan className="w-5 h-5" />
@@ -429,7 +444,7 @@ export default function LogFood() {
               { value: 'all', label: 'Search' },
             ] as const}
             value={tab}
-            onChange={setTab}
+            onChange={t => { setTab(t); if (lookup?.error) setLookup(null) }}
           />
 
           {rateLimited && (
@@ -446,6 +461,20 @@ export default function LogFood() {
           )}
 
           {/* Results */}
+          {lookup && lookup.error === null ? (
+            <BarcodeLookup code={lookup.code} />
+          ) : lookup?.error ? (
+            // In place of the results rather than a banner above them: the lookup is
+            // what failed, and both ways forward keep the code already scanned.
+            <div className="card">
+              <ErrorState
+                title="Couldn't look up this barcode"
+                message={lookup.error}
+                onRetry={() => lookUpBarcode(lookup.code)}
+                secondary={<button onClick={enterManually} className="btn-secondary btn-sm">Enter it manually</button>}
+              />
+            </div>
+          ) : (
           <div className="card overflow-hidden">
             {tab === 'all' && quickAddCals !== null && (
               <button
@@ -544,6 +573,7 @@ export default function LogFood() {
               />
             ))}
           </div>
+          )}
         </div>
       )}
 

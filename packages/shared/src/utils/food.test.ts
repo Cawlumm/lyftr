@@ -1,4 +1,4 @@
-import { entryToResult, findSavedFood, isDailyStats, normaliseFoodKey, savedToResult, scaleServing } from './food'
+import { eanModules, entryToResult, findSavedFood, formatBarcode, isDailyStats, normaliseFoodKey, savedToResult, scaleServing } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -203,5 +203,38 @@ describe('isDailyStats', () => {
     ['a stringified number', { ...ok, total_calories: '1840' }],
   ])('rejects %s', (_label, value) => {
     expect(isDailyStats(value)).toBe(false)
+  })
+})
+
+describe('formatBarcode', () => {
+  it('groups each symbology the way it is printed on the pack', () => {
+    expect(formatBarcode('3017620422003')).toBe('3 017620 422003') // EAN-13
+    expect(formatBarcode('012345678905')).toBe('0 12345 67890 5')  // UPC-A
+    expect(formatBarcode('12345670')).toBe('1234 5670')            // EAN-8
+  })
+
+  it('leaves anything it does not recognise as scanned', () => {
+    expect(formatBarcode('0123456789')).toBe('0123456789')
+    expect(formatBarcode('0123456')).toBe('0123456')
+    expect(formatBarcode('ABC-123')).toBe('ABC-123')
+  })
+})
+
+describe('eanModules', () => {
+  // Pinned to a pattern a real decoder read: this exact string, drawn as bars, was
+  // scanned back to 3017620422003 by ZXing in the browser.
+  it('draws the bars of an EAN-13', () => {
+    expect(eanModules('3017620422003')).toBe(
+      '10100011010011001001000100001010011011000110101010101110011011001101100111001011100101000010101')
+  })
+
+  it('draws a UPC-A as the EAN-13 it is, with a leading 0', () => {
+    expect(eanModules('012345678905')).toBe(eanModules('0012345678905'))
+    expect(eanModules('012345678905')).toHaveLength(95)
+  })
+
+  it('declines what it cannot draw', () => {
+    expect(eanModules('12345670')).toBeNull()   // EAN-8
+    expect(eanModules('ABC1234567890')).toBeNull()
   })
 })
