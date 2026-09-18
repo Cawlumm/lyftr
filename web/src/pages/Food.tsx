@@ -17,7 +17,7 @@ import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
 import { apiErrorMessage, entryToResult, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
-import FavoriteStar, { FavoriteStarUnavailable } from '../components/FavoriteStar'
+import FavoriteStar from '../components/FavoriteStar'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
 const MEAL_LABELS: Record<string, string> = {
@@ -113,12 +113,11 @@ export default function Food() {
   const [deletingId, setDeletingId] = useState<number | null>(null)
   const dateInputRef = useRef<HTMLInputElement>(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null)
-  // Stars on the diary rows (#138). Until the favourites list arrives the slot is held
-  // empty; if it fails, the slot shows the failure mark rather than an empty star, which
-  // would claim every entry is not a favourite.
+  // Stars on the diary rows (#138), drawn only once the favourites list has loaded: a
+  // failed load leaves them off rather than showing every entry as not a favourite.
   const favorites = useFavorites(savedFoodsAPI)
   const { setSavedFoods } = favorites
-  const [favoritesState, setFavoritesState] = useState<'loading' | 'ready' | 'failed'>('loading')
+  const [favoritesLoaded, setFavoritesLoaded] = useState(false)
   const hasLoadedRef = useRef(false)
 
   const loadDay = useCallback(async (date: string) => {
@@ -166,8 +165,8 @@ export default function Food() {
   useEffect(() => { loadDay(selectedDate) }, [selectedDate, location.key, loadDay])
   useEffect(() => {
     savedFoodsAPI.list()
-      .then(list => { setSavedFoods(list); setFavoritesState('ready') })
-      .catch(() => setFavoritesState('failed'))
+      .then(list => { setSavedFoods(list); setFavoritesLoaded(true) })
+      .catch(() => {})
   }, [setSavedFoods])
 
   useEffect(() => {
@@ -472,9 +471,7 @@ export default function Food() {
                               </div>
                               <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
                             </button>
-                            {favoritesState === 'ready' ? <EntryStar entry={entry} favorites={favorites} />
-                              : favoritesState === 'failed' ? <FavoriteStarUnavailable size="compact" />
-                              : <span className="w-8 h-8 flex-shrink-0" aria-hidden="true" />}
+                            {favoritesLoaded && <EntryStar entry={entry} favorites={favorites} />}
                             <IconButton icon={Trash2} variant="danger" label="Delete" onClick={() => setDeleteConfirmId(entry.id)} />
                           </div>
                         )}

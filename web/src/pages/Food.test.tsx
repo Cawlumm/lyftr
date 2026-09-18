@@ -89,12 +89,12 @@ describe('Starring from the diary', () => {
   })
 
   // Unknown is not "not a favourite": if the list never arrived, an empty star would claim
-  // something we don't know, so the slot shows the failure mark and nothing to press.
-  it('shows the failure mark in place of the star when the favourites list failed to load', async () => {
+  // something we don't know, so there is no star at all.
+  it('draws no star when the favourites list failed to load', async () => {
     savedList.mockRejectedValue(new Error('down'))
     renderPage()
 
-    expect(await screen.findByRole('img', { name: "Couldn't load your favourites" })).toBeTruthy()
+    await screen.findByText('Oats')
     expect(screen.queryByRole('button', { name: /Favorites/ })).toBeNull()
   })
 })

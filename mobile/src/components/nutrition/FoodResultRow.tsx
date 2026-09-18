@@ -1,8 +1,7 @@
 import { Image, Pressable, View } from 'react-native'
 import { ChevronRight, Star, Utensils } from 'lucide-react-native'
 import type { FoodSearchResult } from '@lyftr/shared'
-import { AppText, BarbellBroken } from '../ui'
-import { semanticInk } from '../../theme/theme'
+import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { MACRO_TEXT } from './nutritionMeta'
 
@@ -102,21 +101,6 @@ export function FavoriteStar(
         strokeWidth={2.2}
       />
     </Pressable>
-  )
-}
-
-// The star's slot when the favourites list could not be loaded: the dropped barbell, the
-// app's one failure mark (see ui/StatFailure), standing where the star would be at the
-// star's own size. An empty star there would claim "not a favourite", which we don't know.
-// No words and no retry, for the same reason a stat tile has none: no room. The reason
-// rides on the accessibility label. Mirrors web FavoriteStarUnavailable.
-export function FavoriteStarUnavailable({ size = 'sm' }: { size?: 'sm' | 'md' | 'header' }) {
-  const { isDark } = useTheme()
-  const box = size === 'sm' ? 'w-8 h-8' : size === 'header' ? 'h-9 w-9' : 'w-10 h-10'
-  return (
-    <View accessible accessibilityRole="image" accessibilityLabel="Couldn't load your favourites" className={`items-center justify-center ${box}`}>
-      <BarbellBroken size={size === 'sm' ? 18 : size === 'header' ? 17 : 22} color={semanticInk[isDark ? 'dark' : 'light'].error} />
-    </View>
   )
 }
 
