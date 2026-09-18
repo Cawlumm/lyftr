@@ -12,6 +12,9 @@ interface Props {
   accessibilityLabel?: string
   /** iOS: id of an InputAccessoryView (e.g. NUMERIC_ACCESSORY_ID) to show a Done bar. */
   inputAccessoryViewID?: string
+  /** Select the whole value on focus, so typing replaces it. Right for a prefilled value
+   *  being re-entered; wrong for live sets being corrected — see GymModeWorkout. */
+  selectOnFocus?: boolean
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
@@ -25,6 +28,7 @@ export function NumberField({
   disabled = false,
   accessibilityLabel,
   inputAccessoryViewID,
+  selectOnFocus = true,
 }: Props) {
   const { colors } = useTheme()
   const [text, setText] = useNumericText(value)
@@ -36,7 +40,7 @@ export function NumberField({
       placeholderTextColor={colors.txMuted}
       keyboardType={inputMode === 'numeric' ? 'number-pad' : 'decimal-pad'}
       returnKeyType="done"
-      selectTextOnFocus
+      selectTextOnFocus={selectOnFocus}
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}
       onChangeText={(raw) => {

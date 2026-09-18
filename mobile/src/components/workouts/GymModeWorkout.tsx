@@ -515,15 +515,18 @@ export function GymModeWorkout() {
           ) : null}
 
           {/* reps + weight steppers */}
+          {/* Live sets being corrected, as in List mode (ActiveExerciseCard): a tap lands
+              where it was aimed instead of selecting the value for replacement. With
+              select-on-focus the #151 reporter saw a second digit replace the first here; List mode never did. */}
           <View className="w-full flex-row gap-3">
             <View className="flex-1">
               <StepperTile icon={Repeat} label="Reps" name="reps" step={REP_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}>
-                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel="Reps" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel="Reps" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} selectOnFocus={false} />
               </StepperTile>
             </View>
             <View className="flex-1">
               <StepperTile icon={Dumbbell} label={`Weight (${wUnit})`} name="weight" step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
-                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel="Weight" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel="Weight" inputAccessoryViewID={NUMERIC_ACCESSORY_ID} selectOnFocus={false} />
               </StepperTile>
             </View>
           </View>
