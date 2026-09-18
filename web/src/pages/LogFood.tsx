@@ -6,10 +6,11 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, findSavedFood } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites } from '@lyftr/shared'
 import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
+import FavoriteStar from '../components/FavoriteStar'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
@@ -96,28 +97,6 @@ function FoodResultRow(
   )
 }
 
-// Shared by the rows and the detail header so the two cannot drift. aria-pressed carries
-// the toggle state that the fill conveys visually.
-function FavoriteStar(
-  { favorited, busy = false, name, onClick, size = 'sm' }:
-  { favorited: boolean; busy?: boolean; name: string; onClick: () => void; size?: 'sm' | 'md' },
-) {
-  const box = size === 'sm' ? 'w-8 h-8' : 'w-10 h-10'
-  const icon = size === 'sm' ? 'w-[18px] h-[18px]' : 'w-[22px] h-[22px]'
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      aria-pressed={favorited}
-      aria-label={favorited ? `Remove ${name} from Favorites` : `Add ${name} to Favorites`}
-      className={`${box} flex items-center justify-center rounded-lg flex-shrink-0 transition-colors hover:bg-surface-muted active:scale-95 disabled:opacity-40 ${favorited ? 'text-brand-500' : 'text-tx-muted'}`}
-    >
-      <Star className={icon} fill={favorited ? 'currentColor' : 'none'} strokeWidth={2.2} />
-    </button>
-  )
-}
-
 export default function LogFood() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -131,7 +110,9 @@ export default function LogFood() {
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<types.FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<types.FoodSearchResult[]>([])
-  const [savedFoods, setSavedFoods] = useState<types.SavedFood[]>([])
+  // Starring lives in useFavorites, shared with the diary so the rules can't drift (#138).
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError } =
+    useFavorites(savedFoodsAPI)
   // Each list's own failure. Kept separate from the page: one of these failing is not a
   // reason to withhold search, and an empty list that failed to load must not draw the
   // same "nothing here" as a list that really is empty.
@@ -153,66 +134,6 @@ export default function LogFood() {
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
 
-  // Derived from the list rather than tracked, so a star clicked on any tab is reflected
-  // everywhere the same food appears — including the detail view.
-  const favoriteOf = (item: types.FoodSearchResult) => findSavedFood(savedFoods, item)
-  const favoriteKey = (item: types.FoodSearchResult) => `${item.name}|${item.brand ?? ''}`
-  const isToggling = (item: types.FoodSearchResult) => togglingFavorite.has(favoriteKey(item))
-
-  // Favouriting is its own action, not a side effect of logging: one click on, one click
-  // off, from any row or from the detail view. No confirmation — a second click undoes it.
-  // The guard is a ref, not the state below. setState does not apply within the tick it
-  // is called in, so a burst of taps in one frame all read the same empty set and all
-  // fire — five rapid clicks sent one DELETE that worked and four that 404'd, then showed
-  // "Couldn't remove …" for an unstar that had actually succeeded. The state exists only
-  // to dim the star; the ref is what decides.
-  const inFlightFavorites = useRef<Set<string>>(new Set())
-
-  const toggleFavorite = async (item: types.FoodSearchResult) => {
-    const key = favoriteKey(item)
-    // Guard this food only. A single global flag dropped clicks on *other* rows while a
-    // request was in flight, so on a slow connection every other star went dead with no
-    // feedback — indistinguishable from a broken button.
-    if (inFlightFavorites.current.has(key)) return
-    inFlightFavorites.current.add(key)
-    setTogglingFavorite(new Set(inFlightFavorites.current))
-    setFavoriteError(null)
-    const existing = favoriteOf(item)
-    try {
-      if (existing) {
-        await savedFoodsAPI.delete(existing.id)
-        setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
-      } else {
-        const created = await savedFoodsAPI.create({
-          name: item.name, brand: item.brand ?? '',
-          calories: item.calories, protein: item.protein,
-          carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
-          serving_size: item.serving_size ?? '',
-        })
-        // The server answers 200 with the existing row when the food is already
-        // favourited, so `created` can be something the list already holds — after a
-        // refetch that raced this request, for instance. Appending blind puts two rows
-        // with the same id (and the same React key) in the list.
-        // Inserted in name order rather than appended: ListSaved returns ORDER BY name,
-        // so appending parks a new favourite at the bottom until the next load and then
-        // jumps it. Plain < to match SQLite's BINARY collation rather than localeCompare,
-        // which would order differently from the server it is imitating.
-        setSavedFoods(prev => prev.some(f => f.id === created.id)
-          ? prev
-          : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
-      }
-    } catch (err) {
-      setFavoriteError(apiErrorMessage(err, existing
-        ? `Couldn't remove ${item.name} from Favorites.`
-        : `Couldn't add ${item.name} to Favorites.`))
-    } finally {
-      inFlightFavorites.current.delete(key)
-      setTogglingFavorite(new Set(inFlightFavorites.current))
-    }
-  }
-
-  const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
-  const [favoriteError, setFavoriteError] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
   const [editRetry, setEditRetry] = useState(0)
 
@@ -248,7 +169,7 @@ export default function LogFood() {
     savedFoodsAPI.list()
       .then(list => { setSavedFoods(list); setSavedError(null) })
       .catch(err => setSavedError(apiErrorMessage(err, "Couldn't load your favourites.")))
-  }, [listReload])
+  }, [listReload, setSavedFoods])
 
   useEffect(() => {
     if (tab !== 'all') return

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react-native'
 import {
   useAsyncAction, dayToInstant, entryDay, todayStr,
-  type FoodSearchResult, type SavedFood,
+  type FoodSearchResult,
 } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField,
@@ -21,7 +21,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, findSavedFood, isNotFound, savedToResult, scaleServing } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, isNotFound, savedToResult, scaleServing, useFavorites } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -47,7 +47,10 @@ export default function LogFood() {
   const [query, setQuery] = useState('')
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<FoodSearchResult[]>([])
-  const [savedFoods, setSavedFoods] = useState<SavedFood[]>([])
+  const favorites = useFavorites(client.savedFoodsAPI)
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, error: favoriteError } = favorites
+  // Bumped by every star/unstar; a list load drops its result if a toggle landed meanwhile.
+  const listEpoch = favorites.epoch
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
@@ -62,77 +65,16 @@ export default function LogFood() {
   const [servingsStr, setServingsStr] = useState('1')
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
-  const [togglingFavorite, setTogglingFavorite] = useState<Set<string>>(new Set())
   const [pulling, setPulling] = useState(false)
 
-  // Derived from the list rather than tracked, so a star tapped on any tab is reflected
-  // everywhere the same food appears — including the detail screen.
-  const favoriteOf = (item: FoodSearchResult) => findSavedFood(savedFoods, item)
-
-  // Bumped by every star/unstar. A list load captures it and discards its own result if
-  // a toggle landed while it was in flight — otherwise a pull-to-refresh issued just
-  // before a DELETE resolves comes back holding the row and puts the unstarred food back
-  // on screen, and the next tap deletes an id the server no longer has.
-  const listEpoch = useRef(0)
-
-  // Favouriting is its own action, not a side effect of logging. One tap on, one tap off,
-  // from any row or from the detail header. No confirmation: a second tap undoes it.
-  // The guard is a ref, not the state below. setState does not apply within the tick it
-  // is called in, so a burst of taps in one frame all read the same empty set and all
-  // fire — five rapid clicks sent one DELETE that worked and four that 404'd, then showed
-  // "Couldn't remove …" for an unstar that had actually succeeded. The state exists only
-  // to dim the star; the ref is what decides.
-  const inFlightFavorites = useRef<Set<string>>(new Set())
-
+  // Starring lives in useFavorites, shared with the diary entry screen so the rules can't
+  // drift (#138). The haptic is the only part that belongs to this screen.
   const toggleFavorite = async (item: FoodSearchResult) => {
-    const key = `${item.name}|${item.brand ?? ''}`
-    // Guard this food only. A single global flag dropped taps on *other* rows while a
-    // request was in flight, so on a slow connection every other star went dead with no
-    // feedback — indistinguishable from a broken button.
-    if (inFlightFavorites.current.has(key)) return
-    inFlightFavorites.current.add(key)
-    setTogglingFavorite(new Set(inFlightFavorites.current))
-    setFavoriteError(null)
-    listEpoch.current += 1
-    const existing = favoriteOf(item)
-    try {
-      if (existing) {
-        await client.savedFoodsAPI.delete(existing.id)
-        setSavedFoods((prev) => prev.filter((f) => f.id !== existing.id))
-        Haptics.selectionAsync().catch(() => {})
-      } else {
-        const created = await client.savedFoodsAPI.create({
-          name: item.name, brand: item.brand ?? '',
-          calories: item.calories, protein: item.protein,
-          carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
-          serving_size: item.serving_size ?? '',
-        })
-        // The server answers 200 with the existing row when the food is already
-        // favourited, so `created` can be something the list already holds — after a
-        // pull-to-refresh that raced this request, for instance. Appending blind puts two
-        // rows with the same id (and the same React key) in the list.
-        // Inserted in name order rather than appended: ListSaved returns ORDER BY name,
-        // so appending parks a new favourite at the bottom until the next load and then
-        // jumps it. Plain < to match SQLite's BINARY collation rather than localeCompare,
-        // which would order differently from the server it is imitating.
-        setSavedFoods((prev) => prev.some((f) => f.id === created.id)
-          ? prev
-          : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
-      }
-    } catch (err) {
-      setFavoriteError(apiErrorMessage(err, existing
-        ? `Couldn't remove ${item.name} from Favorites.`
-        : `Couldn't add ${item.name} to Favorites.`))
-    } finally {
-      inFlightFavorites.current.delete(key)
-      setTogglingFavorite(new Set(inFlightFavorites.current))
-    }
+    const done = await favorites.toggle(item)
+    if (done === 'added') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    else if (done === 'removed') Haptics.selectionAsync().catch(() => {})
   }
 
-  const isToggling = (item: FoodSearchResult) =>
-    togglingFavorite.has(`${item.name}|${item.brand ?? ''}`)
-  const [favoriteError, setFavoriteError] = useState<string | null>(null)
   const [editError, setEditError] = useState<string | null>(null)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
