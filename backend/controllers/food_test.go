@@ -249,6 +249,60 @@ func TestLogFood_defaultsServingsToOne(t *testing.T) {
 	}
 }
 
+// The numeric serving is what lets the clients offer "15 ml" instead of "0.15
+// servings", so it has to survive the write — and an entry written without one has to
+// read back as 0 rather than a guess, which is what every row logged before #171 is.
+func TestLogFood_roundTripsServingQuantity(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	body := map[string]any{
+		"name": "Olive Oil", "meal": "dinner",
+		"calories": 120.0, "fat": 14.0, "servings": 1.0,
+		"serving_size": "1 Tbsp (15 ml)", "serving_quantity": 15.0, "serving_unit": "ml",
+	}
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", body)
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
+	}
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	if data["serving_quantity"].(float64) != 15.0 || data["serving_unit"].(string) != "ml" {
+		t.Errorf("expected 15 ml back, got %v %v", data["serving_quantity"], data["serving_unit"])
+	}
+
+	c2, w2 := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Toast", "meal": "breakfast", "calories": 80.0,
+	})
+	th.LogFood(c2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", w2.Code, w2.Body.String())
+	}
+	data2 := decodeResponse(t, w2)["data"].(map[string]any)
+	if data2["serving_quantity"].(float64) != 0 || data2["serving_unit"].(string) != "" {
+		t.Errorf("expected an unknown serving to stay unknown, got %v %v",
+			data2["serving_quantity"], data2["serving_unit"])
+	}
+}
+
+// A unit that is neither g nor ml would reach the clients' arithmetic as one of them.
+func TestLogFood_rejectsUnknownServingUnit(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", map[string]any{
+		"name": "Olive Oil", "meal": "dinner", "calories": 120.0,
+		"serving_quantity": 1.0, "serving_unit": "tbsp",
+	})
+	th.LogFood(c)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d: %s", w.Code, w.Body.String())
+	}
+	if msg := decodeResponse(t, w)["error"].(string); msg != "Serving unit must be one of: g, ml." {
+		t.Errorf("unexpected message: %q", msg)
+	}
+}
+
 func TestLogFood_missingName(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
@@ -688,6 +742,133 @@ func TestOffProductToResult_fallsBackTo100g(t *testing.T) {
 	// "per 100g" showed as "per per 100g". Seen in the browser on every search result.
 	if r.ServingSize != "100 g" {
 		t.Errorf("expected '100 g' label, got %q", r.ServingSize)
+	}
+}
+
+// #171: a bottle of olive oil read 800 kcal and 93.3 g fat "per 100 g". The numbers are
+// right and OpenFoodFacts has no other figures for it — but they are per 100 *ml*, and
+// a user cannot pour 100 ml onto a salad, so the label has to say what they are and the
+// quantity has to be a number the clients can divide.
+func TestOffProductToResult_liquidFallbackIsPer100ml(t *testing.T) {
+	p := offProduct{
+		ProductName:         "Organic Extra Virgin Olive Oil",
+		ServingSize:         "15 ml",
+		ProductQuantityUnit: "ml",
+		// A serving label with no per-serving nutriments behind it: the case
+		// openfoodfacts-server#7768 tracks, and the one the reporter hit.
+		Nutriments: offNutrients{EnergyKcal100g: 800, Fat100g: 93.33},
+	}
+	r := offProductToResult(p)
+
+	if r.Calories != 800 {
+		t.Errorf("expected per-100 calories 800, got %v", r.Calories)
+	}
+	if r.ServingSize != "100 ml" {
+		t.Errorf("expected '100 ml' label, got %q", r.ServingSize)
+	}
+	if r.ServingQuantity != 100 || r.ServingUnit != "ml" {
+		t.Errorf("expected 100 ml as a number, got %v %q", r.ServingQuantity, r.ServingUnit)
+	}
+}
+
+func TestOffProductToResult_carriesServingQuantityAndBarcode(t *testing.T) {
+	p := offProduct{
+		Code:            "0085239033265",
+		ProductName:     "Olive Oil",
+		ServingSize:     "1 Tbsp (15 ml)",
+		ServingQuantity: 15,
+		Nutriments: offNutrients{
+			EnergyKcal100g: 800, Fat100g: 93.33,
+			EnergyKcalServing: 120, FatServing: 14,
+		},
+	}
+	r := offProductToResult(p)
+
+	if r.Calories != 120 || r.Fat != 14 {
+		t.Errorf("expected the per-serving figures, got %v kcal %v fat", r.Calories, r.Fat)
+	}
+	if r.ServingQuantity != 15 || r.ServingUnit != "ml" {
+		t.Errorf("expected 15 ml, got %v %q", r.ServingQuantity, r.ServingUnit)
+	}
+	// Search hits carry it so selecting one can re-read the product in full.
+	if r.Barcode != "0085239033265" {
+		t.Errorf("expected the barcode to survive, got %q", r.Barcode)
+	}
+}
+
+// OpenFoodFacts knows the serving but not its size for thousands of products
+// (openfoodfacts-server#7768). Inventing a number there would scale every weight the
+// user typed against a fiction, so 0 has to survive as "unknown".
+func TestOffProductToResult_servingWithoutAQuantityStaysUnknown(t *testing.T) {
+	p := offProduct{
+		ProductName: "Soda",
+		ServingSize: "12 fl oz",
+		Nutriments:  offNutrients{EnergyKcal100g: 41, EnergyKcalServing: 145},
+	}
+	r := offProductToResult(p)
+
+	if r.ServingQuantity != 0 {
+		t.Errorf("expected an unknown quantity to stay 0, got %v", r.ServingQuantity)
+	}
+	if r.Calories != 145 {
+		t.Errorf("expected the per-serving calories to still be used, got %v", r.Calories)
+	}
+}
+
+func TestServingUnit(t *testing.T) {
+	// Every label here is a real OpenFoodFacts value, sampled from the API.
+	cases := []struct {
+		label, productUnit, want string
+	}{
+		{"1 Tbsp (15 ml)", "", "ml"},
+		{"150ml", "", "ml"},
+		{"8 fl. oz (240 ml)", "", "ml"},
+		{"1l", "", "ml"},
+		{"1 serving (170 g)", "", "g"},
+		{"90.0g", "", "g"},
+		{"1 barra/bar (23 g)", "", "g"},
+		// OpenFoodFacts' own serving_quantity_unit says "ml" for these — it converts
+		// cups to volume. The label says grams, and the label is what the user reads.
+		{"1/4 cup (7 g)", "", "g"},
+		{"0.67 cup (55 g)", "", "g"},
+		// No label at all: the pack size is the only signal, when it is filled in.
+		{"", "ml", "ml"},
+		{"", "g", "g"},
+		{"", "", "g"},
+		// Volume units are whole words, not letters found inside one.
+		{"1 slice (30 g)", "", "g"},
+		{"1 bowl (250 g)", "", "g"},
+	}
+	for _, c := range cases {
+		if got := servingUnit(c.label, c.productUnit); got != c.want {
+			t.Errorf("servingUnit(%q, %q) = %q, want %q", c.label, c.productUnit, got, c.want)
+		}
+	}
+}
+
+// OpenFoodFacts writes serving_quantity as a number or as a string, and leaves whatever
+// it could not parse in the field as free text.
+func TestOffFloatUnmarshal(t *testing.T) {
+	cases := []struct {
+		json string
+		want float64
+	}{
+		{`{"serving_quantity": 15}`, 15},
+		{`{"serving_quantity": "15"}`, 15},
+		{`{"serving_quantity": "15.5"}`, 15.5},
+		{`{"serving_quantity": null}`, 0},
+		{`{"serving_quantity": ""}`, 0},
+		{`{"serving_quantity": "about 2 cookies"}`, 0},
+		{`{}`, 0},
+	}
+	for _, c := range cases {
+		var p offProduct
+		if err := json.Unmarshal([]byte(c.json), &p); err != nil {
+			t.Fatalf("%s: %v", c.json, err)
+		}
+		if float64(p.ServingQuantity) != c.want {
+			t.Errorf("%s: got %v, want %v", c.json, float64(p.ServingQuantity), c.want)
+		}
 	}
 }
 

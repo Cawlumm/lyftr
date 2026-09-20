@@ -1,4 +1,4 @@
-import { eanModules, entryToResult, findSavedFood, formatBarcode, isDailyStats, normaliseFoodKey, savedToResult, scaleServing } from './food'
+import { amountForServings, eanModules, entryToResult, findSavedFood, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -236,5 +236,83 @@ describe('eanModules', () => {
   it('declines what it cannot draw', () => {
     expect(eanModules('12345670')).toBeNull()   // EAN-8
     expect(eanModules('ABC1234567890')).toBeNull()
+  })
+})
+
+
+describe('servingBasis', () => {
+  // #171: a bottle of olive oil OpenFoodFacts only has per-100ml figures for. 100 ml is
+  // a real basis, so 15 ml of it is 0.15 servings — the arithmetic the user should not
+  // have to do, and could not do at all while the field floored at 0.5.
+  it('reads the serving as a number to scale against', () => {
+    expect(servingBasis({ serving_quantity: 100, serving_unit: 'ml' })).toEqual({ quantity: 100, unit: 'ml' })
+    expect(servingBasis({ serving_quantity: 15, serving_unit: 'ml' })).toEqual({ quantity: 15, unit: 'ml' })
+  })
+
+  it('defaults the unit to grams, because most servings are a weight', () => {
+    expect(servingBasis({ serving_quantity: 32 })).toEqual({ quantity: 32, unit: 'g' })
+    expect(servingBasis({ serving_quantity: 32, serving_unit: '' })).toEqual({ quantity: 32, unit: 'g' })
+  })
+
+  // Every entry logged before #171 reads back as 0, as does any product OpenFoodFacts
+  // has a serving but no size for. Weight entry is simply not offered for those.
+  it('is null when nothing knows what a serving weighs', () => {
+    expect(servingBasis({ serving_quantity: 0, serving_unit: 'g' })).toBeNull()
+    expect(servingBasis({})).toBeNull()
+    expect(servingBasis({ serving_quantity: -5 })).toBeNull()
+    expect(servingBasis({ serving_quantity: NaN })).toBeNull()
+  })
+})
+
+describe('servingsForAmount / amountForServings', () => {
+  const per100ml = { quantity: 100, unit: 'ml' } as const
+  const tablespoon = { quantity: 15, unit: 'ml' } as const
+
+  it('turns a tablespoon of oil into the servings the diary stores', () => {
+    expect(servingsForAmount(15, per100ml)).toBeCloseTo(0.15)
+    expect(servingsForAmount(15, tablespoon)).toBe(1)
+  })
+
+  it('round-trips, so opening an entry shows the amount that was logged', () => {
+    expect(amountForServings(servingsForAmount(15, per100ml), per100ml)).toBe(15)
+    expect(amountForServings(2, tablespoon)).toBe(30)
+  })
+
+  // A third of a serving would otherwise open the field as 33.33333333333333.
+  it('rounds the amount to the 0.1 every other number here is entered at', () => {
+    expect(amountForServings(1 / 3, per100ml)).toBe(33.3)
+  })
+})
+
+
+describe('formatLoggedAmount', () => {
+  // The diary row and the entry detail both read this, so a tablespoon of oil cannot
+  // show as "15 ml" on one screen and "0.15 servings" on the other.
+  it('reads back in the unit it was logged in', () => {
+    expect(formatLoggedAmount({ servings: 0.15, serving_quantity: 100, serving_unit: 'ml' })).toBe('15 ml')
+    expect(formatLoggedAmount({ servings: 2, serving_quantity: 32, serving_unit: 'g' })).toBe('64 g')
+  })
+
+  it('says servings when nothing knows what one weighs', () => {
+    expect(formatLoggedAmount({ servings: 0.5 })).toBe('0.5 servings')
+    expect(formatLoggedAmount({ servings: 1 })).toBe('1 serving')
+    expect(formatLoggedAmount({ servings: 1 / 3 })).toBe('0.33 servings')
+  })
+})
+
+
+describe('formatServings', () => {
+  it('rounds to something a person can read', () => {
+    expect(formatServings(1)).toBe(1)
+    expect(formatServings(0.15)).toBe(0.15)
+    expect(formatServings(1 / 3)).toBe(0.33)
+  })
+
+  // 0.4 ml of an oil held per 100 ml is 0.004 servings. Two decimals alone printed
+  // "0 servings" next to a figure of 3 kcal.
+  it('does not round a real amount away to zero', () => {
+    expect(formatServings(0.004)).toBe(0.004)
+    expect(formatServings(0.0001)).toBe(0.0001)
+    expect(formatServings(0)).toBe(0)
   })
 })

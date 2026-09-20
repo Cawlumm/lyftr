@@ -3,10 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ArrowLeft, Search, Scan, Minus, Plus, X,
   Star, AlertCircle, Utensils, Zap,
-  Coffee, Sun, Moon, Cookie, ChevronRight,
+  Coffee, Sun, Moon, Cookie, ChevronRight, Loader2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
 import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
@@ -41,13 +41,15 @@ const MEAL_COLORS: Record<string, string> = {
 // <button> is invalid HTML and React warns about it, which is why the two-branch shape
 // below exists instead of one container.
 function FoodResultRow(
-  { item, onClick, favorited, onToggleFavorite, togglingFavorite = false }:
+  { item, onClick, favorited, onToggleFavorite, togglingFavorite = false, loading = false }:
   {
     item: types.FoodSearchResult
     onClick: () => void
     favorited: boolean
     onToggleFavorite: () => void
     togglingFavorite?: boolean
+    /** The product behind this row is being read in full before the detail opens. */
+    loading?: boolean
   },
 ) {
   const content = (
@@ -78,13 +80,15 @@ function FoodResultRow(
           )}
         </div>
       </div>
-      <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
+      {loading
+        ? <Loader2 className="w-4 h-4 text-tx-muted flex-shrink-0 animate-spin" />
+        : <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />}
     </>
   )
 
   return (
     <div className="flex items-center gap-2 w-full px-4 hover:bg-surface-muted transition-colors border-b border-surface-border last:border-0">
-      <button onClick={onClick} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
+      <button onClick={onClick} disabled={loading} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
         {content}
       </button>
       <FavoriteStar
@@ -130,9 +134,18 @@ export default function LogFood() {
   const lookingUp = lookup !== null && lookup.error === null
 
   const [selected, setSelected] = useState<types.FoodSearchResult | null>(null)
-  const [servings, setServings] = useState(1)
+  // The amount field — grams, millilitres or servings, depending on the food. Shared
+  // with mobile, because what it computes is how much food the person recorded (#171).
+  const amount = useFoodAmount(selected)
+  const { basis, servings, servingsLabel, openOnEntry } = amount
+  // Which search row is being re-read in full, and what to say if that failed. The
+  // search index answers with per-100g figures and no serving at all, so a hit has to
+  // be read again through the product endpoint before it can be trusted (#171).
+  const [upgrading, setUpgrading] = useState<string | null>(null)
+  const [staleServing, setStaleServing] = useState<string | null>(null)
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
+
 
   const [editError, setEditError] = useState<string | null>(null)
   const [editRetry, setEditRetry] = useState(0)
@@ -143,13 +156,14 @@ export default function LogFood() {
   useEffect(() => {
     if (!editId) return
     foodAPI.get(editId).then(entry => {
-      setSelected(entryToResult(entry))
-      setServings(entry.servings || 1)
+      const result = entryToResult(entry)
+      setSelected(result)
+      openOnEntry(result, entry.servings)
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
     }).catch(err => setEditError(apiErrorMessage(err, "The server didn't say what went wrong.")))
-  }, [editId, navigate, editRetry])
+  }, [editId, navigate, editRetry, openOnEntry])
 
   useEffect(() => {
     foodAPI.list(todayStr()).then(logs => {
@@ -192,10 +206,29 @@ export default function LogFood() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, tab])
 
-  const selectResult = (result: types.FoodSearchResult) => {
+  const selectResult = (result: types.FoodSearchResult, note: string | null = null) => {
     setSelected(result)
-    setServings(1)
+    amount.openOn(result)
+    setStaleServing(note)
     setPhase('detail')
+  }
+
+  // A search hit is not enough to log against. OpenFoodFacts' search index carries
+  // per-100g figures and no serving at all, so the same olive oil reads 800 kcal per
+  // 100 g from a search and 120 kcal per tablespoon from a scan (#171). Read the
+  // product in full before opening the detail, the way every other OFF client does.
+  const selectSearchResult = async (result: types.FoodSearchResult) => {
+    if (result.source !== 'off' || !result.barcode) { selectResult(result); return }
+    setUpgrading(result.barcode)
+    try {
+      selectResult(await foodAPI.barcode(result.barcode))
+    } catch (err) {
+      // The search row is still real data, so log against it rather than dead-ending —
+      // but say which figures these are, because they are the ones that read wrong.
+      selectResult(result, apiErrorMessage(err, "Couldn't re-read this product."))
+    } finally {
+      setUpgrading(null)
+    }
   }
 
   const enterManually = () => {
@@ -487,7 +520,8 @@ export default function LogFood() {
               <FoodResultRow
                 key={`${item.name}-${item.calories}`}
                 item={item}
-                onClick={() => selectResult(item)}
+                loading={upgrading !== null && upgrading === item.barcode}
+                onClick={() => void selectSearchResult(item)}
                     favorited={favoriteOf(item) !== undefined}
                     onToggleFavorite={() => toggleFavorite(item)}
                     togglingFavorite={isToggling(item)}
@@ -505,6 +539,16 @@ export default function LogFood() {
             <div className="alert-error">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{save.error}</span>
+            </div>
+          )}
+
+          {/* The product couldn't be re-read, so these are the search index's figures:
+              per 100 g, whatever the pack's own serving is. Say so rather than let them
+              read as a serving — that is the whole of #171. */}
+          {staleServing && (
+            <div className="alert-warning">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{staleServing} Showing search results, which are always per {selected.serving_size}.</span>
             </div>
           )}
 
@@ -537,7 +581,7 @@ export default function LogFood() {
                       {/* The label comes from OpenFoodFacts, which is free text — and rows
                           logged before the backend stopped prefixing it still read "per
                           100g". Supplying a second "per" gave "per per 100g". */}
-                      per {servings === 1 ? '' : `${servings} × `}
+                      per {servingsLabel === 1 ? '' : `${servingsLabel} × `}
                       {selected.serving_size.replace(/^per\s+/i, '')}
                     </p>
                   )}
@@ -583,25 +627,44 @@ export default function LogFood() {
             </div>
           </div>
 
-          {/* Servings */}
+          {/* Amount */}
           <div className="card p-4 space-y-3">
             <div className="flex items-baseline gap-2">
-              <label className="label">Servings</label>
-              {selected.serving_size && (
+              <label className="label" htmlFor="food-amount">{basis ? 'Amount' : 'Servings'}</label>
+              {selected.serving_size && !basis && (
                 <span className="text-xs text-tx-muted">({selected.serving_size} each)</span>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <IconButton icon={Minus} variant="secondary" size="lg" label="Decrease servings" onClick={() => setServings(s => Math.max(0.5, +(s - 0.5).toFixed(1)))} />
-              <input
-                type="number"
-                value={servings}
-                onChange={e => setServings(Math.max(0.5, Number(e.target.value) || 1))}
-                step="0.5" min="0.5"
-                className="input text-center flex-1 h-12 text-lg font-semibold tabular-nums"
-              />
-              <IconButton icon={Plus} variant="secondary" size="lg" label="Increase servings" onClick={() => setServings(s => +(s + 0.5).toFixed(1))} />
+              <IconButton icon={Minus} variant="secondary" size="lg" label={basis ? 'Decrease amount' : 'Decrease servings'} onClick={() => amount.step(-1)} />
+              <div className="relative flex-1">
+                <input
+                  id="food-amount"
+                  type="number"
+                  inputMode="decimal"
+                  value={amount.text}
+                  onChange={e => amount.setText(e.target.value)}
+                  // No minimum: a tablespoon of oil is 0.15 of the 100 ml OpenFoodFacts
+                  // holds the figures for, and flooring this at 0.5 is what made that
+                  // bottle unloggable (#171). The server has never had a floor.
+                  min="0"
+                  step="any"
+                  aria-label={basis ? `Amount in ${basis.unit}` : 'Servings'}
+                  className={`input input-no-spin text-center h-12 text-lg font-semibold tabular-nums ${basis ? 'pr-9' : ''}`}
+                />
+                {basis && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-tx-muted pointer-events-none">
+                    {basis.unit}
+                  </span>
+                )}
+              </div>
+              <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? 'Increase amount' : 'Increase servings'} onClick={() => amount.step(1)} />
             </div>
+            {basis && (
+              <p className="text-xs text-tx-muted text-center">
+                {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}
+              </p>
+            )}
           </div>
 
           {/* Log to: meal + when */}
@@ -645,7 +708,8 @@ export default function LogFood() {
         <div className="fixed bottom-0 inset-x-0 p-4 bg-surface-base/95 backdrop-blur-sm border-t border-surface-border safe-area-bottom">
           <button
             onClick={handleLog}
-            disabled={save.busy}
+            // An empty or zero amount would log a row of zeroes.
+            disabled={save.busy || servings <= 0}
             className="btn-primary btn-lg w-full"
           >
             {save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}

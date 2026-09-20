@@ -1,4 +1,4 @@
-import { Image, Pressable, View } from 'react-native'
+import { ActivityIndicator, Image, Pressable, View } from 'react-native'
 import { ChevronRight, Star, Utensils } from 'lucide-react-native'
 import type { FoodSearchResult } from '@lyftr/shared'
 import { AppText } from '../ui'
@@ -15,6 +15,8 @@ interface Props {
   onToggleFavorite: () => void
   /** Star is mid-request — dimmed and inert so a double tap can't race itself. */
   togglingFavorite?: boolean
+  /** The product behind this row is being read in full before the detail opens. */
+  loading?: boolean
 }
 
 // The search / Recent / Favorites result row.
@@ -28,13 +30,14 @@ interface Props {
 // No confirmation, deliberately. A favourite is a bookmark, not a record: the row is not
 // data being destroyed, and tapping again restores it. This is what Cronometer does.
 export function FoodResultRow({
-  item, onPress, favorited, onToggleFavorite, togglingFavorite = false,
+  item, onPress, favorited, onToggleFavorite, togglingFavorite = false, loading = false,
 }: Props) {
   const { colors } = useTheme()
 
   return (
     <Pressable
       onPress={onPress}
+      disabled={loading}
       className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
     >
       {item.image_url ? (
@@ -65,7 +68,9 @@ export function FoodResultRow({
         name={item.name}
         onPress={onToggleFavorite}
       />
-      <ChevronRight size={16} color={colors.txMuted} />
+      {loading
+        ? <ActivityIndicator size="small" color={colors.txMuted} />
+        : <ChevronRight size={16} color={colors.txMuted} />}
     </Pressable>
   )
 }

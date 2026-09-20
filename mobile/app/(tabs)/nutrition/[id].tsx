@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, entryToResult, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -103,10 +103,11 @@ export default function NutritionDetail() {
   const macroCal = cals.protein + cals.carbs + cals.fat
   const pctCal = (v: number) => (macroCal > 0 ? Math.round((v / macroCal) * 100) : 0)
 
-  // Spec-list rows (MFP / Lose It convention): serving size, servings, meal, logged.
+  // Spec-list rows (MFP / Lose It convention): serving size, amount, meal, logged.
   const specRows: { label: string; value: string; tabular?: boolean }[] = [
     ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
-    { label: 'Servings', value: String(entry.servings), tabular: true },
+    // In the unit it was logged in — "15 ml", not "0.15 servings" (#171).
+    { label: 'Amount', value: formatLoggedAmount(entry), tabular: true },
     { label: 'Meal', value: MEAL_LABELS[meal] },
     { label: 'Logged', value: formatDay(entryDay(entry), 'EEE, MMM d, yyyy') },
   ]
