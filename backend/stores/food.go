@@ -22,13 +22,13 @@ const foodDay = `CASE
 	  WHEN logged_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*' THEN substr(logged_at, 1, 10)
 	END`
 
-const foodLogSelect = `SELECT id, user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
+const foodLogSelect = `SELECT id, user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, serving_quantity, serving_unit, barcode, image_url, logged_at, logged_on, created_at FROM food_logs`
 
 func scanFoodLog(row interface{ Scan(...any) error }, f *models.FoodLog) error {
 	return row.Scan(
 		&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Meal,
 		&f.Calories, &f.Protein, &f.Carbs, &f.Fat, &f.Fiber,
-		&f.Servings, &f.ServingSize, &f.Barcode, &f.ImageURL,
+		&f.Servings, &f.ServingSize, &f.ServingQuantity, &f.ServingUnit, &f.Barcode, &f.ImageURL,
 		&f.LoggedAt, &f.LoggedOn, &f.CreatedAt,
 	)
 }
@@ -69,10 +69,10 @@ func (s *FoodStore) Get(uid, id int64) (models.FoodLog, error) {
 // by the controller (client-supplied when sent, else from the account zone).
 func (s *FoodStore) Create(uid int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
-		`INSERT INTO food_logs (user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, barcode, image_url, logged_at, logged_on)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO food_logs (user_id, name, brand, meal, calories, protein, carbs, fat, fiber, servings, serving_size, serving_quantity, serving_unit, barcode, image_url, logged_at, logged_on)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Brand, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
+		req.Servings, req.ServingSize, req.ServingQuantity, req.ServingUnit, req.Barcode, req.ImageURL, req.LoggedAt, day,
 	)
 	if err != nil {
 		return models.FoodLog{}, err
@@ -84,10 +84,10 @@ func (s *FoodStore) Create(uid int64, req models.LogFoodRequest, day string) (mo
 func (s *FoodStore) Update(uid, id int64, req models.LogFoodRequest, day string) (models.FoodLog, error) {
 	res, err := s.db.Exec(
 		`UPDATE food_logs SET name=?, brand=?, meal=?, calories=?, protein=?, carbs=?, fat=?, fiber=?,
-		 servings=?, serving_size=?, barcode=?, image_url=?, logged_at=?, logged_on=?
+		 servings=?, serving_size=?, serving_quantity=?, serving_unit=?, barcode=?, image_url=?, logged_at=?, logged_on=?
 		 WHERE id=? AND user_id=?`,
 		req.Name, req.Brand, req.Meal, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.Servings, req.ServingSize, req.Barcode, req.ImageURL, req.LoggedAt, day,
+		req.Servings, req.ServingSize, req.ServingQuantity, req.ServingUnit, req.Barcode, req.ImageURL, req.LoggedAt, day,
 		id, uid,
 	)
 	if err != nil {
@@ -156,11 +156,11 @@ func (s *FoodStore) History(uid int64, sinceDay string) ([]models.FoodHistoryPoi
 	return points, rows.Err()
 }
 
-const savedFoodSelect = `SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode, created_at FROM saved_foods`
+const savedFoodSelect = `SELECT id, user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, serving_quantity, serving_unit, barcode, created_at FROM saved_foods`
 
 func scanSavedFood(row interface{ Scan(...any) error }, f *models.SavedFood) error {
 	return row.Scan(&f.ID, &f.UserID, &f.Name, &f.Brand, &f.Calories, &f.Protein, &f.Carbs, &f.Fat,
-		&f.Fiber, &f.ServingSize, &f.Barcode, &f.CreatedAt)
+		&f.Fiber, &f.ServingSize, &f.ServingQuantity, &f.ServingUnit, &f.Barcode, &f.CreatedAt)
 }
 
 func (s *FoodStore) ListSaved(uid int64) ([]models.SavedFood, error) {
@@ -203,10 +203,10 @@ func (s *FoodStore) CreateSaved(uid int64, req models.SaveFoodRequest) (models.S
 
 func (s *FoodStore) createSavedOnce(uid int64, req models.SaveFoodRequest) (f models.SavedFood, created bool, err error) {
 	res, err := s.db.Exec(
-		`INSERT INTO saved_foods (user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, barcode)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO saved_foods (user_id, name, brand, calories, protein, carbs, fat, fiber, serving_size, serving_quantity, serving_unit, barcode)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		uid, req.Name, req.Brand, req.Calories, req.Protein, req.Carbs, req.Fat, req.Fiber,
-		req.ServingSize, req.Barcode,
+		req.ServingSize, req.ServingQuantity, req.ServingUnit, req.Barcode,
 	)
 	if err != nil {
 		if !utils.IsUniqueViolation(err) {

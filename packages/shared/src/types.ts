@@ -104,6 +104,9 @@ export interface FoodLog {
   fiber?: number
   servings: number
   serving_size?: string
+  /** The serving as a number, in {@link serving_unit}. 0 when unknown — see FoodSearchResult. */
+  serving_quantity?: number
+  serving_unit?: 'g' | 'ml' | ''
   barcode?: string
   image_url?: string
   logged_at: string
@@ -131,6 +134,18 @@ export interface FoodSearchResult {
   fat: number
   fiber: number
   serving_size: string
+  /**
+   * The serving as a number the UI can do arithmetic with, so a food can be logged as
+   * "15 ml" rather than "0.15 servings". `serving_size` stays the label people read
+   * ("1 Tbsp (15 ml)"); it is OpenFoodFacts free text and is not parseable.
+   *
+   * 0 or absent means no quantity is known — OpenFoodFacts often has a serving but not
+   * its size — and the screens then stay on servings rather than invent a weight.
+   */
+  serving_quantity?: number
+  serving_unit?: 'g' | 'ml' | ''
+  /** Set on OpenFoodFacts rows; search hits carry it so selecting one can re-read the product. */
+  barcode?: string
   image_url?: string
   source: 'off' | 'saved' | 'manual'
 }
@@ -145,6 +160,9 @@ export interface SavedFood {
   fat: number
   fiber: number
   serving_size: string
+  /** See FoodSearchResult — kept so logging a favourite can still offer weight. */
+  serving_quantity?: number
+  serving_unit?: 'g' | 'ml' | ''
   barcode?: string
 }
 

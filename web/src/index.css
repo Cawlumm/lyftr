@@ -63,6 +63,13 @@
            focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500
            transition-colors duration-150;
   }
+  /* The −/+ buttons beside a field already step it, so the browser's own spinners are
+     a second, tinier copy of the same control — and they land on top of a unit suffix
+     like "ml". Opt in per field; a field with no buttons of its own keeps them. */
+  .input-no-spin { appearance: textfield; }
+  .input-no-spin::-webkit-outer-spin-button,
+  .input-no-spin::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
   .input-group     { @apply space-y-1.5; }
   .input-help      { @apply text-xs text-tx-muted mt-1; }
 

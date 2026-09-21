@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -15,13 +15,14 @@ import {
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
+import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, isNotFound, savedToResult, scaleServing, useFavorites } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -62,7 +63,15 @@ export default function LogFood() {
   const lookingUp = lookup !== null && lookup.error === null
 
   const [selected, setSelected] = useState<FoodSearchResult | null>(null)
-  const [servingsStr, setServingsStr] = useState('1')
+  // The amount field — grams, millilitres or servings, depending on the food. Shared
+  // with web, because what it computes is how much food the person recorded (#171).
+  const amount = useFoodAmount(selected)
+  const { basis, servings, servingsLabel, overLimit, maxAmount, openOnEntry } = amount
+  // Which search row is being re-read in full, and what to say if that failed. The
+  // search index answers with per-100g figures and no serving at all, so a hit has to
+  // be read again through the product endpoint before it can be trusted (#171).
+  const [upgrading, setUpgrading] = useState<string | null>(null)
+  const [staleServing, setStaleServing] = useState<string | null>(null)
   const [meal, setMeal] = useState<Meal>(initMeal)
   const [date, setDate] = useState(initDate)
   const [pulling, setPulling] = useState(false)
@@ -79,21 +88,18 @@ export default function LogFood() {
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Web keeps servings as a clamped number; here the field is a string buffer, so derive
-  // the numeric value (same Math.max(0.5, …||1) clamp web applies on change).
-  const servings = Math.max(0.5, Number(servingsStr) || 1)
-
   // Edit mode: load the entry, reduce to per-serving, jump to detail.
   useEffect(() => {
     if (!editId) return
     client.foodAPI.get(editId).then((entry) => {
-      setSelected(entryToResult(entry))
-      setServingsStr(String(entry.servings || 1))
+      const result = entryToResult(entry)
+      setSelected(result)
+      openOnEntry(result, entry.servings)
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
     }).catch((err) => setEditError(apiErrorMessage(err, "Couldn't load that entry.")))
-  }, [editId])
+  }, [editId, openOnEntry])
 
   // Recent (today, deduped ≤10) + favourites.
   const loadLists = useCallback(async () => {
@@ -152,11 +158,30 @@ export default function LogFood() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, tab])
 
-  const selectResult = (result: FoodSearchResult) => {
+  const selectResult = (result: FoodSearchResult, note: string | null = null) => {
     hSelect()
     setSelected(result)
-    setServingsStr('1')
+    amount.openOn(result)
+    setStaleServing(note)
     setPhase('detail')
+  }
+
+  // A search hit is not enough to log against. OpenFoodFacts' search index carries
+  // per-100g figures and no serving at all, so the same olive oil reads 800 kcal per
+  // 100 g from a search and 120 kcal per tablespoon from a scan (#171). Read the
+  // product in full before opening the detail, the way every other OFF client does.
+  const selectSearchResult = async (result: FoodSearchResult) => {
+    if (result.source !== 'off' || !result.barcode) { selectResult(result); return }
+    setUpgrading(result.barcode)
+    try {
+      selectResult(await client.foodAPI.barcode(result.barcode))
+    } catch (err) {
+      // The search row is still real data, so log against it rather than dead-ending —
+      // but say which figures these are, because they are the ones that read wrong.
+      selectResult(result, apiErrorMessage(err, "Couldn't re-read this product."))
+    } finally {
+      setUpgrading(null)
+    }
   }
 
   const enterManually = () => {
@@ -179,10 +204,9 @@ export default function LogFood() {
     }
   }
 
-  const stepServings = (delta: number) => {
+  const stepAmount = (dir: 1 | -1) => {
     hSelect()
-    const next = delta < 0 ? Math.max(0.5, +(servings - 0.5).toFixed(1)) : +(servings + 0.5).toFixed(1)
-    setServingsStr(String(next))
+    amount.step(dir)
   }
 
   const save = useAsyncAction(async (item: FoodSearchResult) => {
@@ -367,7 +391,7 @@ export default function LogFood() {
                 ) : (
                   recentItems.map((item, i) => (
                     <FoodResultRow
-                      key={`${item.name}-${item.calories}-${i}`}
+                      key={foodResultKey(item, i)}
                       item={item}
                       onPress={() => selectResult(item)}
                           favorited={favoriteOf(item) !== undefined}
@@ -416,9 +440,10 @@ export default function LogFood() {
               ) : null}
               {tab === 'all' && !searching ? searchResults.map((item, i) => (
                 <FoodResultRow
-                  key={`${item.name}-${item.calories}-${i}`}
+                  key={foodResultKey(item, i)}
                   item={item}
-                  onPress={() => selectResult(item)}
+                  loading={upgrading !== null && upgrading === item.barcode}
+                  onPress={() => void selectSearchResult(item)}
                   favorited={favoriteOf(item) !== undefined}
                   onToggleFavorite={() => toggleFavorite(item)}
                   togglingFavorite={isToggling(item)}
@@ -442,15 +467,18 @@ export default function LogFood() {
                 </View>
               ) : null}
 
+              {/* The product couldn't be re-read, so these are the search index's
+                  figures: per 100 g, whatever the pack's own serving is. Say so rather
+                  than let them read as a serving — that is the whole of #171. */}
+              {staleServing ? (
+                <Alert variant="warning">
+                  {staleServing} Showing search results, which are always per {selected.serving_size}.
+                </Alert>
+              ) : null}
+
               {/* Food hero + macros */}
               <Card className="overflow-hidden p-0">
-                {selected.image_url ? (
-                  <Image source={{ uri: selected.image_url }} className="h-52 w-full" resizeMode="cover" />
-                ) : (
-                  <View className="h-32 w-full items-center justify-center border-b border-surface-border bg-surface-muted">
-                    <Utensils size={40} color={colors.txMuted} style={{ opacity: 0.2 }} />
-                  </View>
-                )}
+                <FoodHero src={selected.image_url} />
                 <View className="p-5">
                   {/* Calorie hero */}
                   <View className="mb-5 flex-row items-end justify-between">
@@ -460,7 +488,7 @@ export default function LogFood() {
                         <AppText variant="body" color="muted">kcal</AppText>
                       </View>
                       {selected.serving_size ? (
-                        <AppText variant="caption" color="muted" className="mt-1">per {servings === 1 ? '' : `${servings} × `}{selected.serving_size}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-1">per {servingsLabel === 1 || servings <= 0 ? '' : `${servingsLabel} × `}{selected.serving_size}</AppText>
                       ) : null}
                     </View>
                     {pro + carb + fat_ > 0 ? (
@@ -504,25 +532,43 @@ export default function LogFood() {
                 </View>
               </Card>
 
-              {/* Servings */}
+              {/* Amount */}
               <Card className="gap-3">
                 <View className="flex-row items-baseline gap-2">
-                  <Label>Servings</Label>
-                  {selected.serving_size ? <AppText variant="caption" color="muted">({selected.serving_size} each)</AppText> : null}
+                  <Label>{basis ? 'Amount' : 'Servings'}</Label>
+                  {selected.serving_size && !basis
+                    ? <AppText variant="caption" color="muted">({selected.serving_size} each)</AppText>
+                    : null}
                 </View>
                 <View className="flex-row items-center gap-3">
-                  <IconButton icon={Minus} variant="secondary" size="lg" label="Decrease servings" onPress={() => stepServings(-0.5)} />
-                  <View className="flex-1">
-                    <NumberField
-                      inputMode="decimal"
-                      value={servingsStr}
-                      onChange={setServingsStr}
-                      accessibilityLabel="Servings"
-                      inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
-                    />
+                  <IconButton icon={Minus} variant="secondary" size="lg" label={basis ? 'Decrease amount' : 'Decrease servings'} onPress={() => stepAmount(-1)} />
+                  <View className="flex-1 flex-row items-center justify-center">
+                    <View className="flex-1">
+                      <NumberField
+                        inputMode="decimal"
+                        value={amount.text}
+                        onChange={amount.setText}
+                        accessibilityLabel={basis ? `Amount in ${basis.unit}` : 'Servings'}
+                        inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                      />
+                    </View>
+                    {basis ? <AppText variant="caption" color="muted" className="ml-1">{basis.unit}</AppText> : null}
                   </View>
-                  <IconButton icon={Plus} variant="secondary" size="lg" label="Increase servings" onPress={() => stepServings(0.5)} />
+                  <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? 'Increase amount' : 'Increase servings'} onPress={() => stepAmount(1)} />
                 </View>
+                {/* The readout doubles as the reason the Log button is disabled. Deleting
+                    the 0.5-serving floor made an empty or nonsense amount reachable for the
+                    first time, and a dead button with no words beside it says what, not why.
+                    Shown without a basis too, where the field counts servings. */}
+                {basis || servings <= 0 || overLimit ? (
+                  <AppText variant="caption" color={overLimit ? 'warning' : 'muted'} className="text-center">
+                    {servings <= 0
+                      ? `Enter an amount${basis ? ` in ${basis.unit}` : ''} to log this`
+                      : overLimit
+                        ? `One entry holds at most ${maxAmount}`
+                        : `${servingsLabel} ${servingsLabel === 1 ? 'serving' : 'servings'} of ${selected.serving_size}`}
+                  </AppText>
+                ) : null}
               </Card>
 
               {/* Meal + when */}
@@ -562,7 +608,8 @@ export default function LogFood() {
               title={save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
               onPress={handleLog}
               loading={save.busy}
-              disabled={save.busy}
+              // An empty or zero amount would log a row of zeroes.
+              disabled={save.busy || servings <= 0 || overLimit}
             />
           </View>
           <NumericKeyboardAccessory />

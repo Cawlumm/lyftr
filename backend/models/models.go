@@ -55,12 +55,12 @@ type Exercise struct {
 }
 
 type Workout struct {
-	ID        int64             `json:"id" db:"id"`
-	UserID    int64             `json:"user_id" db:"user_id"`
-	Name      string            `json:"name" db:"name"`
-	Notes     string            `json:"notes,omitempty" db:"notes"`
-	Duration  int               `json:"duration" db:"duration"` // seconds
-	StartedAt time.Time         `json:"started_at" db:"started_at"`
+	ID        int64     `json:"id" db:"id"`
+	UserID    int64     `json:"user_id" db:"user_id"`
+	Name      string    `json:"name" db:"name"`
+	Notes     string    `json:"notes,omitempty" db:"notes"`
+	Duration  int       `json:"duration" db:"duration"` // seconds
+	StartedAt time.Time `json:"started_at" db:"started_at"`
 	// TZOffsetMinutes is the user's UTC offset when the workout started, e.g. -240
 	// for New York in summer. StartedAt plus this offset gives the local day and the
 	// local clock time, permanently — a workout is a real moment, so unlike the
@@ -118,11 +118,11 @@ type Set struct {
 }
 
 type WeightLog struct {
-	ID        int64     `json:"id" db:"id"`
-	UserID    int64     `json:"user_id" db:"user_id"`
-	Weight    float64   `json:"weight" db:"weight"` // raw value in user's preferred unit (lbs or kg)
-	Notes     string    `json:"notes,omitempty" db:"notes"`
-	LoggedAt  time.Time `json:"logged_at" db:"logged_at"`
+	ID       int64     `json:"id" db:"id"`
+	UserID   int64     `json:"user_id" db:"user_id"`
+	Weight   float64   `json:"weight" db:"weight"` // raw value in user's preferred unit (lbs or kg)
+	Notes    string    `json:"notes,omitempty" db:"notes"`
+	LoggedAt time.Time `json:"logged_at" db:"logged_at"`
 	// LoggedOn is the calendar day this weigh-in belongs to (see FoodLog.LoggedOn).
 	// It is also what "one entry per day" is enforced against.
 	LoggedOn  string    `json:"logged_on" db:"logged_on"`
@@ -130,21 +130,25 @@ type WeightLog struct {
 }
 
 type FoodLog struct {
-	ID          int64     `json:"id" db:"id"`
-	UserID      int64     `json:"user_id" db:"user_id"`
-	Name        string    `json:"name" db:"name"`
-	Brand       string    `json:"brand" db:"brand"`
-	Meal        string    `json:"meal" db:"meal"` // "breakfast", "lunch", "dinner", "snacks"
-	Calories    float64   `json:"calories" db:"calories"`
-	Protein     float64   `json:"protein" db:"protein"`
-	Carbs       float64   `json:"carbs" db:"carbs"`
-	Fat         float64   `json:"fat" db:"fat"`
-	Fiber       float64   `json:"fiber" db:"fiber"`
-	Servings    float64   `json:"servings" db:"servings"`
-	ServingSize string    `json:"serving_size" db:"serving_size"`
-	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
-	ImageURL    string    `json:"image_url,omitempty" db:"image_url"`
-	LoggedAt    time.Time `json:"logged_at" db:"logged_at"`
+	ID          int64   `json:"id" db:"id"`
+	UserID      int64   `json:"user_id" db:"user_id"`
+	Name        string  `json:"name" db:"name"`
+	Brand       string  `json:"brand" db:"brand"`
+	Meal        string  `json:"meal" db:"meal"` // "breakfast", "lunch", "dinner", "snacks"
+	Calories    float64 `json:"calories" db:"calories"`
+	Protein     float64 `json:"protein" db:"protein"`
+	Carbs       float64 `json:"carbs" db:"carbs"`
+	Fat         float64 `json:"fat" db:"fat"`
+	Fiber       float64 `json:"fiber" db:"fiber"`
+	Servings    float64 `json:"servings" db:"servings"`
+	ServingSize string  `json:"serving_size" db:"serving_size"`
+	// The serving as a number, so editing an entry can still offer entry by weight.
+	// 0 for entries written before this column, which read back as servings-only.
+	ServingQuantity float64   `json:"serving_quantity" db:"serving_quantity"`
+	ServingUnit     string    `json:"serving_unit" db:"serving_unit"`
+	Barcode         string    `json:"barcode,omitempty" db:"barcode"`
+	ImageURL        string    `json:"image_url,omitempty" db:"image_url"`
+	LoggedAt        time.Time `json:"logged_at" db:"logged_at"`
 	// LoggedOn is the calendar day this entry belongs to, YYYY-MM-DD, in the user's
 	// zone at the moment they logged it. It is the day the diary groups by — stored,
 	// never re-derived, so it survives the user changing zones. LoggedAt remains the
@@ -154,18 +158,24 @@ type FoodLog struct {
 }
 
 type SavedFood struct {
-	ID          int64     `json:"id" db:"id"`
-	UserID      int64     `json:"user_id,omitempty" db:"user_id"`
-	Name        string    `json:"name" db:"name"`
-	Brand       string    `json:"brand" db:"brand"`
-	Calories    float64   `json:"calories" db:"calories"`
-	Protein     float64   `json:"protein" db:"protein"`
-	Carbs       float64   `json:"carbs" db:"carbs"`
-	Fat         float64   `json:"fat" db:"fat"`
-	Fiber       float64   `json:"fiber" db:"fiber"`
-	ServingSize string    `json:"serving_size" db:"serving_size"`
-	Barcode     string    `json:"barcode,omitempty" db:"barcode"`
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	ID          int64   `json:"id" db:"id"`
+	UserID      int64   `json:"user_id,omitempty" db:"user_id"`
+	Name        string  `json:"name" db:"name"`
+	Brand       string  `json:"brand" db:"brand"`
+	Calories    float64 `json:"calories" db:"calories"`
+	Protein     float64 `json:"protein" db:"protein"`
+	Carbs       float64 `json:"carbs" db:"carbs"`
+	Fat         float64 `json:"fat" db:"fat"`
+	Fiber       float64 `json:"fiber" db:"fiber"`
+	ServingSize string  `json:"serving_size" db:"serving_size"`
+	// ServingQuantity/ServingUnit express the same serving as a number the client can
+	// do arithmetic with — see FoodSearchResult. Stored so a food starred before this
+	// existed, or one OpenFoodFacts has no quantity for, reads back as 0 and falls
+	// back to servings rather than pretending to a weight.
+	ServingQuantity float64   `json:"serving_quantity" db:"serving_quantity"`
+	ServingUnit     string    `json:"serving_unit" db:"serving_unit"`
+	Barcode         string    `json:"barcode,omitempty" db:"barcode"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at"`
 }
 
 type FoodSearchResult struct {
@@ -177,8 +187,20 @@ type FoodSearchResult struct {
 	Fat         float64 `json:"fat"`
 	Fiber       float64 `json:"fiber"`
 	ServingSize string  `json:"serving_size"`
-	ImageURL    string  `json:"image_url,omitempty"`
-	Source      string  `json:"source"` // "off" | "saved"
+	// ServingSize is OpenFoodFacts free text and unparseable in practice — real values
+	// include "1/4 cup 7 g", "227 g (227 g)" and "200 m (100 ml)". ServingQuantity is
+	// the same serving as a number, so a client can offer "15 g" instead of "0.15
+	// servings"; ServingUnit is "g" or "ml". Zero means OpenFoodFacts has no quantity
+	// for this product (it happens: openfoodfacts-server#7768) and the client should
+	// stay on servings rather than invent a weight.
+	ServingQuantity float64 `json:"serving_quantity,omitempty"`
+	ServingUnit     string  `json:"serving_unit,omitempty"`
+	// The product this came from, when it is an OpenFoodFacts row. Search results carry
+	// it so selecting one can re-read the product in full — the search index answers
+	// with per-100g figures only, and no serving at all.
+	Barcode  string `json:"barcode,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
+	Source   string `json:"source"` // "off" | "saved"
 }
 
 type FoodHistoryPoint struct {
@@ -288,20 +310,41 @@ type LogWeightRequest struct {
 	LoggedOn string `json:"logged_on"`
 }
 
+// MaxServings bounds a single diary entry. Without a ceiling a fat-fingered amount logs
+// an arbitrary number of calories against the day: typing 999999 into the amount field
+// read 7,999,992 kcal, and the server stored whatever arrived.
+//
+// Servings is the right thing to bound rather than the amount the client collects,
+// because it is what is stored and what every macro is multiplied by — an absurd weight
+// is only absurd once divided by the serving it is measured in. It is also the only
+// number both sides can check and mean the same by, which is why there is one ceiling
+// here and not a second one on the amount.
+//
+// A hundred of them is ten kilos of a food held per 100 g — OpenNutriTracker's
+// "unrealistically high" threshold, reached without a second rule.
+//
+// The literal in LogFoodRequest's tag below has to match: struct tags cannot interpolate
+// a constant. TestLogFood_rejectsMoreThanMaxServings pins the two together.
+const MaxServings = 100
+
 type LogFoodRequest struct {
-	Name        string    `json:"name" validate:"required"`
-	Brand       string    `json:"brand"`
-	Meal        string    `json:"meal" validate:"required,oneof=breakfast lunch dinner snacks"`
-	Calories    float64   `json:"calories" validate:"gte=0"`
-	Protein     float64   `json:"protein" validate:"gte=0"`
-	Carbs       float64   `json:"carbs" validate:"gte=0"`
-	Fat         float64   `json:"fat" validate:"gte=0"`
-	Fiber       float64   `json:"fiber" validate:"gte=0"`
-	Servings    float64   `json:"servings" validate:"gte=0"`
-	ServingSize string    `json:"serving_size"`
-	Barcode     string    `json:"barcode"`
-	ImageURL    string    `json:"image_url"`
-	LoggedAt    time.Time `json:"logged_at"`
+	Name        string  `json:"name" validate:"required"`
+	Brand       string  `json:"brand"`
+	Meal        string  `json:"meal" validate:"required,oneof=breakfast lunch dinner snacks"`
+	Calories    float64 `json:"calories" validate:"gte=0"`
+	Protein     float64 `json:"protein" validate:"gte=0"`
+	Carbs       float64 `json:"carbs" validate:"gte=0"`
+	Fat         float64 `json:"fat" validate:"gte=0"`
+	Fiber       float64 `json:"fiber" validate:"gte=0"`
+	Servings    float64 `json:"servings" validate:"gte=0,lte=100"`
+	ServingSize string  `json:"serving_size"`
+	// The serving as a number plus its unit, carried so an edit can go on offering
+	// entry by weight. Optional: clients older than this send neither.
+	ServingQuantity float64   `json:"serving_quantity" validate:"gte=0"`
+	ServingUnit     string    `json:"serving_unit" validate:"omitempty,oneof=g ml"`
+	Barcode         string    `json:"barcode"`
+	ImageURL        string    `json:"image_url"`
+	LoggedAt        time.Time `json:"logged_at"`
 	// LoggedOn is the calendar day the client files this under, YYYY-MM-DD. Optional:
 	// omitted by clients older than the stored-day change, in which case the server
 	// derives it from the account zone (see Handler.resolveDay).
@@ -317,7 +360,11 @@ type SaveFoodRequest struct {
 	Fat         float64 `json:"fat" validate:"gte=0"`
 	Fiber       float64 `json:"fiber" validate:"gte=0"`
 	ServingSize string  `json:"serving_size"`
-	Barcode     string  `json:"barcode"`
+	// See LogFoodRequest: the numeric serving, kept on the favourite so logging it
+	// later can still offer weight.
+	ServingQuantity float64 `json:"serving_quantity" validate:"gte=0"`
+	ServingUnit     string  `json:"serving_unit" validate:"omitempty,oneof=g ml"`
+	Barcode         string  `json:"barcode"`
 }
 
 // UpdateSettingsRequest is a PATCH: every field is a pointer so a nil (absent
