@@ -144,22 +144,33 @@ export function findSavedFood(
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
 }
 
-// The most one diary entry can hold, matching the server's models.MaxServings — which
-// is what actually enforces it; this copy exists so the field can refuse before asking,
-// and say the limit in the unit the person is typing in.
+// The two ceilings on one diary entry. Typing 999999 into the amount field read
+// 7,999,992 kcal against the day, and the server stored whatever arrived.
 //
-// Servings is the bounded thing rather than the amount, because servings is what gets
-// stored and what every macro is multiplied by: typing 999999 into the amount field read
-// 7,999,992 kcal against the day. An absurd weight is only absurd once divided by the
-// serving it is measured in, which is why one constant covers a field showing grams, one
-// showing millilitres and one counting servings.
+// MAX_SERVINGS is the one that matters, because servings is what gets stored and what
+// every macro is multiplied by — it is also what the server enforces (models.MaxServings).
+// This copy exists so the field can refuse before asking.
+//
+// MAX_AMOUNT exists because the servings ceiling alone is slack for a food held per
+// 100 g: a thousand servings of one is a hundred kilos, so 99999 g still logged ~800,000
+// kcal. It is OpenNutriTracker's number — their sheet refuses anything over 10000 as
+// "unrealistically high" — and it is the only bound any peer puts on a weight. (wger caps
+// its amount at 1000, but that column doubles as a portion multiplier, which is why it
+// also carries a MinValueValidator of 1 and so cannot log half a slice or a gram of
+// anything — the very complaint #41 raised here. Waistline and FitBook have no maximum
+// at all.)
+//
+// Both are checked after the amount is converted, not before. OpenNutriTracker checks
+// the typed number instead, so "500 servings" of a 30 g portion passes their guard and
+// stores 15000 g.
 export const MAX_SERVINGS = 1000
+export const MAX_AMOUNT = 10000
 
-// The same ceiling expressed in whatever the field is showing, for the message.
+// The binding ceiling, expressed in whatever the field is showing, for the message.
 export function maxAmountFor(basis: ServingBasis | null): string {
-  return basis
-    ? `${+(MAX_SERVINGS * basis.quantity).toFixed(1)} ${basis.unit}`
-    : `${MAX_SERVINGS} servings`
+  if (!basis) return `${MAX_SERVINGS} servings`
+  const max = Math.min(MAX_AMOUNT, MAX_SERVINGS * basis.quantity)
+  return `${+max.toFixed(1)} ${basis.unit}`
 }
 
 // React's key for one row of search or recent results, in both apps.

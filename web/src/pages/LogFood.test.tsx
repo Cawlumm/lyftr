@@ -215,12 +215,11 @@ describe('Logging an amount', () => {
     fireEvent.change(amount, { target: { value: '999999' } })
 
     expect(logButton().disabled).toBe(true)
-    // Said in millilitres, which is what the field is showing — 1000 servings of a
-    // 15 ml tablespoon.
-    expect(screen.getByText('One entry holds at most 15000 ml')).toBeTruthy()
+    // Said in millilitres, which is what the field is showing.
+    expect(screen.getByText('One entry holds at most 10000 ml')).toBeTruthy()
 
     // And the limit itself still logs.
-    fireEvent.change(amount, { target: { value: '15000' } })
+    fireEvent.change(amount, { target: { value: '10000' } })
     expect(logButton().disabled).toBe(false)
   })
 

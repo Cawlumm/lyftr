@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import type { FoodSearchResult } from '../types'
 import {
-  amountForServings, formatServings, MAX_SERVINGS, maxAmountFor, servingBasis,
+  amountForServings, formatServings, MAX_AMOUNT, MAX_SERVINGS, maxAmountFor, servingBasis,
   servingsForAmount, type ServingBasis,
 } from '../utils/food'
 
@@ -76,9 +76,13 @@ export function useFoodAmount(
     servings,
     servingsLabel: formatServings(servings),
     // Checked here rather than on each screen so web and mobile cannot disagree about
-    // what is loggable — the server enforces the same number, and a client that let a
-    // bigger one through would send a request it knows will be refused.
-    overLimit: servings > MAX_SERVINGS,
+    // what is loggable — the server enforces the servings ceiling, and a client that let
+    // a bigger one through would send a request it knows will be refused.
+    //
+    // Both ceilings, because neither covers the other: the servings one is slack for a
+    // food held per 100 g, and the amount one does not exist when the field is counting
+    // servings rather than weighing anything.
+    overLimit: servings > MAX_SERVINGS || (basis !== null && amount > MAX_AMOUNT),
     maxAmount: maxAmountFor(basis),
     step: (direction) => {
       const size = basis ? basis.quantity : 0.5
