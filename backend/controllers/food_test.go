@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/models"
 )
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -300,6 +301,36 @@ func TestLogFood_rejectsUnknownServingUnit(t *testing.T) {
 	}
 	if msg := decodeResponse(t, w)["error"].(string); msg != "Serving unit must be one of: g, ml." {
 		t.Errorf("unexpected message: %q", msg)
+	}
+}
+
+// A ceiling on one entry, and the sentence it answers with. The tag carries a literal
+// because struct tags cannot interpolate, so this also pins the literal to the constant:
+// change one without the other and the boundary cases below disagree.
+func TestLogFood_rejectsMoreThanMaxServings(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	entry := func(servings float64) map[string]any {
+		return map[string]any{
+			"name": "Olive Oil", "meal": "dinner", "calories": 120.0, "servings": servings,
+		}
+	}
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/food", entry(float64(models.MaxServings)+1))
+	th.LogFood(c)
+	if w.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422 over the cap, got %d: %s", w.Code, w.Body.String())
+	}
+	if msg := decodeResponse(t, w)["error"].(string); !strings.Contains(msg, "1,000") {
+		t.Errorf("message should name the limit, got %q", msg)
+	}
+
+	// The cap itself is allowed — an off-by-one here would reject a legal entry.
+	c, w = newContext(uid, http.MethodPost, "/api/v1/food", entry(float64(models.MaxServings)))
+	th.LogFood(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected the cap itself to log, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

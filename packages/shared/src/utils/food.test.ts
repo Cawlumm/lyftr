@@ -1,4 +1,4 @@
-import { amountForServings, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
+import { amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -281,6 +281,23 @@ describe('servingsForAmount / amountForServings', () => {
   // A third of a serving would otherwise open the field as 33.33333333333333.
   it('rounds the amount to the 0.1 every other number here is entered at', () => {
     expect(amountForServings(1 / 3, per100ml)).toBe(33.3)
+  })
+})
+
+
+describe('the ceiling on one entry', () => {
+  // The client's copy of models.MaxServings. If the two drift, the field either refuses
+  // something the server would take or sends something it will refuse.
+  it('matches the number the server enforces', () => {
+    expect(MAX_SERVINGS).toBe(1000)
+  })
+
+  // Said in the unit the person is typing in, not in servings: on a 15 ml tablespoon the
+  // limit is 15000 ml, and "1000 servings" would mean nothing next to a field showing ml.
+  it('states the limit in whatever the field is showing', () => {
+    expect(maxAmountFor({ quantity: 15, unit: 'ml' })).toBe('15000 ml')
+    expect(maxAmountFor({ quantity: 100, unit: 'g' })).toBe('100000 g')
+    expect(maxAmountFor(null)).toBe('1000 servings')
   })
 })
 

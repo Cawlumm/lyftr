@@ -66,7 +66,7 @@ export default function LogFood() {
   // The amount field — grams, millilitres or servings, depending on the food. Shared
   // with web, because what it computes is how much food the person recorded (#171).
   const amount = useFoodAmount(selected)
-  const { basis, servings, servingsLabel, openOnEntry } = amount
+  const { basis, servings, servingsLabel, overLimit, maxAmount, openOnEntry } = amount
   // Which search row is being re-read in full, and what to say if that failed. The
   // search index answers with per-100g figures and no serving at all, so a hit has to
   // be read again through the product endpoint before it can be trusted (#171).
@@ -560,11 +560,13 @@ export default function LogFood() {
                     the 0.5-serving floor made an empty or nonsense amount reachable for the
                     first time, and a dead button with no words beside it says what, not why.
                     Shown without a basis too, where the field counts servings. */}
-                {basis || servings <= 0 ? (
-                  <AppText variant="caption" color="muted" className="text-center">
+                {basis || servings <= 0 || overLimit ? (
+                  <AppText variant="caption" color={overLimit ? 'warning' : 'muted'} className="text-center">
                     {servings <= 0
                       ? `Enter an amount${basis ? ` in ${basis.unit}` : ''} to log this`
-                      : `${servingsLabel} ${servingsLabel === 1 ? 'serving' : 'servings'} of ${selected.serving_size}`}
+                      : overLimit
+                        ? `One entry holds at most ${maxAmount}`
+                        : `${servingsLabel} ${servingsLabel === 1 ? 'serving' : 'servings'} of ${selected.serving_size}`}
                   </AppText>
                 ) : null}
               </Card>
@@ -607,7 +609,7 @@ export default function LogFood() {
               onPress={handleLog}
               loading={save.busy}
               // An empty or zero amount would log a row of zeroes.
-              disabled={save.busy || servings <= 0}
+              disabled={save.busy || servings <= 0 || overLimit}
             />
           </View>
           <NumericKeyboardAccessory />

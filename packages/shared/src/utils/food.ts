@@ -144,6 +144,24 @@ export function findSavedFood(
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
 }
 
+// The most one diary entry can hold, matching the server's models.MaxServings — which
+// is what actually enforces it; this copy exists so the field can refuse before asking,
+// and say the limit in the unit the person is typing in.
+//
+// Servings is the bounded thing rather than the amount, because servings is what gets
+// stored and what every macro is multiplied by: typing 999999 into the amount field read
+// 7,999,992 kcal against the day. An absurd weight is only absurd once divided by the
+// serving it is measured in, which is why one constant covers a field showing grams, one
+// showing millilitres and one counting servings.
+export const MAX_SERVINGS = 1000
+
+// The same ceiling expressed in whatever the field is showing, for the message.
+export function maxAmountFor(basis: ServingBasis | null): string {
+  return basis
+    ? `${+(MAX_SERVINGS * basis.quantity).toFixed(1)} ${basis.unit}`
+    : `${MAX_SERVINGS} servings`
+}
+
 // React's key for one row of search or recent results, in both apps.
 //
 // The barcode is the only stable identity a result has. Keying on name + calories put

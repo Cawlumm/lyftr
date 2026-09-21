@@ -201,6 +201,29 @@ describe('Logging an amount', () => {
     expect(screen.queryByText(/0 × /)).toBeNull()
   })
 
+  // The other end of the same field. A fat-fingered 999999 read 7,999,992 kcal against
+  // the day and the server stored it, because neither side had a ceiling.
+  it('refuses an amount larger than one entry can hold', async () => {
+    search.mockResolvedValue([OIL_SEARCH_HIT])
+    barcode.mockResolvedValue(OIL_PRODUCT)
+    renderPage()
+
+    await searchFor('olive oil')
+    fireEvent.click(await screen.findByText('Olive Oil'))
+
+    const amount = await screen.findByLabelText('Amount in ml') as HTMLInputElement
+    fireEvent.change(amount, { target: { value: '999999' } })
+
+    expect(logButton().disabled).toBe(true)
+    // Said in millilitres, which is what the field is showing — 1000 servings of a
+    // 15 ml tablespoon.
+    expect(screen.getByText('One entry holds at most 15000 ml')).toBeTruthy()
+
+    // And the limit itself still logs.
+    fireEvent.change(amount, { target: { value: '15000' } })
+    expect(logButton().disabled).toBe(false)
+  })
+
   // The search index answers with per-100g figures and no serving at all, so a hit is
   // not what the pack says. Selecting one has to read the product in full first.
   it('re-reads a search hit through the product endpoint before opening it', async () => {

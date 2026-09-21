@@ -31,6 +31,22 @@ describe('useFoodAmount', () => {
     expect(result.current.servingsLabel).toBe(0.004)
   })
 
+  // No minimum, but a maximum: 999999 in the field read 7,999,992 kcal against the day.
+  it('refuses more than one entry can hold, and says the limit in the unit shown', () => {
+    const { result } = renderHook(() => useFoodAmount(OIL))
+
+    act(() => result.current.setText('999999'))
+    expect(result.current.overLimit).toBe(true)
+    // OIL is held per 100 ml, so a thousand servings of it is a hundred litres.
+    expect(result.current.maxAmount).toBe('100000 ml')
+
+    // The ceiling itself is allowed — the server takes exactly this, so refusing it
+    // here would put the two out of step by one.
+    act(() => result.current.setText('100000'))
+    expect(result.current.servings).toBe(1000)
+    expect(result.current.overLimit).toBe(false)
+  })
+
   it('counts servings when nothing knows what one measures', () => {
     const { result } = renderHook(() => useFoodAmount(UNKNOWN))
     act(() => result.current.openOn(UNKNOWN))

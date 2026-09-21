@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react'
 import type { FoodSearchResult } from '../types'
 import {
-  amountForServings, formatServings, servingBasis, servingsForAmount, type ServingBasis,
+  amountForServings, formatServings, MAX_SERVINGS, maxAmountFor, servingBasis,
+  servingsForAmount, type ServingBasis,
 } from '../utils/food'
 
 export interface FoodAmount {
@@ -14,6 +15,10 @@ export interface FoodAmount {
   servings: number
   /** The same number, to read rather than compute with. */
   servingsLabel: number
+  /** Set when the amount is more than one entry may hold — the caller blocks the log. */
+  overLimit: boolean
+  /** What the field will accept, in the unit it is showing, for the message. */
+  maxAmount: string
   /** Step by one serving's worth, in whatever unit the field is showing. */
   step: (direction: 1 | -1) => void
   /** Open the field on one serving of this food. */
@@ -70,6 +75,11 @@ export function useFoodAmount(
     basis,
     servings,
     servingsLabel: formatServings(servings),
+    // Checked here rather than on each screen so web and mobile cannot disagree about
+    // what is loggable — the server enforces the same number, and a client that let a
+    // bigger one through would send a request it knows will be refused.
+    overLimit: servings > MAX_SERVINGS,
+    maxAmount: maxAmountFor(basis),
     step: (direction) => {
       const size = basis ? basis.quantity : 0.5
       const from = Number.isFinite(amount) ? amount : 0

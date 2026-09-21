@@ -132,7 +132,7 @@ export default function LogFood() {
   // The amount field — grams, millilitres or servings, depending on the food. Shared
   // with mobile, because what it computes is how much food the person recorded (#171).
   const amount = useFoodAmount(selected)
-  const { basis, servings, servingsLabel, openOnEntry } = amount
+  const { basis, servings, servingsLabel, overLimit, maxAmount, openOnEntry } = amount
   // Which search row is being re-read in full, and what to say if that failed. The
   // search index answers with per-100g figures and no serving at all, so a hit has to
   // be read again through the product endpoint before it can be trusted (#171).
@@ -650,6 +650,10 @@ export default function LogFood() {
               <p className="text-xs text-tx-muted text-center">
                 Enter an amount{basis ? ` in ${basis.unit}` : ''} to log this
               </p>
+            ) : overLimit ? (
+              <p className="text-xs text-warning-400 text-center">
+                One entry holds at most {maxAmount}
+              </p>
             ) : basis && (
               <p className="text-xs text-tx-muted text-center">
                 {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}
@@ -699,7 +703,7 @@ export default function LogFood() {
           <button
             onClick={handleLog}
             // An empty or zero amount would log a row of zeroes.
-            disabled={save.busy || servings <= 0}
+            disabled={save.busy || servings <= 0 || overLimit}
             className="btn-primary btn-lg w-full"
           >
             {save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
