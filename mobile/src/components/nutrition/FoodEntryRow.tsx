@@ -1,4 +1,4 @@
-import { useAsyncAction } from '@lyftr/shared'
+import { formatLoggedAmount, useAsyncAction } from '@lyftr/shared'
 import { useState } from 'react'
 import { Image, Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
@@ -83,7 +83,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
           <AppText variant="caption" color="muted">{label}</AppText>
         </View>
       ))}
-      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
+      {entry.servings !== 1 ? <AppText variant="caption" color="muted">{formatLoggedAmount(entry)}</AppText> : null}
     </View>
   )
 
