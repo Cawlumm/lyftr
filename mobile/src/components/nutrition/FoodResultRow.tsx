@@ -1,8 +1,9 @@
-import { ActivityIndicator, Image, Pressable, View } from 'react-native'
-import { ChevronRight, Star, Utensils } from 'lucide-react-native'
+import { ActivityIndicator, Pressable, View } from 'react-native'
+import { ChevronRight, Star } from 'lucide-react-native'
 import type { FoodSearchResult } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
+import { FoodThumb } from './FoodImage'
 import { MACRO_TEXT } from './nutritionMeta'
 
 interface Props {
@@ -40,13 +41,7 @@ export function FoodResultRow({
       disabled={loading}
       className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
     >
-      {item.image_url ? (
-        <Image source={{ uri: item.image_url }} className="h-11 w-11 rounded-xl border border-surface-border" />
-      ) : (
-        <View className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
-          <Utensils size={20} color={colors.txMuted} />
-        </View>
-      )}
+      <FoodThumb src={item.image_url} />
       <View className="min-w-0 flex-1">
         <AppText variant="bodySemibold" numberOfLines={1}>{item.name}</AppText>
         {item.brand ? <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">{item.brand}</AppText> : null}

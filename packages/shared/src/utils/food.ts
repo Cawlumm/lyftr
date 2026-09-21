@@ -144,6 +144,24 @@ export function findSavedFood(
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
 }
 
+// React's key for one row of search or recent results, in both apps.
+//
+// The barcode is the only stable identity a result has. Keying on name + calories put
+// two real products under one key — OpenFoodFacts returns several "Extra Virgin Olive
+// Oil" rows from different brands, two of which read 0 kcal — and React answered with
+// "Encountered two children with the same key", having quietly dropped one row's state
+// onto the other.
+//
+// Without a barcode (a hand-entered food, a recent entry logged before barcodes were
+// stored) there is nothing unique to key on, so the position stands in. That is only
+// sound because these lists are replaced wholesale by a fetch rather than reordered.
+export function foodResultKey(
+  item: Pick<FoodSearchResult, 'barcode' | 'name'>,
+  index: number,
+): string {
+  return item.barcode || `${index}:${normaliseFoodKey(item.name)}`
+}
+
 // The single definition of "the same food", client-side. It has to agree with the
 // server, which trims before storing — otherwise a search result carrying "Oats " reads
 // as different from the stored "Oats", the star shows unfilled next to a food that is

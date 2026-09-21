@@ -1,4 +1,4 @@
-import { amountForServings, eanModules, entryToResult, findSavedFood, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
+import { amountForServings, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -281,6 +281,27 @@ describe('servingsForAmount / amountForServings', () => {
   // A third of a serving would otherwise open the field as 33.33333333333333.
   it('rounds the amount to the 0.1 every other number here is entered at', () => {
     expect(amountForServings(1 / 3, per100ml)).toBe(33.3)
+  })
+})
+
+
+describe('foodResultKey', () => {
+  // The bug: OpenFoodFacts answers "olive oil" with several products of the same name,
+  // two of them reading 0 kcal, so a name+calories key collided and React warned.
+  it('separates two products that share a name', () => {
+    const a = foodResultKey({ name: 'Extra Virgin Olive Oil', barcode: '6194620845616' }, 3)
+    const b = foodResultKey({ name: 'Extra Virgin Olive Oil', barcode: '20108144' }, 4)
+    expect(a).not.toBe(b)
+  })
+
+  it('falls back to the position when a food has no barcode', () => {
+    expect(foodResultKey({ name: 'Porridge' }, 0)).not.toBe(foodResultKey({ name: 'Porridge' }, 1))
+  })
+
+  // A barcode is stable across re-renders, so the row keeps its identity even if the
+  // list is refetched in a different order.
+  it('ignores position when a barcode is there', () => {
+    expect(foodResultKey({ name: 'Oats', barcode: '123' }, 0)).toBe(foodResultKey({ name: 'Oats', barcode: '123' }, 7))
   })
 })
 

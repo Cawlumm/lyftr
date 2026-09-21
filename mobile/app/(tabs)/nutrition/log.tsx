@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Image, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -15,13 +15,14 @@ import {
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
+import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, isNotFound, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -390,7 +391,7 @@ export default function LogFood() {
                 ) : (
                   recentItems.map((item, i) => (
                     <FoodResultRow
-                      key={`${item.name}-${item.calories}-${i}`}
+                      key={foodResultKey(item, i)}
                       item={item}
                       onPress={() => selectResult(item)}
                           favorited={favoriteOf(item) !== undefined}
@@ -439,7 +440,7 @@ export default function LogFood() {
               ) : null}
               {tab === 'all' && !searching ? searchResults.map((item, i) => (
                 <FoodResultRow
-                  key={`${item.name}-${item.calories}-${i}`}
+                  key={foodResultKey(item, i)}
                   item={item}
                   loading={upgrading !== null && upgrading === item.barcode}
                   onPress={() => void selectSearchResult(item)}
@@ -477,13 +478,7 @@ export default function LogFood() {
 
               {/* Food hero + macros */}
               <Card className="overflow-hidden p-0">
-                {selected.image_url ? (
-                  <Image source={{ uri: selected.image_url }} className="h-52 w-full" resizeMode="cover" />
-                ) : (
-                  <View className="h-32 w-full items-center justify-center border-b border-surface-border bg-surface-muted">
-                    <Utensils size={40} color={colors.txMuted} style={{ opacity: 0.2 }} />
-                  </View>
-                )}
+                <FoodHero src={selected.image_url} />
                 <View className="p-5">
                   {/* Calorie hero */}
                   <View className="mb-5 flex-row items-end justify-between">

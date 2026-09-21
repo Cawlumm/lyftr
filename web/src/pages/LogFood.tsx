@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight, Loader2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
 import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
@@ -14,6 +14,7 @@ import FavoriteStar from '../components/FavoriteStar'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
+import { FoodHero, FoodThumb } from '../components/FoodImage'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -54,13 +55,7 @@ function FoodResultRow(
 ) {
   const content = (
     <>
-      {item.image_url ? (
-        <img src={item.image_url} alt="" className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border border-surface-border" />
-      ) : (
-        <div className="w-11 h-11 rounded-xl bg-surface-muted border border-surface-border flex items-center justify-center flex-shrink-0">
-          <Utensils className="w-5 h-5 text-tx-muted" />
-        </div>
-      )}
+      <FoodThumb src={item.image_url} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-tx-primary truncate">{item.name}</p>
         {item.brand && <p className="text-xs text-tx-muted truncate mt-0.5">{item.brand}</p>}
@@ -457,9 +452,9 @@ export default function LogFood() {
                     <p className="text-xs text-tx-muted mt-1 opacity-60">Search or scan to log food</p>
                   </div>
                 )
-                : recentItems.map((item) => (
+                : recentItems.map((item, i) => (
                   <FoodResultRow
-                    key={`${item.name}-${item.calories}`}
+                    key={foodResultKey(item, i)}
                     item={item}
                     onClick={() => selectResult(item)}
                     favorited={favoriteOf(item) !== undefined}
@@ -516,9 +511,9 @@ export default function LogFood() {
                 </button>
               </div>
             )}
-            {tab === 'all' && !searching && searchResults.map((item) => (
+            {tab === 'all' && !searching && searchResults.map((item, i) => (
               <FoodResultRow
-                key={`${item.name}-${item.calories}`}
+                key={foodResultKey(item, i)}
                 item={item}
                 loading={upgrading !== null && upgrading === item.barcode}
                 onClick={() => void selectSearchResult(item)}
@@ -554,19 +549,7 @@ export default function LogFood() {
 
           {/* Food hero + macros */}
           <div className="card overflow-hidden">
-            {/* Image or placeholder */}
-            {selected.image_url ? (
-              <img
-                src={selected.image_url}
-                alt={selected.name}
-                className="w-full h-52 object-cover"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
-              />
-            ) : (
-              <div className="w-full h-32 bg-surface-muted border-b border-surface-border flex items-center justify-center">
-                <Utensils className="w-10 h-10 text-tx-muted opacity-20" />
-              </div>
-            )}
+            <FoodHero src={selected.image_url} alt={selected.name} />
 
             <div className="p-5">
               {/* Calorie hero */}
