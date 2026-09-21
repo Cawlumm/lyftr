@@ -37,12 +37,8 @@ describe('useFoodAmount', () => {
 
     act(() => result.current.setText('999999'))
     expect(result.current.overLimit).toBe(true)
+    // OIL is held per 100 ml, so the ceiling reads as ten litres.
     expect(result.current.maxAmount).toBe('10000 ml')
-
-    // 99999 ml is 999.99 servings of a food held per 100 ml — under the servings
-    // ceiling, and still ~800,000 kcal. The amount ceiling is what catches it.
-    act(() => result.current.setText('99999'))
-    expect(result.current.overLimit).toBe(true)
 
     // The ceiling itself is allowed, so the two sides cannot be out of step by one.
     act(() => result.current.setText('10000'))

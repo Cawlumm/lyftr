@@ -144,33 +144,31 @@ export function findSavedFood(
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
 }
 
-// The two ceilings on one diary entry. Typing 999999 into the amount field read
-// 7,999,992 kcal against the day, and the server stored whatever arrived.
+// The ceiling on one diary entry, matching the server's models.MaxServings. Typing
+// 999999 into the amount field read 7,999,992 kcal against the day, and the server
+// stored whatever arrived. This copy exists so the field can refuse before asking.
 //
-// MAX_SERVINGS is the one that matters, because servings is what gets stored and what
-// every macro is multiplied by — it is also what the server enforces (models.MaxServings).
-// This copy exists so the field can refuse before asking.
+// Servings is the bounded thing, and it is the only bounded thing: it is what gets
+// stored, what every macro is multiplied by, and so the one number the client and the
+// server can both check and mean the same by. A hundred of them is ten kilos of a food
+// held per 100 g, which is OpenNutriTracker's "unrealistically high" threshold reached
+// without a second rule to keep in step with this one.
 //
-// MAX_AMOUNT exists because the servings ceiling alone is slack for a food held per
-// 100 g: a thousand servings of one is a hundred kilos, so 99999 g still logged ~800,000
-// kcal. It is OpenNutriTracker's number — their sheet refuses anything over 10000 as
-// "unrealistically high" — and it is the only bound any peer puts on a weight. (wger caps
-// its amount at 1000, but that column doubles as a portion multiplier, which is why it
-// also carries a MinValueValidator of 1 and so cannot log half a slice or a gram of
-// anything — the very complaint #41 raised here. Waistline and FitBook have no maximum
-// at all.)
+// Checked after the amount is converted, not before. OpenNutriTracker checks the typed
+// number instead, so "500 servings" of a 30 g portion passes their guard and stores
+// 15000 g.
 //
-// Both are checked after the amount is converted, not before. OpenNutriTracker checks
-// the typed number instead, so "500 servings" of a 30 g portion passes their guard and
-// stores 15000 g.
-export const MAX_SERVINGS = 1000
-export const MAX_AMOUNT = 10000
+// (wger caps its amount at 1000, but that column doubles as a portion multiplier, which
+// is why it also carries a MinValueValidator of 1 — so it can log neither half a slice
+// nor a gram of anything, the very complaint #41 raised here. Waistline and FitBook have
+// no maximum at all.)
+export const MAX_SERVINGS = 100
 
-// The binding ceiling, expressed in whatever the field is showing, for the message.
+// The ceiling expressed in whatever the field is showing, for the message.
 export function maxAmountFor(basis: ServingBasis | null): string {
-  if (!basis) return `${MAX_SERVINGS} servings`
-  const max = Math.min(MAX_AMOUNT, MAX_SERVINGS * basis.quantity)
-  return `${+max.toFixed(1)} ${basis.unit}`
+  return basis
+    ? `${+(MAX_SERVINGS * basis.quantity).toFixed(1)} ${basis.unit}`
+    : `${MAX_SERVINGS} servings`
 }
 
 // React's key for one row of search or recent results, in both apps.

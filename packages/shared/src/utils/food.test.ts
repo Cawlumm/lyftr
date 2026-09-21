@@ -1,4 +1,4 @@
-import { amountForServings, MAX_AMOUNT, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
+import { amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -289,25 +289,19 @@ describe('the ceiling on one entry', () => {
   // The client's copy of models.MaxServings. If the two drift, the field either refuses
   // something the server would take or sends something it will refuse.
   it('matches the number the server enforces', () => {
-    expect(MAX_SERVINGS).toBe(1000)
-    // OpenNutriTracker's "unrealistically high" threshold, the only bound any peer
-    // puts on a weight.
-    expect(MAX_AMOUNT).toBe(10000)
+    expect(MAX_SERVINGS).toBe(100)
   })
 
   // Said in the unit the person is typing in, not in servings: "1000 servings" would
   // mean nothing next to a field showing ml.
   it('states the limit in whatever the field is showing', () => {
-    expect(maxAmountFor(null)).toBe('1000 servings')
+    expect(maxAmountFor(null)).toBe('100 servings')
   })
 
-  // Whichever ceiling bites first. A 15 ml tablespoon runs into the 10000 amount cap
-  // long before a thousand servings; a 0.5 g serving runs into the servings cap first,
-  // at 500 g.
-  it('names whichever of the two ceilings binds', () => {
-    expect(maxAmountFor({ quantity: 15, unit: 'ml' })).toBe('10000 ml')
+  // The same ceiling, read in the unit on screen: ten kilos of a food held per 100 g.
+  it('converts the ceiling into the unit on screen', () => {
     expect(maxAmountFor({ quantity: 100, unit: 'g' })).toBe('10000 g')
-    expect(maxAmountFor({ quantity: 0.5, unit: 'g' })).toBe('500 g')
+    expect(maxAmountFor({ quantity: 15, unit: 'ml' })).toBe('1500 ml')
   })
 })
 

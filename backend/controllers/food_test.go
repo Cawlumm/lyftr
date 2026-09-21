@@ -322,7 +322,7 @@ func TestLogFood_rejectsMoreThanMaxServings(t *testing.T) {
 	if w.Code != http.StatusUnprocessableEntity {
 		t.Fatalf("expected 422 over the cap, got %d: %s", w.Code, w.Body.String())
 	}
-	if msg := decodeResponse(t, w)["error"].(string); !strings.Contains(msg, "1,000") {
+	if msg := decodeResponse(t, w)["error"].(string); !strings.Contains(msg, "100") {
 		t.Errorf("message should name the limit, got %q", msg)
 	}
 

@@ -310,19 +310,22 @@ type LogWeightRequest struct {
 	LoggedOn string `json:"logged_on"`
 }
 
-// MaxServings bounds a single diary entry. Nothing edible reaches a thousand servings,
-// and without a ceiling a fat-fingered amount logs an arbitrary number of calories
-// against the day: typing 999999 into the amount field read 7,999,992 kcal, and the
-// server stored whatever arrived. MyFitnessPal and Cronometer both cap the quantity on
-// their own log screens.
+// MaxServings bounds a single diary entry. Without a ceiling a fat-fingered amount logs
+// an arbitrary number of calories against the day: typing 999999 into the amount field
+// read 7,999,992 kcal, and the server stored whatever arrived.
 //
 // Servings is the right thing to bound rather than the amount the client collects,
 // because it is what is stored and what every macro is multiplied by — an absurd weight
-// is only absurd once divided by the serving it is measured in.
+// is only absurd once divided by the serving it is measured in. It is also the only
+// number both sides can check and mean the same by, which is why there is one ceiling
+// here and not a second one on the amount.
+//
+// A hundred of them is ten kilos of a food held per 100 g — OpenNutriTracker's
+// "unrealistically high" threshold, reached without a second rule.
 //
 // The literal in LogFoodRequest's tag below has to match: struct tags cannot interpolate
 // a constant. TestLogFood_rejectsMoreThanMaxServings pins the two together.
-const MaxServings = 1000
+const MaxServings = 100
 
 type LogFoodRequest struct {
 	Name        string  `json:"name" validate:"required"`
@@ -333,7 +336,7 @@ type LogFoodRequest struct {
 	Carbs       float64 `json:"carbs" validate:"gte=0"`
 	Fat         float64 `json:"fat" validate:"gte=0"`
 	Fiber       float64 `json:"fiber" validate:"gte=0"`
-	Servings    float64 `json:"servings" validate:"gte=0,lte=1000"`
+	Servings    float64 `json:"servings" validate:"gte=0,lte=100"`
 	ServingSize string  `json:"serving_size"`
 	// The serving as a number plus its unit, carried so an edit can go on offering
 	// entry by weight. Optional: clients older than this send neither.
