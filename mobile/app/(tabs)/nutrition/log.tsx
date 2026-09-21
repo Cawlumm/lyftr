@@ -488,7 +488,7 @@ export default function LogFood() {
                         <AppText variant="body" color="muted">kcal</AppText>
                       </View>
                       {selected.serving_size ? (
-                        <AppText variant="caption" color="muted" className="mt-1">per {servingsLabel === 1 ? '' : `${servingsLabel} × `}{selected.serving_size}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-1">per {servingsLabel === 1 || servings <= 0 ? '' : `${servingsLabel} × `}{selected.serving_size}</AppText>
                       ) : null}
                     </View>
                     {pro + carb + fat_ > 0 ? (
@@ -556,9 +556,15 @@ export default function LogFood() {
                   </View>
                   <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? 'Increase amount' : 'Increase servings'} onPress={() => stepAmount(1)} />
                 </View>
-                {basis ? (
+                {/* The readout doubles as the reason the Log button is disabled. Deleting
+                    the 0.5-serving floor made an empty or nonsense amount reachable for the
+                    first time, and a dead button with no words beside it says what, not why.
+                    Shown without a basis too, where the field counts servings. */}
+                {basis || servings <= 0 ? (
                   <AppText variant="caption" color="muted" className="text-center">
-                    {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}
+                    {servings <= 0
+                      ? `Enter an amount${basis ? ` in ${basis.unit}` : ''} to log this`
+                      : `${servingsLabel} ${servingsLabel === 1 ? 'serving' : 'servings'} of ${selected.serving_size}`}
                   </AppText>
                 ) : null}
               </Card>

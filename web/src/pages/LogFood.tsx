@@ -564,7 +564,7 @@ export default function LogFood() {
                       {/* The label comes from OpenFoodFacts, which is free text — and rows
                           logged before the backend stopped prefixing it still read "per
                           100g". Supplying a second "per" gave "per per 100g". */}
-                      per {servingsLabel === 1 ? '' : `${servingsLabel} × `}
+                      per {servingsLabel === 1 || servings <= 0 ? '' : `${servingsLabel} × `}
                       {selected.serving_size.replace(/^per\s+/i, '')}
                     </p>
                   )}
@@ -643,7 +643,14 @@ export default function LogFood() {
               </div>
               <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? 'Increase amount' : 'Increase servings'} onClick={() => amount.step(1)} />
             </div>
-            {basis && (
+            {/* The readout doubles as the reason the Log button is disabled. Deleting the
+                0.5-serving floor made an empty or nonsense amount reachable for the first
+                time, and "0 servings" beside a dead button says what, not why. */}
+            {servings <= 0 ? (
+              <p className="text-xs text-tx-muted text-center">
+                Enter an amount{basis ? ` in ${basis.unit}` : ''} to log this
+              </p>
+            ) : basis && (
               <p className="text-xs text-tx-muted text-center">
                 {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}
               </p>

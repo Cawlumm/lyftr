@@ -177,6 +177,30 @@ describe('Logging an amount', () => {
     expect(payload.serving_unit).toBe('ml')
   })
 
+  // Deleting the 0.5-serving floor made an empty or nonsense amount reachable for the
+  // first time. The button has to refuse it — and say so, rather than sit there dead
+  // next to "0 servings", which states what happened and not why.
+  it.each([
+    ['empty', ''],
+    ['zero', '0'],
+    ['negative', '-3'],
+  ])('refuses to log an %s amount, and says what it wants instead', async (_label, typed) => {
+    search.mockResolvedValue([OIL_SEARCH_HIT])
+    barcode.mockResolvedValue(OIL_PRODUCT)
+    renderPage()
+
+    await searchFor('olive oil')
+    fireEvent.click(await screen.findByText('Olive Oil'))
+
+    const amount = await screen.findByLabelText('Amount in ml') as HTMLInputElement
+    fireEvent.change(amount, { target: { value: typed } })
+
+    expect(logButton().disabled).toBe(true)
+    expect(screen.getByText('Enter an amount in ml to log this')).toBeTruthy()
+    // And the header stops claiming a zero-sized serving.
+    expect(screen.queryByText(/0 × /)).toBeNull()
+  })
+
   // The search index answers with per-100g figures and no serving at all, so a hit is
   // not what the pack says. Selecting one has to read the product in full first.
   it('re-reads a search hit through the product endpoint before opening it', async () => {
@@ -234,15 +258,4 @@ describe('Logging an amount', () => {
     expect(logFood.mock.calls[0][0].servings).toBe(0.25)
   })
 
-  it('will not log an empty amount', async () => {
-    search.mockResolvedValue([OIL_SEARCH_HIT])
-    barcode.mockResolvedValue(OIL_PRODUCT)
-    renderPage()
-
-    await searchFor('olive oil')
-    fireEvent.click(await screen.findByText('Olive Oil'))
-
-    fireEvent.change(await screen.findByLabelText('Amount in ml'), { target: { value: '' } })
-    expect(logButton().disabled).toBe(true)
-  })
 })
