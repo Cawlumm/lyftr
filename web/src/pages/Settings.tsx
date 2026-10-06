@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiErrorMessage, useAsyncAction, memberSince } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -36,12 +36,15 @@ import {
 // `descriptionTone` lets a row report its own failure in place of its description. A row
 // like the unit toggle sits far down a long page, and the page-level banner is at the very
 // top — measured at 809px above the control, off-screen, which is the same as saying nothing.
-function SettingRow({ label, description, descriptionTone, children }: { label: string; description?: string; descriptionTone?: 'error'; children: React.ReactNode }) {
+// `descriptionId` lets a control inside the row point at the description with
+// aria-describedby. Without it the description is visible-only: a screen reader names the
+// field and never reads the sentence that says what clearing it does.
+function SettingRow({ label, description, descriptionTone, descriptionId, children }: { label: string; description?: string; descriptionTone?: 'error'; descriptionId?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
       <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
-        {description && <p className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
+        {description && <p id={descriptionId} className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
       </div>
       {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
       <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
@@ -87,6 +90,11 @@ export default function Settings() {
   // right now." were the same small grey text — a failure that does not read as one.
   const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
 
+  // Deliberately NOT in formData: the only button that commits formData is labelled
+  // "Save targets", lives in Goals & Units ~900px below, and is removed entirely when
+  // the settings read fails. A name parked in there has no honest way to be saved.
+  const [name, setName] = useState(storedSettings.display_name ?? '')
+
   const [formData, setFormData] = useState({
     weight_unit: storedSettings.weight_unit,
     calorie_target: storedSettings.calorie_target,
@@ -112,6 +120,7 @@ export default function Settings() {
     try {
       await fetchSettings()
       const s = useSettingsStore.getState().settings
+      setName(s.display_name ?? '')
       setFormData({
         weight_unit: s.weight_unit,
         calorie_target: s.calorie_target,
@@ -173,7 +182,7 @@ export default function Settings() {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
     setUnitError(null)
     try {
-      await updateSettings({ ...formData, weight_unit: unit })
+      await updateSettings({ weight_unit: unit })
     } catch (err) {
       setFormData(prev => ({ ...prev, weight_unit: previous }))
       setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
@@ -198,6 +207,19 @@ export default function Settings() {
     await userAPI.deleteAccount()
     await logout()
   }, 'Could not delete account')
+
+  // Its own commit, like handleUnitChange above and unlike the targets block: one
+  // scoped patch, trimmed at the call site the way mobile's screen does it, and the
+  // error reported in the row rather than in a banner at the top of a long page.
+  const storedName = storedSettings.display_name ?? ''
+  const nameDirty = name.trim() !== storedName
+  const saveName = useAsyncAction(async () => {
+    const display_name = name.trim()
+    await updateSettings({ display_name })
+    setName(display_name)
+  }, "Couldn't save your name.")
+
+  const handleSaveName = () => { void saveName.run() }
 
   const handleSave = () => {
     setSuccess(false)
@@ -234,6 +256,48 @@ export default function Settings() {
 
       {/* Account */}
       <Section title="Account">
+        {/* aria-label because SettingRow's label is a <p>, not a <label>, so the row
+            text names nothing — the same reason the custom-rest input carries one.
+            autoComplete is "nickname", not "name": this is a chosen label, and "name"
+            invites the browser to fill in a legal name. */}
+        <SettingRow
+          label="Name"
+          description={settingsLoadFailed
+            ? "Couldn't load your name, so we won't offer to overwrite it."
+            : saveName.error || "The name the app greets you by. Leave it empty and we'll use your email instead."}
+          descriptionTone={settingsLoadFailed || saveName.error ? 'error' : undefined}
+          descriptionId="name-help"
+        >
+          {settingsLoadFailed ? (
+            <span className="text-sm text-tx-muted">—</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                aria-label="Name"
+                aria-describedby="name-help"
+                value={name}
+                onChange={e => { setName(e.target.value); saveName.reset() }}
+                onKeyDown={e => { if (e.key === 'Enter' && nameDirty) handleSaveName() }}
+                maxLength={MAX_DISPLAY_NAME_LEN}
+                placeholder={displayName('', user?.email)}
+                className="input text-sm py-2 w-40 sm:w-44"
+                autoComplete="nickname"
+              />
+              {/* Only while there is something to save, so the row carries no permanent
+                  chrome for a field most people touch once — but kept while the write is
+                  in flight, because the store applies the patch optimistically BEFORE it
+                  awaits, so nameDirty goes false on the very next render and the button
+                  would otherwise vanish the instant it was clicked, taking its own
+                  "Saving…" state with it. */}
+              {(nameDirty || saveName.busy) && (
+                <button onClick={handleSaveName} disabled={saveName.busy} className="btn-secondary btn-sm flex-shrink-0">
+                  {saveName.busy ? 'Saving…' : 'Save'}
+                </button>
+              )}
+            </div>
+          )}
+        </SettingRow>
         <SettingRow label="Email" description="Your login email address">
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
         </SettingRow>

@@ -743,3 +743,47 @@ func TestDedupeSavedFoods_isIdempotentAcrossBoots(t *testing.T) {
 		t.Fatalf("expected the single bookmark to survive two boots, got %d rows", n)
 	}
 }
+
+// The display_name column (#170) is in the base schema, so a fresh install never
+// exercises the ALTER path that every EXISTING install takes. Dropping it back off
+// reproduces a pre-#170 database and checks the claim the migration comment makes:
+// existing rows come out with an empty name, which is what the clients read as unset.
+func TestAlterMigrations_addsDisplayNameToAnExistingSettingsRow(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	if _, err := DB.Exec(`ALTER TABLE user_settings DROP COLUMN display_name`); err != nil {
+		t.Fatalf("make the schema look pre-#170: %v", err)
+	}
+
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('mig170@example.com', 'x')`)
+	if err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	uid, _ := res.LastInsertId()
+	if _, err := DB.Exec(`INSERT INTO user_settings (user_id, weight_unit) VALUES (?, 'kg')`, uid); err != nil {
+		t.Fatalf("seed settings: %v", err)
+	}
+
+	alterMigrations()
+
+	var name, unit string
+	if err := DB.QueryRow(`SELECT display_name, weight_unit FROM user_settings WHERE user_id = ?`, uid).Scan(&name, &unit); err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if name != "" {
+		t.Fatalf("display_name = %q, want empty for a row that predates the column", name)
+	}
+	// The surrounding row is untouched — the column was added, not rebuilt.
+	if unit != "kg" {
+		t.Fatalf("weight_unit = %q, want kg", unit)
+	}
+
+	// Second boot must be a no-op rather than an error.
+	alterMigrations()
+	if err := DB.QueryRow(`SELECT display_name FROM user_settings WHERE user_id = ?`, uid).Scan(&name); err != nil {
+		t.Fatalf("read back after a second boot: %v", err)
+	}
+	if name != "" {
+		t.Fatalf("display_name = %q after re-running migrations", name)
+	}
+}

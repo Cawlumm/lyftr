@@ -17,7 +17,8 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { useDisplayName } from '../lib/lyftr'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -145,6 +146,10 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [TODAY, retryKey, fetchSettings])
 
+  // Above the early returns: it is a hook now, so it has to run on every render or the
+  // hook order changes between the loading branch and the loaded one.
+  const username = useDisplayName()
+
   if (loading) return <Loading />
 
   // The dashboard is nothing but other requests' answers, so when the load fails there
@@ -255,8 +260,6 @@ export default function Dashboard() {
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
-  const username = user?.email?.split('@')[0] ?? 'there'
-
   return (
     <div className="space-y-4 animate-slide-up">
 
@@ -266,9 +269,15 @@ export default function Dashboard() {
           <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
-          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5">
+          {/* Never clipped: a name is the one string here that is the user's own, and
+              its length is bounded at the input instead (MaxDisplayNameLen). text-balance
+              breaks it at the comma rather than mid-surname; browsers without it just
+              wrap. Mobile wraps too, but gets no text-balance and deliberately no
+              leading-tight — an imposed lineHeight clips descenders on iOS (ui/Field.tsx). */}
+          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 leading-tight text-balance">
             {greeting(TODAY)}, {username}
           </h1>
+          <p className="text-xs text-tx-muted mt-1">{lifterQuip(user?.id ?? '')}</p>
         </div>
         <button
           onClick={() => navigate('/workout/start')}

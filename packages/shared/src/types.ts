@@ -20,6 +20,12 @@ export interface UserSettings {
   rest_seconds_default?: number // default rest seconds, seeds new exercises
   /** IANA zone the server buckets this user's day-scoped data in. */
   timezone: string
+  /**
+   * What the person wants to be called (#170). Empty means they never set one and
+   * the screens fall back to their email — see `displayName`. Optional because a
+   * settings payload from an instance older than this field simply omits it.
+   */
+  display_name?: string
 }
 
 export interface Exercise {

@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -17,7 +17,7 @@ import {
 } from '../../src/components/dashboard/DashboardCharts'
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
-import { client, useAuthStore, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
+import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
 import { muscleColor } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
 
@@ -175,6 +175,9 @@ export default function Dashboard() {
     setRefreshing(false)
   }, [load])
 
+  // Above the early returns — see web's Dashboard: a hook must run every render.
+  const username = useDisplayName()
+
   if (loading) return <DashboardSkeleton />
 
   if (error) {
@@ -278,8 +281,7 @@ export default function Dashboard() {
     weight: displayWeight(l.weight, unit),
   }))
 
-  const username = user?.email?.split('@')[0] ?? 'there'
-  const avatarInitial = (username[0] ?? 'U').toUpperCase()
+  const avatarInitial = nameInitial(username)
 
   return (
     <Screen>
@@ -295,7 +297,8 @@ export default function Dashboard() {
               <Text className="font-sans-medium text-[11px] uppercase text-tx-muted" style={{ letterSpacing: 1 }}>
                 {format(now, 'EEEE, MMMM d')}
               </Text>
-              <AppText variant="title" className="mt-0.5" numberOfLines={1}>{greeting(now)}, {username}</AppText>
+              {/* No numberOfLines: a name is never clipped — see web's Dashboard. */}
+              <AppText variant="title" className="mt-0.5">{greeting(now)}, {username}</AppText>
             </View>
             <View className="flex-row items-center gap-2">
               <Pressable
@@ -324,6 +327,9 @@ export default function Dashboard() {
               </Pressable>
             </View>
           </View>
+          {/* Outside the header row: that row's left column is ~190px once Start and the
+              avatar take theirs, which wraps a sentence into four lines. */}
+          <AppText variant="caption" color="muted" className="-mt-3">{lifterQuip(user?.id ?? '')}</AppText>
 
           {/* ── Active-session banner ── */}
           {session ? (

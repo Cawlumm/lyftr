@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"database/sql"
+	"strings"
+	"unicode"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -42,6 +44,29 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, utils.BindMessage(err))
 		return
+	}
+	// Trimmed before it is measured, so " Carter " is a 6-character name rather than
+	// an 8-character one, and before it is stored, so the greeting never opens with a
+	// space. A name of nothing but whitespace trims to "" and so clears the name,
+	// which is the same thing an empty field does — there is no third state.
+	if req.DisplayName != nil {
+		trimmed := strings.TrimSpace(*req.DisplayName)
+		// The only characters a name may not contain, and the reasoning is narrow on
+		// purpose. Of eight comparable apps — Mastodon, Discourse, Gitea, Nextcloud,
+		// Immich, GitLab, FitTrackee, wger — none applies character-level validation to
+		// a display name, so emoji, scripts and punctuation are all deliberately
+		// allowed: this name is shown to nobody but its owner, and the spoofing that
+		// motivates filtering elsewhere needs a second person to deceive.
+		//
+		// Control characters are the exception, and not for security. TrimSpace has
+		// already taken the ones at either end, so what is left is interior: a newline
+		// inside a greeting is a layout bug, and a NUL in a text field is never
+		// intentional (Django rejects it on every CharField for that reason).
+		if strings.ContainsFunc(trimmed, unicode.IsControl) {
+			utils.BadRequest(c, "A name can't contain line breaks or other control characters.")
+			return
+		}
+		req.DisplayName = &trimmed
 	}
 	// Enforce the request tags (weight_unit oneof, targets gte=0) like every other
 	// controller — binding alone doesn't run them, so without this an invalid unit

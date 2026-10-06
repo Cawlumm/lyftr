@@ -9,7 +9,8 @@ import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useRestTimer } from '../hooks/useRestTimer'
-import { fmtClock, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { fmtClock, formatElapsed, useElapsedSeconds, nameInitial } from '@lyftr/shared'
+import { useDisplayName } from '../lib/lyftr'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
@@ -92,8 +93,8 @@ function UserMenu() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const username = user?.email?.split('@')[0] ?? 'U'
-  const initial = username[0].toUpperCase()
+  const username = useDisplayName()
+  const initial = nameInitial(username)
 
   return (
     <div ref={ref} className="relative">

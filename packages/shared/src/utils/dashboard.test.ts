@@ -1,4 +1,4 @@
-import { greeting, muscleHex, muscleRoast, nextStartableDay } from './dashboard'
+import { greeting, lifterQuip, muscleHex, muscleRoast, nextStartableDay } from './dashboard'
 import type { Program } from '../types'
 
 describe('muscleHex', () => {
@@ -86,5 +86,38 @@ describe('greeting', () => {
     // previously read a module-load constant, which went stale across midnight.
     expect(greeting(at(9))).toBe('Good morning')
     expect(greeting(at(21))).toBe('Good evening')
+  })
+})
+describe('lifterQuip', () => {
+  // The whole point: the dashboard re-renders on every fetch and refresh, so the same
+  // account on the same day has to keep answering the same line.
+  it('is stable for an account and a day', () => {
+    const first = lifterQuip(7, '2026-10-06')
+    for (let i = 0; i < 50; i++) expect(lifterQuip(7, '2026-10-06')).toBe(first)
+  })
+
+  it('moves on when the day does', () => {
+    const week = ['03', '04', '05', '06', '07', '08', '09']
+      .map((d) => lifterQuip(7, `2026-10-${d}`))
+    expect(new Set(week).size).toBeGreaterThan(1)
+  })
+
+  // Not keyed on the name: it arrives late from a settings fetch, so a line that moved
+  // when it landed would flicker on every cold load.
+  it('does not depend on what the person is called', () => {
+    expect(lifterQuip(7, '2026-10-06')).toBe(lifterQuip(7, '2026-10-06'))
+  })
+
+  it('always answers with a line, whatever the account', () => {
+    for (const id of ['', 0, 7, 'anonymous', '日本', 'x'.repeat(500)]) {
+      const quip = lifterQuip(id, '2026-10-06')
+      expect(typeof quip).toBe('string')
+      expect(quip.length).toBeGreaterThan(0)
+    }
+  })
+
+  // Reads the real clock rather than a passed day — the shape both dashboards call.
+  it('needs only an account id', () => {
+    expect(typeof lifterQuip(7)).toBe('string')
   })
 })

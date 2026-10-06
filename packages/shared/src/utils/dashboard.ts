@@ -1,5 +1,6 @@
 import type { Program, ProgramDay } from '../types'
 import { isDayStartable, todaysDay } from './programUtils'
+import { todayStr } from './dateUtils'
 
 // Per-muscle accent for the dashboard's training-split chart. Hex rather than theme
 // tokens for the same reason as MACRO_COLORS: both platforms hand these to drawing
@@ -46,6 +47,45 @@ export function greeting(now: Date): string {
   if (h < 12) return 'Good morning'
   if (h < 17) return 'Good afternoon'
   return 'Good evening'
+}
+
+// The line under the greeting. Same voice as MUSCLE_ROAST above — dry, second person,
+// on the lifter's side. None of these are about how the person looks, and none of them
+// scold: this is the first thing they read every time they open the app, and a nag you
+// cannot dismiss stops being funny on about day three.
+const LIFTER_QUIPS: string[] = [
+  'The bar does not care how you feel about it.',
+  'Progressive overload: the only pyramid scheme that works.',
+  'Nobody has ever regretted the warm-up.',
+  'The hardest rep is the one that gets you off the couch.',
+  'Form first. Ego lifts are for the parking lot.',
+  'Legs are not optional. They are just unpopular.',
+  'Chalk is not a personality. It helps, though.',
+  'You cannot out-train a log you never fill in.',
+  'Deload weeks count. Reluctantly.',
+  'Mirror check later. Barbell now.',
+  'Half reps, full lies.',
+  'The only bad set is the one you talked yourself out of.',
+  'Somewhere a squat rack is holding a coat. Not yours.',
+  'Showing up is the part most people skip.',
+  'Protein is not optional. Neither is sleep.',
+  'Rest is part of the plan, not a gap in it.',
+]
+
+// Derived, not random: the dashboard re-renders on every fetch, refresh and tab return,
+// so Math.random() would rewrite the sentence while it was being read.
+//
+// Keyed on the account id, not the shown name — the name arrives from a settings fetch
+// the dashboard deliberately does not await, so keying on it painted one line and swapped
+// it the moment settings landed, and re-rolled whenever someone renamed themselves.
+//
+// The day is composed here rather than by each caller, so the two apps cannot drift into
+// showing different lines for the same person on the same day. Tests pass one explicitly.
+export function lifterQuip(accountId: string | number, day: string = todayStr()): string {
+  const key = `${day}:${accountId}`
+  let sum = 0
+  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i)
+  return LIFTER_QUIPS[sum % LIFTER_QUIPS.length]
 }
 
 // The "up next" card: the first program whose day-for-today actually has exercises.

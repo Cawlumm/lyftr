@@ -89,14 +89,14 @@ func (s *UserStore) ChangePassword(uid int64, oldHash, newHash string) (int, err
 	return int(v), err
 }
 
-const userSettingsSelect = `SELECT user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone FROM user_settings`
+const userSettingsSelect = `SELECT user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone, display_name FROM user_settings`
 
 // GetSettings returns the user's settings row, or sql.ErrNoRows if none (the
 // controller owns the default fallback).
 func (s *UserStore) GetSettings(uid int64) (models.UserSettings, error) {
 	var st models.UserSettings
 	err := s.db.QueryRow(userSettingsSelect+` WHERE user_id = ?`, uid).
-		Scan(&st.UserID, &st.WeightUnit, &st.CalorieTarget, &st.ProteinTarget, &st.CarbTarget, &st.FatTarget, &st.Timezone)
+		Scan(&st.UserID, &st.WeightUnit, &st.CalorieTarget, &st.ProteinTarget, &st.CarbTarget, &st.FatTarget, &st.Timezone, &st.DisplayName)
 	return st, err
 }
 
@@ -112,16 +112,17 @@ func (s *UserStore) UpsertSettings(uid int64, req models.UpdateSettingsRequest) 
 	d := models.DefaultUserSettings(uid)
 	var st models.UserSettings
 	err := s.db.QueryRow(
-		`INSERT INTO user_settings (user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone)
-		 VALUES (?, COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?))
+		`INSERT INTO user_settings (user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone, display_name)
+		 VALUES (?, COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?), COALESCE(?, ?))
 		 ON CONFLICT(user_id) DO UPDATE SET
 		   weight_unit    = COALESCE(?, user_settings.weight_unit),
 		   calorie_target = COALESCE(?, user_settings.calorie_target),
 		   protein_target = COALESCE(?, user_settings.protein_target),
 		   carb_target    = COALESCE(?, user_settings.carb_target),
 		   fat_target     = COALESCE(?, user_settings.fat_target),
-		   timezone       = COALESCE(?, user_settings.timezone)
-		 RETURNING user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone`,
+		   timezone       = COALESCE(?, user_settings.timezone),
+		   display_name   = COALESCE(?, user_settings.display_name)
+		 RETURNING user_id, weight_unit, calorie_target, protein_target, carb_target, fat_target, timezone, display_name`,
 		uid,
 		req.WeightUnit, d.WeightUnit,
 		req.CalorieTarget, d.CalorieTarget,
@@ -129,8 +130,9 @@ func (s *UserStore) UpsertSettings(uid int64, req models.UpdateSettingsRequest) 
 		req.CarbTarget, d.CarbTarget,
 		req.FatTarget, d.FatTarget,
 		req.Timezone, d.Timezone,
-		req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget, req.Timezone,
-	).Scan(&st.UserID, &st.WeightUnit, &st.CalorieTarget, &st.ProteinTarget, &st.CarbTarget, &st.FatTarget, &st.Timezone)
+		req.DisplayName, d.DisplayName,
+		req.WeightUnit, req.CalorieTarget, req.ProteinTarget, req.CarbTarget, req.FatTarget, req.Timezone, req.DisplayName,
+	).Scan(&st.UserID, &st.WeightUnit, &st.CalorieTarget, &st.ProteinTarget, &st.CarbTarget, &st.FatTarget, &st.Timezone, &st.DisplayName)
 	if err != nil {
 		return models.UserSettings{}, err
 	}
