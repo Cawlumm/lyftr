@@ -787,3 +787,220 @@ func TestAlterMigrations_addsDisplayNameToAnExistingSettingsRow(t *testing.T) {
 		t.Fatalf("display_name = %q after re-running migrations", name)
 	}
 }
+
+// --- trimStoredFoodNames (#137) -----------------------------------------------
+//
+// The write paths have trimmed since #139/#142 and the clients match on the trimmed
+// value, but nothing repaired what was already stored. These pin the repair.
+
+// The state a real upgraded install is in, taken from driving a beta.6 database on
+// this release: several rows that all read "Oats", one whose name is only whitespace
+// and so renders with no name at all, and a padded diary entry.
+func TestTrimStoredFoodNames_collapsesWhitespaceVariantsAndRepairsRows(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	var uid, other int64
+	for _, u := range []struct {
+		email string
+		into  *int64
+	}{{"trim@example.com", &uid}, {"trimother@example.com", &other}} {
+		res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, 'x')`, u.email)
+		if err != nil {
+			t.Fatalf("insert user: %v", err)
+		}
+		*u.into, _ = res.LastInsertId()
+	}
+
+	rows := []struct {
+		uid   int64
+		name  string
+		brand string
+		kcal  float64
+	}{
+		{uid, "Oats", "", 111},       // earliest — the one that must survive
+		{uid, "Oats ", "", 222},      // trailing space
+		{uid, " Oats", "", 333},      // leading space
+		{uid, "\tOats\n", "", 444},   // tab and newline: bare SQLite TRIM() misses these
+		{uid, "   ", "", 555},        // renders with no name at all
+		{uid, "Oats", "Quaker", 666}, // a different brand is a different food
+		{uid, "Oats ", " Quaker ", 777},
+		{uid, "Oatmeal", "", 888}, // a look-alike that is NOT a whitespace variant
+		{other, "Oats", "", 999},  // another user's identical bookmark
+		{other, "Oats ", "", 1000},
+	}
+	for _, r := range rows {
+		if _, err := DB.Exec(
+			`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, ?, ?, ?)`,
+			r.uid, r.name, r.brand, r.kcal,
+		); err != nil {
+			t.Fatalf("seed saved_food %q: %v", r.name, err)
+		}
+	}
+	// No brand column here on purpose: food_logs.brand arrives with this same release,
+	// so on a real upgrade every diary brand is already '' and only the name can carry
+	// padding. Seeding it pre-ALTER is what an existing install actually looks like.
+	if _, err := DB.Exec(
+		`INSERT INTO food_logs (user_id, name, meal) VALUES (?, '  Padded Oats  ', 'breakfast')`, uid,
+	); err != nil {
+		t.Fatalf("seed food_log: %v", err)
+	}
+
+	alterMigrations()
+
+	// Every whitespace variant of the unbranded food collapses to the first save.
+	var n int
+	var kcal float64
+	if err := DB.QueryRow(
+		`SELECT COUNT(*), COALESCE(MIN(calories), 0) FROM saved_foods WHERE user_id = ? AND brand = '' AND name = 'Oats'`, uid,
+	).Scan(&n, &kcal); err != nil {
+		t.Fatalf("count Oats: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("expected the whitespace variants collapsed to 1 row, got %d", n)
+	}
+	if kcal != 111 {
+		t.Errorf("kept calories %v, want the earliest save's 111", kcal)
+	}
+
+	// The blank-named row is gone, not merely trimmed into existence as "".
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE name = ''`).Scan(&n); err != nil {
+		t.Fatalf("count blank: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("a saved food with no name survived: %d row(s)", n)
+	}
+
+	// Branded pair collapses to the earliest, and comes out trimmed on both columns.
+	if err := DB.QueryRow(
+		`SELECT COUNT(*), COALESCE(MIN(calories), 0) FROM saved_foods WHERE user_id = ? AND name = 'Oats' AND brand = 'Quaker'`, uid,
+	).Scan(&n, &kcal); err != nil {
+		t.Fatalf("count branded: %v", err)
+	}
+	if n != 1 || kcal != 666 {
+		t.Errorf("branded pair: got %d row(s) at %v kcal, want 1 at 666", n, kcal)
+	}
+
+	// Nothing anywhere still carries padding.
+	if err := DB.QueryRow(
+		`SELECT COUNT(*) FROM saved_foods
+		  WHERE name <> TRIM(name, char(32)||char(9)||char(10)||char(11)||char(12)||char(13))
+		     OR brand <> TRIM(brand, char(32)||char(9)||char(10)||char(11)||char(12)||char(13))`,
+	).Scan(&n); err != nil {
+		t.Fatalf("count untrimmed: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("%d saved_foods row(s) still stored untrimmed", n)
+	}
+
+	// The look-alike is not a whitespace variant and must be untouched.
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ? AND name = 'Oatmeal'`, uid).Scan(&n)
+	if n != 1 {
+		t.Errorf("Oatmeal was folded into Oats: %d row(s)", n)
+	}
+
+	// Uniqueness is per user: the other user keeps their own bookmark.
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, other).Scan(&n)
+	if n != 1 {
+		t.Errorf("other user's bookmarks were mishandled: %d row(s), want 1", n)
+	}
+	DB.QueryRow(`SELECT calories FROM saved_foods WHERE user_id = ?`, other).Scan(&kcal)
+	if kcal != 999 {
+		t.Errorf("other user kept calories %v, want their earliest 999", kcal)
+	}
+
+	// The diary is repaired too — the padding otherwise reaches the accessible name
+	// of the star beside the entry.
+	var logName, logBrand string
+	if err := DB.QueryRow(`SELECT name, brand FROM food_logs WHERE user_id = ?`, uid).Scan(&logName, &logBrand); err != nil {
+		t.Fatalf("read food_log: %v", err)
+	}
+	if logName != "Padded Oats" || logBrand != "" {
+		t.Errorf("food_log = %q/%q, want %q/%q", logName, logBrand, "Padded Oats", "")
+	}
+
+	// And starring the trimmed spelling is now recognised as the same food rather
+	// than creating a second one — the bug reproduced against the live upgrade.
+	if _, err := DB.Exec(
+		`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, 'Oats', '', 111)`, uid,
+	); err == nil {
+		t.Fatal("a duplicate bookmark was still insertable after the migration")
+	}
+}
+
+// The ordering claim in trimStoredFoodNames, which is the one that can fail in
+// production: an install that already booted this release HAS the unique index before
+// the trim ever runs, so rewriting "Oats " onto an existing "Oats" would violate it
+// unless the duplicates are deleted first.
+func TestTrimStoredFoodNames_survivesTheUniqueIndexAlreadyExisting(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('order@example.com', 'x')`)
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	uid, _ := res.LastInsertId()
+
+	// First boot: creates idx_saved_foods_unique and flags the trim done.
+	alterMigrations()
+
+	var idx int
+	DB.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_saved_foods_unique'`).Scan(&idx)
+	if idx != 1 {
+		t.Fatalf("precondition: expected the unique index to exist after the first boot")
+	}
+
+	// Make this look like an install that ran an older build of this release: the
+	// index is there, the trim migration has not happened yet.
+	if _, err := DB.Exec(`DELETE FROM migration_flags WHERE name = 'trim_stored_food_names'`); err != nil {
+		t.Fatalf("clear trim flag: %v", err)
+	}
+
+	// Two raw-distinct rows the index happily accepts, which trimming would collide.
+	for _, nm := range []string{"Oats", "Oats "} {
+		if _, err := DB.Exec(
+			`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, ?, '', 389)`, uid, nm,
+		); err != nil {
+			t.Fatalf("seed %q: %v", nm, err)
+		}
+	}
+
+	alterMigrations()
+
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n)
+	if n != 1 {
+		t.Fatalf("expected one surviving row, got %d", n)
+	}
+	var name string
+	DB.QueryRow(`SELECT name FROM saved_foods WHERE user_id = ?`, uid).Scan(&name)
+	if name != "Oats" {
+		t.Errorf("surviving name = %q, want %q", name, "Oats")
+	}
+}
+
+// alterMigrations runs on every boot, so the repair must be a no-op on the second.
+func TestTrimStoredFoodNames_isIdempotentAcrossBoots(t *testing.T) {
+	setupMigrationTestDB(t)
+
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('trimboot@example.com', 'x')`)
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	uid, _ := res.LastInsertId()
+	for _, nm := range []string{"Oats", "Oats "} {
+		if _, err := DB.Exec(
+			`INSERT INTO saved_foods (user_id, name, brand, calories) VALUES (?, ?, '', 389)`, uid, nm,
+		); err != nil {
+			t.Fatalf("seed %q: %v", nm, err)
+		}
+	}
+
+	alterMigrations()
+	alterMigrations()
+
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM saved_foods WHERE user_id = ?`, uid).Scan(&n)
+	if n != 1 {
+		t.Fatalf("expected one row to survive two boots, got %d", n)
+	}
+}

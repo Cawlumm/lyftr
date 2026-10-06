@@ -13,7 +13,7 @@ build/
 *.dll
 *.so
 *.dylib
-lyfter-api
+lyftr-api
 
 # IDE
 .idea/

@@ -161,6 +161,10 @@ func alterMigrations() {
 	ensureColumn("saved_foods", "serving_quantity", `ALTER TABLE saved_foods ADD COLUMN serving_quantity REAL NOT NULL DEFAULT 0`)
 	ensureColumn("saved_foods", "serving_unit", `ALTER TABLE saved_foods ADD COLUMN serving_unit TEXT NOT NULL DEFAULT ''`)
 
+	// Before the dedupe, because it collapses by the TRIMMED key and so subsumes it:
+	// two rows that are exact duplicates are also duplicates after trimming.
+	trimStoredFoodNames()
+
 	// Favorites is a bookmark list: starring a food saves it *unscaled* — the servings
 	// stepper scales at log time instead — so two rows with the same user/name/brand
 	// carry no information the first one didn't. They are the same star pressed twice.
@@ -172,6 +176,96 @@ func alterMigrations() {
 		ensureIndex("idx_saved_foods_unique",
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
 	}
+}
+
+// sqlTrimmed is SQLite's TRIM with an explicit character set, matching what
+// strings.TrimSpace strips on the write path.
+//
+// Bare TRIM(x) removes spaces and nothing else: TRIM(char(9)||'Oats'||char(10)) is
+// still "\tOats\n". A migration using it would leave rows the API now refuses to
+// write, so stored and incoming values would disagree forever — which is the whole
+// bug this repairs, reintroduced by its own fix.
+//
+// The set is ASCII whitespace. Go also trims U+0085 and U+00A0, which this does not:
+// expressing them means relying on the driver's encoding of a non-ASCII literal
+// inside a migration, and a name holding a non-breaking space is both vanishingly
+// rare and self-repairing — the next write through the API trims it.
+func sqlTrimmed(col string) string {
+	return fmt.Sprintf("TRIM(%s, char(32)||char(9)||char(10)||char(11)||char(12)||char(13))", col)
+}
+
+// trimStoredFoodNames repairs food rows written before the API trimmed names and
+// brands, so that "Oats" and "Oats " stop being two different foods (#137).
+//
+// The write paths have trimmed since #139 and #142, and the clients match on the
+// trimmed value — but nothing ever repaired what was already stored. On an install
+// upgraded from an earlier release, Favorites therefore shows several rows all
+// reading "Oats", a row whose name is only whitespace and so renders with no name at
+// all, and starring a food held as "Granola " creates a second "Granola" rather than
+// recognising the first. The unique index does not prevent that: it is on the raw
+// column, so the two spellings are two keys.
+//
+// Deleting rows deserves the same argument dedupeSavedFoods makes, and it is the same
+// argument: a saved food has no edit path, so rows that differ only in whitespace
+// differ at most in macros taken from two search hits for one product. Earliest wins,
+// which is arbitrary but stable, and the row is one tap to recreate. A name that is
+// entirely whitespace is deleted outright — it cannot be matched, cannot be read, and
+// is not a food anyone chose.
+//
+// The three statements are ordered and the order is load-bearing. Trimming first
+// would hit the UNIQUE(user_id, name, brand) index the moment it rewrote "Oats " to
+// an "Oats" already present, on every install that has booted this release once. So
+// the duplicates go first and the survivors are rewritten afterwards, by which point
+// no two of them can collide — if two rows collided after trimming they shared a
+// trimmed key, and the dedupe already kept only one of those.
+//
+// Not fatal on failure, matching dedupeSavedFoods: the flag stays unset and the next
+// boot retries. Every statement is idempotent, so a partial run is safe to repeat.
+func trimStoredFoodNames() {
+	done, err := hasMigrationFlag("trim_stored_food_names")
+	if err != nil {
+		log.Printf("migrations: trim stored food names flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
+
+	name, brand := sqlTrimmed("name"), sqlTrimmed("brand")
+
+	// food_logs carries no unique index, so the diary needs the rewrite and nothing
+	// else. A padded entry otherwise keeps rendering its padding — including into the
+	// accessible name of the star beside it.
+	if _, err := DB.Exec(fmt.Sprintf(
+		`UPDATE food_logs SET name = %[1]s, brand = %[2]s WHERE name <> %[1]s OR brand <> %[2]s`,
+		name, brand)); err != nil {
+		log.Printf("migrations: trim food_logs: %v (skipping this boot)", err)
+		return
+	}
+
+	for _, s := range []struct {
+		what string
+		sql  string
+	}{
+		{"blank-named saved foods", fmt.Sprintf(`DELETE FROM saved_foods WHERE %s = ''`, name)},
+		{"whitespace-duplicate saved foods", fmt.Sprintf(
+			`DELETE FROM saved_foods WHERE id NOT IN (
+				SELECT MIN(id) FROM saved_foods GROUP BY user_id, %s, %s
+			)`, name, brand)},
+		{"saved food names", fmt.Sprintf(
+			`UPDATE saved_foods SET name = %[1]s, brand = %[2]s WHERE name <> %[1]s OR brand <> %[2]s`,
+			name, brand)},
+	} {
+		res, err := DB.Exec(s.sql)
+		if err != nil {
+			log.Printf("migrations: trim %s: %v (skipping this boot)", s.what, err)
+			return
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			log.Printf("migration: repaired %d %s", n, s.what)
+		}
+	}
+	setMigrationFlag("trim_stored_food_names")
 }
 
 // dedupeSavedFoods collapses duplicate stars, keeping the lowest id in each

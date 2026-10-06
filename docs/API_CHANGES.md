@@ -45,6 +45,20 @@ This is what makes one food one favourite — `saved_foods` carries
 `UNIQUE(user_id, name, brand)`, and `"Oats"` and `"Oats "` are two rows to an index and
 one food to a person.
 
+**A boot migration repairs rows stored before this.** Trimming only the write path left
+every upgraded install holding its old spellings, so Favorites still showed several rows
+reading `"Oats"`, a row whose name was entirely whitespace and so rendered with no name
+at all, and starring a food held as `"Granola "` created a second `"Granola"` rather than
+recognising the first — the index is on the raw column, so the two spellings are two
+keys. The migration deletes saved foods whose name is only whitespace, collapses the
+remaining whitespace variants to the earliest row in each
+`(user_id, trimmed name, trimmed brand)` group, and rewrites the survivors trimmed. It
+trims `food_logs.name` too.
+
+So a caller holding a saved-food id that lost that collapse gets a `404` from
+`DELETE /api/v1/food/saved/:id` — the same hazard the repeat-star entry below describes,
+for the same reason. Ids that survive are unchanged.
+
 ## `POST /api/v1/food/saved` — a repeat star answers `200` with the existing row
 
 Starring a food that is already starred returns `200`, not `201`, and the body is the row
