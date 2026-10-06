@@ -1,12 +1,13 @@
-import { useAsyncAction } from '@lyftr/shared'
+import { formatLoggedAmount, useAsyncAction } from '@lyftr/shared'
 import { useState } from 'react'
-import { Image, Pressable, View } from 'react-native'
+import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Flame, MoreVertical, Utensils } from 'lucide-react-native'
+import { ChevronRight, Flame, MoreVertical } from 'lucide-react-native'
 import type { FoodLog } from '@lyftr/shared'
 import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
+import { FoodThumb } from './FoodImage'
 import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal } from './nutritionMeta'
 
 // Compact meal tag shown on each row now that meals share one list (icon + label in the
@@ -52,14 +53,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     onDeleted(entry.id)
   }, 'Failed to delete entry')
 
-  const Thumb = ({ size = 44 }: { size?: number }) =>
-    entry.image_url ? (
-      <Image source={{ uri: entry.image_url }} style={{ width: size, height: size, borderRadius: 12 }} className="border border-surface-border" />
-    ) : (
-      <View style={{ width: size, height: size }} className="items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
-        <Utensils size={size * 0.45} color={colors.txMuted} style={{ opacity: 0.4 }} />
-      </View>
-    )
+  const Thumb = ({ size = 44 }: { size?: number }) => <FoodThumb src={entry.image_url} size={size} />
 
   const macroLine = (
     // Calories (flame) + each macro as a colored-dot chip (P/C/F), mirroring the dot
@@ -83,7 +77,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
           <AppText variant="caption" color="muted">{label}</AppText>
         </View>
       ))}
-      {entry.servings !== 1 ? <AppText variant="caption" color="muted">× {entry.servings}</AppText> : null}
+      {entry.servings !== 1 ? <AppText variant="caption" color="muted">{formatLoggedAmount(entry)}</AppText> : null}
     </View>
   )
 

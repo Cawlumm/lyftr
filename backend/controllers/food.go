@@ -275,12 +275,70 @@ func (b *offBrands) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// offFloat accepts a JSON number or a numeric string. OpenFoodFacts writes
+// serving_quantity both ways depending on how the product was edited, and anything it
+// could not parse it leaves as free text — which is not an error, it is the same "no
+// quantity known" the field being absent means, so it decodes to 0.
+type offFloat float64
+
+func (f *offFloat) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 || string(data) == "null" {
+		return nil
+	}
+	if data[0] == '"' {
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+		if err != nil {
+			return nil
+		}
+		*f = offFloat(v)
+		return nil
+	}
+	var v float64
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*f = offFloat(v)
+	return nil
+}
+
 type offProduct struct {
+	Code        string       `json:"code"`
 	ProductName string       `json:"product_name"`
 	Brands      offBrands    `json:"brands"`
 	Nutriments  offNutrients `json:"nutriments"`
 	ServingSize string       `json:"serving_size"`
-	ImageURL    string       `json:"image_url"`
+	// ServingQuantity is the serving as a number, in grams or millilitres, already
+	// parsed by OpenFoodFacts out of the free-text label. We do not parse the label
+	// ourselves: real values include "1/4 cup 7 g", "227 g (227 g)" and "200 m (100
+	// ml)". It can be absent even when a serving label is set — openfoodfacts-server#7768
+	// counted 7,700+ such products — which is why 0 has to stay meaningful.
+	ServingQuantity     offFloat `json:"serving_quantity"`
+	ProductQuantityUnit string   `json:"product_quantity_unit"`
+	ImageURL            string   `json:"image_url"`
+}
+
+// A serving spelled in any volume unit means the product's figures are per 100 ml, not
+// per 100 g — OpenFoodFacts files both under the same *_100g keys.
+//
+// Read off the label rather than OpenFoodFacts' own serving_quantity_unit, which
+// reports "ml" for every cup-based serving: "1/4 cup (7 g)" comes back as ml. The label
+// is the thing the user is shown, so agreeing with it is also what looks right.
+var servingVolumeRe = regexp.MustCompile(`(?i)(^|[^a-z])(ml|cl|dl|l|litres?|liters?)([^a-z]|$)`)
+
+func servingUnit(label, productQuantityUnit string) string {
+	if servingVolumeRe.MatchString(label) {
+		return "ml"
+	}
+	// No label to read: the pack size is the only other signal, and it is only
+	// sometimes filled in. "1l" of sunflower oil gives ml; a crisp packet gives g.
+	if strings.TrimSpace(label) == "" && strings.EqualFold(strings.TrimSpace(productQuantityUnit), "ml") {
+		return "ml"
+	}
+	return "g"
 }
 
 type offNutrients struct {
@@ -309,6 +367,8 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 	useServing := p.Nutriments.EnergyKcalServing > 0 && strings.TrimSpace(p.ServingSize) != ""
 	var cal, pro, carb, fat, fiber float64
 	var servingLabel string
+	unit := servingUnit(p.ServingSize, p.ProductQuantityUnit)
+	servingQuantity := float64(p.ServingQuantity)
 	if useServing {
 		cal = p.Nutriments.EnergyKcalServing
 		pro = p.Nutriments.ProteinsServing
@@ -325,7 +385,12 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 		// "100 g", not "per 100g": the serving branch above passes through
 		// OpenFoodFacts' own label ("30 g", "250 ml"), which carries no preposition, and
 		// the clients supply the "per". Including it here produced "per per 100g".
-		servingLabel = "100 g"
+		//
+		// "100 ml" for a liquid, because that is what the figures are: OpenFoodFacts
+		// files per-100ml values under the same *_100g keys, which is how a bottle of
+		// olive oil came to read 800 kcal per "100 g" (#171).
+		servingLabel = "100 " + unit
+		servingQuantity = 100
 	}
 
 	return models.FoodSearchResult{
@@ -337,8 +402,14 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 		Fat:         fat,
 		Fiber:       fiber,
 		ServingSize: servingLabel,
-		ImageURL:    imageURL,
-		Source:      "off",
+		// 0 when OpenFoodFacts knows a serving but not its size. The clients read that
+		// as "weight entry is not available for this one" and stay on servings, which
+		// is the truth — better than scaling against a made-up number.
+		ServingQuantity: servingQuantity,
+		ServingUnit:     unit,
+		Barcode:         p.Code,
+		ImageURL:        imageURL,
+		Source:          "off",
 	}
 }
 
@@ -373,7 +444,7 @@ func (h *Handler) SearchFood(c *gin.Context) {
 
 	start := time.Now()
 	searchURL := fmt.Sprintf(
-		"https://search.openfoodfacts.org/search?q=%s&lang=en&cc=world&page_size=%d&page=1&fields=product_name,brands,nutriments,serving_size,image_url",
+		"https://search.openfoodfacts.org/search?q=%s&lang=en&cc=world&page_size=%d&page=1&fields=code,product_name,brands,nutriments,serving_size,image_url",
 		url.QueryEscape(q), limit,
 	)
 	log.Printf("[food/search] OFF request: q=%q limit=%d", q, limit)

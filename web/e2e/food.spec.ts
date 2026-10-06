@@ -216,6 +216,37 @@ test.describe('Food', () => {
     await expect(page.getByText('400').first()).toBeVisible()
   })
 
+  // #171: OpenFoodFacts only has per-100ml figures for a lot of oils, and the amount
+  // field used to floor at 0.5 — so the least anyone could log was 50 ml. This drives
+  // the whole path: a search hit re-read through the product endpoint, then an amount
+  // typed in the pack's own unit.
+  test('logs a tablespoon of oil, not half of 100 ml', { tag: '@mobile' }, async ({ page }) => {
+    const hit = {
+      name: 'Olive Oil', brand: 'Thrive Market', calories: 800, protein: 0, carbs: 0,
+      fat: 93.3, fiber: 0, serving_size: '100 ml', serving_quantity: 100,
+      serving_unit: 'ml', barcode: '0085239033265', source: 'off',
+    }
+    await page.route('**/api/v1/food/search**', route => route.fulfill({ json: { data: [hit] } }))
+    await page.route('**/api/v1/food/barcode/**', route => route.fulfill({
+      json: { data: { ...hit, calories: 120, fat: 14, serving_size: '1 Tbsp (15 ml)', serving_quantity: 15 } },
+    }))
+
+    await page.goto('/food/log')
+    await page.fill('input[placeholder="Search food…"]', 'olive oil')
+    // Exact: the empty state that shows while the search is in flight contains the
+    // query too, and a substring match resolves to it as well as the row.
+    await page.getByText('Olive Oil', { exact: true }).click()
+
+    // The pack's serving, read from the product endpoint — not the index's 100 ml.
+    const amount = page.getByLabel('Amount in ml')
+    await expect(amount).toHaveValue('15')
+    await expect(page.getByText('120').first()).toBeVisible()
+
+    await amount.fill('5')
+    await expect(page.getByText('40').first()).toBeVisible()
+    await expect(page.getByText(/0\.33 servings/)).toBeVisible()
+  })
+
   // @mobile: touch chip selector that sets the entry's meal.
   test('meal selector in detail phase updates active meal', { tag: '@mobile' }, async ({ page }) => {
     await page.route('**/api/v1/food/search**', route =>
