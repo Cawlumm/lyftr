@@ -10,6 +10,7 @@ import {
   KeyRound,
   LogOut,
   Mail,
+  User,
   Minus,
   Moon,
   Plus,
@@ -26,7 +27,6 @@ import { useAsyncAction,
   INSECURE_SERVER_WARNING,
   sanitizeNumericInput,
   displayName,
-  MAX_DISPLAY_NAME_LEN,
 } from '@lyftr/shared'
 import {
   AppText,
@@ -80,7 +80,6 @@ export default function SettingsScreen() {
   // Macro/calorie targets are the one batch-saved (server-side) block — mirror web:
   // edit locally as text, PUT on "Save". Everything else writes on change.
   const [targets, setTargets] = useState({ calorie_target: '', protein_target: '', carb_target: '', fat_target: '' })
-  const [name, setName] = useState('')
 
   const [showCustomRest, setShowCustomRest] = useState(false)
 
@@ -111,10 +110,6 @@ export default function SettingsScreen() {
     })
   }, [settings.calorie_target, settings.protein_target, settings.carb_target, settings.fat_target])
 
-  useEffect(() => {
-    setName(settings.display_name ?? '')
-  }, [settings.display_name])
-
   const restEnabled = settings.rest_enabled ?? true
   const restCur = settings.rest_seconds_default ?? 90
   const restIsCustom = !REST_PRESETS.includes(restCur)
@@ -134,15 +129,6 @@ export default function SettingsScreen() {
   }, 'Could not save targets')
 
   const handleSaveTargets = () => { void saveTargets.run() }
-
-  // Trimmed here as well as on the server, so the field agrees with what comes back
-  // rather than appearing to lose a space the server had already dropped.
-  const saveName = useAsyncAction(async () => {
-    await updateSettings({ display_name: name.trim() })
-    setToast({ variant: 'success', title: 'Name saved' })
-  }, 'Could not save your name')
-
-  const handleSaveName = () => { void saveName.run() }
 
   // The unit toggle used to call updateSettings() bare, so a failed PUT was a floating
   // rejection: nothing told the user, and the app kept showing the unit the server had
@@ -183,10 +169,6 @@ export default function SettingsScreen() {
   }, [saveTargets.error])
 
   useEffect(() => {
-    if (saveName.error) setToast({ variant: 'error', title: 'Could not save your name', description: saveName.error })
-  }, [saveName.error])
-
-  useEffect(() => {
     if (changeUnit.error) setToast({ variant: 'error', title: 'Could not change units', description: changeUnit.error })
   }, [changeUnit.error])
 
@@ -218,26 +200,15 @@ export default function SettingsScreen() {
 
           {/* Account */}
           <SettingsGroup title="Account">
-            {/* py-4, not pb-4: this is the first thing in the group, so without the top
-                padding the field's own "NAME" label sits on the card's border. */}
-            <View className="gap-3 py-4">
-              <Field
-                label="Name"
-                placeholder={displayName('', user?.email)}
-                value={name}
-                onChangeText={setName}
-                maxLength={MAX_DISPLAY_NAME_LEN}
-                autoCapitalize="words"
-                autoCorrect={false}
-              />
-              <Muted className="text-xs">What the app calls you. Leave it empty to use your email.</Muted>
-              {/* Secondary and sized to its label. A full-width brand-filled button made
-                  one optional field the loudest thing on the Settings screen — louder
-                  than the workout settings below it. "Save targets" is primary and
-                  full-width because it commits four fields at the end of its group;
-                  this commits one. */}
-              <Button title="Save name" onPress={handleSaveName} loading={saveName.busy} variant="secondary" className="self-start" />
-            </View>
+            {/* Shows what the greeting will actually say, so the fallback is visible
+                without opening anything: the email's local part until a name is set. */}
+            <SettingsRow
+              icon={User}
+              label="Name"
+              value={displayName(settings.display_name, user?.email)}
+              chevron
+              onPress={() => router.push('/settings/name')}
+            />
             <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} divider />
             <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
             <SettingsRow

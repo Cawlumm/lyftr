@@ -240,7 +240,15 @@ export default function Settings() {
 
       {/* Account */}
       <Section title="Account">
-        <SettingRow label="Name" description="What the app calls you. Leave it empty to use your email.">
+        {/* Inline, unlike mobile's own screen for this. Web's Settings is already one
+            form with a single Save at the bottom, so a sub-page would be the odd one out
+            here — each platform follows the shape of the page it lives on. The
+            placeholder shows what the greeting falls back to, so the description says
+            what clearing it does instead of repeating the value.
+
+            aria-label because SettingRow's label is a <p>, not a <label>, so the row
+            text names nothing — the same reason the custom-rest input carries one. */}
+        <SettingRow label="Name" description="Leave it empty and we'll use your email instead.">
           <input
             type="text"
             aria-label="Name"
@@ -248,7 +256,7 @@ export default function Settings() {
             onChange={e => setFormData({ ...formData, display_name: e.target.value })}
             maxLength={MAX_DISPLAY_NAME_LEN}
             placeholder={displayName('', user?.email)}
-            className="input text-sm py-2 w-44"
+            className="input text-sm py-2 w-44 text-right"
             autoComplete="name"
           />
         </SettingRow>
