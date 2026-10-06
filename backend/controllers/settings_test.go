@@ -251,3 +251,58 @@ func TestUpdateSettings_rejectsOverlongDisplayName(t *testing.T) {
 	th.GetSettings(c)
 	assertStr(t, settingsData(t, w), "display_name", atLimit)
 }
+
+// Control characters are the one thing a name may not contain, so this pins both halves
+// of that rule: what is refused, and the much larger set that is deliberately allowed.
+func TestUpdateSettings_rejectsControlCharactersInDisplayName(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	for _, tc := range []struct {
+		name  string
+		value string
+	}{
+		{"a newline", "Carter\nSmith"},
+		{"a carriage return", "Carter\rSmith"},
+		{"a NUL", "Carter\x00Smith"},
+		{"a tab", "Carter\tSmith"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, w := newContext(uid, http.MethodPut, "/api/v1/settings", map[string]any{"display_name": tc.value})
+			th.UpdateSettings(c)
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400 for %s, got %d: %s", tc.name, w.Code, w.Body.String())
+			}
+		})
+	}
+
+	// Nothing was stored by any of the refusals.
+	c, w := newContext(uid, http.MethodGet, "/api/v1/settings", nil)
+	th.GetSettings(c)
+	assertStr(t, settingsData(t, w), "display_name", "")
+}
+
+// The deliberate half of the policy. No comparable app filters characters out of a
+// display name, and this one is shown to nobody but its owner, so a name made of emoji
+// or of a non-Latin script round-trips untouched.
+func TestUpdateSettings_allowsEmojiAndNonLatinDisplayNames(t *testing.T) {
+	setupTestDB(t)
+
+	uid := createTestUser(t)
+
+	for _, want := range []string{
+		"🦍 Carter",
+		"カーター",
+		"كارتر",
+		// A ZWJ sequence: U+200D is category Cf, not Cc, so unicode.IsControl must
+		// leave it alone or every compound emoji becomes unenterable.
+		"Carter 🏋️‍♂️",
+	} {
+		c, w := newContext(uid, http.MethodPut, "/api/v1/settings", map[string]any{"display_name": want})
+		th.UpdateSettings(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200 for %q, got %d: %s", want, w.Code, w.Body.String())
+		}
+		assertStr(t, settingsData(t, w), "display_name", want)
+	}
+}
