@@ -295,7 +295,9 @@ export default function Dashboard() {
               <Text className="font-sans-medium text-[11px] uppercase text-tx-muted" style={{ letterSpacing: 1 }}>
                 {format(now, 'EEEE, MMMM d')}
               </Text>
-              <AppText variant="title" className="mt-0.5" numberOfLines={1}>{greeting(now)}, {username}</AppText>
+              {/* No numberOfLines: the name wraps, matching web and every peer that
+                  shows a name at all. See web/src/pages/Dashboard.tsx for the survey. */}
+              <AppText variant="title" className="mt-0.5">{greeting(now)}, {username}</AppText>
               <AppText variant="caption" color="muted" className="mt-1">{lifterQuip(`${todayStr()}:${username}`)}</AppText>
             </View>
             <View className="flex-row items-center gap-2">
