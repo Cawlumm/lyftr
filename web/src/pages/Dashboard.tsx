@@ -17,7 +17,7 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -255,7 +255,7 @@ export default function Dashboard() {
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
-  const username = user?.email?.split('@')[0] ?? 'there'
+  const username = displayName(settings.display_name, user?.email)
 
   return (
     <div className="space-y-4 animate-slide-up">

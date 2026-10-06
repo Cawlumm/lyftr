@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiErrorMessage, useAsyncAction, memberSince } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -88,6 +88,7 @@ export default function Settings() {
   const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
 
   const [formData, setFormData] = useState({
+    display_name: storedSettings.display_name ?? '',
     weight_unit: storedSettings.weight_unit,
     calorie_target: storedSettings.calorie_target,
     protein_target: storedSettings.protein_target,
@@ -113,6 +114,7 @@ export default function Settings() {
       await fetchSettings()
       const s = useSettingsStore.getState().settings
       setFormData({
+        display_name: s.display_name ?? '',
         weight_unit: s.weight_unit,
         calorie_target: s.calorie_target,
         protein_target: s.protein_target,
@@ -184,6 +186,10 @@ export default function Settings() {
   // "Request failed with status code 400", which is true and tells the user nothing.
   const save = useAsyncAction(async () => {
     await updateSettings(formData)
+    // Take the name back from what was actually stored. The server trims it, so a
+    // field left holding "  Carter  " goes on showing a value the record does not
+    // have — the same screen-disagrees-with-DB shape as #148, one save later.
+    setFormData(prev => ({ ...prev, display_name: useSettingsStore.getState().settings.display_name ?? '' }))
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
   }, 'Failed to save settings')
@@ -234,6 +240,18 @@ export default function Settings() {
 
       {/* Account */}
       <Section title="Account">
+        <SettingRow label="Name" description="What the app calls you. Leave it empty to use your email.">
+          <input
+            type="text"
+            aria-label="Name"
+            value={formData.display_name}
+            onChange={e => setFormData({ ...formData, display_name: e.target.value })}
+            maxLength={MAX_DISPLAY_NAME_LEN}
+            placeholder={displayName('', user?.email)}
+            className="input text-sm py-2 w-44"
+            autoComplete="name"
+          />
+        </SettingRow>
         <SettingRow label="Email" description="Your login email address">
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
         </SettingRow>

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"database/sql"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -42,6 +43,14 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.BadRequest(c, utils.BindMessage(err))
 		return
+	}
+	// Trimmed before it is measured, so " Carter " is a 6-character name rather than
+	// an 8-character one, and before it is stored, so the greeting never opens with a
+	// space. A name of nothing but whitespace trims to "" and so clears the name,
+	// which is the same thing an empty field does — there is no third state.
+	if req.DisplayName != nil {
+		trimmed := strings.TrimSpace(*req.DisplayName)
+		req.DisplayName = &trimmed
 	}
 	// Enforce the request tags (weight_unit oneof, targets gte=0) like every other
 	// controller — binding alone doesn't run them, so without this an invalid unit

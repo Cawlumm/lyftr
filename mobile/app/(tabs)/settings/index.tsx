@@ -25,6 +25,8 @@ import { useAsyncAction,
   isInsecureServerUrl,
   INSECURE_SERVER_WARNING,
   sanitizeNumericInput,
+  displayName,
+  MAX_DISPLAY_NAME_LEN,
 } from '@lyftr/shared'
 import {
   AppText,
@@ -78,6 +80,7 @@ export default function SettingsScreen() {
   // Macro/calorie targets are the one batch-saved (server-side) block — mirror web:
   // edit locally as text, PUT on "Save". Everything else writes on change.
   const [targets, setTargets] = useState({ calorie_target: '', protein_target: '', carb_target: '', fat_target: '' })
+  const [name, setName] = useState('')
 
   const [showCustomRest, setShowCustomRest] = useState(false)
 
@@ -108,6 +111,10 @@ export default function SettingsScreen() {
     })
   }, [settings.calorie_target, settings.protein_target, settings.carb_target, settings.fat_target])
 
+  useEffect(() => {
+    setName(settings.display_name ?? '')
+  }, [settings.display_name])
+
   const restEnabled = settings.rest_enabled ?? true
   const restCur = settings.rest_seconds_default ?? 90
   const restIsCustom = !REST_PRESETS.includes(restCur)
@@ -127,6 +134,15 @@ export default function SettingsScreen() {
   }, 'Could not save targets')
 
   const handleSaveTargets = () => { void saveTargets.run() }
+
+  // Trimmed here as well as on the server, so the field agrees with what comes back
+  // rather than appearing to lose a space the server had already dropped.
+  const saveName = useAsyncAction(async () => {
+    await updateSettings({ display_name: name.trim() })
+    setToast({ variant: 'success', title: 'Name saved' })
+  }, 'Could not save your name')
+
+  const handleSaveName = () => { void saveName.run() }
 
   // The unit toggle used to call updateSettings() bare, so a failed PUT was a floating
   // rejection: nothing told the user, and the app kept showing the unit the server had
@@ -167,6 +183,10 @@ export default function SettingsScreen() {
   }, [saveTargets.error])
 
   useEffect(() => {
+    if (saveName.error) setToast({ variant: 'error', title: 'Could not save your name', description: saveName.error })
+  }, [saveName.error])
+
+  useEffect(() => {
     if (changeUnit.error) setToast({ variant: 'error', title: 'Could not change units', description: changeUnit.error })
   }, [changeUnit.error])
 
@@ -198,7 +218,20 @@ export default function SettingsScreen() {
 
           {/* Account */}
           <SettingsGroup title="Account">
-            <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} />
+            <View className="gap-3 pb-4">
+              <Field
+                label="Name"
+                placeholder={displayName('', user?.email)}
+                value={name}
+                onChangeText={setName}
+                maxLength={MAX_DISPLAY_NAME_LEN}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              <Muted className="text-xs">What the app calls you. Leave it empty to use your email.</Muted>
+              <Button title="Save name" onPress={handleSaveName} loading={saveName.busy} />
+            </View>
+            <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} divider />
             <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
             <SettingsRow
               icon={KeyRound}

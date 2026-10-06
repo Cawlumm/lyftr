@@ -89,6 +89,14 @@ func alterMigrations() {
 	// column changes nothing until a client reports a real zone.
 	ensureColumn("user_settings", "timezone", `ALTER TABLE user_settings ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`)
 
+	// What the person wants to be called (#170). Empty means "never set one", which
+	// is every existing row, and the clients fall back to the local part of the email
+	// exactly as they did before — so this column changes nothing until it is filled.
+	// Empty is also how a name is *cleared*, which is why it is '' rather than NULL:
+	// the settings upsert COALESCEs over NULL to mean "field absent from the PATCH",
+	// so NULL and "no name" have to be different values.
+	ensureColumn("user_settings", "display_name", `ALTER TABLE user_settings ADD COLUMN display_name TEXT NOT NULL DEFAULT ''`)
+
 	workoutProgramDayMigration()
 
 	normalizeWorkoutStartedAt()
@@ -832,7 +840,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
   protein_target INTEGER NOT NULL DEFAULT 150,
   carb_target    INTEGER NOT NULL DEFAULT 250,
   fat_target     INTEGER NOT NULL DEFAULT 65,
-  timezone       TEXT    NOT NULL DEFAULT 'UTC'
+  timezone       TEXT    NOT NULL DEFAULT 'UTC',
+  display_name   TEXT    NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS exercises (

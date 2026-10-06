@@ -25,7 +25,20 @@ type UserSettings struct {
 	// "UTC" is the default and keeps the pre-existing behaviour for anyone who
 	// never sets one.
 	Timezone string `json:"timezone" db:"timezone"`
+	// What to call this person on screen (#170). Empty means they never set one and
+	// the clients fall back to the local part of their email, which is what every
+	// screen did before this existed.
+	DisplayName string `json:"display_name" db:"display_name"`
 }
+
+// MaxDisplayNameLen bounds the name a person can give themselves. It is a label on
+// their own dashboard, nothing indexes or joins on it, so the only job of the bound
+// is to keep a pasted novel out of the column and out of the greeting. Sixty is the
+// width the dashboard heading can show before it truncates on a phone.
+//
+// The `max` in UpdateSettingsRequest's validate tag must match this number — struct
+// tags cannot reference a constant.
+const MaxDisplayNameLen = 60
 
 // DefaultUserSettings is the single source of truth for a brand-new user's
 // settings — returned when no row exists yet and used as the base a partial
@@ -39,6 +52,7 @@ func DefaultUserSettings(uid int64) UserSettings {
 		CarbTarget:    250,
 		FatTarget:     65,
 		Timezone:      "UTC",
+		DisplayName:   "",
 	}
 }
 
@@ -332,6 +346,12 @@ type UpdateSettingsRequest struct {
 	// Validated by loading it, not by a pattern: the only definition of a usable
 	// zone is one the runtime can resolve (see controllers.ParseLocation).
 	Timezone *string `json:"timezone"`
+	// An explicit "" clears the name, which is why this one is not `required` and
+	// why `omitempty` is load-bearing: it skips the length check for the empty
+	// string, so clearing is always allowed however long the old name was. 60 is
+	// MaxDisplayNameLen — a tag cannot reference the constant, so the two are
+	// checked against each other by TestUpdateSettings_rejectsOverlongDisplayName.
+	DisplayName *string `json:"display_name" validate:"omitempty,max=60"`
 }
 
 type Program struct {

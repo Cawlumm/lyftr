@@ -36,6 +36,7 @@ const BASE_DEFAULTS: types.UserSettings = {
   rest_enabled: true,
   rest_seconds_default: 90,
   timezone: 'UTC',
+  display_name: '',
 }
 
 export interface SettingsStore {

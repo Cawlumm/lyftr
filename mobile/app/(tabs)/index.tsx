@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, nameInitial } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -278,8 +278,8 @@ export default function Dashboard() {
     weight: displayWeight(l.weight, unit),
   }))
 
-  const username = user?.email?.split('@')[0] ?? 'there'
-  const avatarInitial = (username[0] ?? 'U').toUpperCase()
+  const username = displayName(settings.display_name, user?.email)
+  const avatarInitial = nameInitial(username)
 
   return (
     <Screen>
