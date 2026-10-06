@@ -1,5 +1,6 @@
 import type { Program, ProgramDay } from '../types'
 import { isDayStartable, todaysDay } from './programUtils'
+import { todayStr } from './dateUtils'
 
 // Per-muscle accent for the dashboard's training-split chart. Hex rather than theme
 // tokens for the same reason as MACRO_COLORS: both platforms hand these to drawing
@@ -56,9 +57,9 @@ const LIFTER_QUIPS: string[] = [
   'The bar does not care how you feel about it.',
   'Progressive overload: the only pyramid scheme that works.',
   'Nobody has ever regretted the warm-up.',
-  'The hardest rep is the one in the car park.',
+  'The hardest rep is the one that gets you off the couch.',
   'Form first. Ego lifts are for the parking lot.',
-  'Legs today? No? Interesting choice.',
+  'Legs are not optional. They are just unpopular.',
   'Chalk is not a personality. It helps, though.',
   'You cannot out-train a log you never fill in.',
   'Deload weeks count. Reluctantly.',
@@ -66,30 +67,25 @@ const LIFTER_QUIPS: string[] = [
   'Half reps, full lies.',
   'The only bad set is the one you talked yourself out of.',
   'Somewhere a squat rack is holding a coat. Not yours.',
-  'Your future self already thanked you. Rude of them not to wait.',
+  'Showing up is the part most people skip.',
   'Protein is not optional. Neither is sleep.',
-  'Rest is part of the programme, not a gap in it.',
+  'Rest is part of the plan, not a gap in it.',
 ]
 
-// Picked, not shuffled. The dashboard re-renders on every fetch, refresh and tab
-// return, so Math.random() here would change the line out from under someone mid-read
-// — the UI equivalent of a sentence rewriting itself. Hashing a seed instead makes the
-// line stable for as long as the seed is, and the callers seed it with the day plus the
-// person, so it changes once a day and web and mobile show the same one.
+// Derived, not random: the dashboard re-renders on every fetch, refresh and tab return,
+// so Math.random() would rewrite the sentence while it was being read.
 //
-// FNV-1a, 32-bit, with Math.imul so the multiply stays exact past 2^31 — plain `*`
-// goes through a float and the low bits, which are the ones being used, come out wrong.
-function hashSeed(seed: string): number {
-  let h = 0x811c9dc5
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i)
-    h = Math.imul(h, 0x01000193)
-  }
-  return h >>> 0
-}
-
-export function lifterQuip(seed: string): string {
-  return LIFTER_QUIPS[hashSeed(seed) % LIFTER_QUIPS.length]
+// Keyed on the account id, not the shown name — the name arrives from a settings fetch
+// the dashboard deliberately does not await, so keying on it painted one line and swapped
+// it the moment settings landed, and re-rolled whenever someone renamed themselves.
+//
+// The day is composed here rather than by each caller, so the two apps cannot drift into
+// showing different lines for the same person on the same day. Tests pass one explicitly.
+export function lifterQuip(accountId: string | number, day: string = todayStr()): string {
+  const key = `${day}:${accountId}`
+  let sum = 0
+  for (let i = 0; i < key.length; i++) sum += key.charCodeAt(i)
+  return LIFTER_QUIPS[sum % LIFTER_QUIPS.length]
 }
 
 // The "up next" card: the first program whose day-for-today actually has exercises.

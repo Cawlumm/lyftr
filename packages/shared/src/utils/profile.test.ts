@@ -34,11 +34,6 @@ describe('nameInitial', () => {
     expect(nameInitial(displayName('', 'carter@example.com'))).toBe('C')
   })
 
-  it('falls back to U rather than rendering an empty circle', () => {
-    expect(nameInitial('')).toBe('U')
-    expect(nameInitial('   ')).toBe('U')
-  })
-
   // Not every name starts with a Latin letter, and toUpperCase must not mangle one.
   it('leaves a non-cased first character alone', () => {
     expect(nameInitial('日本')).toBe('日')

@@ -10,7 +10,6 @@ import {
   KeyRound,
   LogOut,
   Mail,
-  User,
   Minus,
   Moon,
   Plus,
@@ -18,6 +17,7 @@ import {
   Server,
   Timer,
   Trash2,
+  User,
 } from 'lucide-react-native'
 import { useAsyncAction,
   memberSince,

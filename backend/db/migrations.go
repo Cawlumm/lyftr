@@ -89,12 +89,9 @@ func alterMigrations() {
 	// column changes nothing until a client reports a real zone.
 	ensureColumn("user_settings", "timezone", `ALTER TABLE user_settings ADD COLUMN timezone TEXT NOT NULL DEFAULT 'UTC'`)
 
-	// What the person wants to be called (#170). Empty means "never set one", which
-	// is every existing row, and the clients fall back to the local part of the email
-	// exactly as they did before — so this column changes nothing until it is filled.
-	// Empty is also how a name is *cleared*, which is why it is '' rather than NULL:
-	// the settings upsert COALESCEs over NULL to mean "field absent from the PATCH",
-	// so NULL and "no name" have to be different values.
+	// #170. '' rather than NULL because the settings upsert COALESCEs over NULL to mean
+	// "absent from this PATCH", so "no name" needs to be a different value from "unset".
+	// Every existing row reads '' and the clients fall back to the email, as before.
 	ensureColumn("user_settings", "display_name", `ALTER TABLE user_settings ADD COLUMN display_name TEXT NOT NULL DEFAULT ''`)
 
 	workoutProgramDayMigration()

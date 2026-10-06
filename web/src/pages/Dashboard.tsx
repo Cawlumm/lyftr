@@ -17,7 +17,7 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, lifterQuip, todayStr } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, lifterQuip } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -266,34 +266,15 @@ export default function Dashboard() {
           <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
-          {/* Wraps rather than truncating, and mobile matches. Not one comparable app
-              clips a user's own name: wger's navbar dropdown, workout-tracker's nav
-              profile link and Immich's account panel all let it run onto another line
-              inside a bounded box, and the other four fitness peers have no name field
-              to clip. They are not unaware of the idiom — TextOverflow.ellipsis appears
-              74 times in OpenNutriTracker alone — they just do not spend it here.
-              A tall header is the cost, and it is only ever paid by someone who chose a
-              long name. Clipping would instead tell them the name they typed does not
-              fit, which is worse for the one string on this screen that is theirs. The
-              length is bounded at the input, which is where those apps bound it — see
-              MaxDisplayNameLen. The flex parent is min-w-0 and the Start button is
-              flex-shrink-0, so wrapping costs height and never breaks the row.
-
-              text-balance is what makes the wrap read as typography rather than as an
-              accident: it breaks "Good morning, / María José / González-Fernández" at
-              the comma and between the given names, where the default broke the surname
-              at its own hyphen. Unsupported browsers ignore it and wrap normally, so it
-              degrades to exactly what was there before. Measured at 390px: 30px on one
-              line, 90px at the realistic worst case, no horizontal overflow either way.
-
-              Mobile wraps too but gets neither utility. There is no text-balance in
-              React Native, and leading-tight is deliberately NOT applied there: imposing
-              a lineHeight on iOS top-aligns the text and clips descenders, which is
-              documented in ui/Field.tsx and which a name like this is full of. */}
+          {/* Never clipped: a name is the one string here that is the user's own, and
+              its length is bounded at the input instead (MaxDisplayNameLen). text-balance
+              breaks it at the comma rather than mid-surname; browsers without it just
+              wrap. Mobile wraps too, but gets no text-balance and deliberately no
+              leading-tight — an imposed lineHeight clips descenders on iOS (ui/Field.tsx). */}
           <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 leading-tight text-balance">
             {greeting(TODAY)}, {username}
           </h1>
-          <p className="text-xs text-tx-muted mt-1">{lifterQuip(`${todayStr()}:${username}`)}</p>
+          <p className="text-xs text-tx-muted mt-1">{lifterQuip(user?.id ?? '')}</p>
         </div>
         <button
           onClick={() => navigate('/workout/start')}

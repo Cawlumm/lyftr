@@ -87,8 +87,12 @@ export default function Settings() {
   // right now." were the same small grey text — a failure that does not read as one.
   const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
 
+  // Deliberately NOT in formData: the only button that commits formData is labelled
+  // "Save targets", lives in Goals & Units ~900px below, and is removed entirely when
+  // the settings read fails. A name parked in there has no honest way to be saved.
+  const [name, setName] = useState(storedSettings.display_name ?? '')
+
   const [formData, setFormData] = useState({
-    display_name: storedSettings.display_name ?? '',
     weight_unit: storedSettings.weight_unit,
     calorie_target: storedSettings.calorie_target,
     protein_target: storedSettings.protein_target,
@@ -113,8 +117,8 @@ export default function Settings() {
     try {
       await fetchSettings()
       const s = useSettingsStore.getState().settings
+      setName(s.display_name ?? '')
       setFormData({
-        display_name: s.display_name ?? '',
         weight_unit: s.weight_unit,
         calorie_target: s.calorie_target,
         protein_target: s.protein_target,
@@ -175,7 +179,7 @@ export default function Settings() {
     setFormData(prev => ({ ...prev, weight_unit: unit }))
     setUnitError(null)
     try {
-      await updateSettings({ ...formData, weight_unit: unit })
+      await updateSettings({ weight_unit: unit })
     } catch (err) {
       setFormData(prev => ({ ...prev, weight_unit: previous }))
       setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
@@ -186,10 +190,6 @@ export default function Settings() {
   // "Request failed with status code 400", which is true and tells the user nothing.
   const save = useAsyncAction(async () => {
     await updateSettings(formData)
-    // Take the name back from what was actually stored. The server trims it, so a
-    // field left holding "  Carter  " goes on showing a value the record does not
-    // have — the same screen-disagrees-with-DB shape as #148, one save later.
-    setFormData(prev => ({ ...prev, display_name: useSettingsStore.getState().settings.display_name ?? '' }))
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
   }, 'Failed to save settings')
@@ -204,6 +204,19 @@ export default function Settings() {
     await userAPI.deleteAccount()
     await logout()
   }, 'Could not delete account')
+
+  // Its own commit, like handleUnitChange above and unlike the targets block: one
+  // scoped patch, trimmed at the call site the way mobile's screen does it, and the
+  // error reported in the row rather than in a banner at the top of a long page.
+  const storedName = storedSettings.display_name ?? ''
+  const nameDirty = name.trim() !== storedName
+  const saveName = useAsyncAction(async () => {
+    const display_name = name.trim()
+    await updateSettings({ display_name })
+    setName(display_name)
+  }, "Couldn't save your name.")
+
+  const handleSaveName = () => { void saveName.run() }
 
   const handleSave = () => {
     setSuccess(false)
@@ -240,25 +253,41 @@ export default function Settings() {
 
       {/* Account */}
       <Section title="Account">
-        {/* Inline, unlike mobile's own screen for this. Web's Settings is already one
-            form with a single Save at the bottom, so a sub-page would be the odd one out
-            here — each platform follows the shape of the page it lives on. The
-            placeholder shows what the greeting falls back to, so the description says
-            what clearing it does instead of repeating the value.
-
-            aria-label because SettingRow's label is a <p>, not a <label>, so the row
-            text names nothing — the same reason the custom-rest input carries one. */}
-        <SettingRow label="Name" description="Leave it empty and we'll use your email instead.">
-          <input
-            type="text"
-            aria-label="Name"
-            value={formData.display_name}
-            onChange={e => setFormData({ ...formData, display_name: e.target.value })}
-            maxLength={MAX_DISPLAY_NAME_LEN}
-            placeholder={displayName('', user?.email)}
-            className="input text-sm py-2 w-44 text-right"
-            autoComplete="name"
-          />
+        {/* aria-label because SettingRow's label is a <p>, not a <label>, so the row
+            text names nothing — the same reason the custom-rest input carries one.
+            autoComplete is "nickname", not "name": this is a chosen label, and "name"
+            invites the browser to fill in a legal name. */}
+        <SettingRow
+          label="Name"
+          description={settingsLoadFailed
+            ? "Couldn't load your name, so we won't offer to overwrite it."
+            : saveName.error || "The name the app greets you by. Leave it empty and we'll use your email instead."}
+          descriptionTone={settingsLoadFailed || saveName.error ? 'error' : undefined}
+        >
+          {settingsLoadFailed ? (
+            <span className="text-sm text-tx-muted">—</span>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                aria-label="Name"
+                value={name}
+                onChange={e => { setName(e.target.value); saveName.reset() }}
+                onKeyDown={e => { if (e.key === 'Enter' && nameDirty) handleSaveName() }}
+                maxLength={MAX_DISPLAY_NAME_LEN}
+                placeholder={displayName('', user?.email)}
+                className="input text-sm py-2 w-40 sm:w-44"
+                autoComplete="nickname"
+              />
+              {/* Only while there is something to save, so the row carries no permanent
+                  chrome for a field most people touch once. */}
+              {nameDirty && (
+                <button onClick={handleSaveName} disabled={saveName.busy} className="btn-secondary btn-sm flex-shrink-0">
+                  {saveName.busy ? 'Saving…' : 'Save'}
+                </button>
+              )}
+            </div>
+          )}
         </SettingRow>
         <SettingRow label="Email" description="Your login email address">
           <span className="text-sm text-tx-muted font-mono">{user?.email}</span>

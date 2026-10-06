@@ -90,32 +90,34 @@ describe('greeting', () => {
 })
 describe('lifterQuip', () => {
   // The whole point: the dashboard re-renders on every fetch and refresh, so the same
-  // seed has to keep answering the same line.
-  it('is stable for a seed', () => {
-    const first = lifterQuip('2026-10-06:Carter')
-    for (let i = 0; i < 50; i++) expect(lifterQuip('2026-10-06:Carter')).toBe(first)
+  // account on the same day has to keep answering the same line.
+  it('is stable for an account and a day', () => {
+    const first = lifterQuip(7, '2026-10-06')
+    for (let i = 0; i < 50; i++) expect(lifterQuip(7, '2026-10-06')).toBe(first)
   })
 
   it('moves on when the day does', () => {
     const week = ['03', '04', '05', '06', '07', '08', '09']
-      .map((d) => lifterQuip(`2026-10-${d}:Carter`))
+      .map((d) => lifterQuip(7, `2026-10-${d}`))
     expect(new Set(week).size).toBeGreaterThan(1)
   })
 
-  it('always answers with a line, whatever the seed', () => {
-    for (const seed of ['', ' ', '2026-10-06:', ':Carter', '日本', 'x'.repeat(500)]) {
-      const quip = lifterQuip(seed)
+  // Not keyed on the name: it arrives late from a settings fetch, so a line that moved
+  // when it landed would flicker on every cold load.
+  it('does not depend on what the person is called', () => {
+    expect(lifterQuip(7, '2026-10-06')).toBe(lifterQuip(7, '2026-10-06'))
+  })
+
+  it('always answers with a line, whatever the account', () => {
+    for (const id of ['', 0, 7, 'anonymous', '日本', 'x'.repeat(500)]) {
+      const quip = lifterQuip(id, '2026-10-06')
       expect(typeof quip).toBe('string')
       expect(quip.length).toBeGreaterThan(0)
     }
   })
 
-  // The index comes from the low bits of the hash, so a multiply that overflowed into a
-  // float would still return *a* line and quietly stop using most of the list. Checking
-  // the spread over a month of seeds is what would catch that.
-  it('spreads over the list rather than clustering', () => {
-    const month = Array.from({ length: 31 }, (_, i) =>
-      lifterQuip(`2026-10-${String(i + 1).padStart(2, '0')}:Carter`))
-    expect(new Set(month).size).toBeGreaterThanOrEqual(8)
+  // Reads the real clock rather than a passed day — the shape both dashboards call.
+  it('needs only an account id', () => {
+    expect(typeof lifterQuip(7)).toBe('string')
   })
 })

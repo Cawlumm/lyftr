@@ -16,15 +16,9 @@ import {
 import { useAuthStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
-// Its own screen, laid out beat for beat with password.tsx — back link, header, the form
-// on a card, Save beside Cancel.
-//
-// It began as a field and a button sitting inside the Account group, which made that card
-// a form stacked on top of three rows: no icon where its neighbours all have one, a help
-// sentence that stayed forever, and a Save button parked permanently for something a
-// person edits roughly once. Account rows are icon + label + value, and "change a thing
-// about your account" already had an answer here in Password. This follows it, so the
-// group is four rows that read alike and the form only exists while it is being used.
+// Its own screen, laid out like password.tsx — back link, header, form on a card, Save
+// beside Cancel. Account rows are icon + label + value, so an editor belongs here rather
+// than as a form wedged into that group.
 export default function ChangeNameScreen() {
   const { colors } = useTheme()
   const user = useAuthStore((s) => s.user)
@@ -57,14 +51,15 @@ export default function ChangeNameScreen() {
 
           <PageHeader
             title="Name"
-            subtitle="What the app calls you on your dashboard."
+            subtitle="The name the app greets you by."
           />
 
           <Card className="gap-4">
-            {/* No label on the field: the page header already says "Name" one line
-                above it, and password.tsx only labels its inputs because it has three
-                of them to tell apart. */}
+            {/* No visible label — the header says "Name" one line above — but it still
+                needs an accessible one, or a screen reader announces only the email
+                placeholder, as if that were the current value. */}
             <Field
+              accessibilityLabel="Name"
               placeholder={displayName('', user?.email)}
               value={name}
               onChangeText={setName}
@@ -75,8 +70,6 @@ export default function ChangeNameScreen() {
               returnKeyType="done"
               onSubmitEditing={() => { if (!save.busy) void save.run() }}
             />
-            {/* The placeholder already shows what the fallback would be, so this says what
-                clearing it does rather than repeating the value. */}
             <Muted className="text-xs">
               Leave it empty and we&apos;ll use your email instead.
             </Muted>
@@ -88,6 +81,7 @@ export default function ChangeNameScreen() {
                 title="Save"
                 onPress={() => void save.run()}
                 loading={save.busy}
+                disabled={name.trim() === (settings.display_name ?? '')}
                 className="flex-1"
               />
               <Button
