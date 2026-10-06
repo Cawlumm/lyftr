@@ -15,7 +15,7 @@ import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, entryToResult, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 import FavoriteStar from '../components/FavoriteStar'
 
@@ -465,7 +465,7 @@ export default function Food() {
                                   <span className="text-[10px] text-tx-muted">·</span>
                                   <span className="text-xs text-violet-400 tabular-nums">{entry.fat.toFixed(0)}g F</span>
                                   {entry.servings !== 1 && (
-                                    <span className="text-xs text-tx-muted">× {entry.servings}</span>
+                                    <span className="text-xs text-tx-muted">{formatLoggedAmount(entry)}</span>
                                   )}
                                 </div>
                               </div>

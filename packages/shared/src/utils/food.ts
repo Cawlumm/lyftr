@@ -19,6 +19,11 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
     fat: e.fat / s,
     fiber: (e.fiber ?? 0) / s,
     serving_size: e.serving_size ?? '',
+    // Carried so re-opening an entry can still offer entry by weight. Unlike the
+    // macros these are per *one* serving already, so they do not divide.
+    serving_quantity: e.serving_quantity,
+    serving_unit: e.serving_unit,
+    barcode: e.barcode,
     image_url: e.image_url,
     source: 'saved',
   }
@@ -44,8 +49,70 @@ export function scaleServing(r: FoodSearchResult, servings: number) {
     fiber: +((r.fiber ?? 0) * servings).toFixed(1),
     servings,
     serving_size: r.serving_size ?? '',
+    serving_quantity: r.serving_quantity ?? 0,
+    serving_unit: r.serving_unit ?? '',
+    barcode: r.barcode ?? '',
     image_url: r.image_url ?? '',
   }
+}
+
+/** A serving expressed as a number, so an amount can be scaled against it. */
+export interface ServingBasis {
+  quantity: number
+  unit: 'g' | 'ml'
+}
+
+// What one serving of this food weighs (or measures), or null when nothing knows.
+//
+// OpenFoodFacts has a serving but no size for thousands of products, and everything
+// logged before #171 stored none either. Both read back as 0, and 0 is not a basis you
+// can divide by — the screens fall back to servings, which is what they have always
+// done. Never substitute 100 here: that is a real number for a product whose figures
+// are per 100 g and a fiction for one whose serving is a tablespoon.
+export function servingBasis(r: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'>): ServingBasis | null {
+  const quantity = r.serving_quantity ?? 0
+  if (!(quantity > 0)) return null
+  return { quantity, unit: r.serving_unit === 'ml' ? 'ml' : 'g' }
+}
+
+// Amount (in the basis' unit) → servings, which is what the log stores and what
+// scaleServing multiplies by. The diary has always been in servings; weight is a way
+// to type one, not a second thing to store.
+export function servingsForAmount(amount: number, basis: ServingBasis): number {
+  return amount / basis.quantity
+}
+
+// Servings as a number to read, not to compute with: a third of a serving is
+// 0.3333333333333333 and nobody needs that.
+//
+// Two decimals is enough for everything except a very small amount of a food measured
+// per 100 — 0.4 ml of oil is 0.004 servings, which rounds to "0 servings" beside a
+// figure of 3 kcal. Falling back to one significant digit keeps that honest.
+export function formatServings(servings: number): number {
+  const rounded = +servings.toFixed(2)
+  if (rounded === 0 && servings > 0) return +servings.toPrecision(1)
+  return rounded
+}
+
+// The inverse, for showing the amount when a screen opens on an existing entry.
+// Rounded to 0.1 to match the precision every other number in the app is entered at;
+// without it a third of a serving opens the field as 33.33333333333333 g.
+export function amountForServings(servings: number, basis: ServingBasis): number {
+  return +(servings * basis.quantity).toFixed(1)
+}
+
+// How much of the food an entry records, in the unit it was logged in: "15 ml" when
+// the serving's size is known, "0.5 servings" when it is not. One copy, because the
+// diary row and the entry detail have to read the same or the same tablespoon of oil
+// appears as two different amounts on two screens.
+export function formatLoggedAmount(
+  e: Pick<FoodLog, 'servings'> & Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'>,
+): string {
+  const servings = e.servings || 1
+  const basis = servingBasis(e)
+  if (basis) return `${amountForServings(servings, basis)} ${basis.unit}`
+  const n = formatServings(servings)
+  return `${n} ${n === 1 ? 'serving' : 'servings'}`
 }
 
 // A saved food is already stored per serving, so it maps across untouched.
@@ -53,7 +120,9 @@ export function savedToResult(s: SavedFood): FoodSearchResult {
   return {
     name: s.name, brand: s.brand,
     calories: s.calories, protein: s.protein, carbs: s.carbs,
-    fat: s.fat, fiber: s.fiber, serving_size: s.serving_size, source: 'saved',
+    fat: s.fat, fiber: s.fiber, serving_size: s.serving_size,
+    serving_quantity: s.serving_quantity, serving_unit: s.serving_unit,
+    barcode: s.barcode, source: 'saved',
   }
 }
 
@@ -73,6 +142,51 @@ export function findSavedFood(
   const name = normaliseFoodKey(item.name)
   const brand = normaliseFoodKey(item.brand)
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
+}
+
+// The ceiling on one diary entry, matching the server's models.MaxServings. Typing
+// 999999 into the amount field read 7,999,992 kcal against the day, and the server
+// stored whatever arrived. This copy exists so the field can refuse before asking.
+//
+// Servings is the bounded thing, and it is the only bounded thing: it is what gets
+// stored, what every macro is multiplied by, and so the one number the client and the
+// server can both check and mean the same by. A hundred of them is ten kilos of a food
+// held per 100 g, which is OpenNutriTracker's "unrealistically high" threshold reached
+// without a second rule to keep in step with this one.
+//
+// Checked after the amount is converted, not before. OpenNutriTracker checks the typed
+// number instead, so "500 servings" of a 30 g portion passes their guard and stores
+// 15000 g.
+//
+// (wger caps its amount at 1000, but that column doubles as a portion multiplier, which
+// is why it also carries a MinValueValidator of 1 — so it can log neither half a slice
+// nor a gram of anything, the very complaint #41 raised here. Waistline and FitBook have
+// no maximum at all.)
+export const MAX_SERVINGS = 100
+
+// The ceiling expressed in whatever the field is showing, for the message.
+export function maxAmountFor(basis: ServingBasis | null): string {
+  return basis
+    ? `${+(MAX_SERVINGS * basis.quantity).toFixed(1)} ${basis.unit}`
+    : `${MAX_SERVINGS} servings`
+}
+
+// React's key for one row of search or recent results, in both apps.
+//
+// The barcode is the only stable identity a result has. Keying on name + calories put
+// two real products under one key — OpenFoodFacts returns several "Extra Virgin Olive
+// Oil" rows from different brands, two of which read 0 kcal — and React answered with
+// "Encountered two children with the same key", having quietly dropped one row's state
+// onto the other.
+//
+// Without a barcode (a hand-entered food, a recent entry logged before barcodes were
+// stored) there is nothing unique to key on, so the position stands in. That is only
+// sound because these lists are replaced wholesale by a fetch rather than reordered.
+export function foodResultKey(
+  item: Pick<FoodSearchResult, 'barcode' | 'name'>,
+  index: number,
+): string {
+  return item.barcode || `${index}:${normaliseFoodKey(item.name)}`
 }
 
 // The single definition of "the same food", client-side. It has to agree with the

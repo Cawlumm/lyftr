@@ -144,6 +144,18 @@ func alterMigrations() {
 	// unbranded case uses, which is exactly how they already compared.
 	ensureColumn("food_logs", "brand", `ALTER TABLE food_logs ADD COLUMN brand TEXT NOT NULL DEFAULT ''`)
 
+	// The serving as a number, so an entry can be re-opened and edited by weight rather
+	// than by a servings multiplier. serving_size stays: it is the label the user reads
+	// ("1 Tbsp (15 ml)"), free text from OpenFoodFacts and not parseable.
+	//
+	// 0 is "we don't know", which is the honest value for every row written before this
+	// and for products OpenFoodFacts has no quantity for. Those keep working — the
+	// clients fall back to servings — so there is nothing to backfill and no guessing.
+	ensureColumn("food_logs", "serving_quantity", `ALTER TABLE food_logs ADD COLUMN serving_quantity REAL NOT NULL DEFAULT 0`)
+	ensureColumn("food_logs", "serving_unit", `ALTER TABLE food_logs ADD COLUMN serving_unit TEXT NOT NULL DEFAULT ''`)
+	ensureColumn("saved_foods", "serving_quantity", `ALTER TABLE saved_foods ADD COLUMN serving_quantity REAL NOT NULL DEFAULT 0`)
+	ensureColumn("saved_foods", "serving_unit", `ALTER TABLE saved_foods ADD COLUMN serving_unit TEXT NOT NULL DEFAULT ''`)
+
 	// Favorites is a bookmark list: starring a food saves it *unscaled* — the servings
 	// stepper scales at log time instead — so two rows with the same user/name/brand
 	// carry no information the first one didn't. They are the same star pressed twice.
