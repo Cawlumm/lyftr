@@ -218,7 +218,9 @@ export default function SettingsScreen() {
 
           {/* Account */}
           <SettingsGroup title="Account">
-            <View className="gap-3 pb-4">
+            {/* py-4, not pb-4: this is the first thing in the group, so without the top
+                padding the field's own "NAME" label sits on the card's border. */}
+            <View className="gap-3 py-4">
               <Field
                 label="Name"
                 placeholder={displayName('', user?.email)}
@@ -229,7 +231,12 @@ export default function SettingsScreen() {
                 autoCorrect={false}
               />
               <Muted className="text-xs">What the app calls you. Leave it empty to use your email.</Muted>
-              <Button title="Save name" onPress={handleSaveName} loading={saveName.busy} />
+              {/* Secondary and sized to its label. A full-width brand-filled button made
+                  one optional field the loudest thing on the Settings screen — louder
+                  than the workout settings below it. "Save targets" is primary and
+                  full-width because it commits four fields at the end of its group;
+                  this commits one. */}
+              <Button title="Save name" onPress={handleSaveName} loading={saveName.busy} variant="secondary" className="self-start" />
             </View>
             <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} divider />
             <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
