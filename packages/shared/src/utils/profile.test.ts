@@ -38,4 +38,11 @@ describe('nameInitial', () => {
   it('leaves a non-cased first character alone', () => {
     expect(nameInitial('日本')).toBe('日')
   })
+
+  // The name is free text, so it can start outside the BMP. charAt(0) would return half
+  // a surrogate pair here and the avatar would render a replacement glyph.
+  it('takes a whole code point, not half a surrogate pair', () => {
+    expect(nameInitial('🦍 Carter')).toBe('🦍')
+    expect(nameInitial('🦍 Carter')).toHaveLength(2) // one code point, two UTF-16 units
+  })
 })

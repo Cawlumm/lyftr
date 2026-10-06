@@ -285,8 +285,12 @@ export default function Settings() {
                 autoComplete="nickname"
               />
               {/* Only while there is something to save, so the row carries no permanent
-                  chrome for a field most people touch once. */}
-              {nameDirty && (
+                  chrome for a field most people touch once — but kept while the write is
+                  in flight, because the store applies the patch optimistically BEFORE it
+                  awaits, so nameDirty goes false on the very next render and the button
+                  would otherwise vanish the instant it was clicked, taking its own
+                  "Saving…" state with it. */}
+              {(nameDirty || saveName.busy) && (
                 <button onClick={handleSaveName} disabled={saveName.busy} className="btn-secondary btn-sm flex-shrink-0">
                   {saveName.busy ? 'Saving…' : 'Save'}
                 </button>

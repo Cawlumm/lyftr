@@ -18,8 +18,12 @@ export function displayName(name?: string, email?: string): string {
 }
 
 // The avatar letter. Takes what displayName already returned rather than deriving it
-// again, so the circle and the name beside it always start with the same letter — which
-// is also why there is no empty-string guard here: displayName never returns one.
+// again, so the circle and the name beside it always start with the same letter.
+//
+// Spread rather than charAt(0): a name is free text bounded only by length, so it can
+// begin with an emoji, and charAt returns half a surrogate pair — which toUpperCase
+// leaves alone and every avatar then renders as a replacement glyph. The string iterator
+// yields whole code points.
 export function nameInitial(name: string): string {
-  return name.charAt(0).toUpperCase()
+  return ([...name][0] ?? '').toUpperCase()
 }

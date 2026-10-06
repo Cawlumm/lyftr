@@ -124,6 +124,11 @@ describe('the Name row', () => {
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
   })
 
+  // The in-flight "Saving…" state is deliberately NOT tested here. It only appears
+  // because the real store applies its patch optimistically before awaiting, which makes
+  // the row stop being dirty mid-write — and this file's store is a plain stub that never
+  // re-renders, so any assertion about it passes whether the fix is present or not. It is
+  // verified against the real store in a browser with the response delayed instead.
   it('names the field and its help text for a screen reader', async () => {
     renderPage()
     await waitFor(() => expect(nameField()).toBeTruthy())
