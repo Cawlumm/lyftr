@@ -37,8 +37,8 @@ func ParseLocation(name string) (*time.Location, error) {
 // so history does not move when the account's zone changes. What remains here are
 // the two questions a stored day genuinely cannot answer:
 //
-//	1. "What is today?" — for a read with no date parameter.
-//	2. "What day is this?" — for a write from a client too old to send one.
+//  1. "What is today?" — for a read with no date parameter.
+//  2. "What day is this?" — for a write from a client too old to send one.
 //
 // Both are questions about *now*, where the current zone is the right answer.
 func (h *Handler) userLocation(uid int64) *time.Location {
@@ -105,5 +105,3 @@ func (h *Handler) tzOffsetMinutes(uid int64, instant time.Time) int {
 	_, seconds := instant.In(h.userLocation(uid)).Zone()
 	return seconds / 60
 }
-
-

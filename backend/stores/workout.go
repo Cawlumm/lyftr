@@ -299,7 +299,6 @@ func (s *WorkoutStore) loadSets(workoutExerciseID int64) ([]models.Set, error) {
 	return sets, rows.Err()
 }
 
-
 // CountOnLocalDay counts workouts whose own recorded offset puts them on `day`.
 //
 // Shifting the instant by the row's stored offset is exact and needs no zone: a

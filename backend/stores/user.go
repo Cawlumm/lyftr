@@ -246,4 +246,3 @@ func (s *UserStore) Delete(uid int64) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, uid)
 	return err
 }
-
