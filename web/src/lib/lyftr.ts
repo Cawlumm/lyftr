@@ -1,6 +1,7 @@
 import {
   createAuthStore,
   createUseRestTimer,
+  createUseDisplayName,
   createClient,
   createServerStore,
   createSettingsStore,
@@ -94,3 +95,5 @@ export const hydrateStores = async () => {
 // Rest-timer state derived from the session store above. The logic lives in
 // @lyftr/shared; this binds it to web's store instance.
 export const useRestTimer = createUseRestTimer(useWorkoutSession)
+
+export const useDisplayName = createUseDisplayName(useSettingsStore, useAuthStore)

@@ -9,7 +9,8 @@ import { useAuthStore } from '../stores/auth'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useRestTimer } from '../hooks/useRestTimer'
-import { fmtClock, formatElapsed, useElapsedSeconds, displayName, nameInitial } from '@lyftr/shared'
+import { fmtClock, formatElapsed, useElapsedSeconds, nameInitial } from '@lyftr/shared'
+import { useDisplayName } from '../lib/lyftr'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
 import RestTimerBanner from './RestTimerBanner'
@@ -80,7 +81,6 @@ function ActiveSessionBar() {
 
 function UserMenu() {
   const { user, logout } = useAuthStore()
-  const { settings } = useSettingsStore()
   const { theme, toggleTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -93,7 +93,7 @@ function UserMenu() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const username = displayName(settings.display_name, user?.email)
+  const username = useDisplayName()
   const initial = nameInitial(username)
 
   return (

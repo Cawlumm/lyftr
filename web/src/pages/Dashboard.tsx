@@ -17,7 +17,8 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, lifterQuip } from '@lyftr/shared'
+import { useDisplayName } from '../lib/lyftr'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -145,6 +146,10 @@ export default function Dashboard() {
       .finally(() => setLoading(false))
   }, [TODAY, retryKey, fetchSettings])
 
+  // Above the early returns: it is a hook now, so it has to run on every render or the
+  // hook order changes between the loading branch and the loaded one.
+  const username = useDisplayName()
+
   if (loading) return <Loading />
 
   // The dashboard is nothing but other requests' answers, so when the load fails there
@@ -254,8 +259,6 @@ export default function Dashboard() {
     date: formatDay(entryDay(l), 'M/d'),
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
-
-  const username = displayName(settings.display_name, user?.email)
 
   return (
     <div className="space-y-4 animate-slide-up">

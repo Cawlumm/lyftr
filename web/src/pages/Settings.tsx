@@ -36,12 +36,15 @@ import {
 // `descriptionTone` lets a row report its own failure in place of its description. A row
 // like the unit toggle sits far down a long page, and the page-level banner is at the very
 // top — measured at 809px above the control, off-screen, which is the same as saying nothing.
-function SettingRow({ label, description, descriptionTone, children }: { label: string; description?: string; descriptionTone?: 'error'; children: React.ReactNode }) {
+// `descriptionId` lets a control inside the row point at the description with
+// aria-describedby. Without it the description is visible-only: a screen reader names the
+// field and never reads the sentence that says what clearing it does.
+function SettingRow({ label, description, descriptionTone, descriptionId, children }: { label: string; description?: string; descriptionTone?: 'error'; descriptionId?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 py-4">
       <div className="min-w-[9rem] flex-1">
         <p className="text-sm font-medium text-tx-primary">{label}</p>
-        {description && <p className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
+        {description && <p id={descriptionId} className={`text-xs mt-0.5 ${descriptionTone === 'error' ? 'text-error-400' : 'text-tx-muted'}`}>{description}</p>}
       </div>
       {/* break-words so a long unbroken value wraps instead of overflowing the card. */}
       <div className="min-w-0 max-w-full flex-shrink-0 break-words">{children}</div>
@@ -263,6 +266,7 @@ export default function Settings() {
             ? "Couldn't load your name, so we won't offer to overwrite it."
             : saveName.error || "The name the app greets you by. Leave it empty and we'll use your email instead."}
           descriptionTone={settingsLoadFailed || saveName.error ? 'error' : undefined}
+          descriptionId="name-help"
         >
           {settingsLoadFailed ? (
             <span className="text-sm text-tx-muted">—</span>
@@ -271,6 +275,7 @@ export default function Settings() {
               <input
                 type="text"
                 aria-label="Name"
+                aria-describedby="name-help"
                 value={name}
                 onChange={e => { setName(e.target.value); saveName.reset() }}
                 onKeyDown={e => { if (e.key === 'Enter' && nameDirty) handleSaveName() }}

@@ -26,7 +26,6 @@ import { useAsyncAction,
   isInsecureServerUrl,
   INSECURE_SERVER_WARNING,
   sanitizeNumericInput,
-  displayName,
 } from '@lyftr/shared'
 import {
   AppText,
@@ -47,7 +46,7 @@ import {
   Toggle,
   type ToastVariant,
 } from '../../../src/components/ui'
-import { client, useAuthStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
+import { client, useAuthStore, useDisplayName, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const REST_PRESETS = [60, 90, 120, 180]
@@ -56,6 +55,7 @@ type ToastState = { variant: ToastVariant; title: string; description?: string }
 
 export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user)
+  const name = useDisplayName()
   const logout = useAuthStore((s) => s.logout)
   const serverUrl = useServerStore((s) => s.serverUrl)
   const setServerUrl = useServerStore((s) => s.setServerUrl)
@@ -201,11 +201,14 @@ export default function SettingsScreen() {
           {/* Account */}
           <SettingsGroup title="Account">
             {/* Shows what the greeting will actually say, so the fallback is visible
-                without opening anything: the email's local part until a name is set. */}
+                without opening anything: the email's local part until a name is set.
+                SettingsRow truncates its value to one line, which the dashboard heading
+                deliberately does not — a row is a fixed-height nav affordance and the
+                full name is one tap away, where the heading IS the content. */}
             <SettingsRow
               icon={User}
               label="Name"
-              value={displayName(settings.display_name, user?.email)}
+              value={name}
               chevron
               onPress={() => router.push('/settings/name')}
             />
