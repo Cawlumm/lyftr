@@ -17,7 +17,7 @@ import { workoutAPI, foodAPI, weightAPI, programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, lifterQuip, todayStr } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -266,9 +266,20 @@ export default function Dashboard() {
           <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
             {format(TODAY, 'EEEE, MMMM d')}
           </p>
-          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5">
+          {/* Truncated, and this is a deliberate departure: no comparable app truncates
+              a user's own name. None of them faced the question — four of the five
+              fitness peers have no name field at all, and the two that show one
+              (wger's navbar dropdown, workout-tracker's nav profile link) put it in a
+              small affordance that is free to wrap, not in a display heading beside a
+              button. Here it IS the heading, so sixty characters at text-2xl would
+              take three lines on a phone and push the whole dashboard down. Mobile has
+              clipped to one line since it shipped; this is web catching up, so the two
+              platforms agree about what the header is. The length itself is defended at
+              the input, which is where the peers defend it — see MaxDisplayNameLen. */}
+          <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 truncate">
             {greeting(TODAY)}, {username}
           </h1>
+          <p className="text-xs text-tx-muted mt-1">{lifterQuip(`${todayStr()}:${username}`)}</p>
         </div>
         <button
           onClick={() => navigate('/workout/start')}

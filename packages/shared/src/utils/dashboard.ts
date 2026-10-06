@@ -48,6 +48,50 @@ export function greeting(now: Date): string {
   return 'Good evening'
 }
 
+// The line under the greeting. Same voice as MUSCLE_ROAST above — dry, second person,
+// on the lifter's side. None of these are about how the person looks, and none of them
+// scold: this is the first thing they read every time they open the app, and a nag you
+// cannot dismiss stops being funny on about day three.
+const LIFTER_QUIPS: string[] = [
+  'The bar does not care how you feel about it.',
+  'Progressive overload: the only pyramid scheme that works.',
+  'Nobody has ever regretted the warm-up.',
+  'The hardest rep is the one in the car park.',
+  'Form first. Ego lifts are for the parking lot.',
+  'Legs today? No? Interesting choice.',
+  'Chalk is not a personality. It helps, though.',
+  'You cannot out-train a log you never fill in.',
+  'Deload weeks count. Reluctantly.',
+  'Mirror check later. Barbell now.',
+  'Half reps, full lies.',
+  'The only bad set is the one you talked yourself out of.',
+  'Somewhere a squat rack is holding a coat. Not yours.',
+  'Your future self already thanked you. Rude of them not to wait.',
+  'Protein is not optional. Neither is sleep.',
+  'Rest is part of the programme, not a gap in it.',
+]
+
+// Picked, not shuffled. The dashboard re-renders on every fetch, refresh and tab
+// return, so Math.random() here would change the line out from under someone mid-read
+// — the UI equivalent of a sentence rewriting itself. Hashing a seed instead makes the
+// line stable for as long as the seed is, and the callers seed it with the day plus the
+// person, so it changes once a day and web and mobile show the same one.
+//
+// FNV-1a, 32-bit, with Math.imul so the multiply stays exact past 2^31 — plain `*`
+// goes through a float and the low bits, which are the ones being used, come out wrong.
+function hashSeed(seed: string): number {
+  let h = 0x811c9dc5
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return h >>> 0
+}
+
+export function lifterQuip(seed: string): string {
+  return LIFTER_QUIPS[hashSeed(seed) % LIFTER_QUIPS.length]
+}
+
 // The "up next" card: the first program whose day-for-today actually has exercises.
 // Programs are scanned in order, so an earlier program wins a tie — matching the
 // order they're listed on the Programs screen.

@@ -1,4 +1,4 @@
-import { greeting, muscleHex, muscleRoast, nextStartableDay } from './dashboard'
+import { greeting, lifterQuip, muscleHex, muscleRoast, nextStartableDay } from './dashboard'
 import type { Program } from '../types'
 
 describe('muscleHex', () => {
@@ -86,5 +86,36 @@ describe('greeting', () => {
     // previously read a module-load constant, which went stale across midnight.
     expect(greeting(at(9))).toBe('Good morning')
     expect(greeting(at(21))).toBe('Good evening')
+  })
+})
+describe('lifterQuip', () => {
+  // The whole point: the dashboard re-renders on every fetch and refresh, so the same
+  // seed has to keep answering the same line.
+  it('is stable for a seed', () => {
+    const first = lifterQuip('2026-10-06:Carter')
+    for (let i = 0; i < 50; i++) expect(lifterQuip('2026-10-06:Carter')).toBe(first)
+  })
+
+  it('moves on when the day does', () => {
+    const week = ['03', '04', '05', '06', '07', '08', '09']
+      .map((d) => lifterQuip(`2026-10-${d}:Carter`))
+    expect(new Set(week).size).toBeGreaterThan(1)
+  })
+
+  it('always answers with a line, whatever the seed', () => {
+    for (const seed of ['', ' ', '2026-10-06:', ':Carter', '日本', 'x'.repeat(500)]) {
+      const quip = lifterQuip(seed)
+      expect(typeof quip).toBe('string')
+      expect(quip.length).toBeGreaterThan(0)
+    }
+  })
+
+  // The index comes from the low bits of the hash, so a multiply that overflowed into a
+  // float would still return *a* line and quietly stop using most of the list. Checking
+  // the spread over a month of seeds is what would catch that.
+  it('spreads over the list rather than clustering', () => {
+    const month = Array.from({ length: 31 }, (_, i) =>
+      lifterQuip(`2026-10-${String(i + 1).padStart(2, '0')}:Carter`))
+    expect(new Set(month).size).toBeGreaterThanOrEqual(8)
   })
 })

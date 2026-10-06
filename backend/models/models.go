@@ -33,8 +33,16 @@ type UserSettings struct {
 
 // MaxDisplayNameLen bounds the name a person can give themselves. It is a label on
 // their own dashboard, nothing indexes or joins on it, so the only job of the bound
-// is to keep a pasted novel out of the column and out of the greeting. Sixty is the
-// width the dashboard heading can show before it truncates on a phone.
+// is to keep a pasted novel out of the column and out of the greeting.
+//
+// Sixty, because that is where the comparable self-hosted apps put it and because it
+// is the width the dashboard heading can show on a phone. Nextcloud rejects anything
+// longer than 64 outright (lib/private/User/Database.php, setDisplayName throws
+// InvalidArgumentException), and jovandeginste/workout-tracker caps the column at
+// varchar(64) (pkg/database/user.go). Two of them arriving independently within four
+// characters is the reason this is a bound and not a guess. wger has none at all —
+// its first_name/last_name render through get_full_name(), so a 301-character
+// heading is reachable there.
 //
 // The `max` in UpdateSettingsRequest's validate tag must match this number — struct
 // tags cannot reference a constant.

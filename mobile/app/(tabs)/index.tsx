@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, nameInitial } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, displayName, nameInitial, lifterQuip, todayStr } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -296,6 +296,7 @@ export default function Dashboard() {
                 {format(now, 'EEEE, MMMM d')}
               </Text>
               <AppText variant="title" className="mt-0.5" numberOfLines={1}>{greeting(now)}, {username}</AppText>
+              <AppText variant="caption" color="muted" className="mt-1">{lifterQuip(`${todayStr()}:${username}`)}</AppText>
             </View>
             <View className="flex-row items-center gap-2">
               <Pressable
