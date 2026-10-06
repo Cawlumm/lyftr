@@ -32,10 +32,19 @@ export default function ChangeNameScreen() {
   // Trimmed before sending so the field agrees with what comes back — the server trims
   // too, and a field left holding "  Carter  " would show a value the record does not have.
   //
-  // No success toast, unlike "Targets saved" next door, and no confirmation card like
-  // password.tsx. Those two need one because they save in place: the screen after a
-  // successful save looks identical to the screen before it. This one returns to a row
-  // showing the new value, which is the result itself rather than a message about it.
+  // Returns to Settings with no confirmation, and that is the rule rather than an
+  // exception: a save is confirmed in proportion to its CONSEQUENCE, not to the shape of
+  // the screen it happened on.
+  //
+  //   password.tsx  stays and shows a card — changing it signs you out everywhere, which
+  //                 is a consequence worth spelling out in words
+  //   targets       stays and toasts — it saves in place, so nothing on screen changes
+  //                 to show that anything happened
+  //   here          pops back to a row already showing the new value, and a name has no
+  //                 consequence to warn anyone about
+  //
+  // So a new settings editor should ask what its save COSTS the person, not which of
+  // these three screens it most resembles.
   const save = useAsyncAction(async () => {
     await updateSettings({ display_name: name.trim() })
     back()

@@ -150,6 +150,7 @@ func TestUpdateSettings_explicitZeroRespected(t *testing.T) {
 	assertNum(t, d, "carb_target", 250)
 	assertNum(t, d, "fat_target", 65)
 }
+
 // --- display_name (#170) -----------------------------------------------------
 //
 // The name is a label the person chooses for themselves, so what matters is that

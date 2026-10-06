@@ -743,10 +743,11 @@ func TestDedupeSavedFoods_isIdempotentAcrossBoots(t *testing.T) {
 		t.Fatalf("expected the single bookmark to survive two boots, got %d rows", n)
 	}
 }
+
 // The display_name column (#170) is in the base schema, so a fresh install never
 // exercises the ALTER path that every EXISTING install takes. Dropping it back off
 // reproduces a pre-#170 database and checks the claim the migration comment makes:
-// existing rows come out with '', which is what the clients read as "no name set".
+// existing rows come out with an empty name, which is what the clients read as unset.
 func TestAlterMigrations_addsDisplayNameToAnExistingSettingsRow(t *testing.T) {
 	setupMigrationTestDB(t)
 
