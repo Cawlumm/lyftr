@@ -22,7 +22,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { apiErrorMessage, entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -240,11 +240,10 @@ export default function LogFood() {
     return <BarcodeScanner onResult={lookUpBarcode} onClose={() => setPhase('search')} />
   }
 
-  const cal = selected ? Math.round(selected.calories * servings) : 0
-  const pro = selected ? +(selected.protein * servings).toFixed(1) : 0
-  const carb = selected ? +(selected.carbs * servings).toFixed(1) : 0
-  const fat_ = selected ? +(selected.fat * servings).toFixed(1) : 0
-  const fib = selected ? +((selected.fiber ?? 0) * servings).toFixed(1) : 0
+  const figures = selected ? scaledFigures(selected, servings) : null
+  const pro = figures?.protein ?? 0
+  const carb = figures?.carbs ?? 0
+  const fat_ = figures?.fat ?? 0
   const quickAddCals = /^\d+(\.\d+)?$/.test(query.trim()) ? Number(query.trim()) : null
 
   return (
@@ -478,11 +477,11 @@ export default function LogFood() {
                   <View className="mb-5 flex-row items-end justify-between">
                     <View>
                       <View className="flex-row items-baseline gap-1.5">
-                        <AppText variant="display" style={{ fontSize: 44, lineHeight: 46, fontVariant: ['tabular-nums'] }}>{cal}</AppText>
+                        <AppText variant="display" style={{ fontSize: 44, lineHeight: 46, fontVariant: ['tabular-nums'] }}>{figures?.calories ?? '—'}</AppText>
                         <AppText variant="body" color="muted">kcal</AppText>
                       </View>
                       {selected.serving_size ? (
-                        <AppText variant="caption" color="muted" className="mt-1">per {servingsLabel === 1 || servings <= 0 ? '' : `${servingsLabel} × `}{selected.serving_size}</AppText>
+                        <AppText variant="caption" color="muted" className="mt-1">per {servingsLabel === 1 || !figures ? '' : `${servingsLabel} × `}{selected.serving_size}</AppText>
                       ) : null}
                     </View>
                     {pro + carb + fat_ > 0 ? (
@@ -512,13 +511,13 @@ export default function LogFood() {
                   {/* Macro grid */}
                   <View className="flex-row gap-2">
                     {[
-                      { label: 'Protein', value: pro, color: MACRO_TEXT.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-                      { label: 'Carbs', value: carb, color: MACRO_TEXT.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-                      { label: 'Fat', value: fat_, color: MACRO_TEXT.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
-                      { label: 'Fiber', value: fib, color: colors.txSecondary, bg: colors.muted, border: colors.border },
+                      { label: 'Protein', value: figures ? `${pro}g` : '—', color: MACRO_TEXT.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+                      { label: 'Carbs', value: figures ? `${carb}g` : '—', color: MACRO_TEXT.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+                      { label: 'Fat', value: figures ? `${fat_}g` : '—', color: MACRO_TEXT.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+                      { label: 'Fiber', value: figures ? `${figures.fiber}g` : '—', color: colors.txSecondary, bg: colors.muted, border: colors.border },
                     ].map((m) => (
                       <View key={m.label} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>
-                        <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{m.value}g</AppText>
+                        <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{m.value}</AppText>
                         <AppText variant="caption" color="muted" style={{ fontSize: 10 }} className="mt-0.5">{m.label}</AppText>
                       </View>
                     ))}

@@ -83,7 +83,10 @@ export function useFoodAmount(
     step: (direction) => {
       const size = basis ? basis.quantity : 0.5
       const from = Number.isFinite(amount) ? amount : 0
-      setText(String(+Math.max(0, from + direction * size).toFixed(1)))
+      // Stops at the ceiling as it stops at zero: a stepper that walks past what one
+      // entry holds lands on a figure the Log button refuses.
+      const max = basis ? amountForServings(MAX_SERVINGS, basis) : MAX_SERVINGS
+      setText(String(+Math.min(max, Math.max(0, from + direction * size)).toFixed(1)))
     },
     // Both openers take the food as an argument rather than reading `selected`: the
     // caller sets that in the same render, so the hook cannot see it yet. Both are

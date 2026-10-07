@@ -171,6 +171,33 @@ export function maxAmountFor(basis: ServingBasis | null): string {
     : `${MAX_SERVINGS} servings`
 }
 
+export interface ScaledFigures {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+}
+
+// What the Log Food hero shows for the amount typed, or null when no entry could be
+// logged at it. An empty or nonsense field is no answer and an over-limit one is a figure
+// the server will refuse, so neither gets numbers: 999999 g read 7,999,992 kcal in the
+// hero beside a disabled button. The screens render null as a dash. One copy so web and
+// mobile cannot scale, round or blank differently.
+export function scaledFigures(
+  item: Pick<FoodSearchResult, 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'>,
+  servings: number,
+): ScaledFigures | null {
+  if (!(servings > 0) || servings > MAX_SERVINGS) return null
+  return {
+    calories: Math.round(item.calories * servings),
+    protein: +(item.protein * servings).toFixed(1),
+    carbs: +(item.carbs * servings).toFixed(1),
+    fat: +(item.fat * servings).toFixed(1),
+    fiber: +((item.fiber ?? 0) * servings).toFixed(1),
+  }
+}
+
 // React's key for one row of search or recent results, in both apps.
 //
 // The barcode is the only stable identity a result has. Keying on name + calories put

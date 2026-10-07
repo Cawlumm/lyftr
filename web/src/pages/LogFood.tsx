@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight, Loader2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
 import { ErrorState, ListError, Toast } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
@@ -288,11 +288,10 @@ export default function LogFood() {
     )
   }
 
-  const cal = selected ? Math.round(selected.calories * servings) : 0
-  const pro = selected ? +(selected.protein * servings).toFixed(1) : 0
-  const carb = selected ? +(selected.carbs * servings).toFixed(1) : 0
-  const fat_ = selected ? +(selected.fat * servings).toFixed(1) : 0
-  const fib = selected ? +((selected.fiber ?? 0) * servings).toFixed(1) : 0
+  const figures = selected ? scaledFigures(selected, servings) : null
+  const pro = figures?.protein ?? 0
+  const carb = figures?.carbs ?? 0
+  const fat_ = figures?.fat ?? 0
   const quickAddCals = /^\d+(\.\d+)?$/.test(query.trim()) ? Number(query.trim()) : null
 
   return (
@@ -549,7 +548,7 @@ export default function LogFood() {
               <div className="flex items-end justify-between mb-5">
                 <div>
                   <div className="flex items-baseline gap-1.5">
-                    <span className="text-5xl font-bold tabular-nums text-tx-primary leading-none">{cal}</span>
+                    <span className="text-5xl font-bold tabular-nums text-tx-primary leading-none">{figures?.calories ?? '—'}</span>
                     <span className="text-sm text-tx-muted">kcal</span>
                   </div>
                   {selected.serving_size && (
@@ -557,7 +556,7 @@ export default function LogFood() {
                       {/* The label comes from OpenFoodFacts, which is free text — and rows
                           logged before the backend stopped prefixing it still read "per
                           100g". Supplying a second "per" gave "per per 100g". */}
-                      per {servingsLabel === 1 || servings <= 0 ? '' : `${servingsLabel} × `}
+                      per {servingsLabel === 1 || !figures ? '' : `${servingsLabel} × `}
                       {selected.serving_size.replace(/^per\s+/i, '')}
                     </p>
                   )}
@@ -589,13 +588,13 @@ export default function LogFood() {
               {/* Macro grid */}
               <div className="grid grid-cols-4 gap-2">
                 {[
-                  { label: 'Protein', value: pro, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-                  { label: 'Carbs',   value: carb, color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20' },
-                  { label: 'Fat',     value: fat_, color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-                  { label: 'Fiber',   value: fib,  color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
+                  { label: 'Protein', value: figures ? `${pro}g` : '—', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+                  { label: 'Carbs',   value: figures ? `${carb}g` : '—', color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20' },
+                  { label: 'Fat',     value: figures ? `${fat_}g` : '—', color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
+                  { label: 'Fiber',   value: figures ? `${figures.fiber}g` : '—', color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
                 ].map(m => (
                   <div key={m.label} className={`rounded-xl border p-2.5 text-center ${m.bg}`}>
-                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}g</p>
+                    <p className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}</p>
                     <p className="text-[10px] text-tx-muted mt-0.5">{m.label}</p>
                   </div>
                 ))}

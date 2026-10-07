@@ -76,6 +76,27 @@ describe('useFoodAmount', () => {
     expect(result.current.text).toBe('0')
   })
 
+  // Past the ceiling the Log button refuses, so the stepper stops there as it does at zero.
+  it('stops stepping at the most one entry holds', () => {
+    const { result } = renderHook(() => useFoodAmount(TBSP))
+    act(() => result.current.setText('1485'))
+    act(() => result.current.step(1))
+    expect(result.current.text).toBe('1500')
+    expect(result.current.overLimit).toBe(false)
+    act(() => result.current.step(1))
+    expect(result.current.text).toBe('1500')
+
+    // From beyond it, a step brings the field back to the ceiling rather than past it.
+    act(() => result.current.setText('999999'))
+    act(() => result.current.step(1))
+    expect(result.current.text).toBe('1500')
+
+    const plain = renderHook(() => useFoodAmount(UNKNOWN))
+    act(() => plain.result.current.setText('100'))
+    act(() => plain.result.current.step(1))
+    expect(plain.result.current.text).toBe('100')
+  })
+
   it('steps by half a serving when that is all the field counts', () => {
     const { result } = renderHook(() => useFoodAmount(UNKNOWN))
     act(() => result.current.step(1))
