@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
-import { ErrorState, ListError } from '../components/ui'
+import { ErrorState, ListError, Toast } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
 import FavoriteStar from '../components/FavoriteStar'
@@ -110,7 +110,7 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<types.FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<types.FoodSearchResult[]>([])
   // Starring lives in useFavorites, shared with the diary so the rules can't drift (#138).
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError } =
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError, setError: setFavoriteError } =
     useFavorites(savedFoodsAPI)
   // Each list's own failure. Kept separate from the page: one of these failing is not a
   // reason to withhold search, and an empty list that failed to load must not draw the
@@ -338,15 +338,10 @@ export default function LogFood() {
         )}
       </div>
 
-      {/* Outside both phases on purpose: the star is on the rows *and* in the header
-          above, so a failure has to be visible whichever one the user pressed. Sitting
-          inside the search phase meant a failed star on the detail view said nothing at
-          all and simply snapped back to unfilled. */}
+      {/* A toast, not a banner: the star is on the rows *and* in the header, and the
+          failed star has already snapped back, so this only has to say why. */}
       {favoriteError && (
-        <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
-          <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
-          <p className="text-xs text-error-400">{favoriteError}</p>
-        </div>
+        <Toast variant="error" icon={AlertCircle} title={favoriteError} autoDismissMs={6000} onDismiss={() => setFavoriteError(null)} />
       )}
 
       {/* Search phase */}

@@ -16,7 +16,7 @@ import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
 import { apiErrorMessage, entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
-import { ErrorState } from '../components/ui'
+import { ErrorState, Toast } from '../components/ui'
 import FavoriteStar from '../components/FavoriteStar'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
@@ -260,11 +260,15 @@ export default function Food() {
         }
       />
 
-      {(error || favorites.error) && (
+      {error && (
         <div className="alert-error">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error ?? favorites.error}</span>
+          <span>{error}</span>
         </div>
+      )}
+
+      {favorites.error && (
+        <Toast variant="error" icon={AlertCircle} title={favorites.error} autoDismissMs={6000} onDismiss={() => favorites.setError(null)} />
       )}
 
       {/* Date navigator */}

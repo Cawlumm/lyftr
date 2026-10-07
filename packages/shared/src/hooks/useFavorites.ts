@@ -33,6 +33,14 @@ export interface Favorites {
   epoch: React.MutableRefObject<number>
 }
 
+// Inserted in name order rather than appended: ListSaved returns ORDER BY name, so
+// appending parks a new favourite at the bottom until the next load and then jumps it.
+// Plain < to match SQLite's BINARY collation rather than localeCompare, which would order
+// differently from the server it is imitating. A row already present (same id) is kept.
+const insertByName = (list: SavedFood[], row: SavedFood) => list.some(f => f.id === row.id)
+  ? list
+  : [...list, row].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+
 const keyOf = (item: FoodSearchResult) => `${normaliseFoodKey(item.name)}|${normaliseFoodKey(item.brand)}`
 
 // Favouriting is its own action, not a side effect of logging: one tap on, one tap off,
@@ -44,6 +52,7 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
   const [toggling, setToggling] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const epoch = useRef(0)
+  const tempId = useRef(0)
 
   // The guard is a ref, not the state above. setState does not apply within the tick it
   // is called in, so a burst of taps in one frame all read the same empty set and all
@@ -68,10 +77,20 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     setError(null)
     epoch.current += 1
     const existing = favoriteOf(item)
+    // The star answers the tap at once and is put back if the server refuses. Waiting for
+    // the round trip left a dead-looking star for as long as the connection took, and on
+    // gym wifi that is seconds. `pending` is a stand-in row until the real id arrives.
+    const pending: SavedFood | null = existing ? null : {
+      id: --tempId.current, name: item.name, brand: item.brand ?? '',
+      calories: item.calories, protein: item.protein,
+      carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
+      serving_size: item.serving_size ?? '',
+    }
+    if (existing) setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
+    else setSavedFoods(prev => insertByName(prev, pending!))
     try {
       if (existing) {
         await api.delete(existing.id)
-        setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
         return 'removed'
       }
       const created = await api.create({
@@ -82,17 +101,13 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
       })
       // The server answers 200 with the existing row when the food is already favourited,
       // so `created` can be something the list already holds — after a refresh that raced
-      // this request, for instance. Appending blind puts two rows with the same id (and the
-      // same React key) in the list.
-      // Inserted in name order rather than appended: ListSaved returns ORDER BY name, so
-      // appending parks a new favourite at the bottom until the next load and then jumps
-      // it. Plain < to match SQLite's BINARY collation rather than localeCompare, which
-      // would order differently from the server it is imitating.
-      setSavedFoods(prev => prev.some(f => f.id === created.id)
-        ? prev
-        : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
+      // this request, for instance. insertByName skips an id it already has.
+      setSavedFoods(prev => insertByName(prev.filter(f => f.id !== pending!.id), created))
       return 'added'
     } catch (err) {
+      setSavedFoods(prev => existing
+        ? insertByName(prev, existing)
+        : prev.filter(f => f.id !== pending!.id))
       setError(apiErrorMessage(err, existing
         ? `Couldn't remove ${item.name} from Favorites.`
         : `Couldn't add ${item.name} to Favorites.`))
