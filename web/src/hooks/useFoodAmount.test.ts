@@ -57,6 +57,21 @@ describe('useFoodAmount', () => {
 
   // Entries stored before the server enforced the ceiling can be over it. They open as
   // they were, say so, and can be lowered; they cannot be raised further.
+  it('remembers a refusal until the next edit or step lands', () => {
+    const { result } = renderHook(() => useFoodAmount(null))
+    expect(result.current.refused).toBe(false)
+
+    act(() => result.current.setText('999999'))
+    expect(result.current.refused).toBe(true)
+
+    act(() => result.current.setText('50'))
+    expect(result.current.refused).toBe(false)
+
+    act(() => result.current.setText('999999'))
+    act(() => result.current.step(-1))
+    expect(result.current.refused).toBe(false)
+  })
+
   it('lets an entry stored over the limit be edited down but not up', () => {
     const { result } = renderHook(() => useFoodAmount(OIL))
     act(() => result.current.openOnEntry(OIL, 5000))

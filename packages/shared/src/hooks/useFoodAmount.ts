@@ -11,6 +11,8 @@ export interface FoodAmount {
   setText: (next: string) => void
   /** Whether typing `next` is allowed; for a field that keeps its own copy of the text. */
   accepts: (next: string) => boolean
+  /** The last keystroke was refused for passing the ceiling; the next edit clears it. */
+  refused: boolean
   /** What a serving measures, or null when nothing knows and the field counts servings. */
   basis: ServingBasis | null
   /** What the diary stores. 0 for an empty or nonsense field — the caller blocks the log. */
@@ -50,10 +52,12 @@ export function useFoodAmount(
   selected: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'> | null,
 ): FoodAmount {
   const [text, setText] = useState('1')
+  const [refused, setRefused] = useState(false)
 
   const openOn = useCallback((result: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'>) => {
     const b = servingBasis(result)
     setText(String(b ? b.quantity : 1))
+    setRefused(false)
   }, [])
 
   const openOnEntry = useCallback((
@@ -63,6 +67,7 @@ export function useFoodAmount(
     const b = servingBasis(result)
     const s = entryServings || 1
     setText(String(b ? amountForServings(s, b) : s))
+    setRefused(false)
   }, [])
 
   const basis = selected ? servingBasis(selected) : null
@@ -72,10 +77,13 @@ export function useFoodAmount(
   // A keystroke that would take the field past the ceiling is not accepted, so the
   // person types up to the limit and no further, as a maxLength would. Lowering is
   // always allowed, so an entry stored above the limit before the server enforced it can
-  // still be edited down rather than trapping the field.
+  // still be edited down rather than trapping the field. A refusal is remembered so the
+  // screen can say why the digit did not land; both callers are keystroke handlers.
   const accepts = (next: string) => {
     const n = Number(next)
-    return !(n > ceiling && n > amount)
+    const ok = !(n > ceiling && n > amount)
+    setRefused(!ok)
+    return ok
   }
   const setAmountText = (next: string) => { if (accepts(next)) setText(next) }
   const servings = Number.isFinite(amount) && amount > 0
@@ -86,6 +94,7 @@ export function useFoodAmount(
     text,
     setText: setAmountText,
     accepts,
+    refused,
     basis,
     servings,
     servingsLabel: formatServings(servings),
@@ -100,6 +109,7 @@ export function useFoodAmount(
       // Stops at the ceiling as it stops at zero: a stepper that walks past what one
       // entry holds lands on a figure the Log button refuses.
       setText(String(+Math.min(ceiling, Math.max(0, from + direction * size)).toFixed(1)))
+      setRefused(false)
     },
     // Both openers take the food as an argument rather than reading `selected`: the
     // caller sets that in the same render, so the hook cannot see it yet. Both are

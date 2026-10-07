@@ -218,11 +218,14 @@ describe('Logging an amount', () => {
     fireEvent.change(amount, { target: { value: '999999' } })
     expect(amount.value).toBe('15')
     expect(logButton().disabled).toBe(false)
+    // The digit not landing says why, where the person is looking.
+    expect(screen.getByRole('status').textContent).toMatch(/One entry holds at most/)
 
-    // And the limit itself still logs.
+    // And the limit itself still logs, with the reason gone once an edit lands.
     fireEvent.change(amount, { target: { value: '1500' } })
     expect(amount.value).toBe('1500')
     expect(logButton().disabled).toBe(false)
+    expect(screen.queryByText(/One entry holds at most/)).toBeNull()
   })
 
   // The search index answers with per-100g figures and no serving at all, so a hit is
