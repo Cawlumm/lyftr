@@ -2,16 +2,15 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
 import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
-  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
+  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
-import { FavoriteErrorToast } from '../../../src/components/nutrition/FavoriteErrorToast'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -229,7 +228,7 @@ export default function NutritionDetail() {
         onCancel={() => { setConfirming(false); remove.reset() }}
       />
 
-      <FavoriteErrorToast favorites={favorites} />
+      {favorites.error ? <Toast variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)} /> : null}
     </Screen>
   )
 }

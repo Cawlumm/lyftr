@@ -7,11 +7,10 @@ import {
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
-import { ErrorState, ListError } from '../components/ui'
+import { ErrorState, ListError, Toast } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
 import FavoriteStar from '../components/FavoriteStar'
-import FavoriteErrorToast from '../components/FavoriteErrorToast'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
@@ -341,7 +340,7 @@ export default function LogFood() {
 
       {/* A toast, not a banner: the star is on the rows *and* in the header, and the
           failed star has already snapped back, so this only has to say why. */}
-      <FavoriteErrorToast favorites={favorites} />
+      {favorites.error && <Toast variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)} />}
 
       {/* Search phase */}
       {phase === 'search' && (

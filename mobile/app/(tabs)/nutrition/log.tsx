@@ -10,14 +10,13 @@ import {
   type FoodSearchResult,
 } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField,
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField, Toast,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
-import { FavoriteErrorToast } from '../../../src/components/nutrition/FavoriteErrorToast'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
@@ -611,7 +610,7 @@ export default function LogFood() {
         </>
       ) : null}
 
-      <FavoriteErrorToast favorites={favorites} />
+      {favorites.error ? <Toast variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)} /> : null}
     </Screen>
   )
 }
