@@ -49,7 +49,7 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<FoodSearchResult[]>([])
   const favorites = useFavorites(client.savedFoodsAPI)
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, error: favoriteError, errorFor } = favorites
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, error: favoriteError } = favorites
   // Bumped by every star/unstar; a list load drops its result if a toggle landed meanwhile.
   const listEpoch = favorites.epoch
   const [searching, setSearching] = useState(false)
@@ -297,10 +297,7 @@ export default function LogFood() {
         </View>
       ) : null}
 
-      {/* Detail phase only — one food on screen, so this IS where the tap was. In the
-          search phase each row shows its own (FoodResultRow's favoriteError), because a
-          banner up here is off-screen for anything below the fold. */}
-      {phase === 'detail' && favoriteError ? (
+      {favoriteError ? (
         <View className="pb-3">
           <Alert variant="error">{favoriteError}</Alert>
         </View>
@@ -399,7 +396,6 @@ export default function LogFood() {
                       onPress={() => selectResult(item)}
                           favorited={favoriteOf(item) !== undefined}
                           onToggleFavorite={() => toggleFavorite(item)}
-                        favoriteError={errorFor(item)}
                           togglingFavorite={isToggling(item)}
                     />
                   ))
@@ -418,7 +414,6 @@ export default function LogFood() {
                         onPress={() => selectResult(savedToResult(sf))}
                         favorited
                         onToggleFavorite={() => toggleFavorite(savedToResult(sf))}
-                        favoriteError={errorFor(savedToResult(sf))}
                         togglingFavorite={isToggling(savedToResult(sf))}
                       />
                     ))}
@@ -451,7 +446,6 @@ export default function LogFood() {
                   onPress={() => void selectSearchResult(item)}
                   favorited={favoriteOf(item) !== undefined}
                   onToggleFavorite={() => toggleFavorite(item)}
-                        favoriteError={errorFor(item)}
                   togglingFavorite={isToggling(item)}
                 />
               )) : null}

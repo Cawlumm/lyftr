@@ -19,18 +19,9 @@ export interface Favorites {
   isToggling: (item: FoodSearchResult) => boolean
   /** Star or unstar. Resolves to what happened, or null if it failed or was ignored. */
   toggle: (item: FoodSearchResult) => Promise<'added' | 'removed' | null>
-  /**
-   * The sentence to show when a toggle failed, in the server's words.
-   *
-   * Only read this where exactly one food is on screen (a food's own detail page). In a
-   * LIST, use errorFor: a star that failed halfway down the diary reports it at the top
-   * of the page, which is off-screen the moment anyone has scrolled — the repo's own rule
-   * is that a banner above a scrolled list says nothing.
-   */
+  /** The sentence to show when a toggle failed, in the server's words. */
   error: string | null
   setError: (error: string | null) => void
-  /** The failed-toggle sentence, but only for the food whose star actually failed. */
-  errorFor: (item: Pick<FoodSearchResult, 'name' | 'brand'>) => string | null
   /**
    * Bumped when a toggle starts and again when it settles. A list load captures it and
    * drops its own result if it moved while the load was in flight — otherwise a refresh
@@ -51,14 +42,8 @@ const keyOf = (item: FoodSearchResult) => `${normaliseFoodKey(item.name)}|${norm
 export function useFavorites(api: SavedFoodsApi): Favorites {
   const [savedFoods, setSavedFoods] = useState<SavedFood[]>([])
   const [toggling, setToggling] = useState<Set<string>>(new Set())
-  // The message and the food it belongs to move together, so a list can put the sentence
-  // on the row that was tapped instead of above the whole list. One failure is tracked,
-  // not a map: a toggle clears it before starting, so only the most recent can be shown.
-  const [failure, setFailure] = useState<{ key: string; message: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const epoch = useRef(0)
-  const error = failure?.message ?? null
-  const setError = (message: string | null) =>
-    setFailure(message === null ? null : { key: '', message })
 
   // The guard is a ref, not the state above. setState does not apply within the tick it
   // is called in, so a burst of taps in one frame all read the same empty set and all
@@ -71,8 +56,6 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
   // everywhere the same food appears.
   const favoriteOf = (item: FoodSearchResult) => findSavedFood(savedFoods, item)
   const isToggling = (item: FoodSearchResult) => toggling.has(keyOf(item))
-  const errorFor = (item: Pick<FoodSearchResult, 'name' | 'brand'>) =>
-    failure && failure.key === keyOf(item as FoodSearchResult) ? failure.message : null
 
   const toggle = async (item: FoodSearchResult): Promise<'added' | 'removed' | null> => {
     const key = keyOf(item)
@@ -110,12 +93,9 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
         : [...prev, created].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)))
       return 'added'
     } catch (err) {
-      setFailure({
-        key,
-        message: apiErrorMessage(err, existing
-          ? `Couldn't remove ${item.name} from Favorites.`
-          : `Couldn't add ${item.name} to Favorites.`),
-      })
+      setError(apiErrorMessage(err, existing
+        ? `Couldn't remove ${item.name} from Favorites.`
+        : `Couldn't add ${item.name} to Favorites.`))
       return null
     } finally {
       epoch.current += 1
@@ -124,5 +104,5 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     }
   }
 
-  return { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle, error, setError, errorFor, epoch }
+  return { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle, error, setError, epoch }
 }
