@@ -77,37 +77,32 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     setError(null)
     epoch.current += 1
     const existing = favoriteOf(item)
-    // The star answers the tap at once and is put back if the server refuses. Waiting for
-    // the round trip left a dead-looking star for as long as the connection took, and on
-    // gym wifi that is seconds. `pending` is a stand-in row until the real id arrives.
-    const pending: SavedFood | null = existing ? null : {
-      id: --tempId.current, name: item.name, brand: item.brand ?? '',
+    const food = {
+      name: item.name, brand: item.brand ?? '',
       calories: item.calories, protein: item.protein,
       carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
       serving_size: item.serving_size ?? '',
     }
+    // Answer the tap at once and put it back if the server refuses: on gym wifi the round
+    // trip is seconds of a dead-looking star. `pending` stands in until the real id arrives.
+    const pending: SavedFood = { id: --tempId.current, ...food }
     if (existing) setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
-    else setSavedFoods(prev => insertByName(prev, pending!))
+    else setSavedFoods(prev => insertByName(prev, pending))
     try {
       if (existing) {
         await api.delete(existing.id)
         return 'removed'
       }
-      const created = await api.create({
-        name: item.name, brand: item.brand ?? '',
-        calories: item.calories, protein: item.protein,
-        carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
-        serving_size: item.serving_size ?? '',
-      })
+      const created = await api.create(food)
       // The server answers 200 with the existing row when the food is already favourited,
       // so `created` can be something the list already holds — after a refresh that raced
       // this request, for instance. insertByName skips an id it already has.
-      setSavedFoods(prev => insertByName(prev.filter(f => f.id !== pending!.id), created))
+      setSavedFoods(prev => insertByName(prev.filter(f => f.id !== pending.id), created))
       return 'added'
     } catch (err) {
       setSavedFoods(prev => existing
         ? insertByName(prev, existing)
-        : prev.filter(f => f.id !== pending!.id))
+        : prev.filter(f => f.id !== pending.id))
       setError(apiErrorMessage(err, existing
         ? `Couldn't remove ${item.name} from Favorites.`
         : `Couldn't add ${item.name} to Favorites.`))

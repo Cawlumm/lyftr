@@ -7,10 +7,11 @@ import {
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, useFavorites, useFoodAmount } from '@lyftr/shared'
-import { ErrorState, ListError, Toast } from '../components/ui'
+import { ErrorState, ListError } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
 import FavoriteStar from '../components/FavoriteStar'
+import FavoriteErrorToast from '../components/FavoriteErrorToast'
 import IconButton from '../components/ui/IconButton'
 import SegmentedControl from '../components/ui/SegmentedControl'
 import DateInput from '../components/ui/DateInput'
@@ -110,8 +111,8 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<types.FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<types.FoodSearchResult[]>([])
   // Starring lives in useFavorites, shared with the diary so the rules can't drift (#138).
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError, setError: setFavoriteError } =
-    useFavorites(savedFoodsAPI)
+  const favorites = useFavorites(savedFoodsAPI)
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite } = favorites
   // Each list's own failure. Kept separate from the page: one of these failing is not a
   // reason to withhold search, and an empty list that failed to load must not draw the
   // same "nothing here" as a list that really is empty.
@@ -340,9 +341,7 @@ export default function LogFood() {
 
       {/* A toast, not a banner: the star is on the rows *and* in the header, and the
           failed star has already snapped back, so this only has to say why. */}
-      {favoriteError && (
-        <Toast variant="error" icon={AlertCircle} title={favoriteError} autoDismissMs={6000} onDismiss={() => setFavoriteError(null)} />
-      )}
+      <FavoriteErrorToast favorites={favorites} />
 
       {/* Search phase */}
       {phase === 'search' && (

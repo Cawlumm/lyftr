@@ -10,13 +10,14 @@ import {
   type FoodSearchResult,
 } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField, Toast,
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
+import { FavoriteErrorToast } from '../../../src/components/nutrition/FavoriteErrorToast'
 import {
   MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
@@ -49,7 +50,7 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<FoodSearchResult[]>([])
   const favorites = useFavorites(client.savedFoodsAPI)
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, error: favoriteError, setError: setFavoriteError } = favorites
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling } = favorites
   // Bumped by every star/unstar; a list load drops its result if a toggle landed meanwhile.
   const listEpoch = favorites.epoch
   const [searching, setSearching] = useState(false)
@@ -610,9 +611,7 @@ export default function LogFood() {
         </>
       ) : null}
 
-      {favoriteError ? (
-        <Toast variant="error" icon={AlertCircle} title={favoriteError} autoDismissMs={6000} onDismiss={() => setFavoriteError(null)} />
-      ) : null}
+      <FavoriteErrorToast favorites={favorites} />
     </Screen>
   )
 }
