@@ -64,6 +64,20 @@ describe('useFavorites optimistic toggle', () => {
     expect(result.current.error).toEqual(expect.any(String))
   })
 
+  it('drops the row again when a reload mid-delete brought it back', async () => {
+    let finishDelete!: () => void
+    const api = { create: () => Promise.resolve(OATS), delete: () => new Promise<void>(r => { finishDelete = r }) }
+    const { result } = renderHook(() => useFavorites(api))
+    act(() => { result.current.setSavedFoods([OATS]) })
+
+    let pending!: Promise<unknown>
+    act(() => { pending = result.current.toggle(oats) })
+    act(() => { result.current.setSavedFoods([OATS]) })
+
+    await act(async () => { finishDelete(); await pending })
+    expect(result.current.savedFoods).toEqual([])
+  })
+
   it('puts a failed unstar back in its place, in name order', async () => {
     const { result } = renderHook(() => useFavorites({ create: () => Promise.resolve(OATS), delete: refuse }))
     act(() => { result.current.setSavedFoods([GRANOLA, OATS]) })

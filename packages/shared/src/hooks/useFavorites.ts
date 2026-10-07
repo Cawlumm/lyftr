@@ -91,6 +91,9 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     try {
       if (existing) {
         await api.delete(existing.id)
+        // Again after the await: a list load that came back mid-request can have put the
+        // row back, and the epoch only drops loads that land after this settles.
+        setSavedFoods(prev => prev.filter(f => f.id !== existing.id))
         return 'removed'
       }
       const created = await api.create(food)
