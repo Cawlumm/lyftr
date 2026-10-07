@@ -89,8 +89,18 @@ function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favo
 function EntryStarError({ entry, favorites }: { entry: types.FoodLog; favorites: Favorites }) {
   const message = favorites.errorFor(entryToResult(entry))
   if (!message) return null
+  const food = entryToResult(entry)
   return (
-    <p role="alert" className="text-xs text-error-400 mt-1">{message}</p>
+    <p role="alert" className="text-xs text-error-400 mt-1">
+      {message}{' '}
+      <button
+        type="button"
+        onClick={() => void favorites.toggle(food)}
+        className="font-semibold underline underline-offset-2"
+      >
+        Try again
+      </button>
+    </p>
   )
 }
 
