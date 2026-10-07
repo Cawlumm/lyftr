@@ -83,6 +83,17 @@ function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favo
   )
 }
 
+// A failed star reports at its own row. It used to raise the page banner at the top of
+// the day, which is off-screen as soon as anyone has scrolled to dinner — the same
+// "banner above a scrolled list" this repo rules out for confirm sheets.
+function EntryStarError({ entry, favorites }: { entry: types.FoodLog; favorites: Favorites }) {
+  const message = favorites.errorFor(entryToResult(entry))
+  if (!message) return null
+  return (
+    <p role="alert" className="text-xs text-error-400 mt-1">{message}</p>
+  )
+}
+
 export default function Food() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -260,10 +271,12 @@ export default function Food() {
         }
       />
 
-      {(error || favorites.error) && (
+      {/* A failed star is NOT raised here — EntryStarError puts it on its own row, where
+          the tap was. This banner is for actions with no row of their own (a delete). */}
+      {error && (
         <div className="alert-error">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error ?? favorites.error}</span>
+          <span>{error}</span>
         </div>
       )}
 
@@ -440,7 +453,8 @@ export default function Food() {
                             </div>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 px-4 py-3">
+                          <div className="px-4 py-3">
+                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => navigate(`/food/log?edit=${entry.id}&date=${selectedDate}`)}
                               className="flex items-center gap-3 flex-1 min-w-0 text-left"
@@ -473,6 +487,8 @@ export default function Food() {
                             </button>
                             {favoritesLoaded && <EntryStar entry={entry} favorites={favorites} />}
                             <IconButton icon={Trash2} variant="danger" label="Delete" onClick={() => setDeleteConfirmId(entry.id)} />
+                           </div>
+                           <EntryStarError entry={entry} favorites={favorites} />
                           </div>
                         )}
                       </div>

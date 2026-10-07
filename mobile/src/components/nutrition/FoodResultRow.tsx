@@ -18,6 +18,8 @@ interface Props {
   togglingFavorite?: boolean
   /** The product behind this row is being read in full before the detail opens. */
   loading?: boolean
+  /** This row's own failed star, shown under it rather than above the whole list. */
+  favoriteError?: string | null
 }
 
 // The search / Recent / Favorites result row.
@@ -32,14 +34,16 @@ interface Props {
 // data being destroyed, and tapping again restores it. This is what Cronometer does.
 export function FoodResultRow({
   item, onPress, favorited, onToggleFavorite, togglingFavorite = false, loading = false,
+  favoriteError = null,
 }: Props) {
   const { colors } = useTheme()
 
   return (
+    <View className="w-full border-b border-surface-border">
     <Pressable
       onPress={onPress}
       disabled={loading}
-      className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
+      className="w-full flex-row items-center gap-3 px-4 py-3.5 active:bg-surface-muted"
     >
       <FoodThumb src={item.image_url} />
       <View className="min-w-0 flex-1">
@@ -67,6 +71,13 @@ export function FoodResultRow({
         ? <ActivityIndicator size="small" color={colors.txMuted} />
         : <ChevronRight size={16} color={colors.txMuted} />}
     </Pressable>
+    {/* On the row, not above the list: a star that failed on the twentieth result
+        reports at the top of the screen otherwise, which is nowhere near the thumb
+        that pressed it. */}
+    {favoriteError ? (
+      <AppText variant="caption" color="error" className="px-4 pb-2.5 -mt-1">{favoriteError}</AppText>
+    ) : null}
+    </View>
   )
 }
 

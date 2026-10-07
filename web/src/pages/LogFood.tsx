@@ -42,7 +42,7 @@ const MEAL_COLORS: Record<string, string> = {
 // <button> is invalid HTML and React warns about it, which is why the two-branch shape
 // below exists instead of one container.
 function FoodResultRow(
-  { item, onClick, favorited, onToggleFavorite, togglingFavorite = false, loading = false }:
+  { item, onClick, favorited, onToggleFavorite, togglingFavorite = false, loading = false, favoriteError = null }:
   {
     item: types.FoodSearchResult
     onClick: () => void
@@ -51,6 +51,8 @@ function FoodResultRow(
     togglingFavorite?: boolean
     /** The product behind this row is being read in full before the detail opens. */
     loading?: boolean
+    /** This row's own failed star, shown under it rather than above the whole list. */
+    favoriteError?: string | null
   },
 ) {
   const content = (
@@ -82,16 +84,19 @@ function FoodResultRow(
   )
 
   return (
-    <div className="flex items-center gap-2 w-full px-4 hover:bg-surface-muted transition-colors border-b border-surface-border last:border-0">
-      <button onClick={onClick} disabled={loading} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
-        {content}
-      </button>
-      <FavoriteStar
-        favorited={favorited}
-        busy={togglingFavorite}
-        name={item.name}
-        onClick={onToggleFavorite}
-      />
+    <div className="w-full px-4 hover:bg-surface-muted transition-colors border-b border-surface-border last:border-0">
+      <div className="flex items-center gap-2">
+        <button onClick={onClick} disabled={loading} className="flex items-center gap-3 flex-1 min-w-0 py-3.5 text-left">
+          {content}
+        </button>
+        <FavoriteStar
+          favorited={favorited}
+          busy={togglingFavorite}
+          name={item.name}
+          onClick={onToggleFavorite}
+        />
+      </div>
+      {favoriteError && <p role="alert" className="text-xs text-error-400 pb-3 -mt-1">{favoriteError}</p>}
     </div>
   )
 }
@@ -110,7 +115,7 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<types.FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<types.FoodSearchResult[]>([])
   // Starring lives in useFavorites, shared with the diary so the rules can't drift (#138).
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError } =
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle: toggleFavorite, error: favoriteError, errorFor } =
     useFavorites(savedFoodsAPI)
   // Each list's own failure. Kept separate from the page: one of these failing is not a
   // reason to withhold search, and an empty list that failed to load must not draw the
@@ -338,11 +343,12 @@ export default function LogFood() {
         )}
       </div>
 
-      {/* Outside both phases on purpose: the star is on the rows *and* in the header
-          above, so a failure has to be visible whichever one the user pressed. Sitting
-          inside the search phase meant a failed star on the detail view said nothing at
-          all and simply snapped back to unfilled. */}
-      {favoriteError && (
+      {/* Detail phase only. The star is on the rows *and* in the header above, and a
+          failure has to be visible whichever one was pressed — but in the search phase
+          "above the list" is nowhere near the row that was tapped, so the rows carry
+          their own (FoodResultRow's favoriteError). On the detail view there is exactly
+          one food on screen, so here IS where the tap was. */}
+      {phase === 'detail' && favoriteError && (
         <div className="flex items-center gap-2 px-3 py-2.5 mb-4 rounded-xl border border-error-500/20 bg-error-500/10">
           <AlertCircle className="w-4 h-4 text-error-400 flex-shrink-0" />
           <p className="text-xs text-error-400">{favoriteError}</p>
@@ -459,6 +465,7 @@ export default function LogFood() {
                     onClick={() => selectResult(item)}
                     favorited={favoriteOf(item) !== undefined}
                     onToggleFavorite={() => toggleFavorite(item)}
+                    favoriteError={errorFor(item)}
                     togglingFavorite={isToggling(item)}
                   />
                 ))
@@ -484,6 +491,7 @@ export default function LogFood() {
                       onClick={() => selectResult(item)}
                       favorited
                       onToggleFavorite={() => toggleFavorite(item)}
+                    favoriteError={errorFor(item)}
                       togglingFavorite={isToggling(item)}
                     />
                   )
@@ -519,6 +527,7 @@ export default function LogFood() {
                 onClick={() => void selectSearchResult(item)}
                     favorited={favoriteOf(item) !== undefined}
                     onToggleFavorite={() => toggleFavorite(item)}
+                    favoriteError={errorFor(item)}
                     togglingFavorite={isToggling(item)}
               />
             ))}
