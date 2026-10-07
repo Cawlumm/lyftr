@@ -75,17 +75,7 @@ export function FoodResultRow({
         reports at the top of the screen otherwise, which is nowhere near the thumb
         that pressed it. */}
     {favoriteError ? (
-      <View className="flex-row flex-wrap items-center gap-x-2 px-4 pb-2.5 -mt-1">
-        <AppText variant="caption" color="error">{favoriteError}</AppText>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Try again: ${favorited ? 'remove' : 'add'} ${item.name} ${favorited ? 'from' : 'to'} Favorites`}
-          onPress={onToggleFavorite}
-          hitSlop={8}
-        >
-          <AppText variant="caption" color="error" style={{ fontWeight: '700', textDecorationLine: 'underline' }}>Try again</AppText>
-        </Pressable>
-      </View>
+      <AppText variant="caption" color="error" className="px-4 pb-2.5 -mt-1">{favoriteError}</AppText>
     ) : null}
     </View>
   )

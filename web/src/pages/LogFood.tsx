@@ -96,14 +96,7 @@ function FoodResultRow(
           onClick={onToggleFavorite}
         />
       </div>
-      {favoriteError && (
-        <p role="alert" className="text-xs text-error-400 pb-3 -mt-1">
-          {favoriteError}{' '}
-          <button type="button" onClick={onToggleFavorite} className="font-semibold underline underline-offset-2">
-            Try again
-          </button>
-        </p>
-      )}
+      {favoriteError && <p role="alert" className="text-xs text-error-400 pb-3 -mt-1">{favoriteError}</p>}
     </div>
   )
 }
