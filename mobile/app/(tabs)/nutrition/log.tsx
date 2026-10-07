@@ -123,7 +123,7 @@ export default function LogFood() {
       }).catch(() => {}),
       client.savedFoodsAPI.list().then(apply(setSavedFoods)).catch(() => {}),
     ])
-  }, [])
+  }, [listEpoch, setSavedFoods])
 
   useEffect(() => { loadLists() }, [loadLists])
 
