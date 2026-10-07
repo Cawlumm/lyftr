@@ -9,6 +9,8 @@ export interface FoodAmount {
   /** The field's text, as typed. A buffer, so a half-typed "0." survives. */
   text: string
   setText: (next: string) => void
+  /** Whether typing `next` is allowed; for a field that keeps its own copy of the text. */
+  accepts: (next: string) => boolean
   /** What a serving measures, or null when nothing knows and the field counts servings. */
   basis: ServingBasis | null
   /** What the diary stores. 0 for an empty or nonsense field — the caller blocks the log. */
@@ -65,13 +67,25 @@ export function useFoodAmount(
 
   const basis = selected ? servingBasis(selected) : null
   const amount = Number(text)
+  const ceiling = basis ? amountForServings(MAX_SERVINGS, basis) : MAX_SERVINGS
+
+  // A keystroke that would take the field past the ceiling is not accepted, so the
+  // person types up to the limit and no further, as a maxLength would. Lowering is
+  // always allowed, so an entry stored above the limit before the server enforced it can
+  // still be edited down rather than trapping the field.
+  const accepts = (next: string) => {
+    const n = Number(next)
+    return !(n > ceiling && n > amount)
+  }
+  const setAmountText = (next: string) => { if (accepts(next)) setText(next) }
   const servings = Number.isFinite(amount) && amount > 0
     ? (basis ? servingsForAmount(amount, basis) : amount)
     : 0
 
   return {
     text,
-    setText,
+    setText: setAmountText,
+    accepts,
     basis,
     servings,
     servingsLabel: formatServings(servings),
@@ -85,8 +99,7 @@ export function useFoodAmount(
       const from = Number.isFinite(amount) ? amount : 0
       // Stops at the ceiling as it stops at zero: a stepper that walks past what one
       // entry holds lands on a figure the Log button refuses.
-      const max = basis ? amountForServings(MAX_SERVINGS, basis) : MAX_SERVINGS
-      setText(String(+Math.min(max, Math.max(0, from + direction * size)).toFixed(1)))
+      setText(String(+Math.min(ceiling, Math.max(0, from + direction * size)).toFixed(1)))
     },
     // Both openers take the food as an argument rather than reading `selected`: the
     // caller sets that in the same render, so the hook cannot see it yet. Both are

@@ -12,6 +12,8 @@ interface Props {
   accessibilityLabel?: string
   /** iOS: id of an InputAccessoryView (e.g. NUMERIC_ACCESSORY_ID) to show a Done bar. */
   inputAccessoryViewID?: string
+  /** Refuse a keystroke: the field keeps what it showed, as a maxLength would. */
+  accepts?: (next: string) => boolean
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
@@ -25,6 +27,7 @@ export function NumberField({
   disabled = false,
   accessibilityLabel,
   inputAccessoryViewID,
+  accepts,
 }: Props) {
   const { colors } = useTheme()
   const [text, setText] = useNumericText(value)
@@ -41,6 +44,7 @@ export function NumberField({
       inputAccessoryViewID={inputAccessoryViewID}
       onChangeText={(raw) => {
         const v = sanitizeNumericInput(raw, inputMode)
+        if (accepts && !accepts(v)) return
         setText(v)
         onChange(v)
       }}

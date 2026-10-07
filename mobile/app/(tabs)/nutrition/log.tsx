@@ -541,6 +541,7 @@ export default function LogFood() {
                         inputMode="decimal"
                         value={amount.text}
                         onChange={amount.setText}
+                        accepts={amount.accepts}
                         accessibilityLabel={basis ? `Amount in ${basis.unit}` : 'Servings'}
                         inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
                       />
