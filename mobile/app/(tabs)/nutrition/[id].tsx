@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
 import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps,
+  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
@@ -155,9 +155,6 @@ export default function NutritionDetail() {
             </View>
           </View>
 
-          {/* Said where the tap was: directly under the star that failed. */}
-          {favorites.error ? <Alert variant="error">{favorites.error}</Alert> : null}
-
           {/* Hero card */}
           <Card className="overflow-hidden p-0">
             {entry.image_url ? (
@@ -230,6 +227,8 @@ export default function NutritionDetail() {
         onConfirm={() => { void remove.run() }}
         onCancel={() => { setConfirming(false); remove.reset() }}
       />
+
+      {favorites.error ? <Toast variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)} /> : null}
     </Screen>
   )
 }

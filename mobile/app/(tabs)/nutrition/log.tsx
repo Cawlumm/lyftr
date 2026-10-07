@@ -10,7 +10,7 @@ import {
   type FoodSearchResult,
 } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField,
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField, Toast,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
@@ -49,7 +49,7 @@ export default function LogFood() {
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
   const [recentItems, setRecentItems] = useState<FoodSearchResult[]>([])
   const favorites = useFavorites(client.savedFoodsAPI)
-  const { savedFoods, setSavedFoods, favoriteOf, isToggling, error: favoriteError } = favorites
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling } = favorites
   // Bumped by every star/unstar; a list load drops its result if a toggle landed meanwhile.
   const listEpoch = favorites.epoch
   const [searching, setSearching] = useState(false)
@@ -123,7 +123,7 @@ export default function LogFood() {
       }).catch(() => {}),
       client.savedFoodsAPI.list().then(apply(setSavedFoods)).catch(() => {}),
     ])
-  }, [])
+  }, [listEpoch, setSavedFoods])
 
   useEffect(() => { loadLists() }, [loadLists])
 
@@ -294,12 +294,6 @@ export default function LogFood() {
       {editError ? (
         <View className="pb-3">
           <Alert variant="error">{editError}</Alert>
-        </View>
-      ) : null}
-
-      {favoriteError ? (
-        <View className="pb-3">
-          <Alert variant="error">{favoriteError}</Alert>
         </View>
       ) : null}
 
@@ -614,6 +608,14 @@ export default function LogFood() {
           </View>
           <NumericKeyboardAccessory />
         </>
+      ) : null}
+
+      {favorites.error ? (
+        // Detail has a sticky Log Food button in the toast's default band; ride above it.
+        <Toast
+          variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)}
+          className={phase === 'detail' ? 'bottom-28' : ''}
+        />
       ) : null}
     </Screen>
   )
