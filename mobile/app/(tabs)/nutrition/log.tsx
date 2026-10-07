@@ -610,7 +610,13 @@ export default function LogFood() {
         </>
       ) : null}
 
-      {favorites.error ? <Toast variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)} /> : null}
+      {favorites.error ? (
+        // Detail has a sticky Log Food button in the toast's default band; ride above it.
+        <Toast
+          variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)}
+          className={phase === 'detail' ? 'bottom-28' : ''}
+        />
+      ) : null}
     </Screen>
   )
 }
