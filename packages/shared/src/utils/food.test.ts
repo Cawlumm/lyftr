@@ -271,6 +271,8 @@ describe('servingsForAmount / amountForServings', () => {
   it('turns a tablespoon of oil into the servings the diary stores', () => {
     expect(servingsForAmount(15, per100ml)).toBeCloseTo(0.15)
     expect(servingsForAmount(15, tablespoon)).toBe(1)
+    // 3330 / 33.3 is 100.00000000000001 unrounded, which reads as past MAX_SERVINGS.
+    expect(servingsForAmount(3330, { quantity: 33.3, unit: 'g' })).toBe(100)
   })
 
   it('round-trips, so opening an entry shows the amount that was logged', () => {

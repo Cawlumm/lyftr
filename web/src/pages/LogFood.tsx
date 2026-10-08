@@ -132,7 +132,7 @@ export default function LogFood() {
   // The amount field — grams, millilitres or servings, depending on the food. Shared
   // with mobile, because what it computes is how much food the person recorded (#171).
   const amount = useFoodAmount(selected)
-  const { basis, servings, servingsLabel, overLimit, refused, maxAmount, openOnEntry } = amount
+  const { basis, servings, servingsLabel, overLimit, limitHint, openOnEntry } = amount
   // Which search row is being re-read in full, and what to say if that failed. The
   // search index answers with per-100g figures and no serving at all, so a hit has to
   // be read again through the product endpoint before it can be trusted (#171).
@@ -642,10 +642,8 @@ export default function LogFood() {
               <p className="text-xs text-tx-muted text-center">
                 Enter an amount{basis ? ` in ${basis.unit}` : ''} to log this
               </p>
-            ) : overLimit || refused ? (
-              <p className="text-xs text-warning-400 text-center" role="status">
-                One entry holds at most {maxAmount}
-              </p>
+            ) : limitHint ? (
+              <p className="text-xs text-warning-400 text-center" role="status">{limitHint}</p>
             ) : basis && (
               <p className="text-xs text-tx-muted text-center">
                 {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}

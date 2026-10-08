@@ -43,11 +43,13 @@ describe('useFoodAmount', () => {
     expect(result.current.servings).toBe(100)
     expect(result.current.overLimit).toBe(false)
 
-    act(() => result.current.setText('100000'))
-    expect(result.current.text).toBe('10000')
     // For a field that holds its own copy of the text and has to refuse the key itself.
-    expect(result.current.accepts('100000')).toBe(false)
-    expect(result.current.accepts('9999')).toBe(true)
+    let landed = true
+    act(() => { landed = result.current.setText('100000') })
+    expect(landed).toBe(false)
+    expect(result.current.text).toBe('10000')
+    act(() => { landed = result.current.setText('9999') })
+    expect(landed).toBe(true)
 
     const plain = renderHook(() => useFoodAmount(UNKNOWN))
     act(() => plain.result.current.setText('100'))
@@ -59,17 +61,37 @@ describe('useFoodAmount', () => {
   // they were, say so, and can be lowered; they cannot be raised further.
   it('remembers a refusal until the next edit or step lands', () => {
     const { result } = renderHook(() => useFoodAmount(null))
-    expect(result.current.refused).toBe(false)
+    expect(result.current.limitHint).toBeNull()
 
     act(() => result.current.setText('999999'))
-    expect(result.current.refused).toBe(true)
+    expect(result.current.limitHint).toBe('One entry holds at most 100 servings')
 
     act(() => result.current.setText('50'))
-    expect(result.current.refused).toBe(false)
+    expect(result.current.limitHint).toBeNull()
 
     act(() => result.current.setText('999999'))
     act(() => result.current.step(-1))
-    expect(result.current.refused).toBe(false)
+    expect(result.current.limitHint).toBeNull()
+  })
+
+  // 3330 / 33.3 is 100.00000000000001 in floating point; the field must not take the
+  // ceiling and then call it over the limit.
+  it('takes the ceiling on a serving that does not divide evenly', () => {
+    const ODD = { serving_quantity: 33.3, serving_unit: 'g' as const }
+    const { result } = renderHook(() => useFoodAmount(ODD))
+    act(() => result.current.setText('3330'))
+    expect(result.current.text).toBe('3330')
+    expect(result.current.servings).toBe(100)
+    expect(result.current.overLimit).toBe(false)
+  })
+
+  it('still holds the ceiling when the field is not a number', () => {
+    const { result } = renderHook(() => useFoodAmount(OIL))
+    act(() => result.current.setText('.'))
+    let landed = true
+    act(() => { landed = result.current.setText('999999') })
+    expect(landed).toBe(false)
+    expect(result.current.text).toBe('.')
   })
 
   it('lets an entry stored over the limit be edited down but not up', () => {
@@ -78,7 +100,7 @@ describe('useFoodAmount', () => {
     expect(result.current.text).toBe('500000')
     expect(result.current.overLimit).toBe(true)
     // OIL is held per 100 ml, so the ceiling reads as ten litres.
-    expect(result.current.maxAmount).toBe('10000 ml')
+    expect(result.current.limitHint).toBe('One entry holds at most 10000 ml')
 
     act(() => result.current.setText('5000000'))
     expect(result.current.text).toBe('500000')
@@ -126,10 +148,15 @@ describe('useFoodAmount', () => {
     act(() => result.current.step(1))
     expect(result.current.text).toBe('1500')
 
-    // From beyond it, a step brings the field back to the ceiling rather than past it.
+    // From beyond it, a step up brings the field back to the ceiling rather than past it.
     act(() => result.current.openOnEntry(TBSP, 5000))
     act(() => result.current.step(1))
     expect(result.current.text).toBe('1500')
+
+    // A step down lowers it by one serving from where it was, not down to the ceiling.
+    act(() => result.current.openOnEntry(TBSP, 5000))
+    act(() => result.current.step(-1))
+    expect(result.current.text).toBe('74985')
 
     const plain = renderHook(() => useFoodAmount(UNKNOWN))
     act(() => plain.result.current.setText('100'))

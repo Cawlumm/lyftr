@@ -79,7 +79,9 @@ export function servingBasis(r: Pick<FoodSearchResult, 'serving_quantity' | 'ser
 // scaleServing multiplies by. The diary has always been in servings; weight is a way
 // to type one, not a second thing to store.
 export function servingsForAmount(amount: number, basis: ServingBasis): number {
-  return amount / basis.quantity
+  // Twelve significant figures: 3330 / 33.3 is 100.00000000000001, which would read as
+  // past the ceiling the field just let it reach.
+  return +(amount / basis.quantity).toPrecision(12)
 }
 
 // Servings as a number to read, not to compute with: a third of a serving is
