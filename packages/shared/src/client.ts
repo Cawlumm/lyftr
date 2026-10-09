@@ -191,6 +191,18 @@ export function createClient(
     return refreshInFlight
   }
 
+  // A password or email change makes the server reject every token minted before it, and the
+  // device that made the change stores its replacement pair only a moment after the server
+  // commits. A request already in flight carries the old access token, so it can 401 into
+  // that gap — and a refresh from there would present the old refresh token, fail the same
+  // check, and sign out the very device the change was meant to keep signed in. If storage
+  // already holds a different access token than the one the request carried, the session
+  // moved on under it: retry with that token instead of treating the 401 as a revocation.
+  const newerAccessToken = async (sent: unknown): Promise<string | null> => {
+    const stored = await storage.get(STORAGE_KEYS.access)
+    return stored && sent !== `Bearer ${stored}` ? stored : null
+  }
+
   api.interceptors.response.use(
     (response) => response,
     async (error) => {
@@ -204,6 +216,12 @@ export function createClient(
       const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password') || url.includes('/me/email')
       if (error.response?.status === 401 && !original._retry && !isCredentialCheck) {
         original._retry = true
+        const sent = original.headers?.Authorization
+        const caughtUp = await newerAccessToken(sent)
+        if (caughtUp) {
+          original.headers.Authorization = `Bearer ${caughtUp}`
+          return api(original)
+        }
         try {
           // Set the header from the token this call returns rather than letting the
           // request interceptor re-read storage: a queued retry that reads storage can
@@ -212,6 +230,11 @@ export function createClient(
           original.headers.Authorization = `Bearer ${newToken}`
           return api(original)
         } catch (refreshError) {
+          const late = sessionWasRevoked(refreshError) ? await newerAccessToken(sent) : null
+          if (late) {
+            original.headers.Authorization = `Bearer ${late}`
+            return api(original)
+          }
           if (sessionWasRevoked(refreshError)) {
             await storage.remove(STORAGE_KEYS.access)
             await storage.remove(STORAGE_KEYS.refresh)

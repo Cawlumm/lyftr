@@ -10,6 +10,7 @@ import (
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
+	_ "modernc.org/sqlite"
 )
 
 type fakeVersions struct {
@@ -86,6 +87,50 @@ func TestAuthAnswers500WhenTheLookupFails(t *testing.T) {
 	w, reached := serve(t, fakeVersions{err: errors.New("disk I/O error")}, "Bearer "+access)
 	if w.Code != http.StatusInternalServerError || *reached {
 		t.Fatalf("status = %d reached = %v, want 500 and not reached", w.Code, *reached)
+	}
+}
+
+// busyErr returns a real modernc SQLITE_BUSY error by writing from a second connection
+// while a write lock is held on the first, the same way utils' own tests do.
+func busyErr(t *testing.T) error {
+	t.Helper()
+	path := t.TempDir() + "/busy.db"
+	a, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(0)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer a.Close()
+	if _, err := a.Exec(`CREATE TABLE t (id INTEGER PRIMARY KEY)`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := a.Begin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(`INSERT INTO t (id) VALUES (1)`); err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	b, err := sql.Open("sqlite", path+"?_pragma=busy_timeout(0)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	_, err = b.Exec(`INSERT INTO t (id) VALUES (2)`)
+	if err == nil {
+		t.Fatal("expected a busy error")
+	}
+	return err
+}
+
+// A lock is transient: answering 401 would make every client refresh and then sign the user
+// out over a moment's contention, so it has to be a 503 the clients already retry.
+func TestAuthAnswers503WhenTheDatabaseIsLocked(t *testing.T) {
+	useConfig(t)
+	access, _ := pair(t, 1)
+	w, reached := serve(t, fakeVersions{err: busyErr(t)}, "Bearer "+access)
+	if w.Code != http.StatusServiceUnavailable || *reached {
+		t.Fatalf("status = %d reached = %v, want 503 and not reached", w.Code, *reached)
 	}
 }
 

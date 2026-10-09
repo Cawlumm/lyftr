@@ -41,6 +41,9 @@ func newAPI(t *testing.T) *api {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// One connection, as in production, so a query in the middleware that waited on a
+	// handler's transaction would hang these tests rather than pass them.
+	conn.SetMaxOpenConns(1)
 	prevDB := db.DB
 	db.DB = conn
 	if err := db.BuildSchema(); err != nil {

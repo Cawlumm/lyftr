@@ -512,3 +512,79 @@ describe('a token refresh nobody answers (#145)', () => {
     expect(refreshes).toBe(2)
   })
 })
+
+// The device that changes its own password or email stores its replacement token pair a
+// moment after the server commits, and every older token is rejected from that instant.
+// A request already in flight then 401s with the old access token; refreshing from there
+// would present the old refresh token and sign out the device the change keeps signed in.
+describe('a 401 that arrives while this device is switching to its new tokens', () => {
+  const realAdapter = axios.defaults.adapter
+  afterEach(() => { axios.defaults.adapter = realAdapter })
+
+  const httpError = (status: number, config: any) => {
+    const err: any = new Error(`Request failed with status code ${status}`)
+    err.config = config
+    err.response = { status, data: {}, statusText: '', headers: {}, config }
+    return err
+  }
+  const ok = (config: any) => ({ data: { data: { id: 1 } }, status: 200, statusText: 'OK', headers: {}, config })
+
+  const setup = async () => {
+    const store = memStorage()
+    let signedOut = false
+    const client = createClient(store, { onAuthFailure: () => { signedOut = true } })
+    await store.set(STORAGE_KEYS.access, 'old')
+    await store.set(STORAGE_KEYS.refresh, 'old-refresh')
+    await store.set(STORAGE_KEYS.user, '{"id":1}')
+    return { store, client, wasSignedOut: () => signedOut }
+  }
+
+  it('retries with the token now in storage instead of refreshing', async () => {
+    const { store, client, wasSignedOut } = await setup()
+    let refreshes = 0
+    axios.defaults.adapter = (async () => { refreshes += 1; throw httpError(401, {}) }) as any
+    client.api.defaults.adapter = async (config: any) => {
+      if (config.headers.Authorization === 'Bearer old') {
+        await store.set(STORAGE_KEYS.access, 'new') // the new pair lands while this is in flight
+        throw httpError(401, config)
+      }
+      return ok(config)
+    }
+
+    await expect(client.userAPI.me()).resolves.toBeDefined()
+
+    expect(refreshes).toBe(0)
+    expect(wasSignedOut()).toBe(false)
+  })
+
+  it('does not sign out when a refresh with the old token is refused as the new pair lands', async () => {
+    const { store, client, wasSignedOut } = await setup()
+    client.api.defaults.adapter = async (config: any) => {
+      if (config.headers.Authorization === 'Bearer old') throw httpError(401, config)
+      return ok(config)
+    }
+    axios.defaults.adapter = (async (config: any) => {
+      await store.set(STORAGE_KEYS.access, 'new')
+      await store.set(STORAGE_KEYS.refresh, 'new-refresh')
+      throw httpError(401, config)
+    }) as any
+
+    await expect(client.userAPI.me()).resolves.toBeDefined()
+
+    expect(wasSignedOut()).toBe(false)
+    expect(await store.get(STORAGE_KEYS.access)).toBe('new')
+    expect(await store.get(STORAGE_KEYS.refresh)).toBe('new-refresh')
+  })
+
+  it('still signs out when the session really was revoked and nothing newer exists', async () => {
+    const { store, client, wasSignedOut } = await setup()
+    client.api.defaults.adapter = async (config: any) => { throw httpError(401, config) }
+    axios.defaults.adapter = (async (config: any) => { throw httpError(401, config) }) as any
+
+    await expect(client.userAPI.me()).rejects.toBeDefined()
+
+    expect(wasSignedOut()).toBe(true)
+    expect(await store.get(STORAGE_KEYS.access)).toBeNull()
+    expect(await store.get(STORAGE_KEYS.refresh)).toBeNull()
+  })
+})
