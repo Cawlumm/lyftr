@@ -199,7 +199,8 @@ somebody will see the change.
 
 - **Sign-in matches the address case-insensitively**, returning the spelling stored at
   registration. An install that already holds case-variant accounts keeps both: each still
-  signs in with its exact spelling, and the boot log names them.
+  signs in with its exact spelling, and the boot log names them;
+  `lyftr-api delete-account <exact address>` removes the one you do not want.
 - **Every error message was rewritten into a sentence.** No status code, route, field name
   or field type moved. A caller regex-matching error *strings* will break, but error
   wording is not part of the contract and never was.

@@ -212,7 +212,7 @@ func emailsFoldUnique() bool {
 		return false
 	}
 	for _, g := range groups {
-		log.Printf("migrations: accounts %s differ only in letter case; each still signs in with its exact spelling. Lyftr will not merge or delete them. To enforce case-insensitive addresses, sign in to the one you do not want with its exact spelling and delete it under Settings (this deletes its workouts, food and weight); the index is created on the next start.", g)
+		log.Printf("migrations: accounts %s differ only in letter case; each still signs in with its exact spelling. Lyftr will not merge or delete them. To enforce case-insensitive addresses, remove the one you do not want with: docker compose exec backend ./lyftr-api delete-account <exact address> (it lists what will be deleted and asks you to confirm); the index is created on the next start.", g)
 	}
 	return len(groups) == 0
 }

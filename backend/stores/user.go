@@ -306,3 +306,50 @@ func (s *UserStore) Delete(uid int64) error {
 	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, uid)
 	return err
 }
+
+// ErrInexactEmail means an address matches an account only when letter case is ignored.
+var ErrInexactEmail = errors.New("address matches only with different letter case")
+
+// GetByExactEmail is the lookup for destructive operator commands, which must never
+// resolve an address by folding case. It layers one check on matchEmail so NOCASE
+// semantics stay in one place. When no account is spelled exactly as given but some match
+// ignoring case, it returns ErrInexactEmail with every stored spelling.
+func (s *UserStore) GetByExactEmail(email string) (models.User, []string, error) {
+	u, spellings, err := s.matchEmail(email)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return models.User{}, nil, ErrNoSuchUser
+	case errors.Is(err, ErrAmbiguousEmail):
+		return models.User{}, spellings, ErrInexactEmail
+	case err != nil:
+		return models.User{}, nil, err
+	case u.Email != email:
+		return models.User{}, []string{u.Email}, ErrInexactEmail
+	}
+	return u, nil, nil
+}
+
+// AccountData is how much an account holds, for showing an operator what a delete takes.
+type AccountData struct {
+	Workouts, Sets, FoodLogs, WeightLogs, Programs, SavedFoods, ActiveSessions int
+}
+
+// CountData counts the rows Delete will cascade through for one account. It mirrors the
+// user-owned tables in the schema; a test pins that mirror against the foreign keys.
+// user_settings is not counted: every account has exactly one.
+func (s *UserStore) CountData(uid int64) (AccountData, error) {
+	var d AccountData
+	err := s.db.QueryRow(`SELECT
+		(SELECT COUNT(*) FROM workouts WHERE user_id = ?),
+		(SELECT COUNT(*) FROM sets st
+			JOIN workout_exercises we ON we.id = st.workout_exercise_id
+			JOIN workouts w ON w.id = we.workout_id WHERE w.user_id = ?),
+		(SELECT COUNT(*) FROM food_logs WHERE user_id = ?),
+		(SELECT COUNT(*) FROM weight_logs WHERE user_id = ?),
+		(SELECT COUNT(*) FROM programs WHERE user_id = ?),
+		(SELECT COUNT(*) FROM saved_foods WHERE user_id = ?),
+		(SELECT COUNT(*) FROM active_sessions WHERE user_id = ?)`,
+		uid, uid, uid, uid, uid, uid, uid).
+		Scan(&d.Workouts, &d.Sets, &d.FoodLogs, &d.WeightLogs, &d.Programs, &d.SavedFoods, &d.ActiveSessions)
+	return d, err
+}

@@ -49,6 +49,7 @@ func warnIfUnclaimed() {
 // flag.Parse, which would otherwise treat the name as a positional argument and start the
 // server as usual.
 var subcommands = map[string]func(args []string) int{
+	"delete-account": runDeleteAccount,
 	"reset-password": runResetPassword,
 }
 

@@ -862,6 +862,9 @@ func TestEmailNocaseIndex_skippedWhenAddressesCollide(t *testing.T) {
 	if !strings.Contains(out, "Carter@x.com") || !strings.Contains(out, "carter@x.com") {
 		t.Errorf("log does not name both spellings: %s", out)
 	}
+	if !strings.Contains(out, "delete-account") || strings.Contains(out, "Settings") {
+		t.Errorf("log should name delete-account and not Settings: %s", out)
+	}
 }
 
 func TestEmailNocaseIndex_isIdempotentAcrossBoots(t *testing.T) {
