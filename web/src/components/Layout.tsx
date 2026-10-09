@@ -13,7 +13,6 @@ import { fmtClock, formatElapsed, useElapsedSeconds, nameInitial } from '@lyftr/
 import { useDisplayName } from '../lib/lyftr'
 import { useSettingsStore, weightShort } from '../stores/settings'
 import GymModeWorkout from '../pages/GymModeWorkout'
-import RestTimerBanner from './RestTimerBanner'
 import Logo from './Logo'
 import ErrorBoundary from './ErrorBoundary'
 
@@ -159,7 +158,7 @@ function UserMenu() {
 
 export default function Layout() {
   const { pathname } = useLocation()
-  const { session, gymOpen, gymPhase } = useWorkoutSession()
+  const { session, gymOpen } = useWorkoutSession()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   // The one condition that decides whether the gym overlay is covering the app.
@@ -197,12 +196,6 @@ export default function Layout() {
 
       {/* Gym mode overlay — rendered at root so it persists across routes */}
       {gymOverlayUp && <GymModeWorkout wUnit={wUnit} />}
-
-      {/* Rest timer floating panel — only INSIDE the workout, on the gym overview /
-          exercise-info screens. The set screen docks its own copy (pushes content up),
-          and when the workout is minimized the countdown shows as a chip in the session
-          pill (ActiveSessionBar) rather than a panel following you around the app. */}
-      {gymOpen && gymPhase !== 'exercise' && <RestTimerBanner />}
 
       {/* Active session pill floats above bottom nav */}
       <div className="sticky bottom-0 z-50 relative">

@@ -446,6 +446,49 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(page.getByRole('button', { name: /completed/i })).toBeVisible({ timeout: 2000 })
   })
 
+  // #193: the rest panel used to float over Begin Exercise / Start Workout. It is docked
+  // in-flow below each phase's CTA now, so it must sit under the button, not over it.
+  test('gym mode rest panel sits below Begin Exercise and Start Workout', async ({ page }) => {
+    await seedGymSession(page, 'E2E Rest Dock Test', 'Bench Press', [
+      { set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false },
+      { set_number: 2, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false },
+    ])
+
+    await page.goto('/workout/active')
+    await page.getByRole('button', { name: /start workout/i }).click()
+    await page.getByRole('button', { name: /begin exercise/i }).click()
+    await page.getByRole('button', { name: /complete set/i }).click()
+
+    const skip = page.getByRole('button', { name: /^skip$/i })
+    await expect(skip).toBeVisible({ timeout: 3000 })
+    await expect(skip).toHaveCount(1)
+
+    const expectBelow = async (cta: RegExp) => {
+      const ctaBox = await page.getByRole('button', { name: cta }).boundingBox()
+      const skipBox = await skip.boundingBox()
+      expect(ctaBox).not.toBeNull()
+      expect(skipBox).not.toBeNull()
+      expect(skipBox!.y).toBeGreaterThanOrEqual(ctaBox!.y + ctaBox!.height)
+    }
+
+    // Set screen → exercise info
+    await page.getByRole('button', { name: /^info$/i }).click()
+    await expect(page.getByRole('button', { name: /begin exercise/i })).toBeVisible({ timeout: 3000 })
+    await expect(skip).toHaveCount(1)
+    await expectBelow(/begin exercise/i)
+
+    // Exercise info → overview
+    await page.getByRole('dialog', { name: 'Workout' }).getByRole('button').first().click()
+    await expect(page.getByRole('button', { name: /start workout/i })).toBeVisible({ timeout: 3000 })
+    await expect(skip).toHaveCount(1)
+    await expectBelow(/start workout/i)
+
+    // Both CTAs stay reachable while resting
+    await page.getByRole('button', { name: /start workout/i }).click()
+    await page.getByRole('button', { name: /begin exercise/i }).click()
+    await expect(skip).toBeVisible({ timeout: 3000 })
+  })
+
   test('gym mode restores phase after minimize and reopen', async ({ page }) => {
     const exId = gymExerciseId
     await page.addInitScript(({ sk, lk, id }: { sk: string; lk: string; id: number }) => {

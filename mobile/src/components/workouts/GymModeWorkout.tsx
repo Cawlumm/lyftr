@@ -157,6 +157,9 @@ export function GymModeWorkout() {
     <Animated.View exiting={FadeOut.duration(160)} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 60 }}>
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }} className="bg-surface-base">
       {children}
+      {/* Docked in-flow below every phase's bottom actions so it never covers them; owns
+          the bottom safe-area inset while shown. */}
+      <RestTimerBanner />
       <ConfirmSheet
         open={confirmFinish}
         icon={Flag}
@@ -182,9 +185,6 @@ export function GymModeWorkout() {
           onClose={() => setShowPicker(false)}
         />
       ) : null}
-      {/* Floating rest banner on the non-logging phases (the logging phase docks its
-          own). Mirrors web Layout's `gymOpen && gymPhase !== 'exercise'` render. */}
-      {phase !== 'exercise' ? <RestTimerBanner /> : null}
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
       <NumericKeyboardAccessory />
     </SafeAreaView>
@@ -295,7 +295,7 @@ export function GymModeWorkout() {
           )}
         </ScrollView>
 
-        <View className="gap-2 border-t border-surface-border px-5 pt-4" style={{ paddingBottom: insets.bottom + 16 }}>
+        <View className="gap-2 border-t border-surface-border px-5 pt-4" style={{ paddingBottom: restShown ? 16 : insets.bottom + 16 }}>
           <Pressable onPress={() => setShowPicker(true)} className="flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3 active:scale-95">
             <Plus size={16} color={colors.txSecondary} />
             <Text className="font-sans-semibold text-sm text-tx-secondary">Add Exercise</Text>
@@ -406,7 +406,7 @@ export function GymModeWorkout() {
             ) : null}
           </View>
         </ScrollView>
-        <View className="border-t border-surface-border px-5 pt-4" style={{ paddingBottom: insets.bottom + 16 }}>
+        <View className="border-t border-surface-border px-5 pt-4" style={{ paddingBottom: restShown ? 16 : insets.bottom + 16 }}>
           <Pressable onPress={() => setPhase('exercise')} className="flex-row items-center justify-center gap-2 rounded-2xl bg-brand-500 py-4 active:scale-95">
             <Play size={20} color="#ffffff" />
             <Text className="font-sans-bold text-base text-white">Begin Exercise</Text>
@@ -584,9 +584,6 @@ export function GymModeWorkout() {
           )}
         </View>
       </View>
-
-      {/* docked rest banner */}
-      <RestTimerBanner docked />
     </>,
   )
 }
