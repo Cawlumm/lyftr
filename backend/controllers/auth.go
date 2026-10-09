@@ -14,6 +14,14 @@ import (
 
 var validate = utils.NewValidator()
 
+// EmailTakenMessage is the 409 for an address another account holds, shared by
+// registration and email change.
+const EmailTakenMessage = "That email is already registered."
+
+// passwordChangedMessage is the 409 when the stored hash moved under a request that had
+// already verified the old one.
+const passwordChangedMessage = "Your password was changed elsewhere. Please try again."
+
 // RegistrationClosedMessage is what a rejected signup sees. One constant so the two
 // ways of being closed (REGISTRATION=closed, and first-user with the slot taken) are
 // indistinguishable to a caller — and so the handler and its tests cannot drift.
@@ -86,7 +94,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	if errors.Is(err, stores.ErrEmailTaken) || utils.IsUniqueViolation(err) {
-		utils.Conflict(c, "That email is already registered.")
+		utils.Conflict(c, EmailTakenMessage)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -152,6 +160,27 @@ func (h *Handler) Login(c *gin.Context) {
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
+// reauthenticate loads the caller and checks their current password, writing the 401
+// itself on failure.
+func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, bool) {
+	// Looked up by ID, not by the email in the token: an address that changed since the
+	// token was minted would otherwise resolve to the wrong row or to none at all.
+	user, err := h.s.User.GetByID(middleware.UserID(c))
+	if err == sql.ErrNoRows {
+		utils.Unauthorized(c, "That account no longer exists.")
+		return models.User{}, false
+	}
+	if utils.DBError(c, err) {
+		return models.User{}, false
+	}
+
+	if !utils.CheckPassword(password, user.Password) {
+		utils.Unauthorized(c, "Your current password is incorrect.")
+		return models.User{}, false
+	}
+	return user, true
+}
+
 // ChangePassword sets a new password for the signed-in caller and ends every other
 // session. The device that made the change gets a fresh token pair in the response, so
 // it stays signed in while the rest fall off as their access tokens lapse.
@@ -168,19 +197,8 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	// Looked up by ID, not by the email in the token: an address that changed since the
-	// token was minted would otherwise resolve to the wrong row or to none at all.
-	user, err := h.s.User.GetByID(uid)
-	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "That account no longer exists.")
-		return
-	}
-	if utils.DBError(c, err) {
-		return
-	}
-
-	if !utils.CheckPassword(req.CurrentPassword, user.Password) {
-		utils.Unauthorized(c, "Your current password is incorrect.")
+	user, ok := h.reauthenticate(c, req.CurrentPassword)
+	if !ok {
 		return
 	}
 	// Rejected before hashing. Allowing it would burn a bcrypt round to no effect and,
@@ -204,7 +222,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	version, err := h.s.User.ChangePassword(uid, user.Password, newHash)
 	if errors.Is(err, stores.ErrPasswordChanged) {
-		utils.Conflict(c, "Your password was changed elsewhere. Please try again.")
+		utils.Conflict(c, passwordChangedMessage)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -220,6 +238,62 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	}
 
 	utils.OK(c, gin.H{"token": access, "refresh_token": refresh})
+}
+
+// ChangeEmail moves the signed-in caller to a new address and ends every other session,
+// as ChangePassword does: with no confirmation mail to the old address, revoking the other
+// sessions is the only containment if someone else's session made the change. The device
+// that made it gets a fresh token pair in the response and stays signed in. The password
+// is checked before the conflict lookup so a wrong password can never learn whether an
+// address is registered. Re-submitting the current spelling is a no-op that ends nothing,
+// and changing only its letter case is allowed and ends nothing either: the sign-in identity
+// is the same, so there is nothing to contain.
+func (h *Handler) ChangeEmail(c *gin.Context) {
+	var req models.ChangeEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BadRequest(c, utils.BindMessage(err))
+		return
+	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+
+	user, ok := h.reauthenticate(c, req.CurrentPassword)
+	if !ok {
+		return
+	}
+	if req.Email == user.Email {
+		h.respondWithSession(c, user)
+		return
+	}
+
+	updated, err := h.s.User.ChangeEmail(user.ID, user.Password, req.Email)
+	if errors.Is(err, stores.ErrEmailTaken) || utils.IsUniqueViolation(err) {
+		utils.Conflict(c, EmailTakenMessage)
+		return
+	}
+	if errors.Is(err, stores.ErrPasswordChanged) {
+		utils.Conflict(c, passwordChangedMessage)
+		return
+	}
+	if utils.DBError(c, err) {
+		return
+	}
+	h.respondWithSession(c, updated)
+}
+
+// respondWithSession answers with the login-shaped body: a token pair minted at the user's
+// current token version, plus the user. The email change already took effect by the time
+// this runs, so a minting failure says what happened rather than reporting a failure that
+// would send the user off to retry.
+func (h *Handler) respondWithSession(c *gin.Context, user models.User) {
+	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email, user.TokenVersion)
+	if err != nil {
+		utils.Unauthorized(c, "Your email changed. Please sign in again.")
+		return
+	}
+	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {

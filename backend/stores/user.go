@@ -233,12 +233,7 @@ func (s *UserStore) CreateFirst(email, hash string) (int64, error) {
 }
 
 func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
-	// The unique index cannot exist on an install that already holds case-variant accounts, so check here too.
-	var taken int
-	switch err := tx.QueryRow(`SELECT 1 FROM users WHERE email = ? COLLATE NOCASE LIMIT 1`, email).Scan(&taken); {
-	case err == nil:
-		return 0, ErrEmailTaken
-	case !errors.Is(err, sql.ErrNoRows):
+	if err := emailTakenTx(tx, email, 0); err != nil {
 		return 0, err
 	}
 	res, err := tx.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, email, hash)
@@ -250,6 +245,57 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 		return 0, err
 	}
 	return uid, nil
+}
+
+// emailTakenTx returns ErrEmailTaken when an account other than exceptID holds the
+// address, ignoring letter case.
+// The unique index cannot exist on an install that already holds case-variant accounts, so check here too.
+func emailTakenTx(tx *sql.Tx, email string, exceptID int64) error {
+	var taken int
+	switch err := tx.QueryRow(`SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND id != ? LIMIT 1`, email, exceptID).Scan(&taken); {
+	case err == nil:
+		return ErrEmailTaken
+	case !errors.Is(err, sql.ErrNoRows):
+		return err
+	}
+	return nil
+}
+
+// ChangeEmail moves the account to a new address and returns the updated user. The
+// check and the write share one transaction because the case-insensitive unique index
+// is absent on installs that hold case-variant accounts. The UPDATE is conditional on
+// the hash the handler verified, as in ChangePassword. It bumps token_version, as
+// ChangePassword does, so every other session ends; the returned user carries the version
+// for the handler to mint this device's replacement tokens at.
+//
+// A change of letter case alone bumps nothing. Sign-in is case-insensitive, so the identity
+// did not change and there is nothing to contain; ending a phone's session over a
+// capitalisation fix would be pure cost. The comparison is SQLite's NOCASE, the same rule
+// that decides "same address" everywhere else, so no Go code folds case.
+func (s *UserStore) ChangeEmail(uid int64, verifiedHash, email string) (models.User, error) {
+	var u models.User
+	_, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
+		if err := emailTakenTx(tx, email, uid); err != nil {
+			return 0, err
+		}
+		res, err := tx.Exec(
+			`UPDATE users SET token_version = token_version + CASE WHEN email = ? COLLATE NOCASE THEN 0 ELSE 1 END,
+			                  email = ?, updated_at = CURRENT_TIMESTAMP
+			 WHERE id = ? AND password_hash = ?`, email, email, uid, verifiedHash)
+		if err != nil {
+			return 0, err
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		if n == 0 {
+			return 0, ErrPasswordChanged
+		}
+		return 0, tx.QueryRow(`SELECT id, email, token_version, created_at, updated_at FROM users WHERE id = ?`, uid).
+			Scan(&u.ID, &u.Email, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
+	})
+	return u, err
 }
 
 // ErrEmptyHash guards the two statements that WRITE a password. Everywhere else an

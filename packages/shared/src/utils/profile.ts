@@ -17,6 +17,23 @@ export function displayName(name?: string, email?: string): string {
   return local || 'there'
 }
 
+// Whether the typed address differs from the current one. A letter-case change counts:
+// the server allows it.
+export function emailChanged(input: string, current?: string): boolean {
+  const next = input.trim()
+  return next !== '' && next !== (current ?? '')
+}
+
+// Whether the new address differs from the current one only in letter case, which the server
+// accepts without ending any other session. This only picks the wording of the confirmation;
+// the server decides. It folds ASCII A-Z alone, as SQLite's NOCASE does, rather than
+// toLowerCase, so the two cannot disagree about which addresses are the same.
+const asciiFold = (s: string) => s.replace(/[A-Z]/g, (c) => c.toLowerCase())
+export function onlyLetterCaseChanged(input: string, current?: string): boolean {
+  const next = input.trim()
+  return next !== '' && next !== (current ?? '') && asciiFold(next) === asciiFold(current ?? '')
+}
+
 // The avatar letter. Takes what displayName already returned rather than deriving it
 // again, so the circle and the name beside it always start with the same letter.
 //

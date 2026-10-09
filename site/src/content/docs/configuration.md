@@ -99,6 +99,23 @@ Other devices stop as soon as their current access token expires, which is `JWT_
 (one hour by default). Raising `JWT_EXPIRY` widens that window by exactly the same amount, so a
 long expiry trades a little convenience for a longer tail after a password change.
 
+## Changing your email
+
+**Settings → Account → Email**, on the web app and in the Android app. Like a password change it
+asks for your current password, so a stolen session alone cannot take the address over. The web
+form is at `/settings/email`.
+
+You can change it to any address no other account holds. Letter case does not count as a
+difference, so `Carter@example.com` is taken if `carter@example.com` is registered, but you can
+change the case of your own address. The address is stored exactly as you type it.
+
+Like a password change it **signs you out everywhere else**. The device you changed it on stays
+signed in, and you sign in with the new address from now on. The old one stops working at once.
+Lyftr cannot email the old address, so ending the other sessions is how a change made from a session
+that was not yours gets contained. Other devices stop when their current access token expires, the
+same window as a password change. Changing only the letter case, say `carter@` to `Carter@`, is the
+one exception: sign-in already ignores case, so nothing needs containing and no session ends.
+
 ## If you forget your password
 
 There is no self-service reset. Nothing here can email you a link, and an instance with no mail

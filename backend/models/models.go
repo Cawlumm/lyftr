@@ -257,6 +257,15 @@ type ChangePasswordRequest struct {
 	NewPassword     string `json:"new_password" validate:"required,min=8"`
 }
 
+// ChangeEmailRequest re-authenticates the caller for the same reason as
+// ChangePasswordRequest: a hijacked access token alone must not be able to take the
+// account. The email tag must stay identical to RegisterRequest's, so an address that
+// cannot be registered cannot be moved to either.
+type ChangeEmailRequest struct {
+	Email           string `json:"email" validate:"required,email"`
+	CurrentPassword string `json:"current_password" validate:"required"`
+}
+
 // MaxWorkoutSets bounds the TOTAL number of sets across every exercise in a
 // CreateWorkoutRequest (sum of len(Exercises[i].Sets), not each list's own max=500
 // below independently) — enforced by the struct-level validation registered in
