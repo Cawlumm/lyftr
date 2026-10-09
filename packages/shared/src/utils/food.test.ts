@@ -1,4 +1,4 @@
-import { amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaleServing, servingBasis, servingsForAmount } from './food'
+import { amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaledFigures, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -271,6 +271,8 @@ describe('servingsForAmount / amountForServings', () => {
   it('turns a tablespoon of oil into the servings the diary stores', () => {
     expect(servingsForAmount(15, per100ml)).toBeCloseTo(0.15)
     expect(servingsForAmount(15, tablespoon)).toBe(1)
+    // 3330 / 33.3 is 100.00000000000001 unrounded, which reads as past MAX_SERVINGS.
+    expect(servingsForAmount(3330, { quantity: 33.3, unit: 'g' })).toBe(100)
   })
 
   it('round-trips, so opening an entry shows the amount that was logged', () => {
@@ -302,6 +304,24 @@ describe('the ceiling on one entry', () => {
   it('converts the ceiling into the unit on screen', () => {
     expect(maxAmountFor({ quantity: 100, unit: 'g' })).toBe('10000 g')
     expect(maxAmountFor({ quantity: 15, unit: 'ml' })).toBe('1500 ml')
+  })
+})
+
+describe('scaledFigures', () => {
+  const oats = { name: 'Oats', calories: 300, protein: 10, carbs: 50.55, fat: 5, fiber: 2 }
+
+  it('scales every figure and rounds as the diary stores them', () => {
+    expect(scaledFigures(oats, 1.5)).toEqual({ calories: 450, protein: 15, carbs: 75.8, fat: 7.5, fiber: 3 })
+  })
+
+  // A hero beside a disabled Log button must not show a figure nobody can log.
+  it.each([0, -1, NaN])('has no figures for %o servings', (servings) => {
+    expect(scaledFigures(oats, servings)).toBeNull()
+  })
+
+  it('shows the ceiling itself but nothing above it', () => {
+    expect(scaledFigures(oats, MAX_SERVINGS)?.calories).toBe(30000)
+    expect(scaledFigures(oats, MAX_SERVINGS + 0.1)).toBeNull()
   })
 })
 

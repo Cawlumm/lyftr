@@ -8,7 +8,8 @@ import {
 export interface FoodAmount {
   /** The field's text, as typed. A buffer, so a half-typed "0." survives. */
   text: string
-  setText: (next: string) => void
+  /** Type `next`. Returns false when it passed the ceiling and was not taken. */
+  setText: (next: string) => boolean
   /** What a serving measures, or null when nothing knows and the field counts servings. */
   basis: ServingBasis | null
   /** What the diary stores. 0 for an empty or nonsense field — the caller blocks the log. */
@@ -17,8 +18,8 @@ export interface FoodAmount {
   servingsLabel: number
   /** Set when the amount is more than one entry may hold — the caller blocks the log. */
   overLimit: boolean
-  /** What the field will accept, in the unit it is showing, for the message. */
-  maxAmount: string
+  /** Why the field is at its limit — over it, or the last keystroke was refused for passing it. */
+  limitHint: string | null
   /** Step by one serving's worth, in whatever unit the field is showing. */
   step: (direction: 1 | -1) => void
   /** Open the field on one serving of this food. */
@@ -48,10 +49,12 @@ export function useFoodAmount(
   selected: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'> | null,
 ): FoodAmount {
   const [text, setText] = useState('1')
+  const [refused, setRefused] = useState(false)
 
   const openOn = useCallback((result: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'>) => {
     const b = servingBasis(result)
     setText(String(b ? b.quantity : 1))
+    setRefused(false)
   }, [])
 
   const openOnEntry = useCallback((
@@ -61,17 +64,35 @@ export function useFoodAmount(
     const b = servingBasis(result)
     const s = entryServings || 1
     setText(String(b ? amountForServings(s, b) : s))
+    setRefused(false)
   }, [])
 
   const basis = selected ? servingBasis(selected) : null
   const amount = Number(text)
-  const servings = Number.isFinite(amount) && amount > 0
-    ? (basis ? servingsForAmount(amount, basis) : amount)
+  const current = Number.isFinite(amount) ? amount : 0
+  const ceiling = basis ? amountForServings(MAX_SERVINGS, basis) : MAX_SERVINGS
+  const servingsFor = (a: number) => Number.isFinite(a) && a > 0
+    ? (basis ? servingsForAmount(a, basis) : a)
     : 0
+  const servings = servingsFor(amount)
+
+  // A keystroke that would take the field past the ceiling is not accepted, so the
+  // person types up to the limit and no further, as a maxLength would. Lowering is
+  // always allowed, so an entry stored above the limit before the server enforced it can
+  // still be edited down rather than trapping the field. A refusal is remembered so the
+  // screen can say why the digit did not land. Judged in servings, as overLimit is, so
+  // the field can never take a value it then calls over the limit.
+  const setAmountText = (next: string) => {
+    const nextServings = servingsFor(Number(next))
+    const ok = !(nextServings > MAX_SERVINGS && nextServings > servings)
+    setRefused(!ok)
+    if (ok) setText(next)
+    return ok
+  }
 
   return {
     text,
-    setText,
+    setText: setAmountText,
     basis,
     servings,
     servingsLabel: formatServings(servings),
@@ -79,11 +100,15 @@ export function useFoodAmount(
     // what is loggable — and on servings, which is the number the server bounds too, so
     // the two cannot refuse different things.
     overLimit: servings > MAX_SERVINGS,
-    maxAmount: maxAmountFor(basis),
+    limitHint: servings > MAX_SERVINGS || refused ? `One entry holds at most ${maxAmountFor(basis)}` : null,
     step: (direction) => {
       const size = basis ? basis.quantity : 0.5
-      const from = Number.isFinite(amount) ? amount : 0
-      setText(String(+Math.max(0, from + direction * size).toFixed(1)))
+      // Stops at the ceiling as it stops at zero: a stepper that walks past what one
+      // entry holds lands on a figure the Log button refuses. Only upward — lowering an
+      // entry stored over the limit steps down from where it is, not down to the ceiling.
+      const raw = current + direction * size
+      setText(String(+Math.max(0, direction > 0 ? Math.min(ceiling, raw) : raw).toFixed(1)))
+      setRefused(false)
     },
     // Both openers take the food as an argument rather than reading `selected`: the
     // caller sets that in the same render, so the hook cannot see it yet. Both are

@@ -1,10 +1,12 @@
+import { useReducer } from 'react'
 import { TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
 import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
 
 interface Props {
   value: string
-  onChange: (next: string) => void
+  /** Return false to refuse the keystroke: the field keeps what it showed, as a maxLength would. */
+  onChange: (next: string) => unknown
   /** 'numeric' = integers only (reps); 'decimal' allows one decimal point (weight). */
   inputMode?: 'numeric' | 'decimal'
   placeholder?: string
@@ -28,6 +30,7 @@ export function NumberField({
 }: Props) {
   const { colors } = useTheme()
   const [text, setText] = useNumericText(value)
+  const [, resync] = useReducer((n: number) => n + 1, 0)
   return (
     <TextInput
       value={text}
@@ -41,8 +44,13 @@ export function NumberField({
       inputAccessoryViewID={inputAccessoryViewID}
       onChangeText={(raw) => {
         const v = sanitizeNumericInput(raw, inputMode)
+        if (onChange(v) === false) {
+          // Nothing in state moved, so nothing would re-render and the native field could
+          // keep the refused digit; a render makes it show `text` again.
+          resync()
+          return
+        }
         setText(v)
-        onChange(v)
       }}
       // tabular-nums keeps the value from jittering as digits change (web parity).
       className={`w-full py-1 text-center font-display-heavy text-3xl text-tx-primary ${disabled ? 'opacity-40' : ''}`}

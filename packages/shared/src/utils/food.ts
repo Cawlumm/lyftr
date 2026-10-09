@@ -79,7 +79,9 @@ export function servingBasis(r: Pick<FoodSearchResult, 'serving_quantity' | 'ser
 // scaleServing multiplies by. The diary has always been in servings; weight is a way
 // to type one, not a second thing to store.
 export function servingsForAmount(amount: number, basis: ServingBasis): number {
-  return amount / basis.quantity
+  // Twelve significant figures: 3330 / 33.3 is 100.00000000000001, which would read as
+  // past the ceiling the field just let it reach.
+  return +(amount / basis.quantity).toPrecision(12)
 }
 
 // Servings as a number to read, not to compute with: a third of a serving is
@@ -169,6 +171,33 @@ export function maxAmountFor(basis: ServingBasis | null): string {
   return basis
     ? `${+(MAX_SERVINGS * basis.quantity).toFixed(1)} ${basis.unit}`
     : `${MAX_SERVINGS} servings`
+}
+
+export interface ScaledFigures {
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+}
+
+// What the Log Food hero shows for the amount typed, or null when no entry could be
+// logged at it. An empty or nonsense field is no answer and an over-limit one is a figure
+// the server will refuse, so neither gets numbers: 999999 g read 7,999,992 kcal in the
+// hero beside a disabled button. The screens render null as a dash. One copy so web and
+// mobile cannot scale, round or blank differently.
+export function scaledFigures(
+  item: Pick<FoodSearchResult, 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber'>,
+  servings: number,
+): ScaledFigures | null {
+  if (!(servings > 0) || servings > MAX_SERVINGS) return null
+  return {
+    calories: Math.round(item.calories * servings),
+    protein: +(item.protein * servings).toFixed(1),
+    carbs: +(item.carbs * servings).toFixed(1),
+    fat: +(item.fat * servings).toFixed(1),
+    fiber: +((item.fiber ?? 0) * servings).toFixed(1),
+  }
 }
 
 // React's key for one row of search or recent results, in both apps.

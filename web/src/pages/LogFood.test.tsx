@@ -202,8 +202,9 @@ describe('Logging an amount', () => {
   })
 
   // The other end of the same field. A fat-fingered 999999 read 7,999,992 kcal against
-  // the day and the server stored it, because neither side had a ceiling.
-  it('refuses an amount larger than one entry can hold', async () => {
+  // the day and the server stored it, because neither side had a ceiling. The field now
+  // refuses the keystroke rather than showing a figure nobody can log.
+  it('does not take an amount larger than one entry can hold', async () => {
     search.mockResolvedValue([OIL_SEARCH_HIT])
     barcode.mockResolvedValue(OIL_PRODUCT)
     renderPage()
@@ -212,16 +213,19 @@ describe('Logging an amount', () => {
     fireEvent.click(await screen.findByText('Olive Oil'))
 
     const amount = await screen.findByLabelText('Amount in ml') as HTMLInputElement
+    expect(amount.value).toBe('15')
+    // A hundred servings of a 15 ml tablespoon is the most one entry holds.
     fireEvent.change(amount, { target: { value: '999999' } })
-
-    expect(logButton().disabled).toBe(true)
-    // Said in millilitres, which is what the field is showing — a hundred servings of
-    // a 15 ml tablespoon.
-    expect(screen.getByText('One entry holds at most 1500 ml')).toBeTruthy()
-
-    // And the limit itself still logs.
-    fireEvent.change(amount, { target: { value: '1500' } })
+    expect(amount.value).toBe('15')
     expect(logButton().disabled).toBe(false)
+    // The digit not landing says why, where the person is looking.
+    expect(screen.getByRole('status').textContent).toMatch(/One entry holds at most/)
+
+    // And the limit itself still logs, with the reason gone once an edit lands.
+    fireEvent.change(amount, { target: { value: '1500' } })
+    expect(amount.value).toBe('1500')
+    expect(logButton().disabled).toBe(false)
+    expect(screen.queryByText(/One entry holds at most/)).toBeNull()
   })
 
   // The search index answers with per-100g figures and no serving at all, so a hit is
