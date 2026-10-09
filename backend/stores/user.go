@@ -270,35 +270,38 @@ var ErrNoSuchUser = errors.New("no account with that email")
 // more: an operator resetting a password may be doing it because someone else got in, and
 // a new password is worthless while the intruder's refresh token still mints access
 // tokens for the rest of its 30 days.
-func (s *UserStore) ResetPassword(email, newHash string) error {
+//
+// It returns the address as stored, because the one passed in may differ from it in letter
+// case and the operator should see which account was actually changed.
+func (s *UserStore) ResetPassword(email, newHash string) (string, error) {
 	if newHash == "" {
-		return ErrEmptyHash
+		return "", ErrEmptyHash
 	}
 	u, spellings, err := s.matchEmail(email)
 	if errors.Is(err, sql.ErrNoRows) {
-		return ErrNoSuchUser
+		return "", ErrNoSuchUser
 	}
 	if errors.Is(err, ErrAmbiguousEmail) {
-		return fmt.Errorf("%w: %s", ErrAmbiguousEmail, strings.Join(spellings, ", "))
+		return "", fmt.Errorf("%w: %s", ErrAmbiguousEmail, strings.Join(spellings, ", "))
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	res, err := s.db.Exec(
 		`UPDATE users SET password_hash = ?, token_version = token_version + 1,
 		                  updated_at = CURRENT_TIMESTAMP
 		 WHERE id = ?`, newHash, u.ID)
 	if err != nil {
-		return err
+		return "", err
 	}
 	n, err := res.RowsAffected()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if n == 0 {
-		return ErrNoSuchUser
+		return "", ErrNoSuchUser
 	}
-	return nil
+	return u.Email, nil
 }
 
 // Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on).

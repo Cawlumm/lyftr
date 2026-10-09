@@ -166,8 +166,9 @@ you do not want. The case-insensitive index is created on the next start.
 
 If it is the only account, the command warns first: under `REGISTRATION=first-user` whoever registers
 next becomes the owner, and under `REGISTRATION=closed` nobody can sign in or register. Take a backup
-before you run it — see [Backups](/backups/). A device still signed in to the deleted account is signed
-out at its next token refresh.
+before you run it — see [Backups](/backups/). A device still signed in to the deleted account keeps its
+access token until that expires (up to an hour): reads come back empty and writes fail, and it is signed
+out when it next refreshes.
 
 Piping the exact address also works, with `-T`: `echo you@example.com | docker compose exec -T backend ./lyftr-api delete-account you@example.com`.
 

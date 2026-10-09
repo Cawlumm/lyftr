@@ -14,7 +14,10 @@ const DemoEmail = "demo@lyftr.local"
 
 func DemoUser(db *sql.DB) {
 	var count int
-	db.QueryRow(`SELECT COUNT(*) FROM users WHERE email = ?`, DemoEmail).Scan(&count)
+	// NOCASE, as everywhere else an address is matched: a case-variant of the demo address is
+	// the demo account for this purpose, and inserting beside it would create the duplicate
+	// the unique index and createUserTx exist to prevent.
+	db.QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE`, DemoEmail).Scan(&count)
 	if count > 0 {
 		return
 	}
@@ -45,7 +48,7 @@ func DemoUser(db *sql.DB) {
 // dropping someone's data on upgrade is not a trade this can make for them.
 func WarnLeftoverDemoUser(db *sql.DB) {
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM users WHERE email = ?`, DemoEmail).Scan(&count); err != nil || count == 0 {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? COLLATE NOCASE`, DemoEmail).Scan(&count); err != nil || count == 0 {
 		return
 	}
 	log.Printf("WARNING: this instance still has the %s account from an earlier version, and "+

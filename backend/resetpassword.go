@@ -64,7 +64,8 @@ func runResetPassword(args []string) int {
 	}
 
 	s := stores.New(db.DB)
-	if err := s.User.ResetPassword(email, hash); err != nil {
+	stored, err := s.User.ResetPassword(email, hash)
+	if err != nil {
 		if errors.Is(err, stores.ErrNoSuchUser) {
 			fmt.Fprintf(os.Stderr, "no account found for %s\n", email)
 			return 1
@@ -77,7 +78,7 @@ func runResetPassword(args []string) int {
 		return 1
 	}
 
-	fmt.Printf("Password reset for %s.\n", email)
+	fmt.Printf("Password reset for %s.\n", stored)
 	fmt.Println("Every existing session for that account has been signed out.")
 	return 0
 }
