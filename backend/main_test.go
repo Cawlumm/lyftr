@@ -32,3 +32,9 @@ func TestResetPasswordIsRegistered(t *testing.T) {
 		t.Fatal("reset-password is not in the subcommand table")
 	}
 }
+
+func TestDeleteAccountIsRegistered(t *testing.T) {
+	if _, ok := subcommands["delete-account"]; !ok {
+		t.Fatal("delete-account is not in the subcommand table")
+	}
+}

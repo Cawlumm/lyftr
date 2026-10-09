@@ -147,6 +147,31 @@ out, since nothing would let you register the replacement.
 If the instance will not start at all, restoring `lyftr.db` from a backup predating the password
 change also works, at the cost of everything logged since — see [Backups](/backups/).
 
+## Deleting an account from the server
+
+An account can be removed from the server's shell, for the case where nobody can (or should) sign in
+to it:
+
+```bash
+docker compose exec backend ./lyftr-api delete-account you@example.com
+```
+
+It prints what will be deleted — workouts, sets, food and weight entries, routines, saved foods —
+and asks you to type the address again. Anything else aborts with nothing deleted. The address must
+match letter case exactly; if it does not, the command lists the spellings it found and deletes
+nothing.
+
+If an upgrade's boot log says some accounts differ only in letter case, this is how to remove the one
+you do not want. The case-insensitive index is created on the next start.
+
+If it is the only account, the command warns first: under `REGISTRATION=first-user` whoever registers
+next becomes the owner, and under `REGISTRATION=closed` nobody can sign in or register. Take a backup
+before you run it — see [Backups](/backups/). A device still signed in to the deleted account keeps its
+access token until that expires (up to an hour): reads come back empty and writes fail, and it is signed
+out when it next refreshes.
+
+Piping the exact address also works, with `-T`: `echo you@example.com | docker compose exec -T backend ./lyftr-api delete-account you@example.com`.
+
 ## The demo account
 
 Every version before this one seeded `demo@lyftr.local` with a password published in this

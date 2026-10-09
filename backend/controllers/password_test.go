@@ -268,7 +268,7 @@ func TestResetPasswordReplacesHashAndRevokesSessions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash: %v", err)
 	}
-	if err := th.s.User.ResetPassword("reset@example.com", newHash); err != nil {
+	if _, err := th.s.User.ResetPassword("reset@example.com", newHash); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
 
@@ -296,7 +296,7 @@ func TestResetPasswordUnknownEmail(t *testing.T) {
 	setupTestDB(t)
 	registerAndLogin(t, "present@example.com", "password123")
 
-	err := th.s.User.ResetPassword("absent@example.com", "irrelevant-hash")
+	_, err := th.s.User.ResetPassword("absent@example.com", "irrelevant-hash")
 	if !errors.Is(err, stores.ErrNoSuchUser) {
 		t.Fatalf("err = %v, want ErrNoSuchUser", err)
 	}
@@ -312,7 +312,7 @@ func TestResetPasswordLeavesOtherAccountsAlone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash: %v", err)
 	}
-	if err := th.s.User.ResetPassword("target@example.com", newHash); err != nil {
+	if _, err := th.s.User.ResetPassword("target@example.com", newHash); err != nil {
 		t.Fatalf("reset: %v", err)
 	}
 
@@ -362,7 +362,7 @@ func TestPasswordWritesRefuseAnEmptyHash(t *testing.T) {
 	if _, err := th.s.User.ChangePassword(uid, before, ""); !errors.Is(err, stores.ErrEmptyHash) {
 		t.Errorf("ChangePassword with an empty hash: err = %v, want ErrEmptyHash", err)
 	}
-	if err := th.s.User.ResetPassword("empty@example.com", ""); !errors.Is(err, stores.ErrEmptyHash) {
+	if _, err := th.s.User.ResetPassword("empty@example.com", ""); !errors.Is(err, stores.ErrEmptyHash) {
 		t.Errorf("ResetPassword with an empty hash: err = %v, want ErrEmptyHash", err)
 	}
 	if storedHash(t, uid) != before {
@@ -419,4 +419,61 @@ func TestPasswordLengthLimitIsAClientError(t *testing.T) {
 			t.Fatalf("status = %d, want %d", code, http.StatusBadRequest)
 		}
 	})
+}
+
+func TestResetPasswordIgnoresCase(t *testing.T) {
+	setupTestDB(t)
+	uid, _ := registerAndLogin(t, "reset@example.com", "password123")
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	stored, err := th.s.User.ResetPassword("RESET@Example.com", newHash)
+	if err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	if stored != "reset@example.com" {
+		t.Errorf("reported %q, want the stored spelling reset@example.com", stored)
+	}
+	if !utils.CheckPassword("operatorset789", storedHash(t, uid)) {
+		t.Error("the new password does not verify")
+	}
+	if v := tokenVersion(t, uid); v != 2 {
+		t.Errorf("token_version = %d, want 2", v)
+	}
+}
+
+func TestResetPasswordRefusesAnAmbiguousAddress(t *testing.T) {
+	setupTestDB(t)
+	upper, lower := seedCollidingAccounts(t, "Carter@x.com", "password-upper", "carter@x.com", "password-lower")
+	upperBefore, lowerBefore := storedHash(t, upper), storedHash(t, lower)
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	_, err = th.s.User.ResetPassword("CARTER@x.com", newHash)
+	if !errors.Is(err, stores.ErrAmbiguousEmail) {
+		t.Fatalf("err = %v, want ErrAmbiguousEmail", err)
+	}
+	if !strings.Contains(err.Error(), "Carter@x.com") || !strings.Contains(err.Error(), "carter@x.com") {
+		t.Errorf("error %q does not list both spellings", err)
+	}
+	if storedHash(t, upper) != upperBefore || storedHash(t, lower) != lowerBefore {
+		t.Error("a hash changed")
+	}
+	if tokenVersion(t, upper) != 1 || tokenVersion(t, lower) != 1 {
+		t.Error("a token_version changed")
+	}
+
+	if _, err := th.s.User.ResetPassword("carter@x.com", newHash); err != nil {
+		t.Fatalf("exact reset: %v", err)
+	}
+	if storedHash(t, lower) == lowerBefore || tokenVersion(t, lower) != 2 {
+		t.Error("the named account was not reset")
+	}
+	if storedHash(t, upper) != upperBefore || tokenVersion(t, upper) != 1 {
+		t.Error("the other account changed")
+	}
 }

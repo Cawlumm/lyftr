@@ -172,6 +172,49 @@ func alterMigrations() {
 		ensureIndex("idx_saved_foods_unique",
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_foods_unique ON saved_foods(user_id, name, brand)`)
 	}
+
+	// Email identity is SQLite's NOCASE collation, which folds ASCII A-Z only: domains are
+	// ASCII or punycode and SMTPUTF8 local parts are rare, so 'É@x.com' and 'é@x.com' stay
+	// two addresses. The BINARY UNIQUE on the column stays (SQLite cannot drop it without
+	// rebuilding the table); it is harmless, since byte-identical addresses are NOCASE-equal.
+	// No migration_flags row: the collision check must re-run every boot until it is clean.
+	if emailsFoldUnique() {
+		ensureIndex("idx_users_email_nocase",
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)`)
+	}
+}
+
+// emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.
+// whether the case-insensitive unique index may be created. Accounts hold separate user
+// data, so a collision is logged and left alone, never merged or deleted. False means
+// "not now", never a reason to fail the boot.
+func emailsFoldUnique() bool {
+	const skip = "migrations: email collision check: %v (skipping the case-insensitive email index this boot)"
+	rows, err := DB.Query(`SELECT group_concat(email, ', ') FROM users GROUP BY email COLLATE NOCASE HAVING COUNT(*) > 1`)
+	if err != nil {
+		log.Printf(skip, err)
+		return false
+	}
+	var groups []string
+	for rows.Next() {
+		var g string
+		if err := rows.Scan(&g); err != nil {
+			rows.Close()
+			log.Printf(skip, err)
+			return false
+		}
+		groups = append(groups, g)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		log.Printf(skip, err)
+		return false
+	}
+	for _, g := range groups {
+		log.Printf("migrations: accounts %s differ only in letter case; each still signs in with its exact spelling. Lyftr will not merge or delete them. To enforce case-insensitive addresses, remove the one you do not want with: docker compose exec backend ./lyftr-api delete-account <exact address> (it lists what will be deleted and asks you to confirm); the index is created on the next start.", g)
+	}
+	return len(groups) == 0
 }
 
 // dedupeSavedFoods collapses duplicate stars, keeping the lowest id in each

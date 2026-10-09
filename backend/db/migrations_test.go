@@ -1,9 +1,13 @@
 package db
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"log"
 	"math/rand"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -785,5 +789,114 @@ func TestAlterMigrations_addsDisplayNameToAnExistingSettingsRow(t *testing.T) {
 	}
 	if name != "" {
 		t.Fatalf("display_name = %q after re-running migrations", name)
+	}
+}
+
+func emailIndexCount(t *testing.T) int {
+	t.Helper()
+	var n int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_users_email_nocase'`).Scan(&n); err != nil {
+		t.Fatalf("count index: %v", err)
+	}
+	return n
+}
+
+func captureLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	return &buf
+}
+
+func seedEmailUser(t *testing.T, email string) int64 {
+	t.Helper()
+	res, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, 'x')`, email)
+	if err != nil {
+		t.Fatalf("seed %s: %v", email, err)
+	}
+	id, _ := res.LastInsertId()
+	if _, err := DB.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, id); err != nil {
+		t.Fatalf("seed settings: %v", err)
+	}
+	return id
+}
+
+func TestEmailNocaseIndex_createdOnACleanInstall(t *testing.T) {
+	setupMigrationTestDB(t)
+	seedEmailUser(t, "Carter@x.com")
+
+	alterMigrations()
+
+	if emailIndexCount(t) != 1 {
+		t.Fatal("index missing")
+	}
+	var email string
+	if err := DB.QueryRow(`SELECT email FROM users`).Scan(&email); err != nil || email != "Carter@x.com" {
+		t.Errorf("email = %q, %v; want it untouched", email, err)
+	}
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('carter@X.com', 'x')`); err == nil {
+		t.Error("a case variant was accepted")
+	}
+}
+
+func TestEmailNocaseIndex_skippedWhenAddressesCollide(t *testing.T) {
+	setupMigrationTestDB(t)
+	a := seedEmailUser(t, "Carter@x.com")
+	b := seedEmailUser(t, "carter@x.com")
+	buf := captureLog(t)
+
+	alterMigrations()
+
+	if emailIndexCount(t) != 0 {
+		t.Error("index created despite a collision")
+	}
+	var n int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM users WHERE (id = ? AND email = 'Carter@x.com') OR (id = ? AND email = 'carter@x.com')`, a, b).Scan(&n); err != nil || n != 2 {
+		t.Errorf("users = %d, %v; want both untouched", n, err)
+	}
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM user_settings WHERE user_id IN (?, ?)`, a, b).Scan(&n); err != nil || n != 2 {
+		t.Errorf("user_settings = %d, %v; want both kept", n, err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "Carter@x.com") || !strings.Contains(out, "carter@x.com") {
+		t.Errorf("log does not name both spellings: %s", out)
+	}
+	if !strings.Contains(out, "delete-account") || strings.Contains(out, "Settings") {
+		t.Errorf("log should name delete-account and not Settings: %s", out)
+	}
+}
+
+func TestEmailNocaseIndex_isIdempotentAcrossBoots(t *testing.T) {
+	setupMigrationTestDB(t)
+	seedEmailUser(t, "Carter@x.com")
+	alterMigrations()
+	alterMigrations()
+	if emailIndexCount(t) != 1 {
+		t.Fatal("clean install: index count != 1")
+	}
+	var n int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil || n != 1 {
+		t.Fatalf("users = %d, %v", n, err)
+	}
+
+	setupMigrationTestDB(t)
+	seedEmailUser(t, "Carter@x.com")
+	b := seedEmailUser(t, "carter@x.com")
+	alterMigrations()
+	alterMigrations()
+	if emailIndexCount(t) != 0 {
+		t.Fatal("colliding install: index exists")
+	}
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&n); err != nil || n != 2 {
+		t.Fatalf("users = %d, %v", n, err)
+	}
+
+	if _, err := DB.Exec(`DELETE FROM users WHERE id = ?`, b); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	alterMigrations()
+	if emailIndexCount(t) != 1 {
+		t.Error("index not created after the collision was resolved")
 	}
 }

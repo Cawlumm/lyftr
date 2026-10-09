@@ -14,6 +14,14 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `POST /api/v1/auth/register` — an address differing only in letter case is a duplicate
+
+An address that differs from an existing account only in letter case (`Carter@example.com`
+beside `carter@example.com`) now answers `409` `That email is already registered.`. It used
+to answer `201` and create a second account.
+
+Only ASCII letters fold. Stored spellings are never rewritten.
+
 ## `POST /api/v1/food`, `PUT /api/v1/food/:id` — `servings` is capped at 100
 
 Anything above 100 is rejected with `422`. There was no ceiling before.
@@ -189,6 +197,10 @@ with the entire history reads as data loss in reverse — so the rejection is de
 Not entries — nothing to fix on a caller's side — but worth a line in the notes because
 somebody will see the change.
 
+- **Sign-in matches the address case-insensitively**, returning the spelling stored at
+  registration. An install that already holds case-variant accounts keeps both: each still
+  signs in with its exact spelling, and the boot log names them;
+  `lyftr-api delete-account <exact address>` removes the one you do not want.
 - **Every error message was rewritten into a sentence.** No status code, route, field name
   or field type moved. A caller regex-matching error *strings* will break, but error
   wording is not part of the contract and never was.

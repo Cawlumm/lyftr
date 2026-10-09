@@ -64,22 +64,21 @@ func runResetPassword(args []string) int {
 	}
 
 	s := stores.New(db.DB)
-	if err := s.User.ResetPassword(email, hash); err != nil {
+	stored, err := s.User.ResetPassword(email, hash)
+	if err != nil {
 		if errors.Is(err, stores.ErrNoSuchUser) {
 			fmt.Fprintf(os.Stderr, "no account found for %s\n", email)
-			// Addresses match exactly here and at login, so a case slip looks identical
-			// to a missing account. Someone recovering an account they cannot get into
-			// should not be left concluding it is gone.
-			if stored, ferr := s.User.FindEmailFold(email); ferr == nil && stored != email {
-				fmt.Fprintf(os.Stderr, "did you mean %s? addresses are case-sensitive.\n", stored)
-			}
+			return 1
+		}
+		if errors.Is(err, stores.ErrAmbiguousEmail) {
+			fmt.Fprintf(os.Stderr, "%s matches several accounts that differ only in letter case (%v). Nothing was changed; run it again with the exact spelling of the one to reset.\n", email, err)
 			return 1
 		}
 		fmt.Fprintf(os.Stderr, "reset failed: %v\n", err)
 		return 1
 	}
 
-	fmt.Printf("Password reset for %s.\n", email)
+	fmt.Printf("Password reset for %s.\n", stored)
 	fmt.Println("Every existing session for that account has been signed out.")
 	return 0
 }
