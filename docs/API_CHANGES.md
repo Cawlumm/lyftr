@@ -197,6 +197,13 @@ with the entire history reads as data loss in reverse — so the rejection is de
 Not entries — nothing to fix on a caller's side — but worth a line in the notes because
 somebody will see the change.
 
+- **A revoked access token now answers `401` on the next request.** The auth middleware
+  checks the token's session version against the account on every request, so a deleted
+  account, or a session ended by a password or email change, stops working at once instead
+  of until the token expired (an hour by default; reads used to come back empty and writes
+  failed with a `500`). Clients already read a `401` as "try a refresh", and the refresh
+  fails the same check, so they sign out. A caller holding a long-lived access token for a
+  deleted or revoked account will now see the `401`.
 - **Sign-in matches the address case-insensitively**, returning the spelling stored at
   registration. An install that already holds case-variant accounts keeps both: each still
   signs in with its exact spelling, and the boot log names them;

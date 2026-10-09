@@ -309,11 +309,11 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// The one place a stateless token meets server state. Signature validity says the
-	// token was minted by us; it cannot say the credentials behind it still stand. A
-	// refresh lives 30 days, so without this check a password change would leave every
-	// other device — including whoever the change was meant to evict — able to mint
-	// fresh access tokens for a month.
+	// Signature validity says the token was minted by us; it cannot say the credentials
+	// behind it still stand. A refresh lives 30 days, so without this check a password change
+	// would leave every other device — including whoever the change was meant to evict — able
+	// to mint fresh access tokens for a month. The auth middleware makes the same comparison
+	// for access tokens on every request, so a revoked device stops at its next request.
 	current, err := h.s.User.TokenVersion(claims.UserID)
 	if err == sql.ErrNoRows {
 		utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")

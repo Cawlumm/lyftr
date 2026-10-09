@@ -95,8 +95,9 @@ func (s *UserStore) GetByID(uid int64) (models.User, error) {
 }
 
 // TokenVersion returns the account's current token generation, or sql.ErrNoRows if the
-// account is gone. Read on refresh only — never on the per-request auth path, which
-// stays free of database work.
+// account is gone. Read on refresh and, by the auth middleware, on every authenticated
+// request: it is a primary-key read, and it is what makes a deleted account or an ended
+// session stop working at once rather than when its access token expires.
 func (s *UserStore) TokenVersion(uid int64) (int, error) {
 	var v int
 	err := s.db.QueryRow(`SELECT token_version FROM users WHERE id = ?`, uid).Scan(&v)
