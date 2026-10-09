@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router'
 import { useTheme } from '../../../src/theme/useTheme'
 
-// Nested stack under Settings: list → change password. Same shape and same reason as the
+// Nested stack under Settings: list → name, email, password. Same shape and same reason as the
 // workouts and weight stacks — contentStyle pins the card background to the app surface so
 // the push transition doesn't flash the platform default.
 export default function SettingsLayout() {

@@ -179,3 +179,81 @@ func TestDeleteCascadesEveryChildTable(t *testing.T) {
 		t.Errorf("other account changed: %+v -> %+v", before, after)
 	}
 }
+
+func TestChangeEmail(t *testing.T) {
+	setup := func(t *testing.T) (*sql.DB, *UserStore) {
+		conn := testDB(t)
+		return conn, NewUserStore(conn)
+	}
+	hashOf := func(t *testing.T, conn *sql.DB, uid int64) string {
+		var h string
+		if err := conn.QueryRow(`SELECT password_hash FROM users WHERE id = ?`, uid).Scan(&h); err != nil {
+			t.Fatal(err)
+		}
+		return h
+	}
+
+	t.Run("another account in another case is taken", func(t *testing.T) {
+		conn, s := setup(t)
+		seedAccount(t, conn, "carter@x.com", 0)
+		me := seedAccount(t, conn, "me@x.com", 0)
+		if _, err := s.ChangeEmail(me, "x", "Carter@X.com"); !errors.Is(err, ErrEmailTaken) {
+			t.Fatalf("err = %v, want ErrEmailTaken", err)
+		}
+	})
+
+	t.Run("own case change", func(t *testing.T) {
+		conn, s := setup(t)
+		me := seedAccount(t, conn, "carter@x.com", 0)
+		before, _ := s.TokenVersion(me)
+		u, err := s.ChangeEmail(me, "x", "Carter@x.com")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u.Email != "Carter@x.com" || u.CreatedAt.IsZero() {
+			t.Errorf("user = %+v", u)
+		}
+		if after, _ := s.TokenVersion(me); after != before || u.TokenVersion != before {
+			t.Errorf("a case-only change moved token_version %d -> %d (returned %d)", before, after, u.TokenVersion)
+		}
+	})
+
+	t.Run("stale hash", func(t *testing.T) {
+		conn, s := setup(t)
+		me := seedAccount(t, conn, "me@x.com", 0)
+		if _, err := s.ChangeEmail(me, "stale", "new@x.com"); !errors.Is(err, ErrPasswordChanged) {
+			t.Fatalf("err = %v, want ErrPasswordChanged", err)
+		}
+		var e string
+		if err := conn.QueryRow(`SELECT email FROM users WHERE id = ?`, me).Scan(&e); err != nil || e != "me@x.com" {
+			t.Errorf("email = %q, %v; want unchanged", e, err)
+		}
+	})
+
+	t.Run("index absent", func(t *testing.T) {
+		conn, s := setup(t)
+		dropNocaseIndex(t, conn)
+		seedAccount(t, conn, "Carter@x.com", 0)
+		me := seedAccount(t, conn, "carter@x.com", 0)
+		if _, err := s.ChangeEmail(me, "x", "CARTER@x.com"); !errors.Is(err, ErrEmailTaken) {
+			t.Fatalf("err = %v, want ErrEmailTaken", err)
+		}
+	})
+
+	t.Run("token_version bumped", func(t *testing.T) {
+		conn, s := setup(t)
+		me := seedAccount(t, conn, "me@x.com", 0)
+		before, _ := s.TokenVersion(me)
+		u, err := s.ChangeEmail(me, hashOf(t, conn, me), "new@x.com")
+		if err != nil {
+			t.Fatal(err)
+		}
+		after, _ := s.TokenVersion(me)
+		if after != before+1 {
+			t.Errorf("token_version %d -> %d, want +1", before, after)
+		}
+		if u.TokenVersion != after {
+			t.Errorf("returned version %d, stored %d", u.TokenVersion, after)
+		}
+	})
+}

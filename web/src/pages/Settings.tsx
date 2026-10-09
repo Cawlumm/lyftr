@@ -13,7 +13,7 @@ import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
-  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound,
+  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail,
 } from 'lucide-react'
 
 // Wraps per row, on content rather than on viewport width.
@@ -299,7 +299,12 @@ export default function Settings() {
           )}
         </SettingRow>
         <SettingRow label="Email" description="Your login email address">
-          <span className="text-sm text-tx-muted font-mono">{user?.email}</span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-sm text-tx-muted font-mono break-all">{user?.email}</span>
+            <Link to="/settings/email" aria-label="Change email" className="btn-secondary btn-sm">
+              <Mail className="w-3.5 h-3.5" /> Change
+            </Link>
+          </div>
         </SettingRow>
         <SettingRow label="Member since">
           <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>

@@ -13,6 +13,7 @@ export interface AuthStore {
   login:     (email: string, password: string) => Promise<void>
   register:  (email: string, password: string) => Promise<void>
   logout:    () => Promise<void>
+  changeEmail: (email: string, currentPassword: string) => Promise<types.User>
   clearError: () => void
 }
 
@@ -71,6 +72,16 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
       await storage.remove(STORAGE_KEYS.refresh)
       await storage.remove(STORAGE_KEYS.user)
       set({ user: null, isAuthenticated: false, error: null })
+    },
+
+    // No try/catch and no store.error: the screen's useAsyncAction reports the failure
+    // where the tap was, and a failed call leaves state and storage untouched. This is
+    // the only place the outgoing address is trimmed.
+    changeEmail: async (email, currentPassword) => {
+      const user = await client.userAPI.changeEmail({ email: email.trim(), current_password: currentPassword })
+      await storage.set(STORAGE_KEYS.user, JSON.stringify(user))
+      set({ user })
+      return user
     },
 
     clearError: () => set({ error: null }),

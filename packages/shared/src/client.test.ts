@@ -275,6 +275,58 @@ describe('userAPI.changePassword', () => {
   })
 })
 
+describe('userAPI.changeEmail', () => {
+  it('PUTs the address and password, returns the user and swaps in the new token pair', async () => {
+    const store = memStorage()
+    const client = createClient(store)
+    let sent: any
+    client.api.defaults.adapter = async (config: any) => {
+      sent = { method: config.method, url: config.url, data: JSON.parse(config.data) }
+      return {
+        data: { data: {
+          token: 'new-access', refresh_token: 'new-refresh',
+          user: { id: 1, email: 'new@x.com', created_at: '2026-01-01T00:00:00Z' },
+        } },
+        status: 200, statusText: 'OK', headers: {}, config,
+      }
+    }
+    await store.set(STORAGE_KEYS.access, 'live-access')
+    await store.set(STORAGE_KEYS.refresh, 'live-refresh')
+
+    const user = await client.userAPI.changeEmail({ email: 'new@x.com', current_password: 'pw' })
+
+    expect(sent).toEqual({ method: 'put', url: '/me/email', data: { email: 'new@x.com', current_password: 'pw' } })
+    expect(user.email).toBe('new@x.com')
+    // The change ends every session on the old version, this one included, so this device
+    // has to carry the pair the server handed back or it is signed out at the next refresh.
+    expect(await store.get(STORAGE_KEYS.access)).toBe('new-access')
+    expect(await store.get(STORAGE_KEYS.refresh)).toBe('new-refresh')
+  })
+
+  it('does not trigger the refresh-and-sign-out path on a rejected password', async () => {
+    const store = memStorage()
+    let signedOut = false
+    const client = createClient(store, { onAuthFailure: () => { signedOut = true } })
+    client.api.defaults.adapter = async (config: any) => {
+      const err: any = new Error('Request failed with status code 401')
+      err.config = config
+      err.response = {
+        status: 401, data: { error: 'Your current password is incorrect.' },
+        statusText: 'Unauthorized', headers: {}, config,
+      }
+      throw err
+    }
+    await store.set(STORAGE_KEYS.access, 'live-access')
+    await store.set(STORAGE_KEYS.refresh, 'live-refresh')
+
+    await expect(client.userAPI.changeEmail({ email: 'a@x.com', current_password: 'wrong' })).rejects.toBeDefined()
+
+    expect(signedOut).toBe(false)
+    expect(await store.get(STORAGE_KEYS.access)).toBe('live-access')
+    expect(await store.get(STORAGE_KEYS.refresh)).toBe('live-refresh')
+  })
+})
+
 // #145: "action buttons stop responding … requires a full app restart". The reporter's
 // two clues named the mechanism exactly — it happened when connectivity to their
 // homelab dropped, and it cleared "immediately" once the connection came back. Nothing

@@ -212,7 +212,14 @@ export default function SettingsScreen() {
               chevron
               onPress={() => router.push('/settings/name')}
             />
-            <SettingsRow icon={Mail} label="Email" value={user?.email ?? '—'} divider />
+            <SettingsRow
+              icon={Mail}
+              label="Email"
+              value={user?.email ?? '—'}
+              divider
+              chevron
+              onPress={() => router.push('/settings/email')}
+            />
             <SettingsRow icon={CalendarDays} label="Member since" value={memberSince(user?.created_at)} divider />
             <SettingsRow
               icon={KeyRound}

@@ -310,6 +310,11 @@ export interface TokenPair {
   refresh_token: string
 }
 
+export interface ChangeEmailRequest {
+  email: string
+  current_password: string
+}
+
 export interface ChangePasswordRequest {
   current_password: string
   new_password: string

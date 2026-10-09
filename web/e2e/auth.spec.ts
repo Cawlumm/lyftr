@@ -158,6 +158,79 @@ test('a wrong current password shows an error without signing the user out', asy
   expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBeTruthy()
 })
 
+test('changes the account email and signs in with the new address', async ({ page }) => {
+  const ts = Date.now()
+  const email = `e2e-email+${ts}@lyftr.local`
+  const moved = `E2E-Moved+${ts}@lyftr.local`
+  const password = 'password123'
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill(password)
+  await page.locator('#password-confirm').fill(password)
+  await page.getByRole('button', { name: /create account/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) recordCreatedUser(token)
+
+  await page.goto('/settings')
+  await page.getByRole('link', { name: /change email/i }).click()
+  await expect(page).toHaveURL(/\/settings\/email$/)
+  await page.locator('#new-email').fill(moved)
+  await page.locator('#current-password').fill(password)
+  await page.getByRole('button', { name: /update email/i }).click()
+
+  await expect(page.getByRole('heading', { name: /email changed/i })).toBeVisible()
+  await expect(page.getByText(/other devices are signed out/i)).toBeVisible()
+
+  await page.goto('/settings')
+  await expect(page.getByText(moved)).toBeVisible()
+
+  // This device stays signed in: the client swapped in the pair the server returned. The
+  // other devices are the ones signed out (covered by the backend tests).
+  expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBeTruthy()
+  await page.goto('/workouts')
+  await expect(page).toHaveURL(/\/workouts$/)
+
+  // The address really moved: the old one no longer signs in, the new one does in any case.
+  await page.evaluate(() => localStorage.clear())
+  await page.goto('/login')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill(password)
+  await page.getByRole('button', { name: /sign in/i }).click()
+  await expect(page.locator('.alert-error')).toBeVisible()
+
+  await page.getByPlaceholder('you@example.com').fill(moved.toLowerCase())
+  await page.getByRole('button', { name: /sign in/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+})
+
+// /me/email returns 401 for a wrong current password, the same shape as /me/password, and
+// must not be mistaken for an expired session.
+test('a wrong current password on change email shows an error without signing the user out', async ({ page }) => {
+  const email = `e2e-email-bad+${Date.now()}@lyftr.local`
+
+  await page.goto('/register')
+  await page.getByPlaceholder('you@example.com').fill(email)
+  await page.locator('#password').fill('password123')
+  await page.locator('#password-confirm').fill('password123')
+  await page.getByRole('button', { name: /create account/i }).click()
+  await page.waitForURL(url => new URL(url).pathname === '/')
+
+  const token = await page.evaluate(() => localStorage.getItem('access_token'))
+  if (token) recordCreatedUser(token)
+
+  await page.goto('/settings/email')
+  await page.locator('#new-email').fill(`other+${Date.now()}@lyftr.local`)
+  await page.locator('#current-password').fill('not-my-password')
+  await page.getByRole('button', { name: /update email/i }).click()
+
+  await expect(page.locator('.alert-error')).toContainText(/current password is incorrect/i)
+  await expect(page).toHaveURL(/\/settings\/email$/)
+  expect(await page.evaluate(() => localStorage.getItem('access_token'))).toBeTruthy()
+})
+
 // The W3C Change Password URL. Password managers open it to send a user to the form, and
 // expect a redirect — served by nginx in production and by a vite middleware in dev, so
 // this runs against either stack. Asserted without following, because a 200 here would

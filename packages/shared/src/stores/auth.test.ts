@@ -77,3 +77,49 @@ describe('auth store (storage-adapter DI)', () => {
     expect(state.user?.email).toBe('demo@lyftr.local')
   })
 })
+
+describe('auth store changeEmail', () => {
+  const signedIn = () =>
+    createMemoryStorage({
+      [STORAGE_KEYS.access]: 'access-123',
+      [STORAGE_KEYS.refresh]: 'refresh-456',
+      [STORAGE_KEYS.user]: JSON.stringify(fakeAuthResponse.user),
+    })
+
+  it('trims the address, caches the returned user and leaves the tokens alone', async () => {
+    const storage = signedIn()
+    const calls: any[] = []
+    const updated = { ...fakeAuthResponse.user, email: 'New@Example.com' }
+    const client = {
+      authAPI: {},
+      userAPI: { changeEmail: async (d: any) => { calls.push(d); return updated } },
+    } as unknown as LyftrClient
+    const useAuth = createAuthStore(client, storage)
+    await useAuth.getState().hydrate()
+
+    const res = await useAuth.getState().changeEmail('  New@Example.com ', 'pw')
+
+    expect(calls).toEqual([{ email: 'New@Example.com', current_password: 'pw' }])
+    expect(res).toEqual(updated)
+    expect(useAuth.getState().user).toEqual(updated)
+    expect(JSON.parse((await storage.get(STORAGE_KEYS.user))!)).toEqual(updated)
+    expect(await storage.get(STORAGE_KEYS.access)).toBe('access-123')
+    expect(await storage.get(STORAGE_KEYS.refresh)).toBe('refresh-456')
+  })
+
+  it('rejects and changes nothing when the client fails', async () => {
+    const storage = signedIn()
+    const client = {
+      authAPI: {},
+      userAPI: { changeEmail: async () => { throw new Error('nope') } },
+    } as unknown as LyftrClient
+    const useAuth = createAuthStore(client, storage)
+    await useAuth.getState().hydrate()
+
+    await expect(useAuth.getState().changeEmail('b@x.com', 'pw')).rejects.toThrow('nope')
+
+    expect(useAuth.getState().user).toEqual(fakeAuthResponse.user)
+    expect(useAuth.getState().error).toBeNull()
+    expect(JSON.parse((await storage.get(STORAGE_KEYS.user))!)).toEqual(fakeAuthResponse.user)
+  })
+})
