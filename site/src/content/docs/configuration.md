@@ -95,9 +95,11 @@ Changing it **signs you out everywhere else**. The device you changed it on stay
 is deliberate — a password change is what you reach for when you think someone else has a session,
 so it has to actually end their session. Sign back in on your other devices with the new password.
 
-Other devices stop as soon as their current access token expires, which is `JWT_EXPIRY` seconds
-(one hour by default). Raising `JWT_EXPIRY` widens that window by exactly the same amount, so a
-long expiry trades a little convenience for a longer tail after a password change.
+Other devices stop on their next request to the server: it checks every request against the account's
+current session version, so a device that was signed out gets a 401, fails to refresh, and drops to
+the sign-in screen. A device that cannot reach the server at that moment, say on poor wifi, stays on
+its old screens until it can. `JWT_EXPIRY` only sets how often a healthy session re-mints its access
+token, not how long a revoked one lingers.
 
 ## Changing your email
 
@@ -112,8 +114,8 @@ change the case of your own address. The address is stored exactly as you type i
 Like a password change it **signs you out everywhere else**. The device you changed it on stays
 signed in, and you sign in with the new address from now on. The old one stops working at once.
 Lyftr cannot email the old address, so ending the other sessions is how a change made from a session
-that was not yours gets contained. Other devices stop when their current access token expires, the
-same window as a password change. Changing only the letter case, say `carter@` to `Carter@`, is the
+that was not yours gets contained. Other devices stop on their next request to the server, as with a
+password change. Changing only the letter case, say `carter@` to `Carter@`, is the
 one exception: sign-in already ignores case, so nothing needs containing and no session ends.
 
 ## If you forget your password
@@ -183,9 +185,8 @@ you do not want. The case-insensitive index is created on the next start.
 
 If it is the only account, the command warns first: under `REGISTRATION=first-user` whoever registers
 next becomes the owner, and under `REGISTRATION=closed` nobody can sign in or register. Take a backup
-before you run it — see [Backups](/backups/). A device still signed in to the deleted account keeps its
-access token until that expires (up to an hour): reads come back empty and writes fail, and it is signed
-out when it next refreshes.
+before you run it — see [Backups](/backups/). A device still signed in to the deleted account is signed out on
+its next request to the server.
 
 Piping the exact address also works, with `-T`: `echo you@example.com | docker compose exec -T backend ./lyftr-api delete-account you@example.com`.
 

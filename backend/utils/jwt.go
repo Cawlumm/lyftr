@@ -13,10 +13,10 @@ type Claims struct {
 	UserID int64  `json:"user_id"`
 	Email  string `json:"email"`
 	Type   string `json:"type"` // "access" or "refresh"
-	// TokenVersion is the users.token_version this token was minted against. Refresh
-	// rejects a mismatch, which is what makes a password change actually end other
-	// sessions. Absent in tokens issued before the claim existed, so it decodes as 0
-	// there — see NormalizeTokenVersion.
+	// TokenVersion is the users.token_version this token was minted against. Refresh and
+	// the auth middleware both reject a mismatch, which is what makes a password or email
+	// change actually end other sessions. Absent in tokens issued before the claim existed,
+	// so it decodes as 0 there — see NormalizeTokenVersion.
 	TokenVersion int `json:"ver,omitempty"`
 	jwt.RegisteredClaims
 }

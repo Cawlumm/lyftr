@@ -33,7 +33,7 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 
 	// Protected routes
 	protected := api.Group("/")
-	protected.Use(middleware.Auth())
+	protected.Use(middleware.Auth(h.TokenVersions()))
 	{
 		// User
 		protected.GET("me", h.GetMe)

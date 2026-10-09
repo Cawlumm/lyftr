@@ -6,26 +6,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/Cawlumm/lyftr-backend/config"
-	"github.com/Cawlumm/lyftr-backend/controllers"
-	"github.com/Cawlumm/lyftr-backend/stores"
-	"github.com/gin-gonic/gin"
 )
 
 func TestChangeEmailRequiresAuth(t *testing.T) {
-	prev := config.C
-	config.C = &config.Config{Env: "production", CORSOrigin: "http://a.com", JWTSecret: "test-secret-test-secret-test-secret-1"}
-	t.Cleanup(func() { config.C = prev })
-
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	Setup(r, controllers.NewHandler(stores.New(nil)))
+	// A real database rather than a nil store: Auth reads the account on a valid token, so a
+	// future case in this file that sent one would panic on a nil pool and take the binary down.
+	a := newAPI(t)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/me/email", strings.NewReader(`{}`))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
+	a.r.ServeHTTP(w, req)
 
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", w.Code)
