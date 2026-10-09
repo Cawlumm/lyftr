@@ -10,6 +10,7 @@ import (
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/db"
 	"github.com/Cawlumm/lyftr-backend/stores"
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 func registerRequest(t *testing.T, email string) int {
@@ -248,5 +249,114 @@ func TestLoginDoesNotLeakAccountExistenceByTiming(t *testing.T) {
 	if ratio > 3 || ratio < 1.0/3 {
 		t.Errorf("existing=%v missing=%v (%.1fx apart) — one path is skipping the password comparison",
 			existing, missing, ratio)
+	}
+}
+
+func loginRequest(t *testing.T, email, password string) (int, map[string]any) {
+	t.Helper()
+	c, w := newContext(0, "POST", "/api/v1/auth/login",
+		map[string]string{"email": email, "password": password})
+	th.Login(c)
+	return w.Code, decodeResponse(t, w)
+}
+
+// seedCollidingAccounts models an install that predates the case-insensitive index:
+// the index is dropped and two case variants are inserted directly.
+func seedCollidingAccounts(t *testing.T, a, passA, b, passB string) (int64, int64) {
+	t.Helper()
+	if _, err := db.DB.Exec(`DROP INDEX idx_users_email_nocase`); err != nil {
+		t.Fatalf("drop index: %v", err)
+	}
+	insert := func(email, pass string) int64 {
+		hash, err := utils.HashPassword(pass)
+		if err != nil {
+			t.Fatalf("hash: %v", err)
+		}
+		res, err := db.DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, email, hash)
+		if err != nil {
+			t.Fatalf("insert %s: %v", email, err)
+		}
+		id, _ := res.LastInsertId()
+		if _, err := db.DB.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, id); err != nil {
+			t.Fatalf("insert settings: %v", err)
+		}
+		return id
+	}
+	return insert(a, passA), insert(b, passB)
+}
+
+func TestRegisterRejectsAnAddressDifferingOnlyInCase(t *testing.T) {
+	setupTestDB(t)
+	if code := registerRequest(t, "carter@example.com"); code != http.StatusCreated {
+		t.Fatalf("first register = %d, want 201", code)
+	}
+	c, w := newContext(0, "POST", "/api/v1/auth/register",
+		map[string]string{"email": "Carter@Example.COM", "password": "password123"})
+	th.Register(c)
+	if w.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", w.Code)
+	}
+	if msg := decodeResponse(t, w)["error"]; msg != "That email is already registered." {
+		t.Errorf("error = %v", msg)
+	}
+	if n := userCount(t); n != 1 {
+		t.Errorf("users = %d, want 1", n)
+	}
+}
+
+func TestLoginIgnoresCase(t *testing.T) {
+	setupTestDB(t)
+	registerAndLogin(t, "Carter@Example.com", "password123")
+
+	code, body := loginRequest(t, "carter@example.com", "password123")
+	if code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", code)
+	}
+	data, _ := body["data"].(map[string]any)
+	user, _ := data["user"].(map[string]any)
+	if user["email"] != "Carter@Example.com" {
+		t.Errorf("email = %v, want the stored spelling", user["email"])
+	}
+
+	code, body = loginRequest(t, "CARTER@example.com", "wrongpassword1")
+	if code != http.StatusUnauthorized || body["error"] != "Invalid email or password." {
+		t.Errorf("wrong password = %d %v, want 401 generic", code, body["error"])
+	}
+}
+
+func TestLoginOnACollidingInstall(t *testing.T) {
+	setupTestDB(t)
+	upper, lower := seedCollidingAccounts(t, "Carter@x.com", "password-upper", "carter@x.com", "password-lower")
+
+	check := func(email, pass string, want int64) {
+		code, body := loginRequest(t, email, pass)
+		if code != http.StatusOK {
+			t.Fatalf("%s = %d, want 200", email, code)
+		}
+		data, _ := body["data"].(map[string]any)
+		user, _ := data["user"].(map[string]any)
+		if id, _ := user["id"].(float64); int64(id) != want {
+			t.Errorf("%s signed in as %v, want %d", email, id, want)
+		}
+	}
+	check("Carter@x.com", "password-upper", upper)
+	check("carter@x.com", "password-lower", lower)
+
+	for _, pass := range []string{"password-upper", "password-lower"} {
+		if code, _ := loginRequest(t, "CARTER@x.com", pass); code != http.StatusUnauthorized {
+			t.Errorf("ambiguous address with %q = %d, want 401", pass, code)
+		}
+	}
+}
+
+func TestRegisterOnACollidingInstallStillRefusesAVariant(t *testing.T) {
+	setupTestDB(t)
+	seedCollidingAccounts(t, "Carter@x.com", "password-upper", "carter@x.com", "password-lower")
+
+	if code := registerRequest(t, "CARTER@x.com"); code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", code)
+	}
+	if n := userCount(t); n != 2 {
+		t.Errorf("users = %d, want 2", n)
 	}
 }

@@ -85,7 +85,7 @@ func (h *Handler) Register(c *gin.Context) {
 		utils.Forbidden(c, RegistrationClosedMessage)
 		return
 	}
-	if utils.IsUniqueViolation(err) {
+	if errors.Is(err, stores.ErrEmailTaken) || utils.IsUniqueViolation(err) {
 		utils.Conflict(c, "That email is already registered.")
 		return
 	}

@@ -420,3 +420,56 @@ func TestPasswordLengthLimitIsAClientError(t *testing.T) {
 		}
 	})
 }
+
+func TestResetPasswordIgnoresCase(t *testing.T) {
+	setupTestDB(t)
+	uid, _ := registerAndLogin(t, "reset@example.com", "password123")
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	if err := th.s.User.ResetPassword("RESET@Example.com", newHash); err != nil {
+		t.Fatalf("reset: %v", err)
+	}
+	if !utils.CheckPassword("operatorset789", storedHash(t, uid)) {
+		t.Error("the new password does not verify")
+	}
+	if v := tokenVersion(t, uid); v != 2 {
+		t.Errorf("token_version = %d, want 2", v)
+	}
+}
+
+func TestResetPasswordRefusesAnAmbiguousAddress(t *testing.T) {
+	setupTestDB(t)
+	upper, lower := seedCollidingAccounts(t, "Carter@x.com", "password-upper", "carter@x.com", "password-lower")
+	upperBefore, lowerBefore := storedHash(t, upper), storedHash(t, lower)
+
+	newHash, err := utils.HashPassword("operatorset789")
+	if err != nil {
+		t.Fatalf("hash: %v", err)
+	}
+	err = th.s.User.ResetPassword("CARTER@x.com", newHash)
+	if !errors.Is(err, stores.ErrAmbiguousEmail) {
+		t.Fatalf("err = %v, want ErrAmbiguousEmail", err)
+	}
+	if !strings.Contains(err.Error(), "Carter@x.com") || !strings.Contains(err.Error(), "carter@x.com") {
+		t.Errorf("error %q does not list both spellings", err)
+	}
+	if storedHash(t, upper) != upperBefore || storedHash(t, lower) != lowerBefore {
+		t.Error("a hash changed")
+	}
+	if tokenVersion(t, upper) != 1 || tokenVersion(t, lower) != 1 {
+		t.Error("a token_version changed")
+	}
+
+	if err := th.s.User.ResetPassword("carter@x.com", newHash); err != nil {
+		t.Fatalf("exact reset: %v", err)
+	}
+	if storedHash(t, lower) == lowerBefore || tokenVersion(t, lower) != 2 {
+		t.Error("the named account was not reset")
+	}
+	if storedHash(t, upper) != upperBefore || tokenVersion(t, upper) != 1 {
+		t.Error("the other account changed")
+	}
+}

@@ -3,6 +3,8 @@ package stores
 import (
 	"database/sql"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 )
@@ -19,12 +21,65 @@ func (s *UserStore) GetMe(uid int64) (models.User, error) {
 	return u, err
 }
 
-// GetByEmail loads a user incl. password_hash for login. sql.ErrNoRows if absent.
+// ErrAmbiguousEmail means an address matches several accounts that differ only in letter
+// case, and none of them is spelled exactly as given.
+var ErrAmbiguousEmail = errors.New("address matches several accounts")
+
+// ErrEmailTaken means another account already holds the address, ignoring letter case.
+var ErrEmailTaken = errors.New("email already registered")
+
+// matchEmail is the one place an address becomes an account. NOCASE decides what "the
+// same address" means (no Go code folds case, so Go and SQL cannot disagree): an exact
+// spelling wins, otherwise a single match is used, and several matches with no exact one
+// are ambiguous. It returns every spelling found alongside ErrAmbiguousEmail. All rows
+// are read and closed before returning: the pool has one connection.
+func (s *UserStore) matchEmail(email string) (models.User, []string, error) {
+	rows, err := s.db.Query(
+		`SELECT id, email, password_hash, token_version, created_at, updated_at
+		 FROM users WHERE email = ? COLLATE NOCASE ORDER BY id`, email)
+	if err != nil {
+		return models.User{}, nil, err
+	}
+	var found []models.User
+	for rows.Next() {
+		var u models.User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt); err != nil {
+			rows.Close()
+			return models.User{}, nil, err
+		}
+		found = append(found, u)
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return models.User{}, nil, err
+	}
+	for _, u := range found {
+		if u.Email == email {
+			return u, nil, nil
+		}
+	}
+	switch len(found) {
+	case 0:
+		return models.User{}, nil, sql.ErrNoRows
+	case 1:
+		return found[0], nil, nil
+	}
+	spellings := make([]string, len(found))
+	for i, u := range found {
+		spellings[i] = u.Email
+	}
+	return models.User{}, spellings, ErrAmbiguousEmail
+}
+
+// GetByEmail loads a user incl. password_hash for login, matching the address
+// case-insensitively. sql.ErrNoRows if absent, and also if it is ambiguous between
+// case-variant accounts, so login answers both the same way.
 func (s *UserStore) GetByEmail(email string) (models.User, error) {
-	var u models.User
-	err := s.db.QueryRow(
-		`SELECT id, email, password_hash, token_version, created_at, updated_at FROM users WHERE email = ?`, email,
-	).Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
+	u, _, err := s.matchEmail(email)
+	if errors.Is(err, ErrAmbiguousEmail) {
+		return models.User{}, sql.ErrNoRows
+	}
 	return u, err
 }
 
@@ -178,6 +233,14 @@ func (s *UserStore) CreateFirst(email, hash string) (int64, error) {
 }
 
 func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
+	// The unique index cannot exist on an install that already holds case-variant accounts, so check here too.
+	var taken int
+	switch err := tx.QueryRow(`SELECT 1 FROM users WHERE email = ? COLLATE NOCASE LIMIT 1`, email).Scan(&taken); {
+	case err == nil:
+		return 0, ErrEmailTaken
+	case !errors.Is(err, sql.ErrNoRows):
+		return 0, err
+	}
 	res, err := tx.Exec(`INSERT INTO users (email, password_hash) VALUES (?, ?)`, email, hash)
 	if err != nil {
 		return 0, err
@@ -199,19 +262,6 @@ var ErrEmptyHash = errors.New("refusing to store an empty password hash")
 // ErrNoSuchUser means no account carries that address.
 var ErrNoSuchUser = errors.New("no account with that email")
 
-// FindEmailFold returns the stored address matching email case-insensitively, or
-// sql.ErrNoRows. Addresses are stored and matched exactly everywhere else — including at
-// login — so this exists only to turn "no account found" into a useful message for an
-// operator who typed the wrong case while recovering an account. It must not become a way
-// to authenticate, which is why it returns the stored spelling rather than the row.
-func (s *UserStore) FindEmailFold(email string) (string, error) {
-	var stored string
-	err := s.db.QueryRow(
-		`SELECT email FROM users WHERE email = ? COLLATE NOCASE`, email,
-	).Scan(&stored)
-	return stored, err
-}
-
 // ResetPassword is the operator's way in, for the account whose password is lost. Unlike
 // ChangePassword there is no old hash to verify against — the whole point is that nobody
 // knows it — so this is keyed on email and guarded only by having a shell on the server.
@@ -224,10 +274,20 @@ func (s *UserStore) ResetPassword(email, newHash string) error {
 	if newHash == "" {
 		return ErrEmptyHash
 	}
+	u, spellings, err := s.matchEmail(email)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNoSuchUser
+	}
+	if errors.Is(err, ErrAmbiguousEmail) {
+		return fmt.Errorf("%w: %s", ErrAmbiguousEmail, strings.Join(spellings, ", "))
+	}
+	if err != nil {
+		return err
+	}
 	res, err := s.db.Exec(
 		`UPDATE users SET password_hash = ?, token_version = token_version + 1,
 		                  updated_at = CURRENT_TIMESTAMP
-		 WHERE email = ?`, newHash, email)
+		 WHERE id = ?`, newHash, u.ID)
 	if err != nil {
 		return err
 	}
