@@ -1,4 +1,5 @@
 import { router } from 'expo-router'
+import { useTranslation } from '@lyftr/shared'
 import { Plus } from 'lucide-react-native'
 import { IconButton, ListScreenSkeleton } from '../ui'
 
@@ -8,15 +9,16 @@ import { IconButton, ListScreenSkeleton } from '../ui'
 // The PageHeader + its "New Program" action are the REAL controls, live immediately;
 // only the data-shaped regions are placeholders. Mirrors WorkoutsSkeleton.
 export function ProgramsSkeleton() {
+  const { t } = useTranslation()
   return (
     <ListScreenSkeleton
-      title="Programs"
-      subtitle="Reusable workout templates"
+      title={t('programs.title')}
+      subtitle={t('programs.subtitle')}
       statCount={2}
       action={
         <IconButton
           icon={Plus}
-          label="New Program"
+          label={t('programs.newProgram')}
           variant="solid"
           size="md"
           onPress={() => router.push('/programs/new')}

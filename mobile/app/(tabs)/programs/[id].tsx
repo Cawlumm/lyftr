@@ -6,14 +6,14 @@ import {
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
 import { useAsyncAction,
-  activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
-  weightShort, type Program, type ProgramSet, formatDate, useTranslation
+  activeSessionExercisesForDay, allExercises, dayLabel, displayWeight, sessionNameForDay,
+  weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { muscleColor } from '../../../src/utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
 import { targetWeightLabel, restLabel } from '@lyftr/shared'
 
 // Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
@@ -28,6 +28,7 @@ const activeHref = '/workouts/active' as unknown as Href
 const SUGGESTION_CAP = 3
 
 function SetChip({ set, isBest, hasSuggestion, unit }: { set: ProgramSet; isBest: boolean; hasSuggestion: boolean; unit: string }) {
+  const { t } = useTranslation()
   return (
     <View
       className={`px-2.5 py-1.5 rounded-lg border ${
@@ -37,7 +38,7 @@ function SetChip({ set, isBest, hasSuggestion, unit }: { set: ProgramSet; isBest
     >
       <AppText variant="caption" color={hasSuggestion ? 'secondary' : isBest ? 'brand' : 'secondary'} style={{ fontVariant: ['tabular-nums'] }}>
         {set.target_reps > 0 ? set.target_reps : '—'} ×{' '}
-        {set.target_weight > 0 ? `${displayWeight(set.target_weight, unit)} ${unit}` : 'BW'}
+        {set.target_weight > 0 ? `${displayWeight(set.target_weight, unit)} ${unit}` : t('weight.bodyweightShort')}
       </AppText>
     </View>
   )
@@ -58,7 +59,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
   const tint = muscleColor(muscle)
   return (
     <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscle}</AppText>
+      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
@@ -75,7 +76,8 @@ export default function ProgramDetail() {
 
   const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // UiMessages, not their sentences, so the banners follow a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // Bumping this re-runs the load effect — three lines, rather than restructuring a
   // working effect to gain a retry button.
   const [retryKey, setRetryKey] = useState(0)
@@ -83,7 +85,7 @@ export default function ProgramDetail() {
   const [resolving, setResolving] = useState(false)
   // Separate from `error`, which replaces the whole screen: a failed resolve must leave the
   // program on screen so the same buttons are still under the thumb to retry.
-  const [resolveError, setResolveError] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<UiMessage | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
@@ -113,7 +115,7 @@ export default function ProgramDetail() {
       const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
     } catch (err) {
-      setResolveError(apiErrorMessage(err, "Couldn't save those targets."))
+      setResolveError({ key: 'programs.detail.suggestions.saveFailed', cause: err })
     } finally {
       // Invalidate any focus refetch still in flight from before this point — its
       // response can't be trusted to reflect this write, whichever order it lands in.
@@ -150,7 +152,7 @@ export default function ProgramDetail() {
             loadedRef.current = true
           }
         } catch (err) {
-          if (!cancelled && !loadedRef.current) setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+          if (!cancelled && !loadedRef.current) setError({ key: 'settings.unknownError', cause: err })
         } finally {
           if (!cancelled) setLoading(false)
         }
@@ -183,7 +185,7 @@ export default function ProgramDetail() {
     if (!program) return
     await client.programAPI.delete(program.id)
     goBack() // list refetches on focus
-  }, 'Failed to delete program')
+  }, t('programs.deleteFailed'))
 
   if (loading) return <Loading />
 
@@ -193,10 +195,10 @@ export default function ProgramDetail() {
         <View className="flex-1 py-4">
           <ErrorState
             size="page"
-            title="Couldn't load this program"
-            message={error ?? 'That program no longer exists.'}
+            title={t('programs.detail.loadFailed')}
+            message={error ? uiMessage(error) : t('programs.detail.gone')}
             onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
-            secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+            secondary={<Button title={t('programs.detail.backToPrograms')} variant="secondary" onPress={goBack} />}
           />
         </View>
       </Screen>
@@ -227,11 +229,11 @@ export default function ProgramDetail() {
           newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
-          newLabel = `${sr} reps`
+          newLabel = t('programs.count.reps', { count: sr })
         }
         return {
           setId: s.id as number,
-          exName: ex.exercise?.name ?? 'Exercise',
+          exName: ex.exercise?.name ?? t('programs.detail.suggestions.exerciseFallback'),
           setNumber: s.set_number,
           isPR: !!s.suggested_is_pr,
           oldLabel,
@@ -250,35 +252,35 @@ export default function ProgramDetail() {
           <View className="flex-row items-center justify-between">
             <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
               <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">Programs</AppText>
+              <AppText variant="body" color="muted">{t('programs.detail.back')}</AppText>
             </Pressable>
             <View className="flex-row items-center gap-2">
               {/* Start is the primary action → filled brand pill; Edit brand outline;
                   Delete a quiet ghost glyph that only reddens at the confirm step. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Start workout"
+                accessibilityLabel={t('programs.detail.startLabel')}
                 onPress={handleStart}
                 disabled={!selectedDay || selectedDay.is_rest_day}
                 hitSlop={6}
                 className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''}`}
               >
                 <Play size={14} color="#ffffff" strokeWidth={2.2} />
-                <AppText variant="label" color="white">Start</AppText>
+                <AppText variant="label" color="white">{t('programs.detail.start')}</AppText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Edit program"
+                accessibilityLabel={t('programs.detail.editLabel')}
                 onPress={() => router.push(`/programs/${program.id}/edit`)}
                 hitSlop={6}
                 className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
               >
                 <Edit2 size={15} color={accent} strokeWidth={2.2} />
-                <AppText variant="label" style={{ color: accent }}>Edit</AppText>
+                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Delete program"
+                accessibilityLabel={t('programs.detail.deleteLabel')}
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
                 hitSlop={6}
@@ -290,7 +292,7 @@ export default function ProgramDetail() {
           </View>
 
           <ConfirmSheet
-            {...deleteConfirmProps({ title: 'Delete Program?', subject: `"${program.name}"` })}
+            {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), subject: `"${program.name}"` })}
             open={confirming}
             busy={remove.busy}
             error={remove.error}
@@ -305,7 +307,7 @@ export default function ProgramDetail() {
                 {suggestions.some((s) => s.isPR)
                   ? <Award size={16} color={warningColor} />
                   : <TrendingUp size={16} color={warningColor} />}
-                <AppText variant="bodySemibold" className="flex-1">New targets from your last workout</AppText>
+                <AppText variant="bodySemibold" className="flex-1">{t('programs.detail.suggestions.title')}</AppText>
                 <View className="bg-warning-500/15 rounded-full px-2 py-0.5">
                   <AppText variant="caption" style={{ color: warningColor, fontWeight: 'bold' }}>{suggestions.length}</AppText>
                 </View>
@@ -315,7 +317,7 @@ export default function ProgramDetail() {
                   <View className="flex-1 flex-row items-center gap-1.5 min-w-0">
                     {sg.isPR ? <Award size={14} color={warningColor} /> : null}
                     <AppText variant="caption" color="secondary" numberOfLines={1} className="flex-1">
-                      <AppText variant="caption" color="primary" style={{ fontWeight: '600' }}>{sg.exName}</AppText> · Set {sg.setNumber}
+                      <AppText variant="caption" color="primary" style={{ fontWeight: '600' }}>{sg.exName}</AppText> · {t('programs.detail.suggestions.set', { number: sg.setNumber })}
                     </AppText>
                   </View>
                   <View className="flex-row items-center flex-shrink-0">
@@ -327,7 +329,7 @@ export default function ProgramDetail() {
                     <Pressable
                       onPress={() => resolveSuggestions([sg.setId], [])}
                       disabled={resolving}
-                      accessibilityLabel={`Accept ${sg.exName} set ${sg.setNumber}`}
+                      accessibilityLabel={t('programs.detail.suggestions.accept', { name: sg.exName, number: sg.setNumber })}
                       className={`w-7 h-7 rounded-lg bg-success-500/15 items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
                     >
                       <Check size={14} color={isDark ? brand.successSoft : brand.success} strokeWidth={3} />
@@ -335,7 +337,7 @@ export default function ProgramDetail() {
                     <Pressable
                       onPress={() => resolveSuggestions([], [sg.setId])}
                       disabled={resolving}
-                      accessibilityLabel={`Dismiss ${sg.exName} set ${sg.setNumber}`}
+                      accessibilityLabel={t('programs.detail.suggestions.dismiss', { name: sg.exName, number: sg.setNumber })}
                       className={`w-7 h-7 rounded-lg bg-surface-muted items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
                     >
                       <X size={14} color={colors.txMuted} strokeWidth={3} />
@@ -349,7 +351,7 @@ export default function ProgramDetail() {
                   className="flex-row items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 active:opacity-60"
                 >
                   <AppText variant="caption" style={{ color: warningColor, fontWeight: '600' }}>
-                    {showAllSuggestions ? 'Show less' : `Show all ${suggestions.length}`}
+                    {showAllSuggestions ? t('programs.detail.suggestions.showLess') : t('programs.detail.suggestions.showAll', { total: suggestions.length })}
                   </AppText>
                   {showAllSuggestions ? <ChevronUp size={14} color={warningColor} /> : <ChevronDown size={14} color={warningColor} />}
                 </Pressable>
@@ -357,7 +359,7 @@ export default function ProgramDetail() {
               {resolveError && (
                 <View className="flex-row items-start gap-2 px-4 py-2.5 border-t border-surface-border/60">
                   <AlertCircle size={16} color={brand.error} />
-                  <AppText variant="caption" color="error" className="flex-1">{resolveError}</AppText>
+                  <AppText variant="caption" color="error" className="flex-1">{uiMessage(resolveError)}</AppText>
                 </View>
               )}
               <View className="flex-row gap-2 px-4 py-3 border-t border-surface-border/60">
@@ -366,14 +368,14 @@ export default function ProgramDetail() {
                   disabled={resolving}
                   className={`flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
                 >
-                  <AppText variant="bodySemibold" color="secondary">Dismiss all</AppText>
+                  <AppText variant="bodySemibold" color="secondary">{t('programs.detail.suggestions.dismissAll')}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => resolveSuggestions(suggestedSetIds, [])}
                   disabled={resolving}
                   className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
                 >
-                  <AppText variant="bodySemibold" style={{ color: brand.warningText }}>Apply all ({suggestions.length})</AppText>
+                  <AppText variant="bodySemibold" style={{ color: brand.warningText }}>{t('programs.detail.suggestions.applyAll', { total: suggestions.length })}</AppText>
                 </Pressable>
               </View>
             </View>
@@ -396,21 +398,21 @@ export default function ProgramDetail() {
               <View className="flex-1 items-center">
                 <View className="flex-row items-center gap-1 mb-0.5">
                   <CalendarDays size={13} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">Cycle</AppText>
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.cycle')}</AppText>
                 </View>
                 <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{days.length || '—'}</AppText>
               </View>
               <View className="flex-1 items-center border-l border-surface-border">
                 <View className="flex-row items-center gap-1 mb-0.5">
                   <Dumbbell size={13} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">Exercises</AppText>
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.exercises')}</AppText>
                 </View>
                 <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{allExs.length}</AppText>
               </View>
               <View className="flex-1 items-center border-l border-surface-border">
                 <View className="flex-row items-center gap-1 mb-0.5">
                   <Layers size={13} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">Total Sets</AppText>
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.totalSets')}</AppText>
                 </View>
                 <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{totalSets}</AppText>
               </View>
@@ -429,9 +431,9 @@ export default function ProgramDetail() {
           {days.length === 0 ? (
             <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-6">
               <CalendarDays size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
-              <AppText variant="body" color="muted" className="mt-2">No days yet</AppText>
+              <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noDays')}</AppText>
               <Pressable onPress={() => router.push(`/programs/${program.id}/edit`)} className="mt-2 active:opacity-60">
-                <AppText variant="caption" style={{ color: accent }}>Add a day →</AppText>
+                <AppText variant="caption" style={{ color: accent }}>{t('programs.detail.addDay')}</AppText>
               </Pressable>
             </View>
           ) : (
@@ -461,7 +463,7 @@ export default function ProgramDetail() {
                         distinguishable by shape/text (a11y) and reads as decoration. */}
                     {isToday ? (
                       <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
-                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>TODAY</AppText>
+                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('programs.detail.todayChip')}</AppText>
                       </View>
                     ) : null}
                   </Pressable>
@@ -474,9 +476,9 @@ export default function ProgramDetail() {
           {selectedDay?.is_rest_day ? (
             <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
               <Moon size={28} color={colors.txMuted} style={{ opacity: 0.6 }} />
-              <AppText variant="bodySemibold" className="mt-2">Rest Day</AppText>
+              <AppText variant="bodySemibold" className="mt-2">{t('programs.day.rest')}</AppText>
               <AppText variant="caption" color="muted" className="mt-1 text-center px-6">
-                No exercises scheduled — recover and come back stronger.
+                {t('programs.detail.restDayHint')}
               </AppText>
             </View>
           ) : selectedDay ? (
@@ -484,19 +486,23 @@ export default function ProgramDetail() {
               {!restOn && (
                 <View className="flex-row items-center gap-1.5 px-1">
                   <TimerOff size={13} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">Rest timer is off — turn it on in Settings</AppText>
+                  <AppText variant="caption" color="muted">{t('workouts.detail.restOff')}</AppText>
                 </View>
               )}
               <View className="gap-3">
                 {(selectedDay.exercises ?? []).length === 0 ? (
                   <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-8">
                     <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
-                    <AppText variant="body" color="muted" className="mt-2">No exercises on this day yet</AppText>
+                    <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noExercises')}</AppText>
                   </View>
                 ) : (selectedDay.exercises ?? []).map((ex) => {
               const sets = ex.sets ?? []
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
+              const setsSummary = [
+                t('programs.count.sets', { count: sets.length }),
+                ...(maxTarget > 0 ? [t('programs.detail.target', { weight: maxTarget, unit: wUnit })] : []),
+              ].join(' · ')
 
               return (
                 <Pressable
@@ -512,7 +518,7 @@ export default function ProgramDetail() {
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
                         <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
-                          {sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}
+                          {setsSummary}
                         </AppText>
                       </View>
                     </View>
@@ -528,7 +534,7 @@ export default function ProgramDetail() {
                       </View>
                       {restOn && (
                         ex.rest_seconds === 0 ? (
-                          <AppText variant="caption" color="muted">No rest</AppText>
+                          <AppText variant="caption" color="muted">{t('workouts.detail.noRest')}</AppText>
                         ) : (
                           <View className="flex-row items-center gap-1">
                             <Pause size={13} color={colors.txMuted} />

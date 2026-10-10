@@ -423,7 +423,94 @@
       "rest": "Día de descanso",
       "numbered": "Día {{number}}"
     },
-    "createdOn": "Creado el {{date}}"
+    "createdOn": "Creado el {{date}}",
+    "title": "Programas",
+    "subtitle": "Plantillas de entrenamiento reutilizables",
+    "newProgram": "Nuevo programa",
+    "startWorkout": "Iniciar entrenamiento",
+    "deleteConfirmTitle": "¿Eliminar programa?",
+    "deleteFailed": "No se pudo eliminar el programa",
+    "count": {
+      "exercises_one": "{{count}} ejercicio",
+      "exercises_other": "{{count}} ejercicios",
+      "sets_one": "{{count}} serie",
+      "sets_other": "{{count}} series",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "exercises_many": "{{count}} ejercicios",
+      "sets_many": "{{count}} series",
+      "reps_many": "{{count}} reps"
+    },
+    "list": {
+      "searchPlaceholder": "Buscar programas…",
+      "empty": {
+        "title": "No se encontraron programas",
+        "searchHint": "Prueba con otra búsqueda",
+        "startHint": "Crea un programa para empezar"
+      },
+      "loadFailed": "No se pudieron cargar tus programas",
+      "errorSubject": "tus programas",
+      "loadingMore": "Cargando más…"
+    },
+    "stats": {
+      "total": "Total",
+      "totalUnit": "programas",
+      "totalFailed": "No se pudo cargar el total",
+      "avgExercises": "Ejercicios prom.",
+      "avgExercisesFailed": "No se pudo cargar el promedio de ejercicios",
+      "perProgram": "por programa"
+    },
+    "card": {
+      "deleteTitle": "¿Eliminar \"{{name}}\"?",
+      "cannotUndo": "Esto no se puede deshacer",
+      "summary": "{{exercises}} · {{sets}}",
+      "restToday": "Descanso hoy",
+      "today": "Hoy: {{day}}",
+      "options": "Opciones",
+      "optionsNamed": "Opciones de {{name}}",
+      "menuHeading": "Programa",
+      "startTitle": "Iniciar entrenamiento",
+      "restDayTitle": "Hoy es día de descanso: abrir programa",
+      "viewProgram": "Ver programa",
+      "editProgram": "Editar programa",
+      "deleteProgram": "Eliminar programa",
+      "editNamed": "Editar {{name}}",
+      "startNamed": "Iniciar {{name}}"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar este programa",
+      "gone": "Ese programa ya no existe.",
+      "backToPrograms": "Volver a programas",
+      "back": "Programas",
+      "restDayTitle": "Día de descanso: no hay nada que iniciar",
+      "start": "Iniciar",
+      "startLabel": "Iniciar entrenamiento",
+      "editLabel": "Editar programa",
+      "deleteLabel": "Eliminar programa",
+      "suggestions": {
+        "title": "Nuevos objetivos de tu último entrenamiento",
+        "set": "Serie {{number}}",
+        "accept": "Aceptar {{name}}, serie {{number}}",
+        "dismiss": "Descartar {{name}}, serie {{number}}",
+        "showLess": "Mostrar menos",
+        "showAll": "Mostrar las {{total}}",
+        "dismissAll": "Descartar todo",
+        "applyAll": "Aplicar todo ({{total}})",
+        "saveFailed": "No se pudieron guardar esos objetivos.",
+        "exerciseFallback": "Ejercicio"
+      },
+      "stats": {
+        "cycle": "Ciclo",
+        "exercises": "Ejercicios",
+        "totalSets": "Series totales"
+      },
+      "noDays": "Aún no hay días",
+      "addDay": "Agregar un día →",
+      "todayChip": "HOY",
+      "restDayHint": "No hay ejercicios programados: recupérate y vuelve más fuerte.",
+      "noExercises": "Aún no hay ejercicios en este día",
+      "target": "objetivo {{weight}} {{unit}}"
+    }
   },
   "food": {
     "servings_one": "{{count}} porción",

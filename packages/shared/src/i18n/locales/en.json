@@ -418,7 +418,91 @@
       "rest": "Rest Day",
       "numbered": "Day {{number}}"
     },
-    "createdOn": "Created {{date}}"
+    "createdOn": "Created {{date}}",
+    "title": "Programs",
+    "subtitle": "Reusable workout templates",
+    "newProgram": "New Program",
+    "startWorkout": "Start Workout",
+    "deleteConfirmTitle": "Delete Program?",
+    "deleteFailed": "Failed to delete program",
+    "count": {
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "sets_one": "{{count}} set",
+      "sets_other": "{{count}} sets",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps"
+    },
+    "list": {
+      "searchPlaceholder": "Search programs…",
+      "empty": {
+        "title": "No programs found",
+        "searchHint": "Try a different search",
+        "startHint": "Create a program to get started"
+      },
+      "loadFailed": "Couldn't load your programs",
+      "errorSubject": "your programs",
+      "loadingMore": "Loading more…"
+    },
+    "stats": {
+      "total": "Total",
+      "totalUnit": "programs",
+      "totalFailed": "Couldn't load total",
+      "avgExercises": "Avg Exercises",
+      "avgExercisesFailed": "Couldn't load avg exercises",
+      "perProgram": "per program"
+    },
+    "card": {
+      "deleteTitle": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone",
+      "summary": "{{exercises}} · {{sets}}",
+      "restToday": "Rest today",
+      "today": "Today: {{day}}",
+      "options": "Options",
+      "optionsNamed": "{{name}} options",
+      "menuHeading": "Program",
+      "startTitle": "Start workout",
+      "restDayTitle": "Rest day today — open program",
+      "viewProgram": "View Program",
+      "editProgram": "Edit Program",
+      "deleteProgram": "Delete Program",
+      "editNamed": "Edit {{name}}",
+      "startNamed": "Start {{name}}"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this program",
+      "gone": "That program no longer exists.",
+      "backToPrograms": "Back to programs",
+      "back": "Programs",
+      "restDayTitle": "Rest day — nothing to start",
+      "start": "Start",
+      "startLabel": "Start workout",
+      "editLabel": "Edit program",
+      "deleteLabel": "Delete program",
+      "suggestions": {
+        "title": "New targets from your last workout",
+        "set": "Set {{number}}",
+        "accept": "Accept {{name}} set {{number}}",
+        "dismiss": "Dismiss {{name}} set {{number}}",
+        "showLess": "Show less",
+        "showAll": "Show all {{total}}",
+        "dismissAll": "Dismiss all",
+        "applyAll": "Apply all ({{total}})",
+        "saveFailed": "Couldn't save those targets.",
+        "exerciseFallback": "Exercise"
+      },
+      "stats": {
+        "cycle": "Cycle",
+        "exercises": "Exercises",
+        "totalSets": "Total Sets"
+      },
+      "noDays": "No days yet",
+      "addDay": "Add a day →",
+      "todayChip": "TODAY",
+      "restDayHint": "No exercises scheduled — recover and come back stronger.",
+      "noExercises": "No exercises on this day yet",
+      "target": "target {{weight}} {{unit}}"
+    }
   },
   "food": {
     "servings_one": "{{count}} serving",

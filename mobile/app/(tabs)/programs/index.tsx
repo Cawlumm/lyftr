@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from 'lucide-react-native'
 import type { Program } from '@lyftr/shared'
-import { programExerciseCount } from '@lyftr/shared'
+import { programExerciseCount, useTranslation } from '@lyftr/shared'
 import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, StatFailure } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
@@ -12,6 +12,7 @@ import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function Programs() {
+  const { t } = useTranslation()
   const { accent } = useTheme()
 
   const [search, setSearch] = useState('')
@@ -82,8 +83,8 @@ export default function Programs() {
     return (
       <Screen>
         <View className="flex-1 gap-5 py-4">
-          <PageHeader title="Programs" subtitle="Reusable workout templates" />
-          <ErrorState size="page" title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+          <PageHeader title={t('programs.title')} subtitle={t('programs.subtitle')} />
+          <ErrorState size="page" title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
         </View>
       </Screen>
     )
@@ -100,14 +101,15 @@ export default function Programs() {
   const stats = [
     // `programs` is what has loaded, not how many exist: while pages remain it is a lower
     // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
-    { label: 'Total', value: hasMore || listError != null ? `${programs.length}+` : String(programs.length), unit: 'programs' },
+    { label: t('programs.stats.total'), failed: t('programs.stats.totalFailed'), value: hasMore || listError != null ? `${programs.length}+` : String(programs.length), unit: t('programs.stats.totalUnit') },
     {
-      label: 'Avg Exercises',
+      label: t('programs.stats.avgExercises'),
+      failed: t('programs.stats.avgExercisesFailed'),
       value:
         programs.length > 0
           ? String(Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length))
           : '—',
-      unit: 'per program',
+      unit: t('programs.stats.perProgram'),
     },
   ]
 
@@ -129,12 +131,12 @@ export default function Programs() {
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
-              title="Programs"
-              subtitle="Reusable workout templates"
+              title={t('programs.title')}
+              subtitle={t('programs.subtitle')}
               action={
                 <IconButton
                   icon={Plus}
-                  label="New Program"
+                  label={t('programs.newProgram')}
                   variant="solid"
                   size="md"
                   onPress={() => router.push('/programs/new')}
@@ -148,7 +150,7 @@ export default function Programs() {
                 <Card key={s.label} className="flex-1 rounded-2xl">
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
                   {countsUnknown ? (
-                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()}`} />
+                    <StatFailure label={s.failed} />
                   ) : (
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{s.value}</AppText>
@@ -163,7 +165,7 @@ export default function Programs() {
               value={search}
               onChangeText={setSearch}
               loading={refreshing}
-              placeholder="Search programs…"
+              placeholder={t('programs.list.searchPlaceholder')}
             />
           </View>
         }
@@ -180,12 +182,12 @@ export default function Programs() {
           loading ? null : listError ? (
             // Reached only with a search on screen; "No programs found" would blame the
             // query for a request that never landed.
-            <ErrorState title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+            <ErrorState title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
           ) : (
             <EmptyState
               icon={BookOpen}
-              title="No programs found"
-              subtitle={search ? 'Try a different search' : 'Create a program to get started'}
+              title={t('programs.list.empty.title')}
+              subtitle={search ? t('programs.list.empty.searchHint') : t('programs.list.empty.startHint')}
             />
           )
         }
@@ -194,7 +196,7 @@ export default function Programs() {
           // (re)load — there the content is already grayed, so a footer spinner
           // would read as an unwanted "loading" in the middle.
           listError && programs.length > 0 ? (
-            <ErrorState title="Couldn't load your programs" message={listError} onRetry={retryList} retrying={loading} />
+            <ErrorState title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
           ) : hasMore && loading && !dim && programs.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />

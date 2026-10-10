@@ -8,8 +8,8 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { apiErrorMessage, isNotFound, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel, formatDate, useTranslation } from '@lyftr/shared'
-import { muscleColor } from '../utils/exerciseUtils'
+import { isNotFound, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { muscleColor, muscleLabel } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -24,7 +24,8 @@ export default function ProgramDetail() {
   const restOn = settings.rest_enabled ?? true
   const [program, setProgram] = useState<types.Program | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // UiMessages, not their sentences, so the banners follow a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // A 404 is not a retryable failure: the row is gone, and a Try again button that
   // cannot ever succeed is worse than no button. Tracked separately from the message
   // because the message alone cannot say which kind of failure produced it.
@@ -37,7 +38,7 @@ export default function ProgramDetail() {
   const [resolving, setResolving] = useState(false)
   // Separate from `error`, which replaces the whole page: a failed resolve must leave the
   // program on screen so the same buttons are still under the finger to retry.
-  const [resolveError, setResolveError] = useState<string | null>(null)
+  const [resolveError, setResolveError] = useState<UiMessage | null>(null)
   const [showAllSuggestions, setShowAllSuggestions] = useState(false)
   const [selectedDayIdx, setSelectedDayIdx] = useState(0)
 
@@ -51,7 +52,7 @@ export default function ProgramDetail() {
       const updated = await programAPI.resolveSuggestions(program.id, { accept, dismiss })
       setProgram(updated)
     } catch (err) {
-      setResolveError(apiErrorMessage(err, "Couldn't save those targets."))
+      setResolveError({ key: 'programs.detail.suggestions.saveFailed', cause: err })
     } finally {
       setResolving(false)
     }
@@ -65,7 +66,7 @@ export default function ProgramDetail() {
         setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+        setError({ key: 'settings.unknownError', cause: err })
       } finally {
         setLoading(false)
       }
@@ -91,7 +92,7 @@ export default function ProgramDetail() {
     if (!program) return
     await programAPI.delete(program.id)
     navigate('/programs', { replace: true })
-  }, 'Failed to delete program')
+  }, t('programs.deleteFailed'))
 
   if (loading) {
     return (
@@ -105,10 +106,10 @@ export default function ProgramDetail() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load this program"
-        message={error ?? 'That program no longer exists.'}
+        title={t('programs.detail.loadFailed')}
+        message={error ? uiMessage(error) : t('programs.detail.gone')}
         onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
-        secondary={<Link to="/programs" className="btn-secondary btn-sm">Back to programs</Link>}
+        secondary={<Link to="/programs" className="btn-secondary btn-sm">{t('programs.detail.backToPrograms')}</Link>}
       />
     )
   }
@@ -138,11 +139,11 @@ export default function ProgramDetail() {
           newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
-          newLabel = `${sr} reps`
+          newLabel = t('programs.count.reps', { count: sr })
         }
         return {
           setId: s.id as number,
-          exName: ex.exercise?.name ?? 'Exercise',
+          exName: ex.exercise?.name ?? t('programs.detail.suggestions.exerciseFallback'),
           setNumber: s.set_number,
           isPR: !!s.suggested_is_pr,
           oldLabel,
@@ -157,26 +158,26 @@ export default function ProgramDetail() {
       {/* Back nav */}
       <div className="flex items-center justify-between">
         <Link to="/programs" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Programs
+          <ArrowLeft className="w-4 h-4" /> {t('programs.detail.back')}
         </Link>
         <div className="flex items-center gap-1">
           <button
             onClick={handleStart}
             disabled={!selectedDay || selectedDay.is_rest_day}
-            title={selectedDay?.is_rest_day ? 'Rest day — nothing to start' : undefined}
+            title={selectedDay?.is_rest_day ? t('programs.detail.restDayTitle') : undefined}
             className="flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:hover:bg-brand-500 text-white text-xs font-semibold rounded-xl transition-colors"
           >
-            <Play className="w-3.5 h-3.5" /> Start Workout
+            <Play className="w-3.5 h-3.5" /> {t('programs.startWorkout')}
           </button>
           <button
-            aria-label="Edit program"
+            aria-label={t('programs.detail.editLabel')}
             onClick={() => navigate(`/programs/${program.id}/edit`)}
             className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
-            aria-label="Delete program"
+            aria-label={t('programs.detail.deleteLabel')}
             onClick={() => setConfirming(true)}
             className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
           >
@@ -190,10 +191,10 @@ export default function ProgramDetail() {
         open={confirming}
         icon={Trash2}
         destructive
-        title="Delete Program?"
-        message={`"${program.name}" will be permanently deleted.`}
-        confirmLabel="Delete"
-        busyLabel="Deleting…"
+        title={t('programs.deleteConfirmTitle')}
+        message={t('common.deleteConfirmMessage', { subject: `"${program.name}"` })}
+        confirmLabel={t('common.delete')}
+        busyLabel={t('common.deleting')}
         busy={remove.busy}
         error={remove.error}
         onConfirm={() => { void remove.run() }}
@@ -207,14 +208,14 @@ export default function ProgramDetail() {
             {suggestions.some(s => s.isPR)
               ? <Award className="w-4 h-4 text-warning-400 flex-shrink-0" />
               : <TrendingUp className="w-4 h-4 text-warning-400 flex-shrink-0" />}
-            <span className="text-sm font-semibold text-tx-primary flex-1">New targets from your last workout</span>
+            <span className="text-sm font-semibold text-tx-primary flex-1">{t('programs.detail.suggestions.title')}</span>
             <span className="text-xs font-bold text-warning-400 bg-warning-500/15 px-2 py-0.5 rounded-full tabular-nums">{suggestions.length}</span>
           </div>
           {(showAllSuggestions ? suggestions : suggestions.slice(0, SUGGESTION_CAP)).map(sg => (
             <div key={sg.setId} className="flex items-center gap-3 px-4 py-2.5 border-t border-surface-border/60">
               <span className="text-sm text-tx-secondary min-w-0 flex-1 truncate flex items-center gap-1.5">
                 {sg.isPR && <Award className="w-3.5 h-3.5 text-warning-400 flex-shrink-0" />}
-                <span className="truncate"><span className="font-semibold text-tx-primary">{sg.exName}</span> · Set {sg.setNumber}</span>
+                <span className="truncate"><span className="font-semibold text-tx-primary">{sg.exName}</span> · {t('programs.detail.suggestions.set', { number: sg.setNumber })}</span>
               </span>
               <span className="text-sm tabular-nums whitespace-nowrap flex-shrink-0">
                 <span className="text-tx-muted line-through">{sg.oldLabel}</span>
@@ -225,7 +226,7 @@ export default function ProgramDetail() {
                 <button
                   onClick={() => resolveSuggestions([sg.setId], [])}
                   disabled={resolving}
-                  aria-label={`Accept ${sg.exName} set ${sg.setNumber}`}
+                  aria-label={t('programs.detail.suggestions.accept', { name: sg.exName, number: sg.setNumber })}
                   className="w-7 h-7 rounded-lg bg-success-500/15 text-success-400 hover:bg-success-500/25 disabled:opacity-50 flex items-center justify-center transition-colors"
                 >
                   <Check className="w-4 h-4" strokeWidth={3} />
@@ -233,7 +234,7 @@ export default function ProgramDetail() {
                 <button
                   onClick={() => resolveSuggestions([], [sg.setId])}
                   disabled={resolving}
-                  aria-label={`Dismiss ${sg.exName} set ${sg.setNumber}`}
+                  aria-label={t('programs.detail.suggestions.dismiss', { name: sg.exName, number: sg.setNumber })}
                   className="w-7 h-7 rounded-lg bg-surface-muted text-tx-muted hover:text-tx-primary disabled:opacity-50 flex items-center justify-center transition-colors"
                 >
                   <X className="w-4 h-4" strokeWidth={3} />
@@ -247,14 +248,14 @@ export default function ProgramDetail() {
               className="w-full flex items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 text-warning-400 hover:text-warning-300 text-xs font-semibold transition-colors"
             >
               {showAllSuggestions
-                ? <>Show less <ChevronUp className="w-3.5 h-3.5" /></>
-                : <>Show all {suggestions.length} <ChevronDown className="w-3.5 h-3.5" /></>}
+                ? <>{t('programs.detail.suggestions.showLess')} <ChevronUp className="w-3.5 h-3.5" /></>
+                : <>{t('programs.detail.suggestions.showAll', { total: suggestions.length })} <ChevronDown className="w-3.5 h-3.5" /></>}
             </button>
           )}
           {resolveError && (
             <div className="flex items-start gap-2 px-4 py-2.5 border-t border-surface-border/60 text-sm text-error-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <span className="flex-1">{resolveError}</span>
+              <span className="flex-1">{uiMessage(resolveError)}</span>
             </div>
           )}
           <div className="flex gap-2 px-4 py-3 border-t border-surface-border/60">
@@ -263,14 +264,14 @@ export default function ProgramDetail() {
               disabled={resolving}
               className="flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border text-tx-secondary hover:text-tx-primary disabled:opacity-50 text-sm font-medium transition-colors"
             >
-              Dismiss all
+              {t('programs.detail.suggestions.dismissAll')}
             </button>
             <button
               onClick={() => resolveSuggestions(suggestedSetIds, [])}
               disabled={resolving}
               className="flex-1 py-2 rounded-lg bg-warning-500 hover:bg-warning-400 disabled:opacity-50 text-[#1a1400] text-sm font-semibold transition-colors"
             >
-              Apply all ({suggestions.length})
+              {t('programs.detail.suggestions.applyAll', { total: suggestions.length })}
             </button>
           </div>
         </div>
@@ -303,21 +304,21 @@ export default function ProgramDetail() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <CalendarDays className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Cycle</p>
+              <p className="text-xs text-tx-muted">{t('programs.detail.stats.cycle')}</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">{days.length || '—'}</p>
           </div>
           <div className="text-center border-l border-surface-border">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <Dumbbell className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Exercises</p>
+              <p className="text-xs text-tx-muted">{t('programs.detail.stats.exercises')}</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">{allExs.length}</p>
           </div>
           <div className="text-center border-l border-surface-border">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <BookOpen className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Total Sets</p>
+              <p className="text-xs text-tx-muted">{t('programs.detail.stats.totalSets')}</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">{totalSets}</p>
           </div>
@@ -334,12 +335,12 @@ export default function ProgramDetail() {
       {days.length === 0 ? (
         <div className="card p-6 text-center">
           <CalendarDays className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-50" />
-          <p className="text-sm text-tx-muted">No days yet</p>
+          <p className="text-sm text-tx-muted">{t('programs.detail.noDays')}</p>
           <button
             onClick={() => navigate(`/programs/${program.id}/edit`)}
             className="mt-2 text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors"
           >
-            Add a day →
+            {t('programs.detail.addDay')}
           </button>
         </div>
       ) : (
@@ -364,7 +365,7 @@ export default function ProgramDetail() {
                 {/* Textual chip, not a bare dot — a color-only marker isn't
                     distinguishable by shape/text (a11y) and reads as decoration. */}
                 {isToday && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-brand-500/15 text-brand-400'}`}>TODAY</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-brand-500/15 text-brand-400'}`}>{t('programs.detail.todayChip')}</span>
                 )}
               </button>
             )
@@ -376,26 +377,30 @@ export default function ProgramDetail() {
       {selectedDay?.is_rest_day ? (
         <div className="card p-8 text-center">
           <Moon className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-60" />
-          <p className="text-sm font-medium text-tx-primary">Rest Day</p>
-          <p className="text-xs text-tx-muted mt-1">No exercises scheduled — recover and come back stronger.</p>
+          <p className="text-sm font-medium text-tx-primary">{t('programs.day.rest')}</p>
+          <p className="text-xs text-tx-muted mt-1">{t('programs.detail.restDayHint')}</p>
         </div>
       ) : selectedDay ? (
         <>
           {!restOn && (
             <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
-              <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+              <TimerOff className="w-3.5 h-3.5" /> {t('workouts.detail.restOff')}
             </div>
           )}
           <div className="space-y-2">
             {(selectedDay.exercises ?? []).length === 0 ? (
               <div className="card p-6 text-center">
                 <Dumbbell className="w-8 h-8 text-tx-muted mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-tx-muted">No exercises on this day yet</p>
+                <p className="text-sm text-tx-muted">{t('programs.detail.noExercises')}</p>
               </div>
             ) : (selectedDay.exercises ?? []).map((ex) => {
               const sets = ex.sets ?? []
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
+              const setsSummary = [
+                t('programs.count.sets', { count: sets.length }),
+                ...(maxTarget > 0 ? [t('programs.detail.target', { weight: maxTarget, unit: wUnit })] : []),
+              ].join(' · ')
 
               return (
                 <button
@@ -421,10 +426,10 @@ export default function ProgramDetail() {
                       <div className="flex items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group && (
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
-                            {ex.exercise.muscle_group}
+                            {muscleLabel(ex.exercise.muscle_group)}
                           </span>
                         )}
-                        <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{maxTarget > 0 ? ` · target ${maxTarget} ${wUnit}` : ''}</span>
+                        <span className="text-xs text-tx-muted truncate">{setsSummary}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -441,13 +446,13 @@ export default function ProgramDetail() {
                               hasSuggestion ? 'bg-warning-500/10 text-tx-secondary ring-1 ring-warning-500/40'
                                 : isBest ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25' : 'bg-surface-raised text-tx-secondary'
                             }`}>
-                              {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : 'BW'}
+                              {set.target_reps > 0 ? set.target_reps : '—'} × {set.target_weight > 0 ? `${displayWeight(set.target_weight, wUnit)} ${wUnit}` : t('weight.bodyweightShort')}
                             </div>
                           )
                         })}
                       </div>
                       {restOn && (ex.rest_seconds === 0
-                        ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
+                        ? <span className="text-xs text-tx-muted flex-shrink-0">{t('workouts.detail.noRest')}</span>
                         : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
                       )}
                     </div>
