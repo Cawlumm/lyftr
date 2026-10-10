@@ -273,7 +273,9 @@
     "password": {
       "show": "Mostrar {{label}}",
       "hide": "Ocultar {{label}}"
-    }
+    },
+    "back": "Atrás",
+    "goBack": "Volver"
   },
   "errors": {
     "api": {
@@ -429,7 +431,9 @@
     "limitHint": "Un registro admite como máximo {{amount}}",
     "favorites": {
       "addFailed": "No se pudo añadir {{name}} a Favoritos.",
-      "removeFailed": "No se pudo quitar {{name}} de Favoritos."
+      "removeFailed": "No se pudo quitar {{name}} de Favoritos.",
+      "add": "Añadir {{name}} a Favoritos",
+      "remove": "Quitar {{name}} de Favoritos"
     },
     "diary": {
       "title": "Comida",
@@ -451,7 +455,93 @@
     }
   },
   "exercises": {
-    "estimated1rm": "1RM est.: {{weight}} {{unit}} · {{date}}"
+    "estimated1rm": "1RM est.: {{weight}} {{unit}} · {{date}}",
+    "equipment": {
+      "body-only": "Peso corporal",
+      "barbell": "Barra",
+      "dumbbell": "Mancuerna",
+      "machine": "Máquina",
+      "cable": "Polea",
+      "kettlebells": "Pesa rusa",
+      "bands": "Bandas",
+      "medicine-ball": "Balón medicinal",
+      "e-z-curl-bar": "Barra Z",
+      "exercise-ball": "Balón de ejercicio",
+      "foam-roll": "Rodillo de espuma",
+      "none": "Ninguno",
+      "other": "Otro"
+    },
+    "muscle": {
+      "abdominals": "abdominales",
+      "abductors": "abductores",
+      "abs": "abdominales",
+      "adductors": "aductores",
+      "back": "espalda",
+      "biceps": "bíceps",
+      "calves": "pantorrillas",
+      "chest": "pecho",
+      "core": "core",
+      "forearms": "antebrazos",
+      "full-body": "cuerpo completo",
+      "glutes": "glúteos",
+      "hamstrings": "isquiotibiales",
+      "lats": "dorsales",
+      "legs": "piernas",
+      "lower-back": "espalda baja",
+      "middle-back": "espalda media",
+      "neck": "cuello",
+      "obliques": "oblicuos",
+      "other": "otro",
+      "quadriceps": "cuádriceps",
+      "shoulders": "hombros",
+      "traps": "trapecios",
+      "triceps": "tríceps"
+    },
+    "picker": {
+      "title": "Añadir ejercicio",
+      "loaded_one": "{{count}} cargado",
+      "loaded_other": "{{count}} cargados",
+      "loaded_many": "{{count}} cargados",
+      "loadedMore_one": "{{count}} cargado…",
+      "loadedMore_other": "{{count}} cargados…",
+      "loadedMore_many": "{{count}} cargados…",
+      "search": "Buscar ejercicios…",
+      "loading": "Cargando ejercicios…",
+      "loadingShort": "Cargando…",
+      "loadingMore": "Cargando más…",
+      "loadMore": "Cargar más",
+      "empty": "No se encontraron ejercicios",
+      "errorSubject": "estos ejercicios",
+      "close": "Cerrar selector de ejercicios",
+      "backToWorkout": "Volver al entrenamiento",
+      "loadFailed": "No se pudieron cargar los ejercicios",
+      "loadMoreFailed": "No se pudieron cargar más ejercicios"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar este ejercicio",
+      "musclesWorked": "Músculos trabajados",
+      "bodyFront": "Frente",
+      "bodyBack": "Espalda",
+      "primary": "Principal",
+      "secondary": "Secundario",
+      "alsoWorks": "También trabaja",
+      "yourBest": "Tu mejor marca",
+      "personalBest": "Mejor marca personal",
+      "estimated1rm": "1RM estimado",
+      "weightProgression": "Progresión de peso",
+      "noPeriodData": "Sin datos para este período",
+      "maxWeight": "Peso máx.",
+      "instructions": "Instrucciones",
+      "bestSet_one": "{{unit}} × {{count}} repetición",
+      "bestSet_other": "{{unit}} × {{count}} repeticiones",
+      "bestSet_many": "{{unit}} × {{count}} repeticiones",
+      "period": {
+        "1m": "1m",
+        "3m": "3m",
+        "6m": "6m",
+        "All": "Todo"
+      }
+    }
   },
   "home": {
     "heatmap": {

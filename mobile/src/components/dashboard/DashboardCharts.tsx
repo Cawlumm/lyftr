@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
+import { useTranslation } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
+import { muscleLabel } from '../../utils/exerciseUtils'
 
 // react-native-svg reimplementations of the web Dashboard's recharts widgets (bar /
 // line / donut) plus the custom MuscleSparkline (already raw SVG on web). Web reads
@@ -176,6 +178,8 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
   data: DonutSlice[]; total: number; colorFor: (name: string) => string; size?: number
 }) {
   const { colors } = useTheme()
+  // Re-renders on a language switch: the selected slice's muscle is named from the catalog.
+  useTranslation()
   const [sel, setSel] = useState<number | null>(null)
   if (!data.length || total <= 0) return null
 
@@ -216,7 +220,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
           tooltip; the legend already lists every value, so the hole is the natural read-out). */}
       {selSlice ? (
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-          <AppText variant="caption" color="muted" className="capitalize" numberOfLines={1}>{selSlice.d.name}</AppText>
+          <AppText variant="caption" color="muted" className="capitalize" numberOfLines={1}>{muscleLabel(selSlice.d.name)}</AppText>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{selSlice.d.value}</AppText>
           <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
             {Math.round((selSlice.d.value / total) * 100)}%

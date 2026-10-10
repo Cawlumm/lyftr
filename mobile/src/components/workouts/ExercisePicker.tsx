@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Search } from 'lucide-react-native'
-import type { Exercise } from '@lyftr/shared'
+import { useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
-import { EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
+import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 
 interface Props {
@@ -23,6 +23,7 @@ const PAGE_SIZE = 50
 const DEBOUNCE_MS = 250
 
 function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
+  useTranslation() // re-renders on a language switch: the labels below come from the catalog
   return (
     <Pressable
       accessibilityRole="button"
@@ -38,12 +39,12 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
               keep the taxonomy legible but let the exercise name be the hero. */}
           <View className="rounded border border-surface-border bg-surface-muted px-1.5 py-0.5">
             <AppText variant="caption" color="muted" className="capitalize">
-              {exercise.muscle_group}
+              {muscleLabel(exercise.muscle_group)}
             </AppText>
           </View>
           {exercise.equipment && exercise.equipment !== 'other' ? (
             <AppText variant="caption" color="muted">
-              {EQUIPMENT_LABEL[exercise.equipment] || exercise.equipment}
+              {equipmentLabel(exercise.equipment)}
             </AppText>
           ) : null}
         </View>
@@ -57,13 +58,14 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
 // search state resets per open — a routed screen can't hand the picked Exercise
 // back to the form without a store detour, hence Modal).
 export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
+  const { t } = useTranslation()
   const { accent, colors } = useTheme()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
   }, [query])
 
   // Every page comes from the server, which queries open-exercise-db. The client
@@ -98,16 +100,16 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
       <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
         {/* Header */}
         <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-4 pt-3">
-          <IconButton icon={ArrowLeft} label="Close exercise picker" variant="ghost" size="md" onPress={onClose} />
+          <IconButton icon={ArrowLeft} label={t('exercises.picker.close')} variant="ghost" size="md" onPress={onClose} />
           <View>
             {/* Large title (matches the sibling "Log Workout" screen title) — the
                 18px heading read undersized for a full-screen surface. */}
-            <AppText variant="title">Add Exercise</AppText>
+            <AppText variant="title">{t('exercises.picker.title')}</AppText>
             {/* Only true if the fetch landed — on a failure this read "0 loaded"
                 above a message saying we could not load anything. */}
             {listError ? null : (
               <AppText variant="caption" color="muted">
-                {available.length} loaded{hasMore ? '…' : ''}
+                {t(hasMore ? 'exercises.picker.loadedMore' : 'exercises.picker.loaded', { count: available.length })}
               </AppText>
             )}
           </View>
@@ -126,7 +128,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               className="flex-1 font-sans text-base text-tx-primary"
               value={query}
               onChangeText={setQuery}
-              placeholder="Search exercises…"
+              placeholder={t('exercises.picker.search')}
               placeholderTextColor={colors.txMuted}
               autoCapitalize="none"
               autoCorrect={false}
@@ -139,7 +141,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
         {initialLoading ? (
           <View className="flex-row items-center justify-center gap-2 py-16">
             <ActivityIndicator color={accent} />
-            <AppText variant="body" color="muted">Loading exercises…</AppText>
+            <AppText variant="body" color="muted">{t('exercises.picker.loading')}</AppText>
           </View>
         ) : (
           <FlatList
@@ -158,10 +160,10 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               // "No exercises found" is only true if we heard back. On a failed fetch
               // it reads as an empty catalogue rather than a connection that dropped.
               listError ? (
-                <ErrorState title="Couldn't load exercises" message={listError} onRetry={retryList} />
+                <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
               ) : (
                 <View className="items-center py-16">
-                  <AppText variant="body" color="muted">No exercises found</AppText>
+                  <AppText variant="body" color="muted">{t('exercises.picker.empty')}</AppText>
                 </View>
               )
             }
@@ -172,11 +174,11 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               // exercise already selected the list is empty, and the slot above would
               // render the same failure a second time.
               listError && available.length > 0 ? (
-                <ErrorState title="Couldn't load more exercises" message={listError} onRetry={retryList} />
+                <ErrorState title={t('exercises.picker.loadMoreFailed')} message={listError} onRetry={retryList} />
               ) : hasMore && available.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
-                  <AppText variant="caption" color="muted">Loading more…</AppText>
+                  <AppText variant="caption" color="muted">{t('exercises.picker.loadingMore')}</AppText>
                 </View>
               ) : null
             }

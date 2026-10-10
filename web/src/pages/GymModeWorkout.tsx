@@ -5,8 +5,8 @@ import {
   Minimize2, Trash2, Repeat, Check, Layers, Timer,
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
-import { useAsyncAction, types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
-import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
+import { useAsyncAction, types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange, useTranslation } from '@lyftr/shared'
+import { muscleColor, muscleColorBordered, equipmentLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore } from '../stores/settings'
@@ -60,6 +60,8 @@ interface GymModeWorkoutProps {
 }
 
 export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
+  // Re-renders on a language switch: the equipment label is read from the catalog.
+  useTranslation()
   const navigate = useNavigate()
   const { isDark } = useTheme()
   const {
@@ -326,7 +328,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   // ── Exercise info ─────────────────────────────────────────────────────
   if (phase === 'exercise-info') {
     const exercise = ex.exercise
-    const equipLabel = EQUIPMENT_LABEL[exercise.equipment?.toLowerCase()] || exercise.equipment
+    const equipLabel = equipmentLabel(exercise.equipment)
     const descLines = exercise.description
       ? exercise.description.split('\n').filter(l => l.trim())
       : []

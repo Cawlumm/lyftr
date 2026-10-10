@@ -14,19 +14,19 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {
-  apiErrorMessage,
+  uiMessage,
   displayWeight,
   weightShort,
   type Exercise,
   type ExerciseHistoryPoint,
-  type PersonalRecord, formatDate, useTranslation
+  type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
 import { AppText, Button, ErrorState, Screen, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
+import { muscleColor, muscleLabel, equipmentLabel } from '../../utils/exerciseUtils'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
 // muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
@@ -43,7 +43,6 @@ import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
 const HISTORY_DAYS: Record<HistoryPeriod, number | null> = { '1m': 30, '3m': 90, '6m': 180, 'All': null }
-const PERIOD_OPTIONS = HISTORY_PERIODS.map((p) => ({ value: p, label: p }))
 
 // Header muscle badge (web muscleColorBordered) + borderless variant for "Also works"
 // (web muscleColor). px-2 py-0.5 rounded, matching the web spans.
@@ -58,7 +57,7 @@ function MuscleBadge({ muscle, bordered }: { muscle: string; bordered?: boolean 
     >
       {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
       <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>
-        {muscle}
+        {muscleLabel(muscle)}
       </AppText>
     </View>
   )
@@ -86,7 +85,7 @@ function LoadingPulse() {
 }
 
 export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
-  useTranslation()
+  const { t } = useTranslation()
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>()
   const session = useWorkoutSession((s) => s.session)
   const settings = useSettingsStore((s) => s.settings)
@@ -102,7 +101,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // A UiMessage rather than a sentence, so a failure already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // Bumping this re-runs the load effect — three lines, rather than restructuring a
   // working effect to gain a retry button.
   const [retryKey, setRetryKey] = useState(0)
@@ -127,7 +127,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         setPR(prData)
         setHistory(histData || [])
       })
-      .catch((err) => { if (!cancelled) setError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
+      .catch((err) => { if (!cancelled) setError({ key: 'settings.unknownError', cause: err }) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,10 +147,10 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       <Screen>
         <ErrorState
           size="page"
-          title="Couldn't load this exercise"
-          message={error}
+          title={t('exercises.detail.loadFailed')}
+          message={uiMessage(error)}
           onRetry={() => { setError(null); setRetryKey((k) => k + 1) }}
-          secondary={<Button title="Go back" variant="secondary" onPress={goBack} />}
+          secondary={<Button title={t('common.goBack')} variant="secondary" onPress={goBack} />}
         />
       </Screen>
     )
@@ -158,7 +158,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   if (loading || !exercise) return <LoadingPulse />
 
-  const equipLabel = EQUIPMENT_LABEL[exercise.equipment?.toLowerCase()] || exercise.equipment
+  const equipLabel = equipmentLabel(exercise.equipment)
+  const periodOptions = HISTORY_PERIODS.map((p) => ({ value: p, label: t(`exercises.detail.period.${p}`) }))
   const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
   const chartData: ChartPoint[] = [...filteredHistory].reverse().map((h) => ({
     date: formatDate(new Date(h.date), 'numericMonthDay'),
@@ -190,7 +191,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               onPress={goBack}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={t('common.back')}
               className="absolute left-4 top-3 h-9 w-9 items-center justify-center rounded-full bg-black/40 active:bg-black/60"
             >
               <ArrowLeft size={20} color="#ffffff" />
@@ -205,7 +206,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               onPress={goBack}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Back"
+              accessibilityLabel={t('common.back')}
               className="-ml-2 h-9 w-9 items-center justify-center rounded-lg active:bg-surface-muted"
             >
               <ArrowLeft size={20} color={colors.txMuted} />
@@ -232,14 +233,14 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
           {/* Muscles worked */}
           <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-            <AppText variant="label" color="muted" className="mb-3 uppercase">Muscles Worked</AppText>
+            <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.musclesWorked')}</AppText>
             <MuscleDiagram exercise={exercise} />
           </View>
 
           {/* Secondary muscles */}
           {exercise.secondary_muscles?.length > 0 ? (
             <View>
-              <AppText variant="label" color="muted" className="mb-2 uppercase">Also works</AppText>
+              <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
               <View className="flex-row flex-wrap gap-1.5">
                 {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} />)}
               </View>
@@ -255,7 +256,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                   <View className="h-7 w-7 items-center justify-center rounded-full bg-warning-500/15">
                     <Trophy size={15} color={brand.warningSoft} />
                   </View>
-                  <AppText variant="label" color="muted" className="uppercase">Personal Best</AppText>
+                  <AppText variant="label" color="muted" className="uppercase">{t('exercises.detail.personalBest')}</AppText>
                 </View>
                 <AppText variant="caption" color="muted">{formatDate(new Date(pr.date), 'monthDayYear')}</AppText>
               </View>
@@ -264,11 +265,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                 <Text className="font-display text-3xl text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
                   {displayWeight(pr.weight, wUnit)}
                 </Text>
-                <AppText variant="body" color="muted" className="mb-1">{wUnit} × {pr.reps} reps</AppText>
+                <AppText variant="body" color="muted" className="mb-1">{t('exercises.detail.bestSet', { unit: wUnit, count: pr.reps })}</AppText>
               </View>
 
               <View className="mt-3 flex-row items-center justify-between border-t border-warning-500/15 pt-3">
-                <AppText variant="caption" color="muted">Estimated 1RM</AppText>
+                <AppText variant="caption" color="muted">{t('exercises.detail.estimated1rm')}</AppText>
                 <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>
                   {displayWeight(pr.estimated_1rm, wUnit)} {wUnit}
                 </AppText>
@@ -281,12 +282,12 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
               {/* Label + period selector STACKED: the 4-option control + label don't fit
                   on one row at real device widths (overflowed/clipped the card). */}
-              <AppText variant="label" color="muted" className="mb-3 uppercase">Weight Progression</AppText>
-              <SegmentedControl size="sm" className="mb-3" options={PERIOD_OPTIONS} value={historyPeriod} onChange={setHistoryPeriod} />
+              <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.weightProgression')}</AppText>
+              <SegmentedControl size="sm" className="mb-3" options={periodOptions} value={historyPeriod} onChange={setHistoryPeriod} />
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
                 {chartData.length < 2 ? (
                   <View className="h-[110px] items-center justify-center">
-                    <AppText variant="body" color="muted">No data for this period</AppText>
+                    <AppText variant="body" color="muted">{t('exercises.detail.noPeriodData')}</AppText>
                   </View>
                 ) : (
                   <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} />
@@ -298,7 +299,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           {/* Instructions */}
           {descLines.length > 0 ? (
             <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-              <AppText variant="label" color="muted" className="mb-3 uppercase">Instructions</AppText>
+              <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
               <View className="gap-2.5">
                 {descLines.map((line, i) => {
                   const m = line.match(/^(\d+\.)\s*(.*)/)

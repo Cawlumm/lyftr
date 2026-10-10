@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { View } from 'react-native'
 import Body, { type Slug } from 'react-native-body-highlighter'
-import type { Exercise } from '@lyftr/shared'
+import { useTranslation, type Exercise } from '@lyftr/shared'
 import { muscleToBodySlugs } from '../../utils/exerciseUtils'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from '../ui'
@@ -17,6 +17,7 @@ const COLORS = ['#0e7490', '#22d3ee'] // [intensity1 = secondary, intensity2 = p
 
 export const MuscleDiagram = memo(function MuscleDiagram({ exercise }: { exercise: Exercise }) {
   const { isDark } = useTheme()
+  const { t } = useTranslation()
   const primary = muscleToBodySlugs(exercise.muscle_group)
   const secondary = (exercise.secondary_muscles || [])
     .flatMap((m) => muscleToBodySlugs(m))
@@ -35,21 +36,21 @@ export const MuscleDiagram = memo(function MuscleDiagram({ exercise }: { exercis
       <View className="flex-row items-start justify-center gap-6">
         <View className="items-center gap-1">
           <Body data={data} side="front" scale={0.85} colors={COLORS} defaultFill={bodyColor} border="none" />
-          <AppText variant="caption" color="muted">Front</AppText>
+          <AppText variant="caption" color="muted">{t('exercises.detail.bodyFront')}</AppText>
         </View>
         <View className="items-center gap-1">
           <Body data={data} side="back" scale={0.85} colors={COLORS} defaultFill={bodyColor} border="none" />
-          <AppText variant="caption" color="muted">Back</AppText>
+          <AppText variant="caption" color="muted">{t('exercises.detail.bodyBack')}</AppText>
         </View>
       </View>
       <View className="mt-3 flex-row items-center justify-center gap-4">
         <View className="flex-row items-center gap-1.5">
           <View className="h-3 w-3 rounded-full" style={{ backgroundColor: '#22d3ee' }} />
-          <AppText variant="caption" color="muted">Primary</AppText>
+          <AppText variant="caption" color="muted">{t('exercises.detail.primary')}</AppText>
         </View>
         <View className="flex-row items-center gap-1.5">
           <View className="h-3 w-3 rounded-full" style={{ backgroundColor: '#0e7490' }} />
-          <AppText variant="caption" color="muted">Secondary</AppText>
+          <AppText variant="caption" color="muted">{t('exercises.detail.secondary')}</AppText>
         </View>
       </View>
     </View>

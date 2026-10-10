@@ -9,7 +9,7 @@ import {
   Play, Plus, Repeat, Timer, Trash2, X,
 } from 'lucide-react-native'
 import {
-  useAsyncAction, displayToLbs, displayWeight, weightShort, type Exercise,
+  useAsyncAction, displayToLbs, displayWeight, weightShort, useTranslation, type Exercise,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
 import { RestPicker } from './RestPicker'
@@ -20,7 +20,7 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
 import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
-import { muscleColor, EQUIPMENT_LABEL } from '../../utils/exerciseUtils'
+import { muscleColor, equipmentLabel } from '../../utils/exerciseUtils'
 
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay
 // (overview → exercise-info → exercise). Mounted at the ROOT layout when a session
@@ -49,6 +49,8 @@ function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string;
 }
 
 export function GymModeWorkout() {
+  // Re-renders on a language switch: the equipment label is read from the catalog.
+  useTranslation()
   const session = useWorkoutSession((s) => s.session)
   const minimizeGym = useWorkoutSession((s) => s.minimizeGym)
   const phase = useWorkoutSession((s) => s.gymPhase)
@@ -321,7 +323,7 @@ export function GymModeWorkout() {
   // ── Exercise info ─────────────────────────────────────────
   if (phase === 'exercise-info') {
     const exercise = ex.exercise
-    const equipLabel = EQUIPMENT_LABEL[exercise.equipment?.toLowerCase()] || exercise.equipment
+    const equipLabel = equipmentLabel(exercise.equipment)
     const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
     const repsVals = ex.sets.map((s) => s.target_reps).filter((r) => r > 0)
     const wtVals = ex.sets.map((s) => displayWeight(s.target_weight, wUnit)).filter((w) => w > 0)

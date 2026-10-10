@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { muscleColor, muscleColorBordered, muscleToBodySlugs } from './exerciseUtils'
 
-// The lookup rule and EQUIPMENT_LABEL are covered in
+// The lookup rule and the equipment and muscle labels are covered in
 // packages/shared/src/utils/exerciseUtils.test.ts. What's left here is what is
 // genuinely web's: the Tailwind class output and the react-body-highlighter slugs.
 

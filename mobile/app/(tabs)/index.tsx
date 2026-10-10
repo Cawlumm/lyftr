@@ -18,7 +18,7 @@ import {
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
-import { muscleColor } from '../../src/utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
 
 // Native tap feedback (matches the rest of the app): selection tick for navigations /
@@ -613,7 +613,7 @@ export default function Dashboard() {
                         <View className="mb-0.5 flex-row items-center gap-2">
                           <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                           <Text className={`flex-1 text-xs capitalize ${isTop ? 'font-sans-semibold text-tx-primary' : 'text-tx-secondary'}`} numberOfLines={1}>
-                            {d.name}{isTop ? <Text className="text-[9px] uppercase text-tx-muted"> top</Text> : null}
+                            {muscleLabel(d.name)}{isTop ? <Text className="text-[9px] uppercase text-tx-muted"> top</Text> : null}
                           </Text>
                           <MuscleSparkline values={values} color={color} isTop={isTop} />
                           <Text className="w-16 text-right text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>{d.value} · {pct}%</Text>

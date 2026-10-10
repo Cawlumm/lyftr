@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import ExercisePicker from './ExercisePicker'
-import { types } from '@lyftr/shared'
+import { types, i18n } from '@lyftr/shared'
 
 type ListParams = {
   q?: string
@@ -46,6 +46,8 @@ const fullPage = (prefix: string) =>
 beforeEach(() => {
   listMock.mockReset()
 })
+
+afterEach(async () => { await i18n.changeLanguage('en') })
 
 describe('ExercisePicker', () => {
   // The picker opens with an unfiltered first page in flight. If typing a query
@@ -136,5 +138,23 @@ describe('ExercisePicker', () => {
 
     await waitFor(() => expect(screen.getByText('Barbell Squat')).toBeTruthy())
     expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+  })
+
+  it('names the title, count, muscle and equipment from the catalog, and follows a switch to Spanish', async () => {
+    listMock.mockResolvedValue([exercise(1, 'Barbell Squat')])
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+    await screen.findByText('Barbell Squat')
+    expect(screen.getByText('Add Exercise')).toBeTruthy()
+    expect(screen.getByText('1 loaded')).toBeTruthy()
+    expect(screen.getByText('quadriceps')).toBeTruthy()
+    expect(screen.getByText('Barbell')).toBeTruthy()
+
+    await act(async () => { await i18n.changeLanguage('es') })
+
+    expect(screen.getByText('Añadir ejercicio')).toBeTruthy()
+    expect(screen.getByText('1 cargado')).toBeTruthy()
+    expect(screen.getByText('cuádriceps')).toBeTruthy()
+    expect(screen.getByText('Barra')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Buscar ejercicios…')).toBeTruthy()
   })
 })

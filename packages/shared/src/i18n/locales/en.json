@@ -270,7 +270,9 @@
     "password": {
       "show": "Show {{label}}",
       "hide": "Hide {{label}}"
-    }
+    },
+    "back": "Back",
+    "goBack": "Go back"
   },
   "errors": {
     "api": {
@@ -423,7 +425,9 @@
     "limitHint": "One entry holds at most {{amount}}",
     "favorites": {
       "addFailed": "Couldn't add {{name}} to Favorites.",
-      "removeFailed": "Couldn't remove {{name}} from Favorites."
+      "removeFailed": "Couldn't remove {{name}} from Favorites.",
+      "add": "Add {{name}} to Favorites",
+      "remove": "Remove {{name}} from Favorites"
     },
     "diary": {
       "title": "Food",
@@ -445,7 +449,90 @@
     }
   },
   "exercises": {
-    "estimated1rm": "Est. 1RM: {{weight}} {{unit}} · {{date}}"
+    "estimated1rm": "Est. 1RM: {{weight}} {{unit}} · {{date}}",
+    "equipment": {
+      "body-only": "Bodyweight",
+      "barbell": "Barbell",
+      "dumbbell": "Dumbbell",
+      "machine": "Machine",
+      "cable": "Cable",
+      "kettlebells": "Kettlebell",
+      "bands": "Bands",
+      "medicine-ball": "Med Ball",
+      "e-z-curl-bar": "EZ Bar",
+      "exercise-ball": "Exercise Ball",
+      "foam-roll": "Foam Roll",
+      "none": "None",
+      "other": "Other"
+    },
+    "muscle": {
+      "abdominals": "abdominals",
+      "abductors": "abductors",
+      "abs": "abs",
+      "adductors": "adductors",
+      "back": "back",
+      "biceps": "biceps",
+      "calves": "calves",
+      "chest": "chest",
+      "core": "core",
+      "forearms": "forearms",
+      "full-body": "full-body",
+      "glutes": "glutes",
+      "hamstrings": "hamstrings",
+      "lats": "lats",
+      "legs": "legs",
+      "lower-back": "lower-back",
+      "middle-back": "middle-back",
+      "neck": "neck",
+      "obliques": "obliques",
+      "other": "other",
+      "quadriceps": "quadriceps",
+      "shoulders": "shoulders",
+      "traps": "traps",
+      "triceps": "triceps"
+    },
+    "picker": {
+      "title": "Add Exercise",
+      "loaded_one": "{{count}} loaded",
+      "loaded_other": "{{count}} loaded",
+      "loadedMore_one": "{{count}} loaded…",
+      "loadedMore_other": "{{count}} loaded…",
+      "search": "Search exercises…",
+      "loading": "Loading exercises…",
+      "loadingShort": "Loading…",
+      "loadingMore": "Loading more…",
+      "loadMore": "Load more",
+      "empty": "No exercises found",
+      "errorSubject": "these exercises",
+      "close": "Close exercise picker",
+      "backToWorkout": "Back to workout",
+      "loadFailed": "Couldn't load exercises",
+      "loadMoreFailed": "Couldn't load more exercises"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this exercise",
+      "musclesWorked": "Muscles Worked",
+      "bodyFront": "Front",
+      "bodyBack": "Back",
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "alsoWorks": "Also works",
+      "yourBest": "Your Best",
+      "personalBest": "Personal Best",
+      "estimated1rm": "Estimated 1RM",
+      "weightProgression": "Weight Progression",
+      "noPeriodData": "No data for this period",
+      "maxWeight": "Max weight",
+      "instructions": "Instructions",
+      "bestSet_one": "{{unit}} × {{count}} reps",
+      "bestSet_other": "{{unit}} × {{count}} reps",
+      "period": {
+        "1m": "1m",
+        "3m": "3m",
+        "6m": "6m",
+        "All": "All"
+      }
+    }
   },
   "home": {
     "heatmap": {

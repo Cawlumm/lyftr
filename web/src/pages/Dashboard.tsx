@@ -20,7 +20,7 @@ import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../
 import { useDisplayName } from '../lib/lyftr'
 import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip, formatDate, useTranslation } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
-import { muscleColor } from '../utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../utils/exerciseUtils'
 
 const DEFAULT_FOOD: types.DailyStats = {
   date: '',
@@ -729,7 +729,7 @@ export default function Dashboard() {
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
                       `${v} set${v === 1 ? '' : 's'} (${Math.round((v / totalMuscSets) * 100)}%)`,
-                      props.payload?.name ?? '',
+                      muscleLabel(props.payload?.name),
                     ]}
                   />
                 </PieChart>
@@ -748,7 +748,7 @@ export default function Dashboard() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className={`text-xs capitalize flex-1 min-w-0 truncate ${isTop ? 'font-semibold text-tx-primary' : 'text-tx-secondary'}`}>
-                        {d.name}
+                        {muscleLabel(d.name)}
                         {isTop && <span className="ml-1 text-[9px] font-normal text-tx-muted uppercase tracking-wide">top</span>}
                       </span>
                       <MuscleSparkline values={values} color={color} isTop={isTop} />
