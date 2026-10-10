@@ -3,7 +3,7 @@ import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
-import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -14,6 +14,7 @@ import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function ActiveWorkout() {
+  const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
   const updateSet = useWorkoutSession((s) => s.updateSet)
   const updateExerciseNotes = useWorkoutSession((s) => s.updateExerciseNotes)
@@ -62,7 +63,7 @@ export default function ActiveWorkout() {
     setOutcome({ kind: 'saved', workoutId: created.id, progression: created.progression })
     cancelSession()
     router.replace('/workouts')
-  }, 'Failed to save workout')
+  }, t('workouts.active.saveFailed'))
 
   const jumpToExercise = useCallback((idx: number) => {
     setActiveExIdx(idx)
@@ -118,10 +119,10 @@ export default function ActiveWorkout() {
           <View className="h-12 w-12 items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
             <Dumbbell size={24} color={colors.txMuted} />
           </View>
-          <AppText variant="bodySemibold">No active workout</AppText>
-          <AppText variant="caption" color="muted">Start one from the Workouts tab</AppText>
+          <AppText variant="bodySemibold">{t('workouts.active.noWorkout.title')}</AppText>
+          <AppText variant="caption" color="muted">{t('workouts.active.noWorkout.hintTab')}</AppText>
           <Pressable onPress={goHome} className="mt-2 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95">
-            <AppText variant="bodySemibold" color="white">Go to Workouts</AppText>
+            <AppText variant="bodySemibold" color="white">{t('workouts.active.noWorkout.goWorkouts')}</AppText>
           </Pressable>
         </View>
       </Screen>
@@ -144,7 +145,7 @@ export default function ActiveWorkout() {
                 <Timer size={14} color={accent} />
                 <Text className="font-sans text-sm" style={{ color: accent, fontVariant: ['tabular-nums'] }}>{formatElapsed(elapsed)}</Text>
               </View>
-              <AppText variant="caption" color="muted">{completedSets}/{totalSets} sets done</AppText>
+              <AppText variant="caption" color="muted">{t('workouts.active.setsDone', { done: completedSets, total: totalSets })}</AppText>
             </View>
           </View>
           <Pressable
@@ -152,7 +153,7 @@ export default function ActiveWorkout() {
             className={`flex-row items-center gap-2 rounded-xl px-5 py-2.5 active:scale-95 ${allComplete ? 'bg-brand-500' : 'border border-brand-500/30 bg-brand-500/10'}`}
           >
             <Flag size={16} color={allComplete ? '#ffffff' : accent} />
-            <Text className={`font-sans-bold text-sm ${allComplete ? 'text-white' : ''}`} style={allComplete ? undefined : { color: accent }}>Finish</Text>
+            <Text className={`font-sans-bold text-sm ${allComplete ? 'text-white' : ''}`} style={allComplete ? undefined : { color: accent }}>{t('workouts.active.finish')}</Text>
           </Pressable>
         </View>
         {/* progress bar */}
@@ -198,8 +199,8 @@ export default function ActiveWorkout() {
         {session.exercises.length === 0 ? (
           <View className="items-center gap-1 py-16">
             <Dumbbell size={28} color={colors.txMuted} />
-            <AppText variant="bodySemibold" className="mt-2">No exercises yet</AppText>
-            <AppText variant="caption" color="muted">Add exercises below</AppText>
+            <AppText variant="bodySemibold" className="mt-2">{t('workouts.active.empty.title')}</AppText>
+            <AppText variant="caption" color="muted">{t('workouts.active.empty.hint')}</AppText>
           </View>
         ) : (
           session.exercises.map((ex, exIdx) => (
@@ -228,10 +229,10 @@ export default function ActiveWorkout() {
         <View className="mt-2 gap-2">
           <Pressable onPress={() => setShowPicker(true)} className="flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3.5 active:scale-95">
             <Plus size={16} color={colors.txSecondary} />
-            <Text className="font-sans-semibold text-sm text-tx-secondary">Add Exercise</Text>
+            <Text className="font-sans-semibold text-sm text-tx-secondary">{t('workouts.active.addExercise')}</Text>
           </Pressable>
           <Pressable onPress={() => setConfirmCancel(true)} className="items-center py-2.5 active:opacity-60">
-            <Text className="font-sans text-xs text-tx-muted">Cancel Workout</Text>
+            <Text className="font-sans text-xs text-tx-muted">{t('workouts.active.cancelWorkout')}</Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -240,11 +241,11 @@ export default function ActiveWorkout() {
       <ConfirmSheet
         open={confirmFinish}
         icon={Flag}
-        title="Finish Workout?"
-        message={`${completedSets} of ${totalSets} sets completed. Workout will be saved.`}
-        confirmLabel="Finish"
-        busyLabel="Saving…"
-        cancelLabel="Keep Going"
+        title={t('workouts.active.finishConfirm.title')}
+        message={t('workouts.active.finishConfirm.message', { done: completedSets, total: totalSets })}
+        confirmLabel={t('workouts.active.finish')}
+        busyLabel={t('common.saving')}
+        cancelLabel={t('workouts.active.keepGoing')}
         busy={finish.busy}
         error={finish.error}
         onConfirm={() => { void finish.run() }}
@@ -256,10 +257,10 @@ export default function ActiveWorkout() {
         open={confirmCancel}
         icon={X}
         destructive
-        title="Cancel Workout?"
-        message="All progress will be lost."
-        confirmLabel="Cancel Workout"
-        cancelLabel="Keep Going"
+        title={t('workouts.active.cancelConfirm.title')}
+        message={t('workouts.active.cancelConfirm.message')}
+        confirmLabel={t('workouts.active.cancelWorkout')}
+        cancelLabel={t('workouts.active.keepGoing')}
         onConfirm={() => { setOutcome({ kind: 'discarded', session }); cancelSession(); router.replace('/workouts') }}
         onCancel={() => setConfirmCancel(false)}
       />

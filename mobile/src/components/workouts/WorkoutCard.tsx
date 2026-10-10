@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
 import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
-import { useAsyncAction, displayVolume, type Workout, workoutDay, formatDay } from '@lyftr/shared'
+import { useAsyncAction, displayVolume, type Workout, workoutDay, formatDay, useTranslation } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -21,6 +21,7 @@ interface Props {
 // AND a kebab (⋮) menu. Mirrors the web card's mobile kebab → options (Edit / Delete);
 // the menu is a native ActionSheet and Delete routes through the shared ConfirmSheet.
 export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -38,13 +39,20 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
     unit
   )
 
+  const exerciseCount = t('workouts.card.exercises', { count: workout.exercises?.length || 0 })
+  const headerMeta = [
+    formatDay(workoutDay(workout), 'monthDayYear'),
+    ...(durationMin > 0 ? [t('workouts.card.minutes', { minutes: durationMin })] : []),
+    exerciseCount,
+  ].join(' · ')
+
   // The catch here just put the card back - "a failed delete quietly restores the
   // card" - which is indistinguishable from a tap that never registered. The
   // confirm stays up now and says why it did not work.
   const remove = useAsyncAction(async () => {
     await client.workoutAPI.delete(workout.id)
     onDeleted(workout.id)
-  }, 'Failed to delete workout')
+  }, t('workouts.deleteFailed'))
 
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
@@ -56,14 +64,14 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
               then exercises + volume — three items on one line truncated at 390pt. */}
           <View className="flex-row items-center gap-x-2 mt-0.5">
             <AppText variant="caption" color="muted" numberOfLines={1}>
-              {formatDay(workoutDay(workout), 'MMM d, yyyy')}
+              {formatDay(workoutDay(workout), 'monthDayYear')}
             </AppText>
             {durationMin > 0 && (
               <>
                 <AppText variant="caption" color="muted">·</AppText>
                 <View className="flex-row items-center gap-1">
                   <Clock size={12} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">{durationMin} min</AppText>
+                  <AppText variant="caption" color="muted">{t('workouts.card.minutes', { minutes: durationMin })}</AppText>
                 </View>
               </>
             )}
@@ -73,7 +81,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
             <View className="flex-row items-center gap-1">
               <Dumbbell size={12} color={colors.txMuted} />
               <AppText variant="caption" color="muted" numberOfLines={1}>
-                {workout.exercises?.length || 0} exercises
+                {exerciseCount}
               </AppText>
             </View>
             {totalVolume > 0 && (
@@ -94,7 +102,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
             Delete, and Delete still routes through the ConfirmSheet. */}
         <IconButton
           icon={MoreVertical}
-          label={`${workout.name} options`}
+          label={t('workouts.card.optionsNamed', { name: workout.name })}
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
@@ -115,14 +123,12 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                {formatDay(workoutDay(workout), 'MMM d, yyyy')}
-                {durationMin > 0 ? ` · ${durationMin} min` : ''}
-                {` · ${workout.exercises?.length || 0} exercises`}
+                {headerMeta}
               </AppText>
               {totalVolume > 0 ? (
                 <View className="mt-1.5 flex-row items-center gap-1">
                   <TrendingUp size={12} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">{compact(totalVolume)} {unit} total volume</AppText>
+                  <AppText variant="caption" color="muted">{t('workouts.card.totalVolume', { amount: compact(totalVolume), unit })}</AppText>
                 </View>
               ) : null}
             </View>
@@ -135,7 +141,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${workout.name}"` })}
+        {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), subject: `"${workout.name}"` })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

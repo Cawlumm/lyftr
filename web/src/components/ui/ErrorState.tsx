@@ -1,5 +1,6 @@
 import type React from 'react'
 import { RotateCw } from 'lucide-react'
+import { useTranslation } from '@lyftr/shared'
 import BarbellBrokenSVG from '../BarbellBrokenSVG'
 
 // A load that failed, said as a state rather than as a banner over the wreckage.
@@ -37,9 +38,10 @@ export default function ErrorState({
   message,
   size = 'section',
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
   secondary,
 }: Props) {
+  const { t } = useTranslation()
   const page = size === 'page'
   return (
     <div
@@ -66,7 +68,7 @@ export default function ErrorState({
         <div className="flex flex-wrap items-center justify-center gap-2 mt-1">
           {onRetry && (
             <button onClick={onRetry} className="btn-primary btn-sm flex items-center gap-1.5">
-              <RotateCw className="w-3.5 h-3.5" /> {retryLabel}
+              <RotateCw className="w-3.5 h-3.5" /> {retryLabel ?? t('common.tryAgain')}
             </button>
           )}
           {secondary}

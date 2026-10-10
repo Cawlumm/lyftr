@@ -1,5 +1,6 @@
 import { View } from 'react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 import { Alert } from './Alert'
@@ -32,9 +33,10 @@ export interface ConfirmSheetProps {
 // is centered under it, and a Cancel / confirm button pair sits below. The sheet
 // chrome (slide-up, scrim, insets, grabber) lives in the generic Sheet.
 export function ConfirmSheet({
-  open, title, message, confirmLabel, busyLabel, cancelLabel = 'Cancel',
+  open, title, message, confirmLabel, busyLabel, cancelLabel,
   destructive = false, icon: Icon, busy = false, error, onConfirm, onCancel,
 }: ConfirmSheetProps) {
+  const { t } = useTranslation()
   const { brand, accent, isDark } = useTheme()
   // errorSoft reads on dark, error on light — same split as IconButton.
   const badgeIconColor = destructive ? (isDark ? brand.errorSoft : brand.error) : accent
@@ -61,7 +63,7 @@ export function ConfirmSheet({
 
         <View className="flex-row gap-3">
           <View className="flex-1">
-            <SheetButton label={cancelLabel} variant="muted" disabled={busy} onPress={onCancel} />
+            <SheetButton label={cancelLabel ?? t('common.cancel')} variant="muted" disabled={busy} onPress={onCancel} />
           </View>
           <View className="flex-1">
             <SheetButton

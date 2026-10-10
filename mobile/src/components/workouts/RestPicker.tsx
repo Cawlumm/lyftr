@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Clock, Minus, Pencil, Plus, TimerOff } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { sanitizeNumericInput } from '@lyftr/shared'
+import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface Props {
@@ -12,12 +12,12 @@ interface Props {
 }
 
 const PRESETS = [0, 60, 90, 120, 180]
-const SEGMENTS: { v: number; label: string; Icon: LucideIcon }[] = [
-  { v: 0, label: 'Off', Icon: TimerOff },
-  { v: 60, label: '60s', Icon: Clock },
-  { v: 90, label: '90s', Icon: Clock },
-  { v: 120, label: '120s', Icon: Clock },
-  { v: 180, label: '180s', Icon: Clock },
+const SEGMENTS: { v: number; Icon: LucideIcon }[] = [
+  { v: 0, Icon: TimerOff },
+  { v: 60, Icon: Clock },
+  { v: 90, Icon: Clock },
+  { v: 120, Icon: Clock },
+  { v: 180, Icon: Clock },
 ]
 
 const clamp = (n: number) => Math.max(0, Math.min(3600, n))
@@ -30,6 +30,7 @@ const clamp = (n: number) => Math.max(0, Math.min(3600, n))
 // The seconds TextInput has no focus-reactive styling → no re-render on focus
 // (Fabric-safe by construction).
 export function RestPicker({ value, onChange }: Props) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const isCustom = !PRESETS.includes(value)
   const [showCustom, setShowCustom] = useState(false)
@@ -56,7 +57,7 @@ export function RestPicker({ value, onChange }: Props) {
   return (
     <View>
       <View className="flex-row overflow-hidden rounded-xl border border-surface-border">
-        {SEGMENTS.map(({ v, label, Icon }) => {
+        {SEGMENTS.map(({ v, Icon }) => {
           const active = !customActive && value === v
           return (
             <Pressable
@@ -67,7 +68,7 @@ export function RestPicker({ value, onChange }: Props) {
               className={seg(active)}
             >
               <Icon size={13} color={active ? '#ffffff' : colors.txSecondary} strokeWidth={2.2} />
-              <Text className={segText(active)}>{label}</Text>
+              <Text className={segText(active)}>{v === 0 ? t('workouts.rest.off') : t('common.duration.seconds', { value: v })}</Text>
             </Pressable>
           )
         })}
@@ -81,7 +82,7 @@ export function RestPicker({ value, onChange }: Props) {
           className={seg(customActive, true)}
         >
           <Pencil size={13} color={customActive ? '#ffffff' : colors.txSecondary} strokeWidth={2.2} />
-          <Text className={segText(customActive)}>{isCustom ? `${value}s` : 'Custom'}</Text>
+          <Text className={segText(customActive)}>{isCustom ? t('common.duration.seconds', { value }) : t('workouts.rest.custom')}</Text>
         </Pressable>
       </View>
 
@@ -89,7 +90,7 @@ export function RestPicker({ value, onChange }: Props) {
         <View className="mt-3 flex-row items-center justify-center gap-2">
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Minus 5 seconds"
+            accessibilityLabel={t('workouts.rest.stepDown5Spoken')}
             onPress={() => step(-5)}
             className="rounded-xl border border-surface-border bg-surface-muted p-2.5 active:scale-95"
           >
@@ -102,16 +103,16 @@ export function RestPicker({ value, onChange }: Props) {
               keyboardType="number-pad"
               returnKeyType="done"
               selectTextOnFocus
-              accessibilityLabel="Rest seconds"
+              accessibilityLabel={t('workouts.rest.secondsLabel')}
               placeholderTextColor={colors.txMuted}
               className="flex-1 py-0 text-center font-sans-semibold text-base text-tx-primary"
               style={{ fontVariant: ['tabular-nums'] }}
             />
-            <Text className="font-sans text-xs text-tx-muted">sec</Text>
+            <Text className="font-sans text-xs text-tx-muted">{t('workouts.rest.secondsUnit')}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Plus 5 seconds"
+            accessibilityLabel={t('workouts.rest.stepUp5Spoken')}
             onPress={() => step(5)}
             className="rounded-xl border border-surface-border bg-surface-muted p-2.5 active:scale-95"
           >

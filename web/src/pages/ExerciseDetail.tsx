@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
-import { format, subDays } from 'date-fns'
+import { subDays } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { exerciseAPI } from '../services/api'
@@ -9,9 +9,9 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { apiErrorMessage, isNotFound, types } from '@lyftr/shared'
+import { uiMessage, isNotFound, types, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
-import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
+import { muscleColor, muscleColorBordered, categoryLabel, equipmentLabel, muscleLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
@@ -34,6 +34,7 @@ function buildBodyData(exercise: types.Exercise): IExerciseData[] {
 }
 
 export default function ExerciseDetail() {
+  const { t } = useTranslation()
   const { exerciseId } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
@@ -46,7 +47,8 @@ export default function ExerciseDetail() {
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('3m')
   const [imgFailed, setImgFailed] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // A UiMessage rather than a sentence, so a failure already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // A 404 is not a retryable failure: the row is gone, and a Try again button that
   // cannot ever succeed is worse than no button. Tracked separately from the message
   // because the message alone cannot say which kind of failure produced it.
@@ -78,7 +80,7 @@ export default function ExerciseDetail() {
       })
       .catch(err => {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+        setError({ key: 'settings.unknownError', cause: err })
       })
       .finally(() => setLoading(false))
   }, [exerciseId, retryKey])
@@ -99,10 +101,10 @@ export default function ExerciseDetail() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load this exercise"
-        message={error}
+        title={t('exercises.detail.loadFailed')}
+        message={uiMessage(error)}
         onRetry={gone ? undefined : () => { setError(null); setRetryKey(k => k + 1) }}
-        secondary={<button onClick={() => navigate(-1)} className="btn-secondary btn-sm">Go back</button>}
+        secondary={<button onClick={() => navigate(-1)} className="btn-secondary btn-sm">{t('common.goBack')}</button>}
       />
     )
   }
@@ -116,7 +118,7 @@ export default function ExerciseDetail() {
   }
 
   const bodyData = buildBodyData(exercise)
-  const equipLabel = EQUIPMENT_LABEL[exercise.equipment?.toLowerCase()] || exercise.equipment
+  const equipLabel = equipmentLabel(exercise.equipment)
   const descLines = exercise.description
     ? exercise.description.split('\n').filter(l => l.trim())
     : []
@@ -126,7 +128,7 @@ export default function ExerciseDetail() {
       {/* Header */}
       <div className="flex items-start gap-3">
         <button
-          aria-label="Go back"
+          aria-label={t('common.goBack')}
           onClick={() => navigate(-1)}
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors mt-0.5 flex-shrink-0"
         >
@@ -135,14 +137,14 @@ export default function ExerciseDetail() {
         <div className="flex-1 min-w-0">
           <h1 className="font-display font-bold text-2xl text-tx-primary leading-tight">{exercise.name}</h1>
           <span className={`inline-flex items-center mt-1.5 px-2 py-0.5 rounded text-xs font-medium border ${muscleColorBordered(exercise.muscle_group)}`}>
-            {exercise.muscle_group}
+            {muscleLabel(exercise.muscle_group)}
           </span>
         </div>
       </div>
 
       {/* Muscle diagram */}
       <div className="card p-4">
-        <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">Muscles Worked</p>
+        <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">{t('exercises.detail.musclesWorked')}</p>
 
         <div className="flex items-start justify-center gap-6">
           <div className="flex flex-col items-center gap-1">
@@ -153,7 +155,7 @@ export default function ExerciseDetail() {
               highlightedColors={highlightColors}
               style={{ width: '140px' }}
             />
-            <span className="text-xs text-tx-muted">Front</span>
+            <span className="text-xs text-tx-muted">{t('exercises.detail.bodyFront')}</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Model
@@ -163,7 +165,7 @@ export default function ExerciseDetail() {
               highlightedColors={highlightColors}
               style={{ width: '140px' }}
             />
-            <span className="text-xs text-tx-muted">Back</span>
+            <span className="text-xs text-tx-muted">{t('exercises.detail.bodyBack')}</span>
           </div>
         </div>
 
@@ -171,11 +173,11 @@ export default function ExerciseDetail() {
         <div className="flex items-center gap-4 mt-3 justify-center">
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#22d3ee' }} />
-            <span className="text-xs text-tx-muted">Primary</span>
+            <span className="text-xs text-tx-muted">{t('exercises.detail.primary')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#0e7490' }} />
-            <span className="text-xs text-tx-muted">Secondary</span>
+            <span className="text-xs text-tx-muted">{t('exercises.detail.secondary')}</span>
           </div>
         </div>
       </div>
@@ -200,7 +202,7 @@ export default function ExerciseDetail() {
         )}
         {exercise.category && (
           <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-xs font-medium text-brand-400 capitalize">
-            {exercise.category}
+            {categoryLabel(exercise.category)}
           </span>
         )}
       </div>
@@ -208,11 +210,11 @@ export default function ExerciseDetail() {
       {/* Secondary muscles */}
       {exercise.secondary_muscles?.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-2">Also works</p>
+          <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-2">{t('exercises.detail.alsoWorks')}</p>
           <div className="flex flex-wrap gap-1.5">
             {exercise.secondary_muscles.map(m => (
               <span key={m} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${muscleColor(m)}`}>
-                {m}
+                {muscleLabel(m)}
               </span>
             ))}
           </div>
@@ -224,14 +226,14 @@ export default function ExerciseDetail() {
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="w-4 h-4 text-warning-400" />
-            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">Your Best</p>
+            <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">{t('exercises.detail.yourBest')}</p>
           </div>
           <div className="flex items-end gap-2">
             <span className="text-2xl font-bold text-tx-primary tabular-nums">{displayWeight(pr.weight, wUnit)}</span>
-            <span className="text-sm text-tx-muted mb-0.5">{wUnit} × {pr.reps} reps</span>
+            <span className="text-sm text-tx-muted mb-0.5">{t('exercises.detail.bestSet', { unit: wUnit, count: pr.reps })}</span>
           </div>
           <p className="text-xs text-tx-muted mt-1">
-            Est. 1RM: {displayWeight(pr.estimated_1rm, wUnit)} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
+            {t('exercises.estimated1rm', { weight: displayWeight(pr.estimated_1rm, wUnit), unit: wUnit, date: formatDate(new Date(pr.date), 'monthDayYear') })}
           </p>
         </div>
       )}
@@ -239,19 +241,19 @@ export default function ExerciseDetail() {
       {/* History chart */}
       {history.length >= 2 && (() => {
         const chartData = [...filteredHistory].reverse().map(h => ({
-          date: format(new Date(h.date), 'M/d'),
+          date: formatDate(new Date(h.date), 'numericMonthDay'),
           weight: displayWeight(h.max_weight, wUnit),
         }))
         return (
           <div className="card p-4">
             <div className="flex items-center justify-between mb-3 gap-2">
               <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider">
-                Weight Progression
+                {t('exercises.detail.weightProgression')}
               </p>
-              <PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />
+              <PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} label={p => t(`exercises.detail.period.${p}`)} />
             </div>
             {chartData.length < 2 ? (
-              <div className="flex items-center justify-center h-[110px] text-tx-muted text-sm">No data for this period</div>
+              <div className="flex items-center justify-center h-[110px] text-tx-muted text-sm">{t('exercises.detail.noPeriodData')}</div>
             ) : (
             <ResponsiveContainer width="100%" height={110}>
               <LineChart data={chartData}>
@@ -269,7 +271,7 @@ export default function ExerciseDetail() {
                     borderRadius: 8,
                     fontSize: 11,
                   }}
-                  formatter={(v: number) => [`${v} ${wUnit}`, 'Max weight']}
+                  formatter={(v: number) => [`${v} ${wUnit}`, t('exercises.detail.maxWeight')]}
                 />
                 <Line
                   type="monotone"
@@ -289,7 +291,7 @@ export default function ExerciseDetail() {
       {/* Instructions */}
       {descLines.length > 0 && (
         <div className="card p-4">
-          <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">Instructions</p>
+          <p className="text-xs font-semibold text-tx-muted uppercase tracking-wider mb-3">{t('exercises.detail.instructions')}</p>
           <div className="space-y-2.5">
             {descLines.map((line, i) => {
               const stepMatch = line.match(/^(\d+\.)\s*(.*)/)

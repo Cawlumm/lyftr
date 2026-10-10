@@ -38,6 +38,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     baseURL,
+    locale: 'en-US',
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',

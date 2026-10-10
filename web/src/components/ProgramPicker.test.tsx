@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ProgramPicker from './ProgramPicker'
-import { types } from '@lyftr/shared'
+import { types, i18n } from '@lyftr/shared'
 
 const listMock = vi.fn()
 vi.mock('../services/api', () => ({
@@ -39,6 +39,18 @@ const multiDay = () =>
 
 describe('ProgramPicker', () => {
   beforeEach(() => listMock.mockReset())
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    listMock.mockResolvedValue([multiDay()])
+    render(<ProgramPicker onSelect={() => {}} onClose={() => {}} />)
+    expect(screen.getByText('Cargar desde un programa')).toBeTruthy()
+    fireEvent.click(await screen.findByText('PPL'))
+    expect(screen.getByText('Elige un día para rellenar los ejercicios')).toBeTruthy()
+    expect(screen.getByText('HOY')).toBeTruthy()
+    expect(screen.getByText('← Volver a programas')).toBeTruthy()
+  })
 
   it('a program with zero workout days renders disabled (nothing to load)', async () => {
     listMock.mockResolvedValue([program([day({ is_rest_day: true })])])

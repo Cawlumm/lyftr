@@ -3,6 +3,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
+import { useTranslation } from '@lyftr/shared'
 import { AlertCircle, X } from 'lucide-react-native'
 import { AppText, Button } from '../ui'
 import { useTheme } from '../../theme/useTheme'
@@ -17,6 +18,7 @@ interface Props {
 // code back to LogFood (→ foodAPI.barcode). Web buzzed via navigator.vibrate on a hit;
 // here that's a success haptic. Rendered inside a Modal so it fully covers the tab bar.
 export function BarcodeScanner({ onResult, onClose }: Props) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [permission, requestPermission] = useCameraPermissions()
   const resolvedRef = useRef(false)
@@ -54,16 +56,14 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
             <SafeAreaView className="flex-1 items-center justify-center px-8">
               <AlertCircle size={40} color={colors.txMuted} />
               <AppText variant="heading" color="white" className="mt-4 text-center">
-                {denied ? 'Camera access denied' : 'Camera permission needed'}
+                {denied ? t('food.scan.deniedTitle') : t('food.scan.neededTitle')}
               </AppText>
               <AppText variant="body" color="muted" className="mt-2 text-center">
-                {denied
-                  ? 'Enable camera access for Lyftr in your device settings to scan barcodes.'
-                  : 'Allow camera access to scan a food barcode.'}
+                {denied ? t('food.scan.deniedBody') : t('food.scan.neededBody')}
               </AppText>
               {!denied ? (
                 <View className="mt-5 w-full">
-                  <Button title="Allow camera" onPress={requestPermission} />
+                  <Button title={t('food.scan.allow')} onPress={requestPermission} />
                 </View>
               ) : null}
             </SafeAreaView>
@@ -73,7 +73,7 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
           {permission?.granted ? (
             <View style={StyleSheet.absoluteFill} className="items-center justify-center" pointerEvents="none">
               <View style={{ width: 260, height: 160, borderWidth: 2, borderColor: 'rgba(255,255,255,0.85)', borderRadius: 16 }} />
-              <AppText variant="body" color="white" className="mt-4">Point at a barcode</AppText>
+              <AppText variant="body" color="white" className="mt-4">{t('food.scan.point')}</AppText>
             </View>
           ) : null}
 
@@ -82,7 +82,7 @@ export function BarcodeScanner({ onResult, onClose }: Props) {
             <View className="flex-row justify-end px-4 pt-2">
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Close scanner"
+                accessibilityLabel={t('food.scan.close')}
                 onPress={onClose}
                 hitSlop={16}
                 className="h-11 w-11 items-center justify-center rounded-full active:scale-90"

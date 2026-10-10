@@ -5,7 +5,5 @@ export { useServerStore } from '../lib/lyftr'
 export {
   normalizeServerUrl,
   isInsecureServerUrl,
-  INSECURE_SERVER_WARNING,
   isMixedContentBlocked,
-  MIXED_CONTENT_WARNING,
 } from '@lyftr/shared'

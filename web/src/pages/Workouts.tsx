@@ -11,9 +11,10 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { useAsyncAction, types, workoutDay, calcVolume, formatDay } from '@lyftr/shared'
+import { useAsyncAction, types, workoutDay, calcVolume, formatDay, useTranslation } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
@@ -40,7 +41,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
   const remove = useAsyncAction(async () => {
     await workoutAPI.delete(workout.id)
     onDelete(workout.id)
-  }, 'Failed to delete workout')
+  }, t('workouts.deleteFailed'))
 
   if (confirming) {
     return (
@@ -51,18 +52,18 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
               <Trash2 className="w-4 h-4 text-error-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-tx-primary">Delete "{workout.name}"?</p>
-              <p className="text-xs text-tx-muted">This cannot be undone</p>
+              <p className="text-sm font-semibold text-tx-primary">{t('workouts.card.deleteTitle', { name: workout.name })}</p>
+              <p className="text-xs text-tx-muted">{t('workouts.card.cannotUndo')}</p>
               {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setConfirming(false)} className="btn-secondary btn-sm">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button onClick={() => { void remove.run() }} disabled={remove.busy} className="btn-danger-solid btn-sm disabled:opacity-50">
               <Trash2 className="w-3 h-3" />
-              {remove.busy ? 'Deleting…' : 'Delete'}
+              {remove.busy ? t('common.deleting') : t('common.delete')}
             </button>
           </div>
         </div>
@@ -92,15 +93,15 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
-            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDay(workoutDay(workout), 'MMM d, yyyy')}</p>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDay(workoutDay(workout), 'monthDayYear')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
               {durationMin > 0 && (
                 <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">
-                  <Clock className="w-3 h-3 flex-shrink-0" />{durationMin} min
+                  <Clock className="w-3 h-3 flex-shrink-0" />{t('workouts.card.minutes', { minutes: durationMin })}
                 </span>
               )}
               {durationMin > 0 && <span className="text-tx-muted/40 text-xs">·</span>}
-              <span className="text-xs text-tx-muted whitespace-nowrap">{workout.exercises?.length || 0} exercise{(workout.exercises?.length || 0) === 1 ? '' : 's'}</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{t('workouts.card.exercises', { count: workout.exercises?.length || 0 })}</span>
               {totalVolume > 0 && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
@@ -120,7 +121,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(o => !o) }}
             className={`sm:hidden p-2 rounded-lg transition-colors ${menuOpen ? 'bg-surface-muted' : 'hover:bg-surface-muted'}`}
-            aria-label="Options"
+            aria-label={t('workouts.card.options')}
           >
             <MoreVertical className="w-4 h-4 text-tx-muted" />
           </button>
@@ -134,7 +135,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
               />
               <div ref={portalRef} className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 bg-surface-overlay border border-surface-border/60 rounded-2xl shadow-2xl z-50 overflow-hidden">
                 <div className="px-4 pt-4 pb-3">
-                  <p className="text-[10px] font-semibold text-tx-muted uppercase tracking-wider text-center">Workout</p>
+                  <p className="text-[10px] font-semibold text-tx-muted uppercase tracking-wider text-center">{t('workouts.card.menuHeading')}</p>
                   <p className="text-sm font-semibold text-tx-primary text-center mt-0.5 truncate">{workout.name}</p>
                 </div>
                 <div className="border-t border-surface-border/40 py-1.5">
@@ -145,7 +146,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                     <div className="w-8 h-8 rounded-xl bg-brand-500/10 flex items-center justify-center flex-shrink-0">
                       <Edit2 className="w-4 h-4 text-brand-500" />
                     </div>
-                    Edit Workout
+                    {t('workouts.card.editWorkout')}
                   </button>
                   <div className="mx-4 border-t border-surface-border/30" />
                   <button
@@ -155,7 +156,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                     <div className="w-8 h-8 rounded-xl bg-error-500/10 flex items-center justify-center flex-shrink-0">
                       <Trash2 className="w-4 h-4 text-error-400" />
                     </div>
-                    Delete Workout
+                    {t('workouts.card.deleteWorkout')}
                   </button>
                 </div>
                 <div className="border-t border-surface-border/40 p-3">
@@ -163,7 +164,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                     onClick={e => { e.stopPropagation(); setMenuOpen(false) }}
                     className="w-full py-2.5 text-sm font-semibold text-tx-muted bg-surface-muted/60 hover:bg-surface-muted rounded-xl transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>
@@ -174,14 +175,14 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           {/* Desktop hover icons */}
           <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             <button
-              aria-label={`Edit ${workout.name}`}
+              aria-label={t('workouts.card.editNamed', { name: workout.name })}
               onClick={e => { e.stopPropagation(); onEdit(workout.id) }}
               className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
             >
               <Edit2 className="w-4 h-4 text-brand-500" />
             </button>
             <button
-              aria-label="Delete"
+              aria-label={t('common.delete')}
               onClick={e => { e.stopPropagation(); setConfirming(true) }}
               className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
             >
@@ -195,6 +196,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 }
 
 export default function Workouts() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [search, setSearch] = useState('')
@@ -238,10 +240,10 @@ export default function Workouts() {
   if (listError && workouts.length === 0) {
     return (
       <div className="space-y-5 animate-slide-up">
-        <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
+        <PageHeader title={t('workouts.list.title')} subtitle={t('workouts.list.subtitle')} />
         <ErrorState
           size="page"
-          title="Couldn't load your workouts"
+          title={t('workouts.list.loadFailed')}
           message={listError}
           onRetry={retryList}
         />
@@ -252,11 +254,11 @@ export default function Workouts() {
   return (
     <div className="space-y-5 animate-slide-up">
       <PageHeader
-        title="Workouts"
-        subtitle="Track and review your training sessions"
+        title={t('workouts.list.title')}
+        subtitle={t('workouts.list.subtitle')}
         action={
           <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
-            <Plus className="w-4 h-4" /> Log Workout
+            <Plus className="w-4 h-4" /> {t('workouts.list.logWorkout')}
           </button>
         }
       />
@@ -271,12 +273,12 @@ export default function Workouts() {
           // One page of an infinite list, so this is what has loaded, not how many exist:
           // with more pages outstanding it is a lower bound and says so, rather than
           // reporting a page size as a training history.
-          { label: 'Total', value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: 'logged' },
+          { label: t('workouts.stats.total'), value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: t('workouts.stats.logged') },
           // The month the workout was logged in, not the month its UTC instant lands in —
           // a session near a month boundary belongs to the month the lifter trained in.
-          { label: 'This Month', value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: 'sessions' },
+          { label: t('workouts.stats.thisMonth'), value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: t('workouts.stats.sessions') },
           // The mean of no sessions is not zero minutes.
-          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: 'min' },
+          { label: t('workouts.stats.avgTime'), value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: t('workouts.stats.min') },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">
@@ -298,7 +300,7 @@ export default function Workouts() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="input pl-10"
-          placeholder="Search workouts…"
+          placeholder={t('workouts.list.searchPlaceholder')}
         />
       </div>
 
@@ -309,8 +311,8 @@ export default function Workouts() {
           // so an empty list at this point really is empty.
           <EmptyState
             icon={Dumbbell}
-            title="No workouts found"
-            subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+            title={t('workouts.list.empty.title')}
+            subtitle={search ? t('workouts.list.empty.searchHint') : t('workouts.list.empty.startHint')}
           />
         ) : (
           <>
@@ -319,9 +321,9 @@ export default function Workouts() {
               onDelete={() => reload()}
             />)}
             <div ref={sentinelRef} />
-            {listError && <ListError subject="your workouts" message={listError} onRetry={retryList} />}
+            {listError && <ListError subject={t('workouts.list.errorSubject')} message={listError} onRetry={retryList} />}
             {hasMore && loading && (
-              <p className="text-center text-xs text-tx-muted py-2">Loading more…</p>
+              <p className="text-center text-xs text-tx-muted py-2">{t('workouts.list.loadingMore')}</p>
             )}
           </>
         )}
@@ -331,8 +333,8 @@ export default function Workouts() {
         <Toast
           variant={progression.is_pr ? 'warning' : 'success'}
           icon={progression.is_pr ? Award : TrendingUp}
-          title={progression.is_pr ? `New PR in ${progression.program_name}` : `New targets in ${progression.program_name}`}
-          description={`Tap to review ${progression.count} ${progression.count === 1 ? 'update' : 'updates'}`}
+          title={progression.is_pr ? t('workouts.toast.newPr', { name: progression.program_name }) : t('workouts.toast.newTargets', { name: progression.program_name })}
+          description={t('workouts.toast.reviewUpdates', { count: progression.count })}
           onClick={() => { setProgression(null); navigate(`/programs/${progression.program_id}`) }}
           onDismiss={() => setProgression(null)}
         />

@@ -1,6 +1,6 @@
 import { muscleColor, muscleToBodySlugs } from './exerciseUtils'
 
-// The lookup rule and EQUIPMENT_LABEL are covered in
+// The lookup rule and the equipment and muscle labels are covered in
 // packages/shared/src/utils/exerciseUtils.test.ts. What's left here is what is
 // genuinely mobile's: the tint shape and the RN body-highlighter slug remaps.
 

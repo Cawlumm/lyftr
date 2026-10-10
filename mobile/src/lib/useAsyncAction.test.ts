@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { useAsyncAction } from '@lyftr/shared'
+import { useEffect } from 'react'
+import { i18n, useAsyncAction } from '@lyftr/shared'
 
 // The hook lives in @lyftr/shared, but its test lives here: `packages/shared` is plain
 // ts-jest with no renderer, and adding one for this would be a dependency the repo does
@@ -89,6 +90,23 @@ describe('useAsyncAction', () => {
     expect(result.current.error).toBe('Failed to save')
   })
 
+  // The hook keeps the failure, not its text. A screen that re-passes its fallback in the new
+  // language (as every call site does, via t(...) at render) gets the new sentence for a
+  // message that was raised before the switch.
+  it('stores the cause, so a later render with a different fallback changes the message', async () => {
+    const { result, rerender } = renderHook(
+      ({ fallback }: { fallback: string }) =>
+        useAsyncAction(async () => { throw httpError(400) }, fallback),
+      { initialProps: { fallback: 'Failed to save' } },
+    )
+
+    await act(async () => { await result.current.run() })
+    expect(result.current.error).toBe('Failed to save')
+
+    rerender({ fallback: 'No se pudo guardar' })
+    expect(result.current.error).toBe('No se pudo guardar')
+  })
+
   it('drops a stale message when the next attempt starts', async () => {
     let fail = true
     const { result } = renderHook(() =>
@@ -140,5 +158,34 @@ describe('useAsyncAction', () => {
     await act(async () => { await result.current.run(7, 'squat') })
 
     expect(action).toHaveBeenCalledWith(7, 'squat')
+  })
+
+  // Screens raise a toast from an effect when a failure appears. `error` is re-derived in the
+  // new language, so an effect keyed on it re-fires (re-raising a dismissed toast) on a
+  // language switch; `failureKey` only moves when a request actually fails.
+  describe('failureKey', () => {
+    afterEach(async () => { await act(async () => { await i18n.changeLanguage('en') }) })
+
+    it('does not change with the language, so an effect keyed on it does not re-fire', async () => {
+      const raised = jest.fn()
+      const { result } = renderHook(() => {
+        const a = useAsyncAction(async () => { throw new Error('boom') }, i18n.t('settings.deleteAccount.failed'))
+        useEffect(() => { if (a.failureKey) raised(a.failureKey) }, [a.failureKey])
+        return a
+      })
+      expect(result.current.failureKey).toBe(0)
+
+      await act(async () => { await result.current.run() })
+      expect(raised).toHaveBeenCalledTimes(1)
+      const english = result.current.error
+      expect(english).not.toBe('')
+
+      await act(async () => { await i18n.changeLanguage('es') })
+      expect(result.current.error).not.toBe(english)
+      expect(raised).toHaveBeenCalledTimes(1)
+
+      await act(async () => { await result.current.run() })
+      expect(raised).toHaveBeenCalledTimes(2)
+    })
   })
 })

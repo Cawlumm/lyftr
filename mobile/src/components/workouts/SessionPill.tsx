@@ -3,13 +3,14 @@ import { router, usePathname } from 'expo-router'
 import { ChevronRight, Timer } from 'lucide-react-native'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock, formatElapsed, useElapsedSeconds } from '@lyftr/shared'
+import { fmtClock, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 
 // Port of web Layout's ActiveSessionBar — the minimized session pill. Floats above the
 // tab bar on every screen except: the gym overlay (gym layout, open) and the active
 // screen itself (list layout). Tapping opens the gym overlay (gym) or the active
 // screen (list). Carries the rest-countdown chip so "rest over" clears while minimized.
 export function SessionPill() {
+  const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
   const openGym = useWorkoutSession((s) => s.openGym)
   const layout = useSettingsStore((s) => s.settings.workout_layout)
@@ -45,11 +46,11 @@ export function SessionPill() {
         </View>
         <View>
           <Text className="font-sans-bold text-xs text-white" numberOfLines={1} style={{ maxWidth: 140 }}>{session.name}</Text>
-          <Text className="text-[11px] text-white/70">{completedSets}/{totalSets} sets · {formatElapsed(elapsed)}</Text>
+          <Text className="text-[11px] text-white/70">{t('nav.session.sets', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</Text>
         </View>
         {resting ? (
           <View className="flex-row items-center gap-1.5 rounded-full bg-white/15 py-1 pl-2.5 pr-1">
-            <Text className="text-[10px] font-sans-semibold uppercase text-white/70">{done ? 'Rest over' : paused ? 'Paused' : 'Rest'}</Text>
+            <Text className="text-[10px] font-sans-semibold uppercase text-white/70">{done ? t('nav.session.restOver') : paused ? t('nav.session.paused') : t('nav.session.rest')}</Text>
             {!done ? <Text className="font-sans-bold text-xs text-white" style={{ fontVariant: ['tabular-nums'] }}>{fmtClock(left)}</Text> : null}
           </View>
         ) : null}

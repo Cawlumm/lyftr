@@ -1,7 +1,7 @@
 import { ScrollView, View } from 'react-native'
 import { Dumbbell } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
+import { workoutDays, dayLabel, todaysDay, useTranslation } from '@lyftr/shared'
 import { AppText, ListRow, Sheet } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -33,6 +33,7 @@ export function pickProgramDay(
 // load from them) so the caller can pick which one to start/load. Only ever shown
 // when pickProgramDay() determined the program has more than one workout day.
 export function DayPickerSheet({ program, onSelect, onClose }: Props) {
+  const { t } = useTranslation()
   const { accent } = useTheme()
   if (!program) return null
   const days = workoutDays(program)
@@ -45,7 +46,7 @@ export function DayPickerSheet({ program, onSelect, onClose }: Props) {
           <AppText variant="label" color="muted" className="uppercase" style={{ letterSpacing: 1.5 }}>
             {program.name}
           </AppText>
-          <AppText variant="heading" className="mt-0.5">Pick a Day</AppText>
+          <AppText variant="heading" className="mt-0.5">{t('programs.form.dayPicker.title')}</AppText>
         </View>
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           {days.map((day, i) => (
@@ -56,12 +57,12 @@ export function DayPickerSheet({ program, onSelect, onClose }: Props) {
                   <AppText variant="bodySemibold">{dayLabel(day, day.order_index)}</AppText>
                   {day.id === todayId ? (
                     <View className="rounded-full bg-brand-500/15 px-1.5 py-0.5">
-                      <AppText variant="caption" style={{ color: accent }}>TODAY</AppText>
+                      <AppText variant="caption" style={{ color: accent }}>{t('programs.detail.todayChip')}</AppText>
                     </View>
                   ) : null}
                 </View>
               }
-              secondary={`${(day.exercises ?? []).length} exercise${(day.exercises ?? []).length === 1 ? '' : 's'}`}
+              secondary={t('programs.count.exercises', { count: (day.exercises ?? []).length })}
               right={<Dumbbell size={16} color={accent} />}
               onPress={() => onSelect(program, day)}
             />

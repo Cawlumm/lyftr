@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Scale } from 'lucide-react'
+import { i18n } from '@lyftr/shared'
 import StepperTile from './StepperTile'
 import NumberField from './NumberField'
 
@@ -17,6 +18,15 @@ const renderTile = (props: Partial<React.ComponentProps<typeof StepperTile>> = {
 }
 
 describe('StepperTile', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('names its step buttons from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    renderTile()
+    expect(screen.getByLabelText('Disminuir weight')).toBeTruthy()
+    expect(screen.getByLabelText('Aumentar weight')).toBeTruthy()
+  })
+
   it('renders the label and the value field between the two buttons', () => {
     renderTile()
     expect(screen.getByText('Weight (lbs)')).toBeTruthy()

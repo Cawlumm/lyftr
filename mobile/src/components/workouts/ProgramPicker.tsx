@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
 import { BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
-import type { Program, ProgramDay } from '@lyftr/shared'
-import { apiErrorMessage, workoutDays, dayLabel, todaysDay } from '@lyftr/shared'
+import type { Program, ProgramDay, UiMessage } from '@lyftr/shared'
+import { workoutDays, dayLabel, todaysDay, uiMessage, useTranslation } from '@lyftr/shared'
 import { AppText, EmptyState, ErrorState, Field, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
@@ -18,19 +18,21 @@ interface Props {
 // skips the day step, same as web). One directed addition over web: a search field —
 // client-side name filter, since the program list is a single un-paginated fetch.
 export function ProgramPicker({ onSelect, onClose }: Props) {
+  const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const [programs, setPrograms] = useState<Program[]>([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // A UiMessage rather than a sentence, so a failure already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
   const [retryKey, setRetryKey] = useState(0)
 
   useEffect(() => {
     setLoading(true)
     client.programAPI.list()
-      .then((data) => { setPrograms(data || []); setError('') })
-      .catch((err) => setError(apiErrorMessage(err, "Couldn't load your programs.")))
+      .then((data) => { setPrograms(data || []); setError(null) })
+      .catch((err) => setError({ key: 'workouts.form.programPicker.loadFailed', cause: err }))
       .finally(() => setLoading(false))
   }, [retryKey])
 
@@ -43,8 +45,8 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
   // DayPickerSheet.tsx's pickProgramDay — reused here instead of re-branching it.
   const pickProgram = (p: Program) => pickProgramDay(p, onSelect, setDayPickFor)
 
-  const title = dayPickFor ? dayPickFor.name : 'Load from Program'
-  const subtitle = dayPickFor ? 'Pick a day to pre-fill exercises' : 'Pick a program to pre-fill exercises'
+  const title = dayPickFor ? dayPickFor.name : t('workouts.form.programPicker.title')
+  const subtitle = dayPickFor ? t('workouts.form.programPicker.pickDay') : t('workouts.form.programPicker.pickProgram')
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={dayPickFor ? () => setDayPickFor(null) : onClose}>
@@ -58,7 +60,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
             </View>
             <IconButton
               icon={X}
-              label="Close program picker"
+              label={t('workouts.form.programPicker.close')}
               variant="ghost"
               size="md"
               onPress={dayPickFor ? () => setDayPickFor(null) : onClose}
@@ -86,12 +88,12 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                         <AppText variant="subheading" numberOfLines={1}>{dayLabel(day, day.order_index)}</AppText>
                         {isToday ? (
                           <View className="rounded-full bg-brand-500/15 px-1.5 py-0.5">
-                            <AppText variant="caption" style={{ color: accent }}>TODAY</AppText>
+                            <AppText variant="caption" style={{ color: accent }}>{t('workouts.form.programPicker.today')}</AppText>
                           </View>
                         ) : null}
                       </View>
                       <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                        {(day.exercises ?? []).length} exercise{(day.exercises ?? []).length === 1 ? '' : 's'}
+                        {t('workouts.form.exerciseCount', { count: (day.exercises ?? []).length })}
                       </AppText>
                     </View>
                     <ChevronRight size={16} color={colors.txMuted} />
@@ -105,7 +107,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                 <Field
                   value={query}
                   onChangeText={setQuery}
-                  placeholder="Search programs…"
+                  placeholder={t('workouts.form.programPicker.searchPlaceholder')}
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="search"
@@ -115,20 +117,20 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
               {loading ? (
                 <View className="flex-row items-center justify-center gap-2 p-8">
                   <ActivityIndicator color={accent} />
-                  <AppText variant="body" color="muted">Loading programs…</AppText>
+                  <AppText variant="body" color="muted">{t('workouts.start.loadingPrograms')}</AppText>
                 </View>
               ) : error ? (
                 <ErrorState
-                  title="Couldn't load your programs"
-                  message={error}
+                  title={t('workouts.start.programsLoadFailed')}
+                  message={uiMessage(error)}
                   onRetry={() => setRetryKey((k) => k + 1)}
                 />
               ) : shown.length === 0 ? (
                 <EmptyState
                   compact
                   icon={BookOpen}
-                  title={query ? 'No matching programs' : 'No programs yet'}
-                  subtitle={query ? 'Try a different search' : 'Create a program first'}
+                  title={query ? t('workouts.form.programPicker.noMatches') : t('workouts.start.noPrograms')}
+                  subtitle={query ? t('workouts.list.empty.searchHint') : t('workouts.form.programPicker.createFirst')}
                 />
               ) : (
                 <FlatList
@@ -152,7 +154,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                           <View className="mt-0.5 flex-row items-center gap-1.5">
                             <Dumbbell size={12} color={colors.txMuted} />
                             <AppText variant="caption" color="muted" numberOfLines={1}>
-                              {days.length === 0 ? 'No exercises yet' : `${days.length} workout day${days.length === 1 ? '' : 's'}`}
+                              {days.length === 0 ? t('workouts.form.programPicker.noExercises') : t('workouts.form.programPicker.workoutDays', { count: days.length })}
                             </AppText>
                             {(item.days ?? []).some((d) => d.is_rest_day) ? (
                               <Moon size={12} color={colors.txMuted} />

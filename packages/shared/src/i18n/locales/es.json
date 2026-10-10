@@ -1,0 +1,1414 @@
+{
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Preferencias y configuración de la cuenta",
+    "back": "Inicio",
+    "saved": "Ajustes guardados correctamente",
+    "unknownError": "El servidor no indicó qué salió mal.",
+    "language": {
+      "label": "Idioma",
+      "description": "Por defecto, el idioma de tu dispositivo",
+      "systemChoice": "Sistema ({{name}})",
+      "search": "Buscar idiomas",
+      "noMatches": "Ningún idioma coincide"
+    },
+    "account": {
+      "title": "Cuenta",
+      "name": {
+        "label": "Nombre",
+        "description": "El nombre con el que te saluda la app. Si lo dejas vacío, usaremos tu correo.",
+        "loadFailed": "No se pudo cargar tu nombre, así que no te ofreceremos sobrescribirlo.",
+        "saveFailed": "No se pudo guardar tu nombre.",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "title": "Nombre",
+        "subtitle": "El nombre con el que te saluda la app.",
+        "emptyHint": "Si lo dejas vacío, usaremos tu correo.",
+        "saveFailedFallback": "No se pudo guardar tu nombre. Inténtalo de nuevo."
+      },
+      "email": {
+        "label": "Correo",
+        "description": "Tu correo de inicio de sesión",
+        "change": "Cambiar",
+        "changeLabel": "Cambiar correo",
+        "pageTitle": "Cambiar correo",
+        "pageSubtitle": "Iniciarás sesión con la nueva dirección. Si cambias algo más que las mayúsculas y minúsculas, se cierra tu sesión en tus otros dispositivos.",
+        "current": "Correo actual",
+        "new": "Correo nuevo",
+        "submit": "Actualizar correo",
+        "failedFallback": "No se pudo cambiar tu correo. Inténtalo de nuevo.",
+        "changedTitle": "Correo cambiado",
+        "signInWith": "De ahora en adelante, inicia sesión con <email>{{email}}</email>.",
+        "signInWithPlain": "De ahora en adelante, inicia sesión con {{email}}.",
+        "caseOnly": "Solo cambiaron las mayúsculas y minúsculas, así que tus otros dispositivos siguen con la sesión iniciada.",
+        "signedOutElsewhere": "Aquí sigues con la sesión iniciada; en tus otros dispositivos se cerró la sesión."
+      },
+      "memberSince": {
+        "label": "Miembro desde"
+      },
+      "password": {
+        "label": "Contraseña",
+        "description": "Al cambiarla, se cierra tu sesión en tus otros dispositivos",
+        "change": "Cambiar",
+        "current": "Contraseña actual",
+        "new": "Contraseña nueva",
+        "confirmNew": "Confirma la contraseña nueva",
+        "pageTitle": "Cambiar contraseña",
+        "pageSubtitle": "Seguirás con la sesión iniciada aquí. Se cierra la sesión en todos los demás dispositivos.",
+        "submit": "Actualizar contraseña",
+        "failedFallback": "No se pudo cambiar tu contraseña. Inténtalo de nuevo.",
+        "changedTitle": "Contraseña cambiada",
+        "changedBody": "Sigues con la sesión iniciada aquí. Se cerró la sesión en todos los demás dispositivos y necesitarán la contraseña nueva."
+      },
+      "backLink": "Ajustes",
+      "backToSettings": "Volver a ajustes",
+      "saving": "Guardando"
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "theme": {
+        "label": "Tema",
+        "description": "Esquema de color de la interfaz",
+        "dark": "Oscuro",
+        "light": "Claro"
+      },
+      "darkMode": {
+        "label": "Modo oscuro",
+        "description": "Usar el esquema de color oscuro"
+      }
+    },
+    "workout": {
+      "title": "Entrenamiento",
+      "footnote": "El descanso predeterminado se aplica a los ejercicios nuevos · el descanso de cada ejercicio lo reemplaza.",
+      "layout": {
+        "label": "Diseño del entrenamiento activo",
+        "description": "Cómo se muestran los ejercicios durante un entrenamiento",
+        "list": "Lista",
+        "gym": "Modo gimnasio"
+      },
+      "defaultView": {
+        "label": "Vista de entrenamiento predeterminada"
+      },
+      "restTimer": {
+        "label": "Temporizador de descanso",
+        "description": "Inicia una cuenta atrás entre series",
+        "gymDescription": "Inicia una cuenta atrás entre series en el modo gimnasio",
+        "off": "No",
+        "on": "Sí"
+      },
+      "defaultRest": {
+        "label": "Descanso predeterminado",
+        "description": "Se aplica a los ejercicios nuevos · el descanso de cada ejercicio lo reemplaza",
+        "preset": "{{seconds}} s",
+        "custom": "Otro",
+        "customLabel": "Segundos de descanso personalizados",
+        "secondsUnit": "s",
+        "minusFive": "−5 segundos",
+        "plusFive": "+5 segundos",
+        "decrease": "Reducir el descanso en 5 segundos",
+        "increase": "Aumentar el descanso en 5 segundos"
+      }
+    },
+    "goalsUnits": {
+      "title": "Objetivos y unidades",
+      "loadFailedMessage": "Son tus objetivos y unidades guardados, así que no los adivinaremos. Todo lo demás de esta página sigue funcionando."
+    },
+    "unitsTargets": {
+      "title": "Unidades y objetivos",
+      "footnote": "La unidad de peso se aplica al instante en toda la app. Los objetivos de nutrición alimentan los anillos del panel.",
+      "loadFailedMessage": "Son tus objetivos y unidades guardados, así que no los adivinaremos. Todo lo demás aquí sigue funcionando.",
+      "saved": "Objetivos guardados",
+      "changeUnitFailedTitle": "No se pudieron cambiar las unidades"
+    },
+    "targets": {
+      "loadFailedTitle": "No se pudieron cargar tus objetivos",
+      "weightUnit": {
+        "label": "Unidad de peso",
+        "description": "Los cambios se aplican de inmediato en toda la app",
+        "changeFailed": "No se pudo cambiar la unidad de peso.",
+        "changeFailedFallback": "No se pudo cambiar la unidad de peso"
+      },
+      "calorie": {
+        "label": "Objetivo de calorías",
+        "description": "Meta diaria de calorías"
+      },
+      "protein": {
+        "label": "Objetivo de proteína",
+        "description": "Meta diaria de proteína"
+      },
+      "carb": {
+        "label": "Objetivo de carbohidratos",
+        "description": "Meta diaria de carbohidratos"
+      },
+      "fat": {
+        "label": "Objetivo de grasa",
+        "description": "Meta diaria de grasa"
+      },
+      "saveHint": "Guardar los objetivos de calorías y macros",
+      "save": "Guardar objetivos",
+      "saving": "Guardando...",
+      "saveFailedFallback": "No se pudieron guardar los ajustes",
+      "saveFailed": "No se pudieron guardar los objetivos"
+    },
+    "server": {
+      "title": "Servidor",
+      "webTitle": "Instancia autoalojada",
+      "footnote": "El backend autoalojado con el que habla esta app. Deja la URL en blanco para usar el predeterminado.",
+      "api": {
+        "label": "Servidor de API",
+        "description": "Servidor backend al que está conectado este cliente",
+        "default": "Este sitio (proxy inverso)"
+      },
+      "backend": {
+        "label": "Backend",
+        "default": "Backend predeterminado"
+      },
+      "url": {
+        "label": "URL del servidor",
+        "placeholder": "https://your-server.example.com",
+        "invalid": "Introduce una URL completa que incluya http:// o https://",
+        "testAndSave": "Probar y guardar"
+      },
+      "connected": "Conectado · {{name}} v{{version}}",
+      "savedWithWarning": "Guardado — {{message}}",
+      "database": {
+        "label": "Base de datos",
+        "description": "Almacenamiento del backend"
+      },
+      "version": {
+        "label": "Versión",
+        "description": "Versión del backend de lyftr"
+      }
+    },
+    "library": {
+      "title": "Biblioteca de ejercicios",
+      "database": {
+        "label": "Base de datos de ejercicios",
+        "description": "Los ejercicios vienen de open-exercise-db y se consultan mientras buscas. Este servidor guarda una copia de los que ha mostrado."
+      },
+      "cached_one": "{{amount}} en caché",
+      "cached_many": "{{amount}} en caché",
+      "cached_other": "{{amount}} en caché",
+      "cachedUnknown": "— en caché",
+      "refreshed_one": "Se actualizó {{amount}} ejercicio",
+      "refreshed_many": "Se actualizaron {{amount}} de ejercicios",
+      "refreshed_other": "Se actualizaron {{amount}} ejercicios",
+      "cleared_one": "Se eliminó {{amount}} ejercicio sin usar",
+      "cleared_many": "Se eliminaron {{amount}} de ejercicios sin usar",
+      "cleared_other": "Se eliminaron {{amount}} ejercicios sin usar",
+      "refresh": "Actualizar caché",
+      "refreshing": "Actualizando...",
+      "refreshFailed": "No se pudo actualizar la caché.",
+      "clear": "Borrar sin usar",
+      "clearing": "Borrando...",
+      "clearFailed": "No se pudo borrar la caché."
+    },
+    "danger": {
+      "title": "Zona de peligro",
+      "actionsTitle": "Acciones de la cuenta"
+    },
+    "signOut": {
+      "label": "Cerrar sesión",
+      "description": "Cierra la sesión en este dispositivo",
+      "button": "Cerrar sesión"
+    },
+    "deleteAccount": {
+      "label": "Eliminar cuenta",
+      "description": "Elimina permanentemente todos tus datos",
+      "button": "Eliminar",
+      "sheetTitle": "¿Eliminar la cuenta?",
+      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer.",
+      "confirm": "Eliminar cuenta",
+      "busy": "Eliminando…",
+      "failed": "No se pudo eliminar la cuenta"
+    }
+  },
+  "common": {
+    "there": "usuario",
+    "duration": {
+      "seconds": "{{value}} s",
+      "minutes": "{{value}} min"
+    },
+    "close": "Cerrar",
+    "dateFormat": {
+      "monthDay": "d MMM",
+      "monthDayYear": "d MMM yyyy",
+      "numericMonthDay": "d/M",
+      "weekdayDate": "EEEE, d 'de' MMMM 'de' yyyy",
+      "monthShort": "MMM",
+      "longDate": "d 'de' MMMM 'de' yyyy",
+      "weekdayNarrow": "EEEEE",
+      "weekdayMonthDayLong": "EEEE, d 'de' MMMM",
+      "weekdayMonthDay": "EEE, d MMM",
+      "weekdayMonthDayYear": "EEE, d MMM yyyy",
+      "year": "yyyy",
+      "monthYearLong": "MMMM 'de' yyyy"
+    },
+    "day": {
+      "today": "Hoy",
+      "yesterday": "Ayer"
+    },
+    "cancel": "Cancelar",
+    "tryAgain": "Intentar de nuevo",
+    "retrying": "Reintentando…",
+    "loading": "Cargando",
+    "search": "Buscar…",
+    "clearSearch": "Borrar búsqueda",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…",
+    "deleteConfirmMessage": "{{subject}} se eliminará de forma permanente.",
+    "dismiss": "Descartar",
+    "done": "Listo",
+    "dismissKeyboard": "Cerrar teclado",
+    "pickDate": "Elegir fecha",
+    "selectDate": "Seleccionar fecha",
+    "capsLockOn": "Bloq Mayús está activado",
+    "figureFailed": "No se pudo cargar esta cifra",
+    "stepper": {
+      "decrease": "Disminuir {{name}}",
+      "increase": "Aumentar {{name}}"
+    },
+    "password": {
+      "show": "Mostrar {{label}}",
+      "hide": "Ocultar {{label}}"
+    },
+    "back": "Atrás",
+    "goBack": "Volver",
+    "save": "Guardar",
+    "saving": "Guardando…"
+  },
+  "errors": {
+    "api": {
+      "misconfigured": "La URL del servidor parece mal configurada — no se encontró el endpoint de la API. Revisa los ajustes del servidor.",
+      "restarting": "El servidor se está reiniciando o no está disponible. Inténtalo de nuevo en un momento.",
+      "notApi": "Esa dirección devolvió una página web, no la API de Lyftr. Revisa los ajustes del servidor.",
+      "serverError": "Error del servidor. Inténtalo de nuevo en breve."
+    },
+    "network": {
+      "brief": {
+        "cleartextBlocked": "Bloqueado porque la URL del servidor usa http://. Revisa los ajustes del servidor.",
+        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. Revisa los ajustes del servidor.",
+        "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Revisa los ajustes del servidor.",
+        "timeout": "El servidor no respondió a tiempo. Inténtalo de nuevo en un momento.",
+        "unreachable": "No se pudo conectar con el servidor. Comprueba que esté en marcha.",
+        "unknown": "No se puede conectar con el servidor en este momento."
+      },
+      "full": {
+        "cleartextBlocked": "Este dispositivo bloqueó la conexión porque la URL usa http:// sin cifrar. Cambia el servidor a https:// — un proxy inverso puede emitir un certificado para un nombre de host de red local sin abrir puertos.",
+        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. La mejor solución: dale al servidor un certificado real — un proxy inverso puede emitir uno para un nombre de host de red local sin abrir puertos. O instala tu propia CA en Ajustes → Seguridad → Cifrado y credenciales, con lo que todas las apps del dispositivo confiarán en ella, no solo Lyftr.",
+        "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Vuelve a emitirlo con este nombre de host o esta IP en el Nombre alternativo del sujeto (SAN) del certificado.",
+        "timeout": "El servidor no respondió a tiempo. Comprueba que esté en marcha y accesible desde este dispositivo.",
+        "unreachable": "No se pudo conectar con el servidor. Revisa la URL y que el backend esté en marcha.",
+        "unknownWeb": "No se puede conectar con el servidor. Revisa la URL, que el backend esté en marcha y que permita el origen de esta app (CORS).",
+        "unknownNative": "No se puede conectar con el servidor. Revisa la URL y que el backend esté en marcha y accesible desde este dispositivo.",
+        "withDetail": "{{message}} ({{detail}})"
+      }
+    },
+    "list": {
+      "loadFailed": "No se pudo cargar esta lista.",
+      "unreadable": "El servidor envió algo que no pudimos leer.",
+      "title": "Error al cargar {{subject}}"
+    },
+    "boundary": {
+      "title": "Error al mostrar {{subject}}",
+      "thisPage": "esta página",
+      "message": "Algo salió mal de nuestro lado. Inténtalo de nuevo y, si sigue pasando, recarga la página."
+    }
+  },
+  "server": {
+    "insecureWarning": "Sin cifrar — cualquiera en esta red puede leer tu inicio de sesión y mantener la sesión abierta como si fuera tú. Usa https:// si puedes.",
+    "mixedContentWarning": "Este navegador lo bloqueará — una página HTTPS no puede llamar a un servidor http://. Usa https:// también para el servidor, o déjalo en blanco para usar el backend de este sitio.",
+    "test": {
+      "notLyftr": "Respondió, pero no parece un servidor de Lyftr.",
+      "unreachable": "No se pudo conectar con el servidor."
+    },
+    "settingsTitle": "Ajustes del servidor",
+    "blocked": "Bloqueado",
+    "notEncrypted": "Sin cifrar",
+    "blankPlaceholder": "Déjalo en blanco para usar este sitio",
+    "fullUrlHint": "URL completa, p. ej. <url>https://lyftr.example.com</url>",
+    "testing": "Probando…",
+    "testAndSave": "Probar y guardar",
+    "current": "Actual: {{url}}",
+    "usingSite": "Usando la dirección de este sitio (proxy inverso)",
+    "defaultShort": "predeterminado",
+    "status": {
+      "invalidUrlExample": "Incluye http:// o https:// — p. ej. http://192.168.1.10:3000",
+      "invalidUrl": "Incluye http:// o https://",
+      "storageBlocked": "No se pudo guardar la URL del servidor — este navegador está bloqueando el almacenamiento.",
+      "connected": "Conectado · {{name}} {{version}}",
+      "connectedTo": "Conectado a {{name}} v{{version}}"
+    }
+  },
+  "auth": {
+    "passwordRules": {
+      "minLength_one": "Al menos {{count}} carácter",
+      "minLength_many": "Al menos {{count}} caracteres",
+      "minLength_other": "Al menos {{count}} caracteres",
+      "maxBytes_one": "Máximo {{count}} carácter (los acentos y los emoji cuentan como más)",
+      "maxBytes_many": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
+      "maxBytes_other": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
+      "different": "Distinta de tu contraseña actual",
+      "match": "Las contraseñas coinciden",
+      "mismatch": "Las contraseñas no coinciden",
+      "repeat": "Repite la nueva contraseña"
+    },
+    "divider": {
+      "or": "O",
+      "orLower": "o"
+    },
+    "field": {
+      "email": "Correo",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "emailPlaceholder": "tu@ejemplo.com"
+    },
+    "validation": {
+      "emailInvalid": "Ingresa un correo válido",
+      "passwordRequired": "Ingresa tu contraseña"
+    },
+    "closed": {
+      "notice": "Este servidor no acepta cuentas nuevas."
+    },
+    "tagline": "ENTRENA · REGISTRA · PROGRESA",
+    "hero": {
+      "headline": "Registra. Levanta.",
+      "headlineAccent": "Progresa.",
+      "description": "Tu app de fitness autoalojada. Registra entrenamientos, comidas y peso — todo bajo tu control, en tu propio servidor.",
+      "features": {
+        "workouts": "Registra entrenamientos",
+        "food": "Registra comidas + macros",
+        "progress": "Mira tu progreso"
+      }
+    },
+    "login": {
+      "heading": "Hola de nuevo",
+      "subtitle": "Inicia sesión para seguir entrenando.",
+      "submit": "Iniciar sesión",
+      "submitting": "Iniciando sesión…",
+      "failed": "Correo o contraseña incorrectos.",
+      "demoFailed": "No se pudo iniciar sesión en la cuenta de demostración.",
+      "demo": "Probar cuenta demo",
+      "demoHint": "sin registro",
+      "newHere": "¿Primera vez por aquí?",
+      "createAccountLink": "Crear cuenta"
+    },
+    "register": {
+      "heading": "Crear cuenta",
+      "subtitle": "Empieza hoy a registrar tu entrenamiento.",
+      "subtitleNative": "Empieza tu registro de entrenamiento.",
+      "closedHeading": "Registro cerrado",
+      "closedBody": "El propietario de esta instancia de Lyftr desactivó los registros nuevos. Si deberías tener una cuenta aquí, pídele que te cree una.",
+      "backToSignIn": "Volver a iniciar sesión",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta…",
+      "failed": "No se pudo completar el registro.",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "haveAccountShort": "¿Ya tienes cuenta?",
+      "signInLink": "Inicia sesión"
+    }
+  },
+  "weight": {
+    "errors": {
+      "invalid": "Ingresa un peso válido",
+      "tooHigh": "El peso debe ser menor de {{max}} {{unit}}",
+      "trendFailed": "No se pudo cargar tu tendencia de peso.",
+      "statsFailed": "No se pudieron cargar tus estadísticas de peso."
+    },
+    "bodyweightShort": "PC",
+    "duplicateWarning": "Ya registraste el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+    "title": "Peso",
+    "subtitle": "Sigue tu peso corporal a lo largo del tiempo",
+    "loadFailed": "No se pudo cargar tu peso",
+    "deleteTitle": "¿Eliminar registro?",
+    "deleteSubject": "{{date}} · {{weight}} {{unit}}",
+    "deleteFailed": "No se pudo eliminar el registro",
+    "log": {
+      "title": "Registrar peso",
+      "last": "último: {{weight}} {{unit}}",
+      "weightLabel": "Peso ({{unit}})",
+      "weightField": "Peso",
+      "weightName": "peso",
+      "dateAndNote": "Fecha y nota",
+      "collapse": "Contraer",
+      "notePlaceholder": "Nota — p. ej., por la mañana, después de correr",
+      "addDateAndNote": "Agregar fecha y nota",
+      "logAnyway": "Registrar de todos modos",
+      "submit": "Registrar peso",
+      "submitting": "Registrando…",
+      "tip": "Mejor registrarlo por la mañana, después de ir al baño",
+      "failed": "No se pudo registrar el peso"
+    },
+    "hero": {
+      "current": "Peso actual",
+      "empty": "La báscula aún no sabe que existes. Arregla eso.",
+      "changeGained": "Ganaste {{amount}} {{unit}} {{period}}",
+      "changeLost": "Perdiste {{amount}} {{unit}} {{period}}",
+      "changeNone": "{{amount}} {{unit}}, sin cambios {{period}}"
+    },
+    "period": {
+      "chip": {
+        "7d": "7 d",
+        "30d": "30 d",
+        "90d": "90 d",
+        "All": "Todo"
+      },
+      "span": {
+        "7d": "en 7 d",
+        "30d": "en 30 d",
+        "90d": "en 90 d",
+        "All": "en todo el historial"
+      }
+    },
+    "stats": {
+      "avg": {
+        "label": "Prom.",
+        "tip": "Peso promedio del periodo seleccionado",
+        "failed": "No se pudo cargar el peso promedio"
+      },
+      "low": {
+        "label": "Mín.",
+        "tip": "Peso más bajo registrado en el periodo",
+        "failed": "No se pudo cargar el peso mínimo"
+      },
+      "high": {
+        "label": "Máx.",
+        "tip": "Peso más alto registrado en el periodo",
+        "failed": "No se pudo cargar el peso máximo"
+      }
+    },
+    "stale": "No se pudieron actualizar; se muestra lo último que cargamos.",
+    "trend": {
+      "title": "Tendencia",
+      "loading": "Cargando tu tendencia",
+      "loadFailed": "No se pudo cargar tu tendencia",
+      "noData": "Sin datos para este periodo",
+      "needMore": "Registra otro peso para ver la tendencia"
+    },
+    "history": {
+      "title": "Historial",
+      "subject": "tu historial de peso",
+      "loadingMore": "Cargando más…",
+      "loadMoreFailed": "No se pudieron cargar más registros"
+    },
+    "detail": {
+      "back": "Peso",
+      "loadFailed": "No se pudo cargar este registro",
+      "gone": "Ese registro ya no existe.",
+      "backToWeight": "Volver a peso",
+      "editLabel": "Editar registro",
+      "deleteLabel": "Eliminar registro",
+      "entryLabel": "Registro de peso",
+      "editing": "Editando…",
+      "editTitle": "Editar registro",
+      "date": "Fecha",
+      "notesOptional": "Notas <hint>(opcional)</hint>",
+      "notesOptionalPlain": "Notas (opcional)",
+      "notePlaceholder": "p. ej., por la mañana, después de entrenar",
+      "saveFailed": "No se pudo guardar"
+    },
+    "row": {
+      "options": "Opciones de {{weight}} {{unit}}"
+    }
+  },
+  "programs": {
+    "day": {
+      "rest": "Día de descanso",
+      "numbered": "Día {{number}}"
+    },
+    "createdOn": "Creado el {{date}}",
+    "title": "Programas",
+    "subtitle": "Plantillas de entrenamiento reutilizables",
+    "newProgram": "Nuevo programa",
+    "startWorkout": "Iniciar entrenamiento",
+    "deleteConfirmTitle": "¿Eliminar programa?",
+    "deleteFailed": "No se pudo eliminar el programa",
+    "count": {
+      "exercises_one": "{{count}} ejercicio",
+      "exercises_other": "{{count}} ejercicios",
+      "sets_one": "{{count}} serie",
+      "sets_other": "{{count}} series",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "exercises_many": "{{count}} ejercicios",
+      "sets_many": "{{count}} series",
+      "reps_many": "{{count}} reps",
+      "days_one": "{{count}} día",
+      "days_other": "{{count}} días",
+      "days_many": "{{count}} días"
+    },
+    "list": {
+      "searchPlaceholder": "Buscar programas…",
+      "empty": {
+        "title": "No se encontraron programas",
+        "searchHint": "Prueba con otra búsqueda",
+        "startHint": "Crea un programa para empezar"
+      },
+      "loadFailed": "No se pudieron cargar tus programas",
+      "errorSubject": "tus programas",
+      "loadingMore": "Cargando más…"
+    },
+    "stats": {
+      "total": "Total",
+      "totalUnit": "programas",
+      "totalFailed": "No se pudo cargar el total",
+      "avgExercises": "Ejercicios",
+      "avgExercisesFailed": "No se pudo cargar el promedio de ejercicios",
+      "perProgram": "por programa"
+    },
+    "card": {
+      "deleteTitle": "¿Eliminar \"{{name}}\"?",
+      "cannotUndo": "Esto no se puede deshacer",
+      "summary": "{{exercises}} · {{sets}}",
+      "restToday": "Descanso hoy",
+      "today": "Hoy: {{day}}",
+      "options": "Opciones",
+      "optionsNamed": "Opciones de {{name}}",
+      "menuHeading": "Programa",
+      "startTitle": "Iniciar entrenamiento",
+      "restDayTitle": "Hoy es día de descanso: abrir programa",
+      "viewProgram": "Ver programa",
+      "editProgram": "Editar programa",
+      "deleteProgram": "Eliminar programa",
+      "editNamed": "Editar {{name}}",
+      "startNamed": "Iniciar {{name}}"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar este programa",
+      "gone": "Ese programa ya no existe.",
+      "backToPrograms": "Volver a programas",
+      "back": "Programas",
+      "restDayTitle": "Día de descanso: no hay nada que iniciar",
+      "start": "Iniciar",
+      "startLabel": "Iniciar entrenamiento",
+      "editLabel": "Editar programa",
+      "deleteLabel": "Eliminar programa",
+      "suggestions": {
+        "title": "Nuevos objetivos de tu último entrenamiento",
+        "set": "Serie {{number}}",
+        "accept": "Aceptar {{name}}, serie {{number}}",
+        "dismiss": "Descartar {{name}}, serie {{number}}",
+        "showLess": "Mostrar menos",
+        "showAll": "Mostrar las {{total}}",
+        "dismissAll": "Descartar todo",
+        "applyAll": "Aplicar todo ({{total}})",
+        "saveFailed": "No se pudieron guardar esos objetivos.",
+        "exerciseFallback": "Ejercicio"
+      },
+      "stats": {
+        "cycle": "Ciclo",
+        "exercises": "Ejercicios",
+        "totalSets": "Series totales"
+      },
+      "noDays": "Aún no hay días",
+      "addDay": "Agregar un día →",
+      "todayChip": "HOY",
+      "restDayHint": "No hay ejercicios programados: recupérate y vuelve más fuerte.",
+      "noExercises": "Aún no hay ejercicios en este día",
+      "target": "objetivo {{weight}} {{unit}}"
+    },
+    "form": {
+      "newTitle": "Nuevo programa",
+      "editTitle": "Editar programa",
+      "summary": "{{days}} • {{exercises}} • {{sets}}",
+      "errors": {
+        "nameRequired": "Falta el nombre del programa",
+        "noDays": "Agrega al menos un día",
+        "noExercises": "Agrega al menos un ejercicio a un día de entrenamiento"
+      },
+      "createFailed": "No se pudo crear el programa",
+      "updateFailed": "No se pudo actualizar el programa",
+      "name": "Nombre del programa",
+      "required": "(obligatorio)",
+      "namePlaceholder": "p. ej., Empuje-Tirón-Pierna, Torso-Pierna",
+      "notesPlaceholder": "Descripción u objetivos del programa…",
+      "days": "Días",
+      "targetSets": "Series objetivo",
+      "daysHintNew": "(obligatorio: se repiten en este orden)",
+      "daysHintEdit": "(se repiten en este orden)",
+      "saveProgram": "Guardar programa",
+      "dayEditor": {
+        "emptyInline": "Aún no hay ejercicios: agrega uno arriba.",
+        "emptyTitle": "Aún no hay ejercicios",
+        "emptySubtitle": "Agrega un ejercicio a este día",
+        "notesPlaceholder": "p. ej., Enfócate en una fase excéntrica controlada",
+        "targetReps": "Reps objetivo",
+        "targetWeight": "Peso objetivo"
+      },
+      "daysEditor": {
+        "empty": "Aún no hay días: agrega abajo un día de entrenamiento o de descanso.",
+        "moveUp": "Subir día",
+        "moveDown": "Bajar día",
+        "moveUpNumbered": "Subir el día {{number}}",
+        "moveDownNumbered": "Bajar el día {{number}}",
+        "restPlaceholder": "Día de descanso {{number}}",
+        "workout": "Entrenamiento",
+        "rest": "Descanso",
+        "collapse": "Contraer día",
+        "expand": "Expandir día",
+        "remove": "Quitar día",
+        "addWorkoutDay": "Agregar día de entrenamiento",
+        "addRestDay": "Agregar día de descanso"
+      },
+      "dayPicker": {
+        "title": "Elige un día"
+      }
+    }
+  },
+  "food": {
+    "servings_one": "{{count}} porción",
+    "servings_many": "{{count}} porciones",
+    "servings_other": "{{count}} porciones",
+    "customEntry": "Registro personalizado",
+    "limitHint": "Un registro admite como máximo {{amount}}",
+    "favorites": {
+      "addFailed": "No se pudo añadir {{name}} a Favoritos.",
+      "removeFailed": "No se pudo quitar {{name}} de Favoritos.",
+      "add": "Añadir {{name}} a Favoritos",
+      "remove": "Quitar {{name}} de Favoritos",
+      "subject": "tus favoritos",
+      "loadFailed": "No se pudieron cargar tus favoritos.",
+      "empty": {
+        "title": "Aún no hay favoritos",
+        "hint": "Marca alimentos con la estrella al registrarlos para encontrarlos aquí"
+      }
+    },
+    "diary": {
+      "title": "Comida",
+      "titleToday": "Comida de hoy",
+      "logFood": "Registrar comida",
+      "previousDay": "Día anterior",
+      "nextDay": "Día siguiente",
+      "loadFailed": "No se pudo cargar tu registro de comidas",
+      "deleteFailed": "No se pudo eliminar ese registro.",
+      "addTo": "Agregar a {{meal}}",
+      "tapToAdd": "+ Toca para agregar comida",
+      "deleteConfirm": "¿Eliminar <name>{{name}}</name>?",
+      "calories": "Calorías",
+      "over": "{{amount}} de más",
+      "left": "{{amount}} restantes",
+      "goal": "Meta de {{amount}} kcal",
+      "totalsFailed": "No se pudieron cargar los totales de hoy",
+      "totalsFailedMessage": "Algo salió mal de nuestro lado.",
+      "items_one": "{{count}} registro",
+      "items_many": "{{count}} registros",
+      "items_other": "{{count}} registros",
+      "filteredCount": "{{shown}} de {{total}}",
+      "searchPlaceholder": "Buscar en la comida de este día…",
+      "noMatches": "Sin resultados para “{{query}}”",
+      "empty": {
+        "title": "Aún no hay comida registrada",
+        "hint": "Toca para registrar tu primera comida"
+      },
+      "entryUpdated": "Registro actualizado",
+      "addedTo": "Agregado a {{meal}}"
+    },
+    "entry": {
+      "logged": "Registrado",
+      "deleteFailed": "No se pudo eliminar el registro",
+      "deleteTitle": "¿Eliminar registro?",
+      "loadFailed": "No se pudo cargar este registro",
+      "gone": "Ese registro ya no existe.",
+      "backToNutrition": "Volver a nutrición",
+      "back": "Nutrición",
+      "editLabel": "Editar registro",
+      "deleteLabel": "Eliminar registro",
+      "servingSize": "Tamaño de la porción",
+      "amount": "Cantidad",
+      "meal": "Comida",
+      "optionsNamed": "Opciones de {{name}}"
+    },
+    "page": {
+      "title": "Nutrición",
+      "subtitle": "Macros y comidas"
+    },
+    "meal": {
+      "breakfast": "Desayuno",
+      "lunch": "Almuerzo",
+      "dinner": "Cena",
+      "snacks": "Snacks"
+    },
+    "macro": {
+      "protein": "Proteína",
+      "carbs": "Carbos",
+      "fat": "Grasa",
+      "fiber": "Fibra",
+      "proteinInitial": "P",
+      "carbsInitial": "C",
+      "fatInitial": "G"
+    },
+    "view": {
+      "diary": "Diario",
+      "trends": "Tendencias"
+    },
+    "trends": {
+      "dailyAverage": "Promedio diario · {{period}}",
+      "averageFailed": "No se pudo cargar el promedio de {{macro}}"
+    },
+    "history": {
+      "title": "Historial de macros",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudo cargar tu historial",
+      "empty": "Aún no hay datos — empieza a registrar tus comidas"
+    },
+    "log": {
+      "title": "Registrar comida",
+      "editTitle": "Editar comida",
+      "details": "Detalles",
+      "newEntry": "Nuevo registro",
+      "backToFood": "Volver a comida",
+      "submit": "Registrar comida",
+      "saveChanges": "Guardar cambios",
+      "saveFailed": "No se pudo guardar",
+      "editLoadFailed": "No se pudo cargar ese registro.",
+      "searchPlaceholder": "Buscar comida…",
+      "scan": "Escanear",
+      "scanLabel": "Escanear código de barras",
+      "tab": {
+        "recent": "Recientes",
+        "favorites": "Favoritos",
+        "search": "Buscar"
+      },
+      "rateLimited": "Demasiadas solicitudes — espera un momento e inténtalo de nuevo",
+      "searchUnavailable": "Búsqueda de comida no disponible — ingresa los datos manualmente",
+      "lookupFailedTitle": "No se pudo buscar este código de barras",
+      "lookupFailed": "No se pudo buscar ese código de barras.",
+      "enterManually": "Ingrésalo manualmente",
+      "rereadFailed": "No se pudo volver a leer este producto.",
+      "quickAdd": "Agregar {{kcal}} kcal rápido",
+      "noMacroBreakdown": "Sin desglose de macros",
+      "recent": {
+        "subject": "lo que registraste hoy",
+        "loadFailed": "No se pudo cargar lo que registraste hoy.",
+        "empty": {
+          "title": "Nada reciente hoy",
+          "hint": "Busca o escanea para registrar comida"
+        }
+      },
+      "search": {
+        "emptyTitle": "Busca entre millones de alimentos",
+        "emptyHint": "O escanea un código de barras",
+        "searching": "Buscando…",
+        "noResults": "Sin resultados para \"{{query}}\"",
+        "manualEntry": "+ Ingresar \"{{query}}\" manualmente",
+        "manualEntryWide": "＋ Ingresar \"{{query}}\" manualmente"
+      },
+      "staleServing": "{{note}} Se muestran resultados de búsqueda, que siempre son por {{serving}}.",
+      "per": "por {{serving}}",
+      "servingEach": "({{serving}} c/u)",
+      "servings": "Porciones",
+      "amountIn": "Cantidad en {{unit}}",
+      "decreaseAmount": "Disminuir cantidad",
+      "increaseAmount": "Aumentar cantidad",
+      "decreaseServings": "Disminuir porciones",
+      "increaseServings": "Aumentar porciones",
+      "enterAmount": "Ingresa una cantidad para registrarlo",
+      "enterAmountIn": "Ingresa una cantidad en {{unit}} para registrarlo",
+      "servingsOf_one": "{{count}} porción de {{serving}}",
+      "servingsOf_many": "{{count}} porciones de {{serving}}",
+      "servingsOf_other": "{{count}} porciones de {{serving}}",
+      "when": "Cuándo"
+    },
+    "scan": {
+      "title": "Escanear código de barras",
+      "close": "Cerrar escáner",
+      "httpsTitle": "La cámara requiere HTTPS",
+      "httpsBody": "Los navegadores solo permiten usar la cámara en páginas seguras. Este sitio se sirve por <mono>http://</mono> sin cifrar — ponlo detrás de un proxy inverso con HTTPS para escanear códigos de barras.",
+      "searchByName": "Buscar por nombre",
+      "unavailable": "Cámara no disponible",
+      "hint": "Apunta la cámara al código de barras — se escaneará automáticamente",
+      "deniedTitle": "Acceso a la cámara denegado",
+      "neededTitle": "Se necesita permiso de cámara",
+      "deniedBody": "Activa el acceso a la cámara para Lyftr en los ajustes de tu dispositivo para escanear códigos de barras.",
+      "neededBody": "Permite el acceso a la cámara para escanear el código de barras de un alimento.",
+      "allow": "Permitir cámara",
+      "point": "Apunta a un código de barras"
+    },
+    "lookup": {
+      "looking": "Buscando este producto…",
+      "slow": "Sigo buscando. Esto puede tardar unos segundos."
+    }
+  },
+  "workouts": {
+    "defaultName": "Entrenamiento — {{date}}",
+    "stats": {
+      "total": "Total",
+      "logged": "registrados",
+      "thisMonth": "Este mes",
+      "sessions": "sesiones",
+      "avgTime": "Promedio",
+      "min": "min",
+      "totalFailed": "No se pudo cargar el total",
+      "thisMonthFailed": "No se pudo cargar este mes",
+      "avgTimeFailed": "No se pudo cargar el tiempo promedio"
+    },
+    "list": {
+      "title": "Entrenamientos",
+      "subtitle": "Registra y revisa tus sesiones de entrenamiento",
+      "logWorkout": "Registrar entreno",
+      "searchPlaceholder": "Buscar entrenamientos…",
+      "empty": {
+        "title": "No se encontraron entrenamientos",
+        "searchHint": "Prueba con otra búsqueda",
+        "startHint": "Registra un entrenamiento para empezar"
+      },
+      "loadFailed": "No se pudieron cargar tus entrenamientos",
+      "errorSubject": "tus entrenamientos",
+      "loadingMore": "Cargando más…"
+    },
+    "deleteFailed": "No se pudo eliminar el entrenamiento",
+    "deleteConfirmTitle": "¿Eliminar entrenamiento?",
+    "toast": {
+      "newPr": "Nuevo récord en {{name}}",
+      "newTargets": "Nuevos objetivos en {{name}}",
+      "reviewUpdates_one": "Toca para revisar {{count}} actualización",
+      "reviewUpdates_other": "Toca para revisar {{count}} actualizaciones",
+      "reviewUpdates_many": "Toca para revisar {{count}} actualizaciones",
+      "saved": "Entrenamiento guardado",
+      "tapToView": "Toca para ver",
+      "discarded": "Entrenamiento descartado",
+      "tapToUndo": "Toca para deshacer"
+    },
+    "card": {
+      "deleteTitle": "¿Eliminar \"{{name}}\"?",
+      "cannotUndo": "Esto no se puede deshacer",
+      "minutes": "{{minutes}} min",
+      "exercises_one": "{{count}} ejercicio",
+      "exercises_other": "{{count}} ejercicios",
+      "exercises_many": "{{count}} ejercicios",
+      "options": "Opciones",
+      "optionsNamed": "Opciones de {{name}}",
+      "menuHeading": "Entrenamiento",
+      "editWorkout": "Editar entrenamiento",
+      "deleteWorkout": "Eliminar entrenamiento",
+      "editNamed": "Editar {{name}}",
+      "totalVolume": "Volumen total: {{amount}} {{unit}}"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar este entrenamiento",
+      "gone": "Ese entrenamiento ya no existe.",
+      "backToWorkouts": "Volver a entrenamientos",
+      "back": "Entrenamientos",
+      "editLabel": "Editar entrenamiento",
+      "deleteLabel": "Eliminar entrenamiento",
+      "duration": "Duración",
+      "minutesUnit": "min",
+      "sets": "Series",
+      "volume": "Volumen",
+      "restOff": "El temporizador de descanso está desactivado: actívalo en Ajustes",
+      "setCount_one": "{{count}} serie",
+      "setCount_other": "{{count}} series",
+      "setCount_many": "{{count}} series",
+      "best": "mejor",
+      "noRest": "Sin descanso"
+    },
+    "start": {
+      "title": "Empezar entrenamiento",
+      "inProgress": "Entrenamiento en curso",
+      "resume": "Reanudar",
+      "discard": "Descartar",
+      "quick": "Inicio rápido",
+      "quickHint": "Empieza en blanco y agrega ejercicios sobre la marcha",
+      "fromProgram": "Empezar desde un programa",
+      "fromProgramHint": "Carga un día de una rutina guardada",
+      "programsLoadFailed": "No se pudieron cargar tus programas",
+      "loadingPrograms": "Cargando programas…",
+      "noPrograms": "Aún no hay programas",
+      "createFirst": "Crea tu primer programa →",
+      "days_one": "{{count}} día",
+      "days_other": "{{count}} días",
+      "days_many": "{{count}} días",
+      "noDays": "Aún no hay días"
+    },
+    "form": {
+      "logTitle": "Registrar entrenamiento",
+      "editTitle": "Editar entrenamiento",
+      "summary": "{{exercises}} • {{sets}}",
+      "summaryWithWeight": "{{exercises}} • {{sets}} • {{weight}} {{unit}}",
+      "exerciseCount_one": "{{count}} ejercicio",
+      "exerciseCount_other": "{{count}} ejercicios",
+      "exerciseCount_many": "{{count}} ejercicios",
+      "setCount_one": "{{count}} serie",
+      "setCount_other": "{{count}} series",
+      "setCount_many": "{{count}} series",
+      "errors": {
+        "nameRequired": "El nombre del entrenamiento es obligatorio",
+        "noExercises": "Agrega al menos un ejercicio"
+      },
+      "createFailed": "No se pudo crear el entrenamiento",
+      "updateFailed": "No se pudo actualizar el entrenamiento",
+      "name": "Nombre del entrenamiento",
+      "required": "(obligatorio)",
+      "namePlaceholder": "p. ej., Día de piernas, Día de empuje",
+      "date": "Fecha",
+      "durationMinutes": "Duración (minutos)",
+      "duration": "Duración",
+      "durationHm": "{{hours}} h {{minutes}} min",
+      "notes": "Notas",
+      "notesPlaceholder": "¿Cómo te sentiste? ¿Algún récord?",
+      "totalUnit": "Total {{unit}}",
+      "exercises": "Ejercicios",
+      "sets": "Series",
+      "loadProgram": "Cargar programa",
+      "addExercise": "Agregar ejercicio",
+      "addExerciseLabel": "Agregar ejercicio",
+      "removeExercise": "Quitar ejercicio",
+      "removeNamed": "Quitar {{name}}",
+      "exerciseFallback": "ejercicio",
+      "exerciseNotesPlaceholder": "p. ej., Me sentí fuerte",
+      "restBetweenSets": "Descanso entre series",
+      "set": "Serie",
+      "reps": "Reps",
+      "weight": "Peso",
+      "weightWithUnit": "Peso ({{unit}})",
+      "setWeightLabel": "Peso de la serie",
+      "setRepsLabel": "Repeticiones de la serie",
+      "addSet": "Agregar serie",
+      "removeSet": "Quitar serie",
+      "note": "Nota",
+      "addNoteLabel": "Agregar nota del ejercicio",
+      "removeNoteLabel": "Quitar nota",
+      "exerciseNotesLabel": "Notas del ejercicio",
+      "saveWorkout": "Guardar entrenamiento",
+      "saveChanges": "Guardar cambios",
+      "empty": {
+        "createTitle": "Aún no hay ejercicios",
+        "createHint": "Agrega un ejercicio o carga un programa para empezar",
+        "editTitle": "Sin ejercicios",
+        "editHint": "Agrega un ejercicio a este entrenamiento"
+      },
+      "durationField": {
+        "decrease": "Disminuir duración",
+        "increase": "Aumentar duración",
+        "inputLabel": "Duración en minutos",
+        "unit": "min"
+      },
+      "programPicker": {
+        "title": "Cargar desde un programa",
+        "pickProgram": "Elige un programa para rellenar los ejercicios",
+        "pickDay": "Elige un día para rellenar los ejercicios",
+        "loadFailed": "No se pudieron cargar tus programas.",
+        "back": "← Volver a programas",
+        "today": "HOY",
+        "workoutDays_one": "{{count}} día de entrenamiento",
+        "workoutDays_other": "{{count}} días de entrenamiento",
+        "workoutDays_many": "{{count}} días de entrenamiento",
+        "noExercises": "Aún no hay ejercicios",
+        "restDays": "días de descanso",
+        "createFirst": "Primero crea un programa",
+        "close": "Cerrar selector de programas",
+        "searchPlaceholder": "Buscar programas…",
+        "noMatches": "No hay programas que coincidan"
+      }
+    },
+    "active": {
+      "noWorkout": {
+        "title": "No hay un entrenamiento activo",
+        "hintHome": "Inicia uno desde la página de inicio",
+        "hintTab": "Inicia uno desde la pestaña Entrenos",
+        "goHome": "Ir al inicio",
+        "goWorkouts": "Ir a Entrenos"
+      },
+      "setsDone": "{{done}}/{{total}} series completadas",
+      "finish": "Terminar",
+      "empty": {
+        "title": "Aún no hay ejercicios",
+        "hint": "Agrega ejercicios abajo"
+      },
+      "setProgress": "{{done}}/{{total}} series",
+      "removeExercise": "Quitar ejercicio",
+      "notes": {
+        "placeholder": "Agrega una nota…",
+        "add": "+ Agregar nota",
+        "placeholderMobile": "+ Agregar nota…",
+        "label": "Notas, {{name}}"
+      },
+      "columns": {
+        "set": "Serie",
+        "reps": "Reps",
+        "weight": "Peso",
+        "weightUnit": "Peso ({{unit}})",
+        "done": "Listo"
+      },
+      "completeSetWeb": "Serie {{number}}, marcar como hecha",
+      "completeSet": "Completar serie {{number}}, {{name}}",
+      "completedSet": "Serie {{number}} completada, {{name}}",
+      "repsLabel": "Reps, serie {{number}}, {{name}}",
+      "weightLabel": "Peso, serie {{number}}, {{name}}",
+      "removeSet": "Quitar serie",
+      "previous": "Ejercicio anterior",
+      "addSet": "Agregar serie",
+      "next": "Siguiente",
+      "addExercise": "Agregar ejercicio",
+      "cancelWorkout": "Cancelar entrenamiento",
+      "saveFailed": "No se pudo guardar el entrenamiento",
+      "keepGoing": "Seguir",
+      "finishConfirm": {
+        "title": "¿Terminar el entrenamiento?",
+        "message": "{{done}} de {{total}} series completadas. Se guardará el entrenamiento."
+      },
+      "cancelConfirm": {
+        "title": "¿Cancelar el entrenamiento?",
+        "message": "Se perderá todo el progreso."
+      }
+    },
+    "rest": {
+      "off": "Apagado",
+      "custom": "Otro",
+      "stepDown5": "−5 segundos",
+      "stepDown5Spoken": "Menos 5 segundos",
+      "stepUp5": "+5 segundos",
+      "stepUp5Spoken": "Más 5 segundos",
+      "secondsLabel": "Segundos de descanso",
+      "secondsUnit": "seg",
+      "label": {
+        "ready": "Listo",
+        "paused": "En pausa",
+        "resting": "Descanso",
+        "over": "Descanso terminado",
+        "upNext": "Sigue la serie {{next}}",
+        "setDone": "Serie {{done}} hecha",
+        "setDonePaused": "Serie {{done}} hecha · en pausa",
+        "setDoneNext": "Serie {{done}} hecha · sigue la serie {{next}}",
+        "setDoneResting": "Serie {{done}} hecha · descansando",
+        "overNext": "Descanso terminado · sigue la serie {{next}}"
+      },
+      "pause": "Pausar temporizador de descanso",
+      "resume": "Reanudar temporizador de descanso",
+      "shorten": "Acortar el descanso 15 segundos",
+      "extend": "Alargar el descanso 15 segundos",
+      "skip": "Omitir"
+    }
+  },
+  "gym": {
+    "workout": "Entrenamiento",
+    "goToExercise": "Ir al ejercicio {{number}}",
+    "minimizeWorkout": "Minimizar entrenamiento",
+    "minimize": "Minimizar",
+    "discardWorkout": "Descartar entrenamiento",
+    "discard": {
+      "title": "¿Descartar el entrenamiento?",
+      "message": "Esto termina el entrenamiento sin guardarlo: se pierde todo el progreso.",
+      "confirm": "Descartar"
+    },
+    "labels": {
+      "sets": "Series",
+      "reps": "Reps",
+      "weight": "Peso",
+      "repsName": "repeticiones"
+    },
+    "overview": {
+      "exercises": "Ejercicios",
+      "totalSets": "Series totales",
+      "muscles": "Músculos",
+      "empty": "Aún no has agregado ejercicios",
+      "startWorkout": "Empezar entrenamiento"
+    },
+    "info": {
+      "restTitle": "Descanso entre series",
+      "restHint": "Inicia solo al completar una serie",
+      "begin": "Empezar ejercicio"
+    },
+    "set": {
+      "chip": "Serie {{number}}",
+      "chipDone": "Serie {{number}}, hecha",
+      "chipResting": "Serie {{number}}, en descanso",
+      "chipDoneResting": "Serie {{number}}, hecha, en descanso"
+    },
+    "target": {
+      "label": "Objetivo",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "repsUnknown": "— reps",
+      "reps_many": "{{count}} reps"
+    },
+    "completeSet": "Completar serie",
+    "completed": "Completada",
+    "removeSet": "Quitar esta serie",
+    "removeExercise": "Quitar este ejercicio",
+    "nav": {
+      "info": "Info",
+      "finishWorkout": "Terminar entrenamiento",
+      "nextExercise": "Siguiente ejercicio"
+    }
+  },
+  "exercises": {
+    "estimated1rm": "1RM est.: {{weight}} {{unit}} · {{date}}",
+    "equipment": {
+      "body-only": "Peso corporal",
+      "barbell": "Barra",
+      "dumbbell": "Mancuerna",
+      "machine": "Máquina",
+      "cable": "Polea",
+      "kettlebells": "Pesa rusa",
+      "bands": "Bandas",
+      "medicine-ball": "Balón medicinal",
+      "e-z-curl-bar": "Barra Z",
+      "exercise-ball": "Balón de ejercicio",
+      "foam-roll": "Rodillo de espuma",
+      "none": "Ninguno",
+      "other": "Otro"
+    },
+    "category": {
+      "strength": "fuerza",
+      "stretching": "estiramiento",
+      "plyometrics": "pliometría",
+      "strongman": "strongman",
+      "powerlifting": "powerlifting",
+      "cardio": "cardio",
+      "olympic-weightlifting": "halterofilia"
+    },
+    "muscle": {
+      "abdominals": "abdominales",
+      "abductors": "abductores",
+      "abs": "abdominales",
+      "adductors": "aductores",
+      "back": "espalda",
+      "biceps": "bíceps",
+      "calves": "pantorrillas",
+      "chest": "pecho",
+      "core": "core",
+      "forearms": "antebrazos",
+      "full-body": "cuerpo completo",
+      "glutes": "glúteos",
+      "hamstrings": "isquiotibiales",
+      "lats": "dorsales",
+      "legs": "piernas",
+      "lower-back": "espalda baja",
+      "middle-back": "espalda media",
+      "neck": "cuello",
+      "obliques": "oblicuos",
+      "other": "otro",
+      "quadriceps": "cuádriceps",
+      "shoulders": "hombros",
+      "traps": "trapecios",
+      "triceps": "tríceps"
+    },
+    "picker": {
+      "title": "Añadir ejercicio",
+      "loaded_one": "{{count}} cargado",
+      "loaded_other": "{{count}} cargados",
+      "loaded_many": "{{count}} cargados",
+      "loadedMore_one": "{{count}} cargado…",
+      "loadedMore_other": "{{count}} cargados…",
+      "loadedMore_many": "{{count}} cargados…",
+      "search": "Buscar ejercicios…",
+      "loading": "Cargando ejercicios…",
+      "loadingShort": "Cargando…",
+      "loadingMore": "Cargando más…",
+      "loadMore": "Cargar más",
+      "empty": "No se encontraron ejercicios",
+      "errorSubject": "estos ejercicios",
+      "close": "Cerrar selector de ejercicios",
+      "backToWorkout": "Volver al entrenamiento",
+      "loadFailed": "No se pudieron cargar los ejercicios",
+      "loadMoreFailed": "No se pudieron cargar más ejercicios"
+    },
+    "detail": {
+      "loadFailed": "No se pudo cargar este ejercicio",
+      "musclesWorked": "Músculos trabajados",
+      "bodyFront": "Frente",
+      "bodyBack": "Espalda",
+      "primary": "Principal",
+      "secondary": "Secundario",
+      "alsoWorks": "También trabaja",
+      "yourBest": "Tu mejor marca",
+      "personalBest": "Mejor marca personal",
+      "estimated1rm": "1RM estimado",
+      "weightProgression": "Progresión de peso",
+      "noPeriodData": "Sin datos para este período",
+      "maxWeight": "Peso máx.",
+      "instructions": "Instrucciones",
+      "bestSet_one": "{{unit}} × {{count}} repetición",
+      "bestSet_other": "{{unit}} × {{count}} repeticiones",
+      "bestSet_many": "{{unit}} × {{count}} repeticiones",
+      "period": {
+        "1m": "1m",
+        "3m": "3m",
+        "6m": "6m",
+        "All": "Todo"
+      }
+    }
+  },
+  "home": {
+    "heatmap": {
+      "workouts_one": "{{date}} · {{count}} entrenamiento",
+      "workouts_many": "{{date}} · {{count}} entrenamientos",
+      "workouts_other": "{{date}} · {{count}} entrenamientos",
+      "restDay": "{{date}} · día de descanso",
+      "less": "Menos",
+      "more": "Más"
+    },
+    "greeting": {
+      "morning": "Buenos días, {{name}}",
+      "morning_anonymous": "Buenos días",
+      "afternoon": "Buenas tardes, {{name}}",
+      "afternoon_anonymous": "Buenas tardes",
+      "evening": "Buenas noches, {{name}}",
+      "evening_anonymous": "Buenas noches"
+    },
+    "loadFailed": "No se pudo cargar tu panel",
+    "header": {
+      "start": "Empezar",
+      "resume": "Continuar"
+    },
+    "activeSession": {
+      "title": "Entrenamiento en curso",
+      "tapToResume": "{{name}} — toca para continuar"
+    },
+    "upNext": {
+      "label": "A continuación · {{name}}",
+      "viewRoutine": "Ver la rutina {{name}}",
+      "start": "Empezar {{name}}",
+      "exercises_one": "{{count}} ejercicio",
+      "exercises_many": "{{count}} ejercicios",
+      "exercises_other": "{{count}} ejercicios",
+      "loadFailed": "No se pudieron cargar tus programas"
+    },
+    "kpi": {
+      "week": "Semana",
+      "sessions": "sesiones",
+      "cals": "Cal",
+      "caloriesFailed": "No se pudieron cargar las calorías de hoy",
+      "proteinFailed": "No se pudo cargar la proteína de hoy"
+    },
+    "thisWeek": {
+      "title": "Esta semana",
+      "unit_one": "sesión",
+      "unit_many": "sesiones",
+      "unit_other": "sesiones"
+    },
+    "volume": {
+      "title": "Tendencia de volumen",
+      "empty": "Registra entrenamientos para ver tendencias",
+      "tooltip": "Volumen"
+    },
+    "consistency": {
+      "title": "Constancia",
+      "range": "12 semanas",
+      "empty": "Empieza a entrenar para construir tu racha"
+    },
+    "lastWorkout": {
+      "title": "Último entrenamiento",
+      "all": "Todos",
+      "minutes": "{{mins}} min",
+      "sets_one": "{{count}} serie",
+      "sets_many": "{{count}} series",
+      "sets_other": "{{count}} series",
+      "moreExercises_one": "+{{count}} ejercicio más",
+      "moreExercises_many": "+{{count}} ejercicios más",
+      "moreExercises_other": "+{{count}} ejercicios más",
+      "empty": "Aún no hay entrenamientos registrados",
+      "startFirst": "Empieza tu primer entrenamiento →"
+    },
+    "nutrition": {
+      "title": "Nutrición de hoy",
+      "log": "Registrar →",
+      "loadFailed": "No se pudo cargar la comida de hoy"
+    },
+    "macro": {
+      "protein": "Proteína",
+      "carbs": "Carbohidratos",
+      "fat": "Grasa"
+    },
+    "muscle": {
+      "title": "Equilibrio muscular",
+      "workouts_one": "{{count}} entrenamiento",
+      "workouts_many": "{{count}} entrenamientos",
+      "workouts_other": "{{count}} entrenamientos",
+      "empty": "Registra entrenamientos para ver qué músculos entrenas más.",
+      "noData": "Aún no hay datos de entrenamientos",
+      "top": "principal",
+      "tooltip_one": "{{count}} serie ({{percent}}%)",
+      "tooltip_many": "{{count}} series ({{percent}}%)",
+      "tooltip_other": "{{count}} series ({{percent}}%)",
+      "donutSets": "series"
+    },
+    "weight": {
+      "title": "Peso",
+      "view": "Ver",
+      "loadFailed": "No se pudo cargar tu peso",
+      "logFirst": "Registra tu primer peso",
+      "logFirstHint": "Toca para empezar a registrar",
+      "logAria": "Registrar peso",
+      "noChange7d": "7 d · sin cambios",
+      "trendDown": "7 d · ↓{{amount}} {{unit}}",
+      "trendUp": "7 d · ↑{{amount}} {{unit}}"
+    },
+    "muscleRoast": {
+      "chest": "Todo pecho, nada de piernas. Un clásico.",
+      "back": "Con espalda de refrigerador. Respeto.",
+      "shoulders": "No cabes por las puertas. Bien.",
+      "biceps": "Cargando selfis frente al espejo…",
+      "triceps": "Tríceps de herradura. Tus apretones de manos deben dar miedo.",
+      "legs": "Entrenas piernas de verdad. Eres un unicornio.",
+      "quadriceps": "Cuádriceps de sobra. Los jeans no tienen ninguna oportunidad.",
+      "hamstrings": "Guerrero de la cadena posterior. Se viene un dios del peso muerto.",
+      "glutes": "Fan de los glúteos. Respetamos el compromiso.",
+      "calves": "Rey o reina de las pantorrillas. El levantador más raro de todos.",
+      "core": "Listo para la playa los 365 días del año.",
+      "abs": "Se viene el six pack. O ya está aquí. Da igual.",
+      "forearms": "Llamó Popeye. Quiere sus brazos de vuelta.",
+      "traps": "Sin cuello, sin problema.",
+      "lats": "Caminas como una cobra. Alas desplegadas.",
+      "full-body": "Todo un todoterreno. O solo hiciste burpees.",
+      "fallback": "Patrones de entrenamiento misteriosos. Lo respetamos."
+    },
+    "quip": {
+      "barDoesNotCare": "A la barra no le importa cómo te sientas.",
+      "progressiveOverload": "Sobrecarga progresiva: el único esquema piramidal que funciona.",
+      "warmUp": "Nadie se ha arrepentido jamás de calentar.",
+      "couch": "La repetición más difícil es la que te levanta del sofá.",
+      "formFirst": "Primero la técnica. Los levantamientos de ego son para el estacionamiento.",
+      "legs": "Las piernas no son opcionales. Solo son impopulares.",
+      "chalk": "La magnesia no es una personalidad. Aunque ayuda.",
+      "unfilledLog": "No hay entrenamiento que compense un registro que nunca llenas.",
+      "deload": "Las semanas de descarga cuentan. A regañadientes.",
+      "mirror": "El espejo, después. La barra, ahora.",
+      "halfReps": "Medias repeticiones, mentiras enteras.",
+      "badSet": "La única serie mala es la que te convenciste de no hacer.",
+      "squatRack": "En algún lugar, un rack de sentadillas está sosteniendo un abrigo. No el tuyo.",
+      "showingUp": "Presentarse es la parte que la mayoría se salta.",
+      "proteinSleep": "La proteína no es opcional. El sueño tampoco.",
+      "rest": "El descanso es parte del plan, no un hueco en él."
+    },
+    "quickWeighIn": {
+      "title": "Registrar peso",
+      "duplicateToday": "Ya registraste hoy ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+      "logAnyway": "Registrar de todos modos",
+      "weightWithUnit": "Peso ({{unit}})",
+      "weight": "Peso",
+      "weightName": "peso",
+      "changeDateOrNote": "+ Cambiar la fecha o añadir una nota",
+      "date": "Fecha",
+      "note": "Nota",
+      "optional": "(opcional)",
+      "noteOptional": "Nota (opcional)",
+      "notePlaceholder": "p. ej., mañana, después de entrenar",
+      "saveFailed": "No se pudo guardar"
+    }
+  },
+  "nav": {
+    "home": "Inicio",
+    "workouts": "Entrenos",
+    "programs": "Programas",
+    "food": "Comida",
+    "nutrition": "Nutrición",
+    "weight": "Peso",
+    "userMenu": "Menú de usuario",
+    "settings": "Ajustes",
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro",
+    "signOut": "Cerrar sesión",
+    "session": {
+      "sets": "{{done}}/{{total}} series",
+      "restOver": "Descanso terminado",
+      "paused": "En pausa",
+      "rest": "Descanso"
+    }
+  },
+  "app": {
+    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición"
+  }
+}

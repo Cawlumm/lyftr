@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native'
 import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated'
 import { X, ChevronRight } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
@@ -46,6 +47,7 @@ export function Toast({
   autoDismissMs = 4000,
   className = '',
 }: Props) {
+  const { t } = useTranslation()
   const { colors, brand, accent, isDark } = useTheme()
 
   // Armed once on mount — parent re-renders must not extend the window (0 disables).
@@ -104,7 +106,7 @@ export function Toast({
         )}
         <Pressable
           onPress={onDismiss}
-          accessibilityLabel="Dismiss"
+          accessibilityLabel={t('common.dismiss')}
           hitSlop={8}
           className="p-1.5 -m-1.5 active:opacity-60"
         >

@@ -3,6 +3,7 @@ import { View, Text, Platform, Animated } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from '@lyftr/shared'
 import { BarbellMark } from './Logo'
 import { useTheme } from '../theme/useTheme'
 
@@ -18,6 +19,7 @@ export function AuthScaffold({
   subtitle: string
   children: ReactNode
 }) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
 
   // Stretchy pull-down header (classic iOS): track the scroll offset and, on
@@ -133,7 +135,7 @@ export function AuthScaffold({
                       marginTop: 6,
                     }}
                   >
-                    TRAIN · TRACK · PROGRESS
+                    {t('auth.tagline')}
                   </Text>
                 </View>
               </View>

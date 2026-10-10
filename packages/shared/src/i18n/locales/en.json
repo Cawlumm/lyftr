@@ -1,0 +1,1384 @@
+{
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Preferences and account configuration",
+    "back": "Home",
+    "saved": "Settings saved successfully",
+    "unknownError": "The server didn't say what went wrong.",
+    "language": {
+      "label": "Language",
+      "description": "Defaults to your device language",
+      "systemChoice": "System ({{name}})",
+      "search": "Search languages",
+      "noMatches": "No languages match"
+    },
+    "account": {
+      "title": "Account",
+      "name": {
+        "label": "Name",
+        "description": "The name the app greets you by. Leave it empty and we'll use your email instead.",
+        "loadFailed": "Couldn't load your name, so we won't offer to overwrite it.",
+        "saveFailed": "Couldn't save your name.",
+        "save": "Save",
+        "saving": "Saving…",
+        "title": "Name",
+        "subtitle": "The name the app greets you by.",
+        "emptyHint": "Leave it empty and we'll use your email instead.",
+        "saveFailedFallback": "Couldn't save your name. Please try again."
+      },
+      "email": {
+        "label": "Email",
+        "description": "Your login email address",
+        "change": "Change",
+        "changeLabel": "Change email",
+        "pageTitle": "Change email",
+        "pageSubtitle": "You will sign in with the new address. Changing more than the letter case signs out your other devices.",
+        "current": "Current email",
+        "new": "New email",
+        "submit": "Update email",
+        "failedFallback": "Couldn't change your email. Please try again.",
+        "changedTitle": "Email changed",
+        "signInWith": "Sign in with <email>{{email}}</email> from now on.",
+        "signInWithPlain": "Sign in with {{email}} from now on.",
+        "caseOnly": "Only the letter case changed, so your other devices stay signed in.",
+        "signedOutElsewhere": "You stay signed in here; your other devices are signed out."
+      },
+      "memberSince": {
+        "label": "Member since"
+      },
+      "password": {
+        "label": "Password",
+        "description": "Changing it signs you out on your other devices",
+        "change": "Change",
+        "current": "Current password",
+        "new": "New password",
+        "confirmNew": "Confirm new password",
+        "pageTitle": "Change password",
+        "pageSubtitle": "You will stay signed in here. Every other device is signed out.",
+        "submit": "Update password",
+        "failedFallback": "Couldn't change your password. Please try again.",
+        "changedTitle": "Password changed",
+        "changedBody": "You are still signed in here. Every other device has been signed out and will need the new password."
+      },
+      "backLink": "Settings",
+      "backToSettings": "Back to settings",
+      "saving": "Saving"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": {
+        "label": "Theme",
+        "description": "Interface color scheme",
+        "dark": "Dark",
+        "light": "Light"
+      },
+      "darkMode": {
+        "label": "Dark mode",
+        "description": "Use the dark color scheme"
+      }
+    },
+    "workout": {
+      "title": "Workout",
+      "footnote": "Default rest seeds new exercises · a per-exercise rest overrides it.",
+      "layout": {
+        "label": "Active workout layout",
+        "description": "How exercises are shown during a workout",
+        "list": "List",
+        "gym": "Gym Mode"
+      },
+      "defaultView": {
+        "label": "Default workout view"
+      },
+      "restTimer": {
+        "label": "Rest timer",
+        "description": "Auto-start a countdown between sets",
+        "gymDescription": "Auto-start a countdown between sets in gym mode",
+        "off": "Off",
+        "on": "On"
+      },
+      "defaultRest": {
+        "label": "Default rest",
+        "description": "Seeds new exercises · per-exercise rest overrides it",
+        "preset": "{{seconds}}s",
+        "custom": "Custom",
+        "customLabel": "Custom rest seconds",
+        "secondsUnit": "sec",
+        "minusFive": "−5 seconds",
+        "plusFive": "+5 seconds",
+        "decrease": "Decrease rest by 5 seconds",
+        "increase": "Increase rest by 5 seconds"
+      }
+    },
+    "goalsUnits": {
+      "title": "Goals & Units",
+      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
+    },
+    "unitsTargets": {
+      "title": "Units & Targets",
+      "footnote": "Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.",
+      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else here still works.",
+      "saved": "Targets saved",
+      "changeUnitFailedTitle": "Could not change units"
+    },
+    "targets": {
+      "loadFailedTitle": "Couldn't load your goals",
+      "weightUnit": {
+        "label": "Weight unit",
+        "description": "Changes apply immediately across the app",
+        "changeFailed": "Couldn't change the weight unit.",
+        "changeFailedFallback": "Could not change the weight unit"
+      },
+      "calorie": {
+        "label": "Calorie target",
+        "description": "Daily calorie goal"
+      },
+      "protein": {
+        "label": "Protein target",
+        "description": "Daily protein goal"
+      },
+      "carb": {
+        "label": "Carb target",
+        "description": "Daily carb goal"
+      },
+      "fat": {
+        "label": "Fat target",
+        "description": "Daily fat goal"
+      },
+      "saveHint": "Save calorie and macro targets",
+      "save": "Save targets",
+      "saving": "Saving...",
+      "saveFailedFallback": "Failed to save settings",
+      "saveFailed": "Could not save targets"
+    },
+    "server": {
+      "title": "Server",
+      "webTitle": "Self-Hosted Instance",
+      "footnote": "The self-hosted backend this app talks to. Leave the URL blank to use the default.",
+      "api": {
+        "label": "API server",
+        "description": "Backend server this client is connected to",
+        "default": "This site (reverse proxy)"
+      },
+      "backend": {
+        "label": "Backend",
+        "default": "Default backend"
+      },
+      "url": {
+        "label": "Server URL",
+        "placeholder": "https://your-server.example.com",
+        "invalid": "Enter a full URL including http:// or https://",
+        "testAndSave": "Test & save"
+      },
+      "connected": "Connected · {{name}} v{{version}}",
+      "savedWithWarning": "Saved — {{message}}",
+      "database": {
+        "label": "Database",
+        "description": "Storage backend"
+      },
+      "version": {
+        "label": "Version",
+        "description": "lyftr backend version"
+      }
+    },
+    "library": {
+      "title": "Exercise Library",
+      "database": {
+        "label": "Exercise database",
+        "description": "Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
+      },
+      "cached_one": "{{amount}} cached",
+      "cached_other": "{{amount}} cached",
+      "cachedUnknown": "— cached",
+      "refreshed_one": "Refreshed {{amount}} exercise",
+      "refreshed_other": "Refreshed {{amount}} exercises",
+      "cleared_one": "Cleared {{amount}} unused exercise",
+      "cleared_other": "Cleared {{amount}} unused exercises",
+      "refresh": "Refresh cached",
+      "refreshing": "Refreshing...",
+      "refreshFailed": "Couldn't refresh the cache.",
+      "clear": "Clear unused",
+      "clearing": "Clearing...",
+      "clearFailed": "Couldn't clear the cache."
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "actionsTitle": "Account actions"
+    },
+    "signOut": {
+      "label": "Sign out",
+      "description": "Log out of this device",
+      "button": "Sign out"
+    },
+    "deleteAccount": {
+      "label": "Delete account",
+      "description": "Permanently delete all your data",
+      "button": "Delete",
+      "sheetTitle": "Delete account?",
+      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone.",
+      "confirm": "Delete account",
+      "busy": "Deleting…",
+      "failed": "Could not delete account"
+    }
+  },
+  "common": {
+    "there": "there",
+    "duration": {
+      "seconds": "{{value}}s",
+      "minutes": "{{value}}m"
+    },
+    "close": "Close",
+    "dateFormat": {
+      "monthDay": "MMM d",
+      "monthDayYear": "MMM d, yyyy",
+      "numericMonthDay": "M/d",
+      "weekdayDate": "EEEE, MMMM d, yyyy",
+      "monthShort": "MMM",
+      "longDate": "MMMM d, yyyy",
+      "weekdayNarrow": "EEEEE",
+      "weekdayMonthDayLong": "EEEE, MMMM d",
+      "weekdayMonthDay": "EEE, MMM d",
+      "weekdayMonthDayYear": "EEE, MMM d, yyyy",
+      "year": "yyyy",
+      "monthYearLong": "MMMM yyyy"
+    },
+    "day": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    },
+    "cancel": "Cancel",
+    "tryAgain": "Try again",
+    "retrying": "Retrying…",
+    "loading": "Loading",
+    "search": "Search…",
+    "clearSearch": "Clear search",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "deleteConfirmMessage": "{{subject}} will be permanently deleted.",
+    "dismiss": "Dismiss",
+    "done": "Done",
+    "dismissKeyboard": "Dismiss keyboard",
+    "pickDate": "Pick date",
+    "selectDate": "Select date",
+    "capsLockOn": "Caps Lock is on",
+    "figureFailed": "Couldn't load this figure",
+    "stepper": {
+      "decrease": "Decrease {{name}}",
+      "increase": "Increase {{name}}"
+    },
+    "password": {
+      "show": "Show {{label}}",
+      "hide": "Hide {{label}}"
+    },
+    "back": "Back",
+    "goBack": "Go back",
+    "save": "Save",
+    "saving": "Saving…"
+  },
+  "errors": {
+    "api": {
+      "misconfigured": "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings.",
+      "restarting": "The server is restarting or unreachable. Try again in a moment.",
+      "notApi": "That address returned a web page, not the Lyftr API. Check Server settings.",
+      "serverError": "Server error. Please try again shortly."
+    },
+    "network": {
+      "brief": {
+        "cleartextBlocked": "Blocked because the server URL uses http://. Check Server settings.",
+        "certificateUntrusted": "The server's certificate isn't trusted by this device. Check Server settings.",
+        "hostnameMismatch": "The server's certificate doesn't cover this address. Check Server settings.",
+        "timeout": "The server didn't respond in time. Try again in a moment.",
+        "unreachable": "Couldn't reach the server. Check that it's running.",
+        "unknown": "Can't reach the server right now."
+      },
+      "full": {
+        "cleartextBlocked": "This device blocked the connection because the URL uses plain http://. Switch the server to https:// — a reverse proxy can issue a certificate for a LAN-only hostname with no ports open.",
+        "certificateUntrusted": "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — a reverse proxy can issue one for a LAN-only hostname with no ports open. Or install your own CA under Settings → Security → Encryption & credentials, which trusts it for every app on the device, not just Lyftr.",
+        "hostnameMismatch": "The server's certificate doesn't cover this address. Reissue it with this hostname or IP listed in the certificate's Subject Alternative Name (SAN).",
+        "timeout": "The server didn't respond in time. Check that it's running and reachable from this device.",
+        "unreachable": "Couldn't connect to the server. Check the URL and that the backend is running.",
+        "unknownWeb": "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS).",
+        "unknownNative": "Can't reach the server. Check the URL and that the backend is running and reachable from this device.",
+        "withDetail": "{{message}} ({{detail}})"
+      }
+    },
+    "list": {
+      "loadFailed": "Couldn't load this list.",
+      "unreadable": "The server sent something we could not read.",
+      "title": "Couldn't load {{subject}}"
+    },
+    "boundary": {
+      "title": "Couldn't show {{subject}}",
+      "thisPage": "this page",
+      "message": "Something went wrong on our side. Try again, and if it keeps happening reload the page."
+    }
+  },
+  "server": {
+    "insecureWarning": "Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.",
+    "mixedContentWarning": "This browser will block it — an HTTPS page can't call an http:// server. Use https:// for the server too, or leave this blank to use this site's own backend.",
+    "test": {
+      "notLyftr": "That responded, but it doesn't look like a Lyftr server.",
+      "unreachable": "Couldn't reach the server."
+    },
+    "settingsTitle": "Server settings",
+    "blocked": "Blocked",
+    "notEncrypted": "Not encrypted",
+    "blankPlaceholder": "Leave blank to use this site",
+    "fullUrlHint": "Full URL, e.g. <url>https://lyftr.example.com</url>",
+    "testing": "Testing…",
+    "testAndSave": "Test & Save",
+    "current": "Current: {{url}}",
+    "usingSite": "Using this site’s address (reverse proxy)",
+    "defaultShort": "default",
+    "status": {
+      "invalidUrlExample": "Include http:// or https:// — e.g. http://192.168.1.10:3000",
+      "invalidUrl": "Include http:// or https://",
+      "storageBlocked": "Couldn't save the server URL — this browser is blocking storage.",
+      "connected": "Connected · {{name}} {{version}}",
+      "connectedTo": "Connected to {{name}} v{{version}}"
+    }
+  },
+  "auth": {
+    "passwordRules": {
+      "minLength_one": "At least {{count}} character",
+      "minLength_other": "At least {{count}} characters",
+      "maxBytes_one": "At most {{count}} character (accents and emoji count for more)",
+      "maxBytes_other": "At most {{count}} characters (accents and emoji count for more)",
+      "different": "Different from your current password",
+      "match": "Passwords match",
+      "mismatch": "Passwords do not match",
+      "repeat": "Repeat the new password"
+    },
+    "divider": {
+      "or": "OR",
+      "orLower": "or"
+    },
+    "field": {
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "emailPlaceholder": "you@example.com"
+    },
+    "validation": {
+      "emailInvalid": "Enter a valid email address",
+      "passwordRequired": "Enter your password"
+    },
+    "closed": {
+      "notice": "This server is not accepting new accounts."
+    },
+    "tagline": "TRAIN · TRACK · PROGRESS",
+    "hero": {
+      "headline": "Log. Lift.",
+      "headlineAccent": "Progress.",
+      "description": "Your self-hosted fitness tracker. Track workouts, log food, monitor weight — all under your control, running on your own server.",
+      "features": {
+        "workouts": "Track workouts",
+        "food": "Log food + macros",
+        "progress": "See progress"
+      }
+    },
+    "login": {
+      "heading": "Welcome back",
+      "subtitle": "Sign in to continue training.",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "failed": "Invalid email or password.",
+      "demoFailed": "Couldn't sign in to the demo account.",
+      "demo": "Try demo account",
+      "demoHint": "no sign-up",
+      "newHere": "New here?",
+      "createAccountLink": "Create account"
+    },
+    "register": {
+      "heading": "Create account",
+      "subtitle": "Start tracking your fitness today.",
+      "subtitleNative": "Start your training log.",
+      "closedHeading": "Registration closed",
+      "closedBody": "The owner of this Lyftr instance has turned off new signups. If you should have an account here, ask them to create one for you.",
+      "backToSignIn": "Back to sign in",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "failed": "Registration failed.",
+      "haveAccount": "Already have an account?",
+      "haveAccountShort": "Have an account?",
+      "signInLink": "Sign in"
+    }
+  },
+  "weight": {
+    "errors": {
+      "invalid": "Enter a valid weight",
+      "tooHigh": "Weight must be under {{max}} {{unit}}",
+      "trendFailed": "Couldn't load your weight trend.",
+      "statsFailed": "Couldn't load your weight stats."
+    },
+    "bodyweightShort": "BW",
+    "duplicateWarning": "Already logged on {{date}} ({{weight}} {{unit}}). Log again anyway?",
+    "title": "Weight",
+    "subtitle": "Track your body weight over time",
+    "loadFailed": "Couldn't load your weight",
+    "deleteTitle": "Delete Entry?",
+    "deleteSubject": "{{date}} · {{weight}} {{unit}}",
+    "deleteFailed": "Failed to delete entry",
+    "log": {
+      "title": "Log Weight",
+      "last": "last: {{weight}} {{unit}}",
+      "weightLabel": "Weight ({{unit}})",
+      "weightField": "Weight",
+      "weightName": "weight",
+      "dateAndNote": "Date & note",
+      "collapse": "Collapse",
+      "notePlaceholder": "Note — e.g. morning, post-run",
+      "addDateAndNote": "Add date & note",
+      "logAnyway": "Log Anyway",
+      "submit": "Log Weight",
+      "submitting": "Logging…",
+      "tip": "Best logged in the morning, after the bathroom",
+      "failed": "Failed to log weight"
+    },
+    "hero": {
+      "current": "Current Weight",
+      "empty": "The scale doesn't know you exist yet. Fix that.",
+      "changeGained": "{{amount}} {{unit}} gained over {{period}}",
+      "changeLost": "{{amount}} {{unit}} lost over {{period}}",
+      "changeNone": "{{amount}} {{unit}} no change over {{period}}"
+    },
+    "period": {
+      "chip": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "All": "All"
+      },
+      "span": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "All": "All"
+      }
+    },
+    "stats": {
+      "avg": {
+        "label": "Avg",
+        "tip": "Average weight for selected period",
+        "failed": "Couldn't load avg weight"
+      },
+      "low": {
+        "label": "Low",
+        "tip": "Lowest recorded weight in period",
+        "failed": "Couldn't load low weight"
+      },
+      "high": {
+        "label": "High",
+        "tip": "Highest recorded weight in period",
+        "failed": "Couldn't load high weight"
+      }
+    },
+    "stale": "Couldn't refresh these — showing the last we loaded.",
+    "trend": {
+      "title": "Trend",
+      "loading": "Loading your trend",
+      "loadFailed": "Couldn't load your trend",
+      "noData": "No data for this period",
+      "needMore": "Log another entry to see the trend"
+    },
+    "history": {
+      "title": "History",
+      "subject": "your weight history",
+      "loadingMore": "Loading more…",
+      "loadMoreFailed": "Couldn't load more entries"
+    },
+    "detail": {
+      "back": "Weight",
+      "loadFailed": "Couldn't load this entry",
+      "gone": "That entry no longer exists.",
+      "backToWeight": "Back to weight",
+      "editLabel": "Edit entry",
+      "deleteLabel": "Delete entry",
+      "entryLabel": "Weight Entry",
+      "editing": "Editing…",
+      "editTitle": "Edit Entry",
+      "date": "Date",
+      "notesOptional": "Notes <hint>(optional)</hint>",
+      "notesOptionalPlain": "Notes (optional)",
+      "notePlaceholder": "e.g., morning, post-workout",
+      "saveFailed": "Failed to save"
+    },
+    "row": {
+      "options": "{{weight}} {{unit}} options"
+    }
+  },
+  "programs": {
+    "day": {
+      "rest": "Rest Day",
+      "numbered": "Day {{number}}"
+    },
+    "createdOn": "Created {{date}}",
+    "title": "Programs",
+    "subtitle": "Reusable workout templates",
+    "newProgram": "New Program",
+    "startWorkout": "Start Workout",
+    "deleteConfirmTitle": "Delete Program?",
+    "deleteFailed": "Failed to delete program",
+    "count": {
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "sets_one": "{{count}} set",
+      "sets_other": "{{count}} sets",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days"
+    },
+    "list": {
+      "searchPlaceholder": "Search programs…",
+      "empty": {
+        "title": "No programs found",
+        "searchHint": "Try a different search",
+        "startHint": "Create a program to get started"
+      },
+      "loadFailed": "Couldn't load your programs",
+      "errorSubject": "your programs",
+      "loadingMore": "Loading more…"
+    },
+    "stats": {
+      "total": "Total",
+      "totalUnit": "programs",
+      "totalFailed": "Couldn't load total",
+      "avgExercises": "Avg Exercises",
+      "avgExercisesFailed": "Couldn't load avg exercises",
+      "perProgram": "per program"
+    },
+    "card": {
+      "deleteTitle": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone",
+      "summary": "{{exercises}} · {{sets}}",
+      "restToday": "Rest today",
+      "today": "Today: {{day}}",
+      "options": "Options",
+      "optionsNamed": "{{name}} options",
+      "menuHeading": "Program",
+      "startTitle": "Start workout",
+      "restDayTitle": "Rest day today — open program",
+      "viewProgram": "View Program",
+      "editProgram": "Edit Program",
+      "deleteProgram": "Delete Program",
+      "editNamed": "Edit {{name}}",
+      "startNamed": "Start {{name}}"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this program",
+      "gone": "That program no longer exists.",
+      "backToPrograms": "Back to programs",
+      "back": "Programs",
+      "restDayTitle": "Rest day — nothing to start",
+      "start": "Start",
+      "startLabel": "Start workout",
+      "editLabel": "Edit program",
+      "deleteLabel": "Delete program",
+      "suggestions": {
+        "title": "New targets from your last workout",
+        "set": "Set {{number}}",
+        "accept": "Accept {{name}} set {{number}}",
+        "dismiss": "Dismiss {{name}} set {{number}}",
+        "showLess": "Show less",
+        "showAll": "Show all {{total}}",
+        "dismissAll": "Dismiss all",
+        "applyAll": "Apply all ({{total}})",
+        "saveFailed": "Couldn't save those targets.",
+        "exerciseFallback": "Exercise"
+      },
+      "stats": {
+        "cycle": "Cycle",
+        "exercises": "Exercises",
+        "totalSets": "Total Sets"
+      },
+      "noDays": "No days yet",
+      "addDay": "Add a day →",
+      "todayChip": "TODAY",
+      "restDayHint": "No exercises scheduled — recover and come back stronger.",
+      "noExercises": "No exercises on this day yet",
+      "target": "target {{weight}} {{unit}}"
+    },
+    "form": {
+      "newTitle": "New Program",
+      "editTitle": "Edit Program",
+      "summary": "{{days}} • {{exercises}} • {{sets}}",
+      "errors": {
+        "nameRequired": "Program name required",
+        "noDays": "Add at least one day",
+        "noExercises": "Add at least one exercise to a workout day"
+      },
+      "createFailed": "Failed to create program",
+      "updateFailed": "Failed to update program",
+      "name": "Program Name",
+      "required": "(required)",
+      "namePlaceholder": "e.g., Push Pull Legs, Upper Lower",
+      "notesPlaceholder": "Program description or goals…",
+      "days": "Days",
+      "targetSets": "Target Sets",
+      "daysHintNew": "(required — repeats in this order)",
+      "daysHintEdit": "(repeats in this order)",
+      "saveProgram": "Save Program",
+      "dayEditor": {
+        "emptyInline": "No exercises yet — add one above.",
+        "emptyTitle": "No exercises yet",
+        "emptySubtitle": "Add an exercise to this day",
+        "notesPlaceholder": "e.g., Focus on controlled eccentric",
+        "targetReps": "Target Reps",
+        "targetWeight": "Target Weight"
+      },
+      "daysEditor": {
+        "empty": "No days yet — add a workout or rest day below.",
+        "moveUp": "Move day up",
+        "moveDown": "Move day down",
+        "moveUpNumbered": "Move day {{number}} up",
+        "moveDownNumbered": "Move day {{number}} down",
+        "restPlaceholder": "Rest Day {{number}}",
+        "workout": "Workout",
+        "rest": "Rest",
+        "collapse": "Collapse day",
+        "expand": "Expand day",
+        "remove": "Remove day",
+        "addWorkoutDay": "Add Workout Day",
+        "addRestDay": "Add Rest Day"
+      },
+      "dayPicker": {
+        "title": "Pick a Day"
+      }
+    }
+  },
+  "food": {
+    "servings_one": "{{count}} serving",
+    "servings_other": "{{count}} servings",
+    "customEntry": "Custom entry",
+    "limitHint": "One entry holds at most {{amount}}",
+    "favorites": {
+      "addFailed": "Couldn't add {{name}} to Favorites.",
+      "removeFailed": "Couldn't remove {{name}} from Favorites.",
+      "add": "Add {{name}} to Favorites",
+      "remove": "Remove {{name}} from Favorites",
+      "subject": "your favourites",
+      "loadFailed": "Couldn't load your favourites.",
+      "empty": {
+        "title": "No favorites yet",
+        "hint": "Star foods while logging to find them here"
+      }
+    },
+    "diary": {
+      "title": "Food",
+      "titleToday": "Today's Food",
+      "logFood": "Log Food",
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
+      "loadFailed": "Couldn't load your food log",
+      "deleteFailed": "Couldn't delete that entry.",
+      "addTo": "Add to {{meal}}",
+      "tapToAdd": "+ Tap to add food",
+      "deleteConfirm": "Delete <name>{{name}}</name>?",
+      "calories": "Calories",
+      "over": "{{amount}} over",
+      "left": "{{amount}} left",
+      "goal": "{{amount}} kcal goal",
+      "totalsFailed": "Couldn't load today's totals",
+      "totalsFailedMessage": "Something went wrong on our end.",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "filteredCount": "{{shown}} of {{total}}",
+      "searchPlaceholder": "Search this day's food…",
+      "noMatches": "No matches for “{{query}}”",
+      "empty": {
+        "title": "No food logged yet",
+        "hint": "Tap to log your first meal"
+      },
+      "entryUpdated": "Entry updated",
+      "addedTo": "Added to {{meal}}"
+    },
+    "entry": {
+      "logged": "Logged",
+      "deleteFailed": "Failed to delete entry",
+      "deleteTitle": "Delete entry?",
+      "loadFailed": "Couldn't load this entry",
+      "gone": "That entry no longer exists.",
+      "backToNutrition": "Back to nutrition",
+      "back": "Nutrition",
+      "editLabel": "Edit entry",
+      "deleteLabel": "Delete entry",
+      "servingSize": "Serving size",
+      "amount": "Amount",
+      "meal": "Meal",
+      "optionsNamed": "{{name}} options"
+    },
+    "page": {
+      "title": "Nutrition",
+      "subtitle": "Macros & meals"
+    },
+    "meal": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snacks": "Snacks"
+    },
+    "macro": {
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "fiber": "Fiber",
+      "proteinInitial": "P",
+      "carbsInitial": "C",
+      "fatInitial": "F"
+    },
+    "view": {
+      "diary": "Diary",
+      "trends": "Trends"
+    },
+    "trends": {
+      "dailyAverage": "Daily average · {{period}}",
+      "averageFailed": "Couldn't load average {{macro}}"
+    },
+    "history": {
+      "title": "Macro History",
+      "loading": "Loading…",
+      "loadFailed": "Couldn't load your history",
+      "empty": "No data yet — start logging meals"
+    },
+    "log": {
+      "title": "Log Food",
+      "editTitle": "Edit Food",
+      "details": "Details",
+      "newEntry": "New Entry",
+      "backToFood": "Back to food",
+      "submit": "Log Food",
+      "saveChanges": "Save Changes",
+      "saveFailed": "Failed to save",
+      "editLoadFailed": "Couldn't load that entry.",
+      "searchPlaceholder": "Search food…",
+      "scan": "Scan",
+      "scanLabel": "Scan barcode",
+      "tab": {
+        "recent": "Recent",
+        "favorites": "Favorites",
+        "search": "Search"
+      },
+      "rateLimited": "Too many requests — wait a moment and try again",
+      "searchUnavailable": "Food search unavailable — enter details manually",
+      "lookupFailedTitle": "Couldn't look up this barcode",
+      "lookupFailed": "Couldn't look up that barcode.",
+      "enterManually": "Enter it manually",
+      "rereadFailed": "Couldn't re-read this product.",
+      "quickAdd": "Quick add {{kcal}} kcal",
+      "noMacroBreakdown": "No macro breakdown",
+      "recent": {
+        "subject": "what you logged today",
+        "loadFailed": "Couldn't load what you logged today.",
+        "empty": {
+          "title": "No recent items today",
+          "hint": "Search or scan to log food"
+        }
+      },
+      "search": {
+        "emptyTitle": "Search millions of foods",
+        "emptyHint": "Or scan a barcode",
+        "searching": "Searching…",
+        "noResults": "No results for \"{{query}}\"",
+        "manualEntry": "+ Enter \"{{query}}\" manually",
+        "manualEntryWide": "＋ Enter \"{{query}}\" manually"
+      },
+      "staleServing": "{{note}} Showing search results, which are always per {{serving}}.",
+      "per": "per {{serving}}",
+      "servingEach": "({{serving}} each)",
+      "servings": "Servings",
+      "amountIn": "Amount in {{unit}}",
+      "decreaseAmount": "Decrease amount",
+      "increaseAmount": "Increase amount",
+      "decreaseServings": "Decrease servings",
+      "increaseServings": "Increase servings",
+      "enterAmount": "Enter an amount to log this",
+      "enterAmountIn": "Enter an amount in {{unit}} to log this",
+      "servingsOf_one": "{{count}} serving of {{serving}}",
+      "servingsOf_other": "{{count}} servings of {{serving}}",
+      "when": "When"
+    },
+    "scan": {
+      "title": "Scan barcode",
+      "close": "Close scanner",
+      "httpsTitle": "Camera needs HTTPS",
+      "httpsBody": "Browsers only allow camera access on secure pages. This site is served over plain <mono>http://</mono> — put it behind a reverse proxy with HTTPS to scan barcodes.",
+      "searchByName": "Search by name instead",
+      "unavailable": "Camera unavailable",
+      "hint": "Point camera at barcode — it will scan automatically",
+      "deniedTitle": "Camera access denied",
+      "neededTitle": "Camera permission needed",
+      "deniedBody": "Enable camera access for Lyftr in your device settings to scan barcodes.",
+      "neededBody": "Allow camera access to scan a food barcode.",
+      "allow": "Allow camera",
+      "point": "Point at a barcode"
+    },
+    "lookup": {
+      "looking": "Looking up this product…",
+      "slow": "Still looking. This can take a few seconds."
+    }
+  },
+  "workouts": {
+    "defaultName": "Workout — {{date}}",
+    "stats": {
+      "total": "Total",
+      "logged": "logged",
+      "thisMonth": "This Month",
+      "sessions": "sessions",
+      "avgTime": "Avg Time",
+      "min": "min",
+      "totalFailed": "Couldn't load total",
+      "thisMonthFailed": "Couldn't load this month",
+      "avgTimeFailed": "Couldn't load avg time"
+    },
+    "list": {
+      "title": "Workouts",
+      "subtitle": "Track and review your training sessions",
+      "logWorkout": "Log Workout",
+      "searchPlaceholder": "Search workouts…",
+      "empty": {
+        "title": "No workouts found",
+        "searchHint": "Try a different search",
+        "startHint": "Log a workout to get started"
+      },
+      "loadFailed": "Couldn't load your workouts",
+      "errorSubject": "your workouts",
+      "loadingMore": "Loading more…"
+    },
+    "deleteFailed": "Failed to delete workout",
+    "deleteConfirmTitle": "Delete Workout?",
+    "toast": {
+      "newPr": "New PR in {{name}}",
+      "newTargets": "New targets in {{name}}",
+      "reviewUpdates_one": "Tap to review {{count}} update",
+      "reviewUpdates_other": "Tap to review {{count}} updates",
+      "saved": "Workout saved",
+      "tapToView": "Tap to view",
+      "discarded": "Workout discarded",
+      "tapToUndo": "Tap to undo"
+    },
+    "card": {
+      "deleteTitle": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone",
+      "minutes": "{{minutes}} min",
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "options": "Options",
+      "optionsNamed": "{{name}} options",
+      "menuHeading": "Workout",
+      "editWorkout": "Edit Workout",
+      "deleteWorkout": "Delete Workout",
+      "editNamed": "Edit {{name}}",
+      "totalVolume": "{{amount}} {{unit}} total volume"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this workout",
+      "gone": "That workout no longer exists.",
+      "backToWorkouts": "Back to workouts",
+      "back": "Workouts",
+      "editLabel": "Edit workout",
+      "deleteLabel": "Delete workout",
+      "duration": "Duration",
+      "minutesUnit": "min",
+      "sets": "Sets",
+      "volume": "Volume",
+      "restOff": "Rest timer is off — turn it on in Settings",
+      "setCount_one": "{{count}} set",
+      "setCount_other": "{{count}} sets",
+      "best": "best",
+      "noRest": "No rest"
+    },
+    "start": {
+      "title": "Start Workout",
+      "inProgress": "Workout in progress",
+      "resume": "Resume",
+      "discard": "Discard",
+      "quick": "Quick Start",
+      "quickHint": "Start blank, add exercises as you go",
+      "fromProgram": "Start from Program",
+      "fromProgramHint": "Load a saved routine's day",
+      "programsLoadFailed": "Couldn't load your programs",
+      "loadingPrograms": "Loading programs…",
+      "noPrograms": "No programs yet",
+      "createFirst": "Create your first program →",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "noDays": "No days yet"
+    },
+    "form": {
+      "logTitle": "Log Workout",
+      "editTitle": "Edit Workout",
+      "summary": "{{exercises}} • {{sets}}",
+      "summaryWithWeight": "{{exercises}} • {{sets}} • {{weight}} {{unit}}",
+      "exerciseCount_one": "{{count}} exercise",
+      "exerciseCount_other": "{{count}} exercises",
+      "setCount_one": "{{count}} set",
+      "setCount_other": "{{count}} sets",
+      "errors": {
+        "nameRequired": "Workout name required",
+        "noExercises": "Add at least one exercise"
+      },
+      "createFailed": "Failed to create workout",
+      "updateFailed": "Failed to update workout",
+      "name": "Workout Name",
+      "required": "(required)",
+      "namePlaceholder": "e.g., Leg Day, Push Day",
+      "date": "Date",
+      "durationMinutes": "Duration (minutes)",
+      "duration": "Duration",
+      "durationHm": "{{hours}}h {{minutes}}m",
+      "notes": "Notes",
+      "notesPlaceholder": "How did it feel? Any PRs?",
+      "totalUnit": "Total {{unit}}",
+      "exercises": "Exercises",
+      "sets": "Sets",
+      "loadProgram": "Load Program",
+      "addExercise": "Add Exercise",
+      "addExerciseLabel": "Add exercise",
+      "removeExercise": "Remove exercise",
+      "removeNamed": "Remove {{name}}",
+      "exerciseFallback": "exercise",
+      "exerciseNotesPlaceholder": "e.g., Felt strong",
+      "restBetweenSets": "Rest between sets",
+      "set": "Set",
+      "reps": "Reps",
+      "weight": "Weight",
+      "weightWithUnit": "Weight ({{unit}})",
+      "setWeightLabel": "Set weight",
+      "setRepsLabel": "Set reps",
+      "addSet": "Add Set",
+      "removeSet": "Remove set",
+      "note": "Note",
+      "addNoteLabel": "Add exercise note",
+      "removeNoteLabel": "Remove note",
+      "exerciseNotesLabel": "Exercise notes",
+      "saveWorkout": "Save Workout",
+      "saveChanges": "Save Changes",
+      "empty": {
+        "createTitle": "No exercises yet",
+        "createHint": "Add an exercise or load a program to start",
+        "editTitle": "No exercises",
+        "editHint": "Add an exercise to this workout"
+      },
+      "durationField": {
+        "decrease": "Decrease duration",
+        "increase": "Increase duration",
+        "inputLabel": "Duration in minutes",
+        "unit": "min"
+      },
+      "programPicker": {
+        "title": "Load from Program",
+        "pickProgram": "Pick a program to pre-fill exercises",
+        "pickDay": "Pick a day to pre-fill exercises",
+        "loadFailed": "Couldn't load your programs.",
+        "back": "← Back to programs",
+        "today": "TODAY",
+        "workoutDays_one": "{{count}} workout day",
+        "workoutDays_other": "{{count}} workout days",
+        "noExercises": "No exercises yet",
+        "restDays": "rest days",
+        "createFirst": "Create a program first",
+        "close": "Close program picker",
+        "searchPlaceholder": "Search programs…",
+        "noMatches": "No matching programs"
+      }
+    },
+    "active": {
+      "noWorkout": {
+        "title": "No active workout",
+        "hintHome": "Start one from the home page",
+        "hintTab": "Start one from the Workouts tab",
+        "goHome": "Go Home",
+        "goWorkouts": "Go to Workouts"
+      },
+      "setsDone": "{{done}}/{{total}} sets done",
+      "finish": "Finish",
+      "empty": {
+        "title": "No exercises yet",
+        "hint": "Add exercises below"
+      },
+      "setProgress": "{{done}}/{{total}} sets",
+      "removeExercise": "Remove exercise",
+      "notes": {
+        "placeholder": "Add a note…",
+        "add": "+ Add note",
+        "placeholderMobile": "+ Add note…",
+        "label": "Notes, {{name}}"
+      },
+      "columns": {
+        "set": "Set",
+        "reps": "Reps",
+        "weight": "Weight",
+        "weightUnit": "Weight ({{unit}})",
+        "done": "Done"
+      },
+      "completeSetWeb": "Set {{number}}, mark done",
+      "completeSet": "Complete set {{number}}, {{name}}",
+      "completedSet": "Completed set {{number}}, {{name}}",
+      "repsLabel": "Reps, set {{number}}, {{name}}",
+      "weightLabel": "Weight, set {{number}}, {{name}}",
+      "removeSet": "Remove set",
+      "previous": "Previous exercise",
+      "addSet": "Add Set",
+      "next": "Next",
+      "addExercise": "Add Exercise",
+      "cancelWorkout": "Cancel Workout",
+      "saveFailed": "Failed to save workout",
+      "keepGoing": "Keep Going",
+      "finishConfirm": {
+        "title": "Finish Workout?",
+        "message": "{{done}} of {{total}} sets completed. Workout will be saved."
+      },
+      "cancelConfirm": {
+        "title": "Cancel Workout?",
+        "message": "All progress will be lost."
+      }
+    },
+    "rest": {
+      "off": "Off",
+      "custom": "Custom",
+      "stepDown5": "−5 seconds",
+      "stepDown5Spoken": "Minus 5 seconds",
+      "stepUp5": "+5 seconds",
+      "stepUp5Spoken": "Plus 5 seconds",
+      "secondsLabel": "Rest seconds",
+      "secondsUnit": "sec",
+      "label": {
+        "ready": "Ready",
+        "paused": "Paused",
+        "resting": "Rest",
+        "over": "Rest over",
+        "upNext": "Set {{next}} up next",
+        "setDone": "Set {{done}} done",
+        "setDonePaused": "Set {{done}} done · paused",
+        "setDoneNext": "Set {{done}} done · set {{next}} next",
+        "setDoneResting": "Set {{done}} done · resting",
+        "overNext": "Rest over · set {{next}} next"
+      },
+      "pause": "Pause rest timer",
+      "resume": "Resume rest timer",
+      "shorten": "Shorten rest by 15 seconds",
+      "extend": "Extend rest by 15 seconds",
+      "skip": "Skip"
+    }
+  },
+  "gym": {
+    "workout": "Workout",
+    "goToExercise": "Go to exercise {{number}}",
+    "minimizeWorkout": "Minimize workout",
+    "minimize": "Minimize",
+    "discardWorkout": "Discard workout",
+    "discard": {
+      "title": "Discard workout?",
+      "message": "This ends the workout without saving — all progress is lost.",
+      "confirm": "Discard"
+    },
+    "labels": {
+      "sets": "Sets",
+      "reps": "Reps",
+      "weight": "Weight",
+      "repsName": "reps"
+    },
+    "overview": {
+      "exercises": "Exercises",
+      "totalSets": "Total Sets",
+      "muscles": "Muscles",
+      "empty": "No exercises added yet",
+      "startWorkout": "Start Workout"
+    },
+    "info": {
+      "restTitle": "Rest between sets",
+      "restHint": "Auto-starts when you complete a set",
+      "begin": "Begin Exercise"
+    },
+    "set": {
+      "chip": "Set {{number}}",
+      "chipDone": "Set {{number}}, done",
+      "chipResting": "Set {{number}}, resting",
+      "chipDoneResting": "Set {{number}}, done, resting"
+    },
+    "target": {
+      "label": "Target",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "repsUnknown": "— reps"
+    },
+    "completeSet": "Complete Set",
+    "completed": "Completed",
+    "removeSet": "Remove this set",
+    "removeExercise": "Remove this exercise",
+    "nav": {
+      "info": "Info",
+      "finishWorkout": "Finish Workout",
+      "nextExercise": "Next Exercise"
+    }
+  },
+  "exercises": {
+    "estimated1rm": "Est. 1RM: {{weight}} {{unit}} · {{date}}",
+    "equipment": {
+      "body-only": "Bodyweight",
+      "barbell": "Barbell",
+      "dumbbell": "Dumbbell",
+      "machine": "Machine",
+      "cable": "Cable",
+      "kettlebells": "Kettlebell",
+      "bands": "Bands",
+      "medicine-ball": "Med Ball",
+      "e-z-curl-bar": "EZ Bar",
+      "exercise-ball": "Exercise Ball",
+      "foam-roll": "Foam Roll",
+      "none": "None",
+      "other": "Other"
+    },
+    "category": {
+      "strength": "strength",
+      "stretching": "stretching",
+      "plyometrics": "plyometrics",
+      "strongman": "strongman",
+      "powerlifting": "powerlifting",
+      "cardio": "cardio",
+      "olympic-weightlifting": "olympic-weightlifting"
+    },
+    "muscle": {
+      "abdominals": "abdominals",
+      "abductors": "abductors",
+      "abs": "abs",
+      "adductors": "adductors",
+      "back": "back",
+      "biceps": "biceps",
+      "calves": "calves",
+      "chest": "chest",
+      "core": "core",
+      "forearms": "forearms",
+      "full-body": "full-body",
+      "glutes": "glutes",
+      "hamstrings": "hamstrings",
+      "lats": "lats",
+      "legs": "legs",
+      "lower-back": "lower-back",
+      "middle-back": "middle-back",
+      "neck": "neck",
+      "obliques": "obliques",
+      "other": "other",
+      "quadriceps": "quadriceps",
+      "shoulders": "shoulders",
+      "traps": "traps",
+      "triceps": "triceps"
+    },
+    "picker": {
+      "title": "Add Exercise",
+      "loaded_one": "{{count}} loaded",
+      "loaded_other": "{{count}} loaded",
+      "loadedMore_one": "{{count}} loaded…",
+      "loadedMore_other": "{{count}} loaded…",
+      "search": "Search exercises…",
+      "loading": "Loading exercises…",
+      "loadingShort": "Loading…",
+      "loadingMore": "Loading more…",
+      "loadMore": "Load more",
+      "empty": "No exercises found",
+      "errorSubject": "these exercises",
+      "close": "Close exercise picker",
+      "backToWorkout": "Back to workout",
+      "loadFailed": "Couldn't load exercises",
+      "loadMoreFailed": "Couldn't load more exercises"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this exercise",
+      "musclesWorked": "Muscles Worked",
+      "bodyFront": "Front",
+      "bodyBack": "Back",
+      "primary": "Primary",
+      "secondary": "Secondary",
+      "alsoWorks": "Also works",
+      "yourBest": "Your Best",
+      "personalBest": "Personal Best",
+      "estimated1rm": "Estimated 1RM",
+      "weightProgression": "Weight Progression",
+      "noPeriodData": "No data for this period",
+      "maxWeight": "Max weight",
+      "instructions": "Instructions",
+      "bestSet_one": "{{unit}} × {{count}} rep",
+      "bestSet_other": "{{unit}} × {{count}} reps",
+      "period": {
+        "1m": "1m",
+        "3m": "3m",
+        "6m": "6m",
+        "All": "All"
+      }
+    }
+  },
+  "home": {
+    "heatmap": {
+      "workouts_one": "{{date}} · {{count}} workout",
+      "workouts_other": "{{date}} · {{count}} workouts",
+      "restDay": "{{date}} · rest day",
+      "less": "Less",
+      "more": "More"
+    },
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "morning_anonymous": "Good morning, there",
+      "afternoon": "Good afternoon, {{name}}",
+      "afternoon_anonymous": "Good afternoon, there",
+      "evening": "Good evening, {{name}}",
+      "evening_anonymous": "Good evening, there"
+    },
+    "loadFailed": "Couldn't load your dashboard",
+    "header": {
+      "start": "Start",
+      "resume": "Resume"
+    },
+    "activeSession": {
+      "title": "Workout in progress",
+      "tapToResume": "{{name}} — tap to resume"
+    },
+    "upNext": {
+      "label": "Up next · {{name}}",
+      "viewRoutine": "View {{name}} routine",
+      "start": "Start {{name}}",
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "loadFailed": "Couldn't load your programs"
+    },
+    "kpi": {
+      "week": "Week",
+      "sessions": "sessions",
+      "cals": "Cals",
+      "caloriesFailed": "Couldn't load today's calories",
+      "proteinFailed": "Couldn't load today's protein"
+    },
+    "thisWeek": {
+      "title": "This Week",
+      "unit_one": "session",
+      "unit_other": "sessions"
+    },
+    "volume": {
+      "title": "Volume Trend",
+      "empty": "Log workouts to see trends",
+      "tooltip": "Volume"
+    },
+    "consistency": {
+      "title": "Consistency",
+      "range": "12 weeks",
+      "empty": "Start working out to build your streak"
+    },
+    "lastWorkout": {
+      "title": "Last workout",
+      "all": "All",
+      "minutes": "{{mins}} min",
+      "sets_one": "{{count}} set",
+      "sets_other": "{{count}} sets",
+      "moreExercises_one": "+{{count}} more exercises",
+      "moreExercises_other": "+{{count}} more exercises",
+      "empty": "No workouts logged yet",
+      "startFirst": "Start your first workout →"
+    },
+    "nutrition": {
+      "title": "Today's Nutrition",
+      "log": "Log →",
+      "loadFailed": "Couldn't load today's food"
+    },
+    "macro": {
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat"
+    },
+    "muscle": {
+      "title": "Muscle Balance",
+      "workouts_one": "{{count}} workout",
+      "workouts_other": "{{count}} workouts",
+      "empty": "Log workouts to see which muscles you train most.",
+      "noData": "No workout data yet",
+      "top": "top",
+      "tooltip_one": "{{count}} set ({{percent}}%)",
+      "tooltip_other": "{{count}} sets ({{percent}}%)",
+      "donutSets": "sets"
+    },
+    "weight": {
+      "title": "Weight",
+      "view": "View",
+      "loadFailed": "Couldn't load your weight",
+      "logFirst": "Log your first weight",
+      "logFirstHint": "Tap to start tracking",
+      "logAria": "Log weight",
+      "noChange7d": "7d · no change",
+      "trendDown": "7d · ↓{{amount}} {{unit}}",
+      "trendUp": "7d · ↑{{amount}} {{unit}}"
+    },
+    "muscleRoast": {
+      "chest": "All chest, no legs. Classic bro.",
+      "back": "Built like a refrigerator. Respect.",
+      "shoulders": "Can't fit through doorways. Good.",
+      "biceps": "Mirror selfies loading…",
+      "triceps": "Horseshoe gang. Handshakes must be terrifying.",
+      "legs": "Actually training legs. You're a unicorn.",
+      "quadriceps": "Quads for days. Jeans don't stand a chance.",
+      "hamstrings": "Posterior chain warrior. Deadlift god incoming.",
+      "glutes": "Glute guy/gal. We respect the commitment.",
+      "calves": "Calf king/queen. The rarest of all lifters.",
+      "core": "Beach season ready 365 days a year.",
+      "abs": "Six pack incoming. Or already here. Either way.",
+      "forearms": "Popeye called. He wants his arms back.",
+      "traps": "No neck, no problem.",
+      "lats": "Walking around like a cobra. Wings deployed.",
+      "full-body": "A true all-rounder. Or you just did burpees.",
+      "fallback": "Mysterious training patterns. We respect it."
+    },
+    "quip": {
+      "barDoesNotCare": "The bar does not care how you feel about it.",
+      "progressiveOverload": "Progressive overload: the only pyramid scheme that works.",
+      "warmUp": "Nobody has ever regretted the warm-up.",
+      "couch": "The hardest rep is the one that gets you off the couch.",
+      "formFirst": "Form first. Ego lifts are for the parking lot.",
+      "legs": "Legs are not optional. They are just unpopular.",
+      "chalk": "Chalk is not a personality. It helps, though.",
+      "unfilledLog": "You cannot out-train a log you never fill in.",
+      "deload": "Deload weeks count. Reluctantly.",
+      "mirror": "Mirror check later. Barbell now.",
+      "halfReps": "Half reps, full lies.",
+      "badSet": "The only bad set is the one you talked yourself out of.",
+      "squatRack": "Somewhere a squat rack is holding a coat. Not yours.",
+      "showingUp": "Showing up is the part most people skip.",
+      "proteinSleep": "Protein is not optional. Neither is sleep.",
+      "rest": "Rest is part of the plan, not a gap in it."
+    },
+    "quickWeighIn": {
+      "title": "Log Weight",
+      "duplicateToday": "Already logged today ({{weight}} {{unit}}). Log again anyway?",
+      "logAnyway": "Log Anyway",
+      "weightWithUnit": "Weight ({{unit}})",
+      "weight": "Weight",
+      "weightName": "weight",
+      "changeDateOrNote": "+ Change date or add a note",
+      "date": "Date",
+      "note": "Note",
+      "optional": "(optional)",
+      "noteOptional": "Note (optional)",
+      "notePlaceholder": "e.g., morning, post-workout",
+      "saveFailed": "Failed to save"
+    }
+  },
+  "nav": {
+    "home": "Home",
+    "workouts": "Workouts",
+    "programs": "Programs",
+    "food": "Food",
+    "nutrition": "Nutrition",
+    "weight": "Weight",
+    "userMenu": "User menu",
+    "settings": "Settings",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode",
+    "signOut": "Sign out",
+    "session": {
+      "sets": "{{done}}/{{total}} sets",
+      "restOver": "Rest over",
+      "paused": "Paused",
+      "rest": "Rest"
+    }
+  },
+  "app": {
+    "documentTitle": "Lyftr — Workout & Nutrition Tracker"
+  }
+}

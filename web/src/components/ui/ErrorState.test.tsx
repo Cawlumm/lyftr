@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { i18n } from '@lyftr/shared'
 import ErrorState from './ErrorState'
 import ListError from './ListError'
 
@@ -38,6 +39,19 @@ describe('ErrorState', () => {
     )
     expect(screen.getByRole('button', { name: /try again/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /back to workouts/i })).toBeTruthy()
+  })
+})
+
+describe('ErrorState in Spanish', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('reads its retry label and the list title from the catalog, and follows a language switch', async () => {
+    const { rerender } = render(<ListError subject="workouts" message="No answer." onRetry={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+    await i18n.changeLanguage('es')
+    rerender(<ListError subject="entrenos" message="No answer." onRetry={() => {}} />)
+    expect(screen.getByText('Error al cargar entrenos')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Intentar de nuevo' })).toBeTruthy()
   })
 })
 

@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Settings from './Settings'
+import { i18n } from '@lyftr/shared'
+import { useLanguageStore } from '../lib/lyftr'
 
 // What these pin is the shape of the WRITES this page makes, which is where #170 went
 // wrong twice. The name began life inside `formData`, and the only button that commits
@@ -136,5 +138,62 @@ describe('the Name row', () => {
     const described = nameField().getAttribute('aria-describedby')
     expect(described).toBeTruthy()
     expect(document.getElementById(described!)?.textContent).toMatch(/use your email/)
+  })
+})
+
+describe('the exercise library banner', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  // The banner is state that outlives the click that raised it. It keeps the key and the
+  // failure, not the sentence, so a language switch while it is showing re-words it.
+  it('re-renders a visible failure in the new language without a reload (es)', async () => {
+    const { exerciseAPI } = await import('../services/api')
+    vi.mocked(exerciseAPI.refreshCache).mockRejectedValue({ response: { status: 400, data: { error: '' } } })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Refresh cached' }))
+    await waitFor(() => expect(screen.getByText("Couldn't refresh the cache.")).toBeTruthy())
+
+    await act(async () => { await i18n.changeLanguage('es') })
+    expect(screen.getByText('No se pudo actualizar la caché.')).toBeTruthy()
+    expect(screen.queryByText("Couldn't refresh the cache.")).toBeNull()
+  })
+})
+
+describe('language', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en')
+    useLanguageStore.setState({ preference: 'system' })
+    localStorage.clear()
+  })
+
+  const picker = () => screen.getByRole('combobox', { name: /Language|Idioma/ }) as HTMLSelectElement
+
+  it('lists System first, then languages by their own names', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
+    const options = Array.from(picker().options)
+    expect(options.map(o => o.value)).toEqual(['system', 'en', 'es'])
+    expect(options[0].textContent).toBe('System (English)')
+    expect(options[1].textContent).toBe('English')
+    expect(options[1].getAttribute('translate')).toBe('no')
+    expect(options[2].getAttribute('lang')).toBe('es')
+    expect(options[2].getAttribute('translate')).toBe('no')
+    // The name stays short so the selected value never clips; the marker is said below.
+    expect(options[2].textContent).toBe('Español')
+  })
+
+  it('switches the whole page live and remembers the choice', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
+
+    fireEvent.change(picker(), { target: { value: 'es' } })
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeTruthy())
+    expect(localStorage.getItem('lyftr_language')).toBe('es')
+    expect(picker().value).toBe('es')
+    expect(picker().getAttribute('aria-label')).toBe('Idioma')
+
+    fireEvent.change(picker(), { target: { value: 'system' } })
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
   })
 })

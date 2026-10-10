@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import LogFood from './LogFood'
-import type { FoodSearchResult } from '@lyftr/shared'
+import { i18n, type FoodSearchResult } from '@lyftr/shared'
 
 // What the page sends to the API: scaleServing's fields plus where and when.
 type LoggedPayload = ReturnType<typeof import('@lyftr/shared').scaleServing> & {
@@ -58,6 +58,22 @@ const TIMEOUT = "The food database didn't respond in time. Try again."
 
 beforeEach(() => {
   vi.clearAllMocks()
+})
+
+afterEach(async () => { await i18n.changeLanguage('en') })
+
+describe('Log Food copy', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Registrar comida' })).toBeTruthy()
+    expect(screen.getByPlaceholderText('Buscar comida…')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Escanear código de barras' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Favoritos' })).toBeTruthy()
+    expect(screen.getByLabelText('Volver')).toBeTruthy()
+    expect(screen.queryByText('Search food…')).toBeNull()
+  })
 })
 
 describe('Barcode lookup', () => {

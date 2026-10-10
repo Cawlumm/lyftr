@@ -3,7 +3,7 @@ import type { ServerInfo } from '../client'
 
 type Probe = (
   base: string,
-) => Promise<{ ok: true; info: ServerInfo } | { ok: false; message: string }>
+) => Promise<{ ok: true; info: ServerInfo } | { ok: false }>
 
 // Cache keyed by server URL, module-level so it survives remounts. Both apps share it
 // because both have exactly one server selected at a time.

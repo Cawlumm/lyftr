@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
-import { formatDay } from '@lyftr/shared'
+import { formatDay, useTranslation } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { MACRO_COLORS } from './nutritionMeta'
@@ -75,6 +75,7 @@ export interface MacroHistoryPoint { date: string; protein: number; carbs: numbe
 export function MacroHistoryChart({ data, width, height = 200 }: {
   data: MacroHistoryPoint[]; width: number; height?: number
 }) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [sel, setSel] = useState<number | null>(null)
   if (!data.length || width <= 0) return null
@@ -114,7 +115,7 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
   // Thin x-labels so they never overlap (recharts auto-skips too).
   const maxLabels = Math.max(2, Math.floor(plotW / 44))
   const every = Math.ceil(n / maxLabels)
-  const fmt = (d: string) => formatDay(d, 'M/d')
+  const fmt = (d: string) => formatDay(d, 'numericMonthDay')
 
   const selPt = sel != null ? data[sel] : null
 
@@ -166,12 +167,12 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2.5 py-1.5"
           style={{ left: clamp(xAt(sel!) - 60, 0, Math.max(0, width - 120)), top: 0, width: 120 }}
         >
-          <AppText variant="caption" color="muted">{formatDay(selPt.date, 'MMM d')}</AppText>
+          <AppText variant="caption" color="muted">{formatDay(selPt.date, 'monthDay')}</AppText>
           <View className="mt-0.5 gap-0.5">
             {[
-              { label: 'Protein', value: selPt.protein, color: MACRO_COLORS.protein },
-              { label: 'Carbs', value: selPt.carbs, color: MACRO_COLORS.carbs },
-              { label: 'Fat', value: selPt.fat, color: MACRO_COLORS.fat },
+              { label: t('food.macro.protein'), value: selPt.protein, color: MACRO_COLORS.protein },
+              { label: t('food.macro.carbs'), value: selPt.carbs, color: MACRO_COLORS.carbs },
+              { label: t('food.macro.fat'), value: selPt.fat, color: MACRO_COLORS.fat },
             ].map((m) => (
               <View key={m.label} className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-1.5">

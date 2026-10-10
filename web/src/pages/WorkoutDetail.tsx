@@ -6,22 +6,24 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
-import { muscleColor } from '../utils/exerciseUtils'
+import { isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { muscleColor, muscleLabel } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
+  const { t } = useTranslation()
   return (
     <div className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold tabular-nums leading-none ${
       isBest
         ? 'bg-brand-500/15 text-brand-300 ring-1 ring-brand-500/25'
         : 'bg-surface-raised text-tx-secondary'
     }`}>
-      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : 'BW'}
+      {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : t('weight.bodyweightShort')}
     </div>
   )
 }
 
 export default function WorkoutDetail() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
@@ -29,7 +31,8 @@ export default function WorkoutDetail() {
   const restOn = settings.rest_enabled ?? true
   const [workout, setWorkout] = useState<types.Workout | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // A UiMessage, not its sentence, so the banner follows a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // A 404 is not a retryable failure: the row is gone, and a Try again button that
   // cannot ever succeed is worse than no button. Tracked separately from the message
   // because the message alone cannot say which kind of failure produced it.
@@ -47,7 +50,7 @@ export default function WorkoutDetail() {
         setWorkout(data)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+        setError({ key: 'settings.unknownError', cause: err })
       } finally {
         setLoading(false)
       }
@@ -62,7 +65,7 @@ export default function WorkoutDetail() {
     if (!workout) return
     await workoutAPI.delete(workout.id)
     navigate('/workouts', { replace: true })
-  }, 'Failed to delete workout')
+  }, t('workouts.deleteFailed'))
 
   if (loading) {
     return (
@@ -76,10 +79,10 @@ export default function WorkoutDetail() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load this workout"
-        message={error ?? 'That workout no longer exists.'}
+        title={t('workouts.detail.loadFailed')}
+        message={error ? uiMessage(error) : t('workouts.detail.gone')}
         onRetry={error && !gone ? () => { setError(null); setRetryKey(k => k + 1) } : undefined}
-        secondary={<Link to="/workouts" className="btn-secondary btn-sm">Back to workouts</Link>}
+        secondary={<Link to="/workouts" className="btn-secondary btn-sm">{t('workouts.detail.backToWorkouts')}</Link>}
       />
     )
   }
@@ -94,18 +97,18 @@ export default function WorkoutDetail() {
       {/* Back nav */}
       <div className="flex items-center justify-between">
         <Link to="/workouts" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Workouts
+          <ArrowLeft className="w-4 h-4" /> {t('workouts.detail.back')}
         </Link>
         <div className="flex items-center gap-1">
           <button
-            aria-label="Edit workout"
+            aria-label={t('workouts.detail.editLabel')}
             onClick={() => navigate(`/workouts/${workout.id}/edit`)}
             className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4 text-brand-500" />
           </button>
           <button
-            aria-label="Delete workout"
+            aria-label={t('workouts.detail.deleteLabel')}
             onClick={() => setConfirming(true)}
             className="p-2 hover:bg-error-500/10 rounded-lg transition-colors"
           >
@@ -119,10 +122,10 @@ export default function WorkoutDetail() {
         open={confirming}
         icon={Trash2}
         destructive
-        title="Delete Workout?"
-        message={`"${workout.name}" will be permanently deleted.`}
-        confirmLabel="Delete"
-        busyLabel="Deleting…"
+        title={t('workouts.deleteConfirmTitle')}
+        message={t('common.deleteConfirmMessage', { subject: `"${workout.name}"` })}
+        confirmLabel={t('common.delete')}
+        busyLabel={t('common.deleting')}
         busy={remove.busy}
         error={remove.error}
         onConfirm={() => { void remove.run() }}
@@ -147,7 +150,7 @@ export default function WorkoutDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{workout.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              {formatDay(workoutDay(workout), 'EEEE, MMMM d, yyyy')}
+              {formatDay(workoutDay(workout), 'weekdayDate')}
             </p>
           </div>
         </div>
@@ -157,21 +160,21 @@ export default function WorkoutDetail() {
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <Clock className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Duration</p>
+              <p className="text-xs text-tx-muted">{t('workouts.detail.duration')}</p>
             </div>
-            <p className="text-lg font-bold text-tx-primary tabular-nums">{durationMin}<span className="text-xs font-normal text-tx-muted ml-0.5">min</span></p>
+            <p className="text-lg font-bold text-tx-primary tabular-nums">{durationMin}<span className="text-xs font-normal text-tx-muted ml-0.5">{t('workouts.detail.minutesUnit')}</span></p>
           </div>
           <div className="text-center border-x border-surface-border">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <Dumbbell className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Sets</p>
+              <p className="text-xs text-tx-muted">{t('workouts.detail.sets')}</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">{totalSets}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 mb-0.5">
               <TrendingUp className="w-3.5 h-3.5 text-tx-muted" />
-              <p className="text-xs text-tx-muted">Volume</p>
+              <p className="text-xs text-tx-muted">{t('workouts.detail.volume')}</p>
             </div>
             <p className="text-lg font-bold text-tx-primary tabular-nums">
               {totalVolume > 0 ? `${totalVolume.toLocaleString()}` : '—'}
@@ -188,7 +191,7 @@ export default function WorkoutDetail() {
       {/* Exercises */}
       {!restOn && (
         <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
-          <TimerOff className="w-3.5 h-3.5" /> Rest timer is off — turn it on in Settings
+          <TimerOff className="w-3.5 h-3.5" /> {t('workouts.detail.restOff')}
         </div>
       )}
       <div className="space-y-3">
@@ -197,6 +200,10 @@ export default function WorkoutDetail() {
           const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map(s => s.weight || 0)) : 0
           const maxWeight = displayWeight(maxWeightLbs, wUnit)
           const exVol = displayVolume(exerciseVolume(sets), wUnit)
+          const setsSummary = [
+            t('workouts.detail.setCount', { count: sets.length }),
+            ...(exVol > 0 ? [`${exVol.toLocaleString()} ${wUnit}`] : []),
+          ].join(' · ')
 
           return (
             <button
@@ -222,15 +229,15 @@ export default function WorkoutDetail() {
                   <div className="flex items-center gap-2 mt-0.5">
                     {ex.exercise?.muscle_group && (
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
-                        {ex.exercise.muscle_group}
+                        {muscleLabel(ex.exercise.muscle_group)}
                       </span>
                     )}
-                    <span className="text-xs text-tx-muted truncate">{sets.length} set{sets.length === 1 ? '' : 's'}{exVol > 0 ? ` · ${exVol.toLocaleString()} ${wUnit}` : ''}</span>
+                    <span className="text-xs text-tx-muted truncate">{setsSummary}</span>
                   </div>
                 </div>
                 {maxWeight > 0 && (
                   <div className="text-right flex-shrink-0 mr-1">
-                    <p className="text-[10px] text-tx-muted uppercase tracking-wide">best</p>
+                    <p className="text-[10px] text-tx-muted uppercase tracking-wide">{t('workouts.detail.best')}</p>
                     <p className="text-sm font-bold text-brand-400 tabular-nums">{maxWeight} {wUnit}</p>
                   </div>
                 )}
@@ -245,7 +252,7 @@ export default function WorkoutDetail() {
                     ))}
                   </div>
                   {restOn && (ex.rest_seconds === 0
-                    ? <span className="text-xs text-tx-muted flex-shrink-0">No rest</span>
+                    ? <span className="text-xs text-tx-muted flex-shrink-0">{t('workouts.detail.noRest')}</span>
                     : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
                   )}
                 </div>

@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Weight from './Weight'
+import { i18n } from '@lyftr/shared'
 
 // Each figure on this screen comes from exactly one read: on "All" the server aggregate
 // from /weight/stats, on every other period the period-scoped trend list. The bug these
@@ -38,6 +39,23 @@ beforeEach(() => {
   vi.clearAllMocks()
   stats.mockResolvedValue({
     latest: 183, starting: 181, avg: 182, min: 181, max: 183, change_7d: 2, total_entries: 2,
+  })
+})
+
+afterEach(async () => { await i18n.changeLanguage('en') })
+
+describe('Weight copy', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    list.mockResolvedValue(HISTORY)
+    renderPage()
+
+    expect(await screen.findByRole('heading', { name: 'Registrar peso' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Tendencia' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Historial' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Todo' })).toBeTruthy()
+    expect(screen.getByText('Mejor registrarlo por la mañana, después de ir al baño')).toBeTruthy()
+    expect(screen.queryByText('Log Weight')).toBeNull()
   })
 })
 

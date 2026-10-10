@@ -1,4 +1,7 @@
+import { useTranslation } from '@lyftr/shared'
+
 export default function Loading() {
+  const { t } = useTranslation()
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-surface-base">
       <div className="flex flex-col items-center gap-11">
@@ -88,7 +91,7 @@ export default function Loading() {
             lyftr
           </div>
           <div className="text-xs font-semibold text-tx-muted uppercase tracking-widest mt-2">
-            Loading
+            {t('common.loading')}
           </div>
         </div>
       </div>

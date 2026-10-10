@@ -1,4 +1,8 @@
 import { format } from 'date-fns'
+import { es } from 'date-fns/locale/es'
+import type { Locale } from 'date-fns'
+import type en from '../i18n/locales/en.json'
+import { i18n } from '../i18n'
 // The one place a calendar day is produced or read on the client.
 //
 // The model, which is the one Fitbit, Garmin, Strava and Health Connect all use: a
@@ -175,6 +179,22 @@ export const UNKNOWN_DAY = '—'
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /**
+ * A display format is a NAME, not a pattern. The pattern behind each name lives in the
+ * catalog (`common.dateFormat.*`) because word order is part of a language: "Oct 10" is
+ * "10 oct" in Spanish, and "8/1" is "1/8". Machine formats ('yyyy-MM-dd') are not copy and
+ * stay plain date-fns calls at their sites.
+ */
+export type DateFormatName = keyof typeof en.common.dateFormat
+
+// Imported from the subpath so Metro does not bundle every locale date-fns ships. English
+// is date-fns's own default and needs no entry.
+const DATE_LOCALES: Record<string, Locale> = { es }
+
+/** A Date, drawn in the app language. Looked up when called, never at module load. */
+export const formatDate = (d: Date, name: DateFormatName): string =>
+  format(d, i18n.t(`common.dateFormat.${name}`), { locale: DATE_LOCALES[i18n.language] })
+
+/**
  * A calendar day, drawn. The single point of truth for turning a `YYYY-MM-DD` into text
  * a person reads — the day equivalent of `formatNumber`, and the only place the idiom
  * `format(dayToLocalDate(x), pattern)` should appear.
@@ -190,19 +210,14 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
  * A day we cannot read has to read as unknown. Validating the day STRING rather than the
  * resulting Date is what separates the two cases, since only one of them is NaN.
  */
-export const formatDay = (day: string | null | undefined, pattern: string): string => {
+export const formatDay = (day: string | null | undefined, name: DateFormatName): string => {
   if (!day || !DAY_RE.test(day)) return UNKNOWN_DAY
   const d = dayToLocalDate(day)
   // '2026-13-45' matches the shape but rolls over into another month; a day that does
   // not survive the round trip was never a real one.
   if (Number.isNaN(d.getTime()) || instantToDay(d.toISOString()) !== day) return UNKNOWN_DAY
-  return format(d, pattern)
+  return formatDate(d, name)
 }
-
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
 
 /**
  * "August 2026" for the Settings → Member since row, or "—" when there is nothing real
@@ -216,13 +231,27 @@ const MONTH_NAMES = [
  *
  * Read in UTC on purpose. Unlike the day-scoped rows above, `created_at` is a bare
  * instant with no stored offset, so deriving the month from the reader's clock would move
- * someone's join date across a month boundary purely by travelling. Month names are
- * spelled out here rather than via toLocaleDateString so both apps render identically
- * regardless of the Intl data the runtime happens to ship.
+ * someone's join date across a month boundary purely by travelling. The month name comes
+ * from date-fns, so both apps render identically regardless of the Intl data the runtime
+ * happens to ship.
  */
 export const memberSince = (iso?: string): string => {
-  if (!iso) return '—'
+  if (!iso) return UNKNOWN_DAY
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return '—'
-  return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
+  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return UNKNOWN_DAY
+  return formatDate(new Date(d.getUTCFullYear(), d.getUTCMonth(), 1, 12), 'monthYearLong')
 }
+
+/**
+ * Today / Yesterday for the diary's day picker, else the weekday and date. Looked up when
+ * called so it follows a language switch; callers must render under useTranslation().
+ */
+export const relativeDayLabel = (day: string): string => {
+  if (day === todayStr()) return i18n.t('common.day.today')
+  if (day === daysAgoStr(1)) return i18n.t('common.day.yesterday')
+  return formatDay(day, 'weekdayMonthDay')
+}
+
+/** The name a quick-start workout gets: "Workout — Oct 10". Stored, so never re-translated. */
+export const defaultWorkoutName = (now: Date = new Date()): string =>
+  i18n.t('workouts.defaultName', { date: formatDate(now, 'monthDay') })

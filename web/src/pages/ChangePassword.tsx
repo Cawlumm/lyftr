@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, Loader, ShieldCheck } from 'lucide-react'
 import { userAPI } from '../services/api'
 import { useAuthStore } from '../stores/auth'
-import { useAsyncAction, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
+import { useAsyncAction, useTranslation, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import PageHeader from '../components/ui/PageHeader'
 import PasswordField, { Rule } from '../components/ui/PasswordField'
 
@@ -12,6 +12,7 @@ import PasswordField, { Rule } from '../components/ui/PasswordField'
 // here. That contract needs a URL that lands on the form itself; a collapsed panel on
 // /settings would drop the user on a settings list with nothing open.
 export default function ChangePassword() {
+  const { t } = useTranslation()
   const user = useAuthStore(s => s.user)
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -24,7 +25,7 @@ export default function ChangePassword() {
     await userAPI.changePassword({ current_password: current, new_password: next })
     setCurrent(''); setNext(''); setConfirm('')
     setDone(true)
-  }, "Couldn't change your password. Please try again.")
+  }, t('settings.account.password.failedFallback'))
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,7 +44,7 @@ export default function ChangePassword() {
     return (
       <div className="space-y-5 animate-slide-up max-w-lg">
         <Link to="/settings" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Settings
+          <ArrowLeft className="w-4 h-4" /> {t('settings.account.backLink')}
         </Link>
 
         <div className="card p-6 flex flex-col items-center text-center gap-3">
@@ -51,13 +52,12 @@ export default function ChangePassword() {
             <ShieldCheck className="w-6 h-6 text-success-400" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-xl text-tx-primary">Password changed</h1>
+            <h1 className="font-display font-bold text-xl text-tx-primary">{t('settings.account.password.changedTitle')}</h1>
             <p className="text-sm text-tx-muted mt-1">
-              You are still signed in here. Every other device has been signed out and will
-              need the new password.
+              {t('settings.account.password.changedBody')}
             </p>
           </div>
-          <Link to="/settings" className="btn-secondary btn-sm mt-1">Back to settings</Link>
+          <Link to="/settings" className="btn-secondary btn-sm mt-1">{t('settings.account.backToSettings')}</Link>
         </div>
       </div>
     )
@@ -66,12 +66,12 @@ export default function ChangePassword() {
   return (
     <div className="space-y-5 animate-slide-up max-w-lg">
       <Link to="/settings" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Settings
+        <ArrowLeft className="w-4 h-4" /> {t('settings.account.backLink')}
       </Link>
 
       <PageHeader
-        title="Change password"
-        subtitle="You will stay signed in here. Every other device is signed out."
+        title={t('settings.account.password.pageTitle')}
+        subtitle={t('settings.account.password.pageSubtitle')}
       />
 
       <form onSubmit={submit} className="card p-4 space-y-4">
@@ -92,7 +92,7 @@ export default function ChangePassword() {
 
         <PasswordField
           id="current-password"
-          label="Current password"
+          label={t('settings.account.password.current')}
           value={current}
           onChange={setCurrent}
           autoComplete="current-password"
@@ -100,7 +100,7 @@ export default function ChangePassword() {
 
         <PasswordField
           id="new-password"
-          label="New password"
+          label={t('settings.account.password.new')}
           value={next}
           onChange={setNext}
           autoComplete="new-password"
@@ -111,7 +111,7 @@ export default function ChangePassword() {
 
         <PasswordField
           id="confirm-password"
-          label="Confirm new password"
+          label={t('settings.account.password.confirmNew')}
           value={confirm}
           onChange={setConfirm}
           autoComplete="new-password"
@@ -135,10 +135,10 @@ export default function ChangePassword() {
             disabled={save.busy || !rules.ready}
             className="btn-primary btn-sm flex-1 flex items-center justify-center gap-2"
           >
-            {save.busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Saving</> : 'Update password'}
+            {save.busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.account.saving')}</> : t('settings.account.password.submit')}
           </button>
           <Link to="/settings" className="btn-secondary btn-sm flex-1 flex items-center justify-center">
-            Cancel
+            {t('common.cancel')}
           </Link>
         </div>
       </form>

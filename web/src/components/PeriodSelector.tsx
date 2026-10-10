@@ -2,9 +2,11 @@ interface PeriodSelectorProps<T extends string> {
   options: readonly T[]
   value: T
   onChange: (value: T) => void
+  /** What a chip says, when that differs from the value it selects. */
+  label?: (value: T) => string
 }
 
-export default function PeriodSelector<T extends string>({ options, value, onChange }: PeriodSelectorProps<T>) {
+export default function PeriodSelector<T extends string>({ options, value, onChange, label }: PeriodSelectorProps<T>) {
   return (
     <div className="flex gap-1 bg-surface-overlay rounded-lg p-1">
       {options.map(opt => (
@@ -17,7 +19,7 @@ export default function PeriodSelector<T extends string>({ options, value, onCha
               : 'text-tx-muted hover:text-tx-primary'
           }`}
         >
-          {opt}
+          {label ? label(opt) : opt}
         </button>
       ))}
     </div>

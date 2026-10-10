@@ -34,12 +34,6 @@ const LOOPBACK = /^(localhost|127(?:\.\d{1,3}){3}|\[?::1\]?)$/i
 //
 // Pass the *saved* server URL, not an input buffer: a half-typed "http" would otherwise
 // flash a warning while the user is still typing.
-// One wording for every surface (login server row, Settings, web) so the risk reads the
-// same wherever it appears. Names the concrete consequence rather than "not secure" —
-// a vague warning is the kind users learn to scroll past.
-export const INSECURE_SERVER_WARNING =
-  'Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.'
-
 export const isInsecureServerUrl = (serverUrl: string): boolean => {
   if (!serverUrl) return false // '' = same-origin/default backend, not a user choice
   try {
@@ -73,6 +67,3 @@ export const isMixedContentBlocked = (serverUrl: string): boolean => {
     return false
   }
 }
-
-export const MIXED_CONTENT_WARNING =
-  "This browser will block it — an HTTPS page can't call an http:// server. Use https:// for the server too, or leave this blank to use this site's own backend."

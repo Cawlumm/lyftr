@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hydrateStores, useAuthStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from './lyftr'
 import { storage } from './storage'
-import { surfaces } from '@lyftr/shared'
+import { surfaces, i18n } from '@lyftr/shared'
 
 // main.tsx awaits hydrateStores() before the first render. Everything that depends on
 // that ordering is invisible from the store code itself, so this pins the contract:
@@ -21,6 +21,19 @@ describe('hydrateStores', () => {
     useServerStore.setState({ serverUrl: '', isHydrated: false })
     useThemeStore.setState({ mode: 'dark', isHydrated: false })
     useWorkoutSession.setState({ session: null })
+  })
+
+  it('sets html lang and document.title, and both follow a language switch', async () => {
+    await hydrateStores()
+    expect(document.documentElement.lang).toBe('en')
+    expect(document.title).toBe('Lyftr — Workout & Nutrition Tracker')
+    try {
+      await i18n.changeLanguage('es')
+      expect(document.documentElement.lang).toBe('es')
+      expect(document.title).toBe('Lyftr — Registro de entrenamiento y nutrición')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('settles the auth store — the one the catch-all route depends on', async () => {

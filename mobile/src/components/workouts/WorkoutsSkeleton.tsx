@@ -1,4 +1,5 @@
 import { router } from 'expo-router'
+import { useTranslation } from '@lyftr/shared'
 import { Plus } from 'lucide-react-native'
 import { IconButton, ListScreenSkeleton } from '../ui'
 
@@ -7,15 +8,16 @@ import { IconButton, ListScreenSkeleton } from '../ui'
 // "Log Workout" action are the REAL controls, live immediately; only the data-shaped
 // regions are placeholders.
 export function WorkoutsSkeleton() {
+  const { t } = useTranslation()
   return (
     <ListScreenSkeleton
-      title="Workouts"
-      subtitle="Track and review your training sessions"
+      title={t('workouts.list.title')}
+      subtitle={t('workouts.list.subtitle')}
       statCount={3}
       action={
         <IconButton
           icon={Plus}
-          label="Log Workout"
+          label={t('workouts.list.logWorkout')}
           variant="solid"
           size="md"
           onPress={() => router.push('/workouts/new')}

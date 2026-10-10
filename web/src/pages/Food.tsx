@@ -15,14 +15,11 @@ import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
+import { entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites, formatDate, relativeDayLabel, useTranslation, uiMessage, Trans, type UiMessage } from '@lyftr/shared'
 import { ErrorState, Toast } from '../components/ui'
 import FavoriteStar from '../components/FavoriteStar'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
-const MEAL_LABELS: Record<string, string> = {
-  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snacks: 'Snacks',
-}
 const MEAL_ICONS: Record<string, React.ElementType> = {
   breakfast: Coffee, lunch: Sun, dinner: Moon, snacks: Cookie,
 }
@@ -84,6 +81,7 @@ function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favo
 }
 
 export default function Food() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [selectedDate, setSelectedDate] = useState(todayStr())
@@ -93,18 +91,18 @@ export default function Food() {
   // caught so one of them cannot blank a working day — but caught silently they
   // substituted zeros and an empty chart, which is what "ate nothing" looks like.
   // Name -> what the server said, for the areas with room to show it.
-  const [missing, setMissing] = useState<Record<string, string>>({})
+  const [missing, setMissing] = useState<Record<string, UiMessage>>({})
   const [historyKey, setHistoryKey] = useState(0)
   // From the store, not a page-local fetch: this page carried a fourth copy of the
   // fallback settings literal, invisible to the store's loadFailed flag. The store
   // fetch no-ops when loaded and retries when the last read fell back.
   const { settings, fetch: fetchSettings } = useSettingsStore()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<UiMessage | null>(null)
   // Separate from `error`, which reports a failed action (a delete) while the day's
   // data is still on screen. This one means the day itself never arrived, so there is
   // no ring, no total and no meal list worth drawing.
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<UiMessage | null>(null)
 
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
   const [historyData, setHistoryData] = useState<types.FoodHistoryPoint[]>([])
@@ -132,7 +130,7 @@ export default function Food() {
         total_fat: 0, total_fiber: 0, workout_count: 0,
       }
       let statsFailed = false
-      let statsMessage = ''
+      let statsMessage: UiMessage | null = null
       const [logData, statsData] = await Promise.all([
         foodAPI.list(date),
         foodAPI.stats(date)
@@ -141,7 +139,7 @@ export default function Food() {
           .then(st => isDailyStats(st) ? st : Promise.reject(new Error('unreadable')))
           .catch(err => {
             statsFailed = true
-            statsMessage = apiErrorMessage(err, "The server didn't say what went wrong.")
+            statsMessage = { key: 'settings.unknownError', cause: err }
             return defaultStats
           }),
       ])
@@ -149,12 +147,12 @@ export default function Food() {
       setStats(statsData)
       setMissing(m => {
         const next = { ...m }
-        if (statsFailed) next["today's totals"] = statsMessage
+        if (statsFailed && statsMessage) next["today's totals"] = statsMessage
         else delete next["today's totals"]
         return next
       })
     } catch (err: any) {
-      setLoadError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      setLoadError({ key: 'settings.unknownError', cause: err })
     } finally {
       hasLoadedRef.current = true
       setLoading(false)
@@ -184,7 +182,7 @@ export default function Food() {
       .catch(err => {
         if (cancelled) return
         setMissing(m => ({
-          ...m, 'your history': apiErrorMessage(err, "The server didn't say what went wrong."),
+          ...m, 'your history': { key: 'settings.unknownError', cause: err },
         }))
       })
       .finally(() => { if (!cancelled) setHistoryLoading(false) })
@@ -203,7 +201,7 @@ export default function Food() {
       setDeleteConfirmId(null)
       foodAPI.stats(selectedDate).then(setStats).catch(() => {})
     } catch (err) {
-      setError(apiErrorMessage(err, "Couldn't delete that entry."))
+      setError({ key: 'food.diary.deleteFailed', cause: err })
     } finally {
       setDeletingId(null)
     }
@@ -216,11 +214,11 @@ export default function Food() {
   if (loadError) {
     return (
       <div className="space-y-4 animate-slide-up">
-        <PageHeader title="Nutrition" subtitle="Macros & meals" />
+        <PageHeader title={t('food.page.title')} subtitle={t('food.page.subtitle')} />
         <ErrorState
           size="page"
-          title="Couldn't load your food log"
-          message={loadError}
+          title={t('food.diary.loadFailed')}
+          message={uiMessage(loadError)}
           onRetry={() => loadDay(selectedDate)}
         />
       </div>
@@ -242,20 +240,16 @@ export default function Food() {
   const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()
 
-  const dayLabel = isToday
-    ? 'Today'
-    : selectedDate === format(subDays(new Date(), 1), 'yyyy-MM-dd')
-      ? 'Yesterday'
-      : format(selectedDateObj, 'EEE, MMM d')
+  const dayLabel = relativeDayLabel(selectedDate)
 
   return (
     <div className="space-y-4 animate-slide-up">
       <PageHeader
-        title="Nutrition"
-        subtitle="Macros & meals"
+        title={t('food.page.title')}
+        subtitle={t('food.page.subtitle')}
         action={
           <button onClick={() => openLog('breakfast')} className="btn-primary btn-sm">
-            <Plus className="w-4 h-4" /> Log Food
+            <Plus className="w-4 h-4" /> {t('food.diary.logFood')}
           </button>
         }
       />
@@ -263,7 +257,7 @@ export default function Food() {
       {error && (
         <div className="alert-error">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          <span>{error}</span>
+          <span>{uiMessage(error)}</span>
         </div>
       )}
 
@@ -272,7 +266,7 @@ export default function Food() {
       {/* Date navigator */}
       <div className="flex items-center gap-2">
         <button
-          aria-label="Previous day"
+          aria-label={t('food.diary.previousDay')}
           onClick={() => setSelectedDate(prevDate)}
           className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted"
         >
@@ -283,7 +277,7 @@ export default function Food() {
             <CalendarDays className="w-4 h-4 text-tx-muted" />
             <span className="text-sm font-semibold text-tx-primary">{dayLabel}</span>
             {!isToday && (
-              <span className="text-xs text-tx-muted">{format(selectedDateObj, 'yyyy')}</span>
+              <span className="text-xs text-tx-muted">{formatDate(selectedDateObj, 'year')}</span>
             )}
           </div>
           <input
@@ -296,7 +290,7 @@ export default function Food() {
           />
         </div>
         <button
-          aria-label="Next day"
+          aria-label={t('food.diary.nextDay')}
           onClick={() => setSelectedDate(nextDate)}
           disabled={!canGoNext}
           className="p-3 rounded-xl hover:bg-surface-muted active:scale-95 transition-all text-tx-muted disabled:opacity-30 disabled:cursor-not-allowed"
@@ -312,8 +306,8 @@ export default function Food() {
         <div className="card p-5">
           <ErrorState
             size="section"
-            title="Couldn't load today's totals"
-            message="Something went wrong on our end."
+            title={t('food.diary.totalsFailed')}
+            message={t('food.diary.totalsFailedMessage')}
             onRetry={() => void loadDay(selectedDate)}
           />
         </div>
@@ -323,7 +317,7 @@ export default function Food() {
           {/* Calorie hero */}
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">Calories</p>
+              <p className="text-xs font-medium text-tx-muted uppercase tracking-wide mb-1">{t('food.diary.calories')}</p>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-4xl font-bold tabular-nums text-tx-primary">{Math.round(totalCals)}</span>
                 <span className="text-sm text-tx-muted">/ {calTarget}</span>
@@ -336,8 +330,8 @@ export default function Food() {
             }`}>
               <Flame className="w-4 h-4" />
               {isOver
-                ? `${Math.round(Math.abs(remaining))} over`
-                : `${Math.round(remaining)} left`
+                ? t('food.diary.over', { amount: Math.round(Math.abs(remaining)) })
+                : t('food.diary.left', { amount: Math.round(remaining) })
               }
             </div>
           </div>
@@ -357,7 +351,7 @@ export default function Food() {
             </div>
             <div className="flex justify-between text-[10px] text-tx-muted">
               <span>0</span>
-              <span>{calTarget} kcal goal</span>
+              <span>{t('food.diary.goal', { amount: calTarget })}</span>
             </div>
           </div>
 
@@ -367,19 +361,19 @@ export default function Food() {
               value={s?.total_protein ?? 0}
               target={settings.protein_target}
               color={MACRO_COLORS.protein}
-              label="Protein"
+              label={t('food.macro.protein')}
             />
             <MacroRing
               value={s?.total_carbs ?? 0}
               target={settings.carb_target}
               color={MACRO_COLORS.carbs}
-              label="Carbs"
+              label={t('food.macro.carbs')}
             />
             <MacroRing
               value={s?.total_fat ?? 0}
               target={settings.fat_target}
               color={MACRO_COLORS.fat}
-              label="Fat"
+              label={t('food.macro.fat')}
             />
           </div>
         </div>
@@ -401,7 +395,7 @@ export default function Food() {
                     <MealIcon className={`w-4 h-4 ${iconColor}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-semibold text-tx-primary">{MEAL_LABELS[meal]}</span>
+                    <span className="text-sm font-semibold text-tx-primary">{t(`food.meal.${meal}`)}</span>
                     {mealCals > 0 && (
                       <span className="ml-2 text-xs text-tx-muted tabular-nums">{Math.round(mealCals)} kcal</span>
                     )}
@@ -409,7 +403,7 @@ export default function Food() {
                   <IconButton
                     icon={Plus}
                     variant="solid"
-                    label={`Add to ${MEAL_LABELS[meal]}`}
+                    label={t('food.diary.addTo', { meal: t(`food.meal.${meal}`) })}
                     onClick={() => openLog(meal)}
                   />
                 </div>
@@ -420,7 +414,7 @@ export default function Food() {
                     className="w-full px-4 py-4 text-center border-t border-surface-border hover:bg-surface-muted/50 transition-colors group"
                   >
                     <p className="text-xs text-tx-muted group-hover:text-tx-secondary transition-colors">
-                      + Tap to add food
+                      {t('food.diary.tapToAdd')}
                     </p>
                   </button>
                 ) : (
@@ -430,14 +424,18 @@ export default function Food() {
                         {deleteConfirmId === entry.id ? (
                           <div className="px-4 py-3 flex items-center justify-between gap-3 bg-error-500/5 border-l-2 border-error-500">
                             <p className="text-xs text-tx-secondary flex-1 min-w-0">
-                              Delete <span className="font-medium text-tx-primary">{entry.name}</span>?
+                              <Trans
+                                i18nKey="food.diary.deleteConfirm"
+                                values={{ name: entry.name }}
+                                components={{ name: <span className="font-medium text-tx-primary" /> }}
+                              />
                             </p>
                             <div className="flex gap-2 flex-shrink-0">
                               <button onClick={() => setDeleteConfirmId(null)} className="btn-secondary btn-sm">
-                                Cancel
+                                {t('common.cancel')}
                               </button>
                               <button onClick={() => handleDelete(entry.id)} disabled={deletingId === entry.id} className="btn-danger-solid btn-sm disabled:opacity-50">
-                                {deletingId === entry.id ? '…' : 'Delete'}
+                                {deletingId === entry.id ? '…' : t('common.delete')}
                               </button>
                             </div>
                           </div>
@@ -461,11 +459,11 @@ export default function Food() {
                                     {Math.round(entry.calories)} kcal
                                   </span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-emerald-400 tabular-nums">{entry.protein.toFixed(0)}g P</span>
+                                  <span className="text-xs text-emerald-400 tabular-nums">{entry.protein.toFixed(0)}g {t('food.macro.proteinInitial')}</span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-amber-400 tabular-nums">{entry.carbs.toFixed(0)}g C</span>
+                                  <span className="text-xs text-amber-400 tabular-nums">{entry.carbs.toFixed(0)}g {t('food.macro.carbsInitial')}</span>
                                   <span className="text-[10px] text-tx-muted">·</span>
-                                  <span className="text-xs text-violet-400 tabular-nums">{entry.fat.toFixed(0)}g F</span>
+                                  <span className="text-xs text-violet-400 tabular-nums">{entry.fat.toFixed(0)}g {t('food.macro.fatInitial')}</span>
                                   {entry.servings !== 1 && (
                                     <span className="text-xs text-tx-muted">{formatLoggedAmount(entry)}</span>
                                   )}
@@ -474,7 +472,7 @@ export default function Food() {
                               <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
                             </button>
                             {favoritesLoaded && <EntryStar entry={entry} favorites={favorites} />}
-                            <IconButton icon={Trash2} variant="danger" label="Delete" onClick={() => setDeleteConfirmId(entry.id)} />
+                            <IconButton icon={Trash2} variant="danger" label={t('common.delete')} onClick={() => setDeleteConfirmId(entry.id)} />
                           </div>
                         )}
                       </div>
@@ -489,13 +487,13 @@ export default function Food() {
       {/* Macro history */}
       <div className="card p-5">
         <SectionHeader
-          title="Macro History"
+          title={t('food.history.title')}
           right={<PeriodSelector options={HISTORY_PERIODS} value={historyPeriod} onChange={setHistoryPeriod} />}
           className="mb-5"
         />
 
         {historyLoading ? (
-          <div className="flex items-center justify-center h-48 text-xs text-tx-muted">Loading…</div>
+          <div className="flex items-center justify-center h-48 text-xs text-tx-muted">{t('food.history.loading')}</div>
         ) : historyData.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-48 gap-2">
             {historyMissing ? (
@@ -504,14 +502,14 @@ export default function Food() {
               // unrelated icons for one condition.
               <ErrorState
                 size="section"
-                title="Couldn't load your history"
-                message={missing['your history']}
+                title={t('food.history.loadFailed')}
+                message={uiMessage(missing['your history'])}
                 onRetry={() => setHistoryKey(k => k + 1)}
               />
             ) : (
               <>
                 <CalendarDays className="w-8 h-8 text-tx-muted opacity-40" />
-                <p className="text-xs text-tx-muted">No data yet — start logging meals</p>
+                <p className="text-xs text-tx-muted">{t('food.history.empty')}</p>
               </>
             )}
           </div>
@@ -534,7 +532,7 @@ export default function Food() {
               </defs>
               <XAxis
                 dataKey="date"
-                tickFormatter={d => formatDay(d, 'M/d')}
+                tickFormatter={d => formatDay(d, 'numericMonthDay')}
                 tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
                 axisLine={false}
                 tickLine={false}
@@ -555,26 +553,26 @@ export default function Food() {
                   fontSize: '12px',
                   color: 'var(--color-tx-primary)',
                 }}
-                labelFormatter={d => formatDay(d, 'MMM d')}
+                labelFormatter={d => formatDay(d, 'monthDay')}
                 formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
                 cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
               />
-              <Area type="monotone" dataKey="fat" stackId="macros" stroke={MACRO_COLORS.fat} strokeWidth={1.5} fill="url(#gFat)" name="Fat" dot={false} />
-              <Area type="monotone" dataKey="carbs" stackId="macros" stroke={MACRO_COLORS.carbs} strokeWidth={1.5} fill="url(#gCarbs)" name="Carbs" dot={false} />
-              <Area type="monotone" dataKey="protein" stackId="macros" stroke={MACRO_COLORS.protein} strokeWidth={1.5} fill="url(#gProtein)" name="Protein" dot={false} />
+              <Area type="monotone" dataKey="fat" stackId="macros" stroke={MACRO_COLORS.fat} strokeWidth={1.5} fill="url(#gFat)" name={t('food.macro.fat')} dot={false} />
+              <Area type="monotone" dataKey="carbs" stackId="macros" stroke={MACRO_COLORS.carbs} strokeWidth={1.5} fill="url(#gCarbs)" name={t('food.macro.carbs')} dot={false} />
+              <Area type="monotone" dataKey="protein" stackId="macros" stroke={MACRO_COLORS.protein} strokeWidth={1.5} fill="url(#gProtein)" name={t('food.macro.protein')} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         )}
 
         <div className="flex gap-4 justify-center mt-4">
-          {[
-            { color: MACRO_COLORS.protein, label: 'Protein' },
-            { color: MACRO_COLORS.carbs, label: 'Carbs' },
-            { color: MACRO_COLORS.fat, label: 'Fat' },
-          ].map(m => (
-            <div key={m.label} className="flex items-center gap-1.5">
+          {([
+            { color: MACRO_COLORS.protein, key: 'protein' },
+            { color: MACRO_COLORS.carbs, key: 'carbs' },
+            { color: MACRO_COLORS.fat, key: 'fat' },
+          ] as const).map(m => (
+            <div key={m.key} className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ background: m.color }} />
-              <span className="text-xs text-tx-muted">{m.label}</span>
+              <span className="text-xs text-tx-muted">{t(`food.macro.${m.key}`)}</span>
             </div>
           ))}
         </div>

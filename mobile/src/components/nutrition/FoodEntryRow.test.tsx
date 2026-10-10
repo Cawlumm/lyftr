@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
-import type { FoodLog } from '@lyftr/shared'
+import { i18n, type FoodLog } from '@lyftr/shared'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { FoodEntryRow } from './FoodEntryRow'
 
@@ -31,6 +31,23 @@ const entry = (overrides: Partial<FoodLog> = {}): FoodLog => ({
 
 const row = (e: FoodLog) =>
   render(<FoodEntryRow entry={e} first onPress={() => {}} onEdit={() => {}} onDeleted={() => {}} />)
+
+describe('FoodEntryRow copy', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    const view = row(entry({ meal: 'dinner' }))
+    try {
+      expect(screen.getByText('Cena')).toBeTruthy()
+      expect(screen.getByText('G')).toBeTruthy()
+      expect(screen.getByLabelText('Opciones de Extra Virgin Olive Oil')).toBeTruthy()
+      expect(screen.queryByText('Dinner')).toBeNull()
+    } finally {
+      // Unmount first: restoring English under a mounted tree is a state update outside act.
+      view.unmount()
+      await i18n.changeLanguage('en')
+    }
+  })
+})
 
 describe('FoodEntryRow amount', () => {
   // The bug this pins: the row rendered `entry.servings` raw, so a third of a 15 ml

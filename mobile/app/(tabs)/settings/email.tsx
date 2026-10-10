@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, MailCheck } from 'lucide-react-native'
-import { useAsyncAction, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
+import { useAsyncAction, useTranslation, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
 import {
   Alert,
   AppText,
@@ -21,6 +21,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 // card rather than popping back because the sign-in identifier changed: a consequence the
 // person has to be told about.
 export default function ChangeEmailScreen() {
+  const { t } = useTranslation()
   const { colors, brand } = useTheme()
   const user = useAuthStore((s) => s.user)
   const changeEmail = useAuthStore((s) => s.changeEmail)
@@ -38,7 +39,7 @@ export default function ChangeEmailScreen() {
     setCurrent('')
     setCaseOnly(onlyCase)
     setChangedTo(updated.email)
-  }, "Couldn't change your email. Please try again.")
+  }, t('settings.account.email.failedFallback'))
 
   const ready = emailChanged(email, user?.email) && !!current
 
@@ -54,7 +55,7 @@ export default function ChangeEmailScreen() {
       className="flex-row items-center gap-1.5 self-start active:opacity-60"
     >
       <ArrowLeft size={16} color={colors.txMuted} />
-      <AppText variant="body" color="muted">Settings</AppText>
+      <AppText variant="body" color="muted">{t('settings.account.backLink')}</AppText>
     </Pressable>
   )
 
@@ -69,15 +70,15 @@ export default function ChangeEmailScreen() {
                 <MailCheck size={24} color={brand.successSoft} strokeWidth={2.2} />
               </View>
               <View className="gap-1">
-                <AppText variant="title" className="text-center">Email changed</AppText>
+                <AppText variant="title" className="text-center">{t('settings.account.email.changedTitle')}</AppText>
                 <AppText variant="body" color="muted" className="text-center">
-                  Sign in with {changedTo} from now on.{' '}
+                  {t('settings.account.email.signInWithPlain', { email: changedTo })}{' '}
                   {caseOnly
-                    ? 'Only the letter case changed, so your other devices stay signed in.'
-                    : 'You stay signed in here; your other devices are signed out.'}
+                    ? t('settings.account.email.caseOnly')
+                    : t('settings.account.email.signedOutElsewhere')}
                 </AppText>
               </View>
-              <Button title="Back to settings" variant="secondary" onPress={back} className="mt-1" />
+              <Button title={t('settings.account.backToSettings')} variant="secondary" onPress={back} className="mt-1" />
             </Card>
           </View>
         </ScrollView>
@@ -91,18 +92,18 @@ export default function ChangeEmailScreen() {
         <View className="gap-5 py-4">
           {backLink}
           <PageHeader
-            title="Change email"
-            subtitle="You will sign in with the new address. Changing more than the letter case signs out your other devices."
+            title={t('settings.account.email.pageTitle')}
+            subtitle={t('settings.account.email.pageSubtitle')}
           />
 
           <Card className="gap-4">
             <View className="gap-1">
-              <AppText variant="caption" color="muted">Current email</AppText>
+              <AppText variant="caption" color="muted">{t('settings.account.email.current')}</AppText>
               <AppText variant="body">{user?.email ?? '—'}</AppText>
             </View>
 
             <Field
-              label="New email"
+              label={t('settings.account.email.new')}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -113,7 +114,7 @@ export default function ChangeEmailScreen() {
               autoFocus
             />
             <PasswordField
-              label="Current password"
+              label={t('settings.account.password.current')}
               value={current}
               onChangeText={setCurrent}
               textContentType="password"
@@ -123,14 +124,14 @@ export default function ChangeEmailScreen() {
 
             <View className="flex-row gap-2">
               <Button
-                title="Update email"
+                title={t('settings.account.email.submit')}
                 onPress={submit}
                 loading={save.busy}
                 disabled={!ready}
                 className="flex-1"
               />
               <Button
-                title="Cancel"
+                title={t('common.cancel')}
                 variant="secondary"
                 onPress={back}
                 disabled={save.busy}

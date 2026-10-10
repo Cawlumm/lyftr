@@ -1,4 +1,5 @@
-import { todayStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, UNKNOWN_DAY } from './dateUtils'
+import { todayStr, daysAgoStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, formatDate, relativeDayLabel, defaultWorkoutName, UNKNOWN_DAY, type DateFormatName } from './dateUtils'
+import { i18n } from '../i18n'
 
 
 describe('dayToInstant', () => {
@@ -190,8 +191,8 @@ describe('instantToDay — an unreadable instant has no day', () => {
 // confident "Jan 1, 1900". Both were observed in the running app.
 describe('formatDay', () => {
   it('draws a real day', () => {
-    expect(formatDay('2026-08-01', 'MMM d, yyyy')).toBe('Aug 1, 2026')
-    expect(formatDay('2026-08-01', 'M/d')).toBe('8/1')
+    expect(formatDay('2026-08-01', 'monthDayYear')).toBe('Aug 1, 2026')
+    expect(formatDay('2026-08-01', 'numericMonthDay')).toBe('8/1')
   })
 
   it.each([
@@ -203,25 +204,25 @@ describe('formatDay', () => {
     ['null', null],
     ['undefined', undefined],
   ])('reads as unknown when the day is %s', (_label, day) => {
-    expect(formatDay(day as string, 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
+    expect(formatDay(day as string, 'monthDayYear')).toBe(UNKNOWN_DAY)
   })
 
   it('never renders a 1900 for a day it could not read', () => {
     // The specific lie: Number('') === 0, and new Date(0, -1, 1) is a valid 1899.
-    expect(formatDay('', 'MMM d, yyyy')).not.toContain('1900')
-    expect(formatDay('', 'MMM d, yyyy')).not.toContain('1899')
+    expect(formatDay('', 'monthDayYear')).not.toContain('1900')
+    expect(formatDay('', 'monthDayYear')).not.toContain('1899')
   })
 
   it('never throws, whatever it is handed', () => {
     for (const bad of ['', 'x', 'NaN-NaN-NaN', '9999999-01-01', '0000-00-00']) {
-      expect(() => formatDay(bad, 'EEEE, MMMM d, yyyy')).not.toThrow()
+      expect(() => formatDay(bad, 'weekdayDate')).not.toThrow()
     }
   })
 
   it('composes with the day helpers, so an unreadable row reads as unknown end to end', () => {
-    expect(formatDay(workoutDay({ started_at: 'not-a-date' }), 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
-    expect(formatDay(entryDay({ logged_at: '' }), 'MMM d, yyyy')).toBe(UNKNOWN_DAY)
-    expect(formatDay(workoutDay({ started_at: '2026-08-01T10:00:00Z', tz_offset_minutes: 0 }), 'MMM d, yyyy'))
+    expect(formatDay(workoutDay({ started_at: 'not-a-date' }), 'monthDayYear')).toBe(UNKNOWN_DAY)
+    expect(formatDay(entryDay({ logged_at: '' }), 'monthDayYear')).toBe(UNKNOWN_DAY)
+    expect(formatDay(workoutDay({ started_at: '2026-08-01T10:00:00Z', tz_offset_minutes: 0 }), 'monthDayYear'))
       .toBe('Aug 1, 2026')
   })
 })
@@ -248,5 +249,96 @@ describe('memberSince', () => {
   it('does not shift the month with the reader\'s timezone', () => {
     expect(memberSince('2026-09-01T00:30:00Z')).toBe('September 2026')
     expect(memberSince('2026-08-31T23:30:00Z')).toBe('August 2026')
+  })
+
+  // The month name follows the app language; the UTC reading does not change with it.
+  describe('in es', () => {
+    beforeEach(async () => { await i18n.changeLanguage('es') })
+    afterEach(async () => { await i18n.changeLanguage('en') })
+
+    it('spells the month in Spanish', () => {
+      expect(memberSince('2026-08-19T14:30:00Z')).toBe('agosto de 2026')
+      expect(memberSince('2026-08-31T23:30:00Z')).toBe('agosto de 2026')
+    })
+
+    it('still reads as unknown for a missing timestamp', () => {
+      expect(memberSince(undefined)).toBe('—')
+    })
+  })
+})
+
+// The en value of each name is the pattern the screens used before the patterns moved into the
+// catalog, so English output cannot have changed. 2026-10-10 is a Saturday.
+describe('display format names', () => {
+  const day = '2026-10-10'
+  const en: Record<DateFormatName, string> = {
+    monthDay: 'Oct 10',
+    monthDayYear: 'Oct 10, 2026',
+    numericMonthDay: '10/10',
+    weekdayDate: 'Saturday, October 10, 2026',
+    monthShort: 'Oct',
+    longDate: 'October 10, 2026',
+    weekdayNarrow: 'S',
+    weekdayMonthDayLong: 'Saturday, October 10',
+    weekdayMonthDay: 'Sat, Oct 10',
+    weekdayMonthDayYear: 'Sat, Oct 10, 2026',
+    year: '2026',
+    monthYearLong: 'October 2026',
+  }
+
+  it.each(Object.entries(en))('en %s', (name, expected) => {
+    expect(formatDay(day, name as DateFormatName)).toBe(expected)
+    expect(formatDate(dayToLocalDate(day), name as DateFormatName)).toBe(expected)
+  })
+
+  describe('in es', () => {
+    beforeEach(async () => { await i18n.changeLanguage('es') })
+    afterEach(async () => { await i18n.changeLanguage('en') })
+
+    it('reorders and translates', () => {
+      expect(formatDay(day, 'monthDay')).toBe('10 oct')
+      expect(formatDay(day, 'numericMonthDay')).toBe('10/10')
+      expect(formatDay('2026-08-01', 'numericMonthDay')).toBe('1/8')
+      expect(formatDay(day, 'weekdayDate')).toBe('sábado, 10 de octubre de 2026')
+      expect(formatDay(day, 'monthYearLong')).toBe('octubre de 2026')
+    })
+
+    it('keeps an unknown day unknown', () => {
+      expect(formatDay('', 'monthDay')).toBe(UNKNOWN_DAY)
+    })
+  })
+})
+
+describe('relativeDayLabel', () => {
+  it('names today and yesterday, else the weekday and date', () => {
+    expect(relativeDayLabel(todayStr())).toBe('Today')
+    expect(relativeDayLabel(daysAgoStr(1))).toBe('Yesterday')
+    expect(relativeDayLabel('2020-10-10')).toBe('Sat, Oct 10')
+  })
+
+  it('follows the language (es)', async () => {
+    await i18n.changeLanguage('es')
+    try {
+      expect(relativeDayLabel(todayStr())).toBe('Hoy')
+      expect(relativeDayLabel(daysAgoStr(1))).toBe('Ayer')
+      expect(relativeDayLabel('2020-10-10')).toBe('sáb, 10 oct')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+})
+
+describe('defaultWorkoutName', () => {
+  it('is "Workout — " and the short date', () => {
+    expect(defaultWorkoutName(new Date(2026, 9, 10, 8))).toBe('Workout — Oct 10')
+  })
+
+  it('is Spanish in es', async () => {
+    await i18n.changeLanguage('es')
+    try {
+      expect(defaultWorkoutName(new Date(2026, 9, 10, 8))).toBe('Entrenamiento — 10 oct')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 })

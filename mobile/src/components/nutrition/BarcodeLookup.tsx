@@ -10,7 +10,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { Barcode } from 'lucide-react-native'
-import { eanModules, formatBarcode } from '@lyftr/shared'
+import { eanModules, formatBarcode, useTranslation } from '@lyftr/shared'
 import { AppText, Card } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -51,6 +51,7 @@ function Bars({ code, color }: { code: string; color: string }) {
 // Shown in place of the results while a scanned code is looked up: the barcode and its
 // digits, as printed on the pack, so the scan visibly landed. Mirrors web BarcodeLookup.
 export function BarcodeLookup({ code }: { code: string }) {
+  const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const [slow, setSlow] = useState(false)
   useEffect(() => {
@@ -82,7 +83,7 @@ export function BarcodeLookup({ code }: { code: string }) {
         {formatBarcode(code)}
       </AppText>
       <AppText variant="body" color="muted" className="mt-3 text-center">
-        {slow ? 'Still looking. This can take a few seconds.' : 'Looking up this product…'}
+        {slow ? t('food.lookup.slow') : t('food.lookup.looking')}
       </AppText>
     </Card>
   )

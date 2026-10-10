@@ -10,6 +10,8 @@
 // The server is still the authority. This exists so the user learns the answer while
 // typing instead of after a round trip.
 
+import { i18n } from '../i18n'
+
 /**
  * Mirrors the backend's `min=8` on RegisterRequest and ChangePasswordRequest. That tag
  * counts runes, so this minimum does too — see `characterLength`.
@@ -105,13 +107,13 @@ export function newPasswordRules({ password, confirm, current }: NewPasswordInpu
  */
 export function lengthRuleLabel(password = ''): string {
   if (byteLength(password) > MAX_PASSWORD_BYTES) {
-    return `At most ${MAX_PASSWORD_BYTES} characters (accents and emoji count for more)`
+    return i18n.t('auth.passwordRules.maxBytes', { count: MAX_PASSWORD_BYTES })
   }
-  return `At least ${MIN_PASSWORD_LENGTH} characters`
+  return i18n.t('auth.passwordRules.minLength', { count: MIN_PASSWORD_LENGTH })
 }
 
 export function differentRuleLabel(): string {
-  return 'Different from your current password'
+  return i18n.t('auth.passwordRules.different')
 }
 
 /**
@@ -122,10 +124,10 @@ export function differentRuleLabel(): string {
 export function matchRuleLabel(state: RuleState): string {
   switch (state) {
     case 'ok':
-      return 'Passwords match'
+      return i18n.t('auth.passwordRules.match')
     case 'bad':
-      return 'Passwords do not match'
+      return i18n.t('auth.passwordRules.mismatch')
     default:
-      return 'Repeat the new password'
+      return i18n.t('auth.passwordRules.repeat')
   }
 }

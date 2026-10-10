@@ -1,6 +1,6 @@
 import { ActivityIndicator, Pressable, View } from 'react-native'
 import { ChevronRight, Star } from 'lucide-react-native'
-import type { FoodSearchResult } from '@lyftr/shared'
+import { useTranslation, type FoodSearchResult } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { FoodThumb } from './FoodImage'
@@ -34,6 +34,7 @@ export function FoodResultRow({
   item, onPress, favorited, onToggleFavorite, togglingFavorite = false, loading = false,
 }: Props) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
 
   return (
     <Pressable
@@ -48,11 +49,11 @@ export function FoodResultRow({
         <View className="mt-1 flex-row flex-wrap items-center gap-x-1.5">
           <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(item.calories)} kcal</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g P</AppText>
+          <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g {t('food.macro.proteinInitial')}</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g C</AppText>
+          <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g {t('food.macro.carbsInitial')}</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g F</AppText>
+          <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g {t('food.macro.fatInitial')}</AppText>
           {item.serving_size ? (<><Dot /><AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{item.serving_size}</AppText></>) : null}
         </View>
       </View>
@@ -78,6 +79,7 @@ export function FavoriteStar(
   { favorited: boolean; busy?: boolean; name: string; onPress: () => void; size?: 'sm' | 'md' | 'header' },
 ) {
   const { colors, accent } = useTheme()
+  const { t } = useTranslation()
   // Same box, hit slop and press feedback as ui/IconButton — written out rather than
   // reusing it because a filled star needs an SVG `fill`, and adding a fill prop to the
   // shared primitive for one toggle is the wrong place to put it.
@@ -88,7 +90,7 @@ export function FavoriteStar(
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: favorited }}
-      accessibilityLabel={favorited ? `Remove ${name} from Favorites` : `Add ${name} to Favorites`}
+      accessibilityLabel={t(favorited ? 'food.favorites.remove' : 'food.favorites.add', { name })}
       onPress={onPress}
       disabled={busy}
       hitSlop={size === 'header' ? 6 : 8}

@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
   Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
+import { uiMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, Skeleton, StatFailure, StepperTile,
@@ -23,9 +22,9 @@ import { useTheme } from '../../../src/theme/useTheme'
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]
 const PERIOD_DAYS: Record<Period, number | null> = { '7d': 7, '30d': 30, '90d': 90, 'All': null }
-const PERIOD_OPTIONS = PERIODS.map((p) => ({ value: p, label: p }))
 
 export default function Weight() {
+  const { t, i18n } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
@@ -34,7 +33,9 @@ export default function Weight() {
 
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<WeightStats | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // The value the weight box was rejected for, not the sentence: the sentence is made at
+  // render, so a banner already on screen follows a language switch.
+  const [badWeight, setBadWeight] = useState<number | null>(null)
 
   // Paginated history list (newest-first) — the FlatList data.
   const fetcher = useCallback((offset: number, limit: number) => client.weightAPI.list({ offset, limit }), [])
@@ -58,8 +59,8 @@ export default function Weight() {
 
   // Both reads used to swallow their failure, so the figures below fell back to 0 and
   // the screen rendered measurements it had never received.
-  const [chartError, setChartError] = useState<string | null>(null)
-  const [statsError, setStatsError] = useState<string | null>(null)
+  const [chartError, setChartError] = useState<UiMessage | null>(null)
+  const [statsError, setStatsError] = useState<UiMessage | null>(null)
 
   // Only the latest request may write. A wider window is a slower query, so tapping All
   // then 7d can land All's answer last, and every figure would then describe a period
@@ -79,7 +80,7 @@ export default function Weight() {
         setChartPeriod(period)
         setChartError(null)
       })
-      .catch((err) => { if (id === chartRequest.current) setChartError(apiErrorMessage(err, "Couldn't load your weight trend.")) })
+      .catch((err) => { if (id === chartRequest.current) setChartError({ key: 'weight.errors.trendFailed', cause: err }) })
       .finally(() => { if (id === chartRequest.current) setChartLoading(false) })
   }, [period])
   useEffect(() => { refetchChart() }, [refetchChart])
@@ -89,7 +90,7 @@ export default function Weight() {
     const id = ++statsRequest.current
     return client.weightAPI.stats()
       .then((data) => { if (id === statsRequest.current) { setStats(data); setStatsError(null) } })
-      .catch((err) => { if (id === statsRequest.current) setStatsError(apiErrorMessage(err, "Couldn't load your weight stats.")) })
+      .catch((err) => { if (id === statsRequest.current) setStatsError({ key: 'weight.errors.statsFailed', cause: err }) })
   }, [])
   useEffect(() => {
     fetchSettings()
@@ -168,9 +169,9 @@ export default function Weight() {
       // this window's trend, however recent it is.
       (chartPeriod === period ? [...chartLogs] : []).reverse().map((l) => {
         const d = dayToLocalDate(entryDay(l))
-        return { date: format(d, 'M/d'), weight: displayWeight(l.weight, unit), sub: format(d, 'MMM d, yyyy') }
+        return { date: formatDate(d, 'numericMonthDay'), weight: displayWeight(l.weight, unit), sub: formatDate(d, 'monthDayYear') }
       }),
-    [chartLogs, chartPeriod, period, unit]
+    [chartLogs, chartPeriod, period, unit, i18n.language]
   )
   const [chartWidth, setChartWidth] = useState(0)
 
@@ -187,14 +188,14 @@ export default function Weight() {
         setShowNotes(false)
         duplicateWarningDismissedRef.current = false
         refreshAll()
-  }, 'Failed to log weight')
+  }, t('weight.log.failed'))
 
   const handleLog = async () => {
     if (log.busy) return
     const w = parseFloat(newWeight)
     const wErr = weightError(w, unit)
     if (wErr) {
-      setError(wErr)
+      setBadWeight(w)
       return
     }
 
@@ -204,7 +205,7 @@ export default function Weight() {
       return
     }
 
-    setError(null)
+    setBadWeight(null)
     setShowDuplicateWarning(false)
     void log.run(w)
   }
@@ -239,7 +240,7 @@ export default function Weight() {
   // called, so without this the screen tore itself down into a half-broken one for as
   // long as the requests took, then rebuilt the same error.
   const pageError = everythingFailed
-    ? (listError ?? chartError ?? statsError ?? '')
+    ? (listError ?? (chartError ? uiMessage(chartError) : statsError ? uiMessage(statsError) : ''))
     : retrying
       ? heldPageError
       : null
@@ -275,13 +276,15 @@ export default function Weight() {
         ? 'bg-success-500/10 border-success-500/20'
         : 'bg-error-500/10 border-error-500/20'
   const trendText = change === 0 ? colors.txMuted : change < 0 ? brand.successSoft : brand.errorSoft
-  const changeWord = change === 0 ? 'no change' : change < 0 ? 'lost' : 'gained'
+  const changeKey = change === 0 ? 'weight.hero.changeNone' : change < 0 ? 'weight.hero.changeLost' : 'weight.hero.changeGained'
 
   const statCards = [
-    { label: 'Avg', value: avg, icon: Activity, color: accent },
-    { label: 'Low', value: min, icon: ArrowDown, color: brand.successSoft },
-    { label: 'High', value: max, icon: ArrowUp, color: brand.errorSoft },
+    { id: 'avg' as const, value: avg, icon: Activity, color: accent },
+    { id: 'low' as const, value: min, icon: ArrowDown, color: brand.successSoft },
+    { id: 'high' as const, value: max, icon: ArrowUp, color: brand.errorSoft },
   ]
+  const periodOptions = PERIODS.map((p) => ({ value: p, label: t(`weight.period.chip.${p}`) }))
+  const error = badWeight == null ? null : weightError(badWeight, unit)
 
   // Title and subtitle stay so the reader knows where they are; the unit chip does not,
   // and neither does the log form — a save that cannot succeed would outrank the retry.
@@ -289,10 +292,10 @@ export default function Weight() {
     return (
       <Screen>
         <View className="flex-1 gap-5 py-4">
-          <PageHeader title="Weight" subtitle="Track your body weight over time" />
+          <PageHeader title={t('weight.title')} subtitle={t('weight.subtitle')} />
           <ErrorState
             size="page"
-            title="Couldn't load your weight"
+            title={t('weight.loadFailed')}
             message={pageError}
             onRetry={retryAll}
             retrying={retrying}
@@ -319,8 +322,8 @@ export default function Weight() {
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
-              title="Weight"
-              subtitle="Track your body weight over time"
+              title={t('weight.title')}
+              subtitle={t('weight.subtitle')}
               action={
                 <View className="flex-row items-center gap-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1">
                   <Calendar size={12} color={accent} />
@@ -334,11 +337,11 @@ export default function Weight() {
               <View className="mb-3 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-2">
                   <Scale size={16} color={accent} />
-                  <AppText variant="bodySemibold">Log Weight</AppText>
+                  <AppText variant="bodySemibold">{t('weight.log.title')}</AppText>
                 </View>
                 {items.length > 0 ? (
                   <AppText variant="caption" color="muted">
-                    last: {displayWeight(items[0].weight, unit)} {wUnit}
+                    {t('weight.log.last', { weight: displayWeight(items[0].weight, unit), unit: wUnit })}
                   </AppText>
                 ) : null}
               </View>
@@ -346,8 +349,8 @@ export default function Weight() {
               <View className="gap-3">
                 <StepperTile
                   icon={Scale}
-                  label={`Weight (${wUnit})`}
-                  name="weight"
+                  label={t('weight.log.weightLabel', { unit: wUnit })}
+                  name={t('weight.log.weightName')}
                   step={BODYWEIGHT_STEP}
                   onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
                 >
@@ -356,7 +359,7 @@ export default function Weight() {
                     value={newWeight}
                     onChange={setNewWeight}
                     placeholder="0"
-                    accessibilityLabel="Weight"
+                    accessibilityLabel={t('weight.log.weightField')}
                     inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
                   />
                 </StepperTile>
@@ -364,8 +367,8 @@ export default function Weight() {
                 {showNotes ? (
                   <View className="gap-2 rounded-xl border border-surface-border bg-surface-overlay p-3">
                     <View className="mb-1 flex-row items-center justify-between">
-                      <AppText variant="caption" color="secondary">Date & note</AppText>
-                      <Pressable onPress={() => setShowNotes(false)} hitSlop={8} className="p-1 active:opacity-60" accessibilityLabel="Collapse">
+                      <AppText variant="caption" color="secondary">{t('weight.log.dateAndNote')}</AppText>
+                      <Pressable onPress={() => setShowNotes(false)} hitSlop={8} className="p-1 active:opacity-60" accessibilityLabel={t('weight.log.collapse')}>
                         <X size={14} color={colors.txMuted} />
                       </Pressable>
                     </View>
@@ -373,7 +376,7 @@ export default function Weight() {
                     <Field
                       value={newNotes}
                       onChangeText={setNewNotes}
-                      placeholder="Note — e.g. morning, post-run"
+                      placeholder={t('weight.log.notePlaceholder')}
                       maxLength={200}
                     />
                   </View>
@@ -383,7 +386,7 @@ export default function Weight() {
                     className="h-11 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-overlay active:scale-[0.99]"
                   >
                     <Calendar size={16} color={colors.txMuted} />
-                    <AppText variant="body" color="secondary">Add date & note</AppText>
+                    <AppText variant="body" color="secondary">{t('weight.log.addDateAndNote')}</AppText>
                   </Pressable>
                 )}
 
@@ -395,9 +398,9 @@ export default function Weight() {
                   <Alert
                     variant="warning"
                     actions={[
-                      { label: 'Cancel', onPress: () => setShowDuplicateWarning(false) },
+                      { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
                       {
-                        label: 'Log Anyway',
+                        label: t('weight.log.logAnyway'),
                         primary: true,
                         onPress: () => {
                           duplicateWarningDismissedRef.current = true
@@ -407,19 +410,19 @@ export default function Weight() {
                       },
                     ]}
                   >
-                    Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                    {t('weight.duplicateWarning', { date: formatDay(entryDay(items[0]), 'monthDay'), weight: displayWeight(items[0].weight, unit), unit: wUnit })}
                   </Alert>
                 ) : null}
 
                 <Button
-                  title={log.busy ? 'Logging…' : 'Log Weight'}
+                  title={log.busy ? t('weight.log.submitting') : t('weight.log.submit')}
                   onPress={handleLog}
                   loading={log.busy}
                   disabled={!(parseFloat(newWeight) > 0) || log.busy}
                 />
                 <View className="flex-row items-center justify-center gap-1.5">
                   <Sunrise size={14} color={brand.warningSoft} />
-                  <AppText variant="caption" color="muted">Best logged in the morning, after the bathroom</AppText>
+                  <AppText variant="caption" color="muted">{t('weight.log.tip')}</AppText>
                 </View>
               </View>
             </Card>
@@ -431,21 +434,21 @@ export default function Weight() {
                 // cannot be the default: it told someone with years of entries they had
                 // never weighed themselves.
                 <ErrorState
-                  title="Couldn't load your weight"
-                  message={listError ?? chartError ?? statsError ?? ''}
+                  title={t('weight.loadFailed')}
+                  message={listError ?? (chartError ? uiMessage(chartError) : statsError ? uiMessage(statsError) : '')}
                   onRetry={retryAll}
                   retrying={retrying}
                 />
               ) : items.length === 0 ? (
                 <View className="items-center py-2">
-                  <Label className="mb-1">Current Weight</Label>
-                  <AppText variant="body" color="muted">The scale doesn't know you exist yet. Fix that.</AppText>
+                  <Label className="mb-1">{t('weight.hero.current')}</Label>
+                  <AppText variant="body" color="muted">{t('weight.hero.empty')}</AppText>
                 </View>
               ) : (
                 <>
                   <View className="flex-row items-start justify-between">
                     <View>
-                      <Label className="mb-2">Current Weight</Label>
+                      <Label className="mb-2">{t('weight.hero.current')}</Label>
                       <View className="flex-row items-end gap-2">
                         <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{currentKnown ? current : '—'}</AppText>
                         {currentKnown ? <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText> : null}
@@ -462,7 +465,7 @@ export default function Weight() {
                   </View>
                   {changeKnown ? (
                     <AppText variant="caption" color="muted" className="mt-3">
-                      {Math.abs(change)} {wUnit} {changeWord} over {period}
+                      {t(changeKey, { amount: Math.abs(change), unit: wUnit, period: t(`weight.period.span.${period}`) })}
                     </AppText>
                   ) : null}
                 </>
@@ -472,15 +475,15 @@ export default function Weight() {
             {/* Stats row */}
             <View className="flex-row gap-3">
               {statCards.map((s) => (
-                <Card key={s.label} className="flex-1" style={{ paddingHorizontal: 12 }}>
+                <Card key={s.id} className="flex-1" style={{ paddingHorizontal: 12 }}>
                   <View className="mb-2 flex-row items-center gap-1.5">
                     <s.icon size={14} color={s.color} />
-                    <Label numberOfLines={1}>{s.label}</Label>
+                    <Label numberOfLines={1}>{t(`weight.stats.${s.id}.label`)}</Label>
                   </View>
                   {chartPending ? (
                     <Skeleton width={56} height={22} />
                   ) : figuresFailed ? (
-                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()} weight`} />
+                    <StatFailure label={t(`weight.stats.${s.id}.failed`)} />
                   ) : (
                     <View className="flex-row items-end gap-1">
                       <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{aggregatesUnknown ? '—' : Math.round(s.value)}</AppText>
@@ -496,9 +499,9 @@ export default function Weight() {
                 {/* The same mark every other failure on this screen uses, in warning ink
                     rather than error: these numbers are real, just not fresh. */}
                 <BarbellBroken size={20} color={semanticInk[isDark ? 'dark' : 'light'].warning} />
-                <AppText variant="caption" color="muted">Couldn't refresh these — showing the last we loaded.</AppText>
+                <AppText variant="caption" color="muted">{t('weight.stale')}</AppText>
                 <Pressable onPress={retryAll} hitSlop={8} accessibilityRole="button" className="active:opacity-60">
-                  <AppText variant="caption" color="secondary" className="underline">Try again</AppText>
+                  <AppText variant="caption" color="secondary" className="underline">{t('common.tryAgain')}</AppText>
                 </Pressable>
               </View>
             ) : null}
@@ -506,9 +509,9 @@ export default function Weight() {
             {/* Chart + period selector */}
             <Card>
               <View className="mb-3 flex-row items-center justify-between gap-2">
-                <AppText variant="bodySemibold">Trend</AppText>
+                <AppText variant="bodySemibold">{t('weight.trend.title')}</AppText>
                 <View className="flex-1 max-w-[220px]">
-                  <SegmentedControl size="sm" options={PERIOD_OPTIONS} value={period} onChange={setPeriod} />
+                  <SegmentedControl size="sm" options={periodOptions} value={period} onChange={setPeriod} />
                 </View>
               </View>
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
@@ -517,11 +520,11 @@ export default function Weight() {
                     <Skeleton width="100%" height={120} radius={12} />
                   </View>
                 ) : chartData.length === 0 && chartError ? (
-                  <ErrorState title="Couldn't load your trend" message={chartError} onRetry={retryAll} retrying={retrying} />
+                  <ErrorState title={t('weight.trend.loadFailed')} message={uiMessage(chartError)} onRetry={retryAll} retrying={retrying} />
                 ) : chartData.length < 2 ? (
                   <View className="h-44 items-center justify-center">
                     <AppText variant="body" color="muted">
-                      {chartData.length === 0 ? 'No data for this period' : 'Log another entry to see the trend'}
+                      {chartData.length === 0 ? t('weight.trend.noData') : t('weight.trend.needMore')}
                     </AppText>
                   </View>
                 ) : (
@@ -530,7 +533,7 @@ export default function Weight() {
               </View>
             </Card>
 
-            {items.length > 0 ? <Label className="px-1">History</Label> : null}
+            {items.length > 0 ? <Label className="px-1">{t('weight.history.title')}</Label> : null}
           </View>
         }
         renderItem={({ item, index }) => (
@@ -545,7 +548,7 @@ export default function Weight() {
           // Only under rows that arrived: with none, the hero above already carries the
           // failure, and saying it twice is two retries for one problem.
           listError && items.length > 0 ? (
-            <ErrorState title="Couldn't load more entries" message={listError} onRetry={retryList} />
+            <ErrorState title={t('weight.history.loadMoreFailed')} message={listError} onRetry={retryList} />
           ) : hasMore && loading && items.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />

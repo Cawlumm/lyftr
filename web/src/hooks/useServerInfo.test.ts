@@ -27,7 +27,7 @@ describe('useServerInfo', () => {
 
   it('stays null when the server is unreachable', async () => {
     useServerStore.setState({ serverUrl: 'http://unreachable-server' })
-    mockTest.mockResolvedValue({ ok: false, message: "Can't reach the server." })
+    mockTest.mockResolvedValue({ ok: false, failure: { key: 'server.test.unreachable' } })
 
     const { result } = renderHook(() => useServerInfo())
     await waitFor(() => expect(mockTest).toHaveBeenCalled())

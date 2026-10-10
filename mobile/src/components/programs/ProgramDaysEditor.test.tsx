@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { i18n } from '@lyftr/shared'
 
 // Same transitive-import stubs as DayPickerSheet.test.tsx (ui barrel → useTheme →
 // lib/lyftr → expo-router; storage adapter → AsyncStorage; Sheet → safe-area).
@@ -38,6 +39,33 @@ const renderEditor = (days: DayDraft[], onChange = jest.fn()) => {
 }
 
 describe('ProgramDaysEditor', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    const view = render(
+      <ProgramDaysEditor
+        days={[dayDraft({ exercises: [{ exercise_id: 1, notes: '', rest_seconds: 90, sets: [] }] }), dayDraft({ order_index: 1, is_rest_day: true })]}
+        onChange={jest.fn()}
+        pickerExercises={{}}
+        onCacheExercise={() => {}}
+        unit="lbs"
+        restSecondsDefault={90}
+      />
+    )
+    try {
+      expect(screen.getByText('Agregar día de entrenamiento')).toBeTruthy()
+      expect(screen.getByText('Agregar día de descanso')).toBeTruthy()
+      expect(screen.getByText('1 ejercicio')).toBeTruthy()
+      expect(screen.getAllByLabelText('Quitar día')).toHaveLength(2)
+      expect(screen.getByLabelText('Subir el día 1')).toBeTruthy()
+      expect(screen.getByPlaceholderText('Día de descanso 2')).toBeTruthy()
+      expect(screen.queryByText('Add Workout Day')).toBeNull()
+    } finally {
+      // Unmount first: restoring English under a mounted tree is a state update outside act.
+      view.unmount()
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('renders the empty state when there are no days', () => {
     renderEditor([])
     expect(screen.getByText(/No days yet/)).toBeTruthy()

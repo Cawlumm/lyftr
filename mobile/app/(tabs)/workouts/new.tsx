@@ -5,7 +5,7 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { useAsyncAction, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr } from '@lyftr/shared'
+import { useAsyncAction, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
@@ -49,6 +49,7 @@ function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: str
 }
 
 export default function AddWorkout() {
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
@@ -57,8 +58,9 @@ export default function AddWorkout() {
   const [showPicker, setShowPicker] = useState(false)
   const [showProgramPicker, setShowProgramPicker] = useState(false)
   // Only what the FORM can say before anything is sent. What the SERVER says lives
-  // on `save` below; both render in the same alert.
-  const [error, setError] = useState('')
+  // on `save` below; both render in the same alert. A UiMessage rather than a sentence, so
+  // the alert follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({
     name: '',
@@ -90,7 +92,7 @@ export default function AddWorkout() {
     setPickerExercises(newMap)
     setFormData((prev) => ({ ...prev, exercises: newExercises }))
     setShowProgramPicker(false)
-    setError('')
+    setError(null)
   }
 
   const addExercise = (exercise: Exercise) => {
@@ -108,7 +110,7 @@ export default function AddWorkout() {
       ],
     }))
     setShowPicker(false)
-    setError('')
+    setError(null)
   }
 
   // These handlers are passed to the memoized ExerciseFormCard, so they must be both
@@ -175,17 +177,17 @@ export default function AddWorkout() {
     await client.workoutAPI.create(payload)
     // Web navigates to /workouts; pop back to the list (it reloads on focus).
     router.dismissTo('/workouts')
-  }, 'Failed to create workout')
+  }, t('workouts.form.createFailed'))
 
   // Web scrolls the window to top on error; here the ScrollView.
   useEffect(() => {
     if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error, save.error])
+  }, [error, save.failureKey])
 
   const handleSubmit = async () => {
-    if (!formData.name.trim()) { setError('Workout name required'); return }
-    if (formData.exercises.length === 0) { setError('Add at least one exercise'); return }
-    setError('')
+    if (!formData.name.trim()) { setError({ key: 'workouts.form.errors.nameRequired' }); return }
+    if (formData.exercises.length === 0) { setError({ key: 'workouts.form.errors.noExercises' }); return }
+    setError(null)
     void save.run()
   }
 
@@ -195,6 +197,13 @@ export default function AddWorkout() {
     (sum, ex) => sum + ex.sets.reduce((s, set) => s + (set.weight || 0), 0),
     0
   )
+  const counts = {
+    exercises: t('workouts.form.exerciseCount', { count: formData.exercises.length }),
+    sets: t('workouts.form.setCount', { count: totalSets }),
+  }
+  const summary = totalWeight > 0
+    ? t('workouts.form.summaryWithWeight', { ...counts, weight: Math.round(totalWeight), unit: wUnit })
+    : t('workouts.form.summary', counts)
 
   return (
     <Screen>
@@ -211,13 +220,10 @@ export default function AddWorkout() {
         <View className="gap-6 py-4">
           {/* Back + title */}
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label="Back" variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
             <View>
-              <AppText variant="title">Log Workout</AppText>
-              <AppText variant="caption" color="muted">
-                {formData.exercises.length} exercises • {totalSets} sets
-                {totalWeight > 0 ? ` • ${Math.round(totalWeight)} ${wUnit}` : ''}
-              </AppText>
+              <AppText variant="title">{t('workouts.form.logTitle')}</AppText>
+              <AppText variant="caption" color="muted">{summary}</AppText>
             </View>
           </View>
 
@@ -225,16 +231,16 @@ export default function AddWorkout() {
           {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
             </View>
           ) : null}
 
           <View>
-            <FieldHeader icon={Dumbbell} label="Workout Name" hint="(required)" />
+            <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} hint={t('workouts.form.required')} />
             <Field
               value={formData.name}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, name: t }))}
-              placeholder="e.g., Leg Day, Push Day"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+              placeholder={t('workouts.form.namePlaceholder')}
             />
           </View>
 
@@ -244,7 +250,7 @@ export default function AddWorkout() {
               half-width trigger doesn't crush the calendar. */}
           <View className="flex-row gap-3">
             <View className="flex-[2]">
-              <FieldHeader icon={CalendarDays} label="Date" />
+              <FieldHeader icon={CalendarDays} label={t('workouts.form.date')} />
               <DateInput
                 value={formData.date}
                 onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
@@ -253,7 +259,7 @@ export default function AddWorkout() {
             </View>
             <View className="flex-1">
               {/* "min" already rides the value, so the label stays just "Duration". */}
-              <FieldHeader icon={Clock} label="Duration" />
+              <FieldHeader icon={Clock} label={t('workouts.form.duration')} />
               <DurationField
                 value={formData.duration}
                 onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
@@ -263,11 +269,11 @@ export default function AddWorkout() {
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label="Notes" />
+            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
             <Field
               value={formData.notes}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, notes: t }))}
-              placeholder="How did it feel? Any PRs?"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+              placeholder={t('workouts.form.notesPlaceholder')}
               multiline
             />
           </View>
@@ -281,8 +287,8 @@ export default function AddWorkout() {
             <View className="mb-3">
               <View className="mb-2.5 flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
-                <Label>Exercises</Label>
-                <AppText variant="caption" color="muted">(required)</AppText>
+                <Label>{t('workouts.form.exercises')}</Label>
+                <AppText variant="caption" color="muted">{t('workouts.form.required')}</AppText>
               </View>
               <View className="flex-row items-center gap-2">
                 <Pressable
@@ -291,7 +297,7 @@ export default function AddWorkout() {
                   className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95"
                 >
                   <BookOpen size={13} color={colors.txSecondary} />
-                  <Text className="font-sans-semibold text-xs text-tx-secondary">Load Program</Text>
+                  <Text className="font-sans-semibold text-xs text-tx-secondary">{t('workouts.form.loadProgram')}</Text>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -299,7 +305,7 @@ export default function AddWorkout() {
                   className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
                 >
                   <Plus size={13} color="#ffffff" />
-                  <Text className="font-sans-semibold text-xs text-white">Add Exercise</Text>
+                  <Text className="font-sans-semibold text-xs text-white">{t('workouts.form.addExercise')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -309,8 +315,8 @@ export default function AddWorkout() {
                 <EmptyState
                   compact
                   icon={Dumbbell}
-                  title="No exercises yet"
-                  subtitle="Add an exercise or load a program to start"
+                  title={t('workouts.form.empty.createTitle')}
+                  subtitle={t('workouts.form.empty.createHint')}
                 />
               </View>
             )}
@@ -340,12 +346,12 @@ export default function AddWorkout() {
               {formData.exercises.length > 0 && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Add exercise"
+                  accessibilityLabel={t('workouts.form.addExerciseLabel')}
                   onPress={() => setShowPicker(true)}
                   className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
                 >
                   <Plus size={14} color={accent} />
-                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>Add Exercise</Text>
+                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addExercise')}</Text>
                 </Pressable>
               )}
             </View>
@@ -357,8 +363,8 @@ export default function AddWorkout() {
       {/* Sticky footer actions — Save stays reachable however long the form grows.
           -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
-        <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Workout" className="flex-1" onPress={handleSubmit} loading={save.busy} />
+        <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
+        <Button title={t('workouts.form.saveWorkout')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}

@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import ProgramDaysEditor from './ProgramDaysEditor'
+import { i18n } from '@lyftr/shared'
 import type { DayDraft } from './types'
 
 const dayDraft = (overrides: Partial<DayDraft> = {}): DayDraft => ({
@@ -26,6 +27,20 @@ const renderEditor = (days: DayDraft[], onChange = vi.fn()) => {
 }
 
 describe('ProgramDaysEditor', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    renderEditor([dayDraft({ exercises: [{ exercise_id: 1, notes: '', rest_seconds: 90, sets: [] }] }), dayDraft({ order_index: 1, is_rest_day: true })])
+    expect(screen.getByText('Agregar día de entrenamiento')).toBeTruthy()
+    expect(screen.getByText('Agregar día de descanso')).toBeTruthy()
+    expect(screen.getByText('1 ejercicio')).toBeTruthy()
+    expect(screen.getAllByLabelText('Quitar día')).toHaveLength(2)
+    expect(screen.getByPlaceholderText('Día 1')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Día de descanso 2')).toBeTruthy()
+    expect(screen.queryByText('Add Workout Day')).toBeNull()
+  })
+
   it('renders the empty state when there are no days', () => {
     renderEditor([])
     expect(screen.getByText(/No days yet/)).toBeTruthy()

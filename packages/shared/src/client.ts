@@ -4,6 +4,8 @@ import { StorageAdapter, STORAGE_KEYS } from './storage'
 import { normalizeServerUrl } from './utils/serverUrl'
 import { networkFailureMessage, type MessageDetail } from './utils/networkError'
 import { withLoggedOn, utcOffsetMinutes } from './utils/dateUtils'
+import { i18n } from './i18n'
+import type { ParseKeys } from 'i18next'
 
 // Every API call lives under this versioned path. `origin` is an absolute server
 // origin for a cross-origin backend, or '' for the same-origin reverse proxy (web).
@@ -43,7 +45,7 @@ export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetai
     if (serverError) return serverError
     const status = err.response.status
     if (status === 404 || status === 405) {
-      return "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings."
+      return i18n.t('errors.api.misconfigured')
     }
     // Ordered ABOVE the HTML sniff on purpose. Every reverse proxy — nginx, Caddy,
     // Traefik — serves its 502 as an HTML page, so sniffing for a document first
@@ -51,7 +53,7 @@ export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetai
     // most self-hosted moment there is, when the settings are fine and the stack is
     // mid-upgrade. Status is the stronger signal when we have one.
     if (status === 502 || status === 503 || status === 504) {
-      return 'The server is restarting or unreachable. Try again in a moment.'
+      return i18n.t('errors.api.restarting')
     }
     // A reverse proxy answers with its own HTML page when the app behind it is down,
     // restarting, or was never there — the body is a document, not our {"error"} envelope.
@@ -61,28 +63,46 @@ export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetai
     // what reads as an app bug.
     const body = err.response.data
     if (typeof body === 'string' && /^\s*<(!doctype|html)/i.test(body)) {
-      return 'That address returned a web page, not the Lyftr API. Check Server settings.'
+      return i18n.t('errors.api.notApi')
     }
-    if (status >= 500) return 'Server error. Please try again shortly.'
+    if (status >= 500) return i18n.t('errors.api.serverError')
     return fallback
   }
   return networkFailureMessage(err, detail)
+}
+
+// What a screen keeps in state instead of a sentence: the catalog key and its inputs, plus
+// the failure that caused it. The text is made by uiMessage() at render, so a banner that is
+// already on screen follows a language switch instead of staying in the language it was
+// raised in.
+export type UiMessage = {
+  key: ParseKeys
+  params?: Record<string, unknown>
+  cause?: unknown
+  detail?: MessageDetail
+}
+
+export const uiMessage = (m: UiMessage): string => {
+  // The key is checked where the message is written; the union of every key cannot be
+  // checked against one params shape here.
+  const text = (i18n.t as (key: string, params?: Record<string, unknown>) => string)(m.key, m.params)
+  return 'cause' in m ? apiErrorMessage(m.cause, text, m.detail) : text
 }
 
 // Probe a server's public /info endpoint to confirm it's reachable and is a Lyftr
 // backend. Pass '' for the default/reverse-proxy origin.
 export const testServerConnection = async (
   base: string,
-): Promise<{ ok: true; info: ServerInfo } | { ok: false; message: string }> => {
+): Promise<{ ok: true; info: ServerInfo } | { ok: false; failure: UiMessage }> => {
   try {
     const res = await axios.get<{ data: ServerInfo }>(`${apiUrl(base)}/info`, { timeout: 8000 })
     const info = res.data?.data
     if (!info?.name) {
-      return { ok: false, message: "That responded, but it doesn't look like a Lyftr server." }
+      return { ok: false, failure: { key: 'server.test.notLyftr' } }
     }
     return { ok: true, info }
   } catch (err) {
-    return { ok: false, message: apiErrorMessage(err, "Couldn't reach the server.", 'full') }
+    return { ok: false, failure: { key: 'server.test.unreachable', cause: err, detail: 'full' } }
   }
 }
 

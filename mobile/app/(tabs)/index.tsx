@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip } from '@lyftr/shared'
+import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -18,7 +18,7 @@ import {
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
-import { muscleColor } from '../../src/utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
 
 // Native tap feedback (matches the rest of the app): selection tick for navigations /
@@ -29,6 +29,9 @@ const hImpact = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).ca
 const DEFAULT_FOOD: DailyStats = {
   date: '', total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
 }
+
+// The seven weekday rows of the heatmap; every other one carries a letter.
+const WEEKDAY_ROWS = [0, 1, 2, 3, 4, 5, 6] as const
 
 const VOL_OPTIONS = [
   { value: '7' as const, label: '7' }, { value: '14' as const, label: '14' }, { value: '30' as const, label: '30' },
@@ -44,11 +47,13 @@ function ProgressBar({ pct, color, opacity = 1, className = '' }: { pct: number;
 }
 
 function MuscleBadge({ muscle }: { muscle: string }) {
+  // Re-renders on a language switch: the badge names the muscle from the catalog.
+  useTranslation()
   const { colors } = useTheme()
   const tint = muscleColor(muscle)
   return (
     <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscle}</AppText>
+      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
@@ -65,6 +70,7 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   // Re-read on every load rather than once at mount: this tab stays mounted for the
   // life of the process, so an app left open overnight kept yesterday's header, week
   // boundary and "today" dot while load() fetched the real today's food.
@@ -95,12 +101,14 @@ export default function Dashboard() {
   const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
   const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Failures are kept as a UiMessage (a key and the failure that caused it), not as a sentence,
+  // so a banner already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // The secondary reads are caught so one dead endpoint cannot blank a working dashboard.
   // What they must not do is then say nothing: a failed /food/stats rendered today as
   // 0 kcal, which is what "hasn't eaten yet" looks like. Name -> what the server said,
   // so the card that never loaded can say why.
-  const [missing, setMissing] = useState<Record<string, string>>({})
+  const [missing, setMissing] = useState<Record<string, UiMessage>>({})
   const foodMissing = "today's food" in missing
   const weightMissing = 'your weight' in missing
   const programsMissing = 'your programs' in missing
@@ -120,9 +128,9 @@ export default function Dashboard() {
       if (!Array.isArray(v)) throw new Error('unreadable')
       return v
     }
-    const absent: Record<string, string> = {}
+    const absent: Record<string, UiMessage> = {}
     const note = (what: string, err: unknown) => {
-      absent[what] = apiErrorMessage(err, "The server didn't say what went wrong.")
+      absent[what] = { key: 'settings.unknownError', cause: err }
     }
     const [ws, ps, fs, wl, wst] = await Promise.all([
       // Uncaught on purpose, mirroring web: this is the primary request, and it is
@@ -150,7 +158,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+      .catch((err) => setError({ key: 'settings.unknownError', cause: err }))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 
@@ -188,12 +196,12 @@ export default function Dashboard() {
       <Screen>
         <ErrorState
           size="page"
-          title="Couldn't load your dashboard"
-          message={error}
+          title={t('home.loadFailed')}
+          message={uiMessage(error)}
           onRetry={() => {
             setError(null)
             setLoading(true)
-            load().catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong."))).finally(() => setLoading(false))
+            load().catch((err) => setError({ key: 'settings.unknownError', cause: err })).finally(() => setLoading(false))
           }}
         />
       </Screen>
@@ -223,7 +231,7 @@ export default function Dashboard() {
   }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
-    date: formatDay(workoutDay(w), 'M/d'),
+    date: formatDay(workoutDay(w), 'numericMonthDay'),
     volume: displayVolume(calcVolume(w), unit),
     name: w.name,
   }))
@@ -242,9 +250,9 @@ export default function Dashboard() {
   const heatmapWeeks: Date[][] = []
   for (let i = 0; i < heatmapDays.length; i += 7) heatmapWeeks.push(heatmapDays.slice(i, i + 7))
   const monthLabels: (string | null)[] = heatmapWeeks.map((week, i) => {
-    const m = format(week[0], 'MMM')
+    const m = formatDate(week[0], 'monthShort')
     if (i === 0) return m
-    return m !== format(heatmapWeeks[i - 1][0], 'MMM') ? m : null
+    return m !== formatDate(heatmapWeeks[i - 1][0], 'monthShort') ? m : null
   })
 
   const muscleMap = new Map<string, number>()
@@ -277,7 +285,7 @@ export default function Dashboard() {
   const fatPct = Math.min(100, (food.total_fat / settings.fat_target) * 100) || 0
 
   const sparkData = [...weightLogs].reverse().map((l) => ({
-    date: formatDay(entryDay(l), 'M/d'),
+    date: formatDay(entryDay(l), 'numericMonthDay'),
     weight: displayWeight(l.weight, unit),
   }))
 
@@ -295,10 +303,10 @@ export default function Dashboard() {
           <View className="flex-row items-start justify-between gap-3">
             <View className="min-w-0 flex-1">
               <Text className="font-sans-medium text-[11px] uppercase text-tx-muted" style={{ letterSpacing: 1 }}>
-                {format(now, 'EEEE, MMMM d')}
+                {formatDate(now, 'weekdayMonthDayLong')}
               </Text>
               {/* No numberOfLines: a name is never clipped — see web's Dashboard. */}
-              <AppText variant="title" className="mt-0.5">{greeting(now)}, {username}</AppText>
+              <AppText variant="title" className="mt-0.5">{greeting(now, username)}</AppText>
             </View>
             <View className="flex-row items-center gap-2">
               <Pressable
@@ -306,12 +314,12 @@ export default function Dashboard() {
                 className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95"
               >
                 <Play size={15} color="#fff" />
-                <Text className="font-sans-bold text-sm text-white">{session ? 'Resume' : 'Start'}</Text>
+                <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
               </Pressable>
               {/* Avatar → Settings. Settings moved off the footer; this is its entry point. */}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Settings"
+                accessibilityLabel={t('nav.settings')}
                 onPress={() => { hSelect(); router.navigate('/settings') }}
                 hitSlop={6}
                 className="active:scale-95"
@@ -342,8 +350,8 @@ export default function Dashboard() {
                   <Timer size={18} color={brand.warningSoft} />
                 </View>
                 <View>
-                  <AppText variant="bodySemibold" color="warning">Workout in progress</AppText>
-                  <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{session.name} — tap to resume</Text>
+                  <AppText variant="bodySemibold" color="warning">{t('home.activeSession.title')}</AppText>
+                  <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{t('home.activeSession.tapToResume', { name: session.name })}</Text>
                 </View>
               </View>
               <ArrowRight size={18} color={brand.warningSoft} />
@@ -362,25 +370,25 @@ export default function Dashboard() {
             <Card className="flex-row items-center gap-3">
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`View ${upNext.program.name} routine`}
+                accessibilityLabel={t('home.upNext.viewRoutine', { name: upNext.program.name })}
                 onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
                 className="min-w-0 flex-1 flex-row items-center gap-3 active:opacity-70"
               >
                 <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
                 <View className="min-w-0 flex-1">
-                  <Label>Up next · {upNext.program.name}</Label>
+                  <Label>{t('home.upNext.label', { name: upNext.program.name })}</Label>
                   <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
                     {dayLabel(upNext.day, upNext.day.order_index)}
                   </Text>
                   <AppText variant="caption" color="muted" className="mt-0.5">
-                    {(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}
+                    {t('home.upNext.exercises', { count: (upNext.day.exercises ?? []).length })}
                   </AppText>
                 </View>
                 <ChevronRight size={16} color={colors.txMuted} />
               </Pressable>
               <IconButton
                 icon={Play}
-                label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+                label={t('home.upNext.start', { name: dayLabel(upNext.day, upNext.day.order_index) })}
                 variant="solid"
                 size="sm"
                 onPress={startUpNext}
@@ -391,7 +399,7 @@ export default function Dashboard() {
             // here the screen reads as an account with no routine, which is a claim we
             // cannot make from a request that never answered.
             <Card>
-              <ErrorState title="Couldn't load your programs" message={missing['your programs']} onRetry={onRefresh} />
+              <ErrorState title={t('home.upNext.loadFailed')} message={uiMessage(missing['your programs'])} onRetry={onRefresh} />
             </Card>
           ) : null}
 
@@ -399,10 +407,10 @@ export default function Dashboard() {
           <Card>
             <View className="flex-row items-start justify-between">
               <View>
-                <Label>This Week</Label>
+                <Label>{t('home.thisWeek.title')}</Label>
                 <View className="mt-1 flex-row items-end gap-1.5">
                   <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{weekWorkouts.length}</AppText>
-                  <AppText variant="caption" color="muted" className="mb-2">{weekWorkouts.length === 1 ? 'session' : 'sessions'}</AppText>
+                  <AppText variant="caption" color="muted" className="mb-2">{t('home.thisWeek.unit', { count: weekWorkouts.length })}</AppText>
                 </View>
               </View>
               <View className="h-9 w-9 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
@@ -416,7 +424,7 @@ export default function Dashboard() {
                 const isFuture = day > now
                 return (
                   <View key={i} className="items-center gap-1.5">
-                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{format(day, 'EEEEE')}</AppText>
+                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{formatDate(day, 'weekdayNarrow')}</AppText>
                     <View className={`h-3.5 w-3.5 rounded-full ${
                       hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
                     }`} />
@@ -430,14 +438,14 @@ export default function Dashboard() {
           <Card>
             <SectionHeader
               icon={TrendingUp}
-              title="Volume Trend"
+              title={t('home.volume.title')}
               right={<View style={{ width: 132 }}><SegmentedControl size="sm" options={VOL_OPTIONS} value={volumePeriod} onChange={setVolumePeriod} /></View>}
               className="mb-3"
             />
             {chartData.length === 0 ? (
               <View className="items-center justify-center gap-2 py-10">
                 <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.4 }} />
-                <AppText variant="caption" color="muted">Log workouts to see trends</AppText>
+                <AppText variant="caption" color="muted">{t('home.volume.empty')}</AppText>
               </View>
             ) : (
               <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
@@ -450,13 +458,13 @@ export default function Dashboard() {
           <Card>
             <SectionHeader
               icon={Activity}
-              title="Consistency"
-              right={<AppText variant="caption" color="muted">12 weeks</AppText>}
+              title={t('home.consistency.title')}
+              right={<AppText variant="caption" color="muted">{t('home.consistency.range')}</AppText>}
               className="mb-3"
             />
             {workouts.length === 0 ? (
               <View className="items-center justify-center gap-2 py-6">
-                <AppText variant="caption" color="muted">Start working out to build your streak</AppText>
+                <AppText variant="caption" color="muted">{t('home.consistency.empty')}</AppText>
               </View>
             ) : (
               <>
@@ -470,9 +478,9 @@ export default function Dashboard() {
                 </View>
                 <View className="flex-row" style={{ gap: 2 }}>
                   <View style={{ width: 14, gap: 2 }}>
-                    {(['M', '', 'W', '', 'F', '', 'S'] as const).map((lbl, di) => (
+                    {WEEKDAY_ROWS.map((di) => (
                       <View key={di} className="h-3 justify-center">
-                        <Text className="text-[9px] text-tx-muted/60">{lbl}</Text>
+                        <Text className="text-[9px] text-tx-muted/60">{di % 2 === 0 ? formatDate(heatmapWeeks[0][di], 'weekdayNarrow') : ''}</Text>
                       </View>
                     ))}
                   </View>
@@ -502,15 +510,15 @@ export default function Dashboard() {
                 </View>
                 {heatSel ? (
                   <AppText variant="caption" color="muted" className="mt-1.5">
-                    {format(heatSel.day, 'MMM d')}{heatSel.count > 0 ? ` · ${heatSel.count} workout${heatSel.count > 1 ? 's' : ''}` : ' · rest day'}
+                    {heatSel.count > 0 ? t('home.heatmap.workouts', { date: formatDate(heatSel.day, 'monthDay'), count: heatSel.count }) : t('home.heatmap.restDay', { date: formatDate(heatSel.day, 'monthDay') })}
                   </AppText>
                 ) : null}
                 <View className="mt-2 flex-row items-center justify-end gap-1.5">
-                  <Text className="text-[9px] text-tx-muted">Less</Text>
+                  <Text className="text-[9px] text-tx-muted">{t('home.heatmap.less')}</Text>
                   {[colors.border, isDark ? brand.cyanEdge : brand.cyan, isDark ? brand.cyanLight : brand.cyanEdge].map((c, i) => (
                     <View key={i} style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: c }} />
                   ))}
-                  <Text className="text-[9px] text-tx-muted">More</Text>
+                  <Text className="text-[9px] text-tx-muted">{t('home.heatmap.more')}</Text>
                 </View>
               </>
             )}
@@ -527,16 +535,18 @@ export default function Dashboard() {
                 <Card>
                   <View className="mb-3 flex-row items-start justify-between gap-2">
                     <View className="min-w-0 flex-1">
-                      <Label className="mb-1">Last workout</Label>
+                      <Label className="mb-1">{t('home.lastWorkout.title')}</Label>
                       <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
                       <AppText variant="caption" color="muted" className="mt-0.5">
-                        {formatDay(workoutDay(lastWorkout), 'MMM d')}
-                        {mins > 0 ? ` · ${mins} min` : ''}
-                        {totalSets > 0 ? ` · ${totalSets} sets` : ''}
-                        {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}
+                        {[
+                          formatDay(workoutDay(lastWorkout), 'monthDay'),
+                          mins > 0 && t('home.lastWorkout.minutes', { mins }),
+                          totalSets > 0 && t('home.lastWorkout.sets', { count: totalSets }),
+                          totalVolume > 0 && `${totalVolume.toLocaleString()} ${wUnit}`,
+                        ].filter(Boolean).join(' · ')}
                       </AppText>
                     </View>
-                    <LinkRow label="All" onPress={() => router.navigate('/workouts')} />
+                    <LinkRow label={t('home.lastWorkout.all')} onPress={() => router.navigate('/workouts')} />
                   </View>
                   <View className="gap-2.5">
                     {exs.slice(0, 4).map((ex, i) => {
@@ -551,7 +561,7 @@ export default function Dashboard() {
                           </View>
                           {best ? (
                             <Text className="text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
-                              {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, unit)}${wUnit}` : ' BW'}
+                              {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, unit)}${wUnit}` : ` ${t('weight.bodyweightShort')}`}
                             </Text>
                           ) : null}
                         </View>
@@ -559,7 +569,7 @@ export default function Dashboard() {
                     })}
                   </View>
                   {exs.length > 4 ? (
-                    <AppText variant="caption" color="muted" className="pt-2 text-center">+{exs.length - 4} more exercises</AppText>
+                    <AppText variant="caption" color="muted" className="pt-2 text-center">{t('home.lastWorkout.moreExercises', { count: exs.length - 4 })}</AppText>
                   ) : null}
                 </Card>
               </Pressable>
@@ -567,14 +577,14 @@ export default function Dashboard() {
           })() : (
             <Card className="items-center justify-center gap-2" style={{ minHeight: 148 }}>
               <Dumbbell size={30} color={colors.txMuted} style={{ opacity: 0.4 }} />
-              <AppText variant="body" color="muted">No workouts logged yet</AppText>
+              <AppText variant="body" color="muted">{t('home.lastWorkout.empty')}</AppText>
               {/* Suppressed when the Up Next card is already showing above — that
                   card is its own "start something" CTA, and stacking a second
                   "start your first workout" link right under it is the exact
                   redundant-buttons clutter this card exists to avoid. */}
               {!upNext ? (
                 <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
-                  <AppText variant="caption" color="brand">Start your first workout →</AppText>
+                  <AppText variant="caption" color="brand">{t('home.lastWorkout.startFirst')}</AppText>
                 </Pressable>
               ) : null}
             </Card>
@@ -584,19 +594,19 @@ export default function Dashboard() {
           <Card>
             <SectionHeader
               icon={Dumbbell}
-              title="Muscle Balance"
-              right={<AppText variant="caption" color="muted">{workouts.length} workouts</AppText>}
+              title={t('home.muscle.title')}
+              right={<AppText variant="caption" color="muted">{t('home.muscle.workouts', { count: workouts.length })}</AppText>}
               className="mb-1"
             />
             {topMuscle ? (
               <AppText variant="caption" color="muted" className="mb-3 italic">{muscleRoast(topMuscle)}</AppText>
             ) : (
-              <AppText variant="caption" color="muted" className="mb-3">Log workouts to see which muscles you train most.</AppText>
+              <AppText variant="caption" color="muted" className="mb-3">{t('home.muscle.empty')}</AppText>
             )}
             {muscleData.length === 0 ? (
               <View className="items-center justify-center gap-2 py-6">
                 <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.3 }} />
-                <AppText variant="caption" color="muted">No workout data yet</AppText>
+                <AppText variant="caption" color="muted">{t('home.muscle.noData')}</AppText>
               </View>
             ) : (
               <View className="items-center gap-4">
@@ -612,7 +622,7 @@ export default function Dashboard() {
                         <View className="mb-0.5 flex-row items-center gap-2">
                           <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
                           <Text className={`flex-1 text-xs capitalize ${isTop ? 'font-sans-semibold text-tx-primary' : 'text-tx-secondary'}`} numberOfLines={1}>
-                            {d.name}{isTop ? <Text className="text-[9px] uppercase text-tx-muted"> top</Text> : null}
+                            {muscleLabel(d.name)}{isTop ? <Text className="text-[9px] uppercase text-tx-muted">{` ${t('home.muscle.top')}`}</Text> : null}
                           </Text>
                           <MuscleSparkline values={values} color={color} isTop={isTop} />
                           <Text className="w-16 text-right text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>{d.value} · {pct}%</Text>
@@ -629,9 +639,9 @@ export default function Dashboard() {
           {/* ── Today's Nutrition (also covers the Cals/Protein once in the KPI strip) ── */}
           <Card>
             {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
-            <AppText variant="subheading" className="mb-3">Today's Nutrition</AppText>
+            <AppText variant="subheading" className="mb-3">{t('home.nutrition.title')}</AppText>
             {foodMissing ? (
-              <ErrorState title="Couldn't load today's food" message={missing["today's food"]} onRetry={onRefresh} />
+              <ErrorState title={t('home.nutrition.loadFailed')} message={uiMessage(missing["today's food"])} onRetry={onRefresh} />
             ) : (
             <>
             <View className="mb-3 flex-row items-baseline gap-1.5">
@@ -643,11 +653,11 @@ export default function Dashboard() {
             <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
             <View className="gap-3">
               {[
-                { label: 'Protein', val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
-                { label: 'Carbs', val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
-                { label: 'Fat', val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
+                { id: 'protein', label: t('home.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
+                { id: 'carbs', label: t('home.macro.carbs'), val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
+                { id: 'fat', label: t('home.macro.fat'), val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
               ].map((m) => (
-                <View key={m.label}>
+                <View key={m.id}>
                   <View className="mb-1 flex-row items-center justify-between">
                     <AppText variant="caption" color="muted">{m.label}</AppText>
                     <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
@@ -666,13 +676,13 @@ export default function Dashboard() {
           <Card>
             <SectionHeader
               icon={Scale}
-              title="Weight"
-              right={<LinkRow label="View" onPress={() => router.navigate('/weight')} />}
+              title={t('home.weight.title')}
+              right={<LinkRow label={t('home.weight.view')} onPress={() => router.navigate('/weight')} />}
               className="mb-2"
             />
             {weightLogs.length === 0 && weightMissing ? (
               // Not the "log your first weight" prompt: this reader may have years of them.
-              <ErrorState title="Couldn't load your weight" message={missing['your weight']} onRetry={onRefresh} />
+              <ErrorState title={t('home.weight.loadFailed')} message={uiMessage(missing['your weight'])} onRetry={onRefresh} />
             ) : weightLogs.length === 0 ? (
               <Pressable
                 onPress={() => { hSelect(); setSheetOpen(true) }}
@@ -682,12 +692,12 @@ export default function Dashboard() {
                   <Plus size={18} color={accent} />
                 </View>
                 <View>
-                  <Text className="text-sm font-sans-semibold text-tx-primary">Log your first weight</Text>
-                  <AppText variant="caption" color="muted">Tap to start tracking</AppText>
+                  <Text className="text-sm font-sans-semibold text-tx-primary">{t('home.weight.logFirst')}</Text>
+                  <AppText variant="caption" color="muted">{t('home.weight.logFirstHint')}</AppText>
                 </View>
               </Pressable>
             ) : (
-              <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className="active:scale-[0.99]" accessibilityLabel="Log weight">
+              <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className="active:scale-[0.99]" accessibilityLabel={t('home.weight.logAria')}>
                 <View className="mb-2 flex-row items-center justify-between">
                   <View className="flex-row items-baseline gap-1.5">
                     <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
@@ -699,10 +709,10 @@ export default function Dashboard() {
                       // never got — and a null or absent delta is no stats at all, not 0.
                       const delta = weightStats?.change_7d
                       if (typeof delta !== 'number' || !Number.isFinite(delta)) return null
-                      if (delta === 0) return <AppText variant="caption" color="muted">7d · no change</AppText>
+                      if (delta === 0) return <AppText variant="caption" color="muted">{t('home.weight.noChange7d')}</AppText>
                       return (
                         <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
-                          7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, unit))} {wUnit}
+                          {t(delta < 0 ? 'home.weight.trendDown' : 'home.weight.trendUp', { amount: Math.abs(displayWeight(delta, unit)), unit: wUnit })}
                         </Text>
                       )
                     })()}

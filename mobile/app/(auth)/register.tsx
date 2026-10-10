@@ -4,7 +4,10 @@ import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { PasswordRule } from '../../src/components/ui'
 import { IconInput, GradientButton, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { registrationOpen, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
+import {
+  registrationOpen, lengthRuleLabel, matchRuleLabel, newPasswordRules,
+  uiMessage, useTranslation, type UiMessage,
+} from '@lyftr/shared'
 import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
 
@@ -13,13 +16,14 @@ import { useTheme } from '../../src/theme/useTheme'
 const EMAIL_RE = /^\S+@\S+\.\S+$/
 
 export default function Register() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
   // Only the email check lands here now — the password rules render under their own
   // fields as the user types (see below), so this holds the one error that has nowhere
   // else to go, plus whatever the server says.
-  const [localError, setLocalError] = useState<string | null>(null)
+  const [localError, setLocalError] = useState<UiMessage | null>(null)
   const register = useAuthStore((s) => s.register)
   const loading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
@@ -38,7 +42,7 @@ export default function Register() {
   const rules = newPasswordRules({ password, confirm: passwordConfirm })
 
   const submit = async () => {
-    if (!EMAIL_RE.test(email.trim())) { setLocalError('Enter a valid email address'); return }
+    if (!EMAIL_RE.test(email.trim())) { setLocalError({ key: 'auth.validation.emailInvalid' }); return }
     // Backstop — the button is disabled until the rules pass.
     if (!rules.ready) return
     setLocalError(null)
@@ -52,7 +56,7 @@ export default function Register() {
   // meet a 403 on submit. ServerRow stays: they may just be pointed at the wrong server.
   if (!isOpen) {
     return (
-      <AuthScaffold heading="Registration closed" subtitle="This server is not accepting new accounts.">
+      <AuthScaffold heading={t('auth.register.closedHeading')} subtitle={t('auth.closed.notice')}>
         <ServerRow />
         <Text
           style={{
@@ -63,12 +67,11 @@ export default function Register() {
             marginTop: 8,
           }}
         >
-          The owner of this Lyftr instance has turned off new signups. If you should have an
-          account here, ask them to create one for you.
+          {t('auth.register.closedBody')}
         </Text>
         <Footer>
           <Link href="/login" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
-            Back to sign in
+            {t('auth.register.backToSignIn')}
           </Link>
         </Footer>
       </AuthScaffold>
@@ -76,18 +79,18 @@ export default function Register() {
   }
 
   return (
-    <AuthScaffold heading="Create account" subtitle="Start your training log.">
+    <AuthScaffold heading={t('auth.register.heading')} subtitle={t('auth.register.subtitleNative')}>
       <ServerRow />
       <IconInput
-        label="Email"
+        label={t('auth.field.email')}
         icon="mail"
         value={email}
         onChangeText={onChange(setEmail)}
         keyboardType="email-address"
-        placeholder="you@example.com"
+        placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
-        label="Password"
+        label={t('auth.field.password')}
         icon="lock"
         password
         value={password}
@@ -98,7 +101,7 @@ export default function Register() {
         <PasswordRule state={rules.length}>{lengthRuleLabel(password)}</PasswordRule>
       </View>
       <IconInput
-        label="Confirm password"
+        label={t('auth.field.confirmPassword')}
         icon="lock"
         password
         value={passwordConfirm}
@@ -108,13 +111,13 @@ export default function Register() {
       <View className="gap-1.5 mt-2">
         <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>
       </View>
-      {shownError ? <AuthError message={shownError} /> : null}
-      <GradientButton title="Create account" onPress={submit} loading={loading} disabled={!rules.ready} />
+      {shownError ? <AuthError message={uiMessage(shownError)} /> : null}
+      <GradientButton title={t('auth.register.submit')} onPress={submit} loading={loading} disabled={!rules.ready} />
       <Footer>
         <View style={{ flexDirection: 'row', gap: 5 }}>
-          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>Have an account?</Text>
+          <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>{t('auth.register.haveAccountShort')}</Text>
           <Link href="/login" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
-            Sign in
+            {t('auth.register.signInLink')}
           </Link>
         </View>
       </Footer>

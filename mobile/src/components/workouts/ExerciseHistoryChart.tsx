@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
+import { useTranslation } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -78,7 +79,7 @@ export function ExerciseHistoryChart({
   width,
   unit,
   height = 132,
-  readoutNote = 'Max weight',
+  readoutNote,
 }: {
   data: ChartPoint[]
   width: number
@@ -89,6 +90,8 @@ export function ExerciseHistoryChart({
   readoutNote?: string
 }) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
+  const note = readoutNote ?? t('exercises.detail.maxWeight')
   const [selected, setSelected] = useState<number | null>(null)
   if (data.length < 2 || width <= 0) return null
 
@@ -202,7 +205,7 @@ export function ExerciseHistoryChart({
           }}
         >
           <AppText variant="caption" style={{ fontVariant: ['tabular-nums'] }}>
-            {data[selected].weight} {unit}{readoutNote ? ` · ${readoutNote}` : ''}
+            {data[selected].weight} {unit}{note ? ` · ${note}` : ''}
           </AppText>
           {data[selected].sub ? (
             <AppText variant="caption" color="muted">{data[selected].sub}</AppText>

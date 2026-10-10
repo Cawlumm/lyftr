@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
@@ -62,7 +63,8 @@ function RepDot({ index, mutedColor }: { index: number; mutedColor: string }) {
   )
 }
 
-export function Loading({ sublabel = 'Loading' }: { sublabel?: string }) {
+export function Loading({ sublabel }: { sublabel?: string }) {
+  const { t: translate } = useTranslation()
   const { colors, brand } = useTheme()
   const t = useSharedValue(0)
 
@@ -143,7 +145,7 @@ export function Loading({ sublabel = 'Loading' }: { sublabel?: string }) {
       <View className="items-center">
         <AppText variant="heading" className="tracking-tight">lyftr</AppText>
         <AppText variant="label" color="muted" className="mt-2 uppercase" style={{ letterSpacing: 3 }}>
-          {sublabel}
+          {sublabel ?? translate('common.loading')}
         </AppText>
       </View>
     </View>

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { Button } from './Button'
+import { i18n } from '@lyftr/shared'
 import { ErrorState } from './ErrorState'
 
 // Same preamble as the other component tests: expo-router can't load under bare jest, and
@@ -20,6 +21,19 @@ jest.mock('react-native-safe-area-context', () => ({
 // supposed to read as one screen, and a test that only exists on one side is how they
 // quietly stop matching.
 describe('ErrorState', () => {
+  it('reads its retry label from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    const view = render(<ErrorState title="x" message="y" onRetry={() => {}} />)
+    try {
+      expect(screen.getByText('Intentar de nuevo')).toBeTruthy()
+      expect(screen.queryByText('Try again')).toBeNull()
+    } finally {
+      // Unmount first: restoring English under a mounted tree is a state update outside act.
+      view.unmount()
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('names what failed and why', () => {
     render(<ErrorState title="Couldn't load your dashboard" message="The server didn't respond in time." />)
     expect(screen.getByText("Couldn't load your dashboard")).toBeTruthy()

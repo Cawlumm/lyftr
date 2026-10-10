@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Scale, X } from 'lucide-react-native'
-import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep } from '@lyftr/shared'
+import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, useTranslation } from '@lyftr/shared'
 import {
   Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
   Sheet, StepperTile,
@@ -24,6 +24,7 @@ interface Props {
 // Dashboard. Same logic as the Weight page's log form (prefill, same-day duplicate
 // guard, collapsible date/note, validation) but self-contained in a Sheet.
 export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess }: Props) {
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
@@ -33,7 +34,9 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const [date, setDate] = useState(todayStr())
   const [notes, setNotes] = useState('')
   const [showExtras, setShowExtras] = useState(false)
-  const [error, setError] = useState('')
+  // The rejected weight, not the sentence about it: the text is made at render from the current
+  // unit and language, so a banner already on screen follows a switch of either.
+  const [rejected, setRejected] = useState<number | null>(null)
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const [dupDismissed, setDupDismissed] = useState(false)
 
@@ -44,7 +47,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
     setDate(todayStr())
     setNotes('')
     setShowExtras(false)
-    setError('')
+    setRejected(null)
     setShowDuplicateWarning(false)
     setDupDismissed(false)
   }, [open, lastValue])
@@ -58,21 +61,23 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     onSuccess(log)
     onClose()
-  }, 'Failed to save')
+  }, t('home.quickWeighIn.saveFailed'))
+
+  const error = rejected === null ? '' : weightError(rejected, unit) ?? ''
 
   const submit = async (forceDismissed = false) => {
     if (save.busy) return
     const w = parseFloat(value)
     const wErr = weightError(w, unit)
     if (wErr) {
-      setError(wErr)
+      setRejected(w)
       return
     }
     if (!(forceDismissed || dupDismissed) && lastLog && entryDay(lastLog) === date) {
       setShowDuplicateWarning(true)
       return
     }
-    setError('')
+    setRejected(null)
     setShowDuplicateWarning(false)
     void save.run(w)
   }
@@ -86,9 +91,9 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
             <View className="h-8 w-8 items-center justify-center rounded-lg border border-brand-500/20 bg-brand-500/10">
               <Scale size={16} color={accent} />
             </View>
-            <AppText variant="heading">Log Weight</AppText>
+            <AppText variant="heading">{t('home.quickWeighIn.title')}</AppText>
           </View>
-          <Pressable onPress={onClose} hitSlop={8} className="p-1.5 active:opacity-60" accessibilityLabel="Close">
+          <Pressable onPress={onClose} hitSlop={8} className="p-1.5 active:opacity-60" accessibilityLabel={t('common.close')}>
             <X size={20} color={colors.txMuted} />
           </Pressable>
         </View>
@@ -102,22 +107,22 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
             <Alert
               variant="warning"
               actions={[
-                { label: 'Cancel', onPress: () => setShowDuplicateWarning(false) },
+                { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
                 {
-                  label: 'Log Anyway',
+                  label: t('home.quickWeighIn.logAnyway'),
                   primary: true,
                   onPress: () => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) },
                 },
               ]}
             >
-              Already logged today ({lastValue} {wUnit}). Log again anyway?
+              {t('home.quickWeighIn.duplicateToday', { weight: lastValue, unit: wUnit })}
             </Alert>
           ) : null}
 
           <StepperTile
             icon={Scale}
-            label={`Weight (${wUnit})`}
-            name="weight"
+            label={t('home.quickWeighIn.weightWithUnit', { unit: wUnit })}
+            name={t('home.quickWeighIn.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={(d) => setValue(String(clampStep(parseFloat(value) || 0, d, { min: 0, max: maxWeight(unit) })))}
           >
@@ -126,30 +131,30 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
               value={value}
               onChange={setValue}
               placeholder="0"
-              accessibilityLabel="Weight"
+              accessibilityLabel={t('home.quickWeighIn.weight')}
               inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
             />
           </StepperTile>
 
           {!showExtras ? (
             <Pressable onPress={() => setShowExtras(true)} hitSlop={6} className="self-start active:opacity-60">
-              <AppText variant="caption" color="brand">+ Change date or add a note</AppText>
+              <AppText variant="caption" color="brand">{t('home.quickWeighIn.changeDateOrNote')}</AppText>
             </Pressable>
           ) : (
             <View className="gap-3">
-              <DateInput label="Date" value={date} onChange={setDate} maximumDate={new Date()} />
+              <DateInput label={t('home.quickWeighIn.date')} value={date} onChange={setDate} maximumDate={new Date()} />
               <Field
-                label="Note (optional)"
+                label={t('home.quickWeighIn.noteOptional')}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="e.g., morning, post-workout"
+                placeholder={t('home.quickWeighIn.notePlaceholder')}
                 maxLength={200}
               />
             </View>
           )}
 
           <Button
-            title={save.busy ? 'Saving…' : 'Save'}
+            title={save.busy ? t('common.saving') : t('common.save')}
             onPress={() => submit()}
             loading={save.busy}
             disabled={!(parseFloat(value) > 0) || save.busy}

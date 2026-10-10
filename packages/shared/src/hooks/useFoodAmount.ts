@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { i18n, useTranslation } from '../i18n'
 import type { FoodSearchResult } from '../types'
 import {
   amountForServings, formatServings, MAX_SERVINGS, maxAmountFor, servingBasis,
@@ -48,6 +49,8 @@ export interface FoodAmount {
 export function useFoodAmount(
   selected: Pick<FoodSearchResult, 'serving_quantity' | 'serving_unit'> | null,
 ): FoodAmount {
+  // Subscribes to a language switch: `limitHint` is made from the catalog at render.
+  useTranslation()
   const [text, setText] = useState('1')
   const [refused, setRefused] = useState(false)
 
@@ -100,7 +103,7 @@ export function useFoodAmount(
     // what is loggable — and on servings, which is the number the server bounds too, so
     // the two cannot refuse different things.
     overLimit: servings > MAX_SERVINGS,
-    limitHint: servings > MAX_SERVINGS || refused ? `One entry holds at most ${maxAmountFor(basis)}` : null,
+    limitHint: servings > MAX_SERVINGS || refused ? i18n.t('food.limitHint', { amount: maxAmountFor(basis) }) : null,
     step: (direction) => {
       const size = basis ? basis.quantity : 0.5
       // Stops at the ceiling as it stops at zero: a stepper that walks past what one

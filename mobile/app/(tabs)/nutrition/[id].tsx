@@ -3,12 +3,12 @@ import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import { entryToResult, formatLoggedAmount, isNotFound, uiMessage, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
-  MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal,
+  MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
@@ -19,12 +19,13 @@ import { useTheme } from '../../../src/theme/useTheme'
 // the shared log flow in edit mode; Delete routes through the ConfirmSheet. The dashboard
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 export default function NutritionDetail() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors, accent } = useTheme()
 
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<UiMessage | null>(null)
   const [gone, setGone] = useState(false)
   const [retryKey, setRetryKey] = useState(0)
   const [confirming, setConfirming] = useState(false)
@@ -41,7 +42,7 @@ export default function NutritionDetail() {
       .then(setEntry)
       .catch((err) => {
         setGone(isNotFound(err))
-        setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+        setError({ key: 'settings.unknownError', cause: err })
       })
       .finally(() => setLoading(false))
   }, [id, retryKey])
@@ -58,7 +59,7 @@ export default function NutritionDetail() {
     if (!entry) return
     await client.foodAPI.delete(entry.id)
     goBack() // the dashboard refetches on focus
-  }, 'Failed to delete entry')
+  }, t('food.entry.deleteFailed'))
 
   if (loading) return <Loading />
 
@@ -68,10 +69,10 @@ export default function NutritionDetail() {
         <View className="flex-1 py-4">
           <ErrorState
             size="page"
-            title="Couldn't load this entry"
-            message={error ?? 'That entry no longer exists.'}
+            title={t('food.entry.loadFailed')}
+            message={error ? uiMessage(error) : t('food.entry.gone')}
             onRetry={error && !gone ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
-            secondary={<Button title="Back to nutrition" variant="secondary" onPress={goBack} />}
+            secondary={<Button title={t('food.entry.backToNutrition')} variant="secondary" onPress={goBack} />}
           />
         </View>
       </Screen>
@@ -92,10 +93,10 @@ export default function NutritionDetail() {
   const MealIcon = MEAL_ICONS[meal]
   const mealColor = MEAL_COLORS[meal]
   const macros = [
-    { label: 'Protein', value: entry.protein, color: MACRO_TEXT.protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-    { label: 'Carbs', value: entry.carbs, color: MACRO_TEXT.carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-    { label: 'Fat', value: entry.fat, color: MACRO_TEXT.fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
-    { label: 'Fiber', value: entry.fiber ?? 0, color: colors.txSecondary, bar: colors.txMuted, bg: colors.muted, border: colors.border },
+    { label: t('food.macro.protein'), value: entry.protein, color: MACRO_TEXT.protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+    { label: t('food.macro.carbs'), value: entry.carbs, color: MACRO_TEXT.carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+    { label: t('food.macro.fat'), value: entry.fat, color: MACRO_TEXT.fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+    { label: t('food.macro.fiber'), value: entry.fiber ?? 0, color: colors.txSecondary, bar: colors.txMuted, bg: colors.muted, border: colors.border },
   ]
 
   // Calorie contribution per macro (4/4/9 kcal per g) → the composition bar + % split.
@@ -105,11 +106,11 @@ export default function NutritionDetail() {
 
   // Spec-list rows (MFP / Lose It convention): serving size, amount, meal, logged.
   const specRows: { label: string; value: string; tabular?: boolean }[] = [
-    ...(entry.serving_size ? [{ label: 'Serving size', value: entry.serving_size }] : []),
+    ...(entry.serving_size ? [{ label: t('food.entry.servingSize'), value: entry.serving_size }] : []),
     // In the unit it was logged in — "15 ml", not "0.15 servings" (#171).
-    { label: 'Amount', value: formatLoggedAmount(entry), tabular: true },
-    { label: 'Meal', value: MEAL_LABELS[meal] },
-    { label: 'Logged', value: formatDay(entryDay(entry), 'EEE, MMM d, yyyy') },
+    { label: t('food.entry.amount'), value: formatLoggedAmount(entry), tabular: true },
+    { label: t('food.entry.meal'), value: mealLabel(meal) },
+    { label: t('food.entry.logged'), value: formatDay(entryDay(entry), 'weekdayMonthDayYear') },
   ]
 
   return (
@@ -120,7 +121,7 @@ export default function NutritionDetail() {
           <View className="flex-row items-center justify-between">
             <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
               <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">Nutrition</AppText>
+              <AppText variant="body" color="muted">{t('food.entry.back')}</AppText>
             </Pressable>
             <View className="flex-row items-center gap-2">
               {favoritesLoaded ? (
@@ -134,17 +135,17 @@ export default function NutritionDetail() {
               ) : null}
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Edit entry"
+                accessibilityLabel={t('food.entry.editLabel')}
                 onPress={() => router.push(`/nutrition/log?edit=${entry.id}`)}
                 hitSlop={6}
                 className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
               >
                 <Edit2 size={15} color={accent} strokeWidth={2.2} />
-                <AppText variant="label" style={{ color: accent }}>Edit</AppText>
+                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Delete entry"
+                accessibilityLabel={t('food.entry.deleteLabel')}
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
                 hitSlop={6}
@@ -164,7 +165,7 @@ export default function NutritionDetail() {
               {/* Meal chip */}
               <View className="flex-row items-center gap-1.5 self-start rounded-full border px-2.5 py-1" style={{ backgroundColor: `${mealColor}1A`, borderColor: `${mealColor}40` }}>
                 <MealIcon size={13} color={mealColor} />
-                <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{MEAL_LABELS[meal]}</AppText>
+                <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{mealLabel(meal)}</AppText>
               </View>
 
               {/* Name + calorie hero */}
@@ -184,7 +185,7 @@ export default function NutritionDetail() {
                     <View style={{ width: `${pctCal(cals.fat)}%`, backgroundColor: MACRO_COLORS.fat }} />
                   </View>
                   <View className="mt-2.5 flex-row justify-between">
-                    {([['Protein', cals.protein, MACRO_COLORS.protein], ['Carbs', cals.carbs, MACRO_COLORS.carbs], ['Fat', cals.fat, MACRO_COLORS.fat]] as const).map(([label, v, color]) => (
+                    {([[t('food.macro.protein'), cals.protein, MACRO_COLORS.protein], [t('food.macro.carbs'), cals.carbs, MACRO_COLORS.carbs], [t('food.macro.fat'), cals.fat, MACRO_COLORS.fat]] as const).map(([label, v, color]) => (
                       <View key={label} className="flex-row items-center gap-1.5">
                         <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: color }} />
                         <AppText variant="caption" color="muted">{label}</AppText>
@@ -220,7 +221,7 @@ export default function NutritionDetail() {
       </ScrollView>
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: 'Delete entry?', subject: `"${entry.name}"` })}
+        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), subject: `"${entry.name}"` })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

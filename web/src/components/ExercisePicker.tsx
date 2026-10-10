@@ -2,10 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useServerList, types } from '@lyftr/shared'
+import { useServerList, types, useTranslation } from '@lyftr/shared'
 import { ListError } from './ui'
 import { exerciseAPI } from '../services/api'
-import { muscleColorBordered, EQUIPMENT_LABEL } from '../utils/exerciseUtils'
+import { muscleColorBordered, muscleLabel, equipmentLabel } from '../utils/exerciseUtils'
 
 // Must match the server's default page size, since a short page is what signals
 // the end of the results.
@@ -22,13 +22,14 @@ interface Props {
 }
 
 export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
   }, [query])
 
   // Results come a page at a time from the server, which queries open-exercise-db.
@@ -82,14 +83,14 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
           <ArrowLeft className="w-5 h-5 text-tx-muted" />
         </button>
         <div>
-          <h2 className="font-display font-bold text-xl text-tx-primary">Add Exercise</h2>
+          <h2 className="font-display font-bold text-xl text-tx-primary">{t('exercises.picker.title')}</h2>
           {/* Derived from the rows we actually hold, so it is only true if the fetch
               landed. On a failure `available` is empty and this read "0 loaded" directly
               above a message saying we could not load anything — the same claim the
               error state exists to stop. */}
           {!error && (
             <p className="text-xs text-tx-muted">
-              {available.length} loaded{hasMore ? '…' : ''}
+              {t(hasMore ? 'exercises.picker.loadedMore' : 'exercises.picker.loaded', { count: available.length })}
             </p>
           )}
         </div>
@@ -103,7 +104,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search exercises…"
+            placeholder={t('exercises.picker.search')}
             className="input pl-10 w-full"
             autoFocus
           />
@@ -115,18 +116,18 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
         {initialLoading ? (
           <div className="flex items-center justify-center py-16 text-tx-muted text-sm">
             <Dumbbell className="w-5 h-5 mr-2 animate-pulse text-brand-500" />
-            Loading exercises…
+            {t('exercises.picker.loading')}
           </div>
         ) : available.length === 0 ? (
           // "No exercises found" is only true if we heard back. On a failed fetch it
           // reads as an empty catalogue rather than a connection that dropped.
           error ? (
             <div className="p-4">
-              <ListError subject="these exercises" message={error} onRetry={retry} />
+              <ListError subject={t('exercises.picker.errorSubject')} message={error} onRetry={retry} />
             </div>
           ) : (
             <div className="flex items-center justify-center py-16 text-tx-muted text-sm">
-              No exercises found
+              {t('exercises.picker.empty')}
             </div>
           )
         ) : (
@@ -170,11 +171,11 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
                       <p className="text-sm font-medium text-tx-primary truncate">{ex.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${muscleColorBordered(ex.muscle_group)}`}>
-                          {ex.muscle_group}
+                          {muscleLabel(ex.muscle_group)}
                         </span>
                         {ex.equipment && ex.equipment !== 'other' && (
                           <span className="text-xs text-tx-muted">
-                            {EQUIPMENT_LABEL[ex.equipment] || ex.equipment}
+                            {equipmentLabel(ex.equipment)}
                           </span>
                         )}
                       </div>

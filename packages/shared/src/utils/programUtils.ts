@@ -1,6 +1,7 @@
 // Program day/cycle helpers. Ported verbatim from web/src/utils/programUtils.ts so
 // web and mobile share one implementation of the multi-day-program logic.
 import type { ActiveSessionExercise, Program, ProgramDay, ProgramExercise } from '../types'
+import { i18n } from '../i18n'
 
 // Workout days only — rest days carry no exercises and can't be "started" or
 // "loaded". Used everywhere a picker needs to offer a day to load/start from.
@@ -14,7 +15,7 @@ export const todaysDay = (program: Program): ProgramDay | undefined =>
   (program.days ?? [])[program.current_day_index]
 
 export const dayLabel = (day: ProgramDay, idx: number): string =>
-  day.name?.trim() || (day.is_rest_day ? 'Rest Day' : `Day ${idx + 1}`)
+  day.name?.trim() || (day.is_rest_day ? i18n.t('programs.day.rest') : i18n.t('programs.day.numbered', { number: idx + 1 }))
 
 // A day is startable/loadable only if it's a workout day that actually has
 // exercises — a rest day or an empty day is never "due" and can't seed a session.

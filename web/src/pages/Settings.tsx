@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
-import { apiErrorMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
+import {
+  uiMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
+  useTranslation, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel,
+  type LanguagePreference, type UiMessage,
+} from '@lyftr/shared'
+import { useLanguageStore } from '../lib/lyftr'
 import { useAuthStore } from '../stores/auth'
 import { useServerStore } from '../stores/server'
 import { useServerInfo } from '../hooks/useServerInfo'
@@ -13,8 +18,12 @@ import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
-  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail,
+  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail, Languages,
 } from 'lucide-react'
+
+// The two-way switches below are keyed by their value; the label is translated where it is drawn.
+const LAYOUT_MODES = ['list', 'gym'] as const
+const WEIGHT_UNITS = ['lbs', 'kg'] as const
 
 // Wraps per row, on content rather than on viewport width.
 //
@@ -66,14 +75,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function Settings() {
+  const { t } = useTranslation()
   const { user, logout } = useAuthStore()
+  const languagePreference = useLanguageStore(s => s.preference)
+  const setLanguagePreference = useLanguageStore(s => s.setPreference)
   const serverUrl = useServerStore(s => s.serverUrl)
   const serverInfo = useServerInfo()
   const { theme, toggleTheme } = useTheme()
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
   const settingsLoadFailed = useSettingsStore(s => s.loadFailed)
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
-  const [error, setError] = useState<string | null>(null)
+  // Failures are kept as a UiMessage (a key and the failure that caused it), not as a
+  // sentence, so a banner already on screen follows a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -81,14 +95,14 @@ export default function Settings() {
   // toggle sits ~800px down a long settings page. Measured in a browser — the toggle
   // flicked back to lbs while the explanation was off-screen above, which is the
   // "say it where the tap was" failure this whole branch exists to stop.
-  const [unitError, setUnitError] = useState<string | null>(null)
+  const [unitError, setUnitError] = useState<UiMessage | null>(null)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
   // Carries whether it FAILED, not just what it said. Both outcomes used to land in
   // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
   // right now." were the same small grey text — a failure that does not read as one.
-  const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
+  const [seedMsg, setSeedMsg] = useState<{ message: UiMessage; failed: boolean } | null>(null)
 
   // Deliberately NOT in formData: the only button that commits formData is labelled
   // "Save targets", lives in Goals & Units ~900px below, and is removed entirely when
@@ -129,7 +143,7 @@ export default function Settings() {
         fat_target: s.fat_target,
       })
     } catch (err: any) {
-      setError(apiErrorMessage(err, "The server didn't say what went wrong."))
+      setError({ key: 'settings.unknownError', cause: err })
     } finally {
       setLoading(false)
     }
@@ -148,10 +162,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg({ text: `Refreshed ${res.refreshed.toLocaleString()} exercise${res.refreshed === 1 ? '' : 's'}`, failed: false })
+      setSeedMsg({ message: { key: 'settings.library.refreshed', params: { count: res.refreshed, amount: res.refreshed.toLocaleString() } }, failed: false })
       loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg({ text: apiErrorMessage(err, "Couldn't refresh the cache."), failed: true })
+      setSeedMsg({ message: { key: 'settings.library.refreshFailed', cause: err }, failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -162,10 +176,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg({ text: `Cleared ${res.cleared.toLocaleString()} unused exercises`, failed: false })
+      setSeedMsg({ message: { key: 'settings.library.cleared', params: { count: res.cleared, amount: res.cleared.toLocaleString() } }, failed: false })
       loadCacheStatus()
     } catch (err) {
-      setSeedMsg({ text: apiErrorMessage(err, "Couldn't clear the cache."), failed: true })
+      setSeedMsg({ message: { key: 'settings.library.clearFailed', cause: err }, failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -185,7 +199,7 @@ export default function Settings() {
       await updateSettings({ weight_unit: unit })
     } catch (err) {
       setFormData(prev => ({ ...prev, weight_unit: previous }))
-      setUnitError(apiErrorMessage(err, "Couldn't change the weight unit."))
+      setUnitError({ key: 'settings.targets.weightUnit.changeFailed', cause: err })
     }
   }
 
@@ -195,7 +209,7 @@ export default function Settings() {
     await updateSettings(formData)
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
-  }, 'Failed to save settings')
+  }, t('settings.targets.saveFailedFallback'))
 
   // Mobile has had this since it shipped; web rendered the button and wired nothing to
   // it, so "Delete account" was a control that did nothing at all — worse than absent,
@@ -206,7 +220,7 @@ export default function Settings() {
   const deleteAccount = useAsyncAction(async () => {
     await userAPI.deleteAccount()
     await logout()
-  }, 'Could not delete account')
+  }, t('settings.deleteAccount.failed'))
 
   // Its own commit, like handleUnitChange above and unlike the targets block: one
   // scoped patch, trimmed at the call site the way mobile's screen does it, and the
@@ -217,7 +231,7 @@ export default function Settings() {
     const display_name = name.trim()
     await updateSettings({ display_name })
     setName(display_name)
-  }, "Couldn't save your name.")
+  }, t('settings.account.name.saveFailed'))
 
   const handleSaveName = () => { void saveName.run() }
 
@@ -238,33 +252,33 @@ export default function Settings() {
 
   return (
     <div className="space-y-5 animate-slide-up max-w-2xl">
-      <PageHeader title="Settings" subtitle="Preferences and account configuration" />
+      <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       {(error || save.error) && (
         <div className="alert-error">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || save.error}</span>
+          <span>{error ? uiMessage(error) : save.error}</span>
         </div>
       )}
 
       {success && (
         <div className="alert-success">
           <Check className="w-5 h-5 flex-shrink-0" />
-          <span>Settings saved successfully</span>
+          <span>{t('settings.saved')}</span>
         </div>
       )}
 
       {/* Account */}
-      <Section title="Account">
+      <Section title={t('settings.account.title')}>
         {/* aria-label because SettingRow's label is a <p>, not a <label>, so the row
             text names nothing — the same reason the custom-rest input carries one.
             autoComplete is "nickname", not "name": this is a chosen label, and "name"
             invites the browser to fill in a legal name. */}
         <SettingRow
-          label="Name"
+          label={t('settings.account.name.label')}
           description={settingsLoadFailed
-            ? "Couldn't load your name, so we won't offer to overwrite it."
-            : saveName.error || "The name the app greets you by. Leave it empty and we'll use your email instead."}
+            ? t('settings.account.name.loadFailed')
+            : saveName.error || t('settings.account.name.description')}
           descriptionTone={settingsLoadFailed || saveName.error ? 'error' : undefined}
           descriptionId="name-help"
         >
@@ -274,7 +288,7 @@ export default function Settings() {
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                aria-label="Name"
+                aria-label={t('settings.account.name.label')}
                 aria-describedby="name-help"
                 value={name}
                 onChange={e => { setName(e.target.value); saveName.reset() }}
@@ -292,47 +306,64 @@ export default function Settings() {
                   "Saving…" state with it. */}
               {(nameDirty || saveName.busy) && (
                 <button onClick={handleSaveName} disabled={saveName.busy} className="btn-secondary btn-sm flex-shrink-0">
-                  {saveName.busy ? 'Saving…' : 'Save'}
+                  {saveName.busy ? t('settings.account.name.saving') : t('settings.account.name.save')}
                 </button>
               )}
             </div>
           )}
         </SettingRow>
-        <SettingRow label="Email" description="Your login email address">
+        <SettingRow label={t('settings.account.email.label')} description={t('settings.account.email.description')}>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="text-sm text-tx-muted font-mono break-all">{user?.email}</span>
-            <Link to="/settings/email" aria-label="Change email" className="btn-secondary btn-sm">
-              <Mail className="w-3.5 h-3.5" /> Change
+            <Link to="/settings/email" aria-label={t('settings.account.email.changeLabel')} className="btn-secondary btn-sm">
+              <Mail className="w-3.5 h-3.5" /> {t('settings.account.email.change')}
             </Link>
           </div>
         </SettingRow>
-        <SettingRow label="Member since">
+        <SettingRow label={t('settings.account.memberSince.label')}>
           <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>
         </SettingRow>
-        <SettingRow label="Password" description="Changing it signs you out on your other devices">
+        <SettingRow label={t('settings.account.password.label')} description={t('settings.account.password.description')}>
           <Link to="/settings/password" className="btn-secondary btn-sm">
-            <KeyRound className="w-3.5 h-3.5" /> Change
+            <KeyRound className="w-3.5 h-3.5" /> {t('settings.account.password.change')}
           </Link>
         </SettingRow>
       </Section>
 
       {/* Appearance */}
-      <Section title="Appearance">
-        <SettingRow label="Theme" description="Interface color scheme">
+      <Section title={t('settings.appearance.title')}>
+        <SettingRow label={t('settings.appearance.theme.label')} description={t('settings.appearance.theme.description')}>
           <button onClick={toggleTheme} className="btn-secondary btn-sm">
             {theme === 'dark'
-              ? <><Moon className="w-3.5 h-3.5" /> Dark</>
-              : <><Sun className="w-3.5 h-3.5" /> Light</>
+              ? <><Moon className="w-3.5 h-3.5" /> {t('settings.appearance.theme.dark')}</>
+              : <><Sun className="w-3.5 h-3.5" /> {t('settings.appearance.theme.light')}</>
             }
           </button>
+        </SettingRow>
+        <SettingRow label={t('settings.language.label')} description={t('settings.language.description')} descriptionId="language-help">
+          <div className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-tx-muted flex-shrink-0" aria-hidden />
+            <select
+              className="input w-auto py-2"
+              aria-label={t('settings.language.label')}
+              aria-describedby="language-help"
+              value={languagePreference}
+              onChange={e => { void setLanguagePreference(e.target.value as LanguagePreference) }}
+            >
+              <option value="system">{languageChoiceLabel('system')}</option>
+              {LANGUAGE_ORDER.map(code => (
+                <option key={code} value={code} lang={code} translate="no">{LANGUAGE_NAMES[code]}</option>
+              ))}
+            </select>
+          </div>
         </SettingRow>
       </Section>
 
       {/* Workout */}
-      <Section title="Workout">
-        <SettingRow label="Active workout layout" description="How exercises are shown during a workout">
+      <Section title={t('settings.workout.title')}>
+        <SettingRow label={t('settings.workout.layout.label')} description={t('settings.workout.layout.description')}>
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {(['list', 'gym'] as const).map(mode => (
+            {LAYOUT_MODES.map(mode => (
               <button
                 key={mode}
                 onClick={() => setWorkoutLayout(mode)}
@@ -342,15 +373,15 @@ export default function Settings() {
                     : 'text-tx-muted hover:text-tx-primary'
                 }`}
               >
-                {mode === 'list' ? 'List' : 'Gym Mode'}
+                {mode === 'list' ? t('settings.workout.layout.list') : t('settings.workout.layout.gym')}
               </button>
             ))}
           </div>
         </SettingRow>
 
-        <SettingRow label="Rest timer" description="Auto-start a countdown between sets in gym mode">
+        <SettingRow label={t('settings.workout.restTimer.label')} description={t('settings.workout.restTimer.gymDescription')}>
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {([['Off', false], ['On', true]] as const).map(([label, val]) => (
+            {([[t('settings.workout.restTimer.off'), false], [t('settings.workout.restTimer.on'), true]] as const).map(([label, val]) => (
               <button
                 key={label}
                 onClick={() => setRestEnabled(val)}
@@ -378,23 +409,23 @@ export default function Settings() {
             }`
           return (
             <div className={`py-4 transition-opacity ${enabled ? '' : 'opacity-40 pointer-events-none select-none'}`} aria-disabled={!enabled}>
-              <p className="text-sm font-medium text-tx-primary">Default rest</p>
-              <p className="text-xs text-tx-muted mt-0.5 mb-3">Seeds new exercises · per-exercise rest overrides it</p>
+              <p className="text-sm font-medium text-tx-primary">{t('settings.workout.defaultRest.label')}</p>
+              <p className="text-xs text-tx-muted mt-0.5 mb-3">{t('settings.workout.defaultRest.description')}</p>
               <div className="flex rounded-xl border border-surface-border overflow-hidden divide-x divide-surface-border">
                 {presets.map(sec => (
                   <button key={sec} disabled={!enabled} onClick={() => { setShowCustomRest(false); setRestSeconds(sec) }} className={seg(!customActive && cur === sec)}>
                     <Clock className="w-3.5 h-3.5 flex-shrink-0" />
-                    <span className="text-[11px] font-semibold leading-none">{sec}s</span>
+                    <span className="text-[11px] font-semibold leading-none">{t('settings.workout.defaultRest.preset', { seconds: sec })}</span>
                   </button>
                 ))}
                 <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={seg(customActive)}>
                   <Pencil className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="text-[11px] font-semibold leading-none">{isCustom ? `${cur}s` : 'Custom'}</span>
+                  <span className="text-[11px] font-semibold leading-none">{isCustom ? t('settings.workout.defaultRest.preset', { seconds: cur }) : t('settings.workout.defaultRest.custom')}</span>
                 </button>
               </div>
               {customActive && (
                 <div className="flex items-center justify-center gap-2 mt-3">
-                  <button type="button" disabled={!enabled} aria-label="−5 seconds" onClick={() => setRestSeconds(Math.max(0, cur - 5))}
+                  <button type="button" disabled={!enabled} aria-label={t('settings.workout.defaultRest.minusFive')} onClick={() => setRestSeconds(Math.max(0, cur - 5))}
                     className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
                     <Minus className="w-4 h-4" />
                   </button>
@@ -407,11 +438,11 @@ export default function Settings() {
                       value={cur}
                       onChange={e => setRestSeconds(Math.max(0, Math.min(3600, Number(e.target.value) || 0)))}
                       className="input w-28 text-center py-2.5 pr-9 text-base font-semibold tabular-nums"
-                      aria-label="Custom rest seconds"
+                      aria-label={t('settings.workout.defaultRest.customLabel')}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">sec</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{t('settings.workout.defaultRest.secondsUnit')}</span>
                   </div>
-                  <button type="button" disabled={!enabled} aria-label="+5 seconds" onClick={() => setRestSeconds(Math.min(3600, cur + 5))}
+                  <button type="button" disabled={!enabled} aria-label={t('settings.workout.defaultRest.plusFive')} onClick={() => setRestSeconds(Math.min(3600, cur + 5))}
                     className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
                     <Plus className="w-4 h-4" />
                   </button>
@@ -434,23 +465,23 @@ export default function Settings() {
           defaults, so the inputs showed 2000/150/250/65 and Save PUT them over real
           targets of 3175/205/310/88. Measured, not theorised. */}
       {settingsLoadFailed ? (
-        <Section title="Goals & Units">
+        <Section title={t('settings.goalsUnits.title')}>
           <ErrorState
             size="section"
-            title="Couldn't load your goals"
-            message="These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
+            title={t('settings.targets.loadFailedTitle')}
+            message={t('settings.goalsUnits.loadFailedMessage')}
             onRetry={() => { void load() }}
           />
         </Section>
       ) : (
-      <Section title="Goals & Units">
+      <Section title={t('settings.goalsUnits.title')}>
         <SettingRow
-          label="Weight unit"
-          description={unitError ?? 'Changes apply immediately across the app'}
+          label={t('settings.targets.weightUnit.label')}
+          description={unitError ? uiMessage(unitError) : t('settings.targets.weightUnit.description')}
           descriptionTone={unitError ? 'error' : undefined}
         >
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {(['lbs', 'kg'] as const).map(unit => (
+            {WEIGHT_UNITS.map(unit => (
               <button
                 key={unit}
                 onClick={() => handleUnitChange(unit)}
@@ -466,7 +497,7 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <SettingRow label="Calorie target" description="Daily calorie goal">
+        <SettingRow label={t('settings.targets.calorie.label')} description={t('settings.targets.calorie.description')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -480,7 +511,7 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <SettingRow label="Protein target" description="Daily protein goal">
+        <SettingRow label={t('settings.targets.protein.label')} description={t('settings.targets.protein.description')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -492,7 +523,7 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <SettingRow label="Carb target" description="Daily carb goal">
+        <SettingRow label={t('settings.targets.carb.label')} description={t('settings.targets.carb.description')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -504,7 +535,7 @@ export default function Settings() {
           </div>
         </SettingRow>
 
-        <SettingRow label="Fat target" description="Daily fat goal">
+        <SettingRow label={t('settings.targets.fat.label')} description={t('settings.targets.fat.description')}>
           <div className="flex items-center gap-2">
             <input
               type="number"
@@ -517,24 +548,24 @@ export default function Settings() {
         </SettingRow>
 
         <div className="py-3 flex items-center justify-between">
-          <p className="text-xs text-tx-muted">Save calorie and macro targets</p>
+          <p className="text-xs text-tx-muted">{t('settings.targets.saveHint')}</p>
           <button
             onClick={handleSave}
             disabled={save.busy}
             className="btn-primary btn-sm"
           >
-            <Check className="w-3.5 h-3.5" /> {save.busy ? 'Saving...' : 'Save targets'}
+            <Check className="w-3.5 h-3.5" /> {save.busy ? t('settings.targets.saving') : t('settings.targets.save')}
           </button>
         </div>
       </Section>
       )}
 
       {/* Server info */}
-      <Section title="Self-Hosted Instance">
-        <SettingRow label="API server" description="Backend server this client is connected to">
+      <Section title={t('settings.server.webTitle')}>
+        <SettingRow label={t('settings.server.api.label')} description={t('settings.server.api.description')}>
           <div className="flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-success-500 flex-shrink-0" />
-            <span className="text-xs font-mono text-tx-muted">{serverUrl || 'This site (reverse proxy)'}</span>
+            <span className="text-xs font-mono text-tx-muted">{serverUrl || t('settings.server.api.default')}</span>
           </div>
         </SettingRow>
         {/* #17: same Server Settings editor as the sign-in screens, so a logged-in
@@ -542,29 +573,31 @@ export default function Settings() {
         <div className="py-2">
           <ServerSettings />
         </div>
-        <SettingRow label="Database" description="Storage backend">
+        <SettingRow label={t('settings.server.database.label')} description={t('settings.server.database.description')}>
           <span className="badge-dim">SQLite</span>
         </SettingRow>
-        <SettingRow label="Version" description="lyftr backend version">
+        <SettingRow label={t('settings.server.version.label')} description={t('settings.server.version.description')}>
           <span className="text-xs text-tx-muted font-mono">{serverInfo?.version || '—'}</span>
         </SettingRow>
       </Section>
 
       {/* Exercise Library */}
-      <Section title="Exercise Library">
+      <Section title={t('settings.library.title')}>
         <SettingRow
-          label="Exercise database"
-          description="Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
+          label={t('settings.library.database.label')}
+          description={t('settings.library.database.description')}
         >
           <span className="text-sm font-mono text-tx-muted">
-            {cacheStatus ? cacheStatus.count.toLocaleString() : '—'} cached
+            {cacheStatus
+              ? t('settings.library.cached', { count: cacheStatus.count, amount: cacheStatus.count.toLocaleString() })
+              : t('settings.library.cachedUnknown')}
           </span>
         </SettingRow>
 
         {seedMsg && (
           <div className="py-2 px-1">
             <p className={`text-xs ${seedMsg.failed ? 'text-[color:var(--alert-error)]' : 'text-tx-muted'}`}>
-              {seedMsg.text}
+              {uiMessage(seedMsg.message)}
             </p>
           </div>
         )}
@@ -576,8 +609,8 @@ export default function Settings() {
             className="btn-secondary btn-sm"
           >
             {seedAction === 'refresh'
-              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Refreshing...</>
-              : <><RefreshCw className="w-3.5 h-3.5" /> Refresh cached</>
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.library.refreshing')}</>
+              : <><RefreshCw className="w-3.5 h-3.5" /> {t('settings.library.refresh')}</>
             }
           </button>
           <button
@@ -586,23 +619,23 @@ export default function Settings() {
             className="btn-secondary btn-sm"
           >
             {seedAction === 'clear'
-              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Clearing...</>
-              : <><Trash2 className="w-3.5 h-3.5" /> Clear unused</>
+              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.library.clearing')}</>
+              : <><Trash2 className="w-3.5 h-3.5" /> {t('settings.library.clear')}</>
             }
           </button>
         </div>
       </Section>
 
       {/* Danger Zone */}
-      <Section title="Danger Zone">
-        <SettingRow label="Sign out" description="Log out of this device">
+      <Section title={t('settings.danger.title')}>
+        <SettingRow label={t('settings.signOut.label')} description={t('settings.signOut.description')}>
           <button onClick={() => logout()} className="btn-secondary btn-sm">
-            <LogOut className="w-3.5 h-3.5" /> Sign out
+            <LogOut className="w-3.5 h-3.5" /> {t('settings.signOut.button')}
           </button>
         </SettingRow>
-        <SettingRow label="Delete account" description="Permanently delete all your data">
+        <SettingRow label={t('settings.deleteAccount.label')} description={t('settings.deleteAccount.description')}>
           <button onClick={() => setConfirmDelete(true)} className="btn-danger btn-sm">
-            <Trash2 className="w-3.5 h-3.5" /> Delete
+            <Trash2 className="w-3.5 h-3.5" /> {t('settings.deleteAccount.button')}
           </button>
         </SettingRow>
       </Section>
@@ -613,10 +646,10 @@ export default function Settings() {
         open={confirmDelete}
         icon={Trash2}
         destructive
-        title="Delete account?"
-        message="This permanently deletes your account and all of your data. This can't be undone."
-        confirmLabel="Delete account"
-        busyLabel="Deleting…"
+        title={t('settings.deleteAccount.sheetTitle')}
+        message={t('settings.deleteAccount.sheetMessage')}
+        confirmLabel={t('settings.deleteAccount.confirm')}
+        busyLabel={t('settings.deleteAccount.busy')}
         busy={deleteAccount.busy}
         error={deleteAccount.error ?? undefined}
         onConfirm={() => { void deleteAccount.run() }}

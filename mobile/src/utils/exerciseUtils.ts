@@ -1,8 +1,8 @@
 import { resolveMuscleSlugs } from '@lyftr/shared'
 
 // Mobile's half of exercise presentation: the RN tint table and the
-// react-native-body-highlighter slug table. EQUIPMENT_LABEL and the lookup rule are
-// shared — see packages/shared/src/utils/exerciseUtils.ts for why these two are not.
+// react-native-body-highlighter slug table. The equipment and muscle labels and the lookup
+// rule are shared — see packages/shared/src/utils/exerciseUtils.ts for why these two are not.
 //
 // The text tint is a hex, not a class, because AppText always resolves a default
 // text-colour class and two colour classes on one Text leave the winner to stylesheet
@@ -10,7 +10,7 @@ import { resolveMuscleSlugs } from '@lyftr/shared'
 // The hexes are Tailwind's own *-400 values, identical to web's text-*-400 classes.
 // `border` carries web's muscleColorBordered() border class for the picker badges;
 // borderless badges (detail screen) simply don't apply it.
-export { EQUIPMENT_LABEL } from '@lyftr/shared'
+export { categoryLabel, equipmentLabel, muscleLabel } from '@lyftr/shared'
 
 export interface MuscleTint {
   /** NativeWind class for the badge background (bg only — no text class). */

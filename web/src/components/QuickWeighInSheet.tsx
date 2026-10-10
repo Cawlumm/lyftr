@@ -5,7 +5,7 @@ import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayToLbs , weightError, maxWeight } from '../stores/settings'
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { useAsyncAction, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types } from '@lyftr/shared'
+import { useAsyncAction, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, useTranslation, types } from '@lyftr/shared'
 import StepperTile from './ui/StepperTile'
 import NumberField from './ui/NumberField'
 
@@ -18,6 +18,7 @@ interface Props {
 }
 
 export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose, onSuccess }: Props) {
+  const { t } = useTranslation()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
 
@@ -25,7 +26,9 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
   const [date, setDate] = useState(todayStr())
   const [notes, setNotes] = useState('')
   const [showExtras, setShowExtras] = useState(false)
-  const [error, setError] = useState('')
+  // The rejected weight, not the sentence about it: the text is made at render from the current
+  // unit and language, so a banner already on screen follows a switch of either.
+  const [rejected, setRejected] = useState<number | null>(null)
   const [showDuplicateWarning, setShowDuplicateWarning] = useState(false)
   const duplicateWarningDismissedRef = useRef(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -36,7 +39,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     setDate(todayStr())
     setNotes('')
     setShowExtras(false)
-    setError('')
+    setRejected(null)
     setShowDuplicateWarning(false)
     duplicateWarningDismissedRef.current = false
   }, [isOpen, lastValue])
@@ -49,14 +52,16 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     })
     onSuccess(log)
     onClose()
-  }, 'Failed to save')
+  }, t('home.quickWeighIn.saveFailed'))
 
-  const handleClose = () => { setError(''); onClose() }
+  const handleClose = () => { setRejected(null); onClose() }
 
   useBodyScrollLock(isOpen)
   useEscapeKey(isOpen, handleClose)
 
   if (!isOpen) return null
+
+  const error = rejected === null ? '' : weightError(rejected, settings.weight_unit) ?? ''
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -64,7 +69,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     const w = parseFloat(value)
     const wErr = weightError(w, settings.weight_unit)
     if (wErr) {
-      setError(wErr)
+      setRejected(w)
       return
     }
 
@@ -73,7 +78,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
       return
     }
 
-    setError('')
+    setRejected(null)
     setShowDuplicateWarning(false)
     void save.run(w)
   }
@@ -99,7 +104,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             <div className="w-8 h-8 rounded-lg bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
               <Scale className="w-4 h-4 text-brand-500" />
             </div>
-            <h2 id="qws-title" className="font-display font-bold text-lg text-tx-primary">Log Weight</h2>
+            <h2 id="qws-title" className="font-display font-bold text-lg text-tx-primary">{t('home.quickWeighIn.title')}</h2>
           </div>
           <button onClick={handleClose} className="p-1.5 hover:bg-surface-muted rounded-lg transition-colors">
             <X className="w-5 h-5 text-tx-muted" />
@@ -118,14 +123,14 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged today ({Math.round(lastValue ?? 0)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">{t('home.quickWeighIn.duplicateToday', { weight: Math.round(lastValue ?? 0), unit: wUnit })}</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
                     onClick={() => setShowDuplicateWarning(false)}
                     className="px-3 py-1 rounded-lg text-xs font-medium bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors"
                   >
-                    Cancel
+                    {t('common.cancel')}
                   </button>
                   <button
                     type="button"
@@ -136,7 +141,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
                     }}
                     className="px-3 py-1 rounded-lg text-xs font-medium bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-colors"
                   >
-                    Log Anyway
+                    {t('home.quickWeighIn.logAnyway')}
                   </button>
                 </div>
               </div>
@@ -145,12 +150,12 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
 
           <StepperTile
             icon={Scale}
-            label={`Weight (${wUnit})`}
-            name="weight"
+            label={t('home.quickWeighIn.weightWithUnit', { unit: wUnit })}
+            name={t('home.quickWeighIn.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={d => setValue(String(clampStep(parseFloat(value) || 0, d, { max: maxWeight(settings.weight_unit) })))}
           >
-            <NumberField value={value} onChange={setValue} autoFocus aria-label="Weight" />
+            <NumberField value={value} onChange={setValue} autoFocus aria-label={t('home.quickWeighIn.weight')} />
           </StepperTile>
 
           {!showExtras ? (
@@ -159,13 +164,13 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
               onClick={() => setShowExtras(true)}
               className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-1"
             >
-              + Change date or add a note
+              {t('home.quickWeighIn.changeDateOrNote')}
             </button>
           ) : (
             <div className="space-y-3 pt-1">
               <div>
                 <label className="label">
-                  <Calendar className="w-3 h-3" /> Date
+                  <Calendar className="w-3 h-3" /> {t('home.quickWeighIn.date')}
                 </label>
                 <input
                   type="date"
@@ -177,13 +182,13 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
               </div>
               <div>
                 <label className="label">
-                  <FileText className="w-3 h-3" /> Note <span className="text-tx-muted font-normal normal-case tracking-normal">(optional)</span>
+                  <FileText className="w-3 h-3" /> {t('home.quickWeighIn.note')} <span className="text-tx-muted font-normal normal-case tracking-normal">{t('home.quickWeighIn.optional')}</span>
                 </label>
                 <input
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder="e.g., morning, post-workout"
+                  placeholder={t('home.quickWeighIn.notePlaceholder')}
                   maxLength={200}
                   className="input mt-1"
                 />
@@ -197,7 +202,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
             className="btn-primary btn-lg w-full"
           >
             <Save className="w-4 h-4" />
-            {save.busy ? 'Saving…' : 'Save'}
+            {save.busy ? t('common.saving') : t('common.save')}
           </button>
         </form>
       </div>
