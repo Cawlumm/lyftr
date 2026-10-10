@@ -5,12 +5,13 @@ import { ArrowLeft, Scale, Trash2, Edit2, Save, X, AlertCircle, Loader } from 'l
 import { weightAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, weightError, maxWeight, resolveWeightLbs } from '../stores/settings'
 import { useEscapeKey } from '../hooks/useEscapeKey'
-import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, todayStr, dayToInstant, entryDay, BODYWEIGHT_STEP, clampStep, types, formatDay, useTranslation } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
 
 export default function WeightDetail() {
+  useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
@@ -150,7 +151,7 @@ export default function WeightDetail() {
                   <span className="text-tx-muted text-lg mb-1">{wUnit}</span>
                 </div>
                 <p className="text-sm text-tx-muted mt-1">
-                  {formatDay(entryDay(log), 'EEEE, MMMM d, yyyy')}
+                  {formatDay(entryDay(log), 'weekdayDate')}
                 </p>
                 {log.notes && (
                   <p className="text-sm text-tx-secondary mt-2 italic">"{log.notes}"</p>
@@ -233,7 +234,7 @@ export default function WeightDetail() {
         icon={Trash2}
         destructive
         title="Delete Entry?"
-        message={`${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
+        message={`${formatDay(entryDay(log), 'longDate')} · ${displayWeight(log.weight, settings.weight_unit)} ${wUnit} will be permanently deleted.`}
         confirmLabel="Delete"
         busyLabel="Deleting…"
         busy={remove.busy}

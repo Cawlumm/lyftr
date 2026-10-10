@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { CalendarDays } from 'lucide-react-native'
-import { format } from 'date-fns'
+import { formatDate, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText, Label } from './Typography'
 
@@ -36,6 +36,7 @@ const toValue = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)
 // full-width Modal (its own view hierarchy → nest a SafeAreaProvider, same rule as
 // ExercisePicker) where width is unconstrained.
 export function DateInput({ label, value, onChange, maximumDate }: Props) {
+  useTranslation()
   const { colors, accent, isDark } = useTheme()
   const [open, setOpen] = useState(false)
   const date = toLocalDate(value)
@@ -70,7 +71,7 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
         className="h-12 flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 active:scale-[0.99]"
       >
         <CalendarDays size={16} color={colors.txMuted} />
-        <AppText variant="body">{format(date, 'MMM d, yyyy')}</AppText>
+        <AppText variant="body">{formatDate(date, 'monthDayYear')}</AppText>
       </Pressable>
 
       {/* Android: mount inline — it's a self-contained dialog. */}

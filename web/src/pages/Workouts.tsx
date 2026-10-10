@@ -11,9 +11,10 @@ import { Toast } from '../components/ui'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayVolume } from '../stores/settings'
-import { useAsyncAction, types, workoutDay, calcVolume, formatDay } from '@lyftr/shared'
+import { useAsyncAction, types, workoutDay, calcVolume, formatDay, useTranslation } from '@lyftr/shared'
 
 function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; onEdit: (id: number) => void; onDelete: (id: number) => void }) {
+  useTranslation()
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
@@ -92,7 +93,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{workout.name}</p>
-            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDay(workoutDay(workout), 'MMM d, yyyy')}</p>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDay(workoutDay(workout), 'monthDayYear')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
               {durationMin > 0 && (
                 <span className="flex items-center gap-1 text-xs text-tx-muted whitespace-nowrap">
@@ -195,6 +196,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
 }
 
 export default function Workouts() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [search, setSearch] = useState('')
@@ -271,12 +273,12 @@ export default function Workouts() {
           // One page of an infinite list, so this is what has loaded, not how many exist:
           // with more pages outstanding it is a lower bound and says so, rather than
           // reporting a page size as a training history.
-          { label: 'Total', value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: 'logged' },
+          { label: t('workouts.stats.total'), value: hasMore ? `${workouts.length}+` : workouts.length.toString(), unit: t('workouts.stats.logged') },
           // The month the workout was logged in, not the month its UTC instant lands in —
           // a session near a month boundary belongs to the month the lifter trained in.
-          { label: 'This Month', value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: 'sessions' },
+          { label: t('workouts.stats.thisMonth'), value: workouts.filter(w => workoutDay(w).startsWith(format(new Date(), 'yyyy-MM'))).length.toString(), unit: t('workouts.stats.sessions') },
           // The mean of no sessions is not zero minutes.
-          { label: 'Avg Time', value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: 'min' },
+          { label: t('workouts.stats.avgTime'), value: workouts.length > 0 ? Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60).toString() : '—', unit: t('workouts.stats.min') },
         ].map(s => (
           <div key={s.label} className="card p-4">
             <div className="flex items-center gap-1.5 mb-2">

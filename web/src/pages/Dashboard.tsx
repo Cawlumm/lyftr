@@ -18,7 +18,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { useDisplayName } from '../lib/lyftr'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip, formatDate, useTranslation } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor } from '../utils/exerciseUtils'
 
@@ -71,6 +71,7 @@ const TOOLTIP_STYLE = {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   // Sampled per mount, not at module load. As a module constant this went stale the
   // moment the tab outlived the day it was opened on — a tab left open across midnight
   // kept yesterday's date header, week boundary and heatmap "today" until a reload.
@@ -189,7 +190,7 @@ export default function Dashboard() {
 
   // Volume chart: slice by selected period, oldest→newest
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map(w => ({
-    date: formatDay(workoutDay(w), 'M/d'),
+    date: formatDay(workoutDay(w), 'numericMonthDay'),
     volume: displayVolume(calcVolume(w), settings.weight_unit),
     name: w.name,
   }))
@@ -216,9 +217,9 @@ export default function Dashboard() {
   }
   // month labels: show month name on first week that starts in that month
   const monthLabels: (string | null)[] = heatmapWeeks.map((week, i) => {
-    const m = format(week[0], 'MMM')
+    const m = formatDate(week[0], 'monthShort')
     if (i === 0) return m
-    const prev = format(heatmapWeeks[i - 1][0], 'MMM')
+    const prev = formatDate(heatmapWeeks[i - 1][0], 'monthShort')
     return m !== prev ? m : null
   })
 
@@ -256,7 +257,7 @@ export default function Dashboard() {
 
   // Weight sparkline
   const sparkData = [...weightLogs].reverse().map(l => ({
-    date: formatDay(entryDay(l), 'M/d'),
+    date: formatDay(entryDay(l), 'numericMonthDay'),
     weight: displayWeight(l.weight, settings.weight_unit),
   }))
 
@@ -267,7 +268,7 @@ export default function Dashboard() {
       <div className="flex justify-between items-start gap-3">
         <div className="min-w-0">
           <p className="text-[11px] text-tx-muted uppercase tracking-wider font-medium">
-            {format(TODAY, 'EEEE, MMMM d')}
+            {formatDate(TODAY, 'weekdayMonthDayLong')}
           </p>
           {/* Never clipped: a name is the one string here that is the user's own, and
               its length is bounded at the input instead (MaxDisplayNameLen). text-balance
@@ -450,7 +451,7 @@ export default function Dashboard() {
                 return (
                   <div key={i} className="flex flex-col items-center gap-1.5">
                     <span className={`text-[10px] font-semibold ${isToday ? 'text-brand-400' : 'text-tx-muted'}`}>
-                      {format(day, 'EEEEE')}
+                      {formatDate(day, 'weekdayNarrow')}
                     </span>
                     <div className={`w-3 h-3 rounded-full transition-all ${
                       hasWorkout   ? 'bg-brand-500 shadow-sm shadow-brand-500/50' :
@@ -508,7 +509,7 @@ export default function Dashboard() {
                     return (
                       <div
                         key={`${wi}-${dayIdx}`}
-                        title={`${format(day, 'MMM d')}${count > 0 ? ` · ${count} workout${count > 1 ? 's' : ''}` : ''}`}
+                        title={count > 0 ? t('home.heatmap.workouts', { date: formatDate(day, 'monthDay'), count }) : formatDate(day, 'monthDay')}
                         className={`h-3 rounded-[2px] transition-colors ${
                           future      ? 'bg-surface-muted/20' :
                           count === 0 ? 'bg-surface-muted/50' :
@@ -549,7 +550,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
                   <p className="text-xs text-tx-muted mt-0.5">
-                    {formatDay(workoutDay(lastWorkout), 'MMM d')}
+                    {formatDay(workoutDay(lastWorkout), 'monthDay')}
                     {mins > 0 && ` · ${mins} min`}
                     {totalSets > 0 && ` · ${totalSets} set${totalSets === 1 ? '' : 's'}`}
                     {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { apiErrorMessage } from '../client'
+import { useTranslation } from '../i18n'
 
 export interface AsyncAction<A extends unknown[]> {
   /** True while the action is in flight. Gate the button on this. */
@@ -33,8 +34,13 @@ export function useAsyncAction<A extends unknown[] = []>(
   action: (...args: A) => Promise<unknown>,
   fallbackMessage: string,
 ): AsyncAction<A> {
+  // Subscribes this hook to a language switch, so `error` below is re-derived in the new
+  // language rather than frozen in the one the failure happened in.
+  useTranslation()
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  // The failure itself, not its text: the sentence is made at render from the fallback the
+  // caller passes this render, so a visible banner follows a live language switch.
+  const [failure, setFailure] = useState<{ cause: unknown } | null>(null)
 
   // Latest-callback refs. Screens pass an inline closure that reads current state, so
   // `action` has a fresh identity every render — capturing it in the useCallback deps
@@ -57,12 +63,12 @@ export function useAsyncAction<A extends unknown[] = []>(
 
   const run = useCallback(async (...args: A): Promise<boolean> => {
     setBusy(true)
-    setError('')
+    setFailure(null)
     try {
       await latest.current(...args)
       return true
     } catch (err) {
-      if (mounted.current) setError(apiErrorMessage(err, fallback.current))
+      if (mounted.current) setFailure({ cause: err })
       return false
     } finally {
       // In `finally`, not only on the failure path: a screen that stays put after
@@ -71,7 +77,8 @@ export function useAsyncAction<A extends unknown[] = []>(
     }
   }, [])
 
-  const reset = useCallback(() => setError(''), [])
+  const reset = useCallback(() => setFailure(null), [])
 
+  const error = failure ? apiErrorMessage(failure.cause, fallback.current) : ''
   return { busy, error, run, reset }
 }

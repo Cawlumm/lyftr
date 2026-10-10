@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { apiErrorMessage } from '../client'
+import { uiMessage, type UiMessage } from '../client'
+import { useTranslation } from '../i18n'
 import type { FoodSearchResult, SavedFood } from '../types'
 import { findSavedFood, normaliseFoodKey } from '../utils/food'
 
@@ -21,7 +22,8 @@ export interface Favorites {
   toggle: (item: FoodSearchResult) => Promise<'added' | 'removed' | null>
   /** The sentence to show when a toggle failed, in the server's words. */
   error: string | null
-  setError: (error: string | null) => void
+  /** Dismiss the sentence. */
+  setError: (error: null) => void
   /**
    * Bumped when a toggle starts and again when it settles. A list load captures it and
    * drops its own result if it moved while the load was in flight — otherwise a refresh
@@ -50,7 +52,9 @@ const keyOf = (item: FoodSearchResult) => `${normaliseFoodKey(item.name)}|${norm
 export function useFavorites(api: SavedFoodsApi): Favorites {
   const [savedFoods, setSavedFoods] = useState<SavedFood[]>([])
   const [toggling, setToggling] = useState<Set<string>>(new Set())
-  const [error, setError] = useState<string | null>(null)
+  // Subscribes to a language switch: `error` is made from `failure` at render.
+  useTranslation()
+  const [failure, setFailure] = useState<UiMessage | null>(null)
   const epoch = useRef(0)
   const tempId = useRef(0)
 
@@ -74,7 +78,7 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     if (inFlight.current.has(key)) return null
     inFlight.current.add(key)
     setToggling(new Set(inFlight.current))
-    setError(null)
+    setFailure(null)
     epoch.current += 1
     const existing = favoriteOf(item)
     const food = {
@@ -106,9 +110,11 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
       setSavedFoods(prev => existing
         ? insertByName(prev, existing)
         : prev.filter(f => f.id !== pending.id))
-      setError(apiErrorMessage(err, existing
-        ? `Couldn't remove ${item.name} from Favorites.`
-        : `Couldn't add ${item.name} to Favorites.`))
+      setFailure({
+        key: existing ? 'food.favorites.removeFailed' : 'food.favorites.addFailed',
+        params: { name: item.name },
+        cause: err,
+      })
       return null
     } finally {
       epoch.current += 1
@@ -117,5 +123,6 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
     }
   }
 
-  return { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle, error, setError, epoch }
+  const error = failure ? uiMessage(failure) : null
+  return { savedFoods, setSavedFoods, favoriteOf, isToggling, toggle, error, setError: setFailure, epoch }
 }

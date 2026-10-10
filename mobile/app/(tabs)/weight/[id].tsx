@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
-import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
+import { useAsyncAction, apiErrorMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay, useTranslation } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
@@ -12,6 +12,7 @@ import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
 export default function WeightDetail() {
+  useTranslation()
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const unit = settings.weight_unit
@@ -170,7 +171,7 @@ export default function WeightDetail() {
                       <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText>
                     </View>
                     <AppText variant="body" color="muted" className="mt-1">
-                      {formatDay(entryDay(log), 'EEEE, MMMM d, yyyy')}
+                      {formatDay(entryDay(log), 'weekdayDate')}
                     </AppText>
                     {log.notes ? (
                       <AppText variant="body" color="secondary" className="mt-2 italic">"{log.notes}"</AppText>
@@ -234,7 +235,7 @@ export default function WeightDetail() {
       <ConfirmSheet
         {...deleteConfirmProps({
           title: 'Delete Entry?',
-          subject: `${formatDay(entryDay(log), 'MMMM d, yyyy')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
+          subject: `${formatDay(entryDay(log), 'longDate')} · ${displayWeight(log.weight, unit)} ${wUnit}`,
         })}
         open={confirming}
         busy={remove.busy}

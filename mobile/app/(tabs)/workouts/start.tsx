@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { apiErrorMessage, activeSessionExercisesForDay, sessionNameForDay } from '@lyftr/shared'
+import { apiErrorMessage, activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName } from '@lyftr/shared'
 import { AppText, ErrorState, IconButton, Screen } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -36,8 +36,7 @@ export default function StartWorkout() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
 
   const startQuick = () => {
-    const name = `Workout — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-    startSession(name, [])
+    startSession(defaultWorkoutName(), [])
     router.push('/workouts/active')
   }
 

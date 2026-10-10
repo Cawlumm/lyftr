@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-import { format } from 'date-fns'
 import * as Haptics from 'expo-haptics'
 import {
   Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
 } from 'lucide-react-native'
-import { apiErrorMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay, formatDate, useTranslation } from '@lyftr/shared'
 import { Alert,
   AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
   NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, Skeleton, StatFailure, StepperTile,
@@ -26,6 +25,7 @@ const PERIOD_DAYS: Record<Period, number | null> = { '7d': 7, '30d': 30, '90d': 
 const PERIOD_OPTIONS = PERIODS.map((p) => ({ value: p, label: p }))
 
 export default function Weight() {
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
@@ -168,7 +168,7 @@ export default function Weight() {
       // this window's trend, however recent it is.
       (chartPeriod === period ? [...chartLogs] : []).reverse().map((l) => {
         const d = dayToLocalDate(entryDay(l))
-        return { date: format(d, 'M/d'), weight: displayWeight(l.weight, unit), sub: format(d, 'MMM d, yyyy') }
+        return { date: formatDate(d, 'numericMonthDay'), weight: displayWeight(l.weight, unit), sub: formatDate(d, 'monthDayYear') }
       }),
     [chartLogs, chartPeriod, period, unit]
   )
@@ -407,7 +407,7 @@ export default function Weight() {
                       },
                     ]}
                   >
-                    Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, unit)} {wUnit}). Log again anyway?
+                    {t('weight.duplicateWarning', { date: formatDay(entryDay(items[0]), 'monthDay'), weight: displayWeight(items[0].weight, unit), unit: wUnit })}
                   </Alert>
                 ) : null}
 

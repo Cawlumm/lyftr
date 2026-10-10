@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Zap, BookOpen, ChevronRight, Play, Timer, Trash2 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import ProgramPicker from '../components/ProgramPicker'
-import { activeSessionExercisesForDay, sessionNameForDay, types } from '@lyftr/shared'
+import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, types } from '@lyftr/shared'
 
 export default function StartWorkout() {
   const navigate = useNavigate()
@@ -11,8 +11,7 @@ export default function StartWorkout() {
   const [showProgramPicker, setShowProgramPicker] = useState(false)
 
   const startQuick = () => {
-    const name = `Workout — ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
-    startSession(name, [])
+    startSession(defaultWorkoutName(), [])
     navigate('/workout/active')
   }
 

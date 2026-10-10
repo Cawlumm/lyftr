@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
-import { format } from 'date-fns'
 import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play, Sun } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
-  sessionNameForDay, todaysDay,
+  sessionNameForDay, todaysDay, formatDate, useTranslation
 } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
@@ -30,6 +29,7 @@ const activeHref = '/workouts/active' as unknown as Href
 // (the primary Start action), a kebab (⋮) ActionSheet (Edit / Delete — same as
 // WorkoutCard), and a chevron. Delete routes through the shared ConfirmSheet.
 export function ProgramCard({ program, onPress, onDeleted }: Props) {
+  useTranslation()
   const { colors, accent } = useTheme()
   const { session, startSession } = useWorkoutSession()
   const [confirming, setConfirming] = useState(false)
@@ -80,7 +80,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         <View className="flex-1">
           <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
           <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-            {format(new Date(program.created_at), 'MMM d, yyyy')}
+            {formatDate(new Date(program.created_at), 'monthDayYear')}
           </AppText>
           {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
               Dumbbell = exercises, Layers = sets. */}

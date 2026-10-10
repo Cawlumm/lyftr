@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import { router } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, MoreVertical, Scale, TrendingDown, TrendingUp } from 'lucide-react-native'
-import { useAsyncAction, displayWeight, entryDay, weightShort, type WeightLog, formatDay } from '@lyftr/shared'
+import { useAsyncAction, displayWeight, entryDay, weightShort, type WeightLog, formatDay, useTranslation } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
@@ -22,6 +22,7 @@ interface Props {
 // (Edit / Delete). Edit deep-links the detail straight into its inline edit form (?edit=1);
 // Delete routes through the shared ConfirmSheet.
 export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
+  useTranslation()
   const { colors, accent, brand } = useTheme()
   const wUnit = weightShort(unit)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -30,7 +31,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
   const deltaLbs = next ? item.weight - next.weight : 0
   const displayW = displayWeight(item.weight, unit)
   const displayDelta = displayWeight(Math.abs(deltaLbs), unit)
-  const dateLabel = formatDay(entryDay(item), 'MMM d, yyyy')
+  const dateLabel = formatDay(entryDay(item), 'monthDayYear')
 
   // The catch here just put the card back - "a failed delete quietly restores the
   // card" - which is indistinguishable from a tap that never registered. The

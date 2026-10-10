@@ -193,5 +193,156 @@
       "busy": "Deleting…",
       "failed": "Could not delete account"
     }
+  },
+  "common": {
+    "there": "there",
+    "duration": {
+      "seconds": "{{value}}s",
+      "minutes": "{{value}}m"
+    },
+    "close": "Close",
+    "dateFormat": {
+      "monthDay": "MMM d",
+      "monthDayYear": "MMM d, yyyy",
+      "numericMonthDay": "M/d",
+      "weekdayDate": "EEEE, MMMM d, yyyy",
+      "monthShort": "MMM",
+      "longDate": "MMMM d, yyyy",
+      "weekdayNarrow": "EEEEE",
+      "weekdayMonthDayLong": "EEEE, MMMM d",
+      "weekdayMonthDay": "EEE, MMM d",
+      "weekdayMonthDayYear": "EEE, MMM d, yyyy",
+      "year": "yyyy",
+      "monthYearLong": "MMMM yyyy"
+    },
+    "day": {
+      "today": "Today",
+      "yesterday": "Yesterday"
+    }
+  },
+  "errors": {
+    "api": {
+      "misconfigured": "Server URL looks misconfigured — the API endpoint wasn't found. Check Server settings.",
+      "restarting": "The server is restarting or unreachable. Try again in a moment.",
+      "notApi": "That address returned a web page, not the Lyftr API. Check Server settings.",
+      "serverError": "Server error. Please try again shortly."
+    },
+    "network": {
+      "brief": {
+        "cleartextBlocked": "Blocked because the server URL uses http://. Check Server settings.",
+        "certificateUntrusted": "The server's certificate isn't trusted by this device. Check Server settings.",
+        "hostnameMismatch": "The server's certificate doesn't cover this address. Check Server settings.",
+        "timeout": "The server didn't respond in time. Try again in a moment.",
+        "unreachable": "Couldn't reach the server. Check that it's running.",
+        "unknown": "Can't reach the server right now."
+      },
+      "full": {
+        "cleartextBlocked": "This device blocked the connection because the URL uses plain http://. Switch the server to https:// — a reverse proxy can issue a certificate for a LAN-only hostname with no ports open.",
+        "certificateUntrusted": "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — a reverse proxy can issue one for a LAN-only hostname with no ports open. Or install your own CA under Settings → Security → Encryption & credentials, which trusts it for every app on the device, not just Lyftr.",
+        "hostnameMismatch": "The server's certificate doesn't cover this address. Reissue it with this hostname or IP listed in the certificate's Subject Alternative Name (SAN).",
+        "timeout": "The server didn't respond in time. Check that it's running and reachable from this device.",
+        "unreachable": "Couldn't connect to the server. Check the URL and that the backend is running.",
+        "unknownWeb": "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS).",
+        "unknownNative": "Can't reach the server. Check the URL and that the backend is running and reachable from this device.",
+        "withDetail": "{{message}} ({{detail}})"
+      }
+    },
+    "list": {
+      "loadFailed": "Couldn't load this list.",
+      "unreadable": "The server sent something we could not read."
+    }
+  },
+  "server": {
+    "insecureWarning": "Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.",
+    "mixedContentWarning": "This browser will block it — an HTTPS page can't call an http:// server. Use https:// for the server too, or leave this blank to use this site's own backend.",
+    "test": {
+      "notLyftr": "That responded, but it doesn't look like a Lyftr server.",
+      "unreachable": "Couldn't reach the server."
+    },
+    "settingsTitle": "Server settings",
+    "blocked": "Blocked",
+    "notEncrypted": "Not encrypted",
+    "blankPlaceholder": "Leave blank to use this site",
+    "fullUrlHint": "Full URL, e.g. <url>https://lyftr.example.com</url>",
+    "testing": "Testing…",
+    "testAndSave": "Test & Save",
+    "current": "Current: {{url}}",
+    "usingSite": "Using this site’s address (reverse proxy)",
+    "defaultShort": "default",
+    "status": {
+      "invalidUrlExample": "Include http:// or https:// — e.g. http://192.168.1.10:3000",
+      "invalidUrl": "Include http:// or https://",
+      "storageBlocked": "Couldn't save the server URL — this browser is blocking storage.",
+      "connected": "Connected · {{name}} {{version}}",
+      "connectedTo": "Connected to {{name}} v{{version}}"
+    }
+  },
+  "auth": {
+    "passwordRules": {
+      "minLength_one": "At least {{count}} character",
+      "minLength_other": "At least {{count}} characters",
+      "maxBytes_one": "At most {{count}} character (accents and emoji count for more)",
+      "maxBytes_other": "At most {{count}} characters (accents and emoji count for more)",
+      "different": "Different from your current password",
+      "match": "Passwords match",
+      "mismatch": "Passwords do not match",
+      "repeat": "Repeat the new password"
+    },
+    "divider": {
+      "or": "OR"
+    }
+  },
+  "weight": {
+    "errors": {
+      "invalid": "Enter a valid weight",
+      "tooHigh": "Weight must be under {{max}} {{unit}}"
+    },
+    "bodyweightShort": "BW",
+    "duplicateWarning": "Already logged on {{date}} ({{weight}} {{unit}}). Log again anyway?"
+  },
+  "programs": {
+    "day": {
+      "rest": "Rest Day",
+      "numbered": "Day {{number}}"
+    },
+    "createdOn": "Created {{date}}"
+  },
+  "food": {
+    "servings_one": "{{count}} serving",
+    "servings_other": "{{count}} servings",
+    "customEntry": "Custom entry",
+    "limitHint": "One entry holds at most {{amount}}",
+    "favorites": {
+      "addFailed": "Couldn't add {{name}} to Favorites.",
+      "removeFailed": "Couldn't remove {{name}} from Favorites."
+    },
+    "diary": {
+      "title": "Food",
+      "titleToday": "Today's Food"
+    },
+    "entry": {
+      "logged": "Logged"
+    }
+  },
+  "workouts": {
+    "defaultName": "Workout — {{date}}",
+    "stats": {
+      "total": "Total",
+      "logged": "logged",
+      "thisMonth": "This Month",
+      "sessions": "sessions",
+      "avgTime": "Avg Time",
+      "min": "min"
+    }
+  },
+  "exercises": {
+    "estimated1rm": "Est. 1RM: {{weight}} {{unit}} · {{date}}"
+  },
+  "home": {
+    "heatmap": {
+      "workouts_one": "{{date}} · {{count}} workout",
+      "workouts_other": "{{date}} · {{count}} workouts",
+      "restDay": "{{date}} · rest day"
+    }
   }
 }

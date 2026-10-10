@@ -1,5 +1,8 @@
 import axios from 'axios'
-import { createClient } from './client'
+import { apiErrorMessage, createClient, uiMessage } from './client'
+import { i18n } from './i18n'
+import en from './i18n/locales/en.json'
+import es from './i18n/locales/es.json'
 import { StorageAdapter, STORAGE_KEYS } from './storage'
 
 const memStorage = (): StorageAdapter => {
@@ -586,5 +589,38 @@ describe('a 401 that arrives while this device is switching to its new tokens', 
     expect(wasSignedOut()).toBe(true)
     expect(await store.get(STORAGE_KEYS.access)).toBeNull()
     expect(await store.get(STORAGE_KEYS.refresh)).toBeNull()
+  })
+})
+
+describe('apiErrorMessage and uiMessage translate when they run', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+  const bad502 = { response: { status: 502, data: '<html>Bad Gateway</html>' } }
+
+  it('apiErrorMessage on a 502 follows the language switch, and en is unchanged after restoring', async () => {
+    expect(apiErrorMessage(bad502, 'fallback')).toBe('The server is restarting or unreachable. Try again in a moment.')
+    await i18n.changeLanguage('es')
+    expect(apiErrorMessage(bad502, 'fallback')).toBe(es.errors.api.restarting)
+    await i18n.changeLanguage('en')
+    expect(apiErrorMessage(bad502, 'fallback')).toBe(en.errors.api.restarting)
+  })
+
+  it('a server-sent sentence passes through untranslated', async () => {
+    await i18n.changeLanguage('es')
+    expect(apiErrorMessage({ response: { status: 400, data: { error: 'Email already taken' } } }, 'x')).toBe('Email already taken')
+  })
+
+  it('uiMessage fills placeholders and re-translates the same stored message in es', async () => {
+    const m = { key: 'food.favorites.addFailed', params: { name: 'Oats' } } as const
+    expect(uiMessage(m)).toBe("Couldn't add Oats to Favorites.")
+    await i18n.changeLanguage('es')
+    expect(uiMessage(m)).toBe(es.food.favorites.addFailed.replace('{{name}}', 'Oats'))
+  })
+
+  it('uiMessage with a cause hands the failure to apiErrorMessage, with the key as its fallback', async () => {
+    const m = { key: 'server.test.unreachable', cause: { response: { status: 418, data: {} } } } as const
+    expect(uiMessage(m)).toBe("Couldn't reach the server.")
+    await i18n.changeLanguage('es')
+    expect(uiMessage(m)).toBe(es.server.test.unreachable)
+    expect(uiMessage({ ...m, cause: bad502 })).toBe(es.errors.api.restarting)
   })
 })

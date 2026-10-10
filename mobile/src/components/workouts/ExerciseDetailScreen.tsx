@@ -19,7 +19,7 @@ import {
   weightShort,
   type Exercise,
   type ExerciseHistoryPoint,
-  type PersonalRecord,
+  type PersonalRecord, formatDate, useTranslation
 } from '@lyftr/shared'
 import { AppText, Button, ErrorState, Screen, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
@@ -86,6 +86,7 @@ function LoadingPulse() {
 }
 
 export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
+  useTranslation()
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>()
   const session = useWorkoutSession((s) => s.session)
   const settings = useSettingsStore((s) => s.settings)
@@ -160,7 +161,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const equipLabel = EQUIPMENT_LABEL[exercise.equipment?.toLowerCase()] || exercise.equipment
   const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
   const chartData: ChartPoint[] = [...filteredHistory].reverse().map((h) => ({
-    date: format(new Date(h.date), 'M/d'),
+    date: formatDate(new Date(h.date), 'numericMonthDay'),
     weight: displayWeight(h.max_weight, wUnit),
   }))
 
@@ -256,7 +257,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                   </View>
                   <AppText variant="label" color="muted" className="uppercase">Personal Best</AppText>
                 </View>
-                <AppText variant="caption" color="muted">{format(new Date(pr.date), 'MMM d, yyyy')}</AppText>
+                <AppText variant="caption" color="muted">{formatDate(new Date(pr.date), 'monthDayYear')}</AppText>
               </View>
 
               <View className="mt-3 flex-row items-end gap-2">

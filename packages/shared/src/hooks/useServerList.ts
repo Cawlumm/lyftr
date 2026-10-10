@@ -20,13 +20,14 @@
 // the stale results.
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { apiErrorMessage } from '../client'
+import { useTranslation } from '../i18n'
 
 interface Options<T> {
   fetcher: (offset: number, limit: number) => Promise<T[]>
   pageSize?: number
   // Changing any dep resets the list and re-fetches from offset 0 (e.g. search query)
   deps?: readonly unknown[]
-  // Shown when the server gives us nothing better to say.
+  // Shown when the server gives us nothing better to say. Pass it translated, at render.
   errorFallback?: string
 }
 
@@ -58,13 +59,17 @@ export function useServerList<T>({
   fetcher,
   pageSize = 20,
   deps = [],
-  errorFallback = "Couldn't load this list.",
+  errorFallback,
 }: Options<T>): Result<T> {
+  const { t } = useTranslation()
   const [items, setItems] = useState<T[]>([])
   const [hasMore, setHasMore] = useState(true)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // What failed, not what to say about it: the sentence is made at render so it follows a
+  // language switch. `unreadable` is a 200 with a body that is not a list; `cause` is a
+  // rejected fetch.
+  const [failure, setFailure] = useState<{ unreadable: true } | { cause: unknown } | null>(null)
   const offsetRef = useRef(0)
   // Tracks whether a fetch is in flight to prevent double-fetches (onEndReached can
   // fire repeatedly during momentum scrolling)
@@ -96,11 +101,11 @@ export function useServerList<T>({
       if (!Array.isArray(page)) {
         if (myId === reqIdRef.current) {
           setHasMore(false)
-          setError('The server sent something we could not read.')
+          setFailure({ unreadable: true })
         }
         return
       }
-      setError(null)
+      setFailure(null)
       setItems(prev => (replace ? page : [...prev, ...page]))
       offsetRef.current = currentOffset + page.length
       setHasMore(page.length === pageSize)
@@ -113,7 +118,7 @@ export function useServerList<T>({
       // all there is". Name it and let the screen offer retry().
       if (myId === reqIdRef.current) {
         setHasMore(false)
-        setError(apiErrorMessage(err, errorFallback))
+        setFailure({ cause: err })
       }
     } finally {
       // Only the latest fetch owns the shared flags — a stale response bows out without
@@ -124,7 +129,7 @@ export function useServerList<T>({
         setLoading(false)
       }
     }
-  }, [fetcher, pageSize, errorFallback])
+  }, [fetcher, pageSize])
 
   // Deps change (e.g. the search query): reset pagination and refetch page 0, but keep
   // the previous results on screen until the fresh page replaces them (stale-while-
@@ -133,7 +138,7 @@ export function useServerList<T>({
   useEffect(() => {
     offsetRef.current = 0
     setHasMore(true)
-    setError(null)
+    setFailure(null)
     fetchingRef.current = false
     setRefreshing(true)
     fetchPage(0, true).finally(() => setRefreshing(false))
@@ -154,10 +159,14 @@ export function useServerList<T>({
   // one that never came. hasMore has to go back up first — loadMore checks it, and the
   // failure is what set it false.
   const retry = useCallback(() => {
-    setError(null)
+    setFailure(null)
     setHasMore(true)
     fetchPage(offsetRef.current, offsetRef.current === 0)
   }, [fetchPage])
+
+  const error = failure === null ? null
+    : 'cause' in failure ? apiErrorMessage(failure.cause, errorFallback ?? t('errors.list.loadFailed'))
+      : t('errors.list.unreadable')
 
   return {
     items, loadMore, hasMore, loading,

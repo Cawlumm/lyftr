@@ -64,7 +64,7 @@ export function machineTranslatedNote(code: Language): string | null {
   return MACHINE_TRANSLATED[code] ? i18n.getFixedT(code)('settings.language.machineTranslated') : null
 }
 
-export { useTranslation } from 'react-i18next'
+export { useTranslation, Trans } from 'react-i18next'
 
 declare module 'i18next' {
   interface CustomTypeOptions {

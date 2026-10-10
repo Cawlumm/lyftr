@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react'
-import { format, subDays } from 'date-fns'
+import { subDays } from 'date-fns'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { exerciseAPI } from '../services/api'
@@ -9,7 +9,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
 import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
-import { apiErrorMessage, isNotFound, types } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, types, formatDate, useTranslation } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
 import { muscleColor, muscleColorBordered, EQUIPMENT_LABEL, muscleToBodySlugs } from '../utils/exerciseUtils'
 
@@ -34,6 +34,7 @@ function buildBodyData(exercise: types.Exercise): IExerciseData[] {
 }
 
 export default function ExerciseDetail() {
+  const { t } = useTranslation()
   const { exerciseId } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
   const { session } = useWorkoutSession()
@@ -231,7 +232,7 @@ export default function ExerciseDetail() {
             <span className="text-sm text-tx-muted mb-0.5">{wUnit} × {pr.reps} reps</span>
           </div>
           <p className="text-xs text-tx-muted mt-1">
-            Est. 1RM: {displayWeight(pr.estimated_1rm, wUnit)} {wUnit} · {format(new Date(pr.date), 'MMM d, yyyy')}
+            {t('exercises.estimated1rm', { weight: displayWeight(pr.estimated_1rm, wUnit), unit: wUnit, date: formatDate(new Date(pr.date), 'monthDayYear') })}
           </p>
         </div>
       )}
@@ -239,7 +240,7 @@ export default function ExerciseDetail() {
       {/* History chart */}
       {history.length >= 2 && (() => {
         const chartData = [...filteredHistory].reverse().map(h => ({
-          date: format(new Date(h.date), 'M/d'),
+          date: formatDate(new Date(h.date), 'numericMonthDay'),
           weight: displayWeight(h.max_weight, wUnit),
         }))
         return (

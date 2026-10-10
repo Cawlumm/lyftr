@@ -196,5 +196,160 @@
       "busy": "Eliminando…",
       "failed": "No se pudo eliminar la cuenta"
     }
+  },
+  "common": {
+    "there": "usuario",
+    "duration": {
+      "seconds": "{{value}} s",
+      "minutes": "{{value}} min"
+    },
+    "close": "Cerrar",
+    "dateFormat": {
+      "monthDay": "d MMM",
+      "monthDayYear": "d MMM yyyy",
+      "numericMonthDay": "d/M",
+      "weekdayDate": "EEEE, d 'de' MMMM 'de' yyyy",
+      "monthShort": "MMM",
+      "longDate": "d 'de' MMMM 'de' yyyy",
+      "weekdayNarrow": "EEEEE",
+      "weekdayMonthDayLong": "EEEE, d 'de' MMMM",
+      "weekdayMonthDay": "EEE, d MMM",
+      "weekdayMonthDayYear": "EEE, d MMM yyyy",
+      "year": "yyyy",
+      "monthYearLong": "MMMM 'de' yyyy"
+    },
+    "day": {
+      "today": "Hoy",
+      "yesterday": "Ayer"
+    }
+  },
+  "errors": {
+    "api": {
+      "misconfigured": "La URL del servidor parece mal configurada — no se encontró el endpoint de la API. Revisa los ajustes del servidor.",
+      "restarting": "El servidor se está reiniciando o no está disponible. Inténtalo de nuevo en un momento.",
+      "notApi": "Esa dirección devolvió una página web, no la API de Lyftr. Revisa los ajustes del servidor.",
+      "serverError": "Error del servidor. Inténtalo de nuevo en breve."
+    },
+    "network": {
+      "brief": {
+        "cleartextBlocked": "Bloqueado porque la URL del servidor usa http://. Revisa los ajustes del servidor.",
+        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. Revisa los ajustes del servidor.",
+        "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Revisa los ajustes del servidor.",
+        "timeout": "El servidor no respondió a tiempo. Inténtalo de nuevo en un momento.",
+        "unreachable": "No se pudo conectar con el servidor. Comprueba que esté en marcha.",
+        "unknown": "No se puede conectar con el servidor en este momento."
+      },
+      "full": {
+        "cleartextBlocked": "Este dispositivo bloqueó la conexión porque la URL usa http:// sin cifrar. Cambia el servidor a https:// — un proxy inverso puede emitir un certificado para un nombre de host de red local sin abrir puertos.",
+        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. La mejor solución: dale al servidor un certificado real — un proxy inverso puede emitir uno para un nombre de host de red local sin abrir puertos. O instala tu propia CA en Ajustes → Seguridad → Cifrado y credenciales, con lo que todas las apps del dispositivo confiarán en ella, no solo Lyftr.",
+        "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Vuelve a emitirlo con este nombre de host o esta IP en el Nombre alternativo del sujeto (SAN) del certificado.",
+        "timeout": "El servidor no respondió a tiempo. Comprueba que esté en marcha y accesible desde este dispositivo.",
+        "unreachable": "No se pudo conectar con el servidor. Revisa la URL y que el backend esté en marcha.",
+        "unknownWeb": "No se puede conectar con el servidor. Revisa la URL, que el backend esté en marcha y que permita el origen de esta app (CORS).",
+        "unknownNative": "No se puede conectar con el servidor. Revisa la URL y que el backend esté en marcha y accesible desde este dispositivo.",
+        "withDetail": "{{message}} ({{detail}})"
+      }
+    },
+    "list": {
+      "loadFailed": "No se pudo cargar esta lista.",
+      "unreadable": "El servidor envió algo que no pudimos leer."
+    }
+  },
+  "server": {
+    "insecureWarning": "Sin cifrar — cualquiera en esta red puede leer tu inicio de sesión y mantener la sesión abierta como si fuera tú. Usa https:// si puedes.",
+    "mixedContentWarning": "Este navegador lo bloqueará — una página HTTPS no puede llamar a un servidor http://. Usa https:// también para el servidor, o déjalo en blanco para usar el backend de este sitio.",
+    "test": {
+      "notLyftr": "Respondió, pero no parece un servidor de Lyftr.",
+      "unreachable": "No se pudo conectar con el servidor."
+    },
+    "settingsTitle": "Ajustes del servidor",
+    "blocked": "Bloqueado",
+    "notEncrypted": "Sin cifrar",
+    "blankPlaceholder": "Déjalo en blanco para usar este sitio",
+    "fullUrlHint": "URL completa, p. ej. <url>https://lyftr.example.com</url>",
+    "testing": "Probando…",
+    "testAndSave": "Probar y guardar",
+    "current": "Actual: {{url}}",
+    "usingSite": "Usando la dirección de este sitio (proxy inverso)",
+    "defaultShort": "predeterminado",
+    "status": {
+      "invalidUrlExample": "Incluye http:// o https:// — p. ej. http://192.168.1.10:3000",
+      "invalidUrl": "Incluye http:// o https://",
+      "storageBlocked": "No se pudo guardar la URL del servidor — este navegador está bloqueando el almacenamiento.",
+      "connected": "Conectado · {{name}} {{version}}",
+      "connectedTo": "Conectado a {{name}} v{{version}}"
+    }
+  },
+  "auth": {
+    "passwordRules": {
+      "minLength_one": "Al menos {{count}} carácter",
+      "minLength_many": "Al menos {{count}} caracteres",
+      "minLength_other": "Al menos {{count}} caracteres",
+      "maxBytes_one": "Máximo {{count}} carácter (los acentos y los emoji cuentan como más)",
+      "maxBytes_many": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
+      "maxBytes_other": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
+      "different": "Distinta de tu contraseña actual",
+      "match": "Las contraseñas coinciden",
+      "mismatch": "Las contraseñas no coinciden",
+      "repeat": "Repite la nueva contraseña"
+    },
+    "divider": {
+      "or": "O"
+    }
+  },
+  "weight": {
+    "errors": {
+      "invalid": "Ingresa un peso válido",
+      "tooHigh": "El peso debe ser menor de {{max}} {{unit}}"
+    },
+    "bodyweightShort": "PC",
+    "duplicateWarning": "Ya registraste el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?"
+  },
+  "programs": {
+    "day": {
+      "rest": "Día de descanso",
+      "numbered": "Día {{number}}"
+    },
+    "createdOn": "Creado el {{date}}"
+  },
+  "food": {
+    "servings_one": "{{count}} porción",
+    "servings_many": "{{count}} porciones",
+    "servings_other": "{{count}} porciones",
+    "customEntry": "Registro personalizado",
+    "limitHint": "Un registro admite como máximo {{amount}}",
+    "favorites": {
+      "addFailed": "No se pudo añadir {{name}} a Favoritos.",
+      "removeFailed": "No se pudo quitar {{name}} de Favoritos."
+    },
+    "diary": {
+      "title": "Comida",
+      "titleToday": "Comida de hoy"
+    },
+    "entry": {
+      "logged": "Registrado"
+    }
+  },
+  "workouts": {
+    "defaultName": "Entrenamiento — {{date}}",
+    "stats": {
+      "total": "Total",
+      "logged": "registrados",
+      "thisMonth": "Este mes",
+      "sessions": "sesiones",
+      "avgTime": "Tiempo prom.",
+      "min": "min"
+    }
+  },
+  "exercises": {
+    "estimated1rm": "1RM est.: {{weight}} {{unit}} · {{date}}"
+  },
+  "home": {
+    "heatmap": {
+      "workouts_one": "{{date}} · {{count}} entrenamiento",
+      "workouts_many": "{{date}} · {{count}} entrenamientos",
+      "workouts_other": "{{date}} · {{count}} entrenamientos",
+      "restDay": "{{date}} · día de descanso"
+    }
   }
 }

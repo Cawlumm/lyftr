@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
-import { format } from 'date-fns'
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
 } from 'lucide-react-native'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, apiErrorMessage, dayLabel, displayWeight, sessionNameForDay,
-  weightShort, type Program, type ProgramSet,
+  weightShort, type Program, type ProgramSet, formatDate, useTranslation
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
@@ -65,6 +64,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
 }
 
 export default function ProgramDetail() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -386,7 +386,7 @@ export default function ProgramDetail() {
               <View className="flex-1">
                 <AppText variant="heading">{program.name}</AppText>
                 <AppText variant="body" color="muted" className="mt-0.5">
-                  Created {format(new Date(program.created_at), 'MMMM d, yyyy')}
+                  {t('programs.createdOn', { date: formatDate(new Date(program.created_at), 'longDate') })}
                 </AppText>
               </View>
             </View>

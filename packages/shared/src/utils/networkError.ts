@@ -1,3 +1,5 @@
+import { i18n } from '../i18n'
+
 // Classifies transport-level failures (no HTTP response) into something actionable.
 //
 // Why this exists: axios reports every response-less failure identically. RN's XHR
@@ -87,44 +89,44 @@ export type MessageDetail = 'brief' | 'full'
 
 // Each one names the cause and, where the fix is somewhere the user can go, points at it.
 // A short message that offers no way forward is not brief, it is unhelpful.
-const BRIEF: Record<NetworkFailure, string> = {
-  'cleartext-blocked': 'Blocked because the server URL uses http://. Check Server settings.',
-  'certificate-untrusted': "The server's certificate isn't trusted by this device. Check Server settings.",
-  'hostname-mismatch': "The server's certificate doesn't cover this address. Check Server settings.",
-  timeout: "The server didn't respond in time. Try again in a moment.",
-  unreachable: "Couldn't reach the server. Check that it's running.",
+// Catalog keys, not text: the sentence is looked up when it is shown, so it follows the
+// language the reader has chosen by then rather than the one the module loaded in.
+const BRIEF = {
+  'cleartext-blocked': 'errors.network.brief.cleartextBlocked',
+  'certificate-untrusted': 'errors.network.brief.certificateUntrusted',
+  'hostname-mismatch': 'errors.network.brief.hostnameMismatch',
+  timeout: 'errors.network.brief.timeout',
+  unreachable: 'errors.network.brief.unreachable',
   // No raw native string here: in full it is diagnostic gold, in a sheet it is noise.
-  unknown: "Can't reach the server right now.",
-}
+  unknown: 'errors.network.brief.unknown',
+} as const satisfies Record<NetworkFailure, string>
 
 export const networkFailureMessage = (err: any, detail: MessageDetail = 'brief'): string => {
-  if (detail === 'brief') return BRIEF[classifyNetworkError(err)]
+  if (detail === 'brief') return i18n.t(BRIEF[classifyNetworkError(err)])
   switch (classifyNetworkError(err)) {
     // Deliberately does NOT say "update the app". This build already permits cleartext, so
     // if the OS still blocked it the cause is something an update can't fix — most likely
     // iOS, where NSAllowsLocalNetworking covers LAN IPs, `.local` and unqualified names but
     // NOT a custom TLD like `.lan`. Promising an update would send that user in circles.
     case 'cleartext-blocked':
-      return 'This device blocked the connection because the URL uses plain http://. Switch the server to https:// — a reverse proxy can issue a certificate for a LAN-only hostname with no ports open.'
+      return i18n.t('errors.network.full.cleartextBlocked')
     // Leads with the real-certificate path on purpose. Installing a CA is a device-wide
     // action — it affects every app that trusts the user store, not just Lyftr — so it is
     // offered as the fallback it is, not as the headline fix.
     case 'certificate-untrusted':
-      return "The server's certificate isn't trusted by this device. Best fix: give the server a real certificate — a reverse proxy can issue one for a LAN-only hostname with no ports open. Or install your own CA under Settings → Security → Encryption & credentials, which trusts it for every app on the device, not just Lyftr."
+      return i18n.t('errors.network.full.certificateUntrusted')
     case 'hostname-mismatch':
-      return "The server's certificate doesn't cover this address. Reissue it with this hostname or IP listed in the certificate's Subject Alternative Name (SAN)."
+      return i18n.t('errors.network.full.hostnameMismatch')
     case 'timeout':
-      return "The server didn't respond in time. Check that it's running and reachable from this device."
+      return i18n.t('errors.network.full.timeout')
     case 'unreachable':
-      return "Couldn't connect to the server. Check the URL and that the backend is running."
+      return i18n.t('errors.network.full.unreachable')
     default: {
-      const base = isWeb()
-        ? "Can't reach the server. Check the URL, that the backend is running, and that it allows this app's origin (CORS)."
-        : "Can't reach the server. Check the URL and that the backend is running and reachable from this device."
+      const base = i18n.t(isWeb() ? 'errors.network.full.unknownWeb' : 'errors.network.full.unknownNative')
       // Surface the raw native reason rather than guessing: an unmatched string is exactly
       // the case where our copy would otherwise be confidently wrong.
       const detail = nativeErrorDetail(err)
-      return detail ? `${base} (${detail})` : base
+      return detail ? i18n.t('errors.network.full.withDetail', { message: base, detail }) : base
     }
   }
 }

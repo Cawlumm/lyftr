@@ -1,3 +1,5 @@
+import { i18n } from '../i18n'
+
 // An independently maintained mirror of models.MaxDisplayNameLen. Not an identity: Go's
 // `max` counts runes and these fields count UTF-16 units, so the client cuts off earlier
 // for astral characters — the safe direction, never a 400 on a name it let you finish.
@@ -14,7 +16,7 @@ export function displayName(name?: string, email?: string): string {
   const given = (name ?? '').trim()
   if (given) return given
   const local = (email ?? '').split('@')[0].trim()
-  return local || 'there'
+  return local || i18n.t('common.there')
 }
 
 // Whether the typed address differs from the current one. A letter-case change counts:

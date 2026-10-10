@@ -315,7 +315,7 @@ export default function Settings() {
           </div>
         </SettingRow>
         <SettingRow label={t('settings.account.memberSince.label')}>
-          <span className="text-sm text-tx-muted">{memberSince(user?.created_at, i18n.language)}</span>
+          <span className="text-sm text-tx-muted">{memberSince(user?.created_at)}</span>
         </SettingRow>
         <SettingRow label={t('settings.account.password.label')} description={t('settings.account.password.description')}>
           <Link to="/settings/password" className="btn-secondary btn-sm">

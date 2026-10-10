@@ -1,4 +1,7 @@
 import { classifyNetworkError, nativeErrorDetail, networkFailureMessage } from './networkError'
+import { i18n } from '../i18n'
+import en from '../i18n/locales/en.json'
+import es from '../i18n/locales/es.json'
 
 // Builds the shape axios actually produces on React Native: message is always the literal
 // 'Network Error' (RN dispatches a bare Event with no .message), and the real reason is
@@ -173,5 +176,31 @@ describe('brief vs full', () => {
     const odd = { request: { _response: 'ENETUNREACH somewhere deep in okhttp' } }
     expect(networkFailureMessage(odd, 'full')).toMatch(/ENETUNREACH/)
     expect(networkFailureMessage(odd, 'brief')).not.toMatch(/ENETUNREACH/)
+  })
+})
+
+// The wording is looked up when the message is built, not when the module loads: a reader
+// who switches language between two failures gets each in the language they had chosen.
+describe('networkFailureMessage in es', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('reads the es catalog after a language switch, and en again after restoring', async () => {
+    const timeout = { code: 'ECONNABORTED' }
+    expect(networkFailureMessage(timeout)).toBe(en.errors.network.brief.timeout)
+    await i18n.changeLanguage('es')
+    expect(networkFailureMessage(timeout)).toBe(es.errors.network.brief.timeout)
+    expect(networkFailureMessage(timeout, 'full')).toBe(es.errors.network.full.timeout)
+    await i18n.changeLanguage('en')
+    expect(networkFailureMessage(timeout)).toBe(en.errors.network.brief.timeout)
+  })
+
+  it('keeps the raw native reason after the translated sentence', async () => {
+    await i18n.changeLanguage('es')
+    const odd = { request: { _response: 'ENETUNREACH somewhere deep in okhttp' } }
+    expect(networkFailureMessage(odd, 'full')).toBe(
+      es.errors.network.full.withDetail
+        .replace('{{message}}', es.errors.network.full.unknownNative)
+        .replace('{{detail}}', 'ENETUNREACH somewhere deep in okhttp'),
+    )
   })
 })

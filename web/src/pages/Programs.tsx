@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { format } from 'date-fns'
 import { BookOpen, Plus, Dumbbell, Edit2, Trash2, Search, Play, ChevronRight, MoreVertical, Moon, Sun } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Loading from '../components/Loading'
@@ -9,7 +8,7 @@ import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { ErrorState, ListError } from '../components/ui'
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
-import { useAsyncAction, types } from '@lyftr/shared'
+import { useAsyncAction, types, formatDate, useTranslation } from '@lyftr/shared'
 
 import {
   todaysDay, dayLabel, isDayStartable, programExerciseCount, programSetCount, sessionNameForDay,
@@ -25,6 +24,7 @@ function ProgramCard({
   onEdit: (id: number) => void
   onDelete: (id: number) => void
 }) {
+  useTranslation()
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -127,7 +127,7 @@ function ProgramCard({
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
-            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{format(new Date(program.created_at), 'MMM d, yyyy')}</p>
+            <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDate(new Date(program.created_at), 'monthDayYear')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
               <span className="text-xs text-tx-muted whitespace-nowrap">{totalExercises} exercise{totalExercises === 1 ? '' : 's'}</span>
               <span className="text-tx-muted/40 text-xs">·</span>

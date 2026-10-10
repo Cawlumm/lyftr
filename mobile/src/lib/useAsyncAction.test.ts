@@ -89,6 +89,23 @@ describe('useAsyncAction', () => {
     expect(result.current.error).toBe('Failed to save')
   })
 
+  // The hook keeps the failure, not its text. A screen that re-passes its fallback in the new
+  // language (as every call site does, via t(...) at render) gets the new sentence for a
+  // message that was raised before the switch.
+  it('stores the cause, so a later render with a different fallback changes the message', async () => {
+    const { result, rerender } = renderHook(
+      ({ fallback }: { fallback: string }) =>
+        useAsyncAction(async () => { throw httpError(400) }, fallback),
+      { initialProps: { fallback: 'Failed to save' } },
+    )
+
+    await act(async () => { await result.current.run() })
+    expect(result.current.error).toBe('Failed to save')
+
+    rerender({ fallback: 'No se pudo guardar' })
+    expect(result.current.error).toBe('No se pudo guardar')
+  })
+
   it('drops a stale message when the next attempt starts', async () => {
     let fail = true
     const { result } = renderHook(() =>

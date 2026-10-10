@@ -18,7 +18,9 @@ import {
   testServerConnection,
   normalizeServerUrl,
   isInsecureServerUrl,
-  INSECURE_SERVER_WARNING,
+  useTranslation,
+  uiMessage,
+  type UiMessage,
 } from '@lyftr/shared'
 
 const FONT = {
@@ -208,35 +210,41 @@ export function SecondaryButton({ title, hint, onPress }: { title: string; hint?
 }
 
 export function AuthDivider() {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 22 }}>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
-      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.8, color: colors.txMuted }}>OR</Text>
+      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.8, color: colors.txMuted }}>{t('auth.divider.or')}</Text>
       <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
     </View>
   )
 }
 
+// What the row last learned, kept as its inputs so the line follows a language switch.
+type ServerResult =
+  | { kind: 'invalid' }
+  | { kind: 'connected'; name: string; version: string }
+  | { kind: 'saved'; failure: UiMessage }
+
 // Server settings row that expands to a URL field (self-hosted users).
 export function ServerRow() {
+  const { t } = useTranslation()
   const { colors, brand, accent } = useTheme()
   const serverUrl = useServerStore((s) => s.serverUrl)
   const setServerUrl = useServerStore((s) => s.setServerUrl)
   const [open, setOpen] = useState(false)
   const [url, setUrl] = useState(serverUrl)
-  const [msg, setMsg] = useState<string | null>(null)
-  const [ok, setOk] = useState(false)
+  const [result, setResult] = useState<ServerResult | null>(null)
   const [testing, setTesting] = useState(false)
   const insecure = isInsecureServerUrl(serverUrl)
 
   const save = async () => {
     setTesting(true)
-    setMsg(null)
+    setResult(null)
     const base = normalizeServerUrl(url)
     if (url.trim() && !base) {
-      setOk(false)
-      setMsg('Include http:// or https://')
+      setResult({ kind: 'invalid' })
       setTesting(false)
       return
     }
@@ -244,12 +252,11 @@ export function ServerRow() {
     // whose server is unreachable for any reason can never store a URL from this screen —
     // exactly the dead end hit when the device itself blocks the connection (issue #79).
     await setServerUrl(base)
-    const result = await testServerConnection(base)
-    setOk(result.ok)
-    setMsg(
-      result.ok
-        ? `Connected to ${result.info.name} v${result.info.version}`
-        : `Saved — ${result.message}`,
+    const probe = await testServerConnection(base)
+    setResult(
+      probe.ok
+        ? { kind: 'connected', name: probe.info.name, version: probe.info.version }
+        : { kind: 'saved', failure: probe.failure },
     )
     setTesting(false)
   }
@@ -271,11 +278,11 @@ export function ServerRow() {
         }}
       >
         <Server size={16} color={brand.violet} strokeWidth={2} />
-        <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 13, color: colors.txPrimary }}>Server settings</Text>
+        <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 13, color: colors.txPrimary }}>{t('server.settingsTitle')}</Text>
         {/* Stays visible while the row is collapsed — the risk outlives the moment of entry. */}
         {insecure ? <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} /> : null}
         <Text style={{ fontFamily: FONT.body, fontSize: 12, color: insecure ? brand.warning : colors.txSecondary }}>
-          {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : 'default'}
+          {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : t('server.defaultShort')}
         </Text>
         <ChevronDown size={14} color={colors.txMuted} strokeWidth={2.4} />
       </Pressable>
@@ -283,8 +290,8 @@ export function ServerRow() {
         <View style={{ marginTop: 8, gap: 8 }}>
           <TextInput
             value={url}
-            onChangeText={(t) => { setMsg(null); setUrl(t) }}
-            placeholder="https://your-server.example.com"
+            onChangeText={(text) => { setResult(null); setUrl(text) }}
+            placeholder={t('settings.server.url.placeholder')}
             placeholderTextColor={colors.txMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -301,14 +308,20 @@ export function ServerRow() {
               fontSize: 14,
             }}
           />
-          {msg ? (
-            <Text style={{ fontFamily: FONT.body, fontSize: 12, color: ok ? brand.success : brand.error }}>{msg}</Text>
+          {result ? (
+            <Text style={{ fontFamily: FONT.body, fontSize: 12, color: result.kind === 'connected' ? brand.success : brand.error }}>
+              {result.kind === 'invalid'
+                ? t('server.status.invalidUrl')
+                : result.kind === 'connected'
+                  ? t('server.status.connectedTo', { name: result.name, version: result.version })
+                  : t('settings.server.savedWithWarning', { message: uiMessage(result.failure) })}
+            </Text>
           ) : null}
           {insecure ? (
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
               <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
               <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 12, color: brand.warning }}>
-                {INSECURE_SERVER_WARNING}
+                {t('server.insecureWarning')}
               </Text>
             </View>
           ) : null}
@@ -327,7 +340,7 @@ export function ServerRow() {
             {testing ? (
               <ActivityIndicator color={accent} />
             ) : (
-              <Text style={{ fontFamily: FONT.btn, fontSize: 14, color: colors.txSecondary }}>Test & save</Text>
+              <Text style={{ fontFamily: FONT.btn, fontSize: 14, color: colors.txSecondary }}>{t('settings.server.url.testAndSave')}</Text>
             )}
           </Pressable>
         </View>

@@ -9,7 +9,7 @@ import {
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip } from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, useTranslation } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -65,6 +65,7 @@ function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
 }
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   // Re-read on every load rather than once at mount: this tab stays mounted for the
   // life of the process, so an app left open overnight kept yesterday's header, week
   // boundary and "today" dot while load() fetched the real today's food.
@@ -223,7 +224,7 @@ export default function Dashboard() {
   }
 
   const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
-    date: formatDay(workoutDay(w), 'M/d'),
+    date: formatDay(workoutDay(w), 'numericMonthDay'),
     volume: displayVolume(calcVolume(w), unit),
     name: w.name,
   }))
@@ -242,9 +243,9 @@ export default function Dashboard() {
   const heatmapWeeks: Date[][] = []
   for (let i = 0; i < heatmapDays.length; i += 7) heatmapWeeks.push(heatmapDays.slice(i, i + 7))
   const monthLabels: (string | null)[] = heatmapWeeks.map((week, i) => {
-    const m = format(week[0], 'MMM')
+    const m = formatDate(week[0], 'monthShort')
     if (i === 0) return m
-    return m !== format(heatmapWeeks[i - 1][0], 'MMM') ? m : null
+    return m !== formatDate(heatmapWeeks[i - 1][0], 'monthShort') ? m : null
   })
 
   const muscleMap = new Map<string, number>()
@@ -277,7 +278,7 @@ export default function Dashboard() {
   const fatPct = Math.min(100, (food.total_fat / settings.fat_target) * 100) || 0
 
   const sparkData = [...weightLogs].reverse().map((l) => ({
-    date: formatDay(entryDay(l), 'M/d'),
+    date: formatDay(entryDay(l), 'numericMonthDay'),
     weight: displayWeight(l.weight, unit),
   }))
 
@@ -295,7 +296,7 @@ export default function Dashboard() {
           <View className="flex-row items-start justify-between gap-3">
             <View className="min-w-0 flex-1">
               <Text className="font-sans-medium text-[11px] uppercase text-tx-muted" style={{ letterSpacing: 1 }}>
-                {format(now, 'EEEE, MMMM d')}
+                {formatDate(now, 'weekdayMonthDayLong')}
               </Text>
               {/* No numberOfLines: a name is never clipped — see web's Dashboard. */}
               <AppText variant="title" className="mt-0.5">{greeting(now)}, {username}</AppText>
@@ -416,7 +417,7 @@ export default function Dashboard() {
                 const isFuture = day > now
                 return (
                   <View key={i} className="items-center gap-1.5">
-                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{format(day, 'EEEEE')}</AppText>
+                    <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{formatDate(day, 'weekdayNarrow')}</AppText>
                     <View className={`h-3.5 w-3.5 rounded-full ${
                       hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
                     }`} />
@@ -502,7 +503,7 @@ export default function Dashboard() {
                 </View>
                 {heatSel ? (
                   <AppText variant="caption" color="muted" className="mt-1.5">
-                    {format(heatSel.day, 'MMM d')}{heatSel.count > 0 ? ` · ${heatSel.count} workout${heatSel.count > 1 ? 's' : ''}` : ' · rest day'}
+                    {heatSel.count > 0 ? t('home.heatmap.workouts', { date: formatDate(heatSel.day, 'monthDay'), count: heatSel.count }) : t('home.heatmap.restDay', { date: formatDate(heatSel.day, 'monthDay') })}
                   </AppText>
                 ) : null}
                 <View className="mt-2 flex-row items-center justify-end gap-1.5">
@@ -530,7 +531,7 @@ export default function Dashboard() {
                       <Label className="mb-1">Last workout</Label>
                       <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
                       <AppText variant="caption" color="muted" className="mt-0.5">
-                        {formatDay(workoutDay(lastWorkout), 'MMM d')}
+                        {formatDay(workoutDay(lastWorkout), 'monthDay')}
                         {mins > 0 ? ` · ${mins} min` : ''}
                         {totalSets > 0 ? ` · ${totalSets} sets` : ''}
                         {totalVolume > 0 ? ` · ${totalVolume.toLocaleString()} ${wUnit}` : ''}

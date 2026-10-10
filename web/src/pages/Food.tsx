@@ -15,7 +15,7 @@ import Loading from '../components/Loading'
 import PeriodSelector from '../components/PeriodSelector'
 import { foodAPI, savedFoodsAPI } from '../services/api'
 import { useSettingsStore } from '../stores/settings'
-import { apiErrorMessage, entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, formatLoggedAmount, isDailyStats, todayStr, dayToLocalDate, MACRO_COLORS, types, formatDay, useFavorites, type Favorites, formatDate, relativeDayLabel, useTranslation } from '@lyftr/shared'
 import { ErrorState, Toast } from '../components/ui'
 import FavoriteStar from '../components/FavoriteStar'
 
@@ -84,6 +84,7 @@ function EntryStar({ entry, favorites }: { entry: types.FoodLog; favorites: Favo
 }
 
 export default function Food() {
+  useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [selectedDate, setSelectedDate] = useState(todayStr())
@@ -242,11 +243,7 @@ export default function Food() {
   const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()
 
-  const dayLabel = isToday
-    ? 'Today'
-    : selectedDate === format(subDays(new Date(), 1), 'yyyy-MM-dd')
-      ? 'Yesterday'
-      : format(selectedDateObj, 'EEE, MMM d')
+  const dayLabel = relativeDayLabel(selectedDate)
 
   return (
     <div className="space-y-4 animate-slide-up">
@@ -283,7 +280,7 @@ export default function Food() {
             <CalendarDays className="w-4 h-4 text-tx-muted" />
             <span className="text-sm font-semibold text-tx-primary">{dayLabel}</span>
             {!isToday && (
-              <span className="text-xs text-tx-muted">{format(selectedDateObj, 'yyyy')}</span>
+              <span className="text-xs text-tx-muted">{formatDate(selectedDateObj, 'year')}</span>
             )}
           </div>
           <input
@@ -534,7 +531,7 @@ export default function Food() {
               </defs>
               <XAxis
                 dataKey="date"
-                tickFormatter={d => formatDay(d, 'M/d')}
+                tickFormatter={d => formatDay(d, 'numericMonthDay')}
                 tick={{ fontSize: 10, fill: 'var(--color-tx-muted)' }}
                 axisLine={false}
                 tickLine={false}
@@ -555,7 +552,7 @@ export default function Food() {
                   fontSize: '12px',
                   color: 'var(--color-tx-primary)',
                 }}
-                labelFormatter={d => formatDay(d, 'MMM d')}
+                labelFormatter={d => formatDay(d, 'monthDay')}
                 formatter={(val: number, name: string) => [`${Math.round(val)}g`, name]}
                 cursor={{ stroke: 'rgba(99,102,241,0.15)', strokeWidth: 1 }}
               />

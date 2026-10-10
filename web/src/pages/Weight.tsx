@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { TrendingDown, TrendingUp, Minus, Plus, Calendar, Sunrise, AlertCircle, ChevronRight, Scale, Activity, ArrowDown, ArrowUp, X } from 'lucide-react'
-import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { HelpTip } from '../components/Tooltip'
 import Loading from '../components/Loading'
@@ -9,7 +8,7 @@ import DateInput from '../components/ui/DateInput'
 import PeriodSelector from '../components/PeriodSelector'
 import StepperTile from '../components/ui/StepperTile'
 import NumberField from '../components/ui/NumberField'
-import { apiErrorMessage, useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, useAsyncAction, BODYWEIGHT_STEP, clampStep, todayStr, daysAgoStr, dayToInstant, entryDay, dayToLocalDate, types, formatDay, formatDate, useTranslation } from '@lyftr/shared'
 import { useServerInfiniteList } from '../hooks/useServerInfiniteList'
 import { ErrorState, ListError, StatFailure } from '../components/ui'
 import { weightAPI } from '../services/api'
@@ -51,6 +50,7 @@ function smoothPath(pts: [number, number][]): string {
 }
 
 function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) {
+  useTranslation()
   const [activeIdx, setActiveIdx] = useState<number | null>(null)
 
   const layout = useMemo(() => {
@@ -123,7 +123,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
             <p className="font-bold tabular-nums text-tx-primary text-sm">
               {round1(activePoint.weight)} <span className="font-normal text-tx-muted">{wUnit}</span>
             </p>
-            <p className="text-tx-muted mt-0.5">{format(activePoint.date, 'MMM d, yyyy')}</p>
+            <p className="text-tx-muted mt-0.5">{formatDate(activePoint.date, 'monthDayYear')}</p>
           </div>
         </div>
       )}
@@ -187,10 +187,10 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
 
         {/* Date range labels */}
         <text x={PL} y={H - 10} fontSize={12} fill="var(--color-tx-muted)" fillOpacity={0.6} textAnchor="start">
-          {format(points[0].date, 'MMM d')}
+          {formatDate(points[0].date, 'monthDay')}
         </text>
         <text x={W - PR} y={H - 10} fontSize={12} fill="var(--color-tx-muted)" fillOpacity={0.6} textAnchor="end">
-          {format(points[points.length - 1].date, 'MMM d')}
+          {formatDate(points[points.length - 1].date, 'monthDay')}
         </text>
 
         {/* Hit area — only over chart region, not y-axis */}
@@ -207,6 +207,7 @@ function TrendChart({ points, wUnit }: { points: ChartPoint[]; wUnit: string }) 
 }
 
 export default function Weight() {
+  const { t } = useTranslation()
   const { settings } = useSettingsStore()
   const wUnit = weightShort(settings.weight_unit)
   const [period, setPeriod] = useState<Period>('30d')
@@ -511,7 +512,7 @@ export default function Weight() {
             <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-400" role="alert">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="font-medium">Already logged on {formatDay(entryDay(items[0]), 'MMM d')} ({displayWeight(items[0].weight, settings.weight_unit)} {wUnit}). Log again anyway?</p>
+                <p className="font-medium">{t('weight.duplicateWarning', { date: formatDay(entryDay(items[0]), 'monthDay'), weight: displayWeight(items[0].weight, settings.weight_unit), unit: wUnit })}</p>
                 <div className="flex gap-2 mt-2">
                   <button
                     type="button"
@@ -681,7 +682,7 @@ export default function Weight() {
                       {Math.round(displayW)} {wUnit}
                     </p>
                     <p className="text-xs text-tx-muted mt-0.5">
-                      {formatDay(entryDay(entry), 'MMM d, yyyy')}
+                      {formatDay(entryDay(entry), 'monthDayYear')}
                     </p>
                     {(deltaLbs !== 0 || entry.notes) && (
                       <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">

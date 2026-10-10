@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
-import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, entryToResult, formatLoggedAmount, isNotFound, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay, useTranslation } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
@@ -19,6 +19,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 // the shared log flow in edit mode; Delete routes through the ConfirmSheet. The dashboard
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 export default function NutritionDetail() {
+  const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors, accent } = useTheme()
 
@@ -109,7 +110,7 @@ export default function NutritionDetail() {
     // In the unit it was logged in — "15 ml", not "0.15 servings" (#171).
     { label: 'Amount', value: formatLoggedAmount(entry), tabular: true },
     { label: 'Meal', value: MEAL_LABELS[meal] },
-    { label: 'Logged', value: formatDay(entryDay(entry), 'EEE, MMM d, yyyy') },
+    { label: t('food.entry.logged'), value: formatDay(entryDay(entry), 'weekdayMonthDayYear') },
   ]
 
   return (

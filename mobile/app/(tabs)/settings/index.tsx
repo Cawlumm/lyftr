@@ -22,13 +22,13 @@ import {
 } from 'lucide-react-native'
 import { useAsyncAction,
   useTranslation,
-  i18n,
   languageChoiceLabel,
   memberSince,
   normalizeServerUrl,
   testServerConnection,
+  uiMessage,
+  type UiMessage,
   isInsecureServerUrl,
-  INSECURE_SERVER_WARNING,
   sanitizeNumericInput,
 } from '@lyftr/shared'
 import {
@@ -95,7 +95,12 @@ export default function SettingsScreen() {
   // Server repoint (same warn-but-save flow as the sign-in screens / web ServerSettings).
   const [urlInput, setUrlInput] = useState(serverUrl)
   const insecureServer = isInsecureServerUrl(serverUrl)
-  const [serverMsg, setServerMsg] = useState<string | null>(null)
+  const [serverResult, setServerResult] = useState<
+    | { kind: 'invalid' }
+    | { kind: 'connected'; name: string; version: string }
+    | { kind: 'saved'; failure: UiMessage }
+    | null
+  >(null)
   const [testing, setTesting] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -149,19 +154,19 @@ export default function SettingsScreen() {
 
   const saveServer = async () => {
     setTesting(true)
-    setServerMsg(null)
+    setServerResult(null)
     const base = normalizeServerUrl(urlInput)
     if (urlInput.trim() && !base) {
-      setServerMsg(t('settings.server.url.invalid'))
+      setServerResult({ kind: 'invalid' })
       setTesting(false)
       return
     }
     // Warn-but-save: the choice is authoritative right away; the probe is advisory.
     await setServerUrl(base)
     const result = await testServerConnection(base)
-    setServerMsg(result.ok
-      ? t('settings.server.connected', { name: result.info.name, version: result.info.version })
-      : t('settings.server.savedWithWarning', { message: result.message }))
+    setServerResult(result.ok
+      ? { kind: 'connected', name: result.info.name, version: result.info.version }
+      : { kind: 'saved', failure: result.failure })
     setTesting(false)
   }
 
@@ -231,7 +236,7 @@ export default function SettingsScreen() {
               chevron
               onPress={() => router.push('/settings/email')}
             />
-            <SettingsRow icon={CalendarDays} label={t('settings.account.memberSince.label')} value={memberSince(user?.created_at, i18n.language)} divider />
+            <SettingsRow icon={CalendarDays} label={t('settings.account.memberSince.label')} value={memberSince(user?.created_at)} divider />
             <SettingsRow
               icon={KeyRound}
               label={t('settings.account.password.label')}
@@ -441,12 +446,20 @@ export default function SettingsScreen() {
                 keyboardType="url"
                 placeholder={t('settings.server.url.placeholder')}
               />
-              {serverMsg ? <AppText variant="caption" color="brand" className="mt-2">{serverMsg}</AppText> : null}
+              {serverResult ? (
+                <AppText variant="caption" color="brand" className="mt-2">
+                  {serverResult.kind === 'invalid'
+                    ? t('settings.server.url.invalid')
+                    : serverResult.kind === 'connected'
+                      ? t('settings.server.connected', { name: serverResult.name, version: serverResult.version })
+                      : t('settings.server.savedWithWarning', { message: uiMessage(serverResult.failure) })}
+                </AppText>
+              ) : null}
               {insecureServer ? (
                 <View className="mt-2 flex-row items-start gap-1.5">
                   <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
                   <AppText variant="caption" color="warning" className="flex-1">
-                    {INSECURE_SERVER_WARNING}
+                    {t('server.insecureWarning')}
                   </AppText>
                 </View>
               ) : null}

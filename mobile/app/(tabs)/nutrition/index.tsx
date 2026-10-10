@@ -6,7 +6,7 @@ import { format, subDays, addDays } from 'date-fns'
 import {
   CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
 } from 'lucide-react-native'
-import { apiErrorMessage, isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate} from '@lyftr/shared'
+import { apiErrorMessage, isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate, formatDate, relativeDayLabel, useTranslation} from '@lyftr/shared'
 import {
   AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,
 } from '../../../src/components/ui'
@@ -51,6 +51,7 @@ const mealForNow = (): Meal => {
 }
 
 export default function Nutrition() {
+  const { t } = useTranslation()
   const { colors, brand, accent } = useTheme()
   const { width: windowWidth } = useWindowDimensions()
   const settings = useSettingsStore((s) => s.settings)
@@ -274,11 +275,7 @@ export default function Nutrition() {
   const prevDate = format(subDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
   const canGoNext = selectedDate < todayStr()
-  const dayLabel = isToday
-    ? 'Today'
-    : selectedDate === format(subDays(new Date(), 1), 'yyyy-MM-dd')
-      ? 'Yesterday'
-      : format(selectedDateObj, 'EEE, MMM d')
+  const dayLabel = relativeDayLabel(selectedDate)
 
   // The whole screen is a single FlatList so the food rows virtualize (only on-screen
   // rows mount, and their thumbnails load lazily) instead of every entry — plus its
@@ -344,7 +341,7 @@ export default function Nutrition() {
                 <View className="flex-1">
                   <DateNavCenter
                     dayLabel={dayLabel}
-                    yearLabel={!isToday ? format(selectedDateObj, 'yyyy') : undefined}
+                    yearLabel={!isToday ? formatDate(selectedDateObj, 'year') : undefined}
                     value={selectedDate}
                     onChange={goDay}
                   />
@@ -506,7 +503,7 @@ export default function Nutrition() {
             {isDiary ? (
             <View className="mt-8 gap-3 pb-3">
               <View className="flex-row items-center justify-between px-1">
-                <Label>{isToday ? "Today's Food" : 'Food'}</Label>
+                <Label>{isToday ? t('food.diary.titleToday') : t('food.diary.title')}</Label>
                 {dayEntries.length > 0 && !dayPending ? (
                   <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
                     {q ? `${filteredEntries.length} of ${dayEntries.length}` : `${dayEntries.length} ${dayEntries.length === 1 ? 'item' : 'items'}`}

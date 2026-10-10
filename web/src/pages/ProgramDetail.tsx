@@ -1,7 +1,6 @@
 import { ConfirmSheet, ErrorState } from '../components/ui'
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { format } from 'date-fns'
 import {
   ArrowLeft, BookOpen, Dumbbell, Edit2, Trash2, Play, AlertCircle, Loader, ChevronRight, Pause, TimerOff,
   Award, TrendingUp, Check, X, ChevronDown, ChevronUp, Moon, CalendarDays,
@@ -9,13 +8,14 @@ import {
 import { programAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayWeight } from '../stores/settings'
-import { apiErrorMessage, isNotFound, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, allExercises, activeSessionExercisesForDay, dayLabel, sessionNameForDay, targetWeightLabel, restLabel, formatDate, useTranslation } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
 
 export default function ProgramDetail() {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { session, startSession } = useWorkoutSession()
@@ -294,7 +294,7 @@ export default function ProgramDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{program.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              Created {format(new Date(program.created_at), 'MMM d, yyyy')}
+              {t('programs.createdOn', { date: formatDate(new Date(program.created_at), 'monthDayYear') })}
             </p>
           </div>
         </div>

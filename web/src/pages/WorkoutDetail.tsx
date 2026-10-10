@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { workoutAPI } from '../services/api'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
-import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay } from '@lyftr/shared'
+import { apiErrorMessage, isNotFound, useAsyncAction, types, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, useTranslation } from '@lyftr/shared'
 import { muscleColor } from '../utils/exerciseUtils'
 
 function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit: string }) {
@@ -22,6 +22,7 @@ function SetChip({ set, isBest, unit }: { set: types.Set; isBest: boolean; unit:
 }
 
 export default function WorkoutDetail() {
+  useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { settings } = useSettingsStore()
@@ -147,7 +148,7 @@ export default function WorkoutDetail() {
           <div className="min-w-0 flex-1">
             <h1 className="font-display font-bold text-xl text-tx-primary leading-tight">{workout.name}</h1>
             <p className="text-sm text-tx-muted mt-0.5">
-              {formatDay(workoutDay(workout), 'EEEE, MMMM d, yyyy')}
+              {formatDay(workoutDay(workout), 'weekdayDate')}
             </p>
           </div>
         </div>
