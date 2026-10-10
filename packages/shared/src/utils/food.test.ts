@@ -1,4 +1,5 @@
-import { amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaledFigures, scaleServing, servingBasis, servingsForAmount } from './food'
+import { i18n } from '../i18n'
+import { storedFoodName, storedServingSize, amountForServings, MAX_SERVINGS, maxAmountFor, eanModules, entryToResult, findSavedFood, foodResultKey, formatBarcode, formatLoggedAmount, formatServings, isDailyStats, normaliseFoodKey, savedToResult, scaledFigures, scaleServing, servingBasis, servingsForAmount } from './food'
 import type { FoodLog, SavedFood } from '../types'
 
 const log = (over: Partial<FoodLog> = {}): FoodLog => ({
@@ -376,5 +377,17 @@ describe('formatServings', () => {
     expect(formatServings(0.004)).toBe(0.004)
     expect(formatServings(0.0001)).toBe(0.0001)
     expect(formatServings(0)).toBe(0)
+  })
+})
+
+describe('stored defaults', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('stay English while the UI is Spanish, so saved rows and favourite matching do not depend on the language', async () => {
+    await i18n.changeLanguage('es')
+    expect(i18n.t('food.servings', { count: 1 })).not.toBe('1 serving')
+    expect(storedServingSize()).toBe('1 serving')
+    expect(storedFoodName()).toBe('Custom entry')
+    expect(scaleServing({ name: '', calories: 100, protein: 1, carbs: 1, fat: 1, fiber: 0 } as never, 1).name).toBe('Custom entry')
   })
 })

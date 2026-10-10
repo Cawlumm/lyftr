@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight, Loader2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { isNotFound, useAsyncAction, useTranslation, uiMessage, type UiMessage, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { isNotFound, useAsyncAction, useTranslation, uiMessage, type UiMessage, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, storedServingSize, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
 import { ErrorState, ListError, Toast } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
@@ -227,7 +227,7 @@ export default function LogFood() {
 
   const enterManually = () => {
     setLookup(null)
-    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'manual' })
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'manual' })
   }
 
   const lookUpBarcode = async (code: string) => {
@@ -418,7 +418,7 @@ export default function LogFood() {
           <div className="card overflow-hidden">
             {tab === 'all' && quickAddCals !== null && (
               <button
-                onClick={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
+                onClick={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
                 className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-surface-muted transition-colors border-b border-surface-border"
               >
                 <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
@@ -495,7 +495,7 @@ export default function LogFood() {
               <div className="px-4 py-14 text-center space-y-3">
                 <p className="text-sm text-tx-muted">{t('food.log.search.noResults', { query })}</p>
                 <button
-                  onClick={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
+                  onClick={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
                   className="btn-secondary text-xs"
                 >
                   {t('food.log.search.manualEntry', { query: query.trim() })}

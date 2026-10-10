@@ -49,9 +49,9 @@ describe('shared helper copy in es', () => {
     expect(maxAmountFor({ quantity: 100, unit: 'g' })).toBe('10000 g')
   })
 
-  it('the name a blank entry is given', () => {
+  it('a blank entry is stored with the English name, not the UI language', () => {
     const blank = { name: '', calories: 0, protein: 0, carbs: 0, fat: 0 } as FoodSearchResult
-    expect(scaleServing(blank, 1).name).toBe('Registro personalizado')
+    expect(scaleServing(blank, 1).name).toBe('Custom entry')
   })
 
   it('the fallback for a missing name, and rest labels', () => {

@@ -128,7 +128,7 @@ export default function EditProgram() {
 
   useEffect(() => {
     if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error, save.error])
+  }, [error, save.failureKey])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'programs.form.errors.nameRequired' }); return }

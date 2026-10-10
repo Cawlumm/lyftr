@@ -609,7 +609,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         <div className="w-full grid grid-cols-2 gap-3">
           {/* Reps — key by set so a half-typed value can't bleed to the next set */}
           <StepperTile
-            icon={Repeat} label={t('gym.labels.reps')} name="reps" step={REP_STEP} disabled={set.completed}
+            icon={Repeat} label={t('gym.labels.reps')} name={t('gym.labels.repsName')} step={REP_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}
           >
             <NumberField
@@ -625,7 +625,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
           {/* Weight */}
           <StepperTile
-            icon={Dumbbell} label={t('workouts.form.weightWithUnit', { unit: wUnit })} name="weight" step={PLATE_STEP} disabled={set.completed}
+            icon={Dumbbell} label={t('workouts.form.weightWithUnit', { unit: wUnit })} name={t('weight.log.weightName')} step={PLATE_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
           >
             <NumberField

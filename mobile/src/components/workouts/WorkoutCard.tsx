@@ -39,7 +39,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
     unit
   )
 
-  const exerciseCount = t('workouts.card.exerciseCount', { number: workout.exercises?.length || 0 })
+  const exerciseCount = t('workouts.card.exercises', { count: workout.exercises?.length || 0 })
   const headerMeta = [
     formatDay(workoutDay(workout), 'monthDayYear'),
     ...(durationMin > 0 ? [t('workouts.card.minutes', { minutes: durationMin })] : []),

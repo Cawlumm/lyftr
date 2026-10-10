@@ -22,7 +22,7 @@ import {
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, storedServingSize, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -181,7 +181,7 @@ export default function LogFood() {
 
   const enterManually = () => {
     setLookup(null)
-    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'manual' })
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'manual' })
   }
 
   const lookUpBarcode = async (code: string) => {
@@ -367,7 +367,7 @@ export default function LogFood() {
             <Card className="overflow-hidden p-0">
               {tab === 'all' && quickAddCals !== null ? (
                 <Pressable
-                  onPress={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
+                  onPress={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
                   className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
                 >
                   <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
@@ -427,7 +427,7 @@ export default function LogFood() {
                 <View className="items-center gap-3 px-4 py-14">
                   <AppText variant="body" color="muted">{t('food.log.search.noResults', { query })}</AppText>
                   <Pressable
-                    onPress={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
+                    onPress={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
                     className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 active:opacity-70"
                   >
                     <AppText variant="caption" color="secondary">{t('food.log.search.manualEntryWide', { query: query.trim() })}</AppText>

@@ -50,7 +50,7 @@ describe('ErrorState in Spanish', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
     await i18n.changeLanguage('es')
     rerender(<ListError subject="entrenos" message="No answer." onRetry={() => {}} />)
-    expect(screen.getByText('No se pudo cargar entrenos')).toBeTruthy()
+    expect(screen.getByText('Error al cargar entrenos')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Intentar de nuevo' })).toBeTruthy()
   })
 })

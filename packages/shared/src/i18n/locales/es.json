@@ -309,10 +309,10 @@
     "list": {
       "loadFailed": "No se pudo cargar esta lista.",
       "unreadable": "El servidor envió algo que no pudimos leer.",
-      "title": "No se pudo cargar {{subject}}"
+      "title": "Error al cargar {{subject}}"
     },
     "boundary": {
-      "title": "No se pudo mostrar {{subject}}",
+      "title": "Error al mostrar {{subject}}",
       "thisPage": "esta página",
       "message": "Algo salió mal de nuestro lado. Inténtalo de nuevo y, si sigue pasando, recarga la página."
     }
@@ -554,7 +554,7 @@
       "total": "Total",
       "totalUnit": "programas",
       "totalFailed": "No se pudo cargar el total",
-      "avgExercises": "Ejercicios prom.",
+      "avgExercises": "Ejercicios",
       "avgExercisesFailed": "No se pudo cargar el promedio de ejercicios",
       "perProgram": "por programa"
     },
@@ -838,7 +838,7 @@
       "logged": "registrados",
       "thisMonth": "Este mes",
       "sessions": "sesiones",
-      "avgTime": "Tiempo prom.",
+      "avgTime": "Promedio",
       "min": "min",
       "totalFailed": "No se pudo cargar el total",
       "thisMonthFailed": "No se pudo cargar este mes",
@@ -878,7 +878,6 @@
       "exercises_one": "{{count}} ejercicio",
       "exercises_other": "{{count}} ejercicios",
       "exercises_many": "{{count}} ejercicios",
-      "exerciseCount": "{{number}} ejercicios",
       "options": "Opciones",
       "optionsNamed": "Opciones de {{name}}",
       "menuHeading": "Entrenamiento",
@@ -1097,15 +1096,15 @@
     "labels": {
       "sets": "Series",
       "reps": "Reps",
-      "weight": "Peso"
+      "weight": "Peso",
+      "repsName": "repeticiones"
     },
     "overview": {
       "exercises": "Ejercicios",
       "totalSets": "Series totales",
       "muscles": "Músculos",
       "empty": "Aún no has agregado ejercicios",
-      "startWorkout": "Empezar entrenamiento",
-      "setCount": "{{number}} series"
+      "startWorkout": "Empezar entrenamiento"
     },
     "info": {
       "restTitle": "Descanso entre series",

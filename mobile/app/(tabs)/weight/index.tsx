@@ -24,7 +24,7 @@ type Period = typeof PERIODS[number]
 const PERIOD_DAYS: Record<Period, number | null> = { '7d': 7, '30d': 30, '90d': 90, 'All': null }
 
 export default function Weight() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
@@ -171,7 +171,7 @@ export default function Weight() {
         const d = dayToLocalDate(entryDay(l))
         return { date: formatDate(d, 'numericMonthDay'), weight: displayWeight(l.weight, unit), sub: formatDate(d, 'monthDayYear') }
       }),
-    [chartLogs, chartPeriod, period, unit]
+    [chartLogs, chartPeriod, period, unit, i18n.language]
   )
   const [chartWidth, setChartWidth] = useState(0)
 

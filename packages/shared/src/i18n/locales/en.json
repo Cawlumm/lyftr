@@ -864,7 +864,6 @@
       "minutes": "{{minutes}} min",
       "exercises_one": "{{count}} exercise",
       "exercises_other": "{{count}} exercises",
-      "exerciseCount": "{{number}} exercises",
       "options": "Options",
       "optionsNamed": "{{name}} options",
       "menuHeading": "Workout",
@@ -1078,15 +1077,15 @@
     "labels": {
       "sets": "Sets",
       "reps": "Reps",
-      "weight": "Weight"
+      "weight": "Weight",
+      "repsName": "reps"
     },
     "overview": {
       "exercises": "Exercises",
       "totalSets": "Total Sets",
       "muscles": "Muscles",
       "empty": "No exercises added yet",
-      "startWorkout": "Start Workout",
-      "setCount": "{{number}} sets"
+      "startWorkout": "Start Workout"
     },
     "info": {
       "restTitle": "Rest between sets",
@@ -1200,7 +1199,7 @@
       "noPeriodData": "No data for this period",
       "maxWeight": "Max weight",
       "instructions": "Instructions",
-      "bestSet_one": "{{unit}} × {{count}} reps",
+      "bestSet_one": "{{unit}} × {{count}} rep",
       "bestSet_other": "{{unit}} × {{count}} reps",
       "period": {
         "1m": "1m",

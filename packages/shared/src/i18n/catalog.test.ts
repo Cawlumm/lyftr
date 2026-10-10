@@ -26,6 +26,7 @@ const flatten = (obj: unknown, prefix = ''): Record<string, string> => {
 const PLURAL = /^(.*)_(zero|one|two|few|many|other)$/
 const placeholders = (s: string) =>
   new Set([...s.matchAll(/\{\{\s*([^},\s]+)/g)].map((m) => m[1]))
+const tags = (s: string) => [...s.matchAll(/<\/?([a-zA-Z0-9]+)/g)].map((m) => m[1])
 const sorted = (s: Iterable<string>) => [...s].sort()
 
 const flat: Record<string, Record<string, string>> = {}
@@ -75,6 +76,27 @@ describe('catalogs', () => {
       if (sorted(want).join() !== sorted(got).join()) mismatches.push(key)
     }
     expect(mismatches).toEqual([])
+  })
+
+  it.each(Object.keys(catalogs))('%s uses the same <tags> as English (Trans keys)', (code) => {
+    const mismatches: string[] = []
+    for (const [key, value] of Object.entries(flat[code])) {
+      const m = PLURAL.exec(key)
+      const enKey = m ? `${m[1]}_other` : key
+      if (sorted(tags(flat.en[enKey])).join() !== sorted(tags(value)).join()) mismatches.push(key)
+    }
+    expect(mismatches).toEqual([])
+  })
+
+  it.each(Object.keys(catalogs))('%s plural variants keep {{count}} wherever the English singular has it', (code) => {
+    const dropped: string[] = []
+    for (const base of pluralBases) {
+      if (!placeholders(flat.en[`${base}_one`]).has('count')) continue
+      for (const [key, value] of Object.entries(flat[code])) {
+        if (PLURAL.exec(key)?.[1] === base && !placeholders(value).has('count')) dropped.push(key)
+      }
+    }
+    expect(dropped).toEqual([])
   })
 })
 

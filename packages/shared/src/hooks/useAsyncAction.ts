@@ -7,6 +7,8 @@ export interface AsyncAction<A extends unknown[]> {
   busy: boolean
   /** '' until the action fails, then the sentence a person should read. */
   error: string
+  /** Counts failures, 0 until the first. Unlike `error`, it does not change with the language, so key an effect that raises a toast or scrolls on this. */
+  failureKey: number
   /** Runs the action. Resolves true on success, false if it failed. */
   run: (...args: A) => Promise<boolean>
   /** Drop a stale message — on dismiss, or when the form changes underneath it. */
@@ -41,6 +43,7 @@ export function useAsyncAction<A extends unknown[] = []>(
   // The failure itself, not its text: the sentence is made at render from the fallback the
   // caller passes this render, so a visible banner follows a live language switch.
   const [failure, setFailure] = useState<{ cause: unknown } | null>(null)
+  const [failureKey, setFailureKey] = useState(0)
 
   // Latest-callback refs. Screens pass an inline closure that reads current state, so
   // `action` has a fresh identity every render — capturing it in the useCallback deps
@@ -68,7 +71,10 @@ export function useAsyncAction<A extends unknown[] = []>(
       await latest.current(...args)
       return true
     } catch (err) {
-      if (mounted.current) setFailure({ cause: err })
+      if (mounted.current) {
+        setFailure({ cause: err })
+        setFailureKey((k) => k + 1)
+      }
       return false
     } finally {
       // In `finally`, not only on the failure path: a screen that stays put after
@@ -80,5 +86,5 @@ export function useAsyncAction<A extends unknown[] = []>(
   const reset = useCallback(() => setFailure(null), [])
 
   const error = failure ? apiErrorMessage(failure.cause, fallback.current) : ''
-  return { busy, error, run, reset }
+  return { busy, error, failureKey, run, reset }
 }

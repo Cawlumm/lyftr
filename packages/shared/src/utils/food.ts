@@ -1,6 +1,14 @@
 import type { FoodLog, FoodSearchResult, SavedFood } from '../types'
 import { i18n } from '../i18n'
 
+// Defaults that get POSTed (diary entries, favourites) are written in English whatever the
+// UI language is. A diary or favourite row outlives the language it was logged in, and
+// favourites are matched on these fields, so a Spanish "1 porción" would never match the
+// "1 serving" the same food was saved with. Anything merely displayed translates at render.
+const storedT = () => i18n.getFixedT('en')
+export const storedFoodName = () => storedT()('food.customEntry')
+export const storedServingSize = () => storedT()('food.servings', { count: 1 })
+
 // A logged entry stores macros for the servings the user actually ate; a
 // FoodSearchResult is always per single serving, because the detail view multiplies
 // it back by whatever `servings` is chosen. So re-logging a past entry has to divide
@@ -38,7 +46,7 @@ export function entryToResult(e: FoodLog): FoodSearchResult {
 // toFixed(1) matches the 0.1 precision used everywhere else numbers are entered.
 export function scaleServing(r: FoodSearchResult, servings: number) {
   return {
-    name: r.name || i18n.t('food.customEntry'),
+    name: r.name || storedFoodName(),
     // Carried onto the log so a diary entry still knows which product it was. Without
     // it every Recent row compares as brand '', so a branded favourite shows an empty
     // star there and starring it creates a second, brandless row.

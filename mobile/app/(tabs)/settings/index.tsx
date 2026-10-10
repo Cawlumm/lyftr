@@ -183,19 +183,19 @@ export default function SettingsScreen() {
   // read off the hook when it changes. It used to be `err?.message`, which for an axios
   // error is the string "Request failed with status code 400" - true, and useless.
   useEffect(() => {
-    if (saveTargets.error) setToast('saveTargets')
-  }, [saveTargets.error])
+    if (saveTargets.failureKey) setToast('saveTargets')
+  }, [saveTargets.failureKey])
 
   useEffect(() => {
-    if (changeUnit.error) setToast('changeUnit')
-  }, [changeUnit.error])
+    if (changeUnit.failureKey) setToast('changeUnit')
+  }, [changeUnit.failureKey])
 
   useEffect(() => {
-    if (deleteAccount.error) {
+    if (deleteAccount.failureKey) {
       setConfirmDelete(false)
       setToast('deleteAccount')
     }
-  }, [deleteAccount.error])
+  }, [deleteAccount.failureKey])
 
   const toastView: { variant: ToastVariant; title: string; description?: string } | null =
     toast === 'saved' ? { variant: 'success', title: t('settings.unitsTargets.saved') }

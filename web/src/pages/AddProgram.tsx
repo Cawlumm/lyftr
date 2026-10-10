@@ -44,7 +44,7 @@ export default function AddProgram() {
     navigate('/programs')
   }, t('programs.form.createFailed'))
 
-  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.error])
+  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.failureKey])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
