@@ -216,13 +216,21 @@ const MONTH_NAMES = [
  *
  * Read in UTC on purpose. Unlike the day-scoped rows above, `created_at` is a bare
  * instant with no stored offset, so deriving the month from the reader's clock would move
- * someone's join date across a month boundary purely by travelling. Month names are
- * spelled out here rather than via toLocaleDateString so both apps render identically
- * regardless of the Intl data the runtime happens to ship.
+ * someone's join date across a month boundary purely by travelling. English month names
+ * are spelled out here rather than via toLocaleDateString so both apps render identically
+ * regardless of the Intl data the runtime happens to ship. Any other language asks Intl
+ * for its month name and falls back to English if the runtime cannot supply it.
  */
-export const memberSince = (iso?: string): string => {
+export const memberSince = (iso?: string, locale = 'en'): string => {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return '—'
+  if (locale !== 'en') {
+    try {
+      return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(d)
+    } catch {
+      // fall through to English
+    }
+  }
   return `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`
 }

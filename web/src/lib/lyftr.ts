@@ -6,6 +6,8 @@ import {
   createServerStore,
   createSettingsStore,
   createThemeStore,
+  createLanguageStore,
+  i18n,
   createWorkoutSession,
   surfaces,
 } from '@lyftr/shared'
@@ -38,6 +40,11 @@ export const useSettingsStore = createSettingsStore(client, storage, detectTimez
 export const useWorkoutSession = createWorkoutSession(storage)
 // Dark-first on web (mobile is light-first, per product).
 export const useThemeStore = createThemeStore(storage, 'dark')
+
+// Raw device tags only; shared resolveLanguage() decides which supported language they mean.
+const detectLanguages = () =>
+  (navigator.languages?.length ? navigator.languages : [navigator.language]).filter(Boolean)
+export const useLanguageStore = createLanguageStore(storage, detectLanguages)
 
 // Replaces the theme-color tag rather than editing it. Browsers diff this value to decide
 // whether to repaint their chrome, and setAttribute('content', …) on the existing element
@@ -85,11 +92,14 @@ export const hydrateStores = async () => {
     // screen is a mount-only effect, so workout_layout must be right on first render.
     useSettingsStore.getState().hydratePrefs(),
     useThemeStore.getState().hydrate(),
+    useLanguageStore.getState().hydrate(),
   ])
   // Paint the theme before React renders, so there is no flash of the default. This is
   // why theme could only move to the shared store once hydration gated the first render.
   applyThemeClass(useThemeStore.getState().mode)
   useThemeStore.subscribe((s) => applyThemeClass(s.mode))
+  document.documentElement.lang = i18n.language
+  i18n.on('languageChanged', (l) => { document.documentElement.lang = l })
 }
 
 // Rest-timer state derived from the session store above. The logic lives in

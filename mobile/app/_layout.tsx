@@ -13,7 +13,7 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
-import { useAuthStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from '../src/lib/lyftr'
+import { useAuthStore, useLanguageStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from '../src/lib/lyftr'
 import { useTheme } from '../src/theme/useTheme'
 import { Loading } from '../src/components/ui'
 import { WorkoutSessionLayer } from '../src/components/workouts/WorkoutSessionLayer'
@@ -58,10 +58,12 @@ export default function RootLayout() {
   const hydrateAuth = useAuthStore((s) => s.hydrate)
   const hydrateServer = useServerStore((s) => s.hydrate)
   const hydrateTheme = useThemeStore((s) => s.hydrate)
+  const hydrateLanguage = useLanguageStore((s) => s.hydrate)
   const hydrateWorkout = useWorkoutSession((s) => s.hydrate)
   const hydratePrefs = useSettingsStore((s) => s.hydratePrefs)
   const isHydrated = useAuthStore((s) => s.isHydrated)
   const themeHydrated = useThemeStore((s) => s.isHydrated)
+  const languageHydrated = useLanguageStore((s) => s.isHydrated)
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
   const { mode, isDark } = useTheme()
   const [fontsLoaded] = useFonts({
@@ -72,19 +74,20 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
   })
-  const ready = isHydrated && themeHydrated && fontsLoaded
+  const ready = isHydrated && themeHydrated && languageHydrated && fontsLoaded
 
   useEffect(() => {
     hydrateAuth()
     hydrateServer()
     hydrateTheme()
+    hydrateLanguage()
     hydrateWorkout()
     // Device-only prefs (workout_layout, rest_enabled, rest_seconds_default). Without
     // this they stay at the store defaults until the settings fetch returns, so a
     // gym-mode user can land on the workout screen in the list layout — the same gap
     // web closes in its own hydrate step.
     hydratePrefs()
-  }, [hydrateAuth, hydrateServer, hydrateTheme, hydrateWorkout, hydratePrefs])
+  }, [hydrateAuth, hydrateServer, hydrateTheme, hydrateLanguage, hydrateWorkout, hydratePrefs])
 
   // React has mounted → the barbell loader (or the app, if already ready) is on screen.
   // Drop the native splash now so it flows straight into the animated loader.

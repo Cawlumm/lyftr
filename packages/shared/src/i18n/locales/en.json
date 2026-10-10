@@ -1,0 +1,194 @@
+{
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Preferences and account configuration",
+    "back": "Home",
+    "saved": "Settings saved successfully",
+    "unknownError": "The server didn't say what went wrong.",
+    "language": {
+      "label": "Language",
+      "description": "Defaults to your device language",
+      "system": "System"
+    },
+    "account": {
+      "title": "Account",
+      "name": {
+        "label": "Name",
+        "description": "The name the app greets you by. Leave it empty and we'll use your email instead.",
+        "loadFailed": "Couldn't load your name, so we won't offer to overwrite it.",
+        "saveFailed": "Couldn't save your name.",
+        "save": "Save",
+        "saving": "Saving…"
+      },
+      "email": {
+        "label": "Email",
+        "description": "Your login email address",
+        "change": "Change",
+        "changeLabel": "Change email"
+      },
+      "memberSince": {
+        "label": "Member since"
+      },
+      "password": {
+        "label": "Password",
+        "description": "Changing it signs you out on your other devices",
+        "change": "Change"
+      }
+    },
+    "appearance": {
+      "title": "Appearance",
+      "theme": {
+        "label": "Theme",
+        "description": "Interface color scheme",
+        "dark": "Dark",
+        "light": "Light"
+      },
+      "darkMode": {
+        "label": "Dark mode",
+        "description": "Use the dark color scheme"
+      }
+    },
+    "workout": {
+      "title": "Workout",
+      "footnote": "Default rest seeds new exercises · a per-exercise rest overrides it.",
+      "layout": {
+        "label": "Active workout layout",
+        "description": "How exercises are shown during a workout",
+        "list": "List",
+        "gym": "Gym Mode"
+      },
+      "defaultView": {
+        "label": "Default workout view"
+      },
+      "restTimer": {
+        "label": "Rest timer",
+        "description": "Auto-start a countdown between sets",
+        "gymDescription": "Auto-start a countdown between sets in gym mode",
+        "off": "Off",
+        "on": "On"
+      },
+      "defaultRest": {
+        "label": "Default rest",
+        "description": "Seeds new exercises · per-exercise rest overrides it",
+        "preset": "{{seconds}}s",
+        "custom": "Custom",
+        "customLabel": "Custom rest seconds",
+        "secondsUnit": "sec",
+        "minusFive": "−5 seconds",
+        "plusFive": "+5 seconds",
+        "decrease": "Decrease rest by 5 seconds",
+        "increase": "Increase rest by 5 seconds"
+      }
+    },
+    "goalsUnits": {
+      "title": "Goals & Units",
+      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
+    },
+    "unitsTargets": {
+      "title": "Units & Targets",
+      "footnote": "Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.",
+      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else here still works.",
+      "saved": "Targets saved",
+      "changeUnitFailedTitle": "Could not change units"
+    },
+    "targets": {
+      "loadFailedTitle": "Couldn't load your goals",
+      "weightUnit": {
+        "label": "Weight unit",
+        "description": "Changes apply immediately across the app",
+        "changeFailed": "Couldn't change the weight unit.",
+        "changeFailedFallback": "Could not change the weight unit"
+      },
+      "calorie": {
+        "label": "Calorie target",
+        "description": "Daily calorie goal"
+      },
+      "protein": {
+        "label": "Protein target",
+        "description": "Daily protein goal"
+      },
+      "carb": {
+        "label": "Carb target",
+        "description": "Daily carb goal"
+      },
+      "fat": {
+        "label": "Fat target",
+        "description": "Daily fat goal"
+      },
+      "saveHint": "Save calorie and macro targets",
+      "save": "Save targets",
+      "saving": "Saving...",
+      "saveFailedFallback": "Failed to save settings",
+      "saveFailed": "Could not save targets"
+    },
+    "server": {
+      "title": "Server",
+      "webTitle": "Self-Hosted Instance",
+      "footnote": "The self-hosted backend this app talks to. Leave the URL blank to use the default.",
+      "api": {
+        "label": "API server",
+        "description": "Backend server this client is connected to",
+        "default": "This site (reverse proxy)"
+      },
+      "backend": {
+        "label": "Backend",
+        "default": "Default backend"
+      },
+      "url": {
+        "label": "Server URL",
+        "placeholder": "https://your-server.example.com",
+        "invalid": "Enter a full URL including http:// or https://",
+        "testAndSave": "Test & save"
+      },
+      "connected": "Connected · {{name}} v{{version}}",
+      "savedWithWarning": "Saved — {{message}}",
+      "database": {
+        "label": "Database",
+        "description": "Storage backend"
+      },
+      "version": {
+        "label": "Version",
+        "description": "lyftr backend version"
+      }
+    },
+    "library": {
+      "title": "Exercise Library",
+      "database": {
+        "label": "Exercise database",
+        "description": "Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
+      },
+      "cached_one": "{{amount}} cached",
+      "cached_other": "{{amount}} cached",
+      "cachedUnknown": "— cached",
+      "refreshed_one": "Refreshed {{amount}} exercise",
+      "refreshed_other": "Refreshed {{amount}} exercises",
+      "cleared_one": "Cleared {{amount}} unused exercise",
+      "cleared_other": "Cleared {{amount}} unused exercises",
+      "refresh": "Refresh cached",
+      "refreshing": "Refreshing...",
+      "refreshFailed": "Couldn't refresh the cache.",
+      "clear": "Clear unused",
+      "clearing": "Clearing...",
+      "clearFailed": "Couldn't clear the cache."
+    },
+    "danger": {
+      "title": "Danger Zone",
+      "actionsTitle": "Account actions"
+    },
+    "signOut": {
+      "label": "Sign out",
+      "description": "Log out of this device",
+      "button": "Sign out"
+    },
+    "deleteAccount": {
+      "label": "Delete account",
+      "description": "Permanently delete all your data",
+      "button": "Delete",
+      "sheetTitle": "Delete account?",
+      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone.",
+      "confirm": "Delete account",
+      "busy": "Deleting…",
+      "failed": "Could not delete account"
+    }
+  }
+}

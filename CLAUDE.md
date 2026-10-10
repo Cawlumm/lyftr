@@ -171,6 +171,19 @@ true of one file. Do not document it here before it lands.
 
 ---
 
+## UI Strings — read before adding screen copy
+
+**The rule: screen copy goes through `t()`, with keys in `packages/shared/src/i18n/locales/en.json`.**
+
+- Single points of truth: `i18n/index.ts` (init, language registry, `resolveLanguage`),
+  `stores/language.ts` (the device-level preference), `i18n/catalog.test.ts` (key, placeholder
+  and plural parity across locales).
+- Hermes has no `Intl.PluralRules`; `mobile/src/lib/polyfills.ts` imports the polyfill.
+- Numbers and dates are never formatted through i18next (see Numbers & Locale).
+- Details and key-naming rules: CONTRIBUTING.md, "Translations".
+
+---
+
 ## Failing Requests — read before touching the API client
 
 **The rule: every request settles, and only the server may end a session.**
