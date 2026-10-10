@@ -51,6 +51,8 @@ export default function ChangeEmail() {
               <Trans
                 i18nKey="settings.account.email.signInWith"
                 values={{ email: changedTo }}
+                tOptions={{ interpolation: { escapeValue: true } }}
+                shouldUnescape
                 components={{ email: <span className="break-all text-tx-secondary" /> }}
               />{' '}
               {caseOnly

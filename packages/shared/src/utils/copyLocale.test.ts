@@ -16,11 +16,11 @@ describe('shared helper copy in es', () => {
 
   it('password rule labels', () => {
     expect(lengthRuleLabel('')).toBe('Al menos 8 caracteres')
-    expect(lengthRuleLabel('a'.repeat(MAX_PASSWORD_BYTES + 1))).toBe('Máximo 72 caracteres (los acentos y los emoji cuentan como más)')
+    expect(lengthRuleLabel('a'.repeat(MAX_PASSWORD_BYTES + 1))).toBe('Máximo 72 caracteres (los acentos y emojis ocupan más)')
     expect(differentRuleLabel()).toBe('Distinta de tu contraseña actual')
     expect(matchRuleLabel('ok')).toBe('Las contraseñas coinciden')
     expect(matchRuleLabel('bad')).toBe('Las contraseñas no coinciden')
-    expect(matchRuleLabel('pending')).toBe('Repite la nueva contraseña')
+    expect(matchRuleLabel('pending')).toBe('Repite la contraseña nueva')
   })
 
   it('weight errors keep the number and the unit', () => {
@@ -30,7 +30,7 @@ describe('shared helper copy in es', () => {
   })
 
   it('a bodyweight target reads as the es abbreviation, a loaded one keeps its unit', () => {
-    expect(targetWeightLabel(0, 'lbs')).toBe('PC')
+    expect(targetWeightLabel(0, 'lbs')).toBe('P. corp.')
     expect(targetWeightLabel(135, 'lbs')).toBe('135 lbs')
   })
 

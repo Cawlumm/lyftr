@@ -16,7 +16,15 @@ import { useTheme } from '../../theme/useTheme'
 // About 7 rows of ~48px fit in the 360px list below; search appears once the list stops fitting.
 export const LANGUAGE_SEARCH_FROM = 8
 
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+// normalize() is missing or throws on some Hermes builds; plain lowercase still matches
+// every unaccented query.
+const fold = (s: string) => {
+  try {
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  } catch {
+    return s.toLowerCase()
+  }
+}
 
 export function filterLanguages(codes: readonly Language[], query: string): Language[] {
   const q = fold(query.trim())

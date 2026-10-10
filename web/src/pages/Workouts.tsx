@@ -284,9 +284,9 @@ export default function Workouts() {
             <div className="flex items-center gap-1.5 mb-2">
               <span className="stat-label truncate">{s.label}</span>
             </div>
-            <div className="flex items-end gap-1 min-w-0">
+            <div className="flex flex-wrap items-end gap-x-1 min-w-0">
               <span className="stat-value text-xl">{s.value}</span>
-              <span className="text-xs text-tx-muted mb-0.5 truncate">{s.unit}</span>
+              <span className="text-xs text-tx-muted mb-0.5">{s.unit}</span>
             </div>
           </div>
         ))}

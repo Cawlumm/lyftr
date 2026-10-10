@@ -27,6 +27,6 @@ describe('BarcodeLookup', () => {
 
     expect(screen.getByText('Buscando este producto…')).toBeTruthy()
     act(() => { vi.advanceTimersByTime(4000) })
-    expect(screen.getByText('Sigo buscando. Esto puede tardar unos segundos.')).toBeTruthy()
+    expect(screen.getByText('Seguimos buscando. Esto puede tardar unos segundos.')).toBeTruthy()
   })
 })

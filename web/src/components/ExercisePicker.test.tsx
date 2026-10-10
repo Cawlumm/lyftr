@@ -151,7 +151,7 @@ describe('ExercisePicker', () => {
 
     await act(async () => { await i18n.changeLanguage('es') })
 
-    expect(screen.getByText('Añadir ejercicio')).toBeTruthy()
+    expect(screen.getByText('Agregar ejercicio')).toBeTruthy()
     expect(screen.getByText('1 cargado')).toBeTruthy()
     expect(screen.getByText('cuádriceps')).toBeTruthy()
     expect(screen.getByText('Barra')).toBeTruthy()

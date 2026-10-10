@@ -217,7 +217,7 @@ export default function LogFood() {
         }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
         // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
-        router.replace(`/nutrition?logged=${editId ? 'Updated' : encodeURIComponent(mealLabel(meal))}`)
+        router.replace(`/nutrition?logged=${editId ? 'Updated' : meal}`)
   }, t('food.log.saveFailed'))
 
   const handleLog = async () => {

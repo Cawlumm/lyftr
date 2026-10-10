@@ -100,7 +100,8 @@ export default function AddWorkout() {
     navigate('/workouts')
   }, t('workouts.form.createFailed'))
 
-  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.failureKey])
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
+  useEffect(() => { if (save.failureKey) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [save.failureKey])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -181,7 +182,7 @@ export default function AddWorkout() {
         )}
 
         <div>
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-brand-500" />
               <label className="label">{t('workouts.form.exercises')}</label>

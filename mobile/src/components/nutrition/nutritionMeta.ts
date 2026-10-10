@@ -1,5 +1,5 @@
 import { Coffee, Cookie, Moon, Sun, type LucideIcon } from 'lucide-react-native'
-import { i18n, type FoodLog } from '@lyftr/shared'
+import { i18n, uiMessage, type FoodLog, type UiMessage } from '@lyftr/shared'
 
 // Meal + macro presentation constants, ported 1:1 from web (Food.tsx / LogFood.tsx +
 // utils/macroColors.ts). Web expressed colors as Tailwind text-* classes; on native
@@ -10,7 +10,13 @@ export type Meal = FoodLog['meal']
 
 export const MEALS: readonly Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks']
 
-export const mealLabel = (meal: Meal): string => i18n.t(`food.meal.${meal}`)
+// A meal outside the list renders blank, not as the raw catalog key.
+export const mealLabel = (meal: Meal): string => (MEALS.includes(meal) ? i18n.t(`food.meal.${meal}`) : '')
+
+// A toast that names a meal carries the slug in params.meal and is worded here, at render,
+// so a language switch while it is on screen re-translates it.
+export const mealMessage = (m: UiMessage): string =>
+  uiMessage(m.params?.meal ? { ...m, params: { ...m.params, meal: mealLabel(m.params.meal as Meal) } } : m)
 
 export const MEAL_ICONS: Record<Meal, LucideIcon> = {
   breakfast: Coffee,

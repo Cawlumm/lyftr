@@ -146,7 +146,7 @@
       },
       "saveHint": "Save calorie and macro targets",
       "save": "Save targets",
-      "saving": "Saving...",
+      "saving": "Saving…",
       "saveFailedFallback": "Failed to save settings",
       "saveFailed": "Could not save targets"
     },
@@ -194,10 +194,10 @@
       "cleared_one": "Cleared {{amount}} unused exercise",
       "cleared_other": "Cleared {{amount}} unused exercises",
       "refresh": "Refresh cached",
-      "refreshing": "Refreshing...",
+      "refreshing": "Refreshing…",
       "refreshFailed": "Couldn't refresh the cache.",
       "clear": "Clear unused",
-      "clearing": "Clearing...",
+      "clearing": "Clearing…",
       "clearFailed": "Couldn't clear the cache."
     },
     "danger": {
@@ -1269,7 +1269,7 @@
       "minutes": "{{mins}} min",
       "sets_one": "{{count}} set",
       "sets_other": "{{count}} sets",
-      "moreExercises_one": "+{{count}} more exercises",
+      "moreExercises_one": "+{{count}} more exercise",
       "moreExercises_other": "+{{count}} more exercises",
       "empty": "No workouts logged yet",
       "startFirst": "Start your first workout →"

@@ -109,3 +109,19 @@ describe('ChangeEmail in Spanish', () => {
     expect(screen.getByText(/en tus otros dispositivos se cerró la sesión/)).toBeTruthy()
   })
 })
+
+describe('ChangeEmail confirmation markup', () => {
+  it('renders an address containing markup as literal text', async () => {
+    const odd = 'a<strong>x</strong>@example.com'
+    changeEmail.mockResolvedValue({ id: 1, email: odd, created_at: '2026-07-01T00:00:00Z' })
+    const { container } = renderPage()
+
+    typeEmail('new@example.com')
+    typePassword('password123')
+    fireEvent.click(submitButton())
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Email changed' })).toBeTruthy())
+    expect(screen.getByText(odd).tagName).toBe('SPAN')
+    expect(container.querySelector('strong')).toBeNull()
+  })
+})

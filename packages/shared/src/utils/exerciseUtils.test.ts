@@ -94,8 +94,8 @@ describe('categoryLabel', () => {
     }
   })
 
-  it('reads the pre-migration spaced spelling as the hyphenated slug', () => {
-    expect(categoryLabel('olympic weightlifting')).toBe('olympic-weightlifting')
+  it('shows the pre-migration spaced spelling as it came in en', () => {
+    expect(categoryLabel('olympic weightlifting')).toBe('olympic weightlifting')
   })
 
   it('passes an unknown or empty value through as it came', () => {

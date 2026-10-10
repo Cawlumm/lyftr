@@ -72,3 +72,16 @@ describe('filterLanguages', () => {
     expect(filterLanguages(LANGUAGE_ORDER, q)).toEqual(want)
   })
 })
+
+describe('filterLanguages without String.prototype.normalize', () => {
+  it('falls back to a plain lowercase match instead of throwing', () => {
+    const spy = jest.spyOn(String.prototype, 'normalize').mockImplementation(() => {
+      throw new RangeError('unsupported')
+    })
+    try {
+      expect(filterLanguages(LANGUAGE_ORDER, 'ESP')).toEqual(['es'])
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})

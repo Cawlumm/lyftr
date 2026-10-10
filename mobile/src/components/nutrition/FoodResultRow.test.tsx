@@ -37,7 +37,7 @@ describe('FoodResultRow copy', () => {
     await i18n.changeLanguage('es')
     const view = render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
     try {
-      expect(screen.getByLabelText('Añadir Chicken Breast a Favoritos')).toBeTruthy()
+      expect(screen.getByLabelText('Agregar Chicken Breast a favoritos')).toBeTruthy()
       expect(screen.getByText('31g P')).toBeTruthy()
       expect(screen.getByText('4g G')).toBeTruthy()
       expect(screen.queryByLabelText(ADD)).toBeNull()

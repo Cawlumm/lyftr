@@ -117,3 +117,17 @@ describe('Starring from the diary', () => {
     expect(screen.queryByRole('button', { name: /Favorites/ })).toBeNull()
   })
 })
+
+describe('Delete confirmation', () => {
+  it('renders a food name containing markup as literal text', async () => {
+    list.mockResolvedValue([{ ...OATS, name: 'Mac <strong>x</strong>' }])
+    savedList.mockResolvedValue([])
+    const { container } = renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+
+    const name = await screen.findByText('Mac <strong>x</strong>')
+    expect(name.tagName).toBe('SPAN')
+    expect(container.querySelector('strong')).toBeNull()
+  })
+})

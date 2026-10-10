@@ -13,7 +13,7 @@ import {
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
 import { NutritionSkeleton } from '../../../src/components/nutrition/NutritionSkeleton'
-import { MACRO_COLORS, MEALS, type Meal } from '../../../src/components/nutrition/nutritionMeta'
+import { MACRO_COLORS, MEALS, mealMessage, type Meal } from '../../../src/components/nutrition/nutritionMeta'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -53,7 +53,7 @@ export default function Nutrition() {
   const { width: windowWidth } = useWindowDimensions()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
-  // One-shot courier from the log flow: ?logged=<meal label> | 'Updated' → success toast.
+  // One-shot courier from the log flow: ?logged=<meal slug> | 'Updated' → success toast.
   const params = useLocalSearchParams<{ logged?: string }>()
   const [toast, setToast] = useState<UiMessage | null>(null)
 
@@ -212,7 +212,7 @@ export default function Nutrition() {
   if (!hasLoadedRef.current) return <NutritionSkeleton />
 
   const toastView = toast ? (
-    <Toast variant="success" icon={CheckCircle2} title={uiMessage(toast)} onDismiss={() => setToast(null)} />
+    <Toast variant="success" icon={CheckCircle2} title={mealMessage(toast)} onDismiss={() => setToast(null)} />
   ) : null
 
   // Rings at 0 kcal and four empty meal sections say "you have eaten nothing today",

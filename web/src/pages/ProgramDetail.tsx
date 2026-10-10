@@ -423,13 +423,13 @@ export default function ProgramDetail() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         {ex.exercise?.muscle_group && (
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
                             {muscleLabel(ex.exercise.muscle_group)}
                           </span>
                         )}
-                        <span className="text-xs text-tx-muted truncate">{setsSummary}</span>
+                        <span className="text-xs text-tx-muted">{setsSummary}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />

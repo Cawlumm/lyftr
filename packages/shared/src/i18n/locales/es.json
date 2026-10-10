@@ -52,7 +52,7 @@
         "change": "Cambiar",
         "current": "Contraseña actual",
         "new": "Contraseña nueva",
-        "confirmNew": "Confirma la contraseña nueva",
+        "confirmNew": "Confirmar contraseña nueva",
         "pageTitle": "Cambiar contraseña",
         "pageSubtitle": "Seguirás con la sesión iniciada aquí. Se cierra la sesión en todos los demás dispositivos.",
         "submit": "Actualizar contraseña",
@@ -61,7 +61,7 @@
         "changedBody": "Sigues con la sesión iniciada aquí. Se cerró la sesión en todos los demás dispositivos y necesitarán la contraseña nueva."
       },
       "backLink": "Ajustes",
-      "backToSettings": "Volver a ajustes",
+      "backToSettings": "Volver a Ajustes",
       "saving": "Guardando"
     },
     "appearance": {
@@ -91,8 +91,8 @@
       },
       "restTimer": {
         "label": "Temporizador de descanso",
-        "description": "Inicia una cuenta atrás entre series",
-        "gymDescription": "Inicia una cuenta atrás entre series en el modo gimnasio",
+        "description": "Inicia automáticamente una cuenta regresiva entre series",
+        "gymDescription": "Inicia automáticamente una cuenta regresiva entre series en el modo gimnasio",
         "off": "No",
         "on": "Sí"
       },
@@ -115,7 +115,7 @@
     },
     "unitsTargets": {
       "title": "Unidades y objetivos",
-      "footnote": "La unidad de peso se aplica al instante en toda la app. Los objetivos de nutrición alimentan los anillos del panel.",
+      "footnote": "La unidad de peso se aplica al instante en toda la app. Los objetivos de nutrición determinan los anillos del panel.",
       "loadFailedMessage": "Son tus objetivos y unidades guardados, así que no los adivinaremos. Todo lo demás aquí sigue funcionando.",
       "saved": "Objetivos guardados",
       "changeUnitFailedTitle": "No se pudieron cambiar las unidades"
@@ -130,30 +130,30 @@
       },
       "calorie": {
         "label": "Objetivo de calorías",
-        "description": "Meta diaria de calorías"
+        "description": "Objetivo diario de calorías"
       },
       "protein": {
         "label": "Objetivo de proteína",
-        "description": "Meta diaria de proteína"
+        "description": "Objetivo diario de proteína"
       },
       "carb": {
         "label": "Objetivo de carbohidratos",
-        "description": "Meta diaria de carbohidratos"
+        "description": "Objetivo diario de carbohidratos"
       },
       "fat": {
         "label": "Objetivo de grasa",
-        "description": "Meta diaria de grasa"
+        "description": "Objetivo diario de grasa"
       },
       "saveHint": "Guardar los objetivos de calorías y macros",
       "save": "Guardar objetivos",
-      "saving": "Guardando...",
+      "saving": "Guardando…",
       "saveFailedFallback": "No se pudieron guardar los ajustes",
       "saveFailed": "No se pudieron guardar los objetivos"
     },
     "server": {
       "title": "Servidor",
       "webTitle": "Instancia autoalojada",
-      "footnote": "El backend autoalojado con el que habla esta app. Deja la URL en blanco para usar el predeterminado.",
+      "footnote": "El backend autoalojado al que se conecta esta app. Deja la URL en blanco para usar el predeterminado.",
       "api": {
         "label": "Servidor de API",
         "description": "Servidor backend al que está conectado este cliente",
@@ -166,7 +166,7 @@
       "url": {
         "label": "URL del servidor",
         "placeholder": "https://your-server.example.com",
-        "invalid": "Introduce una URL completa que incluya http:// o https://",
+        "invalid": "Ingresa una URL completa que incluya http:// o https://",
         "testAndSave": "Probar y guardar"
       },
       "connected": "Conectado · {{name}} v{{version}}",
@@ -197,10 +197,10 @@
       "cleared_many": "Se eliminaron {{amount}} de ejercicios sin usar",
       "cleared_other": "Se eliminaron {{amount}} ejercicios sin usar",
       "refresh": "Actualizar caché",
-      "refreshing": "Actualizando...",
+      "refreshing": "Actualizando…",
       "refreshFailed": "No se pudo actualizar la caché.",
-      "clear": "Borrar sin usar",
-      "clearing": "Borrando...",
+      "clear": "Eliminar no usados",
+      "clearing": "Eliminando…",
       "clearFailed": "No se pudo borrar la caché."
     },
     "danger": {
@@ -291,14 +291,14 @@
         "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. Revisa los ajustes del servidor.",
         "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Revisa los ajustes del servidor.",
         "timeout": "El servidor no respondió a tiempo. Inténtalo de nuevo en un momento.",
-        "unreachable": "No se pudo conectar con el servidor. Comprueba que esté en marcha.",
+        "unreachable": "No se pudo conectar con el servidor. Revisa que esté en marcha.",
         "unknown": "No se puede conectar con el servidor en este momento."
       },
       "full": {
         "cleartextBlocked": "Este dispositivo bloqueó la conexión porque la URL usa http:// sin cifrar. Cambia el servidor a https:// — un proxy inverso puede emitir un certificado para un nombre de host de red local sin abrir puertos.",
-        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. La mejor solución: dale al servidor un certificado real — un proxy inverso puede emitir uno para un nombre de host de red local sin abrir puertos. O instala tu propia CA en Ajustes → Seguridad → Cifrado y credenciales, con lo que todas las apps del dispositivo confiarán en ella, no solo Lyftr.",
+        "certificateUntrusted": "Este dispositivo no confía en el certificado del servidor. La mejor solución: dale al servidor un certificado real — un proxy inverso puede emitir uno para un nombre de host de red local sin abrir puertos. O instala tu propia CA en Configuración → Seguridad → Encriptación y credenciales, con lo que todas las apps del dispositivo confiarán en ella, no solo Lyftr.",
         "hostnameMismatch": "El certificado del servidor no cubre esta dirección. Vuelve a emitirlo con este nombre de host o esta IP en el Nombre alternativo del sujeto (SAN) del certificado.",
-        "timeout": "El servidor no respondió a tiempo. Comprueba que esté en marcha y accesible desde este dispositivo.",
+        "timeout": "El servidor no respondió a tiempo. Revisa que esté en marcha y accesible desde este dispositivo.",
         "unreachable": "No se pudo conectar con el servidor. Revisa la URL y que el backend esté en marcha.",
         "unknownWeb": "No se puede conectar con el servidor. Revisa la URL, que el backend esté en marcha y que permita el origen de esta app (CORS).",
         "unknownNative": "No se puede conectar con el servidor. Revisa la URL y que el backend esté en marcha y accesible desde este dispositivo.",
@@ -344,15 +344,15 @@
   "auth": {
     "passwordRules": {
       "minLength_one": "Al menos {{count}} carácter",
-      "minLength_many": "Al menos {{count}} caracteres",
+      "minLength_many": "Al menos {{count}} de caracteres",
       "minLength_other": "Al menos {{count}} caracteres",
-      "maxBytes_one": "Máximo {{count}} carácter (los acentos y los emoji cuentan como más)",
-      "maxBytes_many": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
-      "maxBytes_other": "Máximo {{count}} caracteres (los acentos y los emoji cuentan como más)",
+      "maxBytes_one": "Máximo {{count}} carácter (los acentos y emojis ocupan más)",
+      "maxBytes_many": "Máximo {{count}} de caracteres (los acentos y emojis ocupan más)",
+      "maxBytes_other": "Máximo {{count}} caracteres (los acentos y emojis ocupan más)",
       "different": "Distinta de tu contraseña actual",
       "match": "Las contraseñas coinciden",
       "mismatch": "Las contraseñas no coinciden",
-      "repeat": "Repite la nueva contraseña"
+      "repeat": "Repite la contraseña nueva"
     },
     "divider": {
       "or": "O",
@@ -416,10 +416,10 @@
       "trendFailed": "No se pudo cargar tu tendencia de peso.",
       "statsFailed": "No se pudieron cargar tus estadísticas de peso."
     },
-    "bodyweightShort": "PC",
-    "duplicateWarning": "Ya registraste el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+    "bodyweightShort": "P. corp.",
+    "duplicateWarning": "Ya registraste tu peso el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
     "title": "Peso",
-    "subtitle": "Sigue tu peso corporal a lo largo del tiempo",
+    "subtitle": "Registra la evolución de tu peso corporal",
     "loadFailed": "No se pudo cargar tu peso",
     "deleteTitle": "¿Eliminar registro?",
     "deleteSubject": "{{date}} · {{weight}} {{unit}}",
@@ -434,7 +434,7 @@
       "collapse": "Contraer",
       "notePlaceholder": "Nota — p. ej., por la mañana, después de correr",
       "addDateAndNote": "Agregar fecha y nota",
-      "logAnyway": "Registrar de todos modos",
+      "logAnyway": "Registrar igual",
       "submit": "Registrar peso",
       "submitting": "Registrando…",
       "tip": "Mejor registrarlo por la mañana, después de ir al baño",
@@ -442,7 +442,7 @@
     },
     "hero": {
       "current": "Peso actual",
-      "empty": "La báscula aún no sabe que existes. Arregla eso.",
+      "empty": "La báscula aún no sabe que existes. Arréglalo.",
       "changeGained": "Ganaste {{amount}} {{unit}} {{period}}",
       "changeLost": "Perdiste {{amount}} {{unit}} {{period}}",
       "changeNone": "{{amount}} {{unit}}, sin cambios {{period}}"
@@ -455,9 +455,9 @@
         "All": "Todo"
       },
       "span": {
-        "7d": "en 7 d",
-        "30d": "en 30 d",
-        "90d": "en 90 d",
+        "7d": "en 7 días",
+        "30d": "en 30 días",
+        "90d": "en 90 días",
         "All": "en todo el historial"
       }
     },
@@ -521,7 +521,7 @@
     "title": "Programas",
     "subtitle": "Plantillas de entrenamiento reutilizables",
     "newProgram": "Nuevo programa",
-    "startWorkout": "Iniciar entrenamiento",
+    "startWorkout": "Empezar entrenamiento",
     "deleteConfirmTitle": "¿Eliminar programa?",
     "deleteFailed": "No se pudo eliminar el programa",
     "count": {
@@ -531,12 +531,12 @@
       "sets_other": "{{count}} series",
       "reps_one": "{{count}} rep",
       "reps_other": "{{count}} reps",
-      "exercises_many": "{{count}} ejercicios",
-      "sets_many": "{{count}} series",
-      "reps_many": "{{count}} reps",
+      "exercises_many": "{{count}} de ejercicios",
+      "sets_many": "{{count}} de series",
+      "reps_many": "{{count}} de reps",
       "days_one": "{{count}} día",
       "days_other": "{{count}} días",
-      "days_many": "{{count}} días"
+      "days_many": "{{count}} de días"
     },
     "list": {
       "searchPlaceholder": "Buscar programas…",
@@ -566,13 +566,13 @@
       "options": "Opciones",
       "optionsNamed": "Opciones de {{name}}",
       "menuHeading": "Programa",
-      "startTitle": "Iniciar entrenamiento",
+      "startTitle": "Empezar entrenamiento",
       "restDayTitle": "Hoy es día de descanso: abrir programa",
       "viewProgram": "Ver programa",
       "editProgram": "Editar programa",
       "deleteProgram": "Eliminar programa",
       "editNamed": "Editar {{name}}",
-      "startNamed": "Iniciar {{name}}"
+      "startNamed": "Empezar {{name}}"
     },
     "detail": {
       "loadFailed": "No se pudo cargar este programa",
@@ -580,8 +580,8 @@
       "backToPrograms": "Volver a programas",
       "back": "Programas",
       "restDayTitle": "Día de descanso: no hay nada que iniciar",
-      "start": "Iniciar",
-      "startLabel": "Iniciar entrenamiento",
+      "start": "Empezar",
+      "startLabel": "Empezar entrenamiento",
       "editLabel": "Editar programa",
       "deleteLabel": "Eliminar programa",
       "suggestions": {
@@ -613,7 +613,7 @@
       "editTitle": "Editar programa",
       "summary": "{{days}} • {{exercises}} • {{sets}}",
       "errors": {
-        "nameRequired": "Falta el nombre del programa",
+        "nameRequired": "El nombre del programa es obligatorio",
         "noDays": "Agrega al menos un día",
         "noExercises": "Agrega al menos un ejercicio a un día de entrenamiento"
       },
@@ -648,8 +648,8 @@
         "collapse": "Contraer día",
         "expand": "Expandir día",
         "remove": "Quitar día",
-        "addWorkoutDay": "Agregar día de entrenamiento",
-        "addRestDay": "Agregar día de descanso"
+        "addWorkoutDay": "Día de entrenamiento",
+        "addRestDay": "Día de descanso"
       },
       "dayPicker": {
         "title": "Elige un día"
@@ -658,14 +658,14 @@
   },
   "food": {
     "servings_one": "{{count}} porción",
-    "servings_many": "{{count}} porciones",
+    "servings_many": "{{count}} de porciones",
     "servings_other": "{{count}} porciones",
     "customEntry": "Registro personalizado",
     "limitHint": "Un registro admite como máximo {{amount}}",
     "favorites": {
-      "addFailed": "No se pudo añadir {{name}} a Favoritos.",
+      "addFailed": "No se pudo agregar {{name}} a favoritos.",
       "removeFailed": "No se pudo quitar {{name}} de Favoritos.",
-      "add": "Añadir {{name}} a Favoritos",
+      "add": "Agregar {{name}} a favoritos",
       "remove": "Quitar {{name}} de Favoritos",
       "subject": "tus favoritos",
       "loadFailed": "No se pudieron cargar tus favoritos.",
@@ -688,14 +688,14 @@
       "calories": "Calorías",
       "over": "{{amount}} de más",
       "left": "{{amount}} restantes",
-      "goal": "Meta de {{amount}} kcal",
+      "goal": "Objetivo: {{amount}} kcal",
       "totalsFailed": "No se pudieron cargar los totales de hoy",
       "totalsFailedMessage": "Algo salió mal de nuestro lado.",
       "items_one": "{{count}} registro",
-      "items_many": "{{count}} registros",
+      "items_many": "{{count}} de registros",
       "items_other": "{{count}} registros",
       "filteredCount": "{{shown}} de {{total}}",
-      "searchPlaceholder": "Buscar en la comida de este día…",
+      "searchPlaceholder": "Buscar en los alimentos de este día…",
       "noMatches": "Sin resultados para “{{query}}”",
       "empty": {
         "title": "Aún no hay comida registrada",
@@ -731,7 +731,7 @@
     },
     "macro": {
       "protein": "Proteína",
-      "carbs": "Carbos",
+      "carbs": "Carbohid.",
       "fat": "Grasa",
       "fiber": "Fibra",
       "proteinInitial": "P",
@@ -762,7 +762,7 @@
       "saveChanges": "Guardar cambios",
       "saveFailed": "No se pudo guardar",
       "editLoadFailed": "No se pudo cargar ese registro.",
-      "searchPlaceholder": "Buscar comida…",
+      "searchPlaceholder": "Buscar alimentos…",
       "scan": "Escanear",
       "scanLabel": "Escanear código de barras",
       "tab": {
@@ -771,12 +771,12 @@
         "search": "Buscar"
       },
       "rateLimited": "Demasiadas solicitudes — espera un momento e inténtalo de nuevo",
-      "searchUnavailable": "Búsqueda de comida no disponible — ingresa los datos manualmente",
+      "searchUnavailable": "Búsqueda de alimentos no disponible — ingresa los datos manualmente",
       "lookupFailedTitle": "No se pudo buscar este código de barras",
       "lookupFailed": "No se pudo buscar ese código de barras.",
       "enterManually": "Ingrésalo manualmente",
       "rereadFailed": "No se pudo volver a leer este producto.",
-      "quickAdd": "Agregar {{kcal}} kcal rápido",
+      "quickAdd": "Agregar rápido {{kcal}} kcal",
       "noMacroBreakdown": "Sin desglose de macros",
       "recent": {
         "subject": "lo que registraste hoy",
@@ -806,7 +806,7 @@
       "enterAmount": "Ingresa una cantidad para registrarlo",
       "enterAmountIn": "Ingresa una cantidad en {{unit}} para registrarlo",
       "servingsOf_one": "{{count}} porción de {{serving}}",
-      "servingsOf_many": "{{count}} porciones de {{serving}}",
+      "servingsOf_many": "{{count}} de porciones de {{serving}}",
       "servingsOf_other": "{{count}} porciones de {{serving}}",
       "when": "Cuándo"
     },
@@ -827,7 +827,7 @@
     },
     "lookup": {
       "looking": "Buscando este producto…",
-      "slow": "Sigo buscando. Esto puede tardar unos segundos."
+      "slow": "Seguimos buscando. Esto puede tardar unos segundos."
     }
   },
   "workouts": {
@@ -846,7 +846,7 @@
     "list": {
       "title": "Entrenamientos",
       "subtitle": "Registra y revisa tus sesiones de entrenamiento",
-      "logWorkout": "Registrar entreno",
+      "logWorkout": "Registrar entrenamiento",
       "searchPlaceholder": "Buscar entrenamientos…",
       "empty": {
         "title": "No se encontraron entrenamientos",
@@ -864,7 +864,7 @@
       "newTargets": "Nuevos objetivos en {{name}}",
       "reviewUpdates_one": "Toca para revisar {{count}} actualización",
       "reviewUpdates_other": "Toca para revisar {{count}} actualizaciones",
-      "reviewUpdates_many": "Toca para revisar {{count}} actualizaciones",
+      "reviewUpdates_many": "Toca para revisar {{count}} de actualizaciones",
       "saved": "Entrenamiento guardado",
       "tapToView": "Toca para ver",
       "discarded": "Entrenamiento descartado",
@@ -876,7 +876,7 @@
       "minutes": "{{minutes}} min",
       "exercises_one": "{{count}} ejercicio",
       "exercises_other": "{{count}} ejercicios",
-      "exercises_many": "{{count}} ejercicios",
+      "exercises_many": "{{count}} de ejercicios",
       "options": "Opciones",
       "optionsNamed": "Opciones de {{name}}",
       "menuHeading": "Entrenamiento",
@@ -899,26 +899,26 @@
       "restOff": "El temporizador de descanso está desactivado: actívalo en Ajustes",
       "setCount_one": "{{count}} serie",
       "setCount_other": "{{count}} series",
-      "setCount_many": "{{count}} series",
+      "setCount_many": "{{count}} de series",
       "best": "mejor",
       "noRest": "Sin descanso"
     },
     "start": {
       "title": "Empezar entrenamiento",
       "inProgress": "Entrenamiento en curso",
-      "resume": "Reanudar",
+      "resume": "Continuar",
       "discard": "Descartar",
       "quick": "Inicio rápido",
       "quickHint": "Empieza en blanco y agrega ejercicios sobre la marcha",
       "fromProgram": "Empezar desde un programa",
-      "fromProgramHint": "Carga un día de una rutina guardada",
+      "fromProgramHint": "Carga un día de un programa guardado",
       "programsLoadFailed": "No se pudieron cargar tus programas",
       "loadingPrograms": "Cargando programas…",
       "noPrograms": "Aún no hay programas",
       "createFirst": "Crea tu primer programa →",
       "days_one": "{{count}} día",
       "days_other": "{{count}} días",
-      "days_many": "{{count}} días",
+      "days_many": "{{count}} de días",
       "noDays": "Aún no hay días"
     },
     "form": {
@@ -928,10 +928,10 @@
       "summaryWithWeight": "{{exercises}} • {{sets}} • {{weight}} {{unit}}",
       "exerciseCount_one": "{{count}} ejercicio",
       "exerciseCount_other": "{{count}} ejercicios",
-      "exerciseCount_many": "{{count}} ejercicios",
+      "exerciseCount_many": "{{count}} de ejercicios",
       "setCount_one": "{{count}} serie",
       "setCount_other": "{{count}} series",
-      "setCount_many": "{{count}} series",
+      "setCount_many": "{{count}} de series",
       "errors": {
         "nameRequired": "El nombre del entrenamiento es obligatorio",
         "noExercises": "Agrega al menos un ejercicio"
@@ -993,7 +993,7 @@
         "today": "HOY",
         "workoutDays_one": "{{count}} día de entrenamiento",
         "workoutDays_other": "{{count}} días de entrenamiento",
-        "workoutDays_many": "{{count}} días de entrenamiento",
+        "workoutDays_many": "{{count}} de días de entrenamiento",
         "noExercises": "Aún no hay ejercicios",
         "restDays": "días de descanso",
         "createFirst": "Primero crea un programa",
@@ -1043,7 +1043,7 @@
       "addExercise": "Agregar ejercicio",
       "cancelWorkout": "Cancelar entrenamiento",
       "saveFailed": "No se pudo guardar el entrenamiento",
-      "keepGoing": "Seguir",
+      "keepGoing": "Seguir entrenando",
       "finishConfirm": {
         "title": "¿Terminar el entrenamiento?",
         "message": "{{done}} de {{total}} series completadas. Se guardará el entrenamiento."
@@ -1054,14 +1054,14 @@
       }
     },
     "rest": {
-      "off": "Apagado",
+      "off": "No",
       "custom": "Otro",
       "stepDown5": "−5 segundos",
       "stepDown5Spoken": "Menos 5 segundos",
       "stepUp5": "+5 segundos",
       "stepUp5Spoken": "Más 5 segundos",
       "secondsLabel": "Segundos de descanso",
-      "secondsUnit": "seg",
+      "secondsUnit": "s",
       "label": {
         "ready": "Listo",
         "paused": "En pausa",
@@ -1078,7 +1078,7 @@
       "resume": "Reanudar temporizador de descanso",
       "shorten": "Acortar el descanso 15 segundos",
       "extend": "Alargar el descanso 15 segundos",
-      "skip": "Omitir"
+      "skip": "Saltar"
     }
   },
   "gym": {
@@ -1107,7 +1107,7 @@
     },
     "info": {
       "restTitle": "Descanso entre series",
-      "restHint": "Inicia solo al completar una serie",
+      "restHint": "Se inicia automáticamente al completar una serie",
       "begin": "Empezar ejercicio"
     },
     "set": {
@@ -1121,7 +1121,7 @@
       "reps_one": "{{count}} rep",
       "reps_other": "{{count}} reps",
       "repsUnknown": "— reps",
-      "reps_many": "{{count}} reps"
+      "reps_many": "{{count}} de reps"
     },
     "completeSet": "Completar serie",
     "completed": "Completada",
@@ -1129,8 +1129,8 @@
     "removeExercise": "Quitar este ejercicio",
     "nav": {
       "info": "Info",
-      "finishWorkout": "Terminar entrenamiento",
-      "nextExercise": "Siguiente ejercicio"
+      "finishWorkout": "Terminar",
+      "nextExercise": "Siguiente"
     }
   },
   "exercises": {
@@ -1186,7 +1186,7 @@
       "triceps": "tríceps"
     },
     "picker": {
-      "title": "Añadir ejercicio",
+      "title": "Agregar ejercicio",
       "loaded_one": "{{count}} cargado",
       "loaded_other": "{{count}} cargados",
       "loaded_many": "{{count}} cargados",
@@ -1208,25 +1208,25 @@
     "detail": {
       "loadFailed": "No se pudo cargar este ejercicio",
       "musclesWorked": "Músculos trabajados",
-      "bodyFront": "Frente",
-      "bodyBack": "Espalda",
+      "bodyFront": "Frontal",
+      "bodyBack": "Posterior",
       "primary": "Principal",
       "secondary": "Secundario",
       "alsoWorks": "También trabaja",
       "yourBest": "Tu mejor marca",
-      "personalBest": "Mejor marca personal",
+      "personalBest": "Mejor marca",
       "estimated1rm": "1RM estimado",
       "weightProgression": "Progresión de peso",
-      "noPeriodData": "Sin datos para este período",
+      "noPeriodData": "Sin datos para este periodo",
       "maxWeight": "Peso máx.",
       "instructions": "Instrucciones",
       "bestSet_one": "{{unit}} × {{count}} repetición",
       "bestSet_other": "{{unit}} × {{count}} repeticiones",
-      "bestSet_many": "{{unit}} × {{count}} repeticiones",
+      "bestSet_many": "{{unit}} × {{count}} de repeticiones",
       "period": {
-        "1m": "1m",
-        "3m": "3m",
-        "6m": "6m",
+        "1m": "1M",
+        "3m": "3M",
+        "6m": "6M",
         "All": "Todo"
       }
     }
@@ -1234,7 +1234,7 @@
   "home": {
     "heatmap": {
       "workouts_one": "{{date}} · {{count}} entrenamiento",
-      "workouts_many": "{{date}} · {{count}} entrenamientos",
+      "workouts_many": "{{date}} · {{count}} de entrenamientos",
       "workouts_other": "{{date}} · {{count}} entrenamientos",
       "restDay": "{{date}} · día de descanso",
       "less": "Menos",
@@ -1259,10 +1259,10 @@
     },
     "upNext": {
       "label": "A continuación · {{name}}",
-      "viewRoutine": "Ver la rutina {{name}}",
+      "viewRoutine": "Ver {{name}}",
       "start": "Empezar {{name}}",
       "exercises_one": "{{count}} ejercicio",
-      "exercises_many": "{{count}} ejercicios",
+      "exercises_many": "{{count}} de ejercicios",
       "exercises_other": "{{count}} ejercicios",
       "loadFailed": "No se pudieron cargar tus programas"
     },
@@ -1294,10 +1294,10 @@
       "all": "Todos",
       "minutes": "{{mins}} min",
       "sets_one": "{{count}} serie",
-      "sets_many": "{{count}} series",
+      "sets_many": "{{count}} de series",
       "sets_other": "{{count}} series",
       "moreExercises_one": "+{{count}} ejercicio más",
-      "moreExercises_many": "+{{count}} ejercicios más",
+      "moreExercises_many": "+{{count}} de ejercicios más",
       "moreExercises_other": "+{{count}} ejercicios más",
       "empty": "Aún no hay entrenamientos registrados",
       "startFirst": "Empieza tu primer entrenamiento →"
@@ -1315,13 +1315,13 @@
     "muscle": {
       "title": "Equilibrio muscular",
       "workouts_one": "{{count}} entrenamiento",
-      "workouts_many": "{{count}} entrenamientos",
+      "workouts_many": "{{count}} de entrenamientos",
       "workouts_other": "{{count}} entrenamientos",
       "empty": "Registra entrenamientos para ver qué músculos entrenas más.",
       "noData": "Aún no hay datos de entrenamientos",
       "top": "principal",
       "tooltip_one": "{{count}} serie ({{percent}}%)",
-      "tooltip_many": "{{count}} series ({{percent}}%)",
+      "tooltip_many": "{{count}} de series ({{percent}}%)",
       "tooltip_other": "{{count}} series ({{percent}}%)",
       "donutSets": "series"
     },
@@ -1375,17 +1375,17 @@
     },
     "quickWeighIn": {
       "title": "Registrar peso",
-      "duplicateToday": "Ya registraste hoy ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
-      "logAnyway": "Registrar de todos modos",
+      "duplicateToday": "Ya registraste tu peso hoy ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+      "logAnyway": "Registrar igual",
       "weightWithUnit": "Peso ({{unit}})",
       "weight": "Peso",
       "weightName": "peso",
-      "changeDateOrNote": "+ Cambiar la fecha o añadir una nota",
+      "changeDateOrNote": "+ Cambiar la fecha o agregar una nota",
       "date": "Fecha",
       "note": "Nota",
       "optional": "(opcional)",
       "noteOptional": "Nota (opcional)",
-      "notePlaceholder": "p. ej., mañana, después de entrenar",
+      "notePlaceholder": "p. ej., por la mañana, después de entrenar",
       "saveFailed": "No se pudo guardar"
     }
   },

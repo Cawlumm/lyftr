@@ -68,7 +68,7 @@ describe('Log Food copy', () => {
     renderPage()
 
     expect(await screen.findByRole('heading', { name: 'Registrar comida' })).toBeTruthy()
-    expect(screen.getByPlaceholderText('Buscar comida…')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Buscar alimentos…')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Escanear código de barras' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Favoritos' })).toBeTruthy()
     expect(screen.getByLabelText('Volver')).toBeTruthy()

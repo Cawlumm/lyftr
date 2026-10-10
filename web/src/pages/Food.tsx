@@ -427,6 +427,8 @@ export default function Food() {
                               <Trans
                                 i18nKey="food.diary.deleteConfirm"
                                 values={{ name: entry.name }}
+                                tOptions={{ interpolation: { escapeValue: true } }}
+                                shouldUnescape
                                 components={{ name: <span className="font-medium text-tx-primary" /> }}
                               />
                             </p>

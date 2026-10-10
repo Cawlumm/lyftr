@@ -181,8 +181,12 @@ export default function AddWorkout() {
 
   // Web scrolls the window to top on error; here the ScrollView.
   useEffect(() => {
-    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error, save.failureKey])
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error])
+
+  useEffect(() => {
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [save.failureKey])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'workouts.form.errors.nameRequired' }); return }

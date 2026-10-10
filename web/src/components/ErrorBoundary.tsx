@@ -1,5 +1,5 @@
 import { Component, type ReactNode } from 'react'
-import { i18n } from '@lyftr/shared'
+import { useTranslation } from '@lyftr/shared'
 import ErrorState from './ui/ErrorState'
 
 // The last net under a PR whose whole subject is that a failure must be visible.
@@ -26,6 +26,20 @@ interface State {
   failed: boolean
 }
 
+// The class cannot subscribe to language changes, so the copy is drawn by a function child
+// that can: a switch while the fallback is on screen re-translates it.
+function Fallback({ subject, size, onRetry }: Omit<Props, 'children'> & { onRetry: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <ErrorState
+      size={size ?? 'page'}
+      title={t('errors.boundary.title', { subject: subject ?? t('errors.boundary.thisPage') })}
+      message={t('errors.boundary.message')}
+      onRetry={onRetry}
+    />
+  )
+}
+
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { failed: false }
 
@@ -42,10 +56,9 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.failed) return this.props.children
     return (
-      <ErrorState
-        size={this.props.size ?? 'page'}
-        title={i18n.t('errors.boundary.title', { subject: this.props.subject ?? i18n.t('errors.boundary.thisPage') })}
-        message={i18n.t('errors.boundary.message')}
+      <Fallback
+        subject={this.props.subject}
+        size={this.props.size}
         // Remounting the subtree is the retry: state that got us into the bad
         // render is thrown away with it.
         onRetry={() => this.setState({ failed: false })}

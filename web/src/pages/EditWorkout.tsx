@@ -116,7 +116,8 @@ export default function EditWorkout() {
     navigate('/workouts')
   }, t('workouts.form.updateFailed'))
 
-  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.failureKey])
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
+  useEffect(() => { if (save.failureKey) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [save.failureKey])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
