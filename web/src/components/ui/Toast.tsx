@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { X, ChevronRight } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useTranslation } from '@lyftr/shared'
 
 export type ToastVariant = 'default' | 'success' | 'brand' | 'warning' | 'error'
 
@@ -31,6 +32,7 @@ const VARIANTS: Record<ToastVariant, { border: string; chip: string; icon: strin
 // bottom-24 to clear the nav; callers that fire it after a session ends don't
 // collide with session-gated UI.
 export default function Toast({ title, description, icon: Icon, variant = 'default', onClick, onDismiss, autoDismissMs = 4000 }: Props) {
+  const { t } = useTranslation()
   // Armed once on mount — parent re-renders must not extend the window (0 disables).
   useEffect(() => {
     if (!autoDismissMs) return
@@ -71,7 +73,7 @@ export default function Toast({ title, description, icon: Icon, variant = 'defau
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss"
+          aria-label={t('common.dismiss')}
           className="p-1.5 -m-1.5 text-tx-muted hover:text-tx-primary flex-shrink-0"
         >
           <X className="w-4 h-4" />

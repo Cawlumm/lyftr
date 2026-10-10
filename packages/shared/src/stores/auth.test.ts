@@ -1,7 +1,9 @@
 import { createAuthStore } from './auth'
 import { createMemoryStorage } from '../testing/memoryStorage'
 import { STORAGE_KEYS } from '../storage'
-import type { LyftrClient } from '../client'
+import { uiMessage, type LyftrClient } from '../client'
+import { i18n } from '../i18n'
+import es from '../i18n/locales/es.json'
 import type { AuthResponse } from '../types'
 
 const fakeAuthResponse: AuthResponse = {
@@ -45,8 +47,25 @@ describe('auth store (storage-adapter DI)', () => {
     await expect(useAuth.getState().login('x@y.z', 'nope')).rejects.toBeTruthy()
     const state = useAuth.getState()
     expect(state.isAuthenticated).toBe(false)
-    expect(state.error).toBe('Invalid email or password')
+    expect(uiMessage(state.error!)).toBe('Invalid email or password')
     expect(await storage.get(STORAGE_KEYS.access)).toBeNull()
+  })
+
+  it('keeps the fallback as a message key, so a failure already on screen follows the language', async () => {
+    const client = {
+      authAPI: { login: async () => { throw { response: { status: 401, data: {} } } }, register: async () => { throw { response: { status: 401, data: {} } } } },
+    } as unknown as LyftrClient
+    const useAuth = createAuthStore(client, createMemoryStorage())
+
+    await expect(useAuth.getState().login('x@y.z', 'nope')).rejects.toBeTruthy()
+    const failure = useAuth.getState().error!
+    try {
+      expect(uiMessage(failure)).toBe('Invalid email or password.')
+      await i18n.changeLanguage('es')
+      expect(uiMessage(failure)).toBe(es.auth.login.failed)
+    } finally {
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('logout clears storage and state', async () => {

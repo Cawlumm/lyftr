@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { View } from 'react-native'
+import { useTranslation } from '@lyftr/shared'
 import { semanticInk } from '../../theme/theme'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
@@ -37,10 +38,11 @@ export function ErrorState({
   message,
   size = 'section',
   onRetry,
-  retryLabel = 'Try again',
+  retryLabel,
   retrying = false,
   secondary,
 }: Props) {
+  const { t } = useTranslation()
   const { isDark } = useTheme()
   // Status colour, not the muted grey of an empty state — and via semanticInk because
   // the raw 400s fail AA on this app's light surface (see alertContrast.test.ts).
@@ -70,7 +72,7 @@ export function ErrorState({
       {onRetry || secondary ? (
         <View className="mt-1 flex-row flex-wrap items-center justify-center gap-2">
           {onRetry ? (
-            <Button title={retrying ? 'Retrying…' : retryLabel} onPress={onRetry} loading={retrying} disabled={retrying} />
+            <Button title={retrying ? t('common.retrying') : (retryLabel ?? t('common.tryAgain'))} onPress={onRetry} loading={retrying} disabled={retrying} />
           ) : null}
           {secondary}
         </View>

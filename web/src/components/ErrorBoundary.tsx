@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from 'react'
+import { i18n } from '@lyftr/shared'
 import ErrorState from './ui/ErrorState'
 
 // The last net under a PR whose whole subject is that a failure must be visible.
@@ -43,8 +44,8 @@ export default class ErrorBoundary extends Component<Props, State> {
     return (
       <ErrorState
         size={this.props.size ?? 'page'}
-        title={`Couldn't show ${this.props.subject ?? 'this page'}`}
-        message="Something went wrong on our side. Try again, and if it keeps happening reload the page."
+        title={i18n.t('errors.boundary.title', { subject: this.props.subject ?? i18n.t('errors.boundary.thisPage') })}
+        message={i18n.t('errors.boundary.message')}
         // Remounting the subtree is the retry: state that got us into the bad
         // render is thrown away with it.
         onRetry={() => this.setState({ failed: false })}

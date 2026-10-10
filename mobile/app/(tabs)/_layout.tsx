@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router'
 import { House, Dumbbell, BookOpen, Apple, Scale } from 'lucide-react-native'
+import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../src/theme/useTheme'
 
 export default function TabsLayout() {
+  const { t } = useTranslation()
   const { colors, brand } = useTheme()
   return (
     <Tabs
@@ -18,23 +20,23 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Home', tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }}
+        options={{ title: t('nav.home'), tabBarIcon: ({ color, size }) => <House color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="workouts"
-        options={{ title: 'Workouts', tabBarIcon: ({ color, size }) => <Dumbbell color={color} size={size} /> }}
+        options={{ title: t('nav.workouts'), tabBarIcon: ({ color, size }) => <Dumbbell color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="programs"
-        options={{ title: 'Programs', tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} /> }}
+        options={{ title: t('nav.programs'), tabBarIcon: ({ color, size }) => <BookOpen color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="nutrition"
-        options={{ title: 'Nutrition', tabBarIcon: ({ color, size }) => <Apple color={color} size={size} /> }}
+        options={{ title: t('nav.nutrition'), tabBarIcon: ({ color, size }) => <Apple color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="weight"
-        options={{ title: 'Weight', tabBarIcon: ({ color, size }) => <Scale color={color} size={size} /> }}
+        options={{ title: t('nav.weight'), tabBarIcon: ({ color, size }) => <Scale color={color} size={size} /> }}
       />
       {/* Settings lives off the footer now — reached via the avatar in the Home header.
           href:null keeps /settings routable while hiding it from the tab bar. */}

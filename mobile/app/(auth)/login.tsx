@@ -3,7 +3,7 @@ import { Text, View, Linking } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { IconInput, GradientButton, SecondaryButton, AuthDivider, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { registrationOpen } from '@lyftr/shared'
+import { registrationOpen, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
 
@@ -15,9 +15,10 @@ const DEMO_URL = 'https://lyftr-demo.fly.dev'
 const EMAIL_RE = /^\S+@\S+\.\S+$/
 
 export default function Login() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [localError, setLocalError] = useState<string | null>(null)
+  const [localError, setLocalError] = useState<UiMessage | null>(null)
   const login = useAuthStore((s) => s.login)
   const loading = useAuthStore((s) => s.isLoading)
   const error = useAuthStore((s) => s.error)
@@ -35,8 +36,8 @@ export default function Login() {
   // Validate only on submit (not while typing): the browser's `required`/`type=email`
   // equivalent, surfaced as an error after the user presses Sign in.
   const submit = async () => {
-    if (!EMAIL_RE.test(email.trim())) { setLocalError('Enter a valid email address'); return }
-    if (!password) { setLocalError('Enter your password'); return }
+    if (!EMAIL_RE.test(email.trim())) { setLocalError({ key: 'auth.validation.emailInvalid' }); return }
+    if (!password) { setLocalError({ key: 'auth.validation.passwordRequired' }); return }
     setLocalError(null)
     try { await login(email.trim(), password) } catch {}
   }
@@ -47,42 +48,42 @@ export default function Login() {
   const shownError = localError || error
 
   return (
-    <AuthScaffold heading="Welcome back" subtitle="Sign in to continue training.">
+    <AuthScaffold heading={t('auth.login.heading')} subtitle={t('auth.login.subtitle')}>
       <ServerRow />
       <IconInput
-        label="Email"
+        label={t('auth.field.email')}
         icon="mail"
         value={email}
         onChangeText={onChange(setEmail)}
         keyboardType="email-address"
-        placeholder="you@example.com"
+        placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
-        label="Password"
+        label={t('auth.field.password')}
         icon="lock"
         password
         value={password}
         onChangeText={onChange(setPassword)}
         placeholder="••••••••"
       />
-      {shownError ? <AuthError message={shownError} /> : null}
-      <GradientButton title="Sign in" onPress={submit} loading={loading} />
+      {shownError ? <AuthError message={uiMessage(shownError)} /> : null}
+      <GradientButton title={t('auth.login.submit')} onPress={submit} loading={loading} />
       <AuthDivider />
-      <SecondaryButton title="Try demo account" hint="no sign-up" onPress={demo} />
+      <SecondaryButton title={t('auth.login.demo')} hint={t('auth.login.demoHint')} onPress={demo} />
       {/* A closed server says so instead of offering a link that 403s on submit — but it
           does still say so, rather than leaving someone who came to sign up hunting for a
           button that is not there (mastodon/mastodon#21556). */}
       <Footer>
         {isOpen ? (
           <View style={{ flexDirection: 'row', gap: 5 }}>
-            <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>New here?</Text>
+            <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>{t('auth.login.newHere')}</Text>
             <Link href="/register" style={{ color: accent, fontFamily: 'PlusJakartaSans_800ExtraBold', fontSize: 14 }}>
-              Create account
+              {t('auth.login.createAccountLink')}
             </Link>
           </View>
         ) : (
           <Text style={{ color: colors.txSecondary, fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 }}>
-            This server is not accepting new accounts.
+            {t('auth.closed.notice')}
           </Text>
         )}
       </Footer>

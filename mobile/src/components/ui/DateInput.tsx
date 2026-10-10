@@ -36,7 +36,7 @@ const toValue = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)
 // full-width Modal (its own view hierarchy → nest a SafeAreaProvider, same rule as
 // ExercisePicker) where width is unconstrained.
 export function DateInput({ label, value, onChange, maximumDate }: Props) {
-  useTranslation()
+  const { t } = useTranslation()
   const { colors, accent, isDark } = useTheme()
   const [open, setOpen] = useState(false)
   const date = toLocalDate(value)
@@ -66,7 +66,7 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
       {label ? <Label>{label}</Label> : null}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label ?? 'Pick date'}
+        accessibilityLabel={label ?? t('common.pickDate')}
         onPress={() => setOpen((o) => !o)}
         className="h-12 flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 active:scale-[0.99]"
       >
@@ -100,14 +100,14 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
                   className="mx-3 mb-3 rounded-2xl border border-surface-border bg-surface-base p-2"
                 >
                   <View className="flex-row items-center justify-between px-2 pb-1 pt-2">
-                    <AppText variant="bodySemibold">{label ?? 'Select date'}</AppText>
+                    <AppText variant="bodySemibold">{label ?? t('common.selectDate')}</AppText>
                     <Pressable
                       accessibilityRole="button"
                       onPress={() => setOpen(false)}
                       hitSlop={8}
                       className="px-2 py-1 active:opacity-60"
                     >
-                      <AppText variant="bodySemibold" color="brand">Done</AppText>
+                      <AppText variant="bodySemibold" color="brand">{t('common.done')}</AppText>
                     </Pressable>
                   </View>
                   <DateTimePicker

@@ -221,6 +221,31 @@
     "day": {
       "today": "Hoy",
       "yesterday": "Ayer"
+    },
+    "cancel": "Cancelar",
+    "tryAgain": "Intentar de nuevo",
+    "retrying": "Reintentando…",
+    "loading": "Cargando",
+    "search": "Buscar…",
+    "clearSearch": "Borrar búsqueda",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando…",
+    "deleteConfirmMessage": "{{subject}} se eliminará de forma permanente.",
+    "dismiss": "Descartar",
+    "done": "Listo",
+    "dismissKeyboard": "Cerrar teclado",
+    "pickDate": "Elegir fecha",
+    "selectDate": "Seleccionar fecha",
+    "capsLockOn": "Bloq Mayús está activado",
+    "figureFailed": "No se pudo cargar esta cifra",
+    "stepper": {
+      "decrease": "Disminuir {{name}}",
+      "increase": "Aumentar {{name}}"
+    },
+    "password": {
+      "show": "Mostrar {{label}}",
+      "hide": "Ocultar {{label}}"
     }
   },
   "errors": {
@@ -252,7 +277,13 @@
     },
     "list": {
       "loadFailed": "No se pudo cargar esta lista.",
-      "unreadable": "El servidor envió algo que no pudimos leer."
+      "unreadable": "El servidor envió algo que no pudimos leer.",
+      "title": "No se pudo cargar {{subject}}"
+    },
+    "boundary": {
+      "title": "No se pudo mostrar {{subject}}",
+      "thisPage": "esta página",
+      "message": "Algo salió mal de nuestro lado. Inténtalo de nuevo y, si sigue pasando, recarga la página."
     }
   },
   "server": {
@@ -294,7 +325,58 @@
       "repeat": "Repite la nueva contraseña"
     },
     "divider": {
-      "or": "O"
+      "or": "O",
+      "orLower": "o"
+    },
+    "field": {
+      "email": "Correo",
+      "password": "Contraseña",
+      "confirmPassword": "Confirmar contraseña",
+      "emailPlaceholder": "tu@ejemplo.com"
+    },
+    "validation": {
+      "emailInvalid": "Ingresa un correo válido",
+      "passwordRequired": "Ingresa tu contraseña"
+    },
+    "closed": {
+      "notice": "Este servidor no acepta cuentas nuevas."
+    },
+    "tagline": "ENTRENA · REGISTRA · PROGRESA",
+    "hero": {
+      "headline": "Registra. Levanta.",
+      "headlineAccent": "Progresa.",
+      "description": "Tu app de fitness autoalojada. Registra entrenamientos, comidas y peso — todo bajo tu control, en tu propio servidor.",
+      "features": {
+        "workouts": "Registra entrenamientos",
+        "food": "Registra comidas + macros",
+        "progress": "Mira tu progreso"
+      }
+    },
+    "login": {
+      "heading": "Hola de nuevo",
+      "subtitle": "Inicia sesión para seguir entrenando.",
+      "submit": "Iniciar sesión",
+      "submitting": "Iniciando sesión…",
+      "failed": "Correo o contraseña incorrectos.",
+      "demoFailed": "No se pudo iniciar sesión en la cuenta de demostración.",
+      "demo": "Probar cuenta demo",
+      "demoHint": "sin registro",
+      "newHere": "¿Primera vez por aquí?",
+      "createAccountLink": "Crear cuenta"
+    },
+    "register": {
+      "heading": "Crear cuenta",
+      "subtitle": "Empieza hoy a registrar tu entrenamiento.",
+      "subtitleNative": "Empieza tu registro de entrenamiento.",
+      "closedHeading": "Registro cerrado",
+      "closedBody": "El propietario de esta instancia de Lyftr desactivó los registros nuevos. Si deberías tener una cuenta aquí, pídele que te cree una.",
+      "backToSignIn": "Volver a iniciar sesión",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta…",
+      "failed": "No se pudo completar el registro.",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "haveAccountShort": "¿Ya tienes cuenta?",
+      "signInLink": "Inicia sesión"
     }
   },
   "weight": {
@@ -351,5 +433,27 @@
       "workouts_other": "{{date}} · {{count}} entrenamientos",
       "restDay": "{{date}} · día de descanso"
     }
+  },
+  "nav": {
+    "home": "Inicio",
+    "workouts": "Entrenos",
+    "programs": "Programas",
+    "food": "Comida",
+    "nutrition": "Nutrición",
+    "weight": "Peso",
+    "userMenu": "Menú de usuario",
+    "settings": "Ajustes",
+    "lightMode": "Modo claro",
+    "darkMode": "Modo oscuro",
+    "signOut": "Cerrar sesión",
+    "session": {
+      "sets": "{{done}}/{{total}} series",
+      "restOver": "Descanso terminado",
+      "paused": "En pausa",
+      "rest": "Descanso"
+    }
+  },
+  "app": {
+    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición"
   }
 }

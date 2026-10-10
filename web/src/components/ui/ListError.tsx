@@ -1,3 +1,4 @@
+import { useTranslation } from '@lyftr/shared'
 import ErrorState from './ErrorState'
 
 // A page of a list that never arrived.
@@ -17,10 +18,11 @@ import ErrorState from './ErrorState'
 export default function ListError(
   { subject, message, onRetry }: { subject: string; message: string; onRetry: () => void },
 ) {
+  const { t } = useTranslation()
   return (
     <ErrorState
       size="section"
-      title={`Couldn't load ${subject}`}
+      title={t('errors.list.title', { subject })}
       message={message}
       onRetry={onRetry}
     />

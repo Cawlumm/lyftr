@@ -1,5 +1,6 @@
 import { ActivityIndicator, Pressable, type TextInputProps } from 'react-native'
 import { Search, X } from 'lucide-react-native'
+import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { Field } from './Field'
 
@@ -16,14 +17,15 @@ interface Props extends Omit<TextInputProps, 'value' | 'onChangeText'> {
 // slot that is a spinner while `loading`, a clear (×) button when there's text, or
 // empty. Reusable across every searchable list (Workouts, Exercises, Food, …) so the
 // search affordance — icon, clear, loading — is identical everywhere.
-export function SearchField({ value, onChangeText, loading = false, placeholder = 'Search…', ...rest }: Props) {
+export function SearchField({ value, onChangeText, loading = false, placeholder, ...rest }: Props) {
+  const { t } = useTranslation()
   const { accent, colors } = useTheme()
   return (
     <Field
       leftIcon={Search}
       value={value}
       onChangeText={onChangeText}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('common.search')}
       autoCapitalize="none"
       autoCorrect={false}
       returnKeyType="search"
@@ -33,7 +35,7 @@ export function SearchField({ value, onChangeText, loading = false, placeholder 
         ) : value.length > 0 ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t('common.clearSearch')}
             hitSlop={10}
             onPress={() => onChangeText('')}
             className="active:opacity-60"

@@ -218,6 +218,31 @@
     "day": {
       "today": "Today",
       "yesterday": "Yesterday"
+    },
+    "cancel": "Cancel",
+    "tryAgain": "Try again",
+    "retrying": "Retrying…",
+    "loading": "Loading",
+    "search": "Search…",
+    "clearSearch": "Clear search",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleting": "Deleting…",
+    "deleteConfirmMessage": "{{subject}} will be permanently deleted.",
+    "dismiss": "Dismiss",
+    "done": "Done",
+    "dismissKeyboard": "Dismiss keyboard",
+    "pickDate": "Pick date",
+    "selectDate": "Select date",
+    "capsLockOn": "Caps Lock is on",
+    "figureFailed": "Couldn't load this figure",
+    "stepper": {
+      "decrease": "Decrease {{name}}",
+      "increase": "Increase {{name}}"
+    },
+    "password": {
+      "show": "Show {{label}}",
+      "hide": "Hide {{label}}"
     }
   },
   "errors": {
@@ -249,7 +274,13 @@
     },
     "list": {
       "loadFailed": "Couldn't load this list.",
-      "unreadable": "The server sent something we could not read."
+      "unreadable": "The server sent something we could not read.",
+      "title": "Couldn't load {{subject}}"
+    },
+    "boundary": {
+      "title": "Couldn't show {{subject}}",
+      "thisPage": "this page",
+      "message": "Something went wrong on our side. Try again, and if it keeps happening reload the page."
     }
   },
   "server": {
@@ -289,7 +320,58 @@
       "repeat": "Repeat the new password"
     },
     "divider": {
-      "or": "OR"
+      "or": "OR",
+      "orLower": "or"
+    },
+    "field": {
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "emailPlaceholder": "you@example.com"
+    },
+    "validation": {
+      "emailInvalid": "Enter a valid email address",
+      "passwordRequired": "Enter your password"
+    },
+    "closed": {
+      "notice": "This server is not accepting new accounts."
+    },
+    "tagline": "TRAIN · TRACK · PROGRESS",
+    "hero": {
+      "headline": "Log. Lift.",
+      "headlineAccent": "Progress.",
+      "description": "Your self-hosted fitness tracker. Track workouts, log food, monitor weight — all under your control, running on your own server.",
+      "features": {
+        "workouts": "Track workouts",
+        "food": "Log food + macros",
+        "progress": "See progress"
+      }
+    },
+    "login": {
+      "heading": "Welcome back",
+      "subtitle": "Sign in to continue training.",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "failed": "Invalid email or password.",
+      "demoFailed": "Couldn't sign in to the demo account.",
+      "demo": "Try demo account",
+      "demoHint": "no sign-up",
+      "newHere": "New here?",
+      "createAccountLink": "Create account"
+    },
+    "register": {
+      "heading": "Create account",
+      "subtitle": "Start tracking your fitness today.",
+      "subtitleNative": "Start your training log.",
+      "closedHeading": "Registration closed",
+      "closedBody": "The owner of this Lyftr instance has turned off new signups. If you should have an account here, ask them to create one for you.",
+      "backToSignIn": "Back to sign in",
+      "submit": "Create account",
+      "submitting": "Creating account…",
+      "failed": "Registration failed.",
+      "haveAccount": "Already have an account?",
+      "haveAccountShort": "Have an account?",
+      "signInLink": "Sign in"
     }
   },
   "weight": {
@@ -344,5 +426,27 @@
       "workouts_other": "{{date}} · {{count}} workouts",
       "restDay": "{{date}} · rest day"
     }
+  },
+  "nav": {
+    "home": "Home",
+    "workouts": "Workouts",
+    "programs": "Programs",
+    "food": "Food",
+    "nutrition": "Nutrition",
+    "weight": "Weight",
+    "userMenu": "User menu",
+    "settings": "Settings",
+    "lightMode": "Light mode",
+    "darkMode": "Dark mode",
+    "signOut": "Sign out",
+    "session": {
+      "sets": "{{done}}/{{total}} sets",
+      "restOver": "Rest over",
+      "paused": "Paused",
+      "rest": "Rest"
+    }
+  },
+  "app": {
+    "documentTitle": "Lyftr — Workout & Nutrition Tracker"
   }
 }

@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertCircle } from 'lucide-react'
+import { useTranslation } from '@lyftr/shared'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
 
@@ -34,9 +35,10 @@ interface Props {
 // Mirrors mobile's ConfirmSheet prop-for-prop, `error` included, so a fix to how a failed
 // confirmation behaves is one change on each platform rather than eight.
 export default function ConfirmSheet({
-  open, title, message, confirmLabel, busyLabel, cancelLabel = 'Cancel',
+  open, title, message, confirmLabel, busyLabel, cancelLabel,
   destructive = false, icon: Icon, busy = false, error, onConfirm, onCancel,
 }: Props) {
+  const { t } = useTranslation()
   useBodyScrollLock(open)
   // Escape dismisses — always the non-destructive choice — but not while the confirmed
   // action is in flight: dismissing then leaves the request to fail into a sheet that is
@@ -69,7 +71,7 @@ export default function ConfirmSheet({
             disabled={busy}
             className="flex-1 py-3 disabled:opacity-50 bg-surface-muted hover:bg-surface-muted/80 text-tx-secondary rounded-xl transition-colors font-medium text-sm"
           >
-            {cancelLabel}
+            {cancelLabel ?? t('common.cancel')}
           </button>
           <button
             onClick={onConfirm}

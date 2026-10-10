@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { Check, Eye, EyeOff, X } from 'lucide-react-native'
-import type { RuleState } from '@lyftr/shared'
+import { useTranslation, type RuleState } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { Field } from './Field'
 import { AppText } from './Typography'
@@ -45,6 +45,7 @@ interface Props {
 // No Caps Lock warning here, unlike web: a soft keyboard shows its own shift state, and
 // React Native surfaces no modifier state to read anyway.
 export function PasswordField({ label, value, onChangeText, textContentType, children }: Props) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [visible, setVisible] = useState(false)
 
@@ -68,7 +69,7 @@ export function PasswordField({ label, value, onChangeText, textContentType, chi
             onPress={() => setVisible((v) => !v)}
             hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={`${visible ? 'Hide' : 'Show'} ${label.toLowerCase()}`}
+            accessibilityLabel={t(visible ? 'common.password.hide' : 'common.password.show', { label: label.toLowerCase() })}
           >
             {visible
               ? <EyeOff size={18} color={colors.txMuted} strokeWidth={2} />

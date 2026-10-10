@@ -1,5 +1,6 @@
 import { Minus, Plus } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useTranslation } from '@lyftr/shared'
 
 interface Props {
   icon: LucideIcon
@@ -17,6 +18,7 @@ interface Props {
 // increment footer. Shared by the gym reps + weight inputs so the layout and the
 // stepper buttons live in one place.
 export default function StepperTile({ icon: Icon, label, name, step, onStep, disabled = false, children }: Props) {
+  const { t } = useTranslation()
   const btn = 'flex-1 py-2.5 flex items-center justify-center text-tx-secondary hover:bg-surface-muted active:scale-95 transition-all disabled:opacity-30'
   return (
     <div className="card overflow-hidden">
@@ -27,10 +29,10 @@ export default function StepperTile({ icon: Icon, label, name, step, onStep, dis
         {children}
       </div>
       <div className="flex border-t border-surface-border divide-x divide-surface-border">
-        <button type="button" aria-label={`Decrease ${name}`} disabled={disabled} onClick={() => onStep(-step)} className={btn}>
+        <button type="button" aria-label={t('common.stepper.decrease', { name })} disabled={disabled} onClick={() => onStep(-step)} className={btn}>
           <Minus className="w-5 h-5" />
         </button>
-        <button type="button" aria-label={`Increase ${name}`} disabled={disabled} onClick={() => onStep(step)} className={btn}>
+        <button type="button" aria-label={t('common.stepper.increase', { name })} disabled={disabled} onClick={() => onStep(step)} className={btn}>
           <Plus className="w-5 h-5" />
         </button>
       </div>

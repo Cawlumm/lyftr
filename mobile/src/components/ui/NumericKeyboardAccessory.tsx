@@ -1,4 +1,5 @@
 import { InputAccessoryView, Keyboard, Platform, Pressable, View } from 'react-native'
+import { useTranslation } from '@lyftr/shared'
 import { AppText } from './Typography'
 
 // iOS number-pad / decimal-pad keyboards have NO return key, so there's no built-in way
@@ -10,12 +11,13 @@ import { AppText } from './Typography'
 export const NUMERIC_ACCESSORY_ID = 'lyftr-numeric-done'
 
 export function NumericKeyboardAccessory() {
+  const { t } = useTranslation()
   if (Platform.OS !== 'ios') return null
   return (
     <InputAccessoryView nativeID={NUMERIC_ACCESSORY_ID}>
       <View className="flex-row justify-end border-t border-surface-border bg-surface-raised px-2 py-1.5">
-        <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityLabel="Dismiss keyboard" className="rounded-lg px-4 py-1.5 active:opacity-60">
-          <AppText variant="bodySemibold" color="brand">Done</AppText>
+        <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityLabel={t('common.dismissKeyboard')} className="rounded-lg px-4 py-1.5 active:opacity-60">
+          <AppText variant="bodySemibold" color="brand">{t('common.done')}</AppText>
         </Pressable>
       </View>
     </InputAccessoryView>

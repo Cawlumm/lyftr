@@ -1,14 +1,16 @@
 import { create } from 'zustand'
 import * as types from '../types'
 import { StorageAdapter, STORAGE_KEYS } from '../storage'
-import { LyftrClient, apiErrorMessage } from '../client'
+import type { LyftrClient, UiMessage } from '../client'
 
 export interface AuthStore {
   user: types.User | null
   isAuthenticated: boolean
   isHydrated: boolean            // true once initial storage read completes
   isLoading: boolean
-  error: string | null
+  // The inputs of the message, not its text: the screen runs it through uiMessage() at render, so
+  // a failure already on screen follows a language switch.
+  error: UiMessage | null
   hydrate:   () => Promise<void>
   login:     (email: string, password: string) => Promise<void>
   register:  (email: string, password: string) => Promise<void>
@@ -48,7 +50,7 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
       } catch (err: any) {
         // Same message logic as the web login page: server-provided error if present,
         // else a status-aware hint (network/CORS, 5xx, misconfigured URL) via apiErrorMessage.
-        set({ error: apiErrorMessage(err, 'Invalid email or password.', 'full'), isLoading: false })
+        set({ error: { key: 'auth.login.failed', cause: err, detail: 'full' }, isLoading: false })
         throw err
       }
     },
@@ -62,7 +64,7 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
         await storage.set(STORAGE_KEYS.user, JSON.stringify(data.user))
         set({ user: data.user, isAuthenticated: true, isLoading: false })
       } catch (err: any) {
-        set({ error: apiErrorMessage(err, 'Registration failed.', 'full'), isLoading: false })
+        set({ error: { key: 'auth.register.failed', cause: err, detail: 'full' }, isLoading: false })
         throw err
       }
     },

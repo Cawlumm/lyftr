@@ -98,8 +98,14 @@ export const hydrateStores = async () => {
   // why theme could only move to the shared store once hydration gated the first render.
   applyThemeClass(useThemeStore.getState().mode)
   useThemeStore.subscribe((s) => applyThemeClass(s.mode))
-  document.documentElement.lang = i18n.language
-  i18n.on('languageChanged', (l) => { document.documentElement.lang = l })
+  // Both follow the language: the static <title> in index.html is only the pre-hydration
+  // English fallback.
+  const applyLanguage = (lang: string) => {
+    document.documentElement.lang = lang
+    document.title = i18n.t('app.documentTitle')
+  }
+  applyLanguage(i18n.language)
+  i18n.on('languageChanged', applyLanguage)
 }
 
 // Rest-timer state derived from the session store above. The logic lives in
