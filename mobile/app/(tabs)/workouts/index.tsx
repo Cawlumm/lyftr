@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
-import { weightShort, workoutDay, type Workout } from '@lyftr/shared'
+import { weightShort, workoutDay, useTranslation, type Workout } from '@lyftr/shared'
 import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
@@ -17,6 +17,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 const programHref = (id: number) => `/programs/${id}` as unknown as Href
 
 export default function Workouts() {
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = weightShort(settings.weight_unit)
@@ -100,8 +101,8 @@ export default function Workouts() {
         <Toast
           variant={outcome.progression.is_pr ? 'warning' : 'success'}
           icon={outcome.progression.is_pr ? Award : TrendingUp}
-          title={outcome.progression.is_pr ? `New PR in ${outcome.progression.program_name}` : `New targets in ${outcome.progression.program_name}`}
-          description={`Tap to review ${outcome.progression.count} ${outcome.progression.count === 1 ? 'update' : 'updates'}`}
+          title={outcome.progression.is_pr ? t('workouts.toast.newPr', { name: outcome.progression.program_name }) : t('workouts.toast.newTargets', { name: outcome.progression.program_name })}
+          description={t('workouts.toast.reviewUpdates', { count: outcome.progression.count })}
           onPress={() => {
             const programId = outcome.progression!.program_id
             clearOutcome()
@@ -113,8 +114,8 @@ export default function Workouts() {
         <Toast
           variant="success"
           icon={CheckCircle2}
-          title="Workout saved"
-          description="Tap to view"
+          title={t('workouts.toast.saved')}
+          description={t('workouts.toast.tapToView')}
           onPress={() => {
             clearOutcome()
             router.push(`/workouts/${outcome.workoutId}`)
@@ -126,8 +127,8 @@ export default function Workouts() {
       <Toast
         variant="default"
         icon={RotateCcw}
-        title="Workout discarded"
-        description="Tap to undo"
+        title={t('workouts.toast.discarded')}
+        description={t('workouts.toast.tapToUndo')}
         onPress={() => {
           restoreSession(outcome.session)
           clearOutcome()
@@ -148,8 +149,8 @@ export default function Workouts() {
     return (
       <Screen>
         <View className="flex-1 gap-5 py-4">
-          <PageHeader title="Workouts" subtitle="Track and review your training sessions" />
-          <ErrorState size="page" title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+          <PageHeader title={t('workouts.list.title')} subtitle={t('workouts.list.subtitle')} />
+          <ErrorState size="page" title={t('workouts.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
         </View>
         {outcomeToast}
       </Screen>
@@ -170,23 +171,25 @@ export default function Workouts() {
     // These summarize the *loaded* items; while pages remain, the total is a lower bound.
     // A failed page counts as "pages remain": the hook drops hasMore on error, and
     // without listError here a dropped connection made the count look more certain.
-    { label: 'Total', value: mayHaveMore ? `${workouts.length}+` : String(workouts.length), unit: 'logged' },
+    { label: t('workouts.stats.total'), failed: t('workouts.stats.totalFailed'), value: mayHaveMore ? `${workouts.length}+` : String(workouts.length), unit: t('workouts.stats.logged') },
     {
-      label: 'This Month',
+      label: t('workouts.stats.thisMonth'),
+      failed: t('workouts.stats.thisMonthFailed'),
       // The month the workout was logged in, not the month its UTC instant lands in —
       // a session near a month boundary belongs to the month the lifter trained in.
       // Newest-first paging means we have seen the whole month only once a loaded row
       // predates it; until then the count is a lower bound and says so, like Total.
       value: monthCountKnown ? String(thisMonth) : `${thisMonth}+`,
-      unit: 'sessions',
+      unit: t('workouts.stats.sessions'),
     },
     {
-      label: 'Avg Time',
+      label: t('workouts.stats.avgTime'),
+      failed: t('workouts.stats.avgTimeFailed'),
       value:
         workouts.length > 0
           ? String(Math.round(workouts.reduce((sum, w) => sum + w.duration, 0) / workouts.length / 60))
           : '—',
-      unit: 'min',
+      unit: t('workouts.stats.min'),
     },
   ]
 
@@ -210,12 +213,12 @@ export default function Workouts() {
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
-              title="Workouts"
-              subtitle="Track and review your training sessions"
+              title={t('workouts.list.title')}
+              subtitle={t('workouts.list.subtitle')}
               action={
                 <IconButton
                   icon={Plus}
-                  label="Log Workout"
+                  label={t('workouts.list.logWorkout')}
                   variant="solid"
                   size="md"
                   onPress={() => router.push('/workouts/new')}
@@ -233,7 +236,7 @@ export default function Workouts() {
                 <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
                   <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
                   {countsUnknown ? (
-                    <StatFailure label={`Couldn't load ${s.label.toLowerCase()}`} />
+                    <StatFailure label={s.failed} />
                   ) : (
                   <View className="flex-row items-end gap-1">
                     <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
@@ -255,7 +258,7 @@ export default function Workouts() {
               value={search}
               onChangeText={setSearch}
               loading={refreshing}
-              placeholder="Search workouts…"
+              placeholder={t('workouts.list.searchPlaceholder')}
             />
           </View>
         }
@@ -275,18 +278,18 @@ export default function Workouts() {
           loading ? null : listError ? (
             // Reached only with a search on screen (the early return covers the rest):
             // "No workouts found" would blame the query for a request that never landed.
-            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+            <ErrorState title={t('workouts.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
           ) : (
             <EmptyState
               icon={Dumbbell}
-              title="No workouts found"
-              subtitle={search ? 'Try a different search' : 'Log a workout to get started'}
+              title={t('workouts.list.empty.title')}
+              subtitle={search ? t('workouts.list.empty.searchHint') : t('workouts.list.empty.startHint')}
             />
           )
         }
         ListFooterComponent={
           listError && workouts.length > 0 ? (
-            <ErrorState title="Couldn't load your workouts" message={listError} onRetry={retryList} retrying={loading} />
+            <ErrorState title={t('workouts.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
           ) : hasMore && loading && workouts.length > 0 ? (
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />

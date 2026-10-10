@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
 import type { Program, ProgramDay } from '@lyftr/shared'
-import { apiErrorMessage, activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName } from '@lyftr/shared'
+import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, ErrorState, IconButton, Screen } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -13,6 +13,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 // resume/discard banner for an in-progress session. Navigates to /workouts/active,
 // which itself opens the gym overlay when the layout pref is 'gym'.
 export default function StartWorkout() {
+  const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
   const startSession = useWorkoutSession((s) => s.startSession)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
@@ -20,7 +21,8 @@ export default function StartWorkout() {
 
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  // A UiMessage, not its sentence, so the banner follows a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
 
@@ -29,7 +31,7 @@ export default function StartWorkout() {
     client.programAPI
       .list()
       .then((data) => setPrograms(data || []))
-      .catch((err) => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+      .catch((err) => setError({ key: 'settings.unknownError', cause: err }))
       .finally(() => setLoading(false))
   }, [retryKey])
 
@@ -51,8 +53,8 @@ export default function StartWorkout() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label="Back" variant="ghost" size="md" onPress={goBack} />
-            <AppText variant="title">Start Workout</AppText>
+            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
+            <AppText variant="title">{t('workouts.start.title')}</AppText>
           </View>
 
           {/* Active session — resume or discard */}
@@ -64,7 +66,7 @@ export default function StartWorkout() {
                 </View>
                 <View className="flex-1">
                   <AppText variant="bodySemibold" numberOfLines={1}>{session.name}</AppText>
-                  <AppText variant="caption" style={{ color: '#f59e0b' }}>Workout in progress</AppText>
+                  <AppText variant="caption" style={{ color: '#f59e0b' }}>{t('workouts.start.inProgress')}</AppText>
                 </View>
               </View>
               <View className="flex-row gap-2">
@@ -73,14 +75,14 @@ export default function StartWorkout() {
                   className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 active:scale-95"
                 >
                   <Play size={16} color="#ffffff" />
-                  <AppText variant="bodySemibold" color="white">Resume</AppText>
+                  <AppText variant="bodySemibold" color="white">{t('workouts.start.resume')}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => cancelSession()}
                   className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-muted py-2.5 active:scale-95"
                 >
                   <Trash2 size={16} color={colors.txMuted} />
-                  <AppText variant="bodySemibold" color="secondary">Discard</AppText>
+                  <AppText variant="bodySemibold" color="secondary">{t('workouts.start.discard')}</AppText>
                 </Pressable>
               </View>
             </View>
@@ -95,8 +97,8 @@ export default function StartWorkout() {
               <Zap size={24} color="#ffffff" />
             </View>
             <View className="flex-1">
-              <AppText variant="heading">Quick Start</AppText>
-              <AppText variant="caption" color="muted" className="mt-0.5">Start blank, add exercises as you go</AppText>
+              <AppText variant="heading">{t('workouts.start.quick')}</AppText>
+              <AppText variant="caption" color="muted" className="mt-0.5">{t('workouts.start.quickHint')}</AppText>
             </View>
             <ChevronRight size={20} color={colors.txMuted} />
           </Pressable>
@@ -105,7 +107,7 @@ export default function StartWorkout() {
           <View>
             <View className="mb-3 flex-row items-center gap-2">
               <BookOpen size={16} color={accent} />
-              <AppText variant="subheading">Start from Program</AppText>
+              <AppText variant="subheading">{t('workouts.start.fromProgram')}</AppText>
             </View>
 
             {/* Section-scoped: starting an empty workout does not need this list, so
@@ -113,16 +115,16 @@ export default function StartWorkout() {
             {error ? (
               <ErrorState
                 size="section"
-                title="Couldn't load your programs"
-                message={error}
-                onRetry={() => { setError(''); setRetryKey((k) => k + 1) }}
+                title={t('workouts.start.programsLoadFailed')}
+                message={uiMessage(error)}
+                onRetry={() => { setError(null); setRetryKey((k) => k + 1) }}
               />
             ) : null}
 
             {loading ? (
               <View className="flex-row items-center justify-center gap-2 py-12">
                 <ActivityIndicator color={accent} />
-                <AppText variant="body" color="muted">Loading programs…</AppText>
+                <AppText variant="body" color="muted">{t('workouts.start.loadingPrograms')}</AppText>
               </View>
             ) : error ? (
               // The error above already owns this space. Stacking "No programs yet"
@@ -132,9 +134,9 @@ export default function StartWorkout() {
             ) : programs.length === 0 ? (
               <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
                 <BookOpen size={32} color={colors.txMuted} />
-                <AppText variant="body" color="muted" className="mt-2">No programs yet</AppText>
+                <AppText variant="body" color="muted" className="mt-2">{t('workouts.start.noPrograms')}</AppText>
                 <Pressable onPress={() => router.navigate('/programs/new')} className="mt-3 active:opacity-60">
-                  <AppText variant="caption" style={{ color: accent }}>Create your first program →</AppText>
+                  <AppText variant="caption" style={{ color: accent }}>{t('workouts.start.createFirst')}</AppText>
                 </Pressable>
               </View>
             ) : (
@@ -155,7 +157,7 @@ export default function StartWorkout() {
                       <View className="flex-1">
                         <AppText variant="bodySemibold" numberOfLines={1}>{p.name}</AppText>
                         <AppText variant="caption" color="muted" className="mt-0.5">
-                          {dayCount > 0 ? `${dayCount} day${dayCount === 1 ? '' : 's'}` : 'No days yet'}
+                          {dayCount > 0 ? t('workouts.start.days', { count: dayCount }) : t('workouts.start.noDays')}
                         </AppText>
                       </View>
                       <Play size={16} color={accent} />

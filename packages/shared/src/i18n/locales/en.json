@@ -447,7 +447,85 @@
       "thisMonth": "This Month",
       "sessions": "sessions",
       "avgTime": "Avg Time",
-      "min": "min"
+      "min": "min",
+      "totalFailed": "Couldn't load total",
+      "thisMonthFailed": "Couldn't load this month",
+      "avgTimeFailed": "Couldn't load avg time"
+    },
+    "list": {
+      "title": "Workouts",
+      "subtitle": "Track and review your training sessions",
+      "logWorkout": "Log Workout",
+      "searchPlaceholder": "Search workouts…",
+      "empty": {
+        "title": "No workouts found",
+        "searchHint": "Try a different search",
+        "startHint": "Log a workout to get started"
+      },
+      "loadFailed": "Couldn't load your workouts",
+      "errorSubject": "your workouts",
+      "loadingMore": "Loading more…"
+    },
+    "deleteFailed": "Failed to delete workout",
+    "deleteConfirmTitle": "Delete Workout?",
+    "toast": {
+      "newPr": "New PR in {{name}}",
+      "newTargets": "New targets in {{name}}",
+      "reviewUpdates_one": "Tap to review {{count}} update",
+      "reviewUpdates_other": "Tap to review {{count}} updates",
+      "saved": "Workout saved",
+      "tapToView": "Tap to view",
+      "discarded": "Workout discarded",
+      "tapToUndo": "Tap to undo"
+    },
+    "card": {
+      "deleteTitle": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone",
+      "minutes": "{{minutes}} min",
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "exerciseCount": "{{number}} exercises",
+      "options": "Options",
+      "optionsNamed": "{{name}} options",
+      "menuHeading": "Workout",
+      "editWorkout": "Edit Workout",
+      "deleteWorkout": "Delete Workout",
+      "editNamed": "Edit {{name}}",
+      "totalVolume": "{{amount}} {{unit}} total volume"
+    },
+    "detail": {
+      "loadFailed": "Couldn't load this workout",
+      "gone": "That workout no longer exists.",
+      "backToWorkouts": "Back to workouts",
+      "back": "Workouts",
+      "editLabel": "Edit workout",
+      "deleteLabel": "Delete workout",
+      "duration": "Duration",
+      "minutesUnit": "min",
+      "sets": "Sets",
+      "volume": "Volume",
+      "restOff": "Rest timer is off — turn it on in Settings",
+      "setCount_one": "{{count}} set",
+      "setCount_other": "{{count}} sets",
+      "best": "best",
+      "noRest": "No rest"
+    },
+    "start": {
+      "title": "Start Workout",
+      "inProgress": "Workout in progress",
+      "resume": "Resume",
+      "discard": "Discard",
+      "quick": "Quick Start",
+      "quickHint": "Start blank, add exercises as you go",
+      "fromProgram": "Start from Program",
+      "fromProgramHint": "Load a saved routine's day",
+      "programsLoadFailed": "Couldn't load your programs",
+      "loadingPrograms": "Loading programs…",
+      "noPrograms": "No programs yet",
+      "createFirst": "Create your first program →",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "noDays": "No days yet"
     }
   },
   "exercises": {

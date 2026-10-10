@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Zap, BookOpen, ChevronRight, Play, Timer, Trash2 } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import ProgramPicker from '../components/ProgramPicker'
-import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, types } from '@lyftr/shared'
+import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, types, useTranslation } from '@lyftr/shared'
 
 export default function StartWorkout() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { session, startSession, cancelSession } = useWorkoutSession()
   const [showProgramPicker, setShowProgramPicker] = useState(false)
@@ -25,13 +26,13 @@ export default function StartWorkout() {
     <div className="space-y-6 animate-slide-up">
       <div className="flex items-center gap-3">
         <button
-          aria-label="Go back"
+          aria-label={t('common.goBack')}
           onClick={() => navigate(-1)}
           className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
         >
           <ArrowLeft className="w-5 h-5 text-tx-muted" />
         </button>
-        <h1 className="font-display font-bold text-2xl text-tx-primary">Start Workout</h1>
+        <h1 className="font-display font-bold text-2xl text-tx-primary">{t('workouts.start.title')}</h1>
       </div>
 
       {/* Active session — resume or discard */}
@@ -43,7 +44,7 @@ export default function StartWorkout() {
             </div>
             <div>
               <p className="text-sm font-bold text-tx-primary">{session.name}</p>
-              <p className="text-xs text-amber-400/80">Workout in progress</p>
+              <p className="text-xs text-amber-400/80">{t('workouts.start.inProgress')}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -51,13 +52,13 @@ export default function StartWorkout() {
               onClick={() => navigate('/workout/active')}
               className="flex-1 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2"
             >
-              <Play className="w-4 h-4" /> Resume
+              <Play className="w-4 h-4" /> {t('workouts.start.resume')}
             </button>
             <button
               onClick={() => cancelSession()}
               className="flex-1 py-2.5 bg-surface-muted hover:bg-error-500/10 text-tx-secondary hover:text-error-400 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 border border-surface-border"
             >
-              <Trash2 className="w-4 h-4" /> Discard
+              <Trash2 className="w-4 h-4" /> {t('workouts.start.discard')}
             </button>
           </div>
         </div>
@@ -72,8 +73,8 @@ export default function StartWorkout() {
           <Zap className="w-6 h-6 text-white" />
         </div>
         <div className="text-left flex-1">
-          <p className="font-semibold text-tx-primary text-lg">Quick Start</p>
-          <p className="text-sm text-tx-muted mt-0.5">Start blank, add exercises as you go</p>
+          <p className="font-semibold text-tx-primary text-lg">{t('workouts.start.quick')}</p>
+          <p className="text-sm text-tx-muted mt-0.5">{t('workouts.start.quickHint')}</p>
         </div>
         <ChevronRight className="w-5 h-5 text-tx-muted opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
@@ -87,8 +88,8 @@ export default function StartWorkout() {
           <BookOpen className="w-6 h-6 text-brand-500" />
         </div>
         <div className="text-left flex-1">
-          <p className="font-semibold text-tx-primary text-lg">Start from Program</p>
-          <p className="text-sm text-tx-muted mt-0.5">Load a saved routine's day</p>
+          <p className="font-semibold text-tx-primary text-lg">{t('workouts.start.fromProgram')}</p>
+          <p className="text-sm text-tx-muted mt-0.5">{t('workouts.start.fromProgramHint')}</p>
         </div>
         <ChevronRight className="w-5 h-5 text-tx-muted opacity-0 group-hover:opacity-100 transition-opacity" />
       </button>
