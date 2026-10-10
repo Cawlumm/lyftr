@@ -697,6 +697,58 @@
       "skip": "Omitir"
     }
   },
+  "gym": {
+    "workout": "Entrenamiento",
+    "goToExercise": "Ir al ejercicio {{number}}",
+    "minimizeWorkout": "Minimizar entrenamiento",
+    "minimize": "Minimizar",
+    "discardWorkout": "Descartar entrenamiento",
+    "discard": {
+      "title": "¿Descartar el entrenamiento?",
+      "message": "Esto termina el entrenamiento sin guardarlo: se pierde todo el progreso.",
+      "confirm": "Descartar"
+    },
+    "labels": {
+      "sets": "Series",
+      "reps": "Reps",
+      "weight": "Peso"
+    },
+    "overview": {
+      "exercises": "Ejercicios",
+      "totalSets": "Series totales",
+      "muscles": "Músculos",
+      "empty": "Aún no has agregado ejercicios",
+      "startWorkout": "Empezar entrenamiento",
+      "setCount": "{{number}} series"
+    },
+    "info": {
+      "restTitle": "Descanso entre series",
+      "restHint": "Inicia solo al completar una serie",
+      "begin": "Empezar ejercicio"
+    },
+    "set": {
+      "chip": "Serie {{number}}",
+      "chipDone": "Serie {{number}}, hecha",
+      "chipResting": "Serie {{number}}, en descanso",
+      "chipDoneResting": "Serie {{number}}, hecha, en descanso"
+    },
+    "target": {
+      "label": "Objetivo",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "repsUnknown": "— reps",
+      "reps_many": "{{count}} reps"
+    },
+    "completeSet": "Completar serie",
+    "completed": "Completada",
+    "removeSet": "Quitar esta serie",
+    "removeExercise": "Quitar este ejercicio",
+    "nav": {
+      "info": "Info",
+      "finishWorkout": "Terminar entrenamiento",
+      "nextExercise": "Siguiente ejercicio"
+    }
+  },
   "exercises": {
     "estimated1rm": "1RM est.: {{weight}} {{unit}} · {{date}}",
     "equipment": {

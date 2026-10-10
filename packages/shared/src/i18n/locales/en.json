@@ -684,6 +684,57 @@
       "skip": "Skip"
     }
   },
+  "gym": {
+    "workout": "Workout",
+    "goToExercise": "Go to exercise {{number}}",
+    "minimizeWorkout": "Minimize workout",
+    "minimize": "Minimize",
+    "discardWorkout": "Discard workout",
+    "discard": {
+      "title": "Discard workout?",
+      "message": "This ends the workout without saving — all progress is lost.",
+      "confirm": "Discard"
+    },
+    "labels": {
+      "sets": "Sets",
+      "reps": "Reps",
+      "weight": "Weight"
+    },
+    "overview": {
+      "exercises": "Exercises",
+      "totalSets": "Total Sets",
+      "muscles": "Muscles",
+      "empty": "No exercises added yet",
+      "startWorkout": "Start Workout",
+      "setCount": "{{number}} sets"
+    },
+    "info": {
+      "restTitle": "Rest between sets",
+      "restHint": "Auto-starts when you complete a set",
+      "begin": "Begin Exercise"
+    },
+    "set": {
+      "chip": "Set {{number}}",
+      "chipDone": "Set {{number}}, done",
+      "chipResting": "Set {{number}}, resting",
+      "chipDoneResting": "Set {{number}}, done, resting"
+    },
+    "target": {
+      "label": "Target",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "repsUnknown": "— reps"
+    },
+    "completeSet": "Complete Set",
+    "completed": "Completed",
+    "removeSet": "Remove this set",
+    "removeExercise": "Remove this exercise",
+    "nav": {
+      "info": "Info",
+      "finishWorkout": "Finish Workout",
+      "nextExercise": "Next Exercise"
+    }
+  },
   "exercises": {
     "estimated1rm": "Est. 1RM: {{weight}} {{unit}} · {{date}}",
     "equipment": {
