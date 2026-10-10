@@ -134,13 +134,34 @@ are listed in `locales/README.md`.
 - Semantic dotted keys by screen, section, item and role (`settings.account.name.label`).
   Never the English sentence as the key.
 - One key per context. Do not reuse a key because the English happens to match; the other
-  language may not.
+  language may not. Web and mobile share a key only when the role and the English are both
+  identical.
+- One catalog file per language; the area is the top-level key (`settings`, `food`, ...).
 - Never build a sentence by concatenation. Use `{{placeholders}}` and keep them verbatim in
   every language.
 - Counts use plural keys (`key_one`, `key_other`, ...). Each language provides exactly the
   categories `Intl.PluralRules` gives it: Spanish needs `_one`, `_many` and `_other`.
 - Numbers and dates never go through i18next. Format them with `utils/number.ts` /
   `dateUtils.ts` and pass the result in as a placeholder.
+- Copy with inline markup or a link uses `<Trans>` with named components, not a sentence cut
+  into pieces around a tag.
+- Never translate at module load. A constant that calls `t()` is evaluated once, in English,
+  and never follows a language switch. Store the key (or a `UiMessage`) and call `t()` where
+  it renders.
+
+**When lint flags a string.** Web and mobile lint fail, as errors, on a literal in JSX text or
+a string prop (`eslint-plugin-i18next`), and on copy handed to `apiErrorMessage`,
+`useAsyncAction`, `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title`
+default. Decide, in this order:
+1. It is copy a person reads: add a key to `en.json` and `es.json` and render it with `t()`.
+2. It is not copy (a style value, a field name, an enum token): add the prop, word or callee
+   to `packages/shared/i18n-lint.cjs` with a comment saying why. Both apps read that file.
+   Do not add an `eslint-disable` comment.
+3. It cannot be fixed cleanly in this change: baseline that file with
+   `npx eslint <file> --suppress-rule i18next/no-literal-string`, which writes
+   `eslint-suppressions.json`. This is a last resort and the file only shrinks: when you
+   migrate in an app that has one, run `npx eslint . --prune-suppressions` there and commit
+   the smaller file.
 
 **Renaming keys.** A key's identity is its translation memory (the lesson from Jellyfin).
 Renaming a key for tidiness throws away every translation of it and forces retranslation.

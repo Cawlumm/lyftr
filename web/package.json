@@ -46,6 +46,7 @@
     "autoprefixer": "^10.4.16",
     "cross-env": "^10.1.0",
     "eslint": "^9.39.5",
+    "eslint-plugin-i18next": "^6.1.5",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.9.0",

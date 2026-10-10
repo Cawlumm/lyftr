@@ -183,6 +183,13 @@ true of one file. Do not document it here before it lands.
   The OS per-app language list is `supportedLocales` in `mobile/app.json`, held to the registry
   by a mobile test, and only changes with an EAS build.
 - Hermes has no `Intl.PluralRules`; `mobile/src/lib/polyfills.ts` imports the polyfill.
+- **The guard is lint.** `eslint-plugin-i18next` (`no-literal-string`) plus three
+  `no-restricted-syntax` selectors fail web and mobile lint, as errors, on a hard-coded string
+  in JSX text or a string prop, and on copy passed to `apiErrorMessage`, `useAsyncAction`,
+  `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title` default. The rule
+  data is `packages/shared/i18n-lint.cjs`, imported by both ESLint configs: a prop or word
+  that is not copy is allowlisted there, once, never in one app. A hit is copy to migrate, not
+  something to silence (CONTRIBUTING.md, "Translations").
 - Numbers and dates are never formatted through i18next (see Numbers & Locale).
 - Details and key-naming rules: CONTRIBUTING.md, "Translations".
 

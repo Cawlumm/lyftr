@@ -1,6 +1,8 @@
 // Flat-config ESLint (v9) for the Expo app, extending Expo's shared config
 // (eslint-config-expo, SDK-54-matched v57). The `lint` script blocks on errors.
 const expoConfig = require('eslint-config-expo/flat')
+const i18next = require('eslint-plugin-i18next')
+const i18nLint = require('../packages/shared/i18n-lint.cjs')
 
 module.exports = [
   ...expoConfig,
@@ -20,6 +22,17 @@ module.exports = [
       'react/no-unescaped-entities': 'off',
       // Advisory (surfaced, non-blocking) for the first pass; tighten after a cleanup.
       'react-hooks/exhaustive-deps': 'warn',
+    },
+  },
+  {
+    // The i18n guard: new screen copy goes through t() (CLAUDE.md, "UI Strings"). The
+    // rule data lives in packages/shared/i18n-lint.cjs, shared with web.
+    files: ['app/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', 'src/testing/**'],
+    plugins: { i18next },
+    rules: {
+      'i18next/no-literal-string': ['error', i18nLint.noLiteralString],
+      'no-restricted-syntax': ['error', ...i18nLint.restrictedSyntax],
     },
   },
   {
