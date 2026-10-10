@@ -27,9 +27,9 @@ const VARIANTS: Record<ToastVariant, { border: string; chip: string; icon: strin
   error:   { border: 'border-error-500/20',     chip: 'bg-error-500/10 border-error-500/20',       icon: 'text-error-400' },
 }
 
-// A dismissible floating toast — the app's shared transient notification. Docks in
-// the same bottom slot as the floating RestTimerBanner (bottom-24 clears the nav);
-// callers that fire it after a session ends don't collide with session-gated UI.
+// A dismissible floating toast — the app's shared transient notification. Sits at
+// bottom-24 to clear the nav; callers that fire it after a session ends don't
+// collide with session-gated UI.
 export default function Toast({ title, description, icon: Icon, variant = 'default', onClick, onDismiss, autoDismissMs = 4000 }: Props) {
   // Armed once on mount — parent re-renders must not extend the window (0 disables).
   useEffect(() => {

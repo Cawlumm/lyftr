@@ -7,12 +7,12 @@ import { IconButton } from './ui'
 
 // Hevy/Strong-style rest panel: a thin draining progress line, a big centred
 // countdown with a pause/resume toggle, and full-width −15/+15/Skip actions.
-// Shown only INSIDE the workout — DOCKED in-flow at the bottom of the gym set screen
-// (pushes the set content up instead of covering it) and FLOATING above the gym
-// overview/exercise-info screens. When the workout is minimized the countdown moves
-// to a compact chip in the session pill (see Layout's ActiveSessionBar) instead of
-// following you around the app. Haptics/sound are left to a future native app.
-export default function RestTimerBanner({ docked = false }: { docked?: boolean }) {
+// Shown only INSIDE the workout — docked in-flow as the last child of every gym phase,
+// below that phase's bottom actions, so it pushes content up and never covers a control.
+// When the workout is minimized the countdown moves to a compact chip in the session
+// pill (see Layout's ActiveSessionBar) instead of following you around the app.
+// Haptics/sound are left to a future native app.
+export default function RestTimerBanner() {
   const {
     restEndsAt, restDurationSec, restPausedRemainingMs, restExIdx, restSetIdx,
     session, adjustRest, clearRest, pauseRest, resumeRest,
@@ -121,19 +121,11 @@ export default function RestTimerBanner({ docked = false }: { docked?: boolean }
     </>
   )
 
-  // Docked: an in-flow block at the bottom of the gym set column, so the flex
-  // layout pushes the set content up above it (nothing is covered).
-  if (docked) {
-    return (
-      <div className="flex-shrink-0 bg-surface-raised border-t border-surface-border animate-slide-up">
-        <div className="max-w-md mx-auto">{body}</div>
-      </div>
-    )
-  }
-  // Floating: above the tab bar on every other screen (e.g. gym minimized).
+  // In-flow block at the bottom of the gym phase column, so the flex layout pushes
+  // the content up above it (nothing is covered).
   return (
-    <div className="fixed bottom-24 inset-x-3 z-[70] mx-auto max-w-md animate-slide-up">
-      <div className="rounded-2xl border border-surface-border bg-surface-raised overflow-hidden shadow-lg">{body}</div>
+    <div className="flex-shrink-0 bg-surface-raised border-t border-surface-border animate-slide-up">
+      <div className="max-w-md mx-auto">{body}</div>
     </div>
   )
 }

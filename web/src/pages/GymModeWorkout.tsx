@@ -179,11 +179,12 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
     )
   }
 
-  // The two confirms, declared once. Each phase below returns its own tree, and all
-  // three ended with a byte-identical copy of this pair — nothing in it varies by
-  // phase, so it was three places to forget the same change.
-  const confirms = (
+  // Closes every phase: the docked rest panel (in-flow, below the phase's bottom
+  // actions, null when no rest is active) plus the two portalled confirms. Each phase
+  // below returns its own tree, and nothing here varies by phase.
+  const trailing = (
     <>
+      <RestTimerBanner />
       <ConfirmSheet
         open={confirmFinish}
         icon={Flag}
@@ -311,7 +312,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           )}
         </div>
 
-        {confirms}
+        {trailing}
       </div>
     )
   }
@@ -468,7 +469,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </button>
         </div>
 
-        {confirms}
+        {trailing}
       </div>
     )
   }
@@ -730,11 +731,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         </div>
       </div>
 
-      {/* Rest timer — docked here (in-flow, last child) so it pushes the set
-          content up instead of covering it. Renders null when no rest is active. */}
-      <RestTimerBanner docked />
-
-      {confirms}
+      {trailing}
     </div>
   )
 }

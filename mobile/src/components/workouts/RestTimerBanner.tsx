@@ -15,10 +15,10 @@ import { useTheme } from '../../theme/useTheme'
 // (matches the ConfirmSheet/ActionSheet visual language: rounded-top, grabber,
 // elevated surface — but NOT the Sheet modal, since a rest timer must stay persistent
 // and non-dimming). A draining line, a big optically-centred countdown with pause/
-// resume, and full-width −15/+15/Skip actions (Done when finished). DOCKED in-flow at
-// the bottom of the gym set screen; FLOATING (bottom-anchored) over the overview/info
-// screens. When minimized the countdown moves to the session-pill chip instead.
-export function RestTimerBanner({ docked = false }: { docked?: boolean }) {
+// resume, and full-width −15/+15/Skip actions (Done when finished). Docked in-flow as
+// the last child of every gym phase, below its bottom actions, so it never covers a
+// control. When minimized the countdown is the session-pill chip instead.
+export function RestTimerBanner() {
   const { colors, brand } = useTheme()
   const insets = useSafeAreaInsets()
   const restDurationSec = useWorkoutSession((s) => s.restDurationSec)
@@ -168,8 +168,5 @@ export function RestTimerBanner({ docked = false }: { docked?: boolean }) {
     </View>
   )
 
-  // Docked: in-flow last child of the set screen (pushes content up). Floating: anchored
-  // to the very bottom over the overview/info screens. Both span the full width.
-  if (docked) return <View className="flex-shrink-0">{panel}</View>
-  return <View className="absolute bottom-0 left-0 right-0 z-50">{panel}</View>
+  return panel
 }
