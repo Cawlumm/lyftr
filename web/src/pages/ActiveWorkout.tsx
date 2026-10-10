@@ -8,7 +8,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore, weightShort, displayToLbs, displayWeight } from '../stores/settings'
 import WeightInput from '../components/WeightInput'
 import { workoutAPI } from '../services/api'
-import { muscleColor } from '../utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../utils/exerciseUtils'
 import { formatElapsed, useAsyncAction, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { ConfirmSheet } from '../components/ui'
 
@@ -252,7 +252,7 @@ export default function ActiveWorkout() {
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
-                        {ex.exercise.muscle_group}
+                        {muscleLabel(ex.exercise.muscle_group)}
                       </span>
                       <span className="text-xs text-tx-muted tabular-nums">{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</span>
                     </div>

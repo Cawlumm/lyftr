@@ -6,7 +6,7 @@ import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useT
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor } from '../../utils/exerciseUtils'
+import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
@@ -108,7 +108,7 @@ function ActiveExerciseCardBase({
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-              <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{ex.exercise.muscle_group}</AppText>
+              <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
             </View>
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>

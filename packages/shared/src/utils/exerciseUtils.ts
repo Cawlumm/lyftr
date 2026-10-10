@@ -39,6 +39,10 @@ const MUSCLE_SLUGS = [
   'neck', 'obliques', 'other', 'quadriceps', 'shoulders', 'traps', 'triceps',
 ] as const
 
+const CATEGORY_SLUGS = [
+  'strength', 'stretching', 'plyometrics', 'strongman', 'powerlifting', 'cardio', 'olympic-weightlifting',
+] as const
+
 const slugOf = (raw: string | undefined | null): string => (raw ?? '').trim().toLowerCase().replace(/\s+/g, '-')
 
 const isOneOf = <T extends string>(list: readonly T[], s: string): s is T => (list as readonly string[]).includes(s)
@@ -46,6 +50,14 @@ const isOneOf = <T extends string>(list: readonly T[], s: string): s is T => (li
 export function equipmentLabel(raw: string | undefined | null): string {
   const slug = slugOf(raw)
   return isOneOf(EQUIPMENT_SLUGS, slug) ? i18n.t(`exercises.equipment.${slug}`) : (raw ?? '')
+}
+
+// Category reads like equipment: the pre-migration "olympic weightlifting" spelling is still
+// held by instances that have not run the taxonomy migration. English is the slug itself, as
+// with muscles; the screens keep their CSS capitalize.
+export function categoryLabel(raw: string | undefined | null): string {
+  const slug = slugOf(raw)
+  return isOneOf(CATEGORY_SLUGS, slug) ? i18n.t(`exercises.category.${slug}`) : (raw ?? '')
 }
 
 export function muscleLabel(raw: string | undefined | null): string {

@@ -5,7 +5,7 @@ import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
+import { equipmentLabel, muscleLabel, sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {
@@ -129,7 +129,7 @@ function ExerciseFormCardBase({
         <View className="flex-1">
           <AppText variant="bodySemibold" numberOfLines={1}>{exercise?.name}</AppText>
           <AppText variant="caption" color="muted" numberOfLines={1}>
-            {exercise?.muscle_group} • {exercise?.equipment}
+            {muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}
           </AppText>
         </View>
         <IconButton

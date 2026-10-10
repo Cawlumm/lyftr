@@ -11,7 +11,7 @@ import { useTheme } from '../hooks/useTheme'
 import PeriodSelector from '../components/PeriodSelector'
 import { uiMessage, isNotFound, types, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { ErrorState } from '../components/ui'
-import { muscleColor, muscleColorBordered, equipmentLabel, muscleLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
+import { muscleColor, muscleColorBordered, categoryLabel, equipmentLabel, muscleLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
@@ -202,7 +202,7 @@ export default function ExerciseDetail() {
         )}
         {exercise.category && (
           <span className="inline-flex items-center px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/20 text-xs font-medium text-brand-400 capitalize">
-            {exercise.category}
+            {categoryLabel(exercise.category)}
           </span>
         )}
       </div>

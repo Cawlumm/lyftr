@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { equipmentLabel, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { categoryLabel, equipmentLabel, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -84,5 +84,32 @@ describe('muscleLabel', () => {
     await i18n.changeLanguage('es')
     expect(muscleLabel('lower-back')).toBe('espalda baja')
     expect(muscleLabel('chest')).toBe('pecho')
+  })
+})
+
+describe('categoryLabel', () => {
+  it('gives the slug back unchanged in en, as the screens rendered it before the catalog', () => {
+    for (const slug of ['strength', 'stretching', 'plyometrics', 'strongman', 'powerlifting', 'cardio', 'olympic-weightlifting']) {
+      expect(categoryLabel(slug)).toBe(slug)
+    }
+  })
+
+  it('reads the pre-migration spaced spelling as the hyphenated slug', () => {
+    expect(categoryLabel('olympic weightlifting')).toBe('olympic-weightlifting')
+  })
+
+  it('passes an unknown or empty value through as it came', () => {
+    expect(categoryLabel('flexibility')).toBe('flexibility')
+    expect(categoryLabel('')).toBe('')
+    expect(categoryLabel(undefined)).toBe('')
+  })
+
+  it('reads in the active language (es), spaced and hyphenated spellings alike', async () => {
+    await i18n.changeLanguage('es')
+    expect(categoryLabel('strength')).toBe('fuerza')
+    expect(categoryLabel('plyometrics')).toBe('pliometría')
+    expect(categoryLabel('olympic-weightlifting')).toBe('halterofilia')
+    expect(categoryLabel('olympic weightlifting')).toBe('halterofilia')
+    expect(categoryLabel('flexibility')).toBe('flexibility')
   })
 })

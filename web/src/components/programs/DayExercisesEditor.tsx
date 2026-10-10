@@ -3,7 +3,7 @@ import { Plus, Trash2, Zap, Timer } from 'lucide-react'
 import WeightInput from '../WeightInput'
 import ExercisePicker from '../ExercisePicker'
 import RestPicker from '../RestPicker'
-import { types, useTranslation } from '@lyftr/shared'
+import { types, useTranslation, muscleLabel, equipmentLabel } from '@lyftr/shared'
 import type { DayExerciseDraft } from './types'
 
 interface Props {
@@ -115,7 +115,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                       </div>
                       <p className="font-semibold text-tx-primary">{exercise?.name}</p>
                     </div>
-                    <p className="text-xs text-tx-muted ml-8">{exercise?.muscle_group} • {exercise?.equipment}</p>
+                    <p className="text-xs text-tx-muted ml-8">{muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}</p>
                   </div>
                   <button type="button" aria-label={t('workouts.form.removeExercise')} onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                     <Trash2 className="w-4 h-4 text-error-400" />

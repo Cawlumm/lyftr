@@ -20,7 +20,7 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
 import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
-import { muscleColor, muscleLabel, equipmentLabel } from '../../utils/exerciseUtils'
+import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay
 // (overview → exercise-info → exercise). Mounted at the ROOT layout when a session
@@ -349,7 +349,7 @@ export function GymModeWorkout() {
                   <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary">{equipLabel}</AppText></View>
                 ) : null}
                 {exercise.category ? (
-                  <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary" className="capitalize">{exercise.category}</AppText></View>
+                  <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary" className="capitalize">{categoryLabel(exercise.category)}</AppText></View>
                 ) : null}
               </View>
             </View>

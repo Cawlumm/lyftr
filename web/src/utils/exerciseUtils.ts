@@ -3,7 +3,7 @@ import { resolveMuscleSlugs } from '@lyftr/shared'
 // Web's half of exercise presentation: the Tailwind colour table and the
 // react-body-highlighter slug table. The equipment and muscle labels and the lookup rule are
 // shared — see packages/shared/src/utils/exerciseUtils.ts for why these two tables are not.
-export { equipmentLabel, muscleLabel } from '@lyftr/shared'
+export { categoryLabel, equipmentLabel, muscleLabel } from '@lyftr/shared'
 
 const MUSCLE_COLORS: Record<string, string> = {
   chest:      'bg-red-500/20 text-red-400 border-red-500/30',

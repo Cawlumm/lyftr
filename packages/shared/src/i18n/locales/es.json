@@ -1152,6 +1152,15 @@
       "none": "Ninguno",
       "other": "Otro"
     },
+    "category": {
+      "strength": "fuerza",
+      "stretching": "estiramiento",
+      "plyometrics": "pliometría",
+      "strongman": "strongman",
+      "powerlifting": "powerlifting",
+      "cardio": "cardio",
+      "olympic-weightlifting": "halterofilia"
+    },
     "muscle": {
       "abdominals": "abdominales",
       "abductors": "abductores",

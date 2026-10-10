@@ -26,7 +26,7 @@ import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, muscleLabel, equipmentLabel } from '../../utils/exerciseUtils'
+import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
 // muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
@@ -225,7 +225,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               ) : null}
               {exercise.category ? (
                 <View className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1">
-                  <AppText variant="caption" className="capitalize" style={{ color: accent }}>{exercise.category}</AppText>
+                  <AppText variant="caption" className="capitalize" style={{ color: accent }}>{categoryLabel(exercise.category)}</AppText>
                 </View>
               ) : null}
             </View>

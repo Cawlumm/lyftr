@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import Model, { IExerciseData } from 'react-body-highlighter'
 import { useAsyncAction, types, PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange, useTranslation } from '@lyftr/shared'
-import { muscleColor, muscleColorBordered, equipmentLabel, muscleLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
+import { muscleColor, muscleColorBordered, categoryLabel, equipmentLabel, muscleLabel, muscleToBodySlugs } from '../utils/exerciseUtils'
 import { useTheme } from '../hooks/useTheme'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useSettingsStore } from '../stores/settings'
@@ -373,7 +373,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                 )}
                 {exercise.category && (
                   <span className="inline-flex items-center px-3 py-1 rounded-full bg-surface-muted border border-surface-border text-xs font-medium text-tx-secondary capitalize">
-                    {exercise.category}
+                    {categoryLabel(exercise.category)}
                   </span>
                 )}
               </div>

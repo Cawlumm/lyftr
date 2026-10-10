@@ -10,7 +10,7 @@ import { resolveMuscleSlugs } from '@lyftr/shared'
 // The hexes are Tailwind's own *-400 values, identical to web's text-*-400 classes.
 // `border` carries web's muscleColorBordered() border class for the picker badges;
 // borderless badges (detail screen) simply don't apply it.
-export { equipmentLabel, muscleLabel } from '@lyftr/shared'
+export { categoryLabel, equipmentLabel, muscleLabel } from '@lyftr/shared'
 
 export interface MuscleTint {
   /** NativeWind class for the badge background (bg only — no text class). */
