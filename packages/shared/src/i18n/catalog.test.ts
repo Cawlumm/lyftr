@@ -1,6 +1,11 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import en from './locales/en.json'
 import es from './locales/es.json'
-import { i18n, resolveLanguage } from './index'
+import {
+  i18n, resolveLanguage, SUPPORTED_LANGUAGES, LANGUAGE_NAMES, LANGUAGE_ORDER, MACHINE_TRANSLATED,
+  languageChoiceLabel, machineTranslatedNote,
+} from './index'
 
 // The CI guard for the catalogs. Runs on Node's full ICU under an en-US jest, so
 // Intl.PluralRules here knows every locale; the Hermes path is pinned separately by
@@ -109,5 +114,39 @@ describe('key safety', () => {
   it('rejects an unknown key at type level', () => {
     // @ts-expect-error unknown key is a type error
     i18n.t('settings.noSuchKey')
+  })
+})
+
+describe('language registry', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('locales/README.md mirrors the registry', () => {
+    const readme = readFileSync(join(__dirname, 'locales', 'README.md'), 'utf8')
+    const rows = [...readme.matchAll(/^\| `([a-z-]+)` \| ([^|]+?) \|([^|]*)\|/gm)]
+    expect(rows.map((r) => r[1]).sort()).toEqual([...SUPPORTED_LANGUAGES].sort())
+    for (const [, code, rawName, status] of rows) {
+      const name = rawName.trim()
+      const c = code as keyof typeof LANGUAGE_NAMES
+      expect({ code, name }).toEqual({ code, name: LANGUAGE_NAMES[c] })
+      expect({ code, mt: /machine-translated/i.test(status) }).toEqual({ code, mt: MACHINE_TRANSLATED[c] })
+    }
+  })
+
+  it('LANGUAGE_ORDER is a permutation of SUPPORTED_LANGUAGES', () => {
+    expect([...LANGUAGE_ORDER].sort()).toEqual([...SUPPORTED_LANGUAGES].sort())
+    expect(LANGUAGE_ORDER).toEqual(['en', 'es'])
+  })
+
+  it('languageChoiceLabel names the resolved language and never translates an endonym', async () => {
+    expect(languageChoiceLabel('system')).toBe('System (English)')
+    expect(languageChoiceLabel('en')).toBe('English')
+    await i18n.changeLanguage('es')
+    expect(languageChoiceLabel('system')).toBe('Sistema (Español)')
+    expect(languageChoiceLabel('en')).toBe('English')
+  })
+
+  it('machine-translated marker follows the registry and is written in the target language', () => {
+    expect(machineTranslatedNote('en')).toBeNull()
+    expect(machineTranslatedNote('es')).toBe(es.settings.language.machineTranslated)
   })
 })

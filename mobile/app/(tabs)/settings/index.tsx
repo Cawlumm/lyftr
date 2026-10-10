@@ -23,8 +23,7 @@ import {
 import { useAsyncAction,
   useTranslation,
   i18n,
-  SUPPORTED_LANGUAGES,
-  LANGUAGE_NAMES,
+  languageChoiceLabel,
   memberSince,
   normalizeServerUrl,
   testServerConnection,
@@ -52,6 +51,7 @@ import {
   type ToastVariant,
 } from '../../../src/components/ui'
 import { client, useAuthStore, useDisplayName, useLanguageStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
+import { LanguageSheet } from '../../../src/components/settings/LanguageSheet'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const REST_PRESETS = [60, 90, 120, 180]
@@ -62,6 +62,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation()
   const preference = useLanguageStore((s) => s.preference)
   const setPreference = useLanguageStore((s) => s.setPreference)
+  const [languageOpen, setLanguageOpen] = useState(false)
   const user = useAuthStore((s) => s.user)
   const name = useDisplayName()
   const logout = useAuthStore((s) => s.logout)
@@ -258,17 +259,10 @@ export default function SettingsScreen() {
             <SettingsRow
               icon={Languages}
               label={t('settings.language.label')}
+              value={languageChoiceLabel(preference)}
+              chevron
+              onPress={() => setLanguageOpen(true)}
               divider
-              below={
-                <SegmentedControl
-                  value={preference}
-                  onChange={(v) => { void setPreference(v) }}
-                  options={[
-                    { value: 'system', label: t('settings.language.system') },
-                    ...SUPPORTED_LANGUAGES.map((c) => ({ value: c, label: LANGUAGE_NAMES[c] })),
-                  ]}
-                />
-              }
             />
           </SettingsGroup>
 
@@ -484,6 +478,12 @@ export default function SettingsScreen() {
         />
       ) : null}
 
+      <LanguageSheet
+        open={languageOpen}
+        value={preference}
+        onSelect={(p) => { void setPreference(p) }}
+        onClose={() => setLanguageOpen(false)}
+      />
       <ConfirmSheet
         open={confirmDelete}
         icon={Trash2}

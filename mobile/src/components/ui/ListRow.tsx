@@ -9,6 +9,8 @@ interface Props {
   /** Right-aligned slot — an IconButton, a value, a chevron. */
   right?: ReactNode
   onPress?: () => void
+  /** Announced as selected to screen readers; the visual mark is the caller's `right` node. */
+  selected?: boolean
   className?: string
 }
 
@@ -16,7 +18,7 @@ interface Props {
 // secondary text with a right-hand action, separated by hairline borders. Rendered
 // as a Pressable only when tappable so non-interactive rows don't announce as
 // buttons to screen readers.
-export function ListRow({ primary, secondary, right, onPress, className = '' }: Props) {
+export function ListRow({ primary, secondary, right, onPress, selected, className = '' }: Props) {
   const body = (
     <>
       <View className="flex-1 pr-3">
@@ -38,7 +40,7 @@ export function ListRow({ primary, secondary, right, onPress, className = '' }: 
   )
   const rowClass = `flex-row items-center justify-between py-3 border-b border-surface-border ${className}`
   return onPress ? (
-    <Pressable accessibilityRole="button" onPress={onPress} className={`${rowClass} active:bg-surface-muted`}>
+    <Pressable accessibilityRole="button" accessibilityState={selected === undefined ? undefined : { selected }} onPress={onPress} className={`${rowClass} active:bg-surface-muted`}>
       {body}
     </Pressable>
   ) : (

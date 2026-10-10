@@ -59,7 +59,13 @@
       ],
       "expo-font",
       "@react-native-community/datetimepicker",
-      "expo-localization",
+      [
+        "expo-localization",
+        {
+          "allowDynamicLocaleChangesAndroid": true,
+          "supportedLocales": { "ios": ["en", "es"], "android": ["en", "es"] }
+        }
+      ],
       [
         "expo-network-security-config",
         {

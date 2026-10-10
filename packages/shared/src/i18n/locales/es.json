@@ -8,7 +8,10 @@
     "language": {
       "label": "Idioma",
       "description": "Por defecto, el idioma de tu dispositivo",
-      "system": "Sistema"
+      "systemChoice": "Sistema ({{name}})",
+      "machineTranslated": "Traducción automática",
+      "search": "Buscar idiomas",
+      "noMatches": "Ningún idioma coincide"
     },
     "account": {
       "title": "Cuenta",

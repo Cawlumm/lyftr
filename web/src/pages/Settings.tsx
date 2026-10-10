@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   apiErrorMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
-  useTranslation, i18n, SUPPORTED_LANGUAGES, LANGUAGE_NAMES,
+  useTranslation, i18n, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel, machineTranslatedNote,
+  type Language, type LanguagePreference,
 } from '@lyftr/shared'
 import { useLanguageStore } from '../lib/lyftr'
 import { useAuthStore } from '../stores/auth'
@@ -17,7 +18,7 @@ import ServerSettings from '../components/ServerSettings'
 import { Link } from 'react-router-dom'
 import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
-  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail,
+  RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail, Languages,
 } from 'lucide-react'
 
 // Wraps per row, on content rather than on viewport width.
@@ -333,21 +334,28 @@ export default function Settings() {
             }
           </button>
         </SettingRow>
-        <SettingRow label={t('settings.language.label')} description={t('settings.language.description')}>
-          <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {(['system', ...SUPPORTED_LANGUAGES] as const).map(code => (
-              <button
-                key={code}
-                onClick={() => { void setLanguagePreference(code) }}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  languagePreference === code
-                    ? 'bg-surface-raised border border-surface-border text-tx-primary shadow-sm'
-                    : 'text-tx-muted hover:text-tx-primary'
-                }`}
+        <SettingRow label={t('settings.language.label')} description={t('settings.language.description')} descriptionId="language-help">
+          <div className="flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2">
+              <Languages className="w-4 h-4 text-tx-muted flex-shrink-0" aria-hidden />
+              <select
+                className="input w-auto py-2"
+                aria-label={t('settings.language.label')}
+                aria-describedby="language-help"
+                value={languagePreference}
+                onChange={e => { void setLanguagePreference(e.target.value as LanguagePreference) }}
               >
-                {code === 'system' ? t('settings.language.system') : LANGUAGE_NAMES[code]}
-              </button>
-            ))}
+                <option value="system">{languageChoiceLabel('system')}</option>
+                {LANGUAGE_ORDER.map(code => (
+                  <option key={code} value={code} lang={code} translate="no">{LANGUAGE_NAMES[code]}</option>
+                ))}
+              </select>
+            </div>
+            {/* Said under the control, not inside the option: a long marker clips the
+                selected value at 390px. */}
+            {machineTranslatedNote(i18n.language as Language) && (
+              <span className="text-[11px] text-tx-muted">{machineTranslatedNote(i18n.language as Language)}</span>
+            )}
           </div>
         </SettingRow>
       </Section>

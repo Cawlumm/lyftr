@@ -178,6 +178,10 @@ true of one file. Do not document it here before it lands.
 - Single points of truth: `i18n/index.ts` (init, language registry, `resolveLanguage`),
   `stores/language.ts` (the device-level preference), `i18n/catalog.test.ts` (key, placeholder
   and plural parity across locales).
+- `i18n/index.ts` also owns the language picker's entries, order, current-choice label and
+  machine-translated marker (`LANGUAGE_ORDER`, `languageChoiceLabel`, `MACHINE_TRANSLATED`).
+  The OS per-app language list is `supportedLocales` in `mobile/app.json`, held to the registry
+  by a mobile test, and only changes with an EAS build.
 - Hermes has no `Intl.PluralRules`; `mobile/src/lib/polyfills.ts` imports the polyfill.
 - Numbers and dates are never formatted through i18next (see Numbers & Locale).
 - Details and key-naming rules: CONTRIBUTING.md, "Translations".
