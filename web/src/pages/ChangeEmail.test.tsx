@@ -1,7 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import ChangeEmail from './ChangeEmail'
+import { i18n } from '@lyftr/shared'
 
 const changeEmail = vi.fn()
 
@@ -87,5 +88,24 @@ describe('ChangeEmail', () => {
 
     await waitFor(() => expect(screen.getByText('That email is already registered.')).toBeTruthy())
     expect((screen.getByLabelText('New email') as HTMLInputElement).value).toBe('taken@example.com')
+  })
+})
+
+describe('ChangeEmail in Spanish', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('reads the form and the confirmation from the catalog, address kept intact (es)', async () => {
+    await i18n.changeLanguage('es')
+    changeEmail.mockResolvedValue({ id: 1, email: 'new@example.com', created_at: '2026-07-01T00:00:00Z' })
+    renderPage()
+
+    expect(screen.getByRole('heading', { name: 'Cambiar correo' })).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Correo nuevo'), { target: { value: 'new@example.com' } })
+    fireEvent.change(screen.getByLabelText('Contraseña actual'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar correo' }))
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Correo cambiado' })).toBeTruthy())
+    expect(screen.getByText('new@example.com').tagName).toBe('SPAN')
+    expect(screen.getByText(/en tus otros dispositivos se cerró la sesión/)).toBeTruthy()
   })
 })

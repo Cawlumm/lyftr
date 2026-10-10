@@ -21,13 +21,28 @@
         "loadFailed": "Couldn't load your name, so we won't offer to overwrite it.",
         "saveFailed": "Couldn't save your name.",
         "save": "Save",
-        "saving": "Saving…"
+        "saving": "Saving…",
+        "title": "Name",
+        "subtitle": "The name the app greets you by.",
+        "emptyHint": "Leave it empty and we'll use your email instead.",
+        "saveFailedFallback": "Couldn't save your name. Please try again."
       },
       "email": {
         "label": "Email",
         "description": "Your login email address",
         "change": "Change",
-        "changeLabel": "Change email"
+        "changeLabel": "Change email",
+        "pageTitle": "Change email",
+        "pageSubtitle": "You will sign in with the new address. Changing more than the letter case signs out your other devices.",
+        "current": "Current email",
+        "new": "New email",
+        "submit": "Update email",
+        "failedFallback": "Couldn't change your email. Please try again.",
+        "changedTitle": "Email changed",
+        "signInWith": "Sign in with <email>{{email}}</email> from now on.",
+        "signInWithPlain": "Sign in with {{email}} from now on.",
+        "caseOnly": "Only the letter case changed, so your other devices stay signed in.",
+        "signedOutElsewhere": "You stay signed in here; your other devices are signed out."
       },
       "memberSince": {
         "label": "Member since"
@@ -35,8 +50,20 @@
       "password": {
         "label": "Password",
         "description": "Changing it signs you out on your other devices",
-        "change": "Change"
-      }
+        "change": "Change",
+        "current": "Current password",
+        "new": "New password",
+        "confirmNew": "Confirm new password",
+        "pageTitle": "Change password",
+        "pageSubtitle": "You will stay signed in here. Every other device is signed out.",
+        "submit": "Update password",
+        "failedFallback": "Couldn't change your password. Please try again.",
+        "changedTitle": "Password changed",
+        "changedBody": "You are still signed in here. Every other device has been signed out and will need the new password."
+      },
+      "backLink": "Settings",
+      "backToSettings": "Back to settings",
+      "saving": "Saving"
     },
     "appearance": {
       "title": "Appearance",

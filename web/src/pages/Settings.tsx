@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  apiErrorMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
+  uiMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
   useTranslation, i18n, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel, machineTranslatedNote,
-  type Language, type LanguagePreference,
+  type Language, type LanguagePreference, type UiMessage,
 } from '@lyftr/shared'
 import { useLanguageStore } from '../lib/lyftr'
 import { useAuthStore } from '../stores/auth'
@@ -20,6 +20,10 @@ import {
   Moon, Sun, LogOut, Trash2, Check, AlertCircle, Loader,
   RefreshCw, Pencil, Clock, Minus, Plus, KeyRound, Mail, Languages,
 } from 'lucide-react'
+
+// The two-way switches below are keyed by their value; the label is translated where it is drawn.
+const LAYOUT_MODES = ['list', 'gym'] as const
+const WEIGHT_UNITS = ['lbs', 'kg'] as const
 
 // Wraps per row, on content rather than on viewport width.
 //
@@ -81,7 +85,9 @@ export default function Settings() {
   const { settings: storedSettings, update: updateSettings, fetch: fetchSettings, setWorkoutLayout, setRestEnabled, setRestSeconds } = useSettingsStore()
   const settingsLoadFailed = useSettingsStore(s => s.loadFailed)
   const [loading, setLoading] = useState(!useSettingsStore.getState().loaded)
-  const [error, setError] = useState<string | null>(null)
+  // Failures are kept as a UiMessage (a key and the failure that caused it), not as a
+  // sentence, so a banner already on screen follows a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   const [success, setSuccess] = useState(false)
   const [showCustomRest, setShowCustomRest] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -89,14 +95,14 @@ export default function Settings() {
   // toggle sits ~800px down a long settings page. Measured in a browser — the toggle
   // flicked back to lbs while the explanation was off-screen above, which is the
   // "say it where the tap was" failure this whole branch exists to stop.
-  const [unitError, setUnitError] = useState<string | null>(null)
+  const [unitError, setUnitError] = useState<UiMessage | null>(null)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
   // Carries whether it FAILED, not just what it said. Both outcomes used to land in
   // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
   // right now." were the same small grey text — a failure that does not read as one.
-  const [seedMsg, setSeedMsg] = useState<{ text: string; failed: boolean } | null>(null)
+  const [seedMsg, setSeedMsg] = useState<{ message: UiMessage; failed: boolean } | null>(null)
 
   // Deliberately NOT in formData: the only button that commits formData is labelled
   // "Save targets", lives in Goals & Units ~900px below, and is removed entirely when
@@ -137,7 +143,7 @@ export default function Settings() {
         fat_target: s.fat_target,
       })
     } catch (err: any) {
-      setError(apiErrorMessage(err, i18n.t('settings.unknownError')))
+      setError({ key: 'settings.unknownError', cause: err })
     } finally {
       setLoading(false)
     }
@@ -156,10 +162,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.refreshCache()
-      setSeedMsg({ text: t('settings.library.refreshed', { count: res.refreshed, amount: res.refreshed.toLocaleString() }), failed: false })
+      setSeedMsg({ message: { key: 'settings.library.refreshed', params: { count: res.refreshed, amount: res.refreshed.toLocaleString() } }, failed: false })
       loadCacheStatus()
     } catch (err: any) {
-      setSeedMsg({ text: apiErrorMessage(err, t('settings.library.refreshFailed')), failed: true })
+      setSeedMsg({ message: { key: 'settings.library.refreshFailed', cause: err }, failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -170,10 +176,10 @@ export default function Settings() {
     setSeedMsg(null)
     try {
       const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg({ text: t('settings.library.cleared', { count: res.cleared, amount: res.cleared.toLocaleString() }), failed: false })
+      setSeedMsg({ message: { key: 'settings.library.cleared', params: { count: res.cleared, amount: res.cleared.toLocaleString() } }, failed: false })
       loadCacheStatus()
     } catch (err) {
-      setSeedMsg({ text: apiErrorMessage(err, t('settings.library.clearFailed')), failed: true })
+      setSeedMsg({ message: { key: 'settings.library.clearFailed', cause: err }, failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -193,7 +199,7 @@ export default function Settings() {
       await updateSettings({ weight_unit: unit })
     } catch (err) {
       setFormData(prev => ({ ...prev, weight_unit: previous }))
-      setUnitError(apiErrorMessage(err, t('settings.targets.weightUnit.changeFailed')))
+      setUnitError({ key: 'settings.targets.weightUnit.changeFailed', cause: err })
     }
   }
 
@@ -251,7 +257,7 @@ export default function Settings() {
       {(error || save.error) && (
         <div className="alert-error">
           <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <span>{error || save.error}</span>
+          <span>{error ? uiMessage(error) : save.error}</span>
         </div>
       )}
 
@@ -364,7 +370,7 @@ export default function Settings() {
       <Section title={t('settings.workout.title')}>
         <SettingRow label={t('settings.workout.layout.label')} description={t('settings.workout.layout.description')}>
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {(['list', 'gym'] as const).map(mode => (
+            {LAYOUT_MODES.map(mode => (
               <button
                 key={mode}
                 onClick={() => setWorkoutLayout(mode)}
@@ -478,11 +484,11 @@ export default function Settings() {
       <Section title={t('settings.goalsUnits.title')}>
         <SettingRow
           label={t('settings.targets.weightUnit.label')}
-          description={unitError ?? t('settings.targets.weightUnit.description')}
+          description={unitError ? uiMessage(unitError) : t('settings.targets.weightUnit.description')}
           descriptionTone={unitError ? 'error' : undefined}
         >
           <div className="flex gap-1 bg-surface-overlay rounded-lg p-1 border border-surface-border">
-            {(['lbs', 'kg'] as const).map(unit => (
+            {WEIGHT_UNITS.map(unit => (
               <button
                 key={unit}
                 onClick={() => handleUnitChange(unit)}
@@ -598,7 +604,7 @@ export default function Settings() {
         {seedMsg && (
           <div className="py-2 px-1">
             <p className={`text-xs ${seedMsg.failed ? 'text-[color:var(--alert-error)]' : 'text-tx-muted'}`}>
-              {seedMsg.text}
+              {uiMessage(seedMsg.message)}
             </p>
           </div>
         )}

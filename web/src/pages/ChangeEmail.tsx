@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, AlertCircle, Loader, MailCheck } from 'lucide-react'
 import { useAuthStore } from '../stores/auth'
-import { useAsyncAction, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
+import { Trans, useAsyncAction, useTranslation, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
 import PageHeader from '../components/ui/PageHeader'
 import PasswordField from '../components/ui/PasswordField'
 
@@ -10,6 +10,7 @@ import PasswordField from '../components/ui/PasswordField'
 // It confirms with a card rather than a toast because the sign-in identifier changed:
 // that is a consequence the user has to be told about, not just a saved field.
 export default function ChangeEmail() {
+  const { t } = useTranslation()
   const user = useAuthStore(s => s.user)
   const changeEmail = useAuthStore(s => s.changeEmail)
   const [email, setEmail] = useState('')
@@ -23,7 +24,7 @@ export default function ChangeEmail() {
     setCurrent('')
     setCaseOnly(onlyCase)
     setChangedTo(updated.email)
-  }, "Couldn't change your email. Please try again.")
+  }, t('settings.account.email.failedFallback'))
 
   const ready = emailChanged(email, user?.email) && !!current
 
@@ -37,7 +38,7 @@ export default function ChangeEmail() {
     return (
       <div className="space-y-5 animate-slide-up max-w-lg">
         <Link to="/settings" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-          <ArrowLeft className="w-4 h-4" /> Settings
+          <ArrowLeft className="w-4 h-4" /> {t('settings.account.backLink')}
         </Link>
 
         <div className="card p-6 flex flex-col items-center text-center gap-3">
@@ -45,15 +46,19 @@ export default function ChangeEmail() {
             <MailCheck className="w-6 h-6 text-success-400" />
           </div>
           <div>
-            <h1 className="font-display font-bold text-xl text-tx-primary">Email changed</h1>
+            <h1 className="font-display font-bold text-xl text-tx-primary">{t('settings.account.email.changedTitle')}</h1>
             <p className="text-sm text-tx-muted mt-1">
-              Sign in with <span className="break-all text-tx-secondary">{changedTo}</span> from now on.{' '}
+              <Trans
+                i18nKey="settings.account.email.signInWith"
+                values={{ email: changedTo }}
+                components={{ email: <span className="break-all text-tx-secondary" /> }}
+              />{' '}
               {caseOnly
-                ? 'Only the letter case changed, so your other devices stay signed in.'
-                : 'You stay signed in here; your other devices are signed out.'}
+                ? t('settings.account.email.caseOnly')
+                : t('settings.account.email.signedOutElsewhere')}
             </p>
           </div>
-          <Link to="/settings" className="btn-secondary btn-sm mt-1">Back to settings</Link>
+          <Link to="/settings" className="btn-secondary btn-sm mt-1">{t('settings.account.backToSettings')}</Link>
         </div>
       </div>
     )
@@ -62,23 +67,23 @@ export default function ChangeEmail() {
   return (
     <div className="space-y-5 animate-slide-up max-w-lg">
       <Link to="/settings" className="flex items-center gap-1.5 text-sm text-tx-muted hover:text-tx-primary transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Settings
+        <ArrowLeft className="w-4 h-4" /> {t('settings.account.backLink')}
       </Link>
 
       <PageHeader
-        title="Change email"
-        subtitle="You will sign in with the new address. Changing more than the letter case signs out your other devices."
+        title={t('settings.account.email.pageTitle')}
+        subtitle={t('settings.account.email.pageSubtitle')}
       />
 
       <form onSubmit={submit} className="card p-4 space-y-4">
         <div>
-          <p className="text-xs text-tx-muted">Current email</p>
+          <p className="text-xs text-tx-muted">{t('settings.account.email.current')}</p>
           <p className="text-sm text-tx-primary font-mono break-all">{user?.email}</p>
         </div>
 
         <div>
           <label htmlFor="new-email" className="label">
-            New email
+            {t('settings.account.email.new')}
           </label>
           <input
             id="new-email"
@@ -95,7 +100,7 @@ export default function ChangeEmail() {
 
         <PasswordField
           id="current-password"
-          label="Current password"
+          label={t('settings.account.password.current')}
           value={current}
           onChange={setCurrent}
           autoComplete="current-password"
@@ -114,10 +119,10 @@ export default function ChangeEmail() {
             disabled={save.busy || !ready}
             className="btn-primary btn-sm flex-1 flex items-center justify-center gap-2"
           >
-            {save.busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> Saving</> : 'Update email'}
+            {save.busy ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.account.saving')}</> : t('settings.account.email.submit')}
           </button>
           <Link to="/settings" className="btn-secondary btn-sm flex-1 flex items-center justify-center">
-            Cancel
+            {t('common.cancel')}
           </Link>
         </div>
       </form>

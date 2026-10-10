@@ -21,13 +21,28 @@
         "loadFailed": "No se pudo cargar tu nombre, así que no te ofreceremos sobrescribirlo.",
         "saveFailed": "No se pudo guardar tu nombre.",
         "save": "Guardar",
-        "saving": "Guardando…"
+        "saving": "Guardando…",
+        "title": "Nombre",
+        "subtitle": "El nombre con el que te saluda la app.",
+        "emptyHint": "Si lo dejas vacío, usaremos tu correo.",
+        "saveFailedFallback": "No se pudo guardar tu nombre. Inténtalo de nuevo."
       },
       "email": {
         "label": "Correo",
         "description": "Tu correo de inicio de sesión",
         "change": "Cambiar",
-        "changeLabel": "Cambiar correo"
+        "changeLabel": "Cambiar correo",
+        "pageTitle": "Cambiar correo",
+        "pageSubtitle": "Iniciarás sesión con la nueva dirección. Si cambias algo más que las mayúsculas y minúsculas, se cierra tu sesión en tus otros dispositivos.",
+        "current": "Correo actual",
+        "new": "Correo nuevo",
+        "submit": "Actualizar correo",
+        "failedFallback": "No se pudo cambiar tu correo. Inténtalo de nuevo.",
+        "changedTitle": "Correo cambiado",
+        "signInWith": "De ahora en adelante, inicia sesión con <email>{{email}}</email>.",
+        "signInWithPlain": "De ahora en adelante, inicia sesión con {{email}}.",
+        "caseOnly": "Solo cambiaron las mayúsculas y minúsculas, así que tus otros dispositivos siguen con la sesión iniciada.",
+        "signedOutElsewhere": "Aquí sigues con la sesión iniciada; en tus otros dispositivos se cerró la sesión."
       },
       "memberSince": {
         "label": "Miembro desde"
@@ -35,8 +50,20 @@
       "password": {
         "label": "Contraseña",
         "description": "Al cambiarla, se cierra tu sesión en tus otros dispositivos",
-        "change": "Cambiar"
-      }
+        "change": "Cambiar",
+        "current": "Contraseña actual",
+        "new": "Contraseña nueva",
+        "confirmNew": "Confirma la contraseña nueva",
+        "pageTitle": "Cambiar contraseña",
+        "pageSubtitle": "Seguirás con la sesión iniciada aquí. Se cierra la sesión en todos los demás dispositivos.",
+        "submit": "Actualizar contraseña",
+        "failedFallback": "No se pudo cambiar tu contraseña. Inténtalo de nuevo.",
+        "changedTitle": "Contraseña cambiada",
+        "changedBody": "Sigues con la sesión iniciada aquí. Se cerró la sesión en todos los demás dispositivos y necesitarán la contraseña nueva."
+      },
+      "backLink": "Ajustes",
+      "backToSettings": "Volver a ajustes",
+      "saving": "Guardando"
     },
     "appearance": {
       "title": "Apariencia",

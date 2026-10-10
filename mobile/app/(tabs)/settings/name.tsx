@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
-import { useAsyncAction, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
+import { useAsyncAction, useTranslation, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
 import {
   Alert,
   AppText,
@@ -20,6 +20,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 // beside Cancel. Account rows are icon + label + value, so an editor belongs here rather
 // than as a form wedged into that group.
 export default function ChangeNameScreen() {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const user = useAuthStore((s) => s.user)
   const settings = useSettingsStore((s) => s.settings)
@@ -48,7 +49,7 @@ export default function ChangeNameScreen() {
   const save = useAsyncAction(async () => {
     await updateSettings({ display_name: name.trim() })
     back()
-  }, "Couldn't save your name. Please try again.")
+  }, t('settings.account.name.saveFailedFallback'))
 
   return (
     <Screen>
@@ -60,12 +61,12 @@ export default function ChangeNameScreen() {
             className="flex-row items-center gap-1.5 self-start active:opacity-60"
           >
             <ArrowLeft size={16} color={colors.txMuted} />
-            <AppText variant="body" color="muted">Settings</AppText>
+            <AppText variant="body" color="muted">{t('settings.account.backLink')}</AppText>
           </Pressable>
 
           <PageHeader
-            title="Name"
-            subtitle="The name the app greets you by."
+            title={t('settings.account.name.title')}
+            subtitle={t('settings.account.name.subtitle')}
           />
 
           <Card className="gap-4">
@@ -73,7 +74,7 @@ export default function ChangeNameScreen() {
                 needs an accessible one, or a screen reader announces only the email
                 placeholder, as if that were the current value. */}
             <Field
-              accessibilityLabel="Name"
+              accessibilityLabel={t('settings.account.name.label')}
               placeholder={displayName('', user?.email)}
               value={name}
               onChangeText={setName}
@@ -85,21 +86,21 @@ export default function ChangeNameScreen() {
               onSubmitEditing={() => { if (!save.busy) void save.run() }}
             />
             <Muted className="text-xs">
-              Leave it empty and we&apos;ll use your email instead.
+              {t('settings.account.name.emptyHint')}
             </Muted>
 
             {save.error ? <Alert variant="error">{save.error}</Alert> : null}
 
             <View className="flex-row gap-2">
               <Button
-                title="Save"
+                title={t('settings.account.name.save')}
                 onPress={() => void save.run()}
                 loading={save.busy}
                 disabled={name.trim() === (settings.display_name ?? '')}
                 className="flex-1"
               />
               <Button
-                title="Cancel"
+                title={t('common.cancel')}
                 variant="secondary"
                 onPress={back}
                 disabled={save.busy}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Settings from './Settings'
 import { i18n } from '@lyftr/shared'
@@ -138,6 +138,25 @@ describe('the Name row', () => {
     const described = nameField().getAttribute('aria-describedby')
     expect(described).toBeTruthy()
     expect(document.getElementById(described!)?.textContent).toMatch(/use your email/)
+  })
+})
+
+describe('the exercise library banner', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  // The banner is state that outlives the click that raised it. It keeps the key and the
+  // failure, not the sentence, so a language switch while it is showing re-words it.
+  it('re-renders a visible failure in the new language without a reload (es)', async () => {
+    const { exerciseAPI } = await import('../services/api')
+    vi.mocked(exerciseAPI.refreshCache).mockRejectedValue({ response: { status: 400, data: { error: '' } } })
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Refresh cached' }))
+    await waitFor(() => expect(screen.getByText("Couldn't refresh the cache.")).toBeTruthy())
+
+    await act(async () => { await i18n.changeLanguage('es') })
+    expect(screen.getByText('No se pudo actualizar la caché.')).toBeTruthy()
+    expect(screen.queryByText("Couldn't refresh the cache.")).toBeNull()
   })
 })
 

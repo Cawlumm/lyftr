@@ -56,7 +56,9 @@ import { useTheme } from '../../../src/theme/useTheme'
 
 const REST_PRESETS = [60, 90, 120, 180]
 
-type ToastState = { variant: ToastVariant; title: string; description?: string }
+// Which toast is up, not its words: the title and the failure sentence are made at render, so a
+// toast on screen follows a live language switch.
+type ToastState = 'saved' | 'saveTargets' | 'changeUnit' | 'deleteAccount'
 
 export default function SettingsScreen() {
   const { t } = useTranslation()
@@ -139,7 +141,7 @@ export default function SettingsScreen() {
       carb_target: parseInt(targets.carb_target) || 0,
       fat_target: parseInt(targets.fat_target) || 0,
     })
-    setToast({ variant: 'success', title: t('settings.unitsTargets.saved') })
+    setToast('saved')
   }, t('settings.targets.saveFailed'))
 
   const handleSaveTargets = () => { void saveTargets.run() }
@@ -181,19 +183,26 @@ export default function SettingsScreen() {
   // read off the hook when it changes. It used to be `err?.message`, which for an axios
   // error is the string "Request failed with status code 400" - true, and useless.
   useEffect(() => {
-    if (saveTargets.error) setToast({ variant: 'error', title: t('settings.targets.saveFailed'), description: saveTargets.error })
+    if (saveTargets.error) setToast('saveTargets')
   }, [saveTargets.error])
 
   useEffect(() => {
-    if (changeUnit.error) setToast({ variant: 'error', title: t('settings.unitsTargets.changeUnitFailedTitle'), description: changeUnit.error })
+    if (changeUnit.error) setToast('changeUnit')
   }, [changeUnit.error])
 
   useEffect(() => {
     if (deleteAccount.error) {
       setConfirmDelete(false)
-      setToast({ variant: 'error', title: t('settings.deleteAccount.failed'), description: deleteAccount.error })
+      setToast('deleteAccount')
     }
   }, [deleteAccount.error])
+
+  const toastView: { variant: ToastVariant; title: string; description?: string } | null =
+    toast === 'saved' ? { variant: 'success', title: t('settings.unitsTargets.saved') }
+    : toast === 'saveTargets' ? { variant: 'error', title: t('settings.targets.saveFailed'), description: saveTargets.error }
+    : toast === 'changeUnit' ? { variant: 'error', title: t('settings.unitsTargets.changeUnitFailedTitle'), description: changeUnit.error }
+    : toast === 'deleteAccount' ? { variant: 'error', title: t('settings.deleteAccount.failed'), description: deleteAccount.error }
+    : null
 
   if (!loaded) return <Loading />
 
@@ -482,11 +491,11 @@ export default function SettingsScreen() {
         </View>
       </ScrollView>
 
-      {toast ? (
+      {toastView ? (
         <Toast
-          variant={toast.variant}
-          title={toast.title}
-          description={toast.description}
+          variant={toastView.variant}
+          title={toastView.title}
+          description={toastView.description}
           onDismiss={() => setToast(null)}
         />
       ) : null}
