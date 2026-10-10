@@ -408,10 +408,105 @@
   "weight": {
     "errors": {
       "invalid": "Enter a valid weight",
-      "tooHigh": "Weight must be under {{max}} {{unit}}"
+      "tooHigh": "Weight must be under {{max}} {{unit}}",
+      "trendFailed": "Couldn't load your weight trend.",
+      "statsFailed": "Couldn't load your weight stats."
     },
     "bodyweightShort": "BW",
-    "duplicateWarning": "Already logged on {{date}} ({{weight}} {{unit}}). Log again anyway?"
+    "duplicateWarning": "Already logged on {{date}} ({{weight}} {{unit}}). Log again anyway?",
+    "title": "Weight",
+    "subtitle": "Track your body weight over time",
+    "loadFailed": "Couldn't load your weight",
+    "deleteTitle": "Delete Entry?",
+    "deleteSubject": "{{date}} · {{weight}} {{unit}}",
+    "deleteFailed": "Failed to delete entry",
+    "log": {
+      "title": "Log Weight",
+      "last": "last: {{weight}} {{unit}}",
+      "weightLabel": "Weight ({{unit}})",
+      "weightField": "Weight",
+      "weightName": "weight",
+      "dateAndNote": "Date & note",
+      "collapse": "Collapse",
+      "notePlaceholder": "Note — e.g. morning, post-run",
+      "addDateAndNote": "Add date & note",
+      "logAnyway": "Log Anyway",
+      "submit": "Log Weight",
+      "submitting": "Logging…",
+      "tip": "Best logged in the morning, after the bathroom",
+      "failed": "Failed to log weight"
+    },
+    "hero": {
+      "current": "Current Weight",
+      "empty": "The scale doesn't know you exist yet. Fix that.",
+      "changeGained": "{{amount}} {{unit}} gained over {{period}}",
+      "changeLost": "{{amount}} {{unit}} lost over {{period}}",
+      "changeNone": "{{amount}} {{unit}} no change over {{period}}"
+    },
+    "period": {
+      "chip": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "All": "All"
+      },
+      "span": {
+        "7d": "7d",
+        "30d": "30d",
+        "90d": "90d",
+        "All": "All"
+      }
+    },
+    "stats": {
+      "avg": {
+        "label": "Avg",
+        "tip": "Average weight for selected period",
+        "failed": "Couldn't load avg weight"
+      },
+      "low": {
+        "label": "Low",
+        "tip": "Lowest recorded weight in period",
+        "failed": "Couldn't load low weight"
+      },
+      "high": {
+        "label": "High",
+        "tip": "Highest recorded weight in period",
+        "failed": "Couldn't load high weight"
+      }
+    },
+    "stale": "Couldn't refresh these — showing the last we loaded.",
+    "trend": {
+      "title": "Trend",
+      "loading": "Loading your trend",
+      "loadFailed": "Couldn't load your trend",
+      "noData": "No data for this period",
+      "needMore": "Log another entry to see the trend"
+    },
+    "history": {
+      "title": "History",
+      "subject": "your weight history",
+      "loadingMore": "Loading more…",
+      "loadMoreFailed": "Couldn't load more entries"
+    },
+    "detail": {
+      "back": "Weight",
+      "loadFailed": "Couldn't load this entry",
+      "gone": "That entry no longer exists.",
+      "backToWeight": "Back to weight",
+      "editLabel": "Edit entry",
+      "deleteLabel": "Delete entry",
+      "entryLabel": "Weight Entry",
+      "editing": "Editing…",
+      "editTitle": "Edit Entry",
+      "date": "Date",
+      "notesOptional": "Notes <hint>(optional)</hint>",
+      "notesOptionalPlain": "Notes (optional)",
+      "notePlaceholder": "e.g., morning, post-workout",
+      "saveFailed": "Failed to save"
+    },
+    "row": {
+      "options": "{{weight}} {{unit}} options"
+    }
   },
   "programs": {
     "day": {

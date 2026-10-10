@@ -22,7 +22,7 @@ interface Props {
 // (Edit / Delete). Edit deep-links the detail straight into its inline edit form (?edit=1);
 // Delete routes through the shared ConfirmSheet.
 export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
-  useTranslation()
+  const { t } = useTranslation()
   const { colors, accent, brand } = useTheme()
   const wUnit = weightShort(unit)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -40,7 +40,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
     await client.weightAPI.delete(item.id)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     onDeleted(item.id)
-  }, 'Failed to delete entry')
+  }, t('weight.deleteFailed'))
 
   return (
     <Pressable onPress={() => router.push(`/weight/${item.id}`)} className="mb-2 active:scale-[0.99]">
@@ -70,7 +70,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
         </View>
         <IconButton
           icon={MoreVertical}
-          label={`${Math.round(displayW)} ${wUnit} options`}
+          label={t('weight.row.options', { weight: Math.round(displayW), unit: wUnit })}
           variant="ghost"
           size="sm"
           onPress={() => setMenuOpen(true)}
@@ -103,7 +103,7 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: 'Delete Entry?', subject: `${dateLabel} · ${Math.round(displayW)} ${wUnit}` })}
+        {...deleteConfirmProps({ title: t('weight.deleteTitle'), subject: t('weight.deleteSubject', { date: dateLabel, weight: Math.round(displayW), unit: wUnit }) })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

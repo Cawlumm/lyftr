@@ -413,10 +413,105 @@
   "weight": {
     "errors": {
       "invalid": "Ingresa un peso válido",
-      "tooHigh": "El peso debe ser menor de {{max}} {{unit}}"
+      "tooHigh": "El peso debe ser menor de {{max}} {{unit}}",
+      "trendFailed": "No se pudo cargar tu tendencia de peso.",
+      "statsFailed": "No se pudieron cargar tus estadísticas de peso."
     },
     "bodyweightShort": "PC",
-    "duplicateWarning": "Ya registraste el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?"
+    "duplicateWarning": "Ya registraste el {{date}} ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+    "title": "Peso",
+    "subtitle": "Sigue tu peso corporal a lo largo del tiempo",
+    "loadFailed": "No se pudo cargar tu peso",
+    "deleteTitle": "¿Eliminar registro?",
+    "deleteSubject": "{{date}} · {{weight}} {{unit}}",
+    "deleteFailed": "No se pudo eliminar el registro",
+    "log": {
+      "title": "Registrar peso",
+      "last": "último: {{weight}} {{unit}}",
+      "weightLabel": "Peso ({{unit}})",
+      "weightField": "Peso",
+      "weightName": "peso",
+      "dateAndNote": "Fecha y nota",
+      "collapse": "Contraer",
+      "notePlaceholder": "Nota — p. ej., por la mañana, después de correr",
+      "addDateAndNote": "Agregar fecha y nota",
+      "logAnyway": "Registrar de todos modos",
+      "submit": "Registrar peso",
+      "submitting": "Registrando…",
+      "tip": "Mejor registrarlo por la mañana, después de ir al baño",
+      "failed": "No se pudo registrar el peso"
+    },
+    "hero": {
+      "current": "Peso actual",
+      "empty": "La báscula aún no sabe que existes. Arregla eso.",
+      "changeGained": "Ganaste {{amount}} {{unit}} {{period}}",
+      "changeLost": "Perdiste {{amount}} {{unit}} {{period}}",
+      "changeNone": "{{amount}} {{unit}}, sin cambios {{period}}"
+    },
+    "period": {
+      "chip": {
+        "7d": "7 d",
+        "30d": "30 d",
+        "90d": "90 d",
+        "All": "Todo"
+      },
+      "span": {
+        "7d": "en 7 d",
+        "30d": "en 30 d",
+        "90d": "en 90 d",
+        "All": "en todo el historial"
+      }
+    },
+    "stats": {
+      "avg": {
+        "label": "Prom.",
+        "tip": "Peso promedio del periodo seleccionado",
+        "failed": "No se pudo cargar el peso promedio"
+      },
+      "low": {
+        "label": "Mín.",
+        "tip": "Peso más bajo registrado en el periodo",
+        "failed": "No se pudo cargar el peso mínimo"
+      },
+      "high": {
+        "label": "Máx.",
+        "tip": "Peso más alto registrado en el periodo",
+        "failed": "No se pudo cargar el peso máximo"
+      }
+    },
+    "stale": "No se pudieron actualizar; se muestra lo último que cargamos.",
+    "trend": {
+      "title": "Tendencia",
+      "loading": "Cargando tu tendencia",
+      "loadFailed": "No se pudo cargar tu tendencia",
+      "noData": "Sin datos para este periodo",
+      "needMore": "Registra otro peso para ver la tendencia"
+    },
+    "history": {
+      "title": "Historial",
+      "subject": "tu historial de peso",
+      "loadingMore": "Cargando más…",
+      "loadMoreFailed": "No se pudieron cargar más registros"
+    },
+    "detail": {
+      "back": "Peso",
+      "loadFailed": "No se pudo cargar este registro",
+      "gone": "Ese registro ya no existe.",
+      "backToWeight": "Volver a peso",
+      "editLabel": "Editar registro",
+      "deleteLabel": "Eliminar registro",
+      "entryLabel": "Registro de peso",
+      "editing": "Editando…",
+      "editTitle": "Editar registro",
+      "date": "Fecha",
+      "notesOptional": "Notas <hint>(opcional)</hint>",
+      "notesOptionalPlain": "Notas (opcional)",
+      "notePlaceholder": "p. ej., por la mañana, después de entrenar",
+      "saveFailed": "No se pudo guardar"
+    },
+    "row": {
+      "options": "Opciones de {{weight}} {{unit}}"
+    }
   },
   "programs": {
     "day": {

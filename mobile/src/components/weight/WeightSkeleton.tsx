@@ -1,4 +1,5 @@
 import { View } from 'react-native'
+import { useTranslation } from '@lyftr/shared'
 import { Card, PageHeader, Screen, Skeleton, SkeletonList, SkeletonStatRow } from '../ui'
 
 // Initial-load skeleton for the Weight page — content-shaped placeholders laid out
@@ -7,12 +8,13 @@ import { Card, PageHeader, Screen, Skeleton, SkeletonList, SkeletonStatRow } fro
 // after a blank spinner. The PageHeader is the real, live title. Mirrors the pattern
 // of WorkoutsSkeleton / ProgramsSkeleton.
 export function WeightSkeleton() {
+  const { t } = useTranslation()
   return (
     <Screen>
       <View className="gap-5 py-4">
         <PageHeader
-          title="Weight"
-          subtitle="Track your body weight over time"
+          title={t('weight.title')}
+          subtitle={t('weight.subtitle')}
           action={<Skeleton width={44} height={24} radius={999} />}
         />
 
