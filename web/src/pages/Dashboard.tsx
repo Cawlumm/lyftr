@@ -18,7 +18,7 @@ import { useWorkoutSession } from '../stores/workoutSession'
 import { useAuthStore } from '../stores/auth'
 import { useSettingsStore, weightShort, displayWeight, displayVolume } from '../stores/settings'
 import { useDisplayName } from '../lib/lyftr'
-import { apiErrorMessage, isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip, formatDate, useTranslation } from '@lyftr/shared'
+import { isDailyStats, workoutDay, entryDay, types, activeSessionExercisesForDay, dayLabel, sessionNameForDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { useNavigate, Link } from 'react-router-dom'
 import { muscleColor, muscleLabel } from '../utils/exerciseUtils'
 
@@ -62,6 +62,9 @@ function MuscleSparkline({ values, color, isTop }: { values: number[], color: st
   )
 }
 
+// The seven weekday rows of the heatmap; every other one carries a letter.
+const WEEKDAY_ROWS = [0, 1, 2, 3, 4, 5, 6] as const
+
 const TOOLTIP_STYLE = {
   background: 'var(--color-surface-raised, #1e1e2e)',
   border: '1px solid var(--color-surface-border, #2d2d3a)',
@@ -93,7 +96,9 @@ export default function Dashboard() {
   const [weightStats, setWeightStats] = useState<types.WeightStats | null>(null)
 
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  // Failures are kept as a UiMessage (a key and the failure that caused it), not as a sentence,
+  // so a banner already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
   // Bumping this re-runs the load effect. A lifted useCallback would be the tidier
   // shape, but it would mean restructuring a working effect to gain a retry button;
   // this does the same job in three lines.
@@ -107,8 +112,7 @@ export default function Dashboard() {
   // Name -> what the server actually said. Keeping the message matters for the two
   // areas big enough to show one: a card that never loaded can say why, and a generic
   // sentence there would be us inventing a cause we were handed.
-  const [missing, setMissing] = useState<Record<string, string>>({})
-  const FALLBACK = "The server didn't say what went wrong."
+  const [missing, setMissing] = useState<Record<string, UiMessage>>({})
 
   const foodMissing = "today's food" in missing
   const weightMissing = 'your weight' in missing
@@ -119,21 +123,21 @@ export default function Dashboard() {
 
   useEffect(() => {
     void fetchSettings()
-    const absent: Record<string, string> = {}
+    const absent: Record<string, UiMessage> = {}
     Promise.all([
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
       // backend's max — Up Next must see every program
       programAPI.list({ limit: 100 })
-        .catch(err => { absent['your programs'] = apiErrorMessage(err, FALLBACK); return [] }),
+        .catch(err => { absent['your programs'] = { key: 'settings.unknownError', cause: err }; return [] }),
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd'))
         // A 200 carrying the wrong shape never reaches the catch. Unchecked, the missing
         // field went through Math.round and the ring read "NaN".
         .then(fs => isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable')))
-        .catch(err => { absent["today's food"] = apiErrorMessage(err, FALLBACK); return DEFAULT_FOOD }),
+        .catch(err => { absent["today's food"] = { key: 'settings.unknownError', cause: err }; return DEFAULT_FOOD }),
       weightAPI.list({ limit: 14 })
-        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return [] }),
+        .catch(err => { absent['your weight'] = { key: 'settings.unknownError', cause: err }; return [] }),
       weightAPI.stats()
-        .catch(err => { absent['your weight'] = apiErrorMessage(err, FALLBACK); return null }),
+        .catch(err => { absent['your weight'] = { key: 'settings.unknownError', cause: err }; return null }),
     ])
       .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
@@ -143,7 +147,7 @@ export default function Dashboard() {
         setWeightStats(wst)
         setMissing(absent)
       })
-      .catch(err => setError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+      .catch(err => setError({ key: 'settings.unknownError', cause: err }))
       .finally(() => setLoading(false))
   }, [TODAY, retryKey, fetchSettings])
 
@@ -160,8 +164,8 @@ export default function Dashboard() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load your dashboard"
-        message={error}
+        title={t('home.loadFailed')}
+        message={uiMessage(error)}
         onRetry={() => { setError(null); setLoading(true); setRetryKey(k => k + 1) }}
       />
     )
@@ -276,7 +280,7 @@ export default function Dashboard() {
               wrap. Mobile wraps too, but gets no text-balance and deliberately no
               leading-tight — an imposed lineHeight clips descenders on iOS (ui/Field.tsx). */}
           <h1 className="font-display font-bold text-2xl text-tx-primary mt-0.5 leading-tight text-balance">
-            {greeting(TODAY)}, {username}
+            {greeting(TODAY, username)}
           </h1>
           <p className="text-xs text-tx-muted mt-1">{lifterQuip(user?.id ?? '')}</p>
         </div>
@@ -285,7 +289,7 @@ export default function Dashboard() {
           className="btn-primary btn-sm flex-shrink-0"
         >
           <Play className="w-3.5 h-3.5" />
-          {session ? 'Resume' : 'Start'}
+          {t(session ? 'home.header.resume' : 'home.header.start')}
         </button>
       </div>
 
@@ -300,8 +304,8 @@ export default function Dashboard() {
               <Timer className="w-4 h-4 text-amber-400 animate-pulse" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-amber-300">Workout in progress</p>
-              <p className="text-xs text-amber-400/70">{session.name} — tap to resume</p>
+              <p className="text-sm font-semibold text-amber-300">{t('home.activeSession.title')}</p>
+              <p className="text-xs text-amber-400/70">{t('home.activeSession.tapToResume', { name: session.name })}</p>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-amber-400 flex-shrink-0" />
@@ -322,7 +326,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 card p-3 hover:bg-surface-muted/40 transition-colors">
           <Link
             to={`/programs/${upNext.program.id}`}
-            aria-label={`View ${upNext.program.name} routine`}
+            aria-label={t('home.upNext.viewRoutine', { name: upNext.program.name })}
             className="flex items-center gap-3 flex-1 min-w-0"
           >
             {upNext.day.exercises?.[0]?.exercise?.image_url ? (
@@ -338,14 +342,14 @@ export default function Dashboard() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">Up next · {upNext.program.name}</p>
+              <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">{t('home.upNext.label', { name: upNext.program.name })}</p>
               <p className="text-sm font-semibold text-tx-primary truncate mt-0.5">{dayLabel(upNext.day, upNext.day.order_index)}</p>
-              <p className="text-xs text-tx-muted mt-0.5">{(upNext.day.exercises ?? []).length} exercise{(upNext.day.exercises ?? []).length === 1 ? '' : 's'}</p>
+              <p className="text-xs text-tx-muted mt-0.5">{t('home.upNext.exercises', { count: (upNext.day.exercises ?? []).length })}</p>
             </div>
           </Link>
           <button
             onClick={startUpNext}
-            aria-label={`Start ${dayLabel(upNext.day, upNext.day.order_index)}`}
+            aria-label={t('home.upNext.start', { name: dayLabel(upNext.day, upNext.day.order_index) })}
             className="flex items-center justify-center w-9 h-9 bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors flex-shrink-0"
           >
             <Play className="w-4 h-4" />
@@ -357,20 +361,20 @@ export default function Dashboard() {
       <div className="grid grid-cols-3 gap-2">
         <div className="card p-3 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Week</span>
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">{t('home.kpi.week')}</span>
             <Dumbbell className="w-3 h-3 text-tx-muted" />
           </div>
           <p className="text-xl font-bold text-tx-primary leading-none">{weekWorkouts.length}</p>
-          <p className="text-[10px] text-tx-muted">sessions</p>
+          <p className="text-[10px] text-tx-muted">{t('home.kpi.sessions')}</p>
         </div>
 
         <div className="card p-3 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Cals</span>
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">{t('home.kpi.cals')}</span>
             <Flame className="w-3 h-3 text-tx-muted" />
           </div>
           {foodMissing ? (
-            <StatFailure label="Couldn't load today's calories" />
+            <StatFailure label={t('home.kpi.caloriesFailed')} />
           ) : (
             <>
               <p className="text-xl font-bold text-tx-primary leading-none">{Math.round(food.total_calories)}</p>
@@ -383,11 +387,11 @@ export default function Dashboard() {
 
         <div className="card p-3 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">Protein</span>
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">{t('home.macro.protein')}</span>
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           {foodMissing ? (
-            <StatFailure label="Couldn't load today's protein" />
+            <StatFailure label={t('home.kpi.proteinFailed')} />
           ) : (
             <>
               <p className="text-xl font-bold text-tx-primary leading-none">
@@ -405,7 +409,7 @@ export default function Dashboard() {
       <div className="card p-4">
         <SectionHeader
           icon={TrendingUp}
-          title="Volume Trend"
+          title={t('home.volume.title')}
           right={<PeriodSelector options={['7', '14', '30'] as const} value={volumePeriod} onChange={setVolumePeriod} />}
           className="mb-3"
         />
@@ -413,7 +417,7 @@ export default function Dashboard() {
         {chartData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
             <Dumbbell className="w-6 h-6 text-tx-muted opacity-40" />
-            <p className="text-xs text-tx-muted">Log workouts to see trends</p>
+            <p className="text-xs text-tx-muted">{t('home.volume.empty')}</p>
           </div>
         ) : (
           <>
@@ -429,7 +433,7 @@ export default function Dashboard() {
                 <YAxis hide />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
-                  formatter={(v: number) => [`${v.toLocaleString()} ${wUnit}`, 'Volume']}
+                  formatter={(v: number) => [`${v.toLocaleString()} ${wUnit}`, t('home.volume.tooltip')]}
                   labelFormatter={(label: string) => chartData.find(d => d.date === label)?.name || label}
                   cursor={{ fill: 'rgba(99,102,241,0.08)', radius: 4 }}
                 />
@@ -471,14 +475,14 @@ export default function Dashboard() {
       <div className="card p-4">
         <SectionHeader
           icon={Activity}
-          title="Consistency"
-          right={<span className="text-xs text-tx-muted">12 weeks</span>}
+          title={t('home.consistency.title')}
+          right={<span className="text-xs text-tx-muted">{t('home.consistency.range')}</span>}
           className="mb-3"
         />
 
         {workouts.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 gap-2">
-            <p className="text-xs text-tx-muted">Start working out to build your streak</p>
+            <p className="text-xs text-tx-muted">{t('home.consistency.empty')}</p>
           </div>
         ) : (
           <>
@@ -496,10 +500,10 @@ export default function Dashboard() {
               ))}
 
               {/* Rows 1–7: day label + cells */}
-              {(['M', '', 'W', '', 'F', '', 'S'] as const).map((lbl, dayIdx) => (
+              {WEEKDAY_ROWS.map((dayIdx) => (
                 [
                   <div key={`lbl-${dayIdx}`} className="text-[9px] text-tx-muted/60 font-medium flex items-center leading-none">
-                    {lbl}
+                    {dayIdx % 2 === 0 ? formatDate(heatmapWeeks[0][dayIdx], 'weekdayNarrow') : ''}
                   </div>,
                   ...heatmapWeeks.map((week, wi) => {
                     const day    = week[dayIdx]
@@ -525,11 +529,11 @@ export default function Dashboard() {
 
             {/* Legend */}
             <div className="flex items-center gap-1.5 mt-2 justify-end">
-              <span className="text-[9px] text-tx-muted">Less</span>
+              <span className="text-[9px] text-tx-muted">{t('home.heatmap.less')}</span>
               {['bg-surface-muted/50', 'bg-brand-500/30', 'bg-brand-500/60', 'bg-brand-500'].map((cls, i) => (
                 <div key={i} className={`w-3 h-3 rounded-[3px] ${cls}`} />
               ))}
-              <span className="text-[9px] text-tx-muted">More</span>
+              <span className="text-[9px] text-tx-muted">{t('home.heatmap.more')}</span>
             </div>
           </>
         )}
@@ -550,14 +554,16 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-tx-primary truncate">{lastWorkout.name}</p>
                   <p className="text-xs text-tx-muted mt-0.5">
-                    {formatDay(workoutDay(lastWorkout), 'monthDay')}
-                    {mins > 0 && ` · ${mins} min`}
-                    {totalSets > 0 && ` · ${totalSets} set${totalSets === 1 ? '' : 's'}`}
-                    {totalVolume > 0 && ` · ${totalVolume.toLocaleString()} ${wUnit}`}
+                    {[
+                      formatDay(workoutDay(lastWorkout), 'monthDay'),
+                      mins > 0 && t('home.lastWorkout.minutes', { mins }),
+                      totalSets > 0 && t('home.lastWorkout.sets', { count: totalSets }),
+                      totalVolume > 0 && `${totalVolume.toLocaleString()} ${wUnit}`,
+                    ].filter(Boolean).join(' · ')}
                   </p>
                 </div>
                 <Link to="/workouts" className="flex items-center gap-0.5 text-xs text-brand-400 hover:text-brand-300 flex-shrink-0 transition-colors">
-                  All <ArrowRight className="w-3 h-3" />
+                  {t('home.lastWorkout.all')} <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
 
@@ -585,12 +591,12 @@ export default function Dashboard() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-tx-secondary truncate">{ex.exercise.name}</p>
                         <span className={`text-[10px] px-1 py-0.5 rounded ${muscleColor(ex.exercise.muscle_group)}`}>
-                          {ex.exercise.muscle_group}
+                          {muscleLabel(ex.exercise.muscle_group)}
                         </span>
                       </div>
                       {best && (
                         <span className="text-xs text-tx-muted tabular-nums flex-shrink-0">
-                          {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, settings.weight_unit)}${wUnit}` : ' BW'}
+                          {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, settings.weight_unit)}${wUnit}` : ` ${t('weight.bodyweightShort')}`}
                         </span>
                       )}
                     </div>
@@ -600,7 +606,7 @@ export default function Dashboard() {
 
               {exs.length > 4 && (
                 <p className="text-xs text-tx-muted text-center pt-2">
-                  +{exs.length - 4} more exercises
+                  {t('home.lastWorkout.moreExercises', { count: exs.length - 4 })}
                 </p>
               )}
             </div>
@@ -608,7 +614,7 @@ export default function Dashboard() {
         })() : (
           <div className="card p-4 flex flex-col items-center justify-center min-h-36 gap-2">
             <Dumbbell className="w-7 h-7 text-tx-muted opacity-40" />
-            <p className="text-sm text-tx-muted">No workouts logged yet</p>
+            <p className="text-sm text-tx-muted">{t('home.lastWorkout.empty')}</p>
             {/* Suppressed when the Up Next card is already showing above — that
                 card is its own "start something" CTA; a second "start your first
                 workout" link right under it is the redundant-buttons clutter this
@@ -618,7 +624,7 @@ export default function Dashboard() {
                 onClick={() => navigate('/workout/start')}
                 className="text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors mt-1"
               >
-                Start your first workout →
+                {t('home.lastWorkout.startFirst')}
               </button>
             )}
           </div>
@@ -627,9 +633,9 @@ export default function Dashboard() {
         {/* Nutrition */}
         <div className="card p-4 overflow-hidden min-w-0">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="section-title">Today's Nutrition</h2>
+            <h2 className="section-title">{t('home.nutrition.title')}</h2>
             <Link to="/food" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex-shrink-0">
-              Log →
+              {t('home.nutrition.log')}
             </Link>
           </div>
 
@@ -638,8 +644,8 @@ export default function Dashboard() {
             // sentence and the retry belong here, in the section that owns them.
             <ErrorState
               size="section"
-              title="Couldn't load today's food"
-              message={missing["today's food"]}
+              title={t('home.nutrition.loadFailed')}
+              message={uiMessage(missing["today's food"])}
               onRetry={retry}
             />
           ) : (
@@ -660,11 +666,11 @@ export default function Dashboard() {
           {/* Macros */}
           <div className="space-y-2.5">
             {[
-              { label: 'Protein', val: food.total_protein, target: settings.protein_target, pct: protPct,  color: '#3b82f6' },
-              { label: 'Carbs',   val: food.total_carbs,   target: settings.carb_target,    pct: carbsPct, color: '#f59e0b' },
-              { label: 'Fat',     val: food.total_fat,     target: settings.fat_target,     pct: fatPct,   color: '#8b5cf6' },
+              { id: 'protein', label: t('home.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct,  color: '#3b82f6' },
+              { id: 'carbs',   label: t('home.macro.carbs'),   val: food.total_carbs,   target: settings.carb_target,    pct: carbsPct, color: '#f59e0b' },
+              { id: 'fat',     label: t('home.macro.fat'),     val: food.total_fat,     target: settings.fat_target,     pct: fatPct,   color: '#8b5cf6' },
             ].map(m => (
-              <div key={m.label}>
+              <div key={m.id}>
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs text-tx-muted">{m.label}</span>
                   <span className="text-xs font-semibold text-tx-primary tabular-nums">
@@ -687,8 +693,8 @@ export default function Dashboard() {
       <div className="card p-4">
           <SectionHeader
             icon={Dumbbell}
-            title="Muscle Balance"
-            right={<span className="text-xs text-tx-muted">{workouts.length} workout{workouts.length === 1 ? '' : 's'}</span>}
+            title={t('home.muscle.title')}
+            right={<span className="text-xs text-tx-muted">{t('home.muscle.workouts', { count: workouts.length })}</span>}
             className="mb-1"
           />
 
@@ -697,13 +703,13 @@ export default function Dashboard() {
               {muscleRoast(topMuscle)}
             </p>
           ) : (
-            <p className="text-xs text-tx-muted mb-3">Log workouts to see which muscles you train most.</p>
+            <p className="text-xs text-tx-muted mb-3">{t('home.muscle.empty')}</p>
           )}
 
           {muscleData.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-6 gap-2">
               <Dumbbell className="w-6 h-6 text-tx-muted opacity-30" />
-              <p className="text-xs text-tx-muted">No workout data yet</p>
+              <p className="text-xs text-tx-muted">{t('home.muscle.noData')}</p>
             </div>
           ) : (
           <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -728,7 +734,7 @@ export default function Dashboard() {
                   <Tooltip
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(v: number, _: string, props: { payload?: { name: string } }) => [
-                      `${v} set${v === 1 ? '' : 's'} (${Math.round((v / totalMuscSets) * 100)}%)`,
+                      t('home.muscle.tooltip', { count: v, percent: Math.round((v / totalMuscSets) * 100) }),
                       muscleLabel(props.payload?.name),
                     ]}
                   />
@@ -749,7 +755,7 @@ export default function Dashboard() {
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className={`text-xs capitalize flex-1 min-w-0 truncate ${isTop ? 'font-semibold text-tx-primary' : 'text-tx-secondary'}`}>
                         {muscleLabel(d.name)}
-                        {isTop && <span className="ml-1 text-[9px] font-normal text-tx-muted uppercase tracking-wide">top</span>}
+                        {isTop && <span className="ml-1 text-[9px] font-normal text-tx-muted uppercase tracking-wide">{t('home.muscle.top')}</span>}
                       </span>
                       <MuscleSparkline values={values} color={color} isTop={isTop} />
                       <span className="text-xs text-tx-muted tabular-nums w-16 text-right flex-shrink-0">
@@ -771,10 +777,10 @@ export default function Dashboard() {
       <div className="card p-4">
         <SectionHeader
           icon={Scale}
-          title="Weight"
+          title={t('home.weight.title')}
           right={
             <Link to="/weight" className="text-xs text-brand-400 hover:text-brand-300 transition-colors flex items-center gap-0.5">
-              View <ArrowRight className="w-3 h-3" />
+              {t('home.weight.view')} <ArrowRight className="w-3 h-3" />
             </Link>
           }
           className="mb-2"
@@ -786,8 +792,8 @@ export default function Dashboard() {
           // rather than the bare mark a stat tile has room for.
           <ErrorState
             size="section"
-            title="Couldn't load your weight"
-            message={missing['your weight']}
+            title={t('home.weight.loadFailed')}
+            message={uiMessage(missing['your weight'])}
             onRetry={retry}
           />
         ) : weightLogs.length === 0 ? (
@@ -800,8 +806,8 @@ export default function Dashboard() {
               <Plus className="w-4 h-4 text-brand-500" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-tx-primary">Log your first weight</p>
-              <p className="text-xs text-tx-muted">Tap to start tracking</p>
+              <p className="text-sm font-semibold text-tx-primary">{t('home.weight.logFirst')}</p>
+              <p className="text-xs text-tx-muted">{t('home.weight.logFirstHint')}</p>
             </div>
           </button>
         ) : (
@@ -809,7 +815,7 @@ export default function Dashboard() {
             type="button"
             onClick={() => setSheetOpen(true)}
             className="w-full text-left active:scale-[0.99] transition-transform"
-            aria-label="Log weight"
+            aria-label={t('home.weight.logAria')}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-baseline gap-1.5">
@@ -822,11 +828,11 @@ export default function Dashboard() {
                 {(() => {
                   const delta = weightStats?.change_7d ?? 0
                   if (delta === 0) {
-                    return <span className="text-xs text-tx-muted">7d · no change</span>
+                    return <span className="text-xs text-tx-muted">{t('home.weight.noChange7d')}</span>
                   }
                   return (
                     <span className={`text-xs tabular-nums ${delta < 0 ? 'text-success-400' : 'text-error-400'}`}>
-                      7d · {delta < 0 ? '↓' : '↑'}{Math.abs(displayWeight(delta, settings.weight_unit))} {wUnit}
+                      {t(delta < 0 ? 'home.weight.trendDown' : 'home.weight.trendUp', { amount: Math.abs(displayWeight(delta, settings.weight_unit)), unit: wUnit })}
                     </span>
                   )
                 })()}
@@ -842,7 +848,7 @@ export default function Dashboard() {
                     <Line dataKey="weight" dot={false} stroke="#6366f1" strokeWidth={2} type="monotone" />
                     <Tooltip
                       contentStyle={TOOLTIP_STYLE}
-                      formatter={(v: number) => [`${v} ${wUnit}`, 'Weight']}
+                      formatter={(v: number) => [`${v} ${wUnit}`, t('home.weight.title')]}
                     />
                   </LineChart>
                 </ResponsiveContainer>

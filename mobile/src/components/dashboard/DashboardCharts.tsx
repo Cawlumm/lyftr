@@ -179,7 +179,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
 }) {
   const { colors } = useTheme()
   // Re-renders on a language switch: the selected slice's muscle is named from the catalog.
-  useTranslation()
+  const { t } = useTranslation()
   const [sel, setSel] = useState<number | null>(null)
   if (!data.length || total <= 0) return null
 
@@ -229,7 +229,7 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
       ) : (
         <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
           <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'], color: colors.txMuted }}>{total}</AppText>
-          <AppText variant="caption" color="muted">sets</AppText>
+          <AppText variant="caption" color="muted">{t('home.muscle.donutSets')}</AppText>
         </View>
       )}
     </View>

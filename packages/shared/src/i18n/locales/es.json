@@ -275,7 +275,9 @@
       "hide": "Ocultar {{label}}"
     },
     "back": "Atrás",
-    "goBack": "Volver"
+    "goBack": "Volver",
+    "save": "Guardar",
+    "saving": "Guardando…"
   },
   "errors": {
     "api": {
@@ -548,7 +550,157 @@
       "workouts_one": "{{date}} · {{count}} entrenamiento",
       "workouts_many": "{{date}} · {{count}} entrenamientos",
       "workouts_other": "{{date}} · {{count}} entrenamientos",
-      "restDay": "{{date}} · día de descanso"
+      "restDay": "{{date}} · día de descanso",
+      "less": "Menos",
+      "more": "Más"
+    },
+    "greeting": {
+      "morning": "Buenos días, {{name}}",
+      "morning_anonymous": "Buenos días",
+      "afternoon": "Buenas tardes, {{name}}",
+      "afternoon_anonymous": "Buenas tardes",
+      "evening": "Buenas noches, {{name}}",
+      "evening_anonymous": "Buenas noches"
+    },
+    "loadFailed": "No se pudo cargar tu panel",
+    "header": {
+      "start": "Empezar",
+      "resume": "Continuar"
+    },
+    "activeSession": {
+      "title": "Entrenamiento en curso",
+      "tapToResume": "{{name}} — toca para continuar"
+    },
+    "upNext": {
+      "label": "A continuación · {{name}}",
+      "viewRoutine": "Ver la rutina {{name}}",
+      "start": "Empezar {{name}}",
+      "exercises_one": "{{count}} ejercicio",
+      "exercises_many": "{{count}} ejercicios",
+      "exercises_other": "{{count}} ejercicios",
+      "loadFailed": "No se pudieron cargar tus programas"
+    },
+    "kpi": {
+      "week": "Semana",
+      "sessions": "sesiones",
+      "cals": "Cal",
+      "caloriesFailed": "No se pudieron cargar las calorías de hoy",
+      "proteinFailed": "No se pudo cargar la proteína de hoy"
+    },
+    "thisWeek": {
+      "title": "Esta semana",
+      "unit_one": "sesión",
+      "unit_many": "sesiones",
+      "unit_other": "sesiones"
+    },
+    "volume": {
+      "title": "Tendencia de volumen",
+      "empty": "Registra entrenamientos para ver tendencias",
+      "tooltip": "Volumen"
+    },
+    "consistency": {
+      "title": "Constancia",
+      "range": "12 semanas",
+      "empty": "Empieza a entrenar para construir tu racha"
+    },
+    "lastWorkout": {
+      "title": "Último entrenamiento",
+      "all": "Todos",
+      "minutes": "{{mins}} min",
+      "sets_one": "{{count}} serie",
+      "sets_many": "{{count}} series",
+      "sets_other": "{{count}} series",
+      "moreExercises_one": "+{{count}} ejercicio más",
+      "moreExercises_many": "+{{count}} ejercicios más",
+      "moreExercises_other": "+{{count}} ejercicios más",
+      "empty": "Aún no hay entrenamientos registrados",
+      "startFirst": "Empieza tu primer entrenamiento →"
+    },
+    "nutrition": {
+      "title": "Nutrición de hoy",
+      "log": "Registrar →",
+      "loadFailed": "No se pudo cargar la comida de hoy"
+    },
+    "macro": {
+      "protein": "Proteína",
+      "carbs": "Carbohidratos",
+      "fat": "Grasa"
+    },
+    "muscle": {
+      "title": "Equilibrio muscular",
+      "workouts_one": "{{count}} entrenamiento",
+      "workouts_many": "{{count}} entrenamientos",
+      "workouts_other": "{{count}} entrenamientos",
+      "empty": "Registra entrenamientos para ver qué músculos entrenas más.",
+      "noData": "Aún no hay datos de entrenamientos",
+      "top": "principal",
+      "tooltip_one": "{{count}} serie ({{percent}}%)",
+      "tooltip_many": "{{count}} series ({{percent}}%)",
+      "tooltip_other": "{{count}} series ({{percent}}%)",
+      "donutSets": "series"
+    },
+    "weight": {
+      "title": "Peso",
+      "view": "Ver",
+      "loadFailed": "No se pudo cargar tu peso",
+      "logFirst": "Registra tu primer peso",
+      "logFirstHint": "Toca para empezar a registrar",
+      "logAria": "Registrar peso",
+      "noChange7d": "7 d · sin cambios",
+      "trendDown": "7 d · ↓{{amount}} {{unit}}",
+      "trendUp": "7 d · ↑{{amount}} {{unit}}"
+    },
+    "muscleRoast": {
+      "chest": "Todo pecho, nada de piernas. Un clásico.",
+      "back": "Con espalda de refrigerador. Respeto.",
+      "shoulders": "No cabes por las puertas. Bien.",
+      "biceps": "Cargando selfis frente al espejo…",
+      "triceps": "Tríceps de herradura. Tus apretones de manos deben dar miedo.",
+      "legs": "Entrenas piernas de verdad. Eres un unicornio.",
+      "quadriceps": "Cuádriceps de sobra. Los jeans no tienen ninguna oportunidad.",
+      "hamstrings": "Guerrero de la cadena posterior. Se viene un dios del peso muerto.",
+      "glutes": "Fan de los glúteos. Respetamos el compromiso.",
+      "calves": "Rey o reina de las pantorrillas. El levantador más raro de todos.",
+      "core": "Listo para la playa los 365 días del año.",
+      "abs": "Se viene el six pack. O ya está aquí. Da igual.",
+      "forearms": "Llamó Popeye. Quiere sus brazos de vuelta.",
+      "traps": "Sin cuello, sin problema.",
+      "lats": "Caminas como una cobra. Alas desplegadas.",
+      "full-body": "Todo un todoterreno. O solo hiciste burpees.",
+      "fallback": "Patrones de entrenamiento misteriosos. Lo respetamos."
+    },
+    "quip": {
+      "barDoesNotCare": "A la barra no le importa cómo te sientas.",
+      "progressiveOverload": "Sobrecarga progresiva: el único esquema piramidal que funciona.",
+      "warmUp": "Nadie se ha arrepentido jamás de calentar.",
+      "couch": "La repetición más difícil es la que te levanta del sofá.",
+      "formFirst": "Primero la técnica. Los levantamientos de ego son para el estacionamiento.",
+      "legs": "Las piernas no son opcionales. Solo son impopulares.",
+      "chalk": "La magnesia no es una personalidad. Aunque ayuda.",
+      "unfilledLog": "No hay entrenamiento que compense un registro que nunca llenas.",
+      "deload": "Las semanas de descarga cuentan. A regañadientes.",
+      "mirror": "El espejo, después. La barra, ahora.",
+      "halfReps": "Medias repeticiones, mentiras enteras.",
+      "badSet": "La única serie mala es la que te convenciste de no hacer.",
+      "squatRack": "En algún lugar, un rack de sentadillas está sosteniendo un abrigo. No el tuyo.",
+      "showingUp": "Presentarse es la parte que la mayoría se salta.",
+      "proteinSleep": "La proteína no es opcional. El sueño tampoco.",
+      "rest": "El descanso es parte del plan, no un hueco en él."
+    },
+    "quickWeighIn": {
+      "title": "Registrar peso",
+      "duplicateToday": "Ya registraste hoy ({{weight}} {{unit}}). ¿Registrar de nuevo de todos modos?",
+      "logAnyway": "Registrar de todos modos",
+      "weightWithUnit": "Peso ({{unit}})",
+      "weight": "Peso",
+      "weightName": "peso",
+      "changeDateOrNote": "+ Cambiar la fecha o añadir una nota",
+      "date": "Fecha",
+      "note": "Nota",
+      "optional": "(opcional)",
+      "noteOptional": "Nota (opcional)",
+      "notePlaceholder": "p. ej., mañana, después de entrenar",
+      "saveFailed": "No se pudo guardar"
     }
   },
   "nav": {

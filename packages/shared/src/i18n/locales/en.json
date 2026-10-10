@@ -272,7 +272,9 @@
       "hide": "Hide {{label}}"
     },
     "back": "Back",
-    "goBack": "Go back"
+    "goBack": "Go back",
+    "save": "Save",
+    "saving": "Saving…"
   },
   "errors": {
     "api": {
@@ -538,7 +540,151 @@
     "heatmap": {
       "workouts_one": "{{date}} · {{count}} workout",
       "workouts_other": "{{date}} · {{count}} workouts",
-      "restDay": "{{date}} · rest day"
+      "restDay": "{{date}} · rest day",
+      "less": "Less",
+      "more": "More"
+    },
+    "greeting": {
+      "morning": "Good morning, {{name}}",
+      "morning_anonymous": "Good morning, there",
+      "afternoon": "Good afternoon, {{name}}",
+      "afternoon_anonymous": "Good afternoon, there",
+      "evening": "Good evening, {{name}}",
+      "evening_anonymous": "Good evening, there"
+    },
+    "loadFailed": "Couldn't load your dashboard",
+    "header": {
+      "start": "Start",
+      "resume": "Resume"
+    },
+    "activeSession": {
+      "title": "Workout in progress",
+      "tapToResume": "{{name}} — tap to resume"
+    },
+    "upNext": {
+      "label": "Up next · {{name}}",
+      "viewRoutine": "View {{name}} routine",
+      "start": "Start {{name}}",
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "loadFailed": "Couldn't load your programs"
+    },
+    "kpi": {
+      "week": "Week",
+      "sessions": "sessions",
+      "cals": "Cals",
+      "caloriesFailed": "Couldn't load today's calories",
+      "proteinFailed": "Couldn't load today's protein"
+    },
+    "thisWeek": {
+      "title": "This Week",
+      "unit_one": "session",
+      "unit_other": "sessions"
+    },
+    "volume": {
+      "title": "Volume Trend",
+      "empty": "Log workouts to see trends",
+      "tooltip": "Volume"
+    },
+    "consistency": {
+      "title": "Consistency",
+      "range": "12 weeks",
+      "empty": "Start working out to build your streak"
+    },
+    "lastWorkout": {
+      "title": "Last workout",
+      "all": "All",
+      "minutes": "{{mins}} min",
+      "sets_one": "{{count}} set",
+      "sets_other": "{{count}} sets",
+      "moreExercises_one": "+{{count}} more exercises",
+      "moreExercises_other": "+{{count}} more exercises",
+      "empty": "No workouts logged yet",
+      "startFirst": "Start your first workout →"
+    },
+    "nutrition": {
+      "title": "Today's Nutrition",
+      "log": "Log →",
+      "loadFailed": "Couldn't load today's food"
+    },
+    "macro": {
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat"
+    },
+    "muscle": {
+      "title": "Muscle Balance",
+      "workouts_one": "{{count}} workout",
+      "workouts_other": "{{count}} workouts",
+      "empty": "Log workouts to see which muscles you train most.",
+      "noData": "No workout data yet",
+      "top": "top",
+      "tooltip_one": "{{count}} set ({{percent}}%)",
+      "tooltip_other": "{{count}} sets ({{percent}}%)",
+      "donutSets": "sets"
+    },
+    "weight": {
+      "title": "Weight",
+      "view": "View",
+      "loadFailed": "Couldn't load your weight",
+      "logFirst": "Log your first weight",
+      "logFirstHint": "Tap to start tracking",
+      "logAria": "Log weight",
+      "noChange7d": "7d · no change",
+      "trendDown": "7d · ↓{{amount}} {{unit}}",
+      "trendUp": "7d · ↑{{amount}} {{unit}}"
+    },
+    "muscleRoast": {
+      "chest": "All chest, no legs. Classic bro.",
+      "back": "Built like a refrigerator. Respect.",
+      "shoulders": "Can't fit through doorways. Good.",
+      "biceps": "Mirror selfies loading…",
+      "triceps": "Horseshoe gang. Handshakes must be terrifying.",
+      "legs": "Actually training legs. You're a unicorn.",
+      "quadriceps": "Quads for days. Jeans don't stand a chance.",
+      "hamstrings": "Posterior chain warrior. Deadlift god incoming.",
+      "glutes": "Glute guy/gal. We respect the commitment.",
+      "calves": "Calf king/queen. The rarest of all lifters.",
+      "core": "Beach season ready 365 days a year.",
+      "abs": "Six pack incoming. Or already here. Either way.",
+      "forearms": "Popeye called. He wants his arms back.",
+      "traps": "No neck, no problem.",
+      "lats": "Walking around like a cobra. Wings deployed.",
+      "full-body": "A true all-rounder. Or you just did burpees.",
+      "fallback": "Mysterious training patterns. We respect it."
+    },
+    "quip": {
+      "barDoesNotCare": "The bar does not care how you feel about it.",
+      "progressiveOverload": "Progressive overload: the only pyramid scheme that works.",
+      "warmUp": "Nobody has ever regretted the warm-up.",
+      "couch": "The hardest rep is the one that gets you off the couch.",
+      "formFirst": "Form first. Ego lifts are for the parking lot.",
+      "legs": "Legs are not optional. They are just unpopular.",
+      "chalk": "Chalk is not a personality. It helps, though.",
+      "unfilledLog": "You cannot out-train a log you never fill in.",
+      "deload": "Deload weeks count. Reluctantly.",
+      "mirror": "Mirror check later. Barbell now.",
+      "halfReps": "Half reps, full lies.",
+      "badSet": "The only bad set is the one you talked yourself out of.",
+      "squatRack": "Somewhere a squat rack is holding a coat. Not yours.",
+      "showingUp": "Showing up is the part most people skip.",
+      "proteinSleep": "Protein is not optional. Neither is sleep.",
+      "rest": "Rest is part of the plan, not a gap in it."
+    },
+    "quickWeighIn": {
+      "title": "Log Weight",
+      "duplicateToday": "Already logged today ({{weight}} {{unit}}). Log again anyway?",
+      "logAnyway": "Log Anyway",
+      "weightWithUnit": "Weight ({{unit}})",
+      "weight": "Weight",
+      "weightName": "weight",
+      "changeDateOrNote": "+ Change date or add a note",
+      "date": "Date",
+      "note": "Note",
+      "optional": "(optional)",
+      "noteOptional": "Note (optional)",
+      "notePlaceholder": "e.g., morning, post-workout",
+      "saveFailed": "Failed to save"
     }
   },
   "nav": {
