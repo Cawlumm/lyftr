@@ -18,7 +18,6 @@ export type LanguagePreference = 'system' | Language
 export const LANGUAGE_NAMES = { en: 'English', es: 'Español' } satisfies Record<Language, string>
 
 // Mirrored in locales/README.md; catalog.test.ts fails when the two disagree.
-export const MACHINE_TRANSLATED = { en: false, es: true } satisfies Record<Language, boolean>
 
 // One fixed collation (CLDR root; 'en' has no tailoring, so scripts group together) so the
 // picker does not reshuffle the moment the reader switches language.
@@ -60,9 +59,6 @@ export function languageChoiceLabel(p: LanguagePreference): string {
   return i18n.t('settings.language.systemChoice', { name })
 }
 
-export function machineTranslatedNote(code: Language): string | null {
-  return MACHINE_TRANSLATED[code] ? i18n.getFixedT(code)('settings.language.machineTranslated') : null
-}
 
 export { useTranslation, Trans } from 'react-i18next'
 

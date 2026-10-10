@@ -39,11 +39,6 @@ describe('LanguageSheet', () => {
     expect(selected[0]).toHaveTextContent(/^Español/)
   })
 
-  it('shows the machine-translated note under Español only', () => {
-    setup()
-    expect(screen.getAllByText('Traducción automática')).toHaveLength(1)
-    expect(screen.queryByText('Machine-translated')).toBeNull()
-  })
 
   it('pressing a different language closes and selects', () => {
     const { onSelect, onClose } = setup('system')

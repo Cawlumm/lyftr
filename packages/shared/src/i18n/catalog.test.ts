@@ -3,8 +3,8 @@ import { join } from 'path'
 import en from './locales/en.json'
 import es from './locales/es.json'
 import {
-  i18n, resolveLanguage, SUPPORTED_LANGUAGES, LANGUAGE_NAMES, LANGUAGE_ORDER, MACHINE_TRANSLATED,
-  languageChoiceLabel, machineTranslatedNote,
+  i18n, resolveLanguage, SUPPORTED_LANGUAGES, LANGUAGE_NAMES, LANGUAGE_ORDER,
+  languageChoiceLabel,
 } from './index'
 
 // The CI guard for the catalogs. Runs on Node's full ICU under an en-US jest, so
@@ -144,13 +144,12 @@ describe('language registry', () => {
 
   it('locales/README.md mirrors the registry', () => {
     const readme = readFileSync(join(__dirname, 'locales', 'README.md'), 'utf8')
-    const rows = [...readme.matchAll(/^\| `([a-z-]+)` \| ([^|]+?) \|([^|]*)\|/gm)]
+    const rows = [...readme.matchAll(/^\| `([a-z-]+)` \| ([^|]+?) \|/gm)]
     expect(rows.map((r) => r[1]).sort()).toEqual([...SUPPORTED_LANGUAGES].sort())
-    for (const [, code, rawName, status] of rows) {
+    for (const [, code, rawName] of rows) {
       const name = rawName.trim()
       const c = code as keyof typeof LANGUAGE_NAMES
       expect({ code, name }).toEqual({ code, name: LANGUAGE_NAMES[c] })
-      expect({ code, mt: /machine-translated/i.test(status) }).toEqual({ code, mt: MACHINE_TRANSLATED[c] })
     }
   })
 
@@ -167,8 +166,4 @@ describe('language registry', () => {
     expect(languageChoiceLabel('en')).toBe('English')
   })
 
-  it('machine-translated marker follows the registry and is written in the target language', () => {
-    expect(machineTranslatedNote('en')).toBeNull()
-    expect(machineTranslatedNote('es')).toBe(es.settings.language.machineTranslated)
-  })
 })

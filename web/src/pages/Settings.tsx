@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   uiMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
-  useTranslation, i18n, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel, machineTranslatedNote,
-  type Language, type LanguagePreference, type UiMessage,
+  useTranslation, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel,
+  type LanguagePreference, type UiMessage,
 } from '@lyftr/shared'
 import { useLanguageStore } from '../lib/lyftr'
 import { useAuthStore } from '../stores/auth'
@@ -341,27 +341,20 @@ export default function Settings() {
           </button>
         </SettingRow>
         <SettingRow label={t('settings.language.label')} description={t('settings.language.description')} descriptionId="language-help">
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2">
-              <Languages className="w-4 h-4 text-tx-muted flex-shrink-0" aria-hidden />
-              <select
-                className="input w-auto py-2"
-                aria-label={t('settings.language.label')}
-                aria-describedby="language-help"
-                value={languagePreference}
-                onChange={e => { void setLanguagePreference(e.target.value as LanguagePreference) }}
-              >
-                <option value="system">{languageChoiceLabel('system')}</option>
-                {LANGUAGE_ORDER.map(code => (
-                  <option key={code} value={code} lang={code} translate="no">{LANGUAGE_NAMES[code]}</option>
-                ))}
-              </select>
-            </div>
-            {/* Said under the control, not inside the option: a long marker clips the
-                selected value at 390px. */}
-            {machineTranslatedNote(i18n.language as Language) && (
-              <span className="text-[11px] text-tx-muted">{machineTranslatedNote(i18n.language as Language)}</span>
-            )}
+          <div className="flex items-center gap-2">
+            <Languages className="w-4 h-4 text-tx-muted flex-shrink-0" aria-hidden />
+            <select
+              className="input w-auto py-2"
+              aria-label={t('settings.language.label')}
+              aria-describedby="language-help"
+              value={languagePreference}
+              onChange={e => { void setLanguagePreference(e.target.value as LanguagePreference) }}
+            >
+              <option value="system">{languageChoiceLabel('system')}</option>
+              {LANGUAGE_ORDER.map(code => (
+                <option key={code} value={code} lang={code} translate="no">{LANGUAGE_NAMES[code]}</option>
+              ))}
+            </select>
           </div>
         </SettingRow>
       </Section>

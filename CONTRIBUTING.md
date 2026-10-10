@@ -113,17 +113,16 @@ git rebase origin/main
 ## Translations
 
 UI strings live in one catalog per language in `packages/shared/src/i18n/locales`, shared
-by web and mobile. `en.json` is the source and the fallback. Which languages are
-machine-translated is recorded in `MACHINE_TRANSLATED` (`i18n/index.ts`) and mirrored in
-`locales/README.md`.
+by web and mobile. `en.json` is the source and the fallback. The languages the app ships
+are listed in `locales/README.md`.
 
 **Adding a language**
 1. Copy `en.json` to `<code>.json` and translate the values.
-2. Add it to `resources`, `LANGUAGE_NAMES` (its own name, untranslated) and
-   `MACHINE_TRANSLATED` in `i18n/index.ts`; TypeScript flags a missing entry, and the
-   picker's order and marker follow automatically.
-3. List it in `locales/README.md` with its status (`catalog.test.ts` fails if the table and
-   `MACHINE_TRANSLATED` disagree).
+2. Add it to `resources` and `LANGUAGE_NAMES` (its own name, untranslated) in
+   `i18n/index.ts`; TypeScript flags a missing entry, and the picker's order follows
+   automatically.
+3. List it in `locales/README.md` (`catalog.test.ts` fails if the table and the registry
+   disagree).
 4. Add the code to both `supportedLocales` lists of the `expo-localization` plugin in
    `mobile/app.json`, so the language appears in the iOS/Android per-app language settings.
    Mobile's `supportedLocales.test.ts` fails until you do; it reaches phones only with the

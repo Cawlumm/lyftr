@@ -9,7 +9,6 @@
       "label": "Idioma",
       "description": "Por defecto, el idioma de tu dispositivo",
       "systemChoice": "Sistema ({{name}})",
-      "machineTranslated": "Traducción automática",
       "search": "Buscar idiomas",
       "noMatches": "Ningún idioma coincide"
     },

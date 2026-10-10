@@ -7,7 +7,6 @@ import {
   LANGUAGE_NAMES,
   LANGUAGE_ORDER,
   languageChoiceLabel,
-  machineTranslatedNote,
   type Language,
   type LanguagePreference,
 } from '@lyftr/shared'
@@ -67,7 +66,6 @@ export function LanguageSheet({ open, value, onSelect, onClose }: Props) {
             <ListRow
               key={code}
               primary={<AppText variant="bodySemibold" accessibilityLanguage={code}>{LANGUAGE_NAMES[code]}</AppText>}
-              secondary={machineTranslatedNote(code) ?? undefined}
               right={mark(code)}
               selected={value === code}
               onPress={() => pick(code)}

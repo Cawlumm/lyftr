@@ -183,19 +183,6 @@ describe('language', () => {
     expect(options[2].textContent).toBe('Español')
   })
 
-  it('says under the control when the current language is machine-translated', async () => {
-    renderPage()
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
-    expect(screen.queryByText('Traducción automática')).toBeNull()
-
-    fireEvent.change(picker(), { target: { value: 'es' } })
-    await waitFor(() => expect(screen.getByText('Traducción automática')).toBeTruthy())
-
-    fireEvent.change(picker(), { target: { value: 'en' } })
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
-    expect(screen.queryByText('Traducción automática')).toBeNull()
-  })
-
   it('switches the whole page live and remembers the choice', async () => {
     renderPage()
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
