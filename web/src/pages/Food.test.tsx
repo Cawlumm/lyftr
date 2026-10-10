@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { i18n } from '@lyftr/shared'
 import Food from './Food'
 
 // Starring from the diary (#138): a logged entry is starred as the food it is — one
@@ -48,6 +49,24 @@ const renderPage = () => render(<MemoryRouter><Food /></MemoryRouter>)
 beforeEach(() => {
   vi.clearAllMocks()
   list.mockResolvedValue([OATS])
+})
+
+afterEach(async () => { await i18n.changeLanguage('en') })
+
+describe('Diary copy', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    savedList.mockResolvedValue([])
+    renderPage()
+
+    expect(await screen.findByRole('button', { name: 'Agregar a Desayuno' })).toBeTruthy()
+    expect(screen.getByText('Registrar comida')).toBeTruthy()
+    expect(screen.getByText('Nutrición')).toBeTruthy()
+    expect(screen.getByLabelText('Día anterior')).toBeTruthy()
+    expect(screen.getByText('Almuerzo')).toBeTruthy()
+    expect(screen.getByText('Historial de macros')).toBeTruthy()
+    expect(screen.queryByText('Log Food')).toBeNull()
+  })
 })
 
 describe('Starring from the diary', () => {

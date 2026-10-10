@@ -1,4 +1,4 @@
-import { formatLoggedAmount, useAsyncAction } from '@lyftr/shared'
+import { formatLoggedAmount, useAsyncAction, useTranslation } from '@lyftr/shared'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
@@ -8,17 +8,18 @@ import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteCon
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { FoodThumb } from './FoodImage'
-import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_LABELS, type Meal } from './nutritionMeta'
+import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal } from './nutritionMeta'
 
 // Compact meal tag shown on each row now that meals share one list (icon + label in the
 // meal's tint). 8-digit hex (#RRGGBBAA) for the fill/border is fine on RN core Views.
 function MealChip({ meal }: { meal: Meal }) {
+  useTranslation()
   const Icon = MEAL_ICONS[meal]
   const color = MEAL_COLORS[meal]
   return (
     <View className="flex-row items-center gap-1 rounded-full border px-2 py-0.5" style={{ backgroundColor: `${color}1A`, borderColor: `${color}40` }}>
       <Icon size={11} color={color} />
-      <AppText variant="caption" style={{ fontSize: 10, color, fontWeight: '700' }}>{MEAL_LABELS[meal]}</AppText>
+      <AppText variant="caption" style={{ fontSize: 10, color, fontWeight: '700' }}>{mealLabel(meal)}</AppText>
     </View>
   )
 }
@@ -40,6 +41,7 @@ interface Props {
 // ActionSheet (Edit / Delete) with a thumbnail+macros preview header. Delete routes through
 // the shared ConfirmSheet.
 export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props) {
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -51,7 +53,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     await client.foodAPI.delete(entry.id)
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     onDeleted(entry.id)
-  }, 'Failed to delete entry')
+  }, t('food.entry.deleteFailed'))
 
   const Thumb = ({ size = 44 }: { size?: number }) => <FoodThumb src={entry.image_url} size={size} />
 
@@ -67,9 +69,9 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(entry.calories)} kcal</AppText>
       </View>
       {([
-        ['P', entry.protein, MACRO_TEXT.protein],
-        ['C', entry.carbs, MACRO_TEXT.carbs],
-        ['F', entry.fat, MACRO_TEXT.fat],
+        [t('food.macro.proteinInitial'), entry.protein, MACRO_TEXT.protein],
+        [t('food.macro.carbsInitial'), entry.carbs, MACRO_TEXT.carbs],
+        [t('food.macro.fatInitial'), entry.fat, MACRO_TEXT.fat],
       ] as const).map(([label, value, color]) => (
         <View key={label} className="flex-row items-center gap-1">
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }} />
@@ -96,7 +98,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       </View>
       <IconButton
         icon={MoreVertical}
-        label={`${entry.name} options`}
+        label={t('food.entry.optionsNamed', { name: entry.name })}
         variant="ghost"
         size="sm"
         onPress={() => setMenuOpen(true)}
@@ -124,7 +126,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: 'Delete entry?', subject: `"${entry.name}"` })}
+        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), subject: `"${entry.name}"` })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

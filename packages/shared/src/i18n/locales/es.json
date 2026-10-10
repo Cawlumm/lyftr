@@ -576,10 +576,81 @@
     },
     "diary": {
       "title": "Comida",
-      "titleToday": "Comida de hoy"
+      "titleToday": "Comida de hoy",
+      "logFood": "Registrar comida",
+      "previousDay": "Día anterior",
+      "nextDay": "Día siguiente",
+      "loadFailed": "No se pudo cargar tu registro de comidas",
+      "deleteFailed": "No se pudo eliminar ese registro.",
+      "addTo": "Agregar a {{meal}}",
+      "tapToAdd": "+ Toca para agregar comida",
+      "deleteConfirm": "¿Eliminar <name>{{name}}</name>?",
+      "calories": "Calorías",
+      "over": "{{amount}} de más",
+      "left": "{{amount}} restantes",
+      "goal": "Meta de {{amount}} kcal",
+      "totalsFailed": "No se pudieron cargar los totales de hoy",
+      "totalsFailedMessage": "Algo salió mal de nuestro lado.",
+      "items_one": "{{count}} registro",
+      "items_many": "{{count}} registros",
+      "items_other": "{{count}} registros",
+      "filteredCount": "{{shown}} de {{total}}",
+      "searchPlaceholder": "Buscar en la comida de este día…",
+      "noMatches": "Sin resultados para “{{query}}”",
+      "empty": {
+        "title": "Aún no hay comida registrada",
+        "hint": "Toca para registrar tu primera comida"
+      },
+      "entryUpdated": "Registro actualizado",
+      "addedTo": "Agregado a {{meal}}"
     },
     "entry": {
-      "logged": "Registrado"
+      "logged": "Registrado",
+      "deleteFailed": "No se pudo eliminar el registro",
+      "deleteTitle": "¿Eliminar registro?",
+      "loadFailed": "No se pudo cargar este registro",
+      "gone": "Ese registro ya no existe.",
+      "backToNutrition": "Volver a nutrición",
+      "back": "Nutrición",
+      "editLabel": "Editar registro",
+      "deleteLabel": "Eliminar registro",
+      "servingSize": "Tamaño de la porción",
+      "amount": "Cantidad",
+      "meal": "Comida",
+      "optionsNamed": "Opciones de {{name}}"
+    },
+    "page": {
+      "title": "Nutrición",
+      "subtitle": "Macros y comidas"
+    },
+    "meal": {
+      "breakfast": "Desayuno",
+      "lunch": "Almuerzo",
+      "dinner": "Cena",
+      "snacks": "Snacks"
+    },
+    "macro": {
+      "protein": "Proteína",
+      "carbs": "Carbos",
+      "fat": "Grasa",
+      "fiber": "Fibra",
+      "proteinInitial": "P",
+      "carbsInitial": "C",
+      "fatInitial": "G"
+    },
+    "view": {
+      "diary": "Diario",
+      "trends": "Tendencias"
+    },
+    "trends": {
+      "dailyAverage": "Promedio diario · {{period}}",
+      "averageFailed": "No se pudo cargar el promedio de {{macro}}"
+    },
+    "history": {
+      "title": "Historial de macros",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudo cargar tu historial",
+      "empty": "Aún no hay datos — empieza a registrar tus comidas"
     }
   },
   "workouts": {

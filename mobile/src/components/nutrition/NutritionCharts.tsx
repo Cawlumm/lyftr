@@ -75,7 +75,7 @@ export interface MacroHistoryPoint { date: string; protein: number; carbs: numbe
 export function MacroHistoryChart({ data, width, height = 200 }: {
   data: MacroHistoryPoint[]; width: number; height?: number
 }) {
-  useTranslation()
+  const { t } = useTranslation()
   const { colors } = useTheme()
   const [sel, setSel] = useState<number | null>(null)
   if (!data.length || width <= 0) return null
@@ -170,9 +170,9 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
           <AppText variant="caption" color="muted">{formatDay(selPt.date, 'monthDay')}</AppText>
           <View className="mt-0.5 gap-0.5">
             {[
-              { label: 'Protein', value: selPt.protein, color: MACRO_COLORS.protein },
-              { label: 'Carbs', value: selPt.carbs, color: MACRO_COLORS.carbs },
-              { label: 'Fat', value: selPt.fat, color: MACRO_COLORS.fat },
+              { label: t('food.macro.protein'), value: selPt.protein, color: MACRO_COLORS.protein },
+              { label: t('food.macro.carbs'), value: selPt.carbs, color: MACRO_COLORS.carbs },
+              { label: t('food.macro.fat'), value: selPt.fat, color: MACRO_COLORS.fat },
             ].map((m) => (
               <View key={m.label} className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-1.5">

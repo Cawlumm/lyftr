@@ -1,4 +1,5 @@
 import { View } from 'react-native'
+import { useTranslation } from '@lyftr/shared'
 import { Card, PageHeader, Screen, Skeleton } from '../ui'
 
 // Initial-load skeleton for the Nutrition page — content-shaped placeholders laid out
@@ -7,10 +8,11 @@ import { Card, PageHeader, Screen, Skeleton } from '../ui'
 // its own shape instead of popping after a blank spinner. Mirrors WeightSkeleton /
 // ProgramsSkeleton. The PageHeader is the real, live title.
 export function NutritionSkeleton() {
+  const { t } = useTranslation()
   return (
     <Screen>
       <View className="gap-4 py-4">
-        <PageHeader title="Nutrition" subtitle="Macros & meals" action={<Skeleton width={92} height={32} radius={10} />} />
+        <PageHeader title={t('food.page.title')} subtitle={t('food.page.subtitle')} action={<Skeleton width={92} height={32} radius={10} />} />
 
         {/* Diary / Trends switch */}
         <Skeleton height={44} radius={12} />

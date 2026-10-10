@@ -566,10 +566,80 @@
     },
     "diary": {
       "title": "Food",
-      "titleToday": "Today's Food"
+      "titleToday": "Today's Food",
+      "logFood": "Log Food",
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
+      "loadFailed": "Couldn't load your food log",
+      "deleteFailed": "Couldn't delete that entry.",
+      "addTo": "Add to {{meal}}",
+      "tapToAdd": "+ Tap to add food",
+      "deleteConfirm": "Delete <name>{{name}}</name>?",
+      "calories": "Calories",
+      "over": "{{amount}} over",
+      "left": "{{amount}} left",
+      "goal": "{{amount}} kcal goal",
+      "totalsFailed": "Couldn't load today's totals",
+      "totalsFailedMessage": "Something went wrong on our end.",
+      "items_one": "{{count}} item",
+      "items_other": "{{count}} items",
+      "filteredCount": "{{shown}} of {{total}}",
+      "searchPlaceholder": "Search this day's food…",
+      "noMatches": "No matches for “{{query}}”",
+      "empty": {
+        "title": "No food logged yet",
+        "hint": "Tap to log your first meal"
+      },
+      "entryUpdated": "Entry updated",
+      "addedTo": "Added to {{meal}}"
     },
     "entry": {
-      "logged": "Logged"
+      "logged": "Logged",
+      "deleteFailed": "Failed to delete entry",
+      "deleteTitle": "Delete entry?",
+      "loadFailed": "Couldn't load this entry",
+      "gone": "That entry no longer exists.",
+      "backToNutrition": "Back to nutrition",
+      "back": "Nutrition",
+      "editLabel": "Edit entry",
+      "deleteLabel": "Delete entry",
+      "servingSize": "Serving size",
+      "amount": "Amount",
+      "meal": "Meal",
+      "optionsNamed": "{{name}} options"
+    },
+    "page": {
+      "title": "Nutrition",
+      "subtitle": "Macros & meals"
+    },
+    "meal": {
+      "breakfast": "Breakfast",
+      "lunch": "Lunch",
+      "dinner": "Dinner",
+      "snacks": "Snacks"
+    },
+    "macro": {
+      "protein": "Protein",
+      "carbs": "Carbs",
+      "fat": "Fat",
+      "fiber": "Fiber",
+      "proteinInitial": "P",
+      "carbsInitial": "C",
+      "fatInitial": "F"
+    },
+    "view": {
+      "diary": "Diary",
+      "trends": "Trends"
+    },
+    "trends": {
+      "dailyAverage": "Daily average · {{period}}",
+      "averageFailed": "Couldn't load average {{macro}}"
+    },
+    "history": {
+      "title": "Macro History",
+      "loading": "Loading…",
+      "loadFailed": "Couldn't load your history",
+      "empty": "No data yet — start logging meals"
     }
   },
   "workouts": {

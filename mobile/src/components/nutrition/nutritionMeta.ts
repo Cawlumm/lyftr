@@ -1,5 +1,5 @@
 import { Coffee, Cookie, Moon, Sun, type LucideIcon } from 'lucide-react-native'
-import type { FoodLog } from '@lyftr/shared'
+import { i18n, type FoodLog } from '@lyftr/shared'
 
 // Meal + macro presentation constants, ported 1:1 from web (Food.tsx / LogFood.tsx +
 // utils/macroColors.ts). Web expressed colors as Tailwind text-* classes; on native
@@ -10,11 +10,15 @@ export type Meal = FoodLog['meal']
 
 export const MEALS: readonly Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks']
 
+export const mealLabel = (meal: Meal): string => i18n.t(`food.meal.${meal}`)
+
+// log.tsx still indexes this table. Each read resolves the label then, so it follows a
+// language switch like mealLabel does; it goes when that screen moves to mealLabel.
 export const MEAL_LABELS: Record<Meal, string> = {
-  breakfast: 'Breakfast',
-  lunch: 'Lunch',
-  dinner: 'Dinner',
-  snacks: 'Snacks',
+  get breakfast() { return mealLabel('breakfast') },
+  get lunch() { return mealLabel('lunch') },
+  get dinner() { return mealLabel('dinner') },
+  get snacks() { return mealLabel('snacks') },
 }
 
 export const MEAL_ICONS: Record<Meal, LucideIcon> = {
