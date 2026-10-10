@@ -439,7 +439,10 @@
       "reps_other": "{{count}} reps",
       "exercises_many": "{{count}} ejercicios",
       "sets_many": "{{count}} series",
-      "reps_many": "{{count}} reps"
+      "reps_many": "{{count}} reps",
+      "days_one": "{{count}} día",
+      "days_other": "{{count}} días",
+      "days_many": "{{count}} días"
     },
     "list": {
       "searchPlaceholder": "Buscar programas…",
@@ -510,6 +513,53 @@
       "restDayHint": "No hay ejercicios programados: recupérate y vuelve más fuerte.",
       "noExercises": "Aún no hay ejercicios en este día",
       "target": "objetivo {{weight}} {{unit}}"
+    },
+    "form": {
+      "newTitle": "Nuevo programa",
+      "editTitle": "Editar programa",
+      "summary": "{{days}} • {{exercises}} • {{sets}}",
+      "errors": {
+        "nameRequired": "Falta el nombre del programa",
+        "noDays": "Agrega al menos un día",
+        "noExercises": "Agrega al menos un ejercicio a un día de entrenamiento"
+      },
+      "createFailed": "No se pudo crear el programa",
+      "updateFailed": "No se pudo actualizar el programa",
+      "name": "Nombre del programa",
+      "required": "(obligatorio)",
+      "namePlaceholder": "p. ej., Empuje-Tirón-Pierna, Torso-Pierna",
+      "notesPlaceholder": "Descripción u objetivos del programa…",
+      "days": "Días",
+      "targetSets": "Series objetivo",
+      "daysHintNew": "(obligatorio: se repiten en este orden)",
+      "daysHintEdit": "(se repiten en este orden)",
+      "saveProgram": "Guardar programa",
+      "dayEditor": {
+        "emptyInline": "Aún no hay ejercicios: agrega uno arriba.",
+        "emptyTitle": "Aún no hay ejercicios",
+        "emptySubtitle": "Agrega un ejercicio a este día",
+        "notesPlaceholder": "p. ej., Enfócate en una fase excéntrica controlada",
+        "targetReps": "Reps objetivo",
+        "targetWeight": "Peso objetivo"
+      },
+      "daysEditor": {
+        "empty": "Aún no hay días: agrega abajo un día de entrenamiento o de descanso.",
+        "moveUp": "Subir día",
+        "moveDown": "Bajar día",
+        "moveUpNumbered": "Subir el día {{number}}",
+        "moveDownNumbered": "Bajar el día {{number}}",
+        "restPlaceholder": "Día de descanso {{number}}",
+        "workout": "Entrenamiento",
+        "rest": "Descanso",
+        "collapse": "Contraer día",
+        "expand": "Expandir día",
+        "remove": "Quitar día",
+        "addWorkoutDay": "Agregar día de entrenamiento",
+        "addRestDay": "Agregar día de descanso"
+      },
+      "dayPicker": {
+        "title": "Elige un día"
+      }
     }
   },
   "food": {

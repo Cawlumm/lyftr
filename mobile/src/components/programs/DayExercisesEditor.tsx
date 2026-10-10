@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from 'lucide-react-native'
-import type { Exercise } from '@lyftr/shared'
+import { useTranslation, type Exercise } from '@lyftr/shared'
 import { EmptyState } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
@@ -26,6 +26,7 @@ interface Props {
 export function DayExercisesEditor({
   exercises, onChange, pickerExercises, onCacheExercise, unit, restSecondsDefault, inputAccessoryViewID,
 }: Props) {
+  const { t } = useTranslation()
   const { accent } = useTheme()
   const [showPicker, setShowPicker] = useState(false)
 
@@ -82,12 +83,12 @@ export function DayExercisesEditor({
         className="mb-3 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
       >
         <Plus size={13} color="#ffffff" />
-        <Text className="font-sans-semibold text-xs text-white">Add Exercise</Text>
+        <Text className="font-sans-semibold text-xs text-white">{t('workouts.form.addExercise')}</Text>
       </Pressable>
 
       {exercises.length === 0 ? (
         <View className="rounded-2xl border border-dashed border-surface-border">
-          <EmptyState compact icon={Dumbbell} title="No exercises yet" subtitle="Add an exercise to this day" />
+          <EmptyState compact icon={Dumbbell} title={t('programs.form.dayEditor.emptyTitle')} subtitle={t('programs.form.dayEditor.emptySubtitle')} />
         </View>
       ) : (
         <View className="gap-4">
@@ -111,12 +112,12 @@ export function DayExercisesEditor({
           ))}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add exercise"
+            accessibilityLabel={t('workouts.form.addExerciseLabel')}
             onPress={() => setShowPicker(true)}
             className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
           >
             <Plus size={14} color={accent} />
-            <Text className="font-sans-semibold text-xs" style={{ color: accent }}>Add Exercise</Text>
+            <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addExercise')}</Text>
           </Pressable>
         </View>
       )}

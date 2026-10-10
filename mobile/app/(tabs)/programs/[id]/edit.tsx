@@ -3,7 +3,7 @@ import { Platform, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { apiErrorMessage, useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, type Exercise } from '@lyftr/shared'
+import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
@@ -31,6 +31,7 @@ function FieldHeader({ icon: Icon, label }: { icon: LucideIcon; label: string })
 
 export default function EditProgram() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
@@ -39,10 +40,10 @@ export default function EditProgram() {
   const [initialLoading, setInitialLoading] = useState(true)
   // Only what the FORM can say before anything is sent. What the SERVER says lives
   // on `save` below; both render in the same alert.
-  const [error, setError] = useState('')
+  const [error, setError] = useState<UiMessage | null>(null)
   // Separate from `error`, which is this form's own validation. A load that never
   // arrived is not a missing field — there is nothing to edit.
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<UiMessage | null>(null)
   const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
@@ -85,7 +86,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch((err) => { if (!cancelled) setLoadError(apiErrorMessage(err, "The server didn't say what went wrong.")) })
+      .catch((err) => { if (!cancelled) setLoadError({ key: 'settings.unknownError', cause: err }) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -123,18 +124,18 @@ export default function EditProgram() {
     }
     await client.programAPI.update(Number(id), payload)
     router.dismissTo('/programs')
-  }, 'Failed to update program')
+  }, t('programs.form.updateFailed'))
 
   useEffect(() => {
     if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
   }, [error, save.error])
 
   const handleSubmit = async () => {
-    if (!formData.name.trim()) { setError('Program name required'); return }
-    if (formData.days.length === 0) { setError('Add at least one day'); return }
+    if (!formData.name.trim()) { setError({ key: 'programs.form.errors.nameRequired' }); return }
+    if (formData.days.length === 0) { setError({ key: 'programs.form.errors.noDays' }); return }
     const hasAnyExercise = hasWorkoutExercises(formData.days)
-    if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
-    setError('')
+    if (!hasAnyExercise) { setError({ key: 'programs.form.errors.noExercises' }); return }
+    setError(null)
     void save.run()
   }
 
@@ -143,10 +144,10 @@ export default function EditProgram() {
       <Screen>
         <ErrorState
           size="page"
-          title="Couldn't load this program"
-          message={loadError}
+          title={t('programs.detail.loadFailed')}
+          message={uiMessage(loadError)}
           onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
-          secondary={<Button title="Back to programs" variant="secondary" onPress={goBack} />}
+          secondary={<Button title={t('programs.detail.backToPrograms')} variant="secondary" onPress={goBack} />}
         />
       </Screen>
     )
@@ -169,11 +170,11 @@ export default function EditProgram() {
       >
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label="Back" variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
             <View>
-              <AppText variant="title">Edit Program</AppText>
+              <AppText variant="title">{t('programs.form.editTitle')}</AppText>
               <AppText variant="caption" color="muted">
-                {formData.days.length} day{formData.days.length === 1 ? '' : 's'} • {totalExercises} exercise{totalExercises === 1 ? '' : 's'} • {totalSets} set{totalSets === 1 ? '' : 's'}
+                {t('programs.form.summary', { days: t('programs.count.days', { count: formData.days.length }), exercises: t('programs.count.exercises', { count: totalExercises }), sets: t('programs.count.sets', { count: totalSets }) })}
               </AppText>
             </View>
           </View>
@@ -181,24 +182,24 @@ export default function EditProgram() {
           {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
             </View>
           ) : null}
 
           <View>
-            <FieldHeader icon={BookOpen} label="Program Name" />
+            <FieldHeader icon={BookOpen} label={t('programs.form.name')} />
             <Field
               value={formData.name}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, name: t }))}
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
             />
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label="Notes" />
+            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
             <Field
               value={formData.notes}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, notes: t }))}
-              placeholder="Program description or goals…"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+              placeholder={t('programs.form.notesPlaceholder')}
               multiline
             />
           </View>
@@ -206,8 +207,8 @@ export default function EditProgram() {
           <View>
             <View className="mb-3 flex-row items-center gap-2">
               <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
-              <Label>Days</Label>
-              <AppText variant="caption" color="muted">(repeats in this order)</AppText>
+              <Label>{t('programs.form.days')}</Label>
+              <AppText variant="caption" color="muted">{t('programs.form.daysHintEdit')}</AppText>
             </View>
             <ProgramDaysEditor
               days={formData.days}
@@ -223,8 +224,8 @@ export default function EditProgram() {
       </ScrollView>
 
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
-        <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Changes" className="flex-1" onPress={handleSubmit} loading={save.busy} />
+        <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
+        <Button title={t('workouts.form.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />

@@ -3,7 +3,7 @@ import { Platform, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { useAsyncAction, displayToLbs, hasWorkoutExercises, weightShort, type Exercise } from '@lyftr/shared'
+import { useAsyncAction, displayToLbs, hasWorkoutExercises, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, Field, IconButton, Label, Screen } from '../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../src/components/programs/ProgramDaysEditor'
@@ -34,6 +34,7 @@ function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: str
 }
 
 export default function AddProgram() {
+  const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
@@ -41,7 +42,7 @@ export default function AddProgram() {
 
   // Only what the FORM can say before anything is sent. What the SERVER says lives
   // on `save` below; both render in the same alert.
-  const [error, setError] = useState('')
+  const [error, setError] = useState<UiMessage | null>(null)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
   const scrollRef = useRef<ScrollView>(null)
@@ -77,18 +78,18 @@ export default function AddProgram() {
     }
     await client.programAPI.create(payload)
     router.dismissTo('/programs')
-  }, 'Failed to create program')
+  }, t('programs.form.createFailed'))
 
   useEffect(() => {
     if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
   }, [error, save.error])
 
   const handleSubmit = async () => {
-    if (!formData.name.trim()) { setError('Program name required'); return }
-    if (formData.days.length === 0) { setError('Add at least one day'); return }
+    if (!formData.name.trim()) { setError({ key: 'programs.form.errors.nameRequired' }); return }
+    if (formData.days.length === 0) { setError({ key: 'programs.form.errors.noDays' }); return }
     const hasAnyExercise = hasWorkoutExercises(formData.days)
-    if (!hasAnyExercise) { setError('Add at least one exercise to a workout day'); return }
-    setError('')
+    if (!hasAnyExercise) { setError({ key: 'programs.form.errors.noExercises' }); return }
+    setError(null)
     void save.run()
   }
 
@@ -107,11 +108,11 @@ export default function AddProgram() {
       >
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label="Back" variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
             <View>
-              <AppText variant="title">New Program</AppText>
+              <AppText variant="title">{t('programs.form.newTitle')}</AppText>
               <AppText variant="caption" color="muted">
-                {formData.days.length} day{formData.days.length === 1 ? '' : 's'} • {totalExercises} exercise{totalExercises === 1 ? '' : 's'} • {totalSets} set{totalSets === 1 ? '' : 's'}
+                {t('programs.form.summary', { days: t('programs.count.days', { count: formData.days.length }), exercises: t('programs.count.exercises', { count: totalExercises }), sets: t('programs.count.sets', { count: totalSets }) })}
               </AppText>
             </View>
           </View>
@@ -119,25 +120,25 @@ export default function AddProgram() {
           {error || save.error ? (
             <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
-              <AppText variant="body" color="error" className="flex-1">{error || save.error}</AppText>
+              <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
             </View>
           ) : null}
 
           <View>
-            <FieldHeader icon={BookOpen} label="Program Name" hint="(required)" />
+            <FieldHeader icon={BookOpen} label={t('programs.form.name')} hint={t('programs.form.required')} />
             <Field
               value={formData.name}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, name: t }))}
-              placeholder="e.g., Push Pull Legs, Upper Lower"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+              placeholder={t('programs.form.namePlaceholder')}
             />
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label="Notes" />
+            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
             <Field
               value={formData.notes}
-              onChangeText={(t) => setFormData((prev) => ({ ...prev, notes: t }))}
-              placeholder="Program description or goals…"
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+              placeholder={t('programs.form.notesPlaceholder')}
               multiline
             />
           </View>
@@ -145,8 +146,8 @@ export default function AddProgram() {
           <View>
             <View className="mb-3 flex-row items-center gap-2">
               <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
-              <Label>Days</Label>
-              <AppText variant="caption" color="muted">(required — repeats in this order)</AppText>
+              <Label>{t('programs.form.days')}</Label>
+              <AppText variant="caption" color="muted">{t('programs.form.daysHintNew')}</AppText>
             </View>
             <ProgramDaysEditor
               days={formData.days}
@@ -162,8 +163,8 @@ export default function AddProgram() {
       </ScrollView>
 
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
-        <Button title="Cancel" variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title="Save Program" className="flex-1" onPress={handleSubmit} loading={save.busy} />
+        <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
+        <Button title={t('programs.form.saveProgram')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />

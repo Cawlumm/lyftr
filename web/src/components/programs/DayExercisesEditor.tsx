@@ -3,7 +3,7 @@ import { Plus, Trash2, Zap, Timer } from 'lucide-react'
 import WeightInput from '../WeightInput'
 import ExercisePicker from '../ExercisePicker'
 import RestPicker from '../RestPicker'
-import { types } from '@lyftr/shared'
+import { types, useTranslation } from '@lyftr/shared'
 import type { DayExerciseDraft } from './types'
 
 interface Props {
@@ -19,6 +19,7 @@ interface Props {
 // pre-multi-day flat editor, just parameterized so each Day in ProgramDaysEditor
 // gets its own instance instead of the page owning one flat exercises array.
 export default function DayExercisesEditor({ exercises, onChange, pickerExercises, onCacheExercise, wUnit, restSecondsDefault }: Props) {
+  const { t } = useTranslation()
   const [showPicker, setShowPicker] = useState(false)
 
   const addExercise = (exercise: types.Exercise) => {
@@ -78,7 +79,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-brand-500" />
-          <label className="label">Exercises</label>
+          <label className="label">{t('workouts.form.exercises')}</label>
         </div>
         <button
           type="button"
@@ -86,7 +87,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors font-medium"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Exercise
+          {t('workouts.form.addExercise')}
         </button>
       </div>
 
@@ -99,7 +100,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
       )}
 
       {exercises.length === 0 ? (
-        <p className="text-xs text-tx-muted text-center py-4">No exercises yet — add one above.</p>
+        <p className="text-xs text-tx-muted text-center py-4">{t('programs.form.dayEditor.emptyInline')}</p>
       ) : (
         <div className="space-y-4">
           {exercises.map((workoutEx, exIdx) => {
@@ -116,18 +117,18 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                     </div>
                     <p className="text-xs text-tx-muted ml-8">{exercise?.muscle_group} • {exercise?.equipment}</p>
                   </div>
-                  <button type="button" aria-label="Remove exercise" onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                  <button type="button" aria-label={t('workouts.form.removeExercise')} onClick={() => removeExercise(exIdx)} className="p-1.5 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                     <Trash2 className="w-4 h-4 text-error-400" />
                   </button>
                 </div>
 
                 <div className="mb-4">
-                  <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Notes</label>
+                  <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('workouts.form.notes')}</label>
                   <input
                     type="text"
                     value={workoutEx.notes}
                     onChange={e => updateNotes(exIdx, e.target.value)}
-                    placeholder="e.g., Focus on controlled eccentric"
+                    placeholder={t('programs.form.dayEditor.notesPlaceholder')}
                     className="input text-sm"
                   />
                 </div>
@@ -135,31 +136,31 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                 <div className="mb-4">
                   <div className="flex items-center gap-1.5 mb-1">
                     <Timer className="w-3.5 h-3.5 text-brand-500" />
-                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">Rest between sets</label>
+                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">{t('workouts.form.restBetweenSets')}</label>
                   </div>
                   <RestPicker value={workoutEx.rest_seconds ?? 90} onChange={secs => setExRest(exIdx, secs)} />
                 </div>
 
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">Target Sets</label>
-                    <span className="text-xs text-tx-muted">{workoutEx.sets.length} set{workoutEx.sets.length === 1 ? '' : 's'}</span>
+                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">{t('programs.form.targetSets')}</label>
+                    <span className="text-xs text-tx-muted">{t('programs.count.sets', { count: workoutEx.sets.length })}</span>
                   </div>
                   {workoutEx.sets.map((set, setIdx) => (
                     <div key={setIdx} className="flex gap-2 items-end bg-surface-raised/40 p-3 rounded-lg border border-surface-border/50">
                       <div className="flex-shrink-0 w-12">
-                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block">Set</label>
+                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block">{t('workouts.form.set')}</label>
                         <div className="text-sm font-bold text-tx-primary bg-surface-muted px-2 py-1 rounded text-center">{set.set_number}</div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Reps</label>
+                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('programs.form.dayEditor.targetReps')}</label>
                         <input type="number" inputMode="numeric" value={set.target_reps || ''} onChange={e => updateSet(exIdx, setIdx, 'target_reps', e.target.value)} placeholder="10" className="input text-sm w-full" min="0" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">Target Weight</label>
+                        <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('programs.form.dayEditor.targetWeight')}</label>
                         <WeightInput size="sm" value={set.target_weight ? String(set.target_weight) : ''} onChange={v => updateSet(exIdx, setIdx, 'target_weight', v)} unit={wUnit} placeholder="135" />
                       </div>
-                      <button type="button" aria-label="Remove set" onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
+                      <button type="button" aria-label={t('workouts.form.removeSet')} onClick={() => removeSet(exIdx, setIdx)} className="p-2 hover:bg-error-500/20 rounded transition-colors flex-shrink-0">
                         <Trash2 className="w-4 h-4 text-error-400" />
                       </button>
                     </div>
@@ -168,7 +169,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
 
                 <button type="button" onClick={() => addSet(exIdx)} className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 font-medium transition-colors">
                   <Plus className="w-3.5 h-3.5" />
-                  Add Set
+                  {t('workouts.form.addSet')}
                 </button>
               </div>
             )

@@ -431,7 +431,9 @@
       "sets_one": "{{count}} set",
       "sets_other": "{{count}} sets",
       "reps_one": "{{count}} rep",
-      "reps_other": "{{count}} reps"
+      "reps_other": "{{count}} reps",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days"
     },
     "list": {
       "searchPlaceholder": "Search programs…",
@@ -502,6 +504,53 @@
       "restDayHint": "No exercises scheduled — recover and come back stronger.",
       "noExercises": "No exercises on this day yet",
       "target": "target {{weight}} {{unit}}"
+    },
+    "form": {
+      "newTitle": "New Program",
+      "editTitle": "Edit Program",
+      "summary": "{{days}} • {{exercises}} • {{sets}}",
+      "errors": {
+        "nameRequired": "Program name required",
+        "noDays": "Add at least one day",
+        "noExercises": "Add at least one exercise to a workout day"
+      },
+      "createFailed": "Failed to create program",
+      "updateFailed": "Failed to update program",
+      "name": "Program Name",
+      "required": "(required)",
+      "namePlaceholder": "e.g., Push Pull Legs, Upper Lower",
+      "notesPlaceholder": "Program description or goals…",
+      "days": "Days",
+      "targetSets": "Target Sets",
+      "daysHintNew": "(required — repeats in this order)",
+      "daysHintEdit": "(repeats in this order)",
+      "saveProgram": "Save Program",
+      "dayEditor": {
+        "emptyInline": "No exercises yet — add one above.",
+        "emptyTitle": "No exercises yet",
+        "emptySubtitle": "Add an exercise to this day",
+        "notesPlaceholder": "e.g., Focus on controlled eccentric",
+        "targetReps": "Target Reps",
+        "targetWeight": "Target Weight"
+      },
+      "daysEditor": {
+        "empty": "No days yet — add a workout or rest day below.",
+        "moveUp": "Move day up",
+        "moveDown": "Move day down",
+        "moveUpNumbered": "Move day {{number}} up",
+        "moveDownNumbered": "Move day {{number}} down",
+        "restPlaceholder": "Rest Day {{number}}",
+        "workout": "Workout",
+        "rest": "Rest",
+        "collapse": "Collapse day",
+        "expand": "Expand day",
+        "remove": "Remove day",
+        "addWorkoutDay": "Add Workout Day",
+        "addRestDay": "Add Rest Day"
+      },
+      "dayPicker": {
+        "title": "Pick a Day"
+      }
     }
   },
   "food": {
