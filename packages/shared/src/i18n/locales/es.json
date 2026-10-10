@@ -617,6 +617,84 @@
         "searchPlaceholder": "Buscar programas…",
         "noMatches": "No hay programas que coincidan"
       }
+    },
+    "active": {
+      "noWorkout": {
+        "title": "No hay un entrenamiento activo",
+        "hintHome": "Inicia uno desde la página de inicio",
+        "hintTab": "Inicia uno desde la pestaña Entrenos",
+        "goHome": "Ir al inicio",
+        "goWorkouts": "Ir a Entrenos"
+      },
+      "setsDone": "{{done}}/{{total}} series completadas",
+      "finish": "Terminar",
+      "empty": {
+        "title": "Aún no hay ejercicios",
+        "hint": "Agrega ejercicios abajo"
+      },
+      "setProgress": "{{done}}/{{total}} series",
+      "removeExercise": "Quitar ejercicio",
+      "notes": {
+        "placeholder": "Agrega una nota…",
+        "add": "+ Agregar nota",
+        "placeholderMobile": "+ Agregar nota…",
+        "label": "Notas, {{name}}"
+      },
+      "columns": {
+        "set": "Serie",
+        "reps": "Reps",
+        "weight": "Peso",
+        "weightUnit": "Peso ({{unit}})",
+        "done": "Listo"
+      },
+      "completeSetWeb": "Serie {{number}}, marcar como hecha",
+      "completeSet": "Completar serie {{number}}, {{name}}",
+      "completedSet": "Serie {{number}} completada, {{name}}",
+      "repsLabel": "Reps, serie {{number}}, {{name}}",
+      "weightLabel": "Peso, serie {{number}}, {{name}}",
+      "removeSet": "Quitar serie",
+      "previous": "Ejercicio anterior",
+      "addSet": "Agregar serie",
+      "next": "Siguiente",
+      "addExercise": "Agregar ejercicio",
+      "cancelWorkout": "Cancelar entrenamiento",
+      "saveFailed": "No se pudo guardar el entrenamiento",
+      "keepGoing": "Seguir",
+      "finishConfirm": {
+        "title": "¿Terminar el entrenamiento?",
+        "message": "{{done}} de {{total}} series completadas. Se guardará el entrenamiento."
+      },
+      "cancelConfirm": {
+        "title": "¿Cancelar el entrenamiento?",
+        "message": "Se perderá todo el progreso."
+      }
+    },
+    "rest": {
+      "off": "Apagado",
+      "custom": "Otro",
+      "stepDown5": "−5 segundos",
+      "stepDown5Spoken": "Menos 5 segundos",
+      "stepUp5": "+5 segundos",
+      "stepUp5Spoken": "Más 5 segundos",
+      "secondsLabel": "Segundos de descanso",
+      "secondsUnit": "seg",
+      "label": {
+        "ready": "Listo",
+        "paused": "En pausa",
+        "resting": "Descanso",
+        "over": "Descanso terminado",
+        "upNext": "Sigue la serie {{next}}",
+        "setDone": "Serie {{done}} hecha",
+        "setDonePaused": "Serie {{done}} hecha · en pausa",
+        "setDoneNext": "Serie {{done}} hecha · sigue la serie {{next}}",
+        "setDoneResting": "Serie {{done}} hecha · descansando",
+        "overNext": "Descanso terminado · sigue la serie {{next}}"
+      },
+      "pause": "Pausar temporizador de descanso",
+      "resume": "Reanudar temporizador de descanso",
+      "shorten": "Acortar el descanso 15 segundos",
+      "extend": "Alargar el descanso 15 segundos",
+      "skip": "Omitir"
     }
   },
   "exercises": {

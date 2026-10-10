@@ -604,6 +604,84 @@
         "searchPlaceholder": "Search programs…",
         "noMatches": "No matching programs"
       }
+    },
+    "active": {
+      "noWorkout": {
+        "title": "No active workout",
+        "hintHome": "Start one from the home page",
+        "hintTab": "Start one from the Workouts tab",
+        "goHome": "Go Home",
+        "goWorkouts": "Go to Workouts"
+      },
+      "setsDone": "{{done}}/{{total}} sets done",
+      "finish": "Finish",
+      "empty": {
+        "title": "No exercises yet",
+        "hint": "Add exercises below"
+      },
+      "setProgress": "{{done}}/{{total}} sets",
+      "removeExercise": "Remove exercise",
+      "notes": {
+        "placeholder": "Add a note…",
+        "add": "+ Add note",
+        "placeholderMobile": "+ Add note…",
+        "label": "Notes, {{name}}"
+      },
+      "columns": {
+        "set": "Set",
+        "reps": "Reps",
+        "weight": "Weight",
+        "weightUnit": "Weight ({{unit}})",
+        "done": "Done"
+      },
+      "completeSetWeb": "Set {{number}}, mark done",
+      "completeSet": "Complete set {{number}}, {{name}}",
+      "completedSet": "Completed set {{number}}, {{name}}",
+      "repsLabel": "Reps, set {{number}}, {{name}}",
+      "weightLabel": "Weight, set {{number}}, {{name}}",
+      "removeSet": "Remove set",
+      "previous": "Previous exercise",
+      "addSet": "Add Set",
+      "next": "Next",
+      "addExercise": "Add Exercise",
+      "cancelWorkout": "Cancel Workout",
+      "saveFailed": "Failed to save workout",
+      "keepGoing": "Keep Going",
+      "finishConfirm": {
+        "title": "Finish Workout?",
+        "message": "{{done}} of {{total}} sets completed. Workout will be saved."
+      },
+      "cancelConfirm": {
+        "title": "Cancel Workout?",
+        "message": "All progress will be lost."
+      }
+    },
+    "rest": {
+      "off": "Off",
+      "custom": "Custom",
+      "stepDown5": "−5 seconds",
+      "stepDown5Spoken": "Minus 5 seconds",
+      "stepUp5": "+5 seconds",
+      "stepUp5Spoken": "Plus 5 seconds",
+      "secondsLabel": "Rest seconds",
+      "secondsUnit": "sec",
+      "label": {
+        "ready": "Ready",
+        "paused": "Paused",
+        "resting": "Rest",
+        "over": "Rest over",
+        "upNext": "Set {{next}} up next",
+        "setDone": "Set {{done}} done",
+        "setDonePaused": "Set {{done}} done · paused",
+        "setDoneNext": "Set {{done}} done · set {{next}} next",
+        "setDoneResting": "Set {{done}} done · resting",
+        "overNext": "Rest over · set {{next}} next"
+      },
+      "pause": "Pause rest timer",
+      "resume": "Resume rest timer",
+      "shorten": "Shorten rest by 15 seconds",
+      "extend": "Extend rest by 15 seconds",
+      "skip": "Skip"
     }
   },
   "exercises": {

@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, Pause, Play, SkipForward } from 'lucide-react-native'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet } from '@lyftr/shared'
+import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
@@ -19,6 +19,7 @@ import { useTheme } from '../../theme/useTheme'
 // the last child of every gym phase, below its bottom actions, so it never covers a
 // control. When minimized the countdown is the session-pill chip instead.
 export function RestTimerBanner() {
+  const { t } = useTranslation()
   const { colors, brand } = useTheme()
   const insets = useSafeAreaInsets()
   const restDurationSec = useWorkoutSession((s) => s.restDurationSec)
@@ -82,14 +83,14 @@ export function RestTimerBanner() {
   const doneSetNum = restEx != null && restSetIdx != null ? restSetIdx + 1 : null
   const label =
     doneSetNum == null
-      ? done ? 'Rest over' : paused ? 'Paused' : 'Rest'
+      ? done ? t('workouts.rest.label.over') : paused ? t('workouts.rest.label.paused') : t('workouts.rest.label.resting')
       : done
-        ? nextIdx !== -1 ? `Rest over · set ${nextIdx + 1} next` : 'Rest over'
+        ? nextIdx !== -1 ? t('workouts.rest.label.overNext', { next: nextIdx + 1 }) : t('workouts.rest.label.over')
         : paused
-          ? `Set ${doneSetNum} done · paused`
+          ? t('workouts.rest.label.setDonePaused', { done: doneSetNum })
           : nextIdx !== -1
-            ? `Set ${doneSetNum} done · set ${nextIdx + 1} next`
-            : `Set ${doneSetNum} done · resting`
+            ? t('workouts.rest.label.setDoneNext', { done: doneSetNum, next: nextIdx + 1 })
+            : t('workouts.rest.label.setDoneResting', { done: doneSetNum })
 
   // Urgency cue: the last 10 running seconds shift the drain + countdown to amber
   // (paused doesn't count down, so it never goes hot). Time-based (not fraction-based)
@@ -128,7 +129,7 @@ export function RestTimerBanner() {
               <Check size={26} color={brand.success} />
             </Animated.View>
             <Pressable onPress={() => clearRest()} className="w-full items-center justify-center rounded-2xl bg-brand-500 py-4 active:scale-95">
-              <Text className="font-sans-bold text-base text-white">Done</Text>
+              <Text className="font-sans-bold text-base text-white">{t('common.done')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -139,7 +140,7 @@ export function RestTimerBanner() {
               <View className="w-14 items-center">
                 <IconButton
                   icon={paused ? Play : Pause}
-                  label={paused ? 'Resume rest timer' : 'Pause rest timer'}
+                  label={paused ? t('workouts.rest.resume') : t('workouts.rest.pause')}
                   variant="brand"
                   size="lg"
                   onPress={paused ? resumeRest : pauseRest}
@@ -151,15 +152,15 @@ export function RestTimerBanner() {
               <View className="w-14" />
             </View>
             <View className="flex-row gap-2.5">
-              <Pressable onPress={() => adjustRest(-15)} accessibilityLabel="Shorten rest by 15 seconds" className={secBtn}>
+              <Pressable onPress={() => adjustRest(-15)} accessibilityLabel={t('workouts.rest.shorten')} className={secBtn}>
                 <Text className="font-sans-bold text-base text-tx-secondary" style={{ fontVariant: ['tabular-nums'] }}>−15</Text>
               </Pressable>
-              <Pressable onPress={() => adjustRest(15)} accessibilityLabel="Extend rest by 15 seconds" className={secBtn}>
+              <Pressable onPress={() => adjustRest(15)} accessibilityLabel={t('workouts.rest.extend')} className={secBtn}>
                 <Text className="font-sans-bold text-base text-tx-secondary" style={{ fontVariant: ['tabular-nums'] }}>+15</Text>
               </Pressable>
               <Pressable onPress={() => clearRest()} className={brandBtn}>
                 <SkipForward size={18} color="#ffffff" />
-                <Text className="font-sans-bold text-base text-white">Skip</Text>
+                <Text className="font-sans-bold text-base text-white">{t('workouts.rest.skip')}</Text>
               </Pressable>
             </View>
           </>

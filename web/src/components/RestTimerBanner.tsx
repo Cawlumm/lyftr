@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { Pause, Play, SkipForward, Check } from 'lucide-react'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { useRestTimer } from '../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet } from '@lyftr/shared'
+import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'
 import { IconButton } from './ui'
 
 // Hevy/Strong-style rest panel: a thin draining progress line, a big centred
@@ -13,6 +13,7 @@ import { IconButton } from './ui'
 // pill (see Layout's ActiveSessionBar) instead of following you around the app.
 // Haptics/sound are left to a future native app.
 export default function RestTimerBanner() {
+  const { t } = useTranslation()
   const {
     restEndsAt, restDurationSec, restPausedRemainingMs, restExIdx, restSetIdx,
     session, adjustRest, clearRest, pauseRest, resumeRest,
@@ -55,14 +56,14 @@ export default function RestTimerBanner() {
   // Once rest is over the headline says "Rest over", so the caption carries the
   // thing you actually need next instead of repeating it.
   const label = doneSetNum == null
-    ? (done ? 'Ready' : paused ? 'Paused' : 'Rest')
+    ? (done ? t('workouts.rest.label.ready') : paused ? t('workouts.rest.label.paused') : t('workouts.rest.label.resting'))
     : done
-      ? (nextIdx !== -1 ? `Set ${nextIdx + 1} up next` : `Set ${doneSetNum} done`)
+      ? (nextIdx !== -1 ? t('workouts.rest.label.upNext', { next: nextIdx + 1 }) : t('workouts.rest.label.setDone', { done: doneSetNum }))
       : paused
-        ? `Set ${doneSetNum} done · paused`
+        ? t('workouts.rest.label.setDonePaused', { done: doneSetNum })
         : nextIdx !== -1
-          ? `Set ${doneSetNum} done · set ${nextIdx + 1} next`
-          : `Set ${doneSetNum} done · resting`
+          ? t('workouts.rest.label.setDoneNext', { done: doneSetNum, next: nextIdx + 1 })
+          : t('workouts.rest.label.setDoneResting', { done: doneSetNum })
 
   const secBtn = 'flex-1 flex items-center justify-center py-2.5 rounded-xl text-sm font-semibold tabular-nums bg-surface-muted border border-surface-border text-tx-secondary active:scale-95'
   const brandBtn = 'flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold bg-brand-500 text-white active:scale-95'
@@ -92,13 +93,13 @@ export default function RestTimerBanner() {
           {done ? (
             <>
               <Check className="w-7 h-7 text-success-500" />
-              <span className="font-display text-3xl font-black text-tx-primary leading-none">Rest over</span>
+              <span className="font-display text-3xl font-black text-tx-primary leading-none">{t('workouts.rest.label.over')}</span>
             </>
           ) : (
             <>
               <IconButton
                 icon={paused ? Play : Pause}
-                label={paused ? 'Resume rest timer' : 'Pause rest timer'}
+                label={paused ? t('workouts.rest.resume') : t('workouts.rest.pause')}
                 onClick={paused ? resumeRest : pauseRest}
                 variant="ghost" size="lg"
                 className="!text-brand-500 hover:!text-brand-500"
@@ -109,12 +110,12 @@ export default function RestTimerBanner() {
         </div>
         {/* full-width actions */}
         {done ? (
-          <button onClick={() => clearRest()} className={doneBtn}><Check className="w-4 h-4" />Done</button>
+          <button onClick={() => clearRest()} className={doneBtn}><Check className="w-4 h-4" />{t('common.done')}</button>
         ) : (
           <div className="flex gap-2">
-            <button onClick={() => adjustRest(-15)} aria-label="Shorten rest by 15 seconds" className={secBtn}>−15</button>
-            <button onClick={() => adjustRest(15)} aria-label="Extend rest by 15 seconds" className={secBtn}>+15</button>
-            <button onClick={() => clearRest()} className={brandBtn}><SkipForward className="w-4 h-4" />Skip</button>
+            <button onClick={() => adjustRest(-15)} aria-label={t('workouts.rest.shorten')} className={secBtn}>−15</button>
+            <button onClick={() => adjustRest(15)} aria-label={t('workouts.rest.extend')} className={secBtn}>+15</button>
+            <button onClick={() => clearRest()} className={brandBtn}><SkipForward className="w-4 h-4" />{t('workouts.rest.skip')}</button>
           </div>
         )}
       </div>
