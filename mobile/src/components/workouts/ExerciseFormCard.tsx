@@ -5,7 +5,7 @@ import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
-import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
+import { sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 
 interface SetData {
@@ -59,6 +59,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
   onNext?: () => void
   inputAccessoryViewID?: string
 }) {
+  const { t } = useTranslation()
   const [text, setText] = useNumericText(value)
   const emit = (raw: string) => {
     const v = sanitizeNumericInput(raw, 'decimal')
@@ -78,7 +79,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
       inputAccessoryViewID={inputAccessoryViewID}
       placeholder="0"
       placeholderTextColor={placeholderColor}
-      accessibilityLabel="Set weight"
+      accessibilityLabel={t('workouts.form.setWeightLabel')}
       className={CELL}
       style={{ fontVariant: ['tabular-nums'] }}
     />
@@ -95,6 +96,7 @@ function ExerciseFormCardBase({
   onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange,
   inputAccessoryViewID,
 }: Props) {
+  const { t } = useTranslation()
   const { colors, accent } = useTheme()
   // Once revealed the input stays mounted for the card's lifetime, so typed text
   // can never be hidden; cards with saved notes start revealed.
@@ -132,7 +134,7 @@ function ExerciseFormCardBase({
         </View>
         <IconButton
           icon={Trash2}
-          label={`Remove ${exercise?.name ?? 'exercise'}`}
+          label={t('workouts.form.removeNamed', { name: exercise?.name ?? t('workouts.form.exerciseFallback') })}
           variant="ghost"
           size="sm"
           onPress={() => onRemove(index)}
@@ -142,9 +144,9 @@ function ExerciseFormCardBase({
       {/* Set table — column labels once, then one tight row per set. */}
       <View className="gap-1.5">
         <View className="flex-row items-center gap-2">
-          <View className={`${COL_SET} items-center`}><Label>Set</Label></View>
-          <View className="flex-1 items-center"><Label>Reps</Label></View>
-          <View className="flex-1 items-center"><Label>{`Weight (${unit})`}</Label></View>
+          <View className={`${COL_SET} items-center`}><Label>{t('workouts.form.set')}</Label></View>
+          <View className="flex-1 items-center"><Label>{t('workouts.form.reps')}</Label></View>
+          <View className="flex-1 items-center"><Label>{t('workouts.form.weightWithUnit', { unit })}</Label></View>
           <View className={COL_DELETE} />
         </View>
         {sets.map((set, setIdx) => (
@@ -158,7 +160,7 @@ function ExerciseFormCardBase({
               <TextInput
                 ref={(r) => { repsRefs.current[setIdx] = r }}
                 value={set.reps ? String(set.reps) : ''}
-                onChangeText={(t) => onUpdateSet(index, setIdx, 'reps', sanitizeNumericInput(t, 'numeric'))}
+                onChangeText={(text) => onUpdateSet(index, setIdx, 'reps', sanitizeNumericInput(text, 'numeric'))}
                 keyboardType="number-pad"
                 returnKeyType="next"
                 submitBehavior="submit"
@@ -167,7 +169,7 @@ function ExerciseFormCardBase({
                 inputAccessoryViewID={inputAccessoryViewID}
                 placeholder="0"
                 placeholderTextColor={colors.txMuted}
-                accessibilityLabel="Set reps"
+                accessibilityLabel={t('workouts.form.setRepsLabel')}
                 className={CELL}
                 style={{ fontVariant: ['tabular-nums'] }}
               />
@@ -185,7 +187,7 @@ function ExerciseFormCardBase({
               />
             </View>
             <View className={`${COL_DELETE} items-center`}>
-              <IconButton icon={X} label="Remove set" variant="ghost" size="sm" onPress={() => onRemoveSet(index, setIdx)} />
+              <IconButton icon={X} label={t('workouts.form.removeSet')} variant="ghost" size="sm" onPress={() => onRemoveSet(index, setIdx)} />
             </View>
           </View>
         ))}
@@ -203,18 +205,18 @@ function ExerciseFormCardBase({
         >
           <Plus size={13} color={accent} />
           {/* accent (not text-brand-500): raw brand cyan washes out on light. */}
-          <Text className="font-sans-semibold text-xs" style={{ color: accent }}>Add Set</Text>
+          <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addSet')}</Text>
         </Pressable>
         {!showNotes && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Add exercise note"
+            accessibilityLabel={t('workouts.form.addNoteLabel')}
             onPress={() => setShowNotes(true)}
             hitSlop={{ top: 6, bottom: 6 }}
             className="h-9 flex-row items-center gap-1.5 rounded-lg px-3 active:opacity-60"
           >
             <FileText size={13} color={colors.txMuted} />
-            <Text className="font-sans-semibold text-xs text-tx-muted">Note</Text>
+            <Text className="font-sans-semibold text-xs text-tx-muted">{t('workouts.form.note')}</Text>
           </Pressable>
         )}
       </View>
@@ -225,15 +227,15 @@ function ExerciseFormCardBase({
         <View className="mt-2.5 flex-row items-center gap-2">
           <TextInput
             value={notes}
-            onChangeText={(t) => onNotesChange(index, t)}
-            placeholder="e.g., Felt strong"
+            onChangeText={(text) => onNotesChange(index, text)}
+            placeholder={t('workouts.form.exerciseNotesPlaceholder')}
             placeholderTextColor={colors.txMuted}
-            accessibilityLabel="Exercise notes"
+            accessibilityLabel={t('workouts.form.exerciseNotesLabel')}
             className="h-9 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-3 py-0 font-sans text-sm text-tx-primary"
           />
           <IconButton
             icon={X}
-            label="Remove note"
+            label={t('workouts.form.removeNoteLabel')}
             variant="ghost"
             size="sm"
             onPress={() => { onNotesChange(index, ''); setShowNotes(false) }}
@@ -247,7 +249,7 @@ function ExerciseFormCardBase({
       <View className="mt-3 border-t border-surface-border/60 pt-3">
         <View className="mb-1 flex-row items-center gap-1.5">
           <Timer size={13} color={accent} />
-          <Label>Rest between sets</Label>
+          <Label>{t('workouts.form.restBetweenSets')}</Label>
         </View>
         <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
       </View>
