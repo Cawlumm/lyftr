@@ -110,6 +110,39 @@ git rebase origin/main
 
 ---
 
+## Translations
+
+UI strings live in one catalog per language in `packages/shared/src/i18n/locales`, shared
+by web and mobile. `en.json` is the source and the fallback. Which languages are
+machine-translated is recorded in `locales/README.md`.
+
+**Adding a language**
+1. Copy `en.json` to `<code>.json` and translate the values.
+2. Add it to `resources` and `LANGUAGE_NAMES` (its own name, untranslated) in
+   `i18n/index.ts`; TypeScript flags a missing name.
+3. List it in `locales/README.md` with its status.
+4. Run `npm run shared:test`. `catalog.test.ts` fails by key name on a missing or extra key,
+   a changed `{{placeholder}}`, or a missing plural form.
+
+**Key rules**
+- Semantic dotted keys by screen, section, item and role (`settings.account.name.label`).
+  Never the English sentence as the key.
+- One key per context. Do not reuse a key because the English happens to match; the other
+  language may not.
+- Never build a sentence by concatenation. Use `{{placeholders}}` and keep them verbatim in
+  every language.
+- Counts use plural keys (`key_one`, `key_other`, ...). Each language provides exactly the
+  categories `Intl.PluralRules` gives it: Spanish needs `_one`, `_many` and `_other`.
+- Numbers and dates never go through i18next. Format them with `utils/number.ts` /
+  `dateUtils.ts` and pass the result in as a placeholder.
+
+**Renaming keys.** A key's identity is its translation memory (the lesson from Jellyfin).
+Renaming a key for tidiness throws away every translation of it and forces retranslation.
+Fix a typo by editing the English value in place; change the key only when the meaning
+changes, because that is exactly when you want it retranslated.
+
+---
+
 ## Commit Messages
 
 Follow conventional commits:

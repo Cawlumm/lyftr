@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Settings from './Settings'
+import { i18n } from '@lyftr/shared'
+import { useLanguageStore } from '../lib/lyftr'
 
 // What these pin is the shape of the WRITES this page makes, which is where #170 went
 // wrong twice. The name began life inside `formData`, and the only button that commits
@@ -136,5 +138,25 @@ describe('the Name row', () => {
     const described = nameField().getAttribute('aria-describedby')
     expect(described).toBeTruthy()
     expect(document.getElementById(described!)?.textContent).toMatch(/use your email/)
+  })
+})
+
+describe('language', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en')
+    useLanguageStore.setState({ preference: 'system' })
+    localStorage.clear()
+  })
+
+  it('switches the whole page live and remembers the choice', async () => {
+    renderPage()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Español' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Ajustes' })).toBeTruthy())
+    expect(localStorage.getItem('lyftr_language')).toBe('es')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sistema' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
   })
 })

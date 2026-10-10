@@ -1,0 +1,197 @@
+{
+  "settings": {
+    "title": "Ajustes",
+    "subtitle": "Preferencias y configuración de la cuenta",
+    "back": "Inicio",
+    "saved": "Ajustes guardados correctamente",
+    "unknownError": "El servidor no indicó qué salió mal.",
+    "language": {
+      "label": "Idioma",
+      "description": "Por defecto, el idioma de tu dispositivo",
+      "system": "Sistema"
+    },
+    "account": {
+      "title": "Cuenta",
+      "name": {
+        "label": "Nombre",
+        "description": "El nombre con el que te saluda la app. Si lo dejas vacío, usaremos tu correo.",
+        "loadFailed": "No se pudo cargar tu nombre, así que no te ofreceremos sobrescribirlo.",
+        "saveFailed": "No se pudo guardar tu nombre.",
+        "save": "Guardar",
+        "saving": "Guardando…"
+      },
+      "email": {
+        "label": "Correo",
+        "description": "Tu correo de inicio de sesión",
+        "change": "Cambiar",
+        "changeLabel": "Cambiar correo"
+      },
+      "memberSince": {
+        "label": "Miembro desde"
+      },
+      "password": {
+        "label": "Contraseña",
+        "description": "Al cambiarla, se cierra tu sesión en tus otros dispositivos",
+        "change": "Cambiar"
+      }
+    },
+    "appearance": {
+      "title": "Apariencia",
+      "theme": {
+        "label": "Tema",
+        "description": "Esquema de color de la interfaz",
+        "dark": "Oscuro",
+        "light": "Claro"
+      },
+      "darkMode": {
+        "label": "Modo oscuro",
+        "description": "Usar el esquema de color oscuro"
+      }
+    },
+    "workout": {
+      "title": "Entrenamiento",
+      "footnote": "El descanso predeterminado se aplica a los ejercicios nuevos · el descanso de cada ejercicio lo reemplaza.",
+      "layout": {
+        "label": "Diseño del entrenamiento activo",
+        "description": "Cómo se muestran los ejercicios durante un entrenamiento",
+        "list": "Lista",
+        "gym": "Modo gimnasio"
+      },
+      "defaultView": {
+        "label": "Vista de entrenamiento predeterminada"
+      },
+      "restTimer": {
+        "label": "Temporizador de descanso",
+        "description": "Inicia una cuenta atrás entre series",
+        "gymDescription": "Inicia una cuenta atrás entre series en el modo gimnasio",
+        "off": "No",
+        "on": "Sí"
+      },
+      "defaultRest": {
+        "label": "Descanso predeterminado",
+        "description": "Se aplica a los ejercicios nuevos · el descanso de cada ejercicio lo reemplaza",
+        "preset": "{{seconds}} s",
+        "custom": "Otro",
+        "customLabel": "Segundos de descanso personalizados",
+        "secondsUnit": "s",
+        "minusFive": "−5 segundos",
+        "plusFive": "+5 segundos",
+        "decrease": "Reducir el descanso en 5 segundos",
+        "increase": "Aumentar el descanso en 5 segundos"
+      }
+    },
+    "goalsUnits": {
+      "title": "Objetivos y unidades",
+      "loadFailedMessage": "Son tus objetivos y unidades guardados, así que no los adivinaremos. Todo lo demás de esta página sigue funcionando."
+    },
+    "unitsTargets": {
+      "title": "Unidades y objetivos",
+      "footnote": "La unidad de peso se aplica al instante en toda la app. Los objetivos de nutrición alimentan los anillos del panel.",
+      "loadFailedMessage": "Son tus objetivos y unidades guardados, así que no los adivinaremos. Todo lo demás aquí sigue funcionando.",
+      "saved": "Objetivos guardados",
+      "changeUnitFailedTitle": "No se pudieron cambiar las unidades"
+    },
+    "targets": {
+      "loadFailedTitle": "No se pudieron cargar tus objetivos",
+      "weightUnit": {
+        "label": "Unidad de peso",
+        "description": "Los cambios se aplican de inmediato en toda la app",
+        "changeFailed": "No se pudo cambiar la unidad de peso.",
+        "changeFailedFallback": "No se pudo cambiar la unidad de peso"
+      },
+      "calorie": {
+        "label": "Objetivo de calorías",
+        "description": "Meta diaria de calorías"
+      },
+      "protein": {
+        "label": "Objetivo de proteína",
+        "description": "Meta diaria de proteína"
+      },
+      "carb": {
+        "label": "Objetivo de carbohidratos",
+        "description": "Meta diaria de carbohidratos"
+      },
+      "fat": {
+        "label": "Objetivo de grasa",
+        "description": "Meta diaria de grasa"
+      },
+      "saveHint": "Guardar los objetivos de calorías y macros",
+      "save": "Guardar objetivos",
+      "saving": "Guardando...",
+      "saveFailedFallback": "No se pudieron guardar los ajustes",
+      "saveFailed": "No se pudieron guardar los objetivos"
+    },
+    "server": {
+      "title": "Servidor",
+      "webTitle": "Instancia autoalojada",
+      "footnote": "El backend autoalojado con el que habla esta app. Deja la URL en blanco para usar el predeterminado.",
+      "api": {
+        "label": "Servidor de API",
+        "description": "Servidor backend al que está conectado este cliente",
+        "default": "Este sitio (proxy inverso)"
+      },
+      "backend": {
+        "label": "Backend",
+        "default": "Backend predeterminado"
+      },
+      "url": {
+        "label": "URL del servidor",
+        "placeholder": "https://your-server.example.com",
+        "invalid": "Introduce una URL completa que incluya http:// o https://",
+        "testAndSave": "Probar y guardar"
+      },
+      "connected": "Conectado · {{name}} v{{version}}",
+      "savedWithWarning": "Guardado — {{message}}",
+      "database": {
+        "label": "Base de datos",
+        "description": "Almacenamiento del backend"
+      },
+      "version": {
+        "label": "Versión",
+        "description": "Versión del backend de lyftr"
+      }
+    },
+    "library": {
+      "title": "Biblioteca de ejercicios",
+      "database": {
+        "label": "Base de datos de ejercicios",
+        "description": "Los ejercicios vienen de open-exercise-db y se consultan mientras buscas. Este servidor guarda una copia de los que ha mostrado."
+      },
+      "cached_one": "{{amount}} en caché",
+      "cached_many": "{{amount}} en caché",
+      "cached_other": "{{amount}} en caché",
+      "cachedUnknown": "— en caché",
+      "refreshed_one": "Se actualizó {{amount}} ejercicio",
+      "refreshed_many": "Se actualizaron {{amount}} de ejercicios",
+      "refreshed_other": "Se actualizaron {{amount}} ejercicios",
+      "cleared_one": "Se eliminó {{amount}} ejercicio sin usar",
+      "cleared_many": "Se eliminaron {{amount}} de ejercicios sin usar",
+      "cleared_other": "Se eliminaron {{amount}} ejercicios sin usar",
+      "refresh": "Actualizar caché",
+      "refreshing": "Actualizando...",
+      "refreshFailed": "No se pudo actualizar la caché.",
+      "clear": "Borrar sin usar",
+      "clearing": "Borrando...",
+      "clearFailed": "No se pudo borrar la caché."
+    },
+    "danger": {
+      "title": "Zona de peligro",
+      "actionsTitle": "Acciones de la cuenta"
+    },
+    "signOut": {
+      "label": "Cerrar sesión",
+      "description": "Cierra la sesión en este dispositivo",
+      "button": "Cerrar sesión"
+    },
+    "deleteAccount": {
+      "label": "Eliminar cuenta",
+      "description": "Elimina permanentemente todos tus datos",
+      "button": "Eliminar",
+      "sheetTitle": "¿Eliminar la cuenta?",
+      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer.",
+      "confirm": "Eliminar cuenta",
+      "busy": "Eliminando…",
+      "failed": "No se pudo eliminar la cuenta"
+    }
+  }
+}

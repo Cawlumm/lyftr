@@ -249,4 +249,14 @@ describe('memberSince', () => {
     expect(memberSince('2026-09-01T00:30:00Z')).toBe('September 2026')
     expect(memberSince('2026-08-31T23:30:00Z')).toBe('August 2026')
   })
+
+  // The month name follows the app language; the UTC reading does not change with it.
+  it('spells the month in another language when asked', () => {
+    expect(memberSince('2026-08-19T14:30:00Z', 'es')).toMatch(/agosto/i)
+    expect(memberSince('2026-08-31T23:30:00Z', 'es')).toMatch(/agosto/i)
+  })
+
+  it('falls back to English when the runtime cannot format the locale', () => {
+    expect(memberSince('2026-08-19T14:30:00Z', 'not a locale!')).toBe('August 2026')
+  })
 })

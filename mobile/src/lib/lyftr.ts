@@ -9,6 +9,7 @@ import {
   createServerStore,
   createSettingsStore,
   createThemeStore,
+  createLanguageStore,
   createWorkoutSession,
   testServerConnection,
   useServerInfoFor,
@@ -41,6 +42,9 @@ const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
 // Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.
 export const useThemeStore = createThemeStore(storage, 'light')
+// Raw device tags only; shared resolveLanguage() decides which supported language they mean.
+const detectLanguages = () => Localization.getLocales().map((l) => l.languageTag)
+export const useLanguageStore = createLanguageStore(storage, detectLanguages)
 // Workout session state (active workout + gym UI position) — device-local via
 // AsyncStorage; rest-timer state is in-memory only (see the store).
 export const useWorkoutSession = createWorkoutSession(storage)
