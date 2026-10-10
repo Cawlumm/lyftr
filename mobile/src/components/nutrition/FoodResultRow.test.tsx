@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import type { FoodSearchResult } from '@lyftr/shared'
+import { i18n, type FoodSearchResult } from '@lyftr/shared'
 // The `mock` prefix is what lets a jest.mock factory close over an import — the rule is
 // jest's, and it means the async-storage mock needs no require() inside the factory.
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
@@ -31,6 +31,23 @@ const item = (overrides: Partial<FoodSearchResult> = {}): FoodSearchResult => ({
 
 const ADD = 'Add Chicken Breast to Favorites'
 const REMOVE = 'Remove Chicken Breast from Favorites'
+
+describe('FoodResultRow copy', () => {
+  it('reads its copy from the catalog in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    const view = render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
+    try {
+      expect(screen.getByLabelText('Añadir Chicken Breast a Favoritos')).toBeTruthy()
+      expect(screen.getByText('31g P')).toBeTruthy()
+      expect(screen.getByText('4g G')).toBeTruthy()
+      expect(screen.queryByLabelText(ADD)).toBeNull()
+    } finally {
+      // Unmount first: restoring English under a mounted tree is a state update outside act.
+      view.unmount()
+      await i18n.changeLanguage('en')
+    }
+  })
+})
 
 describe('FoodResultRow', () => {
   // The label carries the toggle state, because the fill that conveys it visually is

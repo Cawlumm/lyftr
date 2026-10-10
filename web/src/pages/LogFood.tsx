@@ -6,7 +6,7 @@ import {
   Coffee, Sun, Moon, Cookie, ChevronRight, Loader2,
 } from 'lucide-react'
 import { foodAPI, savedFoodsAPI } from '../services/api'
-import { apiErrorMessage, isNotFound, useAsyncAction, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { isNotFound, useAsyncAction, useTranslation, uiMessage, type UiMessage, todayStr, dayToInstant, entryDay, foodResultKey, MACRO_COLORS, types, entryToResult, savedToResult, scaleServing, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
 import { ErrorState, ListError, Toast } from '../components/ui'
 import BarcodeScanner from '../components/BarcodeScanner'
 import BarcodeLookup from '../components/BarcodeLookup'
@@ -20,9 +20,6 @@ type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
 
 const MEALS = ['breakfast', 'lunch', 'dinner', 'snacks'] as const
-const MEAL_LABELS: Record<string, string> = {
-  breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snacks: 'Snacks',
-}
 const MEAL_ICONS: Record<string, React.ElementType> = {
   breakfast: Coffee, lunch: Sun, dinner: Moon, snacks: Cookie,
 }
@@ -53,6 +50,7 @@ function FoodResultRow(
     loading?: boolean
   },
 ) {
+  const { t } = useTranslation()
   const content = (
     <>
       <FoodThumb src={item.image_url} />
@@ -62,11 +60,11 @@ function FoodResultRow(
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
           <span className="text-xs font-semibold text-tx-secondary tabular-nums">{Math.round(item.calories)} kcal</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-emerald-400 tabular-nums">{item.protein.toFixed(0)}g P</span>
+          <span className="text-xs text-emerald-400 tabular-nums">{item.protein.toFixed(0)}g {t('food.macro.proteinInitial')}</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-amber-400 tabular-nums">{item.carbs.toFixed(0)}g C</span>
+          <span className="text-xs text-amber-400 tabular-nums">{item.carbs.toFixed(0)}g {t('food.macro.carbsInitial')}</span>
           <span className="text-[10px] text-tx-muted">·</span>
-          <span className="text-xs text-violet-400 tabular-nums">{item.fat.toFixed(0)}g F</span>
+          <span className="text-xs text-violet-400 tabular-nums">{item.fat.toFixed(0)}g {t('food.macro.fatInitial')}</span>
           {item.serving_size && (
             <>
               <span className="text-[10px] text-tx-muted">·</span>
@@ -97,6 +95,7 @@ function FoodResultRow(
 }
 
 export default function LogFood() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -115,17 +114,17 @@ export default function LogFood() {
   // Each list's own failure. Kept separate from the page: one of these failing is not a
   // reason to withhold search, and an empty list that failed to load must not draw the
   // same "nothing here" as a list that really is empty.
-  const [recentError, setRecentError] = useState<string | null>(null)
-  const [savedError, setSavedError] = useState<string | null>(null)
+  const [recentError, setRecentError] = useState<UiMessage | null>(null)
+  const [savedError, setSavedError] = useState<UiMessage | null>(null)
   const [listReload, setListReload] = useState(0)
   const [searching, setSearching] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [searchError, setSearchError] = useState<UiMessage | null>(null)
   const [rateLimited, setRateLimited] = useState(false)
   // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
   // server allows it 5). The scanner closes the moment it reads a code, so without
   // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
   // null: no lookup. error null: in flight. error set: failed, in the server's words.
-  const [lookup, setLookup] = useState<{ code: string; error: string | null } | null>(null)
+  const [lookup, setLookup] = useState<{ code: string; error: UiMessage | null } | null>(null)
   const lookingUp = lookup !== null && lookup.error === null
 
   const [selected, setSelected] = useState<types.FoodSearchResult | null>(null)
@@ -137,12 +136,12 @@ export default function LogFood() {
   // search index answers with per-100g figures and no serving at all, so a hit has to
   // be read again through the product endpoint before it can be trusted (#171).
   const [upgrading, setUpgrading] = useState<string | null>(null)
-  const [staleServing, setStaleServing] = useState<string | null>(null)
+  const [staleServing, setStaleServing] = useState<UiMessage | null>(null)
   const [meal, setMeal] = useState<types.FoodLog['meal']>(initMeal)
   const [date, setDate] = useState(initDate)
 
 
-  const [editError, setEditError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<UiMessage | null>(null)
   const [editRetry, setEditRetry] = useState(0)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -157,7 +156,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(err => setEditError(apiErrorMessage(err, "The server didn't say what went wrong.")))
+    }).catch(err => setEditError({ key: 'settings.unknownError', cause: err }))
   }, [editId, navigate, editRetry, openOnEntry])
 
   useEffect(() => {
@@ -174,10 +173,10 @@ export default function LogFood() {
       }
       setRecentItems(items)
       setRecentError(null)
-    }).catch(err => setRecentError(apiErrorMessage(err, "Couldn't load what you logged today.")))
+    }).catch(err => setRecentError({ key: 'food.log.recent.loadFailed', cause: err }))
     savedFoodsAPI.list()
       .then(list => { setSavedFoods(list); setSavedError(null) })
-      .catch(err => setSavedError(apiErrorMessage(err, "Couldn't load your favourites.")))
+      .catch(err => setSavedError({ key: 'food.favorites.loadFailed', cause: err }))
   }, [listReload, setSavedFoods])
 
   useEffect(() => {
@@ -192,7 +191,7 @@ export default function LogFood() {
         setSearchResults(await foodAPI.search(query.trim()) ?? [])
       } catch (err: any) {
         if (err?.response?.status === 429) setRateLimited(true)
-        else setSearchError('Food search unavailable — enter details manually')
+        else setSearchError({ key: 'food.log.searchUnavailable' })
         setSearchResults([])
       } finally {
         setSearching(false)
@@ -201,7 +200,7 @@ export default function LogFood() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [query, tab])
 
-  const selectResult = (result: types.FoodSearchResult, note: string | null = null) => {
+  const selectResult = (result: types.FoodSearchResult, note: UiMessage | null = null) => {
     setSelected(result)
     amount.openOn(result)
     setStaleServing(note)
@@ -220,7 +219,7 @@ export default function LogFood() {
     } catch (err) {
       // The search row is still real data, so log against it rather than dead-ending —
       // but say which figures these are, because they are the ones that read wrong.
-      selectResult(result, apiErrorMessage(err, "Couldn't re-read this product."))
+      selectResult(result, { key: 'food.log.rereadFailed', cause: err })
     } finally {
       setUpgrading(null)
     }
@@ -228,7 +227,7 @@ export default function LogFood() {
 
   const enterManually = () => {
     setLookup(null)
-    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'manual' })
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'manual' })
   }
 
   const lookUpBarcode = async (code: string) => {
@@ -242,7 +241,7 @@ export default function LogFood() {
       // unreachable upstream is not an answer, and saying "not found" for it sent
       // people to type in a product that does exist.
       if (isNotFound(err)) enterManually()
-      else setLookup({ code, error: apiErrorMessage(err, "Couldn't look up that barcode.") })
+      else setLookup({ code, error: { key: 'food.log.lookupFailed', cause: err } })
     }
   }
 
@@ -258,7 +257,7 @@ export default function LogFood() {
           await foodAPI.log(payload)
         }
         navigate('/food', { replace: true })
-  }, 'Failed to save')
+  }, t('food.log.saveFailed'))
 
   const handleLog = async () => {
     if (!selected || save.busy) return
@@ -280,10 +279,10 @@ export default function LogFood() {
     return (
       <ErrorState
         size="page"
-        title="Couldn't load this entry"
-        message={editError}
+        title={t('food.entry.loadFailed')}
+        message={uiMessage(editError)}
         onRetry={() => { setEditError(null); setEditRetry(k => k + 1) }}
-        secondary={<button onClick={() => navigate('/food')} className="btn-secondary btn-sm">Back to food</button>}
+        secondary={<button onClick={() => navigate('/food')} className="btn-secondary btn-sm">{t('food.log.backToFood')}</button>}
       />
     )
   }
@@ -299,7 +298,7 @@ export default function LogFood() {
       {/* Header with breadcrumb */}
       <div className="flex items-center gap-3 mb-5">
         <button
-          aria-label="Go back"
+          aria-label={t('common.goBack')}
           onClick={() => phase === 'detail' && !editId ? setPhase('search') : navigate(-1)}
           className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-muted active:scale-95 transition-all flex-shrink-0"
         >
@@ -309,17 +308,17 @@ export default function LogFood() {
           {phase === 'detail' && selected ? (
             <>
               <div className="flex items-center gap-1.5 text-xs text-tx-muted mb-0.5">
-                <span>{editId ? 'Edit Food' : 'Log Food'}</span>
+                <span>{editId ? t('food.log.editTitle') : t('food.log.title')}</span>
                 <ChevronRight className="w-3 h-3" />
-                <span className="text-tx-secondary">Details</span>
+                <span className="text-tx-secondary">{t('food.log.details')}</span>
               </div>
               <h1 className="font-display font-bold text-xl text-tx-primary truncate">
-                {selected.name || 'New Entry'}
+                {selected.name || t('food.log.newEntry')}
               </h1>
               {selected.brand && <p className="text-xs text-tx-muted mt-0.5">{selected.brand}</p>}
             </>
           ) : (
-            <h1 className="font-display font-bold text-2xl text-tx-primary">Log Food</h1>
+            <h1 className="font-display font-bold text-2xl text-tx-primary">{t('food.log.title')}</h1>
           )}
         </div>
         {/* Favouriting is decoupled from logging, so the star sits beside the food rather
@@ -354,7 +353,7 @@ export default function LogFood() {
                 type="text"
                 value={query}
                 onChange={e => { setQuery(e.target.value); if (e.target.value.trim()) setTab('all'); if (lookup?.error) setLookup(null) }}
-                placeholder="Search food…"
+                placeholder={t('food.log.searchPlaceholder')}
                 className="input pl-10 pr-10 w-full h-12 text-base"
               />
               {query && (
@@ -370,34 +369,34 @@ export default function LogFood() {
               onClick={() => setPhase('scan')}
               disabled={lookingUp}
               className="flex items-center gap-1.5 px-3.5 h-12 rounded-xl bg-surface-muted hover:bg-surface-overlay border border-surface-border text-tx-secondary hover:text-tx-primary transition-colors flex-shrink-0 disabled:opacity-40 disabled:pointer-events-none"
-              aria-label="Scan barcode"
+              aria-label={t('food.log.scanLabel')}
             >
               <Scan className="w-5 h-5" />
-              <span className="text-xs font-medium">Scan</span>
+              <span className="text-xs font-medium">{t('food.log.scan')}</span>
             </button>
           </div>
 
           {/* Tabs */}
           <SegmentedControl
             options={[
-              { value: 'recent', label: 'Recent' },
-              { value: 'myfoods', label: 'Favorites' },
-              { value: 'all', label: 'Search' },
+              { value: 'recent', label: t('food.log.tab.recent') },
+              { value: 'myfoods', label: t('food.log.tab.favorites') },
+              { value: 'all', label: t('food.log.tab.search') },
             ] as const}
             value={tab}
-            onChange={t => { setTab(t); if (lookup?.error) setLookup(null) }}
+            onChange={v => { setTab(v); if (lookup?.error) setLookup(null) }}
           />
 
           {rateLimited && (
             <div className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3.5 py-3 text-xs text-amber-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              Too many requests — wait a moment and try again
+              {t('food.log.rateLimited')}
             </div>
           )}
           {searchError && (
             <div className="flex items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-3.5 py-3 text-xs text-error-400">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {searchError}
+              {uiMessage(searchError)}
             </div>
           )}
 
@@ -409,25 +408,25 @@ export default function LogFood() {
             // what failed, and both ways forward keep the code already scanned.
             <div className="card">
               <ErrorState
-                title="Couldn't look up this barcode"
-                message={lookup.error}
+                title={t('food.log.lookupFailedTitle')}
+                message={uiMessage(lookup.error)}
                 onRetry={() => lookUpBarcode(lookup.code)}
-                secondary={<button onClick={enterManually} className="btn-secondary btn-sm">Enter it manually</button>}
+                secondary={<button onClick={enterManually} className="btn-secondary btn-sm">{t('food.log.enterManually')}</button>}
               />
             </div>
           ) : (
           <div className="card overflow-hidden">
             {tab === 'all' && quickAddCals !== null && (
               <button
-                onClick={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'off' })}
+                onClick={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
                 className="flex items-center gap-3 w-full px-4 py-3.5 hover:bg-surface-muted transition-colors border-b border-surface-border"
               >
                 <div className="w-11 h-11 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
                   <Zap className="w-5 h-5 text-brand-500" />
                 </div>
                 <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-semibold text-tx-primary">Quick add {quickAddCals} kcal</p>
-                  <p className="text-xs text-tx-muted mt-0.5">No macro breakdown</p>
+                  <p className="text-sm font-semibold text-tx-primary">{t('food.log.quickAdd', { kcal: quickAddCals })}</p>
+                  <p className="text-xs text-tx-muted mt-0.5">{t('food.log.noMacroBreakdown')}</p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
               </button>
@@ -435,13 +434,13 @@ export default function LogFood() {
 
             {tab === 'recent' && (
               recentError
-                ? <ListError subject="what you logged today" message={recentError} onRetry={() => { setRecentError(null); setListReload(n => n + 1) }} />
+                ? <ListError subject={t('food.log.recent.subject')} message={uiMessage(recentError)} onRetry={() => { setRecentError(null); setListReload(n => n + 1) }} />
                 : recentItems.length === 0
                 ? (
                   <div className="px-4 py-14 text-center">
                     <Utensils className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
-                    <p className="text-sm text-tx-muted">No recent items today</p>
-                    <p className="text-xs text-tx-muted mt-1 opacity-60">Search or scan to log food</p>
+                    <p className="text-sm text-tx-muted">{t('food.log.recent.empty.title')}</p>
+                    <p className="text-xs text-tx-muted mt-1 opacity-60">{t('food.log.recent.empty.hint')}</p>
                   </div>
                 )
                 : recentItems.map((item, i) => (
@@ -458,13 +457,13 @@ export default function LogFood() {
 
             {tab === 'myfoods' && (
               savedError
-                ? <ListError subject="your favourites" message={savedError} onRetry={() => { setSavedError(null); setListReload(n => n + 1) }} />
+                ? <ListError subject={t('food.favorites.subject')} message={uiMessage(savedError)} onRetry={() => { setSavedError(null); setListReload(n => n + 1) }} />
                 : savedFoods.length === 0
                 ? (
                   <div className="px-4 py-14 text-center">
                     <Star className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
-                    <p className="text-sm text-tx-muted">No favorites yet</p>
-                    <p className="text-xs text-tx-muted mt-1 opacity-60">Star foods while logging to find them here</p>
+                    <p className="text-sm text-tx-muted">{t('food.favorites.empty.title')}</p>
+                    <p className="text-xs text-tx-muted mt-1 opacity-60">{t('food.favorites.empty.hint')}</p>
                   </div>
                 )
                 : savedFoods.map(sf => {
@@ -485,21 +484,21 @@ export default function LogFood() {
             {tab === 'all' && !query.trim() && (
               <div className="px-4 py-14 text-center">
                 <Search className="w-8 h-8 text-tx-muted opacity-30 mx-auto mb-2" />
-                <p className="text-sm text-tx-muted">Search millions of foods</p>
-                <p className="text-xs text-tx-muted mt-1 opacity-60">Or scan a barcode</p>
+                <p className="text-sm text-tx-muted">{t('food.log.search.emptyTitle')}</p>
+                <p className="text-xs text-tx-muted mt-1 opacity-60">{t('food.log.search.emptyHint')}</p>
               </div>
             )}
             {tab === 'all' && query.trim() && searching && (
-              <div className="px-4 py-14 text-center text-sm text-tx-muted">Searching…</div>
+              <div className="px-4 py-14 text-center text-sm text-tx-muted">{t('food.log.search.searching')}</div>
             )}
             {tab === 'all' && query.trim() && !searching && searchResults.length === 0 && !searchError && !rateLimited && (
               <div className="px-4 py-14 text-center space-y-3">
-                <p className="text-sm text-tx-muted">No results for "{query}"</p>
+                <p className="text-sm text-tx-muted">{t('food.log.search.noResults', { query })}</p>
                 <button
-                  onClick={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: '1 serving', source: 'off' })}
+                  onClick={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: t('food.servings', { count: 1 }), source: 'off' })}
                   className="btn-secondary text-xs"
                 >
-                  + Enter "{query.trim()}" manually
+                  {t('food.log.search.manualEntry', { query: query.trim() })}
                 </button>
               </div>
             )}
@@ -535,7 +534,7 @@ export default function LogFood() {
           {staleServing && (
             <div className="alert-warning">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{staleServing} Showing search results, which are always per {selected.serving_size}.</span>
+              <span>{t('food.log.staleServing', { note: uiMessage(staleServing), serving: selected.serving_size })}</span>
             </div>
           )}
 
@@ -556,24 +555,23 @@ export default function LogFood() {
                       {/* The label comes from OpenFoodFacts, which is free text — and rows
                           logged before the backend stopped prefixing it still read "per
                           100g". Supplying a second "per" gave "per per 100g". */}
-                      per {servingsLabel === 1 || !figures ? '' : `${servingsLabel} × `}
-                      {selected.serving_size.replace(/^per\s+/i, '')}
+                      {t('food.log.per', { serving: `${servingsLabel === 1 || !figures ? '' : `${servingsLabel} × `}${selected.serving_size.replace(/^per\s+/i, '')}` })}
                     </p>
                   )}
                 </div>
                 {/* Macro composition mini-bars */}
                 {(pro + carb + fat_) > 0 && (
                   <div className="flex flex-col gap-1 items-end w-20 flex-shrink-0">
-                    {[
-                      { label: 'P', value: pro, color: MACRO_COLORS.protein },
-                      { label: 'C', value: carb, color: MACRO_COLORS.carbs },
-                      { label: 'F', value: fat_, color: MACRO_COLORS.fat },
-                    ].map(m => {
+                    {([
+                      { key: 'protein', value: pro, color: MACRO_COLORS.protein },
+                      { key: 'carbs', value: carb, color: MACRO_COLORS.carbs },
+                      { key: 'fat', value: fat_, color: MACRO_COLORS.fat },
+                    ] as const).map(m => {
                       const total = pro + carb + fat_
                       const pct = total > 0 ? Math.round((m.value / total) * 100) : 0
                       return (
-                        <div key={m.label} className="flex items-center gap-1.5 w-full">
-                          <span className="text-[10px] text-tx-muted w-3 text-right flex-shrink-0">{m.label}</span>
+                        <div key={m.key} className="flex items-center gap-1.5 w-full">
+                          <span className="text-[10px] text-tx-muted w-3 text-right flex-shrink-0">{t(`food.macro.${m.key}Initial`)}</span>
                           <div className="flex-1 h-1.5 bg-surface-muted rounded-full overflow-hidden">
                             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: m.color }} />
                           </div>
@@ -587,15 +585,15 @@ export default function LogFood() {
 
               {/* Macro grid */}
               <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: 'Protein', value: figures ? `${pro}g` : '—', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-                  { label: 'Carbs',   value: figures ? `${carb}g` : '—', color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20' },
-                  { label: 'Fat',     value: figures ? `${fat_}g` : '—', color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-                  { label: 'Fiber',   value: figures ? `${figures.fiber}g` : '—', color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
-                ].map(m => (
-                  <div key={m.label} className={`rounded-xl border p-2.5 text-center ${m.bg}`}>
+                {([
+                  { key: 'protein', value: figures ? `${pro}g` : '—', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+                  { key: 'carbs',   value: figures ? `${carb}g` : '—', color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20' },
+                  { key: 'fat',     value: figures ? `${fat_}g` : '—', color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
+                  { key: 'fiber',   value: figures ? `${figures.fiber}g` : '—', color: 'text-tx-secondary', bg: 'bg-surface-muted border-surface-border' },
+                ] as const).map(m => (
+                  <div key={m.key} className={`rounded-xl border p-2.5 text-center ${m.bg}`}>
                     <p className={`text-sm font-bold tabular-nums ${m.color}`}>{m.value}</p>
-                    <p className="text-[10px] text-tx-muted mt-0.5">{m.label}</p>
+                    <p className="text-[10px] text-tx-muted mt-0.5">{t(`food.macro.${m.key}`)}</p>
                   </div>
                 ))}
               </div>
@@ -605,13 +603,13 @@ export default function LogFood() {
           {/* Amount */}
           <div className="card p-4 space-y-3">
             <div className="flex items-baseline gap-2">
-              <label className="label" htmlFor="food-amount">{basis ? 'Amount' : 'Servings'}</label>
+              <label className="label" htmlFor="food-amount">{basis ? t('food.entry.amount') : t('food.log.servings')}</label>
               {selected.serving_size && !basis && (
-                <span className="text-xs text-tx-muted">({selected.serving_size} each)</span>
+                <span className="text-xs text-tx-muted">{t('food.log.servingEach', { serving: selected.serving_size })}</span>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <IconButton icon={Minus} variant="secondary" size="lg" label={basis ? 'Decrease amount' : 'Decrease servings'} onClick={() => amount.step(-1)} />
+              <IconButton icon={Minus} variant="secondary" size="lg" label={basis ? t('food.log.decreaseAmount') : t('food.log.decreaseServings')} onClick={() => amount.step(-1)} />
               <div className="relative flex-1">
                 <input
                   id="food-amount"
@@ -624,7 +622,7 @@ export default function LogFood() {
                   // bottle unloggable (#171). The server has never had a floor.
                   min="0"
                   step="any"
-                  aria-label={basis ? `Amount in ${basis.unit}` : 'Servings'}
+                  aria-label={basis ? t('food.log.amountIn', { unit: basis.unit }) : t('food.log.servings')}
                   className={`input input-no-spin text-center h-12 text-lg font-semibold tabular-nums ${basis ? 'pr-9' : ''}`}
                 />
                 {basis && (
@@ -633,20 +631,20 @@ export default function LogFood() {
                   </span>
                 )}
               </div>
-              <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? 'Increase amount' : 'Increase servings'} onClick={() => amount.step(1)} />
+              <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? t('food.log.increaseAmount') : t('food.log.increaseServings')} onClick={() => amount.step(1)} />
             </div>
             {/* The readout doubles as the reason the Log button is disabled. Deleting the
                 0.5-serving floor made an empty or nonsense amount reachable for the first
                 time, and "0 servings" beside a dead button says what, not why. */}
             {servings <= 0 ? (
               <p className="text-xs text-tx-muted text-center">
-                Enter an amount{basis ? ` in ${basis.unit}` : ''} to log this
+                {basis ? t('food.log.enterAmountIn', { unit: basis.unit }) : t('food.log.enterAmount')}
               </p>
             ) : limitHint ? (
               <p className="text-xs text-warning-400 text-center" role="status">{limitHint}</p>
             ) : basis && (
               <p className="text-xs text-tx-muted text-center">
-                {servingsLabel} {servingsLabel === 1 ? 'serving' : 'servings'} of {selected.serving_size}
+                {t('food.log.servingsOf', { count: servingsLabel, serving: selected.serving_size })}
               </p>
             )}
           </div>
@@ -655,7 +653,7 @@ export default function LogFood() {
           <div className="card p-4 space-y-5">
             {/* Meal */}
             <div className="space-y-3">
-              <label className="label">Meal</label>
+              <label className="label">{t('food.entry.meal')}</label>
               <div className="grid grid-cols-2 gap-2">
                 {MEALS.map(m => {
                   const MealIcon = MEAL_ICONS[m]
@@ -672,7 +670,7 @@ export default function LogFood() {
                       }`}
                     >
                       <MealIcon className={`w-4 h-4 flex-shrink-0 ${active ? iconColor : 'text-tx-muted'}`} />
-                      {MEAL_LABELS[m]}
+                      {t(`food.meal.${m}`)}
                     </button>
                   )
                 })}
@@ -681,7 +679,7 @@ export default function LogFood() {
 
             <div className="border-t border-surface-border" />
 
-            <DateInput label="When" value={date} onChange={setDate} max={todayStr()} />
+            <DateInput label={t('food.log.when')} value={date} onChange={setDate} max={todayStr()} />
           </div>
 
         </div>
@@ -696,7 +694,7 @@ export default function LogFood() {
             disabled={save.busy || servings <= 0 || overLimit}
             className="btn-primary btn-lg w-full"
           >
-            {save.busy ? 'Saving…' : editId ? 'Save Changes' : 'Log Food'}
+            {save.busy ? t('common.saving') : editId ? t('food.log.saveChanges') : t('food.log.submit')}
           </button>
         </div>
       )}

@@ -572,7 +572,13 @@
       "addFailed": "No se pudo añadir {{name}} a Favoritos.",
       "removeFailed": "No se pudo quitar {{name}} de Favoritos.",
       "add": "Añadir {{name}} a Favoritos",
-      "remove": "Quitar {{name}} de Favoritos"
+      "remove": "Quitar {{name}} de Favoritos",
+      "subject": "tus favoritos",
+      "loadFailed": "No se pudieron cargar tus favoritos.",
+      "empty": {
+        "title": "Aún no hay favoritos",
+        "hint": "Marca alimentos con la estrella al registrarlos para encontrarlos aquí"
+      }
     },
     "diary": {
       "title": "Comida",
@@ -651,6 +657,83 @@
       "loading": "Cargando…",
       "loadFailed": "No se pudo cargar tu historial",
       "empty": "Aún no hay datos — empieza a registrar tus comidas"
+    },
+    "log": {
+      "title": "Registrar comida",
+      "editTitle": "Editar comida",
+      "details": "Detalles",
+      "newEntry": "Nuevo registro",
+      "backToFood": "Volver a comida",
+      "submit": "Registrar comida",
+      "saveChanges": "Guardar cambios",
+      "saveFailed": "No se pudo guardar",
+      "editLoadFailed": "No se pudo cargar ese registro.",
+      "searchPlaceholder": "Buscar comida…",
+      "scan": "Escanear",
+      "scanLabel": "Escanear código de barras",
+      "tab": {
+        "recent": "Recientes",
+        "favorites": "Favoritos",
+        "search": "Buscar"
+      },
+      "rateLimited": "Demasiadas solicitudes — espera un momento e inténtalo de nuevo",
+      "searchUnavailable": "Búsqueda de comida no disponible — ingresa los datos manualmente",
+      "lookupFailedTitle": "No se pudo buscar este código de barras",
+      "lookupFailed": "No se pudo buscar ese código de barras.",
+      "enterManually": "Ingrésalo manualmente",
+      "rereadFailed": "No se pudo volver a leer este producto.",
+      "quickAdd": "Agregar {{kcal}} kcal rápido",
+      "noMacroBreakdown": "Sin desglose de macros",
+      "recent": {
+        "subject": "lo que registraste hoy",
+        "loadFailed": "No se pudo cargar lo que registraste hoy.",
+        "empty": {
+          "title": "Nada reciente hoy",
+          "hint": "Busca o escanea para registrar comida"
+        }
+      },
+      "search": {
+        "emptyTitle": "Busca entre millones de alimentos",
+        "emptyHint": "O escanea un código de barras",
+        "searching": "Buscando…",
+        "noResults": "Sin resultados para \"{{query}}\"",
+        "manualEntry": "+ Ingresar \"{{query}}\" manualmente",
+        "manualEntryWide": "＋ Ingresar \"{{query}}\" manualmente"
+      },
+      "staleServing": "{{note}} Se muestran resultados de búsqueda, que siempre son por {{serving}}.",
+      "per": "por {{serving}}",
+      "servingEach": "({{serving}} c/u)",
+      "servings": "Porciones",
+      "amountIn": "Cantidad en {{unit}}",
+      "decreaseAmount": "Disminuir cantidad",
+      "increaseAmount": "Aumentar cantidad",
+      "decreaseServings": "Disminuir porciones",
+      "increaseServings": "Aumentar porciones",
+      "enterAmount": "Ingresa una cantidad para registrarlo",
+      "enterAmountIn": "Ingresa una cantidad en {{unit}} para registrarlo",
+      "servingsOf_one": "{{count}} porción de {{serving}}",
+      "servingsOf_many": "{{count}} porciones de {{serving}}",
+      "servingsOf_other": "{{count}} porciones de {{serving}}",
+      "when": "Cuándo"
+    },
+    "scan": {
+      "title": "Escanear código de barras",
+      "close": "Cerrar escáner",
+      "httpsTitle": "La cámara requiere HTTPS",
+      "httpsBody": "Los navegadores solo permiten usar la cámara en páginas seguras. Este sitio se sirve por <mono>http://</mono> sin cifrar — ponlo detrás de un proxy inverso con HTTPS para escanear códigos de barras.",
+      "searchByName": "Buscar por nombre",
+      "unavailable": "Cámara no disponible",
+      "hint": "Apunta la cámara al código de barras — se escaneará automáticamente",
+      "deniedTitle": "Acceso a la cámara denegado",
+      "neededTitle": "Se necesita permiso de cámara",
+      "deniedBody": "Activa el acceso a la cámara para Lyftr en los ajustes de tu dispositivo para escanear códigos de barras.",
+      "neededBody": "Permite el acceso a la cámara para escanear el código de barras de un alimento.",
+      "allow": "Permitir cámara",
+      "point": "Apunta a un código de barras"
+    },
+    "lookup": {
+      "looking": "Buscando este producto…",
+      "slow": "Sigo buscando. Esto puede tardar unos segundos."
     }
   },
   "workouts": {

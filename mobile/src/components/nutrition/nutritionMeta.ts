@@ -12,15 +12,6 @@ export const MEALS: readonly Meal[] = ['breakfast', 'lunch', 'dinner', 'snacks']
 
 export const mealLabel = (meal: Meal): string => i18n.t(`food.meal.${meal}`)
 
-// log.tsx still indexes this table. Each read resolves the label then, so it follows a
-// language switch like mealLabel does; it goes when that screen moves to mealLabel.
-export const MEAL_LABELS: Record<Meal, string> = {
-  get breakfast() { return mealLabel('breakfast') },
-  get lunch() { return mealLabel('lunch') },
-  get dinner() { return mealLabel('dinner') },
-  get snacks() { return mealLabel('snacks') },
-}
-
 export const MEAL_ICONS: Record<Meal, LucideIcon> = {
   breakfast: Coffee,
   lunch: Sun,

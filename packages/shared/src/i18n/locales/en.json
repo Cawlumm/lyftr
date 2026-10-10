@@ -562,7 +562,13 @@
       "addFailed": "Couldn't add {{name}} to Favorites.",
       "removeFailed": "Couldn't remove {{name}} from Favorites.",
       "add": "Add {{name}} to Favorites",
-      "remove": "Remove {{name}} from Favorites"
+      "remove": "Remove {{name}} from Favorites",
+      "subject": "your favourites",
+      "loadFailed": "Couldn't load your favourites.",
+      "empty": {
+        "title": "No favorites yet",
+        "hint": "Star foods while logging to find them here"
+      }
     },
     "diary": {
       "title": "Food",
@@ -640,6 +646,82 @@
       "loading": "Loading…",
       "loadFailed": "Couldn't load your history",
       "empty": "No data yet — start logging meals"
+    },
+    "log": {
+      "title": "Log Food",
+      "editTitle": "Edit Food",
+      "details": "Details",
+      "newEntry": "New Entry",
+      "backToFood": "Back to food",
+      "submit": "Log Food",
+      "saveChanges": "Save Changes",
+      "saveFailed": "Failed to save",
+      "editLoadFailed": "Couldn't load that entry.",
+      "searchPlaceholder": "Search food…",
+      "scan": "Scan",
+      "scanLabel": "Scan barcode",
+      "tab": {
+        "recent": "Recent",
+        "favorites": "Favorites",
+        "search": "Search"
+      },
+      "rateLimited": "Too many requests — wait a moment and try again",
+      "searchUnavailable": "Food search unavailable — enter details manually",
+      "lookupFailedTitle": "Couldn't look up this barcode",
+      "lookupFailed": "Couldn't look up that barcode.",
+      "enterManually": "Enter it manually",
+      "rereadFailed": "Couldn't re-read this product.",
+      "quickAdd": "Quick add {{kcal}} kcal",
+      "noMacroBreakdown": "No macro breakdown",
+      "recent": {
+        "subject": "what you logged today",
+        "loadFailed": "Couldn't load what you logged today.",
+        "empty": {
+          "title": "No recent items today",
+          "hint": "Search or scan to log food"
+        }
+      },
+      "search": {
+        "emptyTitle": "Search millions of foods",
+        "emptyHint": "Or scan a barcode",
+        "searching": "Searching…",
+        "noResults": "No results for \"{{query}}\"",
+        "manualEntry": "+ Enter \"{{query}}\" manually",
+        "manualEntryWide": "＋ Enter \"{{query}}\" manually"
+      },
+      "staleServing": "{{note}} Showing search results, which are always per {{serving}}.",
+      "per": "per {{serving}}",
+      "servingEach": "({{serving}} each)",
+      "servings": "Servings",
+      "amountIn": "Amount in {{unit}}",
+      "decreaseAmount": "Decrease amount",
+      "increaseAmount": "Increase amount",
+      "decreaseServings": "Decrease servings",
+      "increaseServings": "Increase servings",
+      "enterAmount": "Enter an amount to log this",
+      "enterAmountIn": "Enter an amount in {{unit}} to log this",
+      "servingsOf_one": "{{count}} serving of {{serving}}",
+      "servingsOf_other": "{{count}} servings of {{serving}}",
+      "when": "When"
+    },
+    "scan": {
+      "title": "Scan barcode",
+      "close": "Close scanner",
+      "httpsTitle": "Camera needs HTTPS",
+      "httpsBody": "Browsers only allow camera access on secure pages. This site is served over plain <mono>http://</mono> — put it behind a reverse proxy with HTTPS to scan barcodes.",
+      "searchByName": "Search by name instead",
+      "unavailable": "Camera unavailable",
+      "hint": "Point camera at barcode — it will scan automatically",
+      "deniedTitle": "Camera access denied",
+      "neededTitle": "Camera permission needed",
+      "deniedBody": "Enable camera access for Lyftr in your device settings to scan barcodes.",
+      "neededBody": "Allow camera access to scan a food barcode.",
+      "allow": "Allow camera",
+      "point": "Point at a barcode"
+    },
+    "lookup": {
+      "looking": "Looking up this product…",
+      "slow": "Still looking. This can take a few seconds."
     }
   },
   "workouts": {
