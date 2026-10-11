@@ -14,19 +14,6 @@ import (
 
 var validate = utils.NewValidator()
 
-// EmailTakenMessage is the 409 for an address another account holds, shared by
-// registration and email change.
-const EmailTakenMessage = "That email is already registered."
-
-// passwordChangedMessage is the 409 when the stored hash moved under a request that had
-// already verified the old one.
-const passwordChangedMessage = "Your password was changed elsewhere. Please try again."
-
-// RegistrationClosedMessage is what a rejected signup sees. One constant so the two
-// ways of being closed (REGISTRATION=closed, and first-user with the slot taken) are
-// indistinguishable to a caller — and so the handler and its tests cannot drift.
-const RegistrationClosedMessage = "Registration is closed on this server."
-
 // registrationOpen reports whether a new account may be created right now. Errors are
 // reported as closed: advertising an open instance because a COUNT failed is the wrong
 // direction to fail.
@@ -55,7 +42,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	if !open {
-		utils.Forbidden(c, RegistrationClosedMessage)
+		utils.Fail(c, utils.CodeRegistrationClosed, nil)
 		return
 	}
 
@@ -73,7 +60,7 @@ func (h *Handler) Register(c *gin.Context) {
 	// to a 500 told the user the server had broken on input their password manager
 	// generates by default.
 	if utils.PasswordTooLong(req.Password) {
-		utils.BadRequest(c, utils.PasswordTooLongMessage)
+		utils.Fail(c, utils.CodePasswordTooLong, nil)
 		return
 	}
 
@@ -90,11 +77,11 @@ func (h *Handler) Register(c *gin.Context) {
 
 	userID, err := create(req.Email, hash)
 	if errors.Is(err, stores.ErrRegistrationClosed) {
-		utils.Forbidden(c, RegistrationClosedMessage)
+		utils.Fail(c, utils.CodeRegistrationClosed, nil)
 		return
 	}
 	if errors.Is(err, stores.ErrEmailTaken) || utils.IsUniqueViolation(err) {
-		utils.Conflict(c, EmailTakenMessage)
+		utils.Fail(c, utils.CodeEmailTaken, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -139,14 +126,14 @@ func (h *Handler) Login(c *gin.Context) {
 		// anyone asking exactly which addresses are registered — undoing the point of
 		// giving both cases the same message.
 		utils.BurnPasswordComparison(req.Password)
-		utils.Unauthorized(c, "Invalid email or password.")
+		utils.Fail(c, utils.CodeInvalidCredentials, nil)
 		return
 	}
 	if utils.DBError(c, err) {
 		return
 	}
 	if !utils.CheckPassword(req.Password, user.Password) {
-		utils.Unauthorized(c, "Invalid email or password.")
+		utils.Fail(c, utils.CodeInvalidCredentials, nil)
 		return
 	}
 
@@ -167,7 +154,7 @@ func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, 
 	// token was minted would otherwise resolve to the wrong row or to none at all.
 	user, err := h.s.User.GetByID(middleware.UserID(c))
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "That account no longer exists.")
+		utils.Fail(c, utils.CodeAccountNotFound, nil)
 		return models.User{}, false
 	}
 	if utils.DBError(c, err) {
@@ -175,7 +162,7 @@ func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, 
 	}
 
 	if !utils.CheckPassword(password, user.Password) {
-		utils.Unauthorized(c, "Your current password is incorrect.")
+		utils.Fail(c, utils.CodeWrongCurrentPassword, nil)
 		return models.User{}, false
 	}
 	return user, true
@@ -205,12 +192,12 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	// worse, still bump token_version — signing every other device out for a change
 	// that never happened.
 	if req.CurrentPassword == req.NewPassword {
-		utils.BadRequest(c, "Your new password must be different from your current one.")
+		utils.Fail(c, utils.CodePasswordUnchanged, nil)
 		return
 	}
 
 	if utils.PasswordTooLong(req.NewPassword) {
-		utils.BadRequest(c, utils.PasswordTooLongMessage)
+		utils.Fail(c, utils.CodePasswordTooLong, nil)
 		return
 	}
 
@@ -222,7 +209,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	version, err := h.s.User.ChangePassword(uid, user.Password, newHash)
 	if errors.Is(err, stores.ErrPasswordChanged) {
-		utils.Conflict(c, passwordChangedMessage)
+		utils.Fail(c, utils.CodePasswordChangedElsewhere, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -233,7 +220,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 	if err != nil {
 		// The password did change — reporting a failure here would send the user off to
 		// retry with a password that no longer works. Say what happened instead.
-		utils.Unauthorized(c, "Your password changed. Please sign in again.")
+		utils.Fail(c, utils.CodePasswordChangedSignIn, nil)
 		return
 	}
 
@@ -270,11 +257,11 @@ func (h *Handler) ChangeEmail(c *gin.Context) {
 
 	updated, err := h.s.User.ChangeEmail(user.ID, user.Password, req.Email)
 	if errors.Is(err, stores.ErrEmailTaken) || utils.IsUniqueViolation(err) {
-		utils.Conflict(c, EmailTakenMessage)
+		utils.Fail(c, utils.CodeEmailTaken, nil)
 		return
 	}
 	if errors.Is(err, stores.ErrPasswordChanged) {
-		utils.Conflict(c, passwordChangedMessage)
+		utils.Fail(c, utils.CodePasswordChangedElsewhere, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -290,7 +277,7 @@ func (h *Handler) ChangeEmail(c *gin.Context) {
 func (h *Handler) respondWithSession(c *gin.Context, user models.User) {
 	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email, user.TokenVersion)
 	if err != nil {
-		utils.Unauthorized(c, "Your email changed. Please sign in again.")
+		utils.Fail(c, utils.CodeEmailChangedSignIn, nil)
 		return
 	}
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
@@ -305,7 +292,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 
 	claims, err := utils.ValidateToken(req.RefreshToken)
 	if err != nil || claims.Type != "refresh" {
-		utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
+		utils.Fail(c, utils.CodeSessionInvalid, nil)
 		return
 	}
 
@@ -316,14 +303,14 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// for access tokens on every request, so a revoked device stops at its next request.
 	current, err := h.s.User.TokenVersion(claims.UserID)
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
+		utils.Fail(c, utils.CodeSessionInvalid, nil)
 		return
 	}
 	if utils.DBError(c, err) {
 		return
 	}
 	if utils.NormalizeTokenVersion(claims.TokenVersion) != current {
-		utils.Unauthorized(c, "Your session expired. Please sign in again.")
+		utils.Fail(c, utils.CodeSessionExpired, nil)
 		return
 	}
 

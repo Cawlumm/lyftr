@@ -2,9 +2,14 @@ package utils
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -22,6 +27,14 @@ type entry struct {
 	Calories float64 `json:"calories" validate:"gte=0"`
 	Servings float64 `json:"servings" validate:"gt=0,lte=2000"`
 	Note     string  `json:"note" validate:"max=500"`
+}
+
+type workoutSet struct {
+	Weight float64 `json:"weight" validate:"required"`
+}
+
+type listed struct {
+	Items []int `json:"items" validate:"max=500"`
 }
 
 func messageFor(t *testing.T, v any) string {
@@ -84,6 +97,8 @@ func TestValidationMessagePerTag(t *testing.T) {
 		{"gte=0 reads as a floor", entry{Meal: "lunch", Calories: -5, Servings: 1}, "Calories must be 0 or greater."},
 		{"gt=0 excludes the floor", entry{Meal: "lunch", Servings: 0}, "Servings must be greater than 0."},
 		{"lte gives the ceiling", entry{Meal: "lunch", Servings: 5000}, "Servings must be 2,000 or less."},
+		{"required on a number", workoutSet{}, "Weight is a required field."},
+		{"max on a list counts items", listed{Items: make([]int, 501)}, "Items must contain at maximum 500 items."},
 		{"max on a string counts characters", entry{Meal: "lunch", Servings: 1, Note: strings.Repeat("x", 501)}, "Note must be a maximum of 500 characters in length."},
 	}
 	for _, tc := range cases {
@@ -219,5 +234,65 @@ func TestValidationMessageTranslatesOurStructTags(t *testing.T) {
 
 	if got := validationMessage(v.Struct(capped{Sets: 1})); got != "A workout can't have more than 500 sets." {
 		t.Fatalf("got %q", got)
+	}
+}
+
+func validationBody(t *testing.T, err error) (int, map[string]any) {
+	t.Helper()
+	gin.SetMode(gin.TestMode)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/x", nil)
+	ValidationError(c, err)
+	var body map[string]any
+	if e := json.Unmarshal(w.Body.Bytes(), &body); e != nil {
+		t.Fatal(e)
+	}
+	return w.Code, body
+}
+
+func TestValidationErrorBody(t *testing.T) {
+	code, body := validationBody(t, NewValidator().Struct(signup{Email: "nope", Password: "abc"}))
+	if code != 422 || body["code"] != "VALIDATION_FAILED" ||
+		body["error"] != "Email must be a valid email address. Password must be at least 8 characters in length." {
+		t.Fatalf("got %d %v", code, body)
+	}
+	want := []any{
+		map[string]any{"code": "INVALID_EMAIL", "params": map[string]any{"field": "email"}},
+		map[string]any{"code": "TOO_SHORT", "params": map[string]any{"field": "password", "min": float64(8)}},
+	}
+	if got := body["params"].(map[string]any)["violations"]; !reflect.DeepEqual(got, want) {
+		t.Fatalf("violations = %#v", got)
+	}
+
+	type capped struct {
+		Sets int `json:"sets" validate:"required"`
+	}
+	vl := NewValidator()
+	vl.RegisterStructValidation(func(sl validator.StructLevel) {
+		sl.ReportError(1, "Sets", "Sets", "maxtotalsets", "")
+	}, capped{})
+	_, body = validationBody(t, vl.Struct(capped{Sets: 1}))
+	got := body["params"].(map[string]any)["violations"].([]any)[0]
+	if !reflect.DeepEqual(got, map[string]any{"code": "TOO_MANY_WORKOUT_SETS", "params": map[string]any{"max": float64(500)}}) {
+		t.Fatalf("struct-level violation = %#v", got)
+	}
+
+	type odd struct {
+		Code string `json:"code" validate:"alphanum"`
+	}
+	_, body = validationBody(t, NewValidator().Struct(odd{Code: "!!!"}))
+	got = body["params"].(map[string]any)["violations"].([]any)[0]
+	if body["error"] != "Code can only contain alphanumeric characters." ||
+		!reflect.DeepEqual(got, map[string]any{"code": "INVALID_FIELD", "params": map[string]any{"field": "code"}}) {
+		t.Fatalf("unmapped tag = %v", body)
+	}
+
+	code, body = validationBody(t, errors.New("boom"))
+	if code != 422 || body["code"] != "VALIDATION_FAILED" {
+		t.Fatalf("got %d %v", code, body)
+	}
+	if _, has := body["params"]; has {
+		t.Fatalf("params present: %v", body)
 	}
 }

@@ -27,10 +27,7 @@ import (
 
 var messageHelpers = map[string]bool{
 	"BadRequest":         true,
-	"Unauthorized":       true,
-	"Forbidden":          true,
 	"NotFound":           true,
-	"Conflict":           true,
 	"ServiceUnavailable": true,
 }
 

@@ -70,7 +70,7 @@ func DBError(c *gin.Context, err error) bool {
 	}
 	if IsLocked(err) {
 		log.Printf("db locked on %s %s: %v", c.Request.Method, c.Request.URL.Path, err)
-		ServiceUnavailable(c, "The database is busy. Try again in a moment.")
+		Fail(c, CodeDatabaseBusy, nil)
 		return true
 	}
 	log.Printf("db error on %s %s: %v", c.Request.Method, c.Request.URL.Path, err)

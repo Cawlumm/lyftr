@@ -57,6 +57,8 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              # utils/codes_test.go pins the registry to the client catalog.
+              - 'packages/shared/src/i18n/locales/en.json'
               - 'fly.toml'
               - 'fly/**'
               - 'docker-compose.yml'

@@ -15,7 +15,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	uid := middleware.UserID(c)
 	u, err := h.s.User.GetMe(uid)
 	if err == sql.ErrNoRows {
-		utils.Unauthorized(c, "That account no longer exists.")
+		utils.Fail(c, utils.CodeAccountNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {

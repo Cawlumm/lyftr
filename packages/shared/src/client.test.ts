@@ -624,3 +624,145 @@ describe('apiErrorMessage and uiMessage translate when they run', () => {
     expect(uiMessage({ ...m, cause: bad502 })).toBe(es.errors.api.restarting)
   })
 })
+
+describe('apiErrorMessage — server codes', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+  const body = (status: number, data: any) => ({ response: { status, data } })
+
+  it('en: a known code renders the catalog text, not the server words', () => {
+    expect(apiErrorMessage(body(409, { code: 'EMAIL_TAKEN', error: 'server words' }), 'x')).toBe(en.errors.api.codes.EMAIL_TAKEN)
+  })
+
+  it('es: a known code renders Spanish (a bare 500 is the observed bug)', async () => {
+    await i18n.changeLanguage('es')
+    expect(apiErrorMessage(body(500, { code: 'INTERNAL_ERROR', error: 'Something went wrong on the server.' }), 'x'))
+      .toBe(es.errors.api.codes.INTERNAL_ERROR)
+  })
+
+  it('en: no code, an unknown code, or BAD_REQUEST returns the server sentence', () => {
+    expect(apiErrorMessage(body(400, { error: 'Old server.' }), 'x')).toBe('Old server.')
+    expect(apiErrorMessage(body(400, { code: 'BRAND_NEW', error: 'Newer server.' }), 'x')).toBe('Newer server.')
+    expect(apiErrorMessage(body(400, { code: 'BAD_REQUEST', error: 'Name is taken.' }), 'x')).toBe('Name is taken.')
+  })
+
+  it('en: no code and no sentence keeps the status handling', () => {
+    expect(apiErrorMessage(body(404, {}), 'x')).toBe(en.errors.api.misconfigured)
+    expect(apiErrorMessage(body(502, {}), 'x')).toBe(en.errors.api.restarting)
+    expect(apiErrorMessage(body(500, {}), 'x')).toBe(en.errors.api.serverError)
+    expect(apiErrorMessage(body(400, {}), 'fallback')).toBe('fallback')
+  })
+
+  it('es: VALIDATION_FAILED localizes each violation with Spanish field labels and joins them', async () => {
+    await i18n.changeLanguage('es')
+    const data = {
+      error: 'English.',
+      code: 'VALIDATION_FAILED',
+      params: {
+        violations: [
+          { code: 'INVALID_EMAIL', params: { field: 'email' } },
+          { code: 'TOO_SHORT', params: { field: 'password', min: 8 } },
+          { code: 'BELOW_MINIMUM', params: { field: 'calories', min: 0 } },
+        ],
+      },
+    }
+    expect(apiErrorMessage(body(422, data), 'x')).toBe(
+      [
+        es.errors.api.codes.INVALID_EMAIL.replace('{{field}}', es.errors.api.fields.email),
+        es.errors.api.codes.TOO_SHORT.replace('{{field}}', es.errors.api.fields.password).replace('{{min}}', '8'),
+        es.errors.api.codes.BELOW_MINIMUM.replace('{{field}}', es.errors.api.fields.calories).replace('{{min}}', '0'),
+      ].join(' '),
+    )
+  })
+
+  it('es: one unresolvable violation falls back to the whole English sentence', async () => {
+    await i18n.changeLanguage('es')
+    const data = {
+      error: 'English whole.',
+      code: 'VALIDATION_FAILED',
+      params: { violations: [{ code: 'REQUIRED', params: { field: 'email' } }, { code: 'NEW_RULE', params: { field: 'email' } }] },
+    }
+    expect(apiErrorMessage(body(422, data), 'x')).toBe('English whole.')
+    data.params.violations = [{ code: 'REQUIRED', params: { field: 'email' } }, { code: 'REQUIRED', params: { field: 'not_a_field' } }]
+    expect(apiErrorMessage(body(422, data), 'x')).toBe('English whole.')
+  })
+
+  it('en: VALIDATION_FAILED without violations shows the code text', () => {
+    expect(apiErrorMessage(body(422, { code: 'VALIDATION_FAILED', error: 'e' }), 'x')).toBe(en.errors.api.codes.VALIDATION_FAILED)
+  })
+
+  it('en: a missing param falls back to the server sentence rather than showing {{max}}', () => {
+    expect(apiErrorMessage(body(422, { code: 'TOO_LONG', error: 'Server sentence.', params: { field: 'name' } }), 'x')).toBe('Server sentence.')
+  })
+
+  it.each([
+    ['non-string code', { code: 5, error: 'S.' }],
+    ['lower-case code', { code: 'email_taken', error: 'S.' }],
+    ['camelCase sibling key', { code: 'serverError', error: 'S.' }],
+    ['dotted code', { code: 'EMAIL.TAKEN', error: 'S.' }],
+    ['array params', { code: 'TOO_LONG', error: 'S.', params: [] }],
+    ['object violations', { code: 'VALIDATION_FAILED', error: 'S.', params: { violations: {} } }],
+    ['null violation', { code: 'VALIDATION_FAILED', error: 'S.', params: { violations: [null] } }],
+    ['dotted field', { code: 'REQUIRED', error: 'S.', params: { field: 'a.b' } }],
+  ])('malformed body (%s) never throws and falls back to the server sentence', (_n, data) => {
+    expect(apiErrorMessage(body(422, data), 'x')).toBe('S.')
+  })
+
+  it('null params on a code that needs none still renders its text', () => {
+    expect(apiErrorMessage(body(409, { code: 'EMAIL_TAKEN', error: 'S.', params: null }), 'x')).toBe(en.errors.api.codes.EMAIL_TAKEN)
+  })
+
+  describe('codes do not change which failures end a session', () => {
+    const realAdapter = axios.defaults.adapter
+    afterEach(() => { axios.defaults.adapter = realAdapter })
+
+    const httpError = (status: number, config: any, data: any) => {
+      const err: any = new Error(`Request failed with status code ${status}`)
+      err.config = config
+      err.response = { status, data, statusText: '', headers: {}, config }
+      return err
+    }
+
+    const setup = (dataStatus: number, dataBody: any, refresh: (config: any) => Promise<any>) => {
+      const store = memStorage()
+      let signedOut = false
+      const client = createClient(store, { onAuthFailure: () => { signedOut = true } })
+      let refreshed = 0
+      client.api.defaults.adapter = async (config: any) => { throw httpError(dataStatus, config, dataBody) }
+      axios.defaults.adapter = (async (config: any) => { refreshed++; return refresh(config) }) as any
+      return { client, store, wasSignedOut: () => signedOut, refreshCount: () => refreshed }
+    }
+
+    const signedIn = async (store: StorageAdapter) => {
+      await store.set(STORAGE_KEYS.access, 'live-access')
+      await store.set(STORAGE_KEYS.refresh, 'live-refresh')
+    }
+
+    it('a refresh answering 401 SESSION_EXPIRED still signs out', async () => {
+      const { client, store, wasSignedOut } = setup(401, { code: 'SESSION_EXPIRED' }, async (config) => {
+        throw httpError(401, config, { code: 'SESSION_EXPIRED', error: 'x' })
+      })
+      await signedIn(store)
+      await expect(client.userAPI.me()).rejects.toBeDefined()
+      expect(wasSignedOut()).toBe(true)
+      expect(await store.get(STORAGE_KEYS.refresh)).toBeNull()
+    })
+
+    it('a refresh answering 503 DATABASE_BUSY keeps the session', async () => {
+      const { client, store, wasSignedOut } = setup(401, {}, async (config) => {
+        throw httpError(503, config, { code: 'DATABASE_BUSY', error: 'x' })
+      })
+      await signedIn(store)
+      await expect(client.userAPI.me()).rejects.toBeDefined()
+      expect(wasSignedOut()).toBe(false)
+      expect(await store.get(STORAGE_KEYS.refresh)).toBe('live-refresh')
+    })
+
+    it('/me/password answering 401 WRONG_CURRENT_PASSWORD neither refreshes nor signs out', async () => {
+      const { client, store, wasSignedOut, refreshCount } = setup(401, { code: 'WRONG_CURRENT_PASSWORD', error: 'x' }, async () => ({}))
+      await signedIn(store)
+      await expect(client.userAPI.changePassword({ current_password: 'a', new_password: 'bbbbbbbb' })).rejects.toBeDefined()
+      expect(refreshCount()).toBe(0)
+      expect(wasSignedOut()).toBe(false)
+    })
+  })
+})

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sort"
 	"testing"
@@ -58,8 +59,8 @@ func TestRegisterClosedRejectsAndWritesNothing(t *testing.T) {
 		t.Fatalf("status = %d, want 403", w.Code)
 	}
 	body := decodeResponse(t, w)
-	if body["error"] != RegistrationClosedMessage {
-		t.Errorf("error = %v, want %q", body["error"], RegistrationClosedMessage)
+	if body["error"] != utils.CodeRegistrationClosed.Message(nil) || body["code"] != "REGISTRATION_CLOSED" {
+		t.Errorf("body = %v, want REGISTRATION_CLOSED", body)
 	}
 	// The rejection must happen before the insert, not merely be reported after one.
 	if n := userCount(t); n != 0 {
@@ -98,8 +99,8 @@ func TestRegisterFirstUserOpensOnceThenCloses(t *testing.T) {
 		t.Fatalf("second register status = %d, want 403", w.Code)
 	}
 	// Identical to the closed message: a caller cannot tell first-user from closed.
-	if body := decodeResponse(t, w); body["error"] != RegistrationClosedMessage {
-		t.Errorf("error = %v, want %q", body["error"], RegistrationClosedMessage)
+	if body := decodeResponse(t, w); body["error"] != utils.CodeRegistrationClosed.Message(nil) || body["code"] != "REGISTRATION_CLOSED" {
+		t.Errorf("body = %v, want REGISTRATION_CLOSED", body)
 	}
 	if n := userCount(t); n != 1 {
 		t.Errorf("user count = %d, want 1", n)
@@ -296,8 +297,8 @@ func TestRegisterRejectsAnAddressDifferingOnlyInCase(t *testing.T) {
 	if w.Code != http.StatusConflict {
 		t.Fatalf("status = %d, want 409", w.Code)
 	}
-	if msg := decodeResponse(t, w)["error"]; msg != "That email is already registered." {
-		t.Errorf("error = %v", msg)
+	if body := decodeResponse(t, w); body["error"] != "That email is already registered." || body["code"] != "EMAIL_TAKEN" {
+		t.Errorf("body = %v", body)
 	}
 	if n := userCount(t); n != 1 {
 		t.Errorf("users = %d, want 1", n)
@@ -319,8 +320,15 @@ func TestLoginIgnoresCase(t *testing.T) {
 	}
 
 	code, body = loginRequest(t, "CARTER@example.com", "wrongpassword1")
-	if code != http.StatusUnauthorized || body["error"] != "Invalid email or password." {
-		t.Errorf("wrong password = %d %v, want 401 generic", code, body["error"])
+	if code != http.StatusUnauthorized || body["error"] != "Invalid email or password." || body["code"] != "INVALID_CREDENTIALS" {
+		t.Errorf("wrong password = %d %v, want 401 generic", code, body)
+	}
+	if _, has := body["params"]; has {
+		t.Errorf("params present: %v", body)
+	}
+	_, unknown := loginRequest(t, "nobody@example.com", "wrongpassword1")
+	if fmt.Sprint(unknown) != fmt.Sprint(body) {
+		t.Errorf("unknown address %v differs from wrong password %v", unknown, body)
 	}
 }
 

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -116,6 +117,60 @@ func TestDBError(t *testing.T) {
 			if w.Code != tc.wantCode {
 				t.Fatalf("status = %d, want %d", w.Code, tc.wantCode)
 			}
+			if tc.handled && tc.wantCode == http.StatusServiceUnavailable {
+				if got := bodyOf(t, w)["code"]; got != "DATABASE_BUSY" || w.Header().Get("Retry-After") != "2" {
+					t.Fatalf("code = %v, Retry-After = %q", got, w.Header().Get("Retry-After"))
+				}
+			}
+			if tc.handled && tc.wantCode == http.StatusInternalServerError {
+				if b := bodyOf(t, w); b["code"] != "INTERNAL_ERROR" || b["error"] != "Something went wrong on the server." {
+					t.Fatalf("body = %v", b)
+				}
+			}
 		})
 	}
+}
+
+func bodyOf(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	var b map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &b); err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
+func TestErrorHelpersWriteACode(t *testing.T) {
+	c, w := testCtx()
+	BadRequest(c, "X.")
+	if b := bodyOf(t, w); w.Code != 400 || b["error"] != "X." || b["code"] != "BAD_REQUEST" || b["params"] != nil {
+		t.Fatalf("BadRequest = %d %v", w.Code, b)
+	}
+
+	c, w = testCtx()
+	NotFound(c, "Gone.")
+	if b := bodyOf(t, w); w.Code != 404 || b["code"] != "NOT_FOUND" {
+		t.Fatalf("NotFound = %d %v", w.Code, b)
+	}
+
+	c, w = testCtx()
+	ServiceUnavailable(c, "Y.")
+	if b := bodyOf(t, w); w.Code != 503 || b["code"] != "SERVICE_UNAVAILABLE" || w.Header().Get("Retry-After") != "2" {
+		t.Fatalf("ServiceUnavailable = %d %v", w.Code, b)
+	}
+
+	c, w = testCtx()
+	Fail(c, CodeEmailTaken, nil)
+	if b := bodyOf(t, w); w.Code != 409 || b["code"] != "EMAIL_TAKEN" || b["error"] != "That email is already registered." {
+		t.Fatalf("Fail = %d %v", w.Code, b)
+	}
+	if _, has := bodyOf2(w)["params"]; has {
+		t.Fatal("Fail wrote an empty params key")
+	}
+}
+
+func bodyOf2(w *httptest.ResponseRecorder) map[string]any {
+	var b map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &b)
+	return b
 }

@@ -14,6 +14,39 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## Every error response — gains a stable `code` beside `error`
+
+Additive: `error` is byte-identical to before and still authoritative for any caller that
+ignores `code`. Every error body is now `{"error": "...", "code": "UPPER_SNAKE"}`, with an
+optional `params` object when the sentence has variables. The first-party clients key their
+own (localized) wording on `code` and fall back to `error`.
+
+Codes: `VALIDATION_FAILED`, `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
+`PASSWORD_TOO_LONG`, `PASSWORD_UNCHANGED`, `WRONG_CURRENT_PASSWORD`, `ACCOUNT_NOT_FOUND`,
+`PASSWORD_CHANGED_ELSEWHERE`, `PASSWORD_CHANGED_SIGN_IN_AGAIN`, `EMAIL_CHANGED_SIGN_IN_AGAIN`,
+`SIGN_IN_REQUIRED`, `SESSION_INVALID`, `SESSION_EXPIRED`, `WRONG_TOKEN_TYPE`,
+`INTERNAL_ERROR`, `DATABASE_BUSY`, `RATE_LIMITED`.
+
+A `422` carries `params.violations`, one `{code, params}` per failed rule, with raw JSON
+field names and limits as JSON numbers:
+
+```json
+{
+  "error": "Email must be a valid email address. Password must be at least 8 characters in length.",
+  "code": "VALIDATION_FAILED",
+  "params": {
+    "violations": [
+      { "code": "INVALID_EMAIL", "params": { "field": "email" } },
+      { "code": "TOO_SHORT", "params": { "field": "password", "min": 8 } }
+    ]
+  }
+}
+```
+
+`BAD_REQUEST`, `NOT_FOUND` and `SERVICE_UNAVAILABLE` carry an endpoint-specific sentence,
+so read `error` for them. New codes may appear in later releases: treat an unknown `code`
+as "show `error`".
+
 ## `POST /api/v1/auth/register` — an address differing only in letter case is a duplicate
 
 An address that differs from an existing account only in letter case (`Carter@example.com`

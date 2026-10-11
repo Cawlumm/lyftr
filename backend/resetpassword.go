@@ -127,7 +127,7 @@ func validatePassword(p string) (string, error) {
 	// Bytes, because this limit is bcrypt's and bcrypt counts bytes. Checked here so the
 	// operator gets the same sentence the API gives, rather than a raw hashing error.
 	if utils.PasswordTooLong(p) {
-		return "", errors.New(utils.PasswordTooLongMessage)
+		return "", errors.New(utils.CodePasswordTooLong.Message(nil))
 	}
 	return p, nil
 }

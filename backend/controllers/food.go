@@ -471,7 +471,7 @@ func (h *Handler) SearchFood(c *gin.Context) {
 	case status == 429:
 		log.Printf("[food/search] OFF rate limit hit")
 		c.Header("Retry-After", "60")
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests. Wait a moment and try again."})
+		utils.Fail(c, utils.CodeRateLimited, nil)
 		return
 	case status >= 500:
 		log.Printf("[food/search] OFF upstream error: %d", status)
@@ -549,7 +549,7 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 	case status == 429:
 		log.Printf("[food/barcode] OFF rate limit hit")
 		c.Header("Retry-After", "60")
-		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many requests. Wait a moment and try again."})
+		utils.Fail(c, utils.CodeRateLimited, nil)
 		return
 	case status >= 500:
 		log.Printf("[food/barcode] OFF upstream error: %d", status)

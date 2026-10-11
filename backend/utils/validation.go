@@ -71,43 +71,19 @@ var shared = sync.OnceValue(func() *validator.Validate {
 		panic("validator: registering English translations: " + err.Error())
 	}
 
-	// The default renders the options as a Go slice — "must be one of [breakfast lunch
-	// dinner snack]", brackets and all.
-	translate(v, "oneof", "{0} must be one of: {1}", func(fe validator.FieldError) []string {
-		return []string{fe.Field(), strings.ReplaceAll(fe.Param(), " ", ", ")}
-	})
-
-	// Struct-level tags are ours, so their sentences have to be too. Without these,
-	// Translate falls through to fe.Error() — see sentenceFor.
-	translate(v, "maxtotalrows", fmt.Sprintf("A program can't have more than %d days, exercises and sets combined.", models.MaxProgramRows), nil)
-	translate(v, "maxtotalsets", fmt.Sprintf("A workout can't have more than %d sets.", models.MaxWorkoutSets), nil)
-
 	return v
 })
-
-// translate registers one override. args picks what fills {0}, {1}…; nil means the text
-// stands alone.
-func translate(v *validator.Validate, tag, text string, args func(validator.FieldError) []string) {
-	_ = v.RegisterTranslation(tag, translator,
-		func(t ut.Translator) error { return t.Add(tag, text, true) },
-		func(t ut.Translator, fe validator.FieldError) string {
-			var params []string
-			if args != nil {
-				params = args(fe)
-			}
-			out, err := t.T(tag, params...)
-			if err != nil {
-				return fe.Field() + " isn't valid."
-			}
-			return out
-		})
-}
 
 // label turns a JSON field name into something readable at the start of a sentence:
 // "calorie_target" -> "Calorie target".
 func label(field string) string {
 	spaced := strings.ReplaceAll(field, "_", " ")
 	return strings.ToUpper(spaced[:1]) + spaced[1:]
+}
+
+// unlabel is label's inverse for lowercase snake_case names: the raw JSON field name.
+func unlabel(l string) string {
+	return strings.ReplaceAll(strings.ToLower(l[:1])+l[1:], " ", "_")
 }
 
 // sentenceFor renders one failed rule, and guards the one way translations can regress on
@@ -130,19 +106,103 @@ func sentenceFor(fe validator.FieldError) string {
 	return msg + "."
 }
 
-// validationMessage renders a validator failure. Every failed rule is reported, not just
-// the first: a sign-up form with a bad email AND a short password should say both, or the
-// user fixes one and gets turned away again.
-func validationMessage(err error) string {
+type violation struct {
+	Code   string         `json:"code"`
+	Params map[string]any `json:"params,omitempty"`
+}
+
+type rule struct {
+	code   Code
+	limit  string // "min" or "max": the param that carries the tag's limit
+	noName bool   // struct-level: the sentence names no field
+}
+
+// kindClass says which meaning a tag has: min=8 on text is a length, gte=0 on a number a floor.
+func kindClass(k reflect.Kind) string {
+	switch k {
+	case reflect.String:
+		return "text"
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return "list"
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return "number"
+	}
+	return ""
+}
+
+// The one map from validator failure to code, keyed by tag and kind class. A tag not
+// here becomes INVALID_FIELD and keeps the library's sentence.
+var rules = map[string]rule{
+	"required":     {code: codeRequired},
+	"email:text":   {code: codeInvalidEmail},
+	"min:text":     {code: codeTooShort, limit: "min"},
+	"max:text":     {code: codeTooLong, limit: "max"},
+	"max:list":     {code: codeTooManyItems, limit: "max"},
+	"gte:number":   {code: codeBelowMinimum, limit: "min"},
+	"gt:number":    {code: codeNotAboveMinimum, limit: "min"},
+	"lte:number":   {code: codeAboveMaximum, limit: "max"},
+	"oneof":        {code: codeNotAnOption},
+	"maxtotalsets": {code: codeTooManyWorkoutSets, noName: true},
+	"maxtotalrows": {code: codeTooManyProgramRows, noName: true},
+}
+
+func ruleFor(fe validator.FieldError) (rule, bool) {
+	if r, ok := rules[fe.Tag()+":"+kindClass(fe.Kind())]; ok {
+		return r, true
+	}
+	r, ok := rules[fe.Tag()]
+	return r, ok
+}
+
+func violationOf(fe validator.FieldError) (violation, string) {
+	r, ok := ruleFor(fe)
+	if !ok {
+		p := map[string]any{"field": unlabel(fe.Field())}
+		return violation{Code: codeInvalidField.ID, Params: p}, sentenceFor(fe)
+	}
+	params := map[string]any{}
+	if !r.noName {
+		params["field"] = unlabel(fe.Field())
+	}
+	switch {
+	case r.limit != "":
+		params[r.limit] = json.Number(fe.Param())
+	case fe.Tag() == "oneof":
+		params["options"] = strings.ReplaceAll(fe.Param(), " ", ", ")
+	case fe.Tag() == "maxtotalsets":
+		params["max"] = models.MaxWorkoutSets
+	case fe.Tag() == "maxtotalrows":
+		params["max"] = models.MaxProgramRows
+	}
+	if len(params) == 0 {
+		params = nil
+	}
+	return violation{Code: r.code.ID, Params: params}, r.code.Message(params)
+}
+
+// describe renders a validator failure as the joined English sentence plus its violations.
+// Every failed rule is reported, not just the first: a sign-up form with a bad email AND a
+// short password should say both, or the user fixes one and gets turned away again.
+func describe(err error) (string, []violation) {
 	var fieldErrs validator.ValidationErrors
 	if !errors.As(err, &fieldErrs) || len(fieldErrs) == 0 {
-		return "Some of the details you entered aren't valid."
+		return CodeValidationFailed.Message(nil), nil
 	}
 	parts := make([]string, 0, len(fieldErrs))
+	violations := make([]violation, 0, len(fieldErrs))
 	for _, e := range fieldErrs {
-		parts = append(parts, sentenceFor(e))
+		v, msg := violationOf(e)
+		violations = append(violations, v)
+		parts = append(parts, msg)
 	}
-	return strings.Join(parts, " ")
+	return strings.Join(parts, " "), violations
+}
+
+func validationMessage(err error) string {
+	msg, _ := describe(err)
+	return msg
 }
 
 // shapeName says what a field wanted in words a person can act on. typeErr.Type is a Go
