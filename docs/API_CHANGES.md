@@ -21,11 +21,37 @@ ignores `code`. Every error body is now `{"error": "...", "code": "UPPER_SNAKE"}
 optional `params` object when the sentence has variables. The first-party clients key their
 own (localized) wording on `code` and fall back to `error`.
 
-Codes: `VALIDATION_FAILED`, `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
-`PASSWORD_TOO_LONG`, `PASSWORD_UNCHANGED`, `WRONG_CURRENT_PASSWORD`, `ACCOUNT_NOT_FOUND`,
-`PASSWORD_CHANGED_ELSEWHERE`, `PASSWORD_CHANGED_SIGN_IN_AGAIN`, `EMAIL_CHANGED_SIGN_IN_AGAIN`,
-`SIGN_IN_REQUIRED`, `SESSION_INVALID`, `SESSION_EXPIRED`, `WRONG_TOKEN_TYPE`,
-`INTERNAL_ERROR`, `DATABASE_BUSY`, `RATE_LIMITED`.
+Codes (70). Every error has its own code with a fixed status; there is no generic
+`BAD_REQUEST`, `NOT_FOUND` or `SERVICE_UNAVAILABLE`.
+
+- Sign-in and session: `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
+  `PASSWORD_TOO_LONG`, `PASSWORD_UNCHANGED`, `WRONG_CURRENT_PASSWORD`, `ACCOUNT_NOT_FOUND`,
+  `PASSWORD_CHANGED_ELSEWHERE`, `PASSWORD_CHANGED_SIGN_IN_AGAIN`,
+  `EMAIL_CHANGED_SIGN_IN_AGAIN`, `SIGN_IN_REQUIRED`, `SESSION_INVALID`, `SESSION_EXPIRED`,
+  `WRONG_TOKEN_TYPE`.
+- Server: `INTERNAL_ERROR`, `DATABASE_BUSY`, `RATE_LIMITED`.
+- Validation (`422`, and the violation codes inside it): `VALIDATION_FAILED`, `REQUIRED`,
+  `INVALID_EMAIL`, `TOO_SHORT`, `TOO_LONG`, `TOO_MANY_ITEMS`, `BELOW_MINIMUM`,
+  `NOT_ABOVE_MINIMUM`, `ABOVE_MAXIMUM`, `NOT_AN_OPTION`, `TOO_MANY_WORKOUT_SETS`,
+  `TOO_MANY_PROGRAM_ROWS`, `INVALID_FIELD`.
+- Request body (`400`): `INVALID_FIELDS`, `NOT_A_NUMBER`, `NOT_TEXT`, `NOT_TRUE_OR_FALSE`,
+  `NOT_A_LIST`, `NOT_AN_OBJECT`, `BODY_WRONG_TYPE`, `BODY_NOT_JSON`, `BODY_EMPTY`,
+  `BODY_UNREADABLE`.
+- Resources: `INVALID_ID`, `INVALID_EXERCISE_ID`, `INVALID_PROGRAM_ID`, `INVALID_WORKOUT_ID`
+  (`400`); `ENTRY_NOT_FOUND`, `SAVED_FOOD_NOT_FOUND`, `EXERCISE_NOT_FOUND`,
+  `PROGRAM_NOT_FOUND`, `WORKOUT_NOT_FOUND` (`404`); `UNKNOWN_EXERCISES`, `NO_EXERCISE_CATALOG`
+  (`400`).
+- Dates: `INVALID_DATE`, `INVALID_LOGGED_ON`, `INVALID_FROM_DATE`, `INVALID_TO_DATE` (`400`).
+- Food: `FOOD_NAME_TOO_LONG`, `FOOD_BRAND_TOO_LONG`, `SERVING_SIZE_TOO_LONG`,
+  `BARCODE_TOO_LONG`, `IMAGE_URL_TOO_LONG`, `SEARCH_TERM_REQUIRED`, `INVALID_BARCODE` (`400`);
+  `PRODUCT_NOT_FOUND` (`404`); `FOOD_DATABASE_TIMEOUT`, `FOOD_DATABASE_UNREACHABLE`,
+  `FOOD_SEARCH_UNAVAILABLE`, `BARCODE_LOOKUP_UNAVAILABLE` (`503`, with `Retry-After: 2`).
+- Settings: `DISPLAY_NAME_CONTROL_CHARS`, `TIMEZONE_EMPTY`, `UNKNOWN_TIMEZONE` (`400`).
+
+Parameters are JSON values: the length-limit codes carry `params.max` as a number,
+`UNKNOWN_TIMEZONE` carries `params.timezone`, and the request-body codes (`NOT_A_NUMBER`,
+`NOT_TEXT`, `NOT_TRUE_OR_FALSE`, `NOT_A_LIST`, `NOT_AN_OBJECT`) carry `params.field`, the
+dotted JSON path of the field (`exercises.sets.weight`).
 
 A `422` carries `params.violations`, one `{code, params}` per failed rule, with raw JSON
 field names and limits as JSON numbers:
@@ -43,9 +69,12 @@ field names and limits as JSON numbers:
 }
 ```
 
-`BAD_REQUEST`, `NOT_FOUND` and `SERVICE_UNAVAILABLE` carry an endpoint-specific sentence,
-so read `error` for them. New codes may appear in later releases: treat an unknown `code`
-as "show `error`".
+`PUT /api/v1/settings` and `PUT /api/v1/active-session` reject a field that breaks a rule
+with `400` `INVALID_FIELDS`, the `400` twin of `VALIDATION_FAILED`: the same sentence and the
+same `params.violations`, with the status those endpoints always had. Their body was
+previously `BAD_REQUEST`, which no release shipped.
+
+New codes may appear in later releases: treat an unknown `code` as "show `error`".
 
 ## `POST /api/v1/auth/register` — an address differing only in letter case is a duplicate
 

@@ -28,10 +28,14 @@ func TestCodeIDs(t *testing.T) {
 }
 
 func TestCodeTemplatesAreSentences(t *testing.T) {
-	params := map[string]any{"field": "calorie_target", "min": json.Number("8"), "max": 500, "options": "a, b"}
+	params := map[string]any{"field": "exercises.sets.weight", "min": json.Number("8"), "max": 500, "options": "a, b", "timezone": "Mars/Base"}
 	for id, c := range registry {
 		if c.text == "" {
+			t.Errorf("%s has no text", id)
 			continue
+		}
+		if strings.TrimSpace(c.text) != c.text {
+			t.Errorf("%s: %q has leading or trailing whitespace", id, c.text)
 		}
 		msg := c.Message(params)
 		if !unicode.IsUpper([]rune(msg)[0]) {
@@ -111,30 +115,73 @@ func keys[V any](m map[string]V) []string {
 func TestClientCatalogMatchesRegistry(t *testing.T) {
 	cat := clientCatalog(t)
 
-	worded := map[string]string{}
+	registered := map[string]string{}
 	for id, c := range registry {
-		if c.text != "" {
-			worded[id] = c.text
-		}
+		registered[id] = c.text
 	}
-	if !reflect.DeepEqual(keys(cat["codes"]), keys(worded)) {
-		t.Fatalf("en.json errors.api.codes keys differ from the registry's worded codes:\n catalog  %v\n registry %v", keys(cat["codes"]), keys(worded))
+	if !reflect.DeepEqual(keys(cat["codes"]), keys(registered)) {
+		t.Fatalf("en.json errors.api.codes keys differ from the registry:\n catalog  %v\n registry %v", keys(cat["codes"]), keys(registered))
 	}
-	for id, text := range worded {
+	for id, text := range registered {
 		if cat["codes"][id] != text {
 			t.Errorf("%s: en.json says %q, registry says %q", id, cat["codes"][id], text)
 		}
 	}
 
-	rules := modelRules(t)
-	if !reflect.DeepEqual(keys(cat["fields"]), keys(rules)) {
-		t.Fatalf("en.json errors.api.fields keys differ from the validated model fields:\n catalog %v\n models  %v", keys(cat["fields"]), keys(rules))
+	fields := requestFields(t)
+	if !reflect.DeepEqual(keys(cat["fields"]), keys(fields)) {
+		t.Fatalf("en.json errors.api.fields keys differ from the request models' JSON names:\n catalog %v\n models  %v", keys(cat["fields"]), keys(fields))
 	}
 	for name, text := range cat["fields"] {
 		if text != label(name) {
 			t.Errorf("field %s: en.json says %q, label() says %q", name, text, label(name))
 		}
 	}
+}
+
+// isRequestType is the one definition of "a body a client sends": the field catalog is
+// every JSON name of these, and every bind target must be one.
+func isRequestType(name string) bool {
+	return strings.HasSuffix(name, "Request") || strings.HasSuffix(name, "Req")
+}
+
+// requestFields returns the JSON name of every field of every models Request/Req struct.
+func requestFields(t *testing.T) map[string]bool {
+	t.Helper()
+	files, err := filepath.Glob("../models/*.go")
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no model files: %v", err)
+	}
+	out := map[string]bool{}
+	fset := token.NewFileSet()
+	for _, f := range files {
+		file, err := parser.ParseFile(fset, f, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			spec, ok := n.(*ast.TypeSpec)
+			if !ok || !isRequestType(spec.Name.Name) {
+				return true
+			}
+			st, ok := spec.Type.(*ast.StructType)
+			if !ok {
+				return true
+			}
+			for _, field := range st.Fields.List {
+				if field.Tag == nil {
+					continue
+				}
+				tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
+				name := strings.SplitN(tag.Get("json"), ",", 2)[0]
+				if name != "" && name != "-" {
+					out[name] = true
+				}
+			}
+			return true
+		})
+	}
+	return out
 }
 
 func TestEveryModelTagHasARule(t *testing.T) {

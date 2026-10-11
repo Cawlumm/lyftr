@@ -51,12 +51,12 @@ func (h *Handler) GetWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That workout id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidWorkoutID, nil)
 		return
 	}
 	w, err := h.s.Workout.Get(uid, wid)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That workout no longer exists.")
+		utils.Fail(c, utils.CodeWorkoutNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -69,7 +69,7 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.CreateWorkoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -96,7 +96,7 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	// never fails the already-saved workout.
 	w, progression, err := h.s.CreateWorkoutWithProgression(uid, req)
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "One or more of those exercises no longer exist.")
+		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -110,12 +110,12 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That workout id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidWorkoutID, nil)
 		return
 	}
 	var req models.CreateWorkoutRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -138,11 +138,11 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	}
 	w, err := h.s.Workout.Update(uid, wid, req)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That workout no longer exists.")
+		utils.Fail(c, utils.CodeWorkoutNotFound, nil)
 		return
 	}
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "One or more of those exercises no longer exist.")
+		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -155,7 +155,7 @@ func (h *Handler) DeleteWorkout(c *gin.Context) {
 	uid := middleware.UserID(c)
 	wid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That workout id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidWorkoutID, nil)
 		return
 	}
 	n, err := h.s.Workout.Delete(uid, wid)
@@ -163,7 +163,7 @@ func (h *Handler) DeleteWorkout(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "That workout no longer exists.")
+		utils.Fail(c, utils.CodeWorkoutNotFound, nil)
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})

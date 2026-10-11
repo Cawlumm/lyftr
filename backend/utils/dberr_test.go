@@ -140,23 +140,18 @@ func bodyOf(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 	return b
 }
 
-func TestErrorHelpersWriteACode(t *testing.T) {
+func TestFailWritesACode(t *testing.T) {
 	c, w := testCtx()
-	BadRequest(c, "X.")
-	if b := bodyOf(t, w); w.Code != 400 || b["error"] != "X." || b["code"] != "BAD_REQUEST" || b["params"] != nil {
-		t.Fatalf("BadRequest = %d %v", w.Code, b)
+	Fail(c, CodeFoodDatabaseTimeout, nil)
+	if b := bodyOf(t, w); w.Code != 503 || b["code"] != "FOOD_DATABASE_TIMEOUT" ||
+		b["error"] != "The food database didn't respond in time. Try again." || w.Header().Get("Retry-After") != "2" {
+		t.Fatalf("503 code = %d %v retry %q", w.Code, b, w.Header().Get("Retry-After"))
 	}
 
 	c, w = testCtx()
-	NotFound(c, "Gone.")
-	if b := bodyOf(t, w); w.Code != 404 || b["code"] != "NOT_FOUND" {
-		t.Fatalf("NotFound = %d %v", w.Code, b)
-	}
-
-	c, w = testCtx()
-	ServiceUnavailable(c, "Y.")
-	if b := bodyOf(t, w); w.Code != 503 || b["code"] != "SERVICE_UNAVAILABLE" || w.Header().Get("Retry-After") != "2" {
-		t.Fatalf("ServiceUnavailable = %d %v", w.Code, b)
+	Fail(c, CodeEntryNotFound, nil)
+	if b := bodyOf(t, w); w.Code != 404 || b["code"] != "ENTRY_NOT_FOUND" || b["params"] != nil || w.Header().Get("Retry-After") != "" {
+		t.Fatalf("404 code = %d %v", w.Code, b)
 	}
 
 	c, w = testCtx()

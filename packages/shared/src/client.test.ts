@@ -639,10 +639,10 @@ describe('apiErrorMessage — server codes', () => {
       .toBe(es.errors.api.codes.INTERNAL_ERROR)
   })
 
-  it('en: no code, an unknown code, or BAD_REQUEST returns the server sentence', () => {
+  it('en: no code or an unregistered code returns the server sentence', () => {
     expect(apiErrorMessage(body(400, { error: 'Old server.' }), 'x')).toBe('Old server.')
     expect(apiErrorMessage(body(400, { code: 'BRAND_NEW', error: 'Newer server.' }), 'x')).toBe('Newer server.')
-    expect(apiErrorMessage(body(400, { code: 'BAD_REQUEST', error: 'Name is taken.' }), 'x')).toBe('Name is taken.')
+    expect(apiErrorMessage(body(400, { code: 'NOT_FOUND', error: 'Name is taken.' }), 'x')).toBe('Name is taken.')
   })
 
   it('en: no code and no sentence keeps the status handling', () => {
@@ -686,6 +686,46 @@ describe('apiErrorMessage — server codes', () => {
     expect(apiErrorMessage(body(422, data), 'x')).toBe('English whole.')
   })
 
+  it.each([
+    ['FOOD_DATABASE_TIMEOUT', 503, undefined, undefined],
+    ['PRODUCT_NOT_FOUND', 404, undefined, undefined],
+    ['SEARCH_TERM_REQUIRED', 400, undefined, undefined],
+    ['INVALID_WORKOUT_ID', 400, undefined, undefined],
+    ['UNKNOWN_TIMEZONE', 400, { timezone: 'Mars/Base' }, 'Mars/Base'],
+    ['FOOD_BRAND_TOO_LONG', 400, { max: 200 }, '200'],
+  ])('es: %s renders Spanish', async (code, status, params, fill) => {
+    await i18n.changeLanguage('es')
+    const text = apiErrorMessage(body(status as number, { code, error: 'English.', params }), 'x')
+    let want = (es.errors.api.codes as Record<string, string>)[code as string]
+    if (params) want = want.replace('{{timezone}}', String((params as any).timezone ?? '')).replace('{{max}}', String((params as any).max ?? ''))
+    expect(text).toBe(want)
+    expect(text).not.toBe('English.')
+    if (fill) expect(text).toContain(fill)
+  })
+
+  it('es: a bind failure on a nested field is labelled by its leaf', async () => {
+    await i18n.changeLanguage('es')
+    const data = { code: 'NOT_A_NUMBER', error: 'Exercises.sets.weight must be a number.', params: { field: 'exercises.sets.weight' } }
+    expect(apiErrorMessage(body(400, data), 'x')).toBe('El campo Peso debe ser un número.')
+  })
+
+  it('en: a bind failure on a nested field names the leaf label', () => {
+    const data = { code: 'NOT_A_NUMBER', error: 'Exercises.sets.weight must be a number.', params: { field: 'exercises.sets.weight' } }
+    expect(apiErrorMessage(body(400, data), 'x')).toBe('Weight must be a number.')
+  })
+
+  it('es: INVALID_FIELDS (400) localizes its violations like VALIDATION_FAILED', async () => {
+    await i18n.changeLanguage('es')
+    const data = {
+      code: 'INVALID_FIELDS',
+      error: 'Weight unit must be one of: lbs, kg.',
+      params: { violations: [{ code: 'NOT_AN_OPTION', params: { field: 'weight_unit', options: 'lbs, kg' } }] },
+    }
+    expect(apiErrorMessage(body(400, data), 'x')).toBe(
+      es.errors.api.codes.NOT_AN_OPTION.replace('{{field}}', es.errors.api.fields.weight_unit).replace('{{options}}', 'lbs, kg'),
+    )
+  })
+
   it('en: VALIDATION_FAILED without violations shows the code text', () => {
     expect(apiErrorMessage(body(422, { code: 'VALIDATION_FAILED', error: 'e' }), 'x')).toBe(en.errors.api.codes.VALIDATION_FAILED)
   })
@@ -702,7 +742,9 @@ describe('apiErrorMessage — server codes', () => {
     ['array params', { code: 'TOO_LONG', error: 'S.', params: [] }],
     ['object violations', { code: 'VALIDATION_FAILED', error: 'S.', params: { violations: {} } }],
     ['null violation', { code: 'VALIDATION_FAILED', error: 'S.', params: { violations: [null] } }],
-    ['dotted field', { code: 'REQUIRED', error: 'S.', params: { field: 'a.b' } }],
+    ['dotted field with an unknown leaf', { code: 'REQUIRED', error: 'S.', params: { field: 'a.b' } }],
+    ['upper-case path', { code: 'NOT_A_NUMBER', error: 'S.', params: { field: 'A.b' } }],
+    ['empty path segment', { code: 'NOT_A_NUMBER', error: 'S.', params: { field: 'a..b' } }],
   ])('malformed body (%s) never throws and falls back to the server sentence', (_n, data) => {
     expect(apiErrorMessage(body(422, data), 'x')).toBe('S.')
   })

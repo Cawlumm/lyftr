@@ -42,7 +42,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.UpdateSettingsRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	// Trimmed before it is measured, so " Carter " is a 6-character name rather than
@@ -63,7 +63,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		// inside a greeting is a layout bug, and a NUL in a text field is never
 		// intentional (Django rejects it on every CharField for that reason).
 		if strings.ContainsFunc(trimmed, unicode.IsControl) {
-			utils.BadRequest(c, "A name can't contain line breaks or other control characters.")
+			utils.Fail(c, utils.CodeDisplayNameControlChars, nil)
 			return
 		}
 		req.DisplayName = &trimmed
@@ -72,7 +72,7 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	// controller — binding alone doesn't run them, so without this an invalid unit
 	// or a negative target would be persisted unchecked.
 	if err := validate.Struct(req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	// A zone name is only valid if the runtime can load it, so check it here rather
@@ -85,11 +85,11 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 		// that silently reverts every day boundary to UTC — a 200 OK, a stored value
 		// that is neither null nor rejected, and nothing to point at afterwards.
 		if *req.Timezone == "" {
-			utils.BadRequest(c, "Timezone can't be empty.")
+			utils.Fail(c, utils.CodeTimezoneEmpty, nil)
 			return
 		}
 		if _, err := ParseLocation(*req.Timezone); err != nil {
-			utils.BadRequest(c, "Unknown timezone: "+*req.Timezone+".")
+			utils.Fail(c, utils.CodeUnknownTimezone, map[string]any{"timezone": *req.Timezone})
 			return
 		}
 	}

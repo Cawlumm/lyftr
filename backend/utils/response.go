@@ -34,32 +34,35 @@ func Fail(c *gin.Context, code Code, params map[string]any) {
 	write(c, code, code.Message(params), params)
 }
 
-func BadRequest(c *gin.Context, msg string) {
-	write(c, codeBadRequest, msg, nil)
-}
-
-func NotFound(c *gin.Context, msg string) {
-	write(c, codeNotFound, msg, nil)
-}
-
 func InternalError(c *gin.Context) {
 	Fail(c, CodeInternalError, nil)
 }
 
-// ValidationError reports a request whose fields broke a rule. The message is built
-// by validationMessage rather than taken from err.Error(), which is a Go struct dump.
-func ValidationError(c *gin.Context, err error) {
+// fieldFailure answers a request whose fields broke a rule. The message is built by
+// describe rather than taken from err.Error(), which is a Go struct dump.
+func fieldFailure(c *gin.Context, code Code, err error) {
 	var fieldErrs validator.ValidationErrors
 	if !errors.As(err, &fieldErrs) || len(fieldErrs) == 0 {
-		Fail(c, CodeValidationFailed, nil)
+		Fail(c, code, nil)
 		return
 	}
 	msg, violations := describe(err)
-	write(c, CodeValidationFailed, msg, map[string]any{"violations": violations})
+	write(c, code, msg, map[string]any{"violations": violations})
 }
 
-// ServiceUnavailable signals a transient failure the client may retry, such as
-// a busy/locked database.
-func ServiceUnavailable(c *gin.Context, msg string) {
-	write(c, codeServiceUnavailable, msg, nil)
+// ValidationError reports a request whose fields broke a rule (422).
+func ValidationError(c *gin.Context, err error) {
+	fieldFailure(c, CodeValidationFailed, err)
+}
+
+// BindError reports a request body that could not be bound: undecodable JSON (400 with a
+// code per kind of failure) or, for `binding` tags, broken field rules (400 INVALID_FIELDS).
+func BindError(c *gin.Context, err error) {
+	var fe validator.ValidationErrors
+	if errors.As(err, &fe) {
+		fieldFailure(c, codeInvalidFields, err)
+		return
+	}
+	code, params := bindFailure(err)
+	Fail(c, code, params)
 }

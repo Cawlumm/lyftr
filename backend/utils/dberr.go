@@ -57,7 +57,7 @@ func IsForeignKeyViolation(err error) bool {
 // itself before delegating the rest here:
 //
 //	err := db.DB.QueryRow(...).Scan(...)
-//	if err == sql.ErrNoRows { utils.NotFound(c, "..."); return }
+//	if err == sql.ErrNoRows { utils.Fail(c, utils.CodeEntryNotFound, nil); return }
 //	if utils.DBError(c, err) { return }
 //
 // A locked database becomes a 503 the client can retry; anything else is a

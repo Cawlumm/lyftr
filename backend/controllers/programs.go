@@ -56,12 +56,12 @@ func (h *Handler) GetProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	pid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That program id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidProgramID, nil)
 		return
 	}
 	p, err := h.s.Program.Get(uid, pid)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That program no longer exists.")
+		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -74,7 +74,7 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.CreateProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -83,7 +83,7 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 	}
 	p, err := h.s.Program.Create(uid, req)
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "One or more of those exercises no longer exist.")
+		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -96,12 +96,12 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	pid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That program id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidProgramID, nil)
 		return
 	}
 	var req models.CreateProgramRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -110,11 +110,11 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	}
 	p, err := h.s.Program.Update(uid, pid, req)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That program no longer exists.")
+		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
 	}
 	if utils.IsForeignKeyViolation(err) {
-		utils.BadRequest(c, "One or more of those exercises no longer exist.")
+		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -127,7 +127,7 @@ func (h *Handler) DeleteProgram(c *gin.Context) {
 	uid := middleware.UserID(c)
 	pid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That program id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidProgramID, nil)
 		return
 	}
 	n, err := h.s.Program.Delete(uid, pid)
@@ -135,7 +135,7 @@ func (h *Handler) DeleteProgram(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "That program no longer exists.")
+		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})
@@ -147,12 +147,12 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 	uid := middleware.UserID(c)
 	pid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That program id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidProgramID, nil)
 		return
 	}
 	var req models.ResolveSuggestionsReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -161,7 +161,7 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 	}
 	p, err := h.s.Program.ResolveSuggestions(uid, pid, req.Accept, req.Dismiss)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That program no longer exists.")
+		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {

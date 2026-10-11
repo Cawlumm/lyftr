@@ -3,12 +3,10 @@ package utils
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"reflect"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/go-playground/locales/en"
@@ -205,63 +203,55 @@ func validationMessage(err error) string {
 	return msg
 }
 
-// shapeName says what a field wanted in words a person can act on. typeErr.Type is a Go
-// type, and printing it put "expected float64" in front of someone logging a meal — the
-// same leak this file exists to stop, one size smaller and past a test that only checked
-// for the name of the *error* type. Empty means we have no better word than "wrong type".
-func shapeName(t reflect.Type) string {
+// bindClass says which code a field of this type failing to decode gets. typeErr.Type is a
+// Go type, and printing it put "expected float64" in front of someone logging a meal, so the
+// code names what the field wanted in words a person can act on.
+func bindClass(t reflect.Type) Code {
 	for t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
-	if t == reflect.TypeOf(time.Time{}) {
-		return "a date"
-	}
 	switch t.Kind() {
 	case reflect.Bool:
-		return "true or false"
+		return codeNotTrueOrFalse
 	case reflect.String:
-		return "text"
+		return codeNotText
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
-		return "a number"
+		return codeNotANumber
 	case reflect.Slice, reflect.Array:
-		return "a list"
+		return codeNotAList
 	case reflect.Map, reflect.Struct:
-		return "an object"
+		return codeNotAnObject
 	}
-	return ""
+	return codeBodyWrongType
 }
 
-// BindMessage renders a request body we could not read at all. These are not user
+// bindFailure classifies a request body we could not read at all. These are not user
 // mistakes so much as client bugs or truncated uploads, but the person holding the phone
-// still has to be told something — and "unexpected EOF" is not it.
-func BindMessage(err error) string {
+// still has to be told something — and "unexpected EOF" is not it. params.field is the
+// raw dotted JSON path, which Message renders through label.
+func bindFailure(err error) (Code, map[string]any) {
 	var typeErr *json.UnmarshalTypeError
 	if errors.As(err, &typeErr) {
-		if typeErr.Field != "" {
-			if want := shapeName(typeErr.Type); want != "" {
-				return fmt.Sprintf("%s must be %s.", label(typeErr.Field), want)
-			}
-			return fmt.Sprintf("%s has the wrong type.", label(typeErr.Field))
+		if typeErr.Field == "" {
+			return codeBodyWrongType, nil
 		}
-		return "The request body had a field of the wrong type."
+		code := bindClass(typeErr.Type)
+		if code.ID == codeBodyWrongType.ID {
+			return code, nil
+		}
+		return code, map[string]any{"field": typeErr.Field}
 	}
 
 	var syntaxErr *json.SyntaxError
 	if errors.As(err, &syntaxErr) || errors.Is(err, io.ErrUnexpectedEOF) {
-		return "The request body wasn't valid JSON."
+		return codeBodyNotJSON, nil
 	}
 
 	if errors.Is(err, io.EOF) {
-		return "The request body was empty."
+		return codeBodyEmpty, nil
 	}
 
-	// gin also surfaces validator failures through Bind when binding tags are used.
-	var fieldErrs validator.ValidationErrors
-	if errors.As(err, &fieldErrs) {
-		return validationMessage(err)
-	}
-
-	return "The request couldn't be read."
+	return codeBodyUnreadable, nil
 }

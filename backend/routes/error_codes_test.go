@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -148,4 +150,128 @@ func TestUnexpectedDBErrorAnswersInternalError(t *testing.T) {
 	db.DB.Close()
 	code, body := a.do("GET", "/api/v1/me", access, nil)
 	wantError(t, "closed db", code, body, http.StatusInternalServerError, "INTERNAL_ERROR", "Something went wrong on the server.")
+}
+
+func TestRequestBodyErrorsCarryBindCodes(t *testing.T) {
+	a := newAPI(t)
+	access, _ := a.register("bind@example.com")
+
+	req := httptest.NewRequest("POST", "/api/v1/auth/login", strings.NewReader("{"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	a.r.ServeHTTP(w, req)
+	var body map[string]any
+	_ = json.Unmarshal(w.Body.Bytes(), &body)
+	wantError(t, "login with a truncated body", w.Code, body, 400, "BODY_NOT_JSON", "The request body wasn't valid JSON.")
+
+	code, body := a.do("POST", "/api/v1/workouts", access, map[string]any{
+		"name":      "w",
+		"exercises": []any{map[string]any{"exercise_id": 1, "sets": []any{map[string]any{"weight": "x"}}}},
+	})
+	wantError(t, "nested weight", code, body, 400, "NOT_A_NUMBER", "Exercises.sets.weight must be a number.")
+	if p, _ := body["params"].(map[string]any); p["field"] != "exercises.sets.weight" {
+		t.Errorf("params = %v, want the dotted path", body["params"])
+	}
+
+	code, body = a.do("PUT", "/api/v1/active-session", access, map[string]any{})
+	wantError(t, "active session without data", code, body, 400, "INVALID_FIELDS", "Data is a required field.")
+	params, _ := body["params"].(map[string]any)
+	vs, _ := params["violations"].([]any)
+	if len(vs) != 1 {
+		t.Fatalf("violations = %v", params)
+	}
+	if v, _ := vs[0].(map[string]any); v["code"] != "REQUIRED" {
+		t.Errorf("violation = %v", vs[0])
+	}
+}
+
+func TestSettingsErrorsCarryCodes(t *testing.T) {
+	a := newAPI(t)
+	access, _ := a.register("settings@example.com")
+	put := func(body map[string]any) (int, map[string]any) { return a.do("PUT", "/api/v1/settings", access, body) }
+
+	code, body := put(map[string]any{"weight_unit": "stone"})
+	wantError(t, "weight unit", code, body, 400, "INVALID_FIELDS", "Weight unit must be one of: lbs, kg.")
+	params, _ := body["params"].(map[string]any)
+	vs, _ := params["violations"].([]any)
+	if len(vs) != 1 {
+		t.Fatalf("violations = %v", params)
+	}
+	v, _ := vs[0].(map[string]any)
+	vp, _ := v["params"].(map[string]any)
+	if v["code"] != "NOT_AN_OPTION" || vp["field"] != "weight_unit" || vp["options"] != "lbs, kg" {
+		t.Errorf("violation = %v", v)
+	}
+
+	code, body = put(map[string]any{"timezone": "Mars/Base"})
+	wantError(t, "unknown zone", code, body, 400, "UNKNOWN_TIMEZONE", "Unknown timezone: Mars/Base.")
+	if p, _ := body["params"].(map[string]any); p["timezone"] != "Mars/Base" {
+		t.Errorf("params = %v", body["params"])
+	}
+
+	code, body = put(map[string]any{"timezone": ""})
+	wantError(t, "empty zone", code, body, 400, "TIMEZONE_EMPTY", "Timezone can't be empty.")
+
+	code, body = put(map[string]any{"display_name": "a\nb"})
+	wantError(t, "control chars", code, body, 400, "DISPLAY_NAME_CONTROL_CHARS", "A name can't contain line breaks or other control characters.")
+}
+
+func TestResourceErrorsCarryCodes(t *testing.T) {
+	a := newAPI(t)
+	access, _ := a.register("resources@example.com")
+
+	cases := []struct {
+		name, method, path string
+		body               any
+		status             int
+		code, sentence     string
+	}{
+		{"workout id", "GET", "/workouts/abc", nil, 400, "INVALID_WORKOUT_ID", "That workout id isn't valid."},
+		{"workout gone", "GET", "/workouts/999999", nil, 404, "WORKOUT_NOT_FOUND", "That workout no longer exists."},
+		{"program id", "GET", "/programs/abc", nil, 400, "INVALID_PROGRAM_ID", "That program id isn't valid."},
+		{"program gone", "GET", "/programs/999999", nil, 404, "PROGRAM_NOT_FOUND", "That program no longer exists."},
+		{"program unknown exercise", "POST", "/programs", map[string]any{
+			"name": "p",
+			"days": []any{map[string]any{"name": "d", "exercises": []any{map[string]any{"exercise_id": 999999}}}},
+		}, 400, "UNKNOWN_EXERCISES", "One or more of those exercises no longer exist."},
+		{"weight from", "GET", "/weight?from=x", nil, 400, "INVALID_FROM_DATE", "From must be in YYYY-MM-DD format."},
+		{"weight to", "GET", "/weight?to=x", nil, 400, "INVALID_TO_DATE", "To must be in YYYY-MM-DD format."},
+		{"weight gone", "GET", "/weight/999999", nil, 404, "ENTRY_NOT_FOUND", "That entry no longer exists."},
+		{"weight id", "GET", "/weight/abc", nil, 400, "INVALID_ID", "That id isn't valid."},
+		{"exercise id", "GET", "/exercises/abc", nil, 400, "INVALID_EXERCISE_ID", "That exercise id isn't valid."},
+		{"exercise gone", "GET", "/exercises/999999", nil, 404, "EXERCISE_NOT_FOUND", "That exercise no longer exists."},
+		{"food date", "GET", "/food?date=x", nil, 400, "INVALID_DATE", "Date must be in YYYY-MM-DD format."},
+		{"food id", "GET", "/food/abc", nil, 400, "INVALID_ID", "That id isn't valid."},
+		{"food gone", "DELETE", "/food/999999", nil, 404, "ENTRY_NOT_FOUND", "That entry no longer exists."},
+		{"saved food gone", "DELETE", "/food/saved/999999", nil, 404, "SAVED_FOOD_NOT_FOUND", "That saved food no longer exists."},
+		{"search without a term", "GET", "/food/search", nil, 400, "SEARCH_TERM_REQUIRED", "A search term is required."},
+		{"barcode shape", "GET", "/food/barcode/abc", nil, 400, "INVALID_BARCODE", "That barcode isn't valid."},
+		{"logged on", "POST", "/food", map[string]any{"name": "Oats", "meal": "lunch", "logged_on": "tomorrow"},
+			400, "INVALID_LOGGED_ON", "Logged on must be in YYYY-MM-DD format."},
+	}
+	for _, tc := range cases {
+		code, body := a.do(tc.method, "/api/v1"+tc.path, access, tc.body)
+		wantError(t, tc.name, code, body, tc.status, tc.code, tc.sentence)
+	}
+}
+
+func TestFoodLengthLimitsCarryTheLimit(t *testing.T) {
+	a := newAPI(t)
+	access, _ := a.register("limits@example.com")
+
+	cases := []struct {
+		field, code, sentence string
+		max, over             int
+	}{
+		{"brand", "FOOD_BRAND_TOO_LONG", "Brand must be 200 characters or fewer.", 200, 201},
+		{"image_url", "IMAGE_URL_TOO_LONG", "Image URL must be 500 characters or fewer.", 500, 501},
+	}
+	for _, tc := range cases {
+		code, body := a.do("POST", "/api/v1/food", access, map[string]any{
+			"name": "Oats", "meal": "lunch", tc.field: strings.Repeat("x", tc.over)})
+		wantError(t, tc.field, code, body, 400, tc.code, tc.sentence)
+		if p, _ := body["params"].(map[string]any); p["max"] != float64(tc.max) {
+			t.Errorf("%s params = %v, want max %d as a JSON number", tc.field, body["params"], tc.max)
+		}
+	}
 }

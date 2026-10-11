@@ -33,7 +33,9 @@ export interface ServerInfo {
 // param we cannot fill. In every such case the caller falls back to the server's sentence, so
 // a half-translated message is never shown.
 const CODE_ID = /^[A-Z][A-Z0-9_]*$/
-const FIELD_NAME = /^[a-z][a-z0-9_]*$/
+// A field is a JSON name, or the dotted path of a nested one (exercises.sets.weight) when a
+// body could not be bound; the catalog labels the last segment.
+const FIELD_PATH = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
 
 const codedMessage = (body: any): string | null => {
   const t = i18n.t as (key: string, params?: Record<string, unknown>) => string
@@ -49,8 +51,8 @@ const codedMessage = (body: any): string | null => {
     }
     if ('field' in values) {
       const field = values.field
-      if (typeof field !== 'string' || !FIELD_NAME.test(field)) return null
-      const fieldKey = `errors.api.fields.${field}`
+      if (typeof field !== 'string' || !FIELD_PATH.test(field)) return null
+      const fieldKey = `errors.api.fields.${field.split('.').pop()}`
       if (!i18n.exists(fieldKey)) return null
       values.field = t(fieldKey)
     }
@@ -61,7 +63,7 @@ const codedMessage = (body: any): string | null => {
 
   if (!body || typeof body !== 'object') return null
   const violations = body.params?.violations
-  if (body.code === 'VALIDATION_FAILED' && violations !== undefined) {
+  if (violations !== undefined) {
     if (!Array.isArray(violations) || violations.length === 0) return null
     const parts: string[] = []
     for (const v of violations) {

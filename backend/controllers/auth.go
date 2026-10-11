@@ -48,7 +48,7 @@ func (h *Handler) Register(c *gin.Context) {
 
 	var req models.RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -111,7 +111,7 @@ func (h *Handler) Register(c *gin.Context) {
 func (h *Handler) Login(c *gin.Context) {
 	var req models.LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -176,7 +176,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 
 	var req models.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -238,7 +238,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 func (h *Handler) ChangeEmail(c *gin.Context) {
 	var req models.ChangeEmailRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -286,7 +286,7 @@ func (h *Handler) respondWithSession(c *gin.Context, user models.User) {
 func (h *Handler) RefreshToken(c *gin.Context) {
 	var req models.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 
