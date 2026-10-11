@@ -85,7 +85,7 @@ func TestChangeEmailRejectsWrongCurrentPassword(t *testing.T) {
 	uid, _ := registerAndLogin(t, "old@example.com", "password123")
 
 	code, body := changeEmail(t, uid, "new@example.com", "wrongpassword")
-	if code != http.StatusUnauthorized || errorOf(body) != "Your current password is incorrect." {
+	if code != http.StatusUnauthorized || errorOf(body) != "Your current password is incorrect." || body["code"] != "WRONG_CURRENT_PASSWORD" {
 		t.Fatalf("got %d %v", code, body)
 	}
 	if got := storedEmail(t, uid); got != "old@example.com" {
@@ -110,7 +110,7 @@ func TestChangeEmailRejectsAddressHeldInAnotherCase(t *testing.T) {
 	uid, _ := registerAndLogin(t, "me@example.com", "password123")
 
 	code, body := changeEmail(t, uid, "Carter@Example.COM", "password123")
-	if code != http.StatusConflict || errorOf(body) != "That email is already registered." {
+	if code != http.StatusConflict || errorOf(body) != "That email is already registered." || body["code"] != "EMAIL_TAKEN" {
 		t.Fatalf("got %d %v", code, body)
 	}
 	if got := storedEmail(t, uid); got != "me@example.com" {

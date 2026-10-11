@@ -35,12 +35,12 @@ func (h *Handler) ListExercises(c *gin.Context) {
 func (h *Handler) GetExercise(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That exercise id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidExerciseID, nil)
 		return
 	}
 	e, err := h.s.Exercise.Get(id)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That exercise no longer exists.")
+		utils.Fail(c, utils.CodeExerciseNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -53,7 +53,7 @@ func (h *Handler) GetExercisePRs(c *gin.Context) {
 	uid := middleware.UserID(c)
 	exerciseID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That exercise id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidExerciseID, nil)
 		return
 	}
 	pr, err := h.s.Workout.PRForExercise(uid, exerciseID)
@@ -77,7 +77,7 @@ func (h *Handler) GetExerciseHistory(c *gin.Context) {
 	uid := middleware.UserID(c)
 	exerciseID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That exercise id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidExerciseID, nil)
 		return
 	}
 	limit := 20
@@ -100,11 +100,11 @@ func (h *Handler) GetExerciseHistory(c *gin.Context) {
 func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 	n, err := h.s.Exercise.RefreshCached(c.Request.Context())
 	if errors.Is(err, stores.ErrNoCatalog) {
-		utils.BadRequest(c, "This server has no exercise catalog configured.")
+		utils.Fail(c, utils.CodeNoExerciseCatalog, nil)
 		return
 	}
 	if err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	utils.OK(c, gin.H{"refreshed": n})

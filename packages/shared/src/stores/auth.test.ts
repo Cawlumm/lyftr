@@ -68,6 +68,27 @@ describe('auth store (storage-adapter DI)', () => {
     }
   })
 
+  it('es then en: a coded login failure in the store re-renders in the active language', async () => {
+    const client = {
+      authAPI: {
+        login: async () => { throw { response: { status: 401, data: { error: 'Invalid email or password.', code: 'INVALID_CREDENTIALS' } } } },
+        register: async () => { throw new Error('unused') },
+      },
+    } as unknown as LyftrClient
+    const useAuth = createAuthStore(client, createMemoryStorage())
+
+    await expect(useAuth.getState().login('x@y.z', 'nope')).rejects.toBeTruthy()
+    const failure = useAuth.getState().error!
+    try {
+      await i18n.changeLanguage('es')
+      expect(uiMessage(failure)).toBe(es.errors.api.codes.INVALID_CREDENTIALS)
+      await i18n.changeLanguage('en')
+      expect(uiMessage(failure)).toBe('Invalid email or password.')
+    } finally {
+      await i18n.changeLanguage('en')
+    }
+  })
+
   it('logout clears storage and state', async () => {
     const storage = createMemoryStorage()
     const useAuth = createAuthStore(fakeClient(), storage)

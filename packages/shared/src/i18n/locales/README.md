@@ -15,6 +15,8 @@ from `LANGUAGE_NAMES`.
 How to add a language, and the key-naming rules: see the "Translations" section of
 [CONTRIBUTING.md](../../../../../CONTRIBUTING.md).
 
+`errors.api.codes` keys are the API's error codes (UPPER_SNAKE, an exception to the camelCase key rule because they are wire identifiers), and `errors.api.fields` keys are API field names. `backend/utils/codes_test.go` fails when they disagree with the server.
+
 ## Spanish: voice and glossary
 
 `es.json` is machine-translated from `en.json` and has not been reviewed by a native

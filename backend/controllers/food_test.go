@@ -1012,6 +1012,9 @@ func TestLookupBarcode_rateLimited(t *testing.T) {
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 forwarded, got %d", w.Code)
 	}
+	if got := decodeResponse(t, w)["code"]; got != "RATE_LIMITED" || w.Header().Get("Retry-After") != "60" {
+		t.Fatalf("code = %v, Retry-After = %q", got, w.Header().Get("Retry-After"))
+	}
 }
 
 // ─── SearchFood ───────────────────────────────────────────────────────────────
@@ -1069,6 +1072,9 @@ func TestSearchFood_rateLimited(t *testing.T) {
 
 	if w.Code != http.StatusTooManyRequests {
 		t.Fatalf("expected 429 forwarded, got %d", w.Code)
+	}
+	if got := decodeResponse(t, w)["code"]; got != "RATE_LIMITED" || w.Header().Get("Retry-After") != "60" {
+		t.Fatalf("code = %v, Retry-After = %q", got, w.Header().Get("Retry-After"))
 	}
 }
 

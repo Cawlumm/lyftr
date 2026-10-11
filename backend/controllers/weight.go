@@ -34,7 +34,7 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 	if from := c.Query("from"); from != "" {
 		day, ok := h.resolveQueryDay(uid, from)
 		if !ok {
-			utils.BadRequest(c, "From must be in YYYY-MM-DD format.")
+			utils.Fail(c, utils.CodeInvalidFromDate, nil)
 			return
 		}
 		f.FromDay = &day
@@ -42,7 +42,7 @@ func (h *Handler) ListWeightLogs(c *gin.Context) {
 	if to := c.Query("to"); to != "" {
 		day, ok := h.resolveQueryDay(uid, to)
 		if !ok {
-			utils.BadRequest(c, "To must be in YYYY-MM-DD format.")
+			utils.Fail(c, utils.CodeInvalidToDate, nil)
 			return
 		}
 		f.ToDay = &day
@@ -59,7 +59,7 @@ func (h *Handler) LogWeight(c *gin.Context) {
 	uid := middleware.UserID(c)
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -70,7 +70,7 @@ func (h *Handler) LogWeight(c *gin.Context) {
 
 	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
 	if !ok {
-		utils.BadRequest(c, "Logged on must be in YYYY-MM-DD format.")
+		utils.Fail(c, utils.CodeInvalidLoggedOn, nil)
 		return
 	}
 	log, err := h.s.Weight.UpsertForDay(uid, req, day)
@@ -84,12 +84,12 @@ func (h *Handler) GetWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidID, nil)
 		return
 	}
 	log, err := h.s.Weight.Get(uid, lid)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That entry no longer exists.")
+		utils.Fail(c, utils.CodeEntryNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -102,12 +102,12 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidID, nil)
 		return
 	}
 	var req models.LogWeightRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if err := validate.Struct(req); err != nil {
@@ -118,12 +118,12 @@ func (h *Handler) UpdateWeightLog(c *gin.Context) {
 
 	day, ok := h.resolveDay(uid, req.LoggedOn, req.LoggedAt)
 	if !ok {
-		utils.BadRequest(c, "Logged on must be in YYYY-MM-DD format.")
+		utils.Fail(c, utils.CodeInvalidLoggedOn, nil)
 		return
 	}
 	log, err := h.s.Weight.Update(uid, lid, req, day)
 	if err == sql.ErrNoRows {
-		utils.NotFound(c, "That entry no longer exists.")
+		utils.Fail(c, utils.CodeEntryNotFound, nil)
 		return
 	}
 	if utils.DBError(c, err) {
@@ -136,7 +136,7 @@ func (h *Handler) DeleteWeightLog(c *gin.Context) {
 	uid := middleware.UserID(c)
 	lid, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
-		utils.BadRequest(c, "That id isn't valid.")
+		utils.Fail(c, utils.CodeInvalidID, nil)
 		return
 	}
 	n, err := h.s.Weight.Delete(uid, lid)
@@ -144,7 +144,7 @@ func (h *Handler) DeleteWeightLog(c *gin.Context) {
 		return
 	}
 	if n == 0 {
-		utils.NotFound(c, "That entry no longer exists.")
+		utils.Fail(c, utils.CodeEntryNotFound, nil)
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})

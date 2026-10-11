@@ -526,3 +526,8 @@ type DailyStats struct {
 	TotalFiber    float64 `json:"total_fiber"`
 	WorkoutCount  int     `json:"workout_count"`
 }
+
+// ActiveSessionRequest is the body of PUT /active-session.
+type ActiveSessionRequest struct {
+	Data string `json:"data" binding:"required"`
+}

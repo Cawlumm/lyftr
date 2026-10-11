@@ -31,27 +31,27 @@ func Auth(versions TokenVersions) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			utils.Unauthorized(c, "You need to sign in to do that.")
+			utils.Fail(c, utils.CodeSignInRequired, nil)
 			c.Abort()
 			return
 		}
 
 		claims, err := utils.ValidateToken(strings.TrimPrefix(header, "Bearer "))
 		if err != nil {
-			utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
+			utils.Fail(c, utils.CodeSessionInvalid, nil)
 			c.Abort()
 			return
 		}
 
 		if claims.Type != "access" {
-			utils.Unauthorized(c, "That token can't be used here.")
+			utils.Fail(c, utils.CodeWrongTokenType, nil)
 			c.Abort()
 			return
 		}
 
 		current, err := versions.TokenVersion(claims.UserID)
 		if errors.Is(err, sql.ErrNoRows) {
-			utils.Unauthorized(c, "Your session isn't valid. Please sign in again.")
+			utils.Fail(c, utils.CodeSessionInvalid, nil)
 			c.Abort()
 			return
 		}
@@ -60,7 +60,7 @@ func Auth(versions TokenVersions) gin.HandlerFunc {
 			return
 		}
 		if utils.NormalizeTokenVersion(claims.TokenVersion) != current {
-			utils.Unauthorized(c, "Your session expired. Please sign in again.")
+			utils.Fail(c, utils.CodeSessionExpired, nil)
 			c.Abort()
 			return
 		}

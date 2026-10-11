@@ -149,7 +149,7 @@ func TestValidatePasswordLength(t *testing.T) {
 		if err == nil {
 			t.Fatal("accepted a password bcrypt cannot hash")
 		}
-		if err.Error() != utils.PasswordTooLongMessage {
+		if err.Error() != utils.CodePasswordTooLong.Message(nil) {
 			t.Errorf("error was %q, want the shared message", err)
 		}
 	})

@@ -27,7 +27,57 @@ export interface ServerInfo {
   demo_mode?: boolean
 }
 
-// Turn an axios error into an actionable message. Proxy misconfig (404/405) is
+// The server's own words, in the user's language. The server sends a stable `code` beside its
+// English `error`; wording for the codes lives in the catalog (errors.api.codes). Null means
+// "not ours to say": no code (an older server), a code this build has no wording for, or a
+// param we cannot fill. In every such case the caller falls back to the server's sentence, so
+// a half-translated message is never shown.
+const CODE_ID = /^[A-Z][A-Z0-9_]*$/
+// A field is a JSON name, or the dotted path of a nested one (exercises.sets.weight) when a
+// body could not be bound; the catalog labels the last segment.
+const FIELD_PATH = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*$/
+
+const codedMessage = (body: any): string | null => {
+  const t = i18n.t as (key: string, params?: Record<string, unknown>) => string
+
+  const one = (code: unknown, params: unknown): string | null => {
+    if (typeof code !== 'string' || !CODE_ID.test(code)) return null
+    const key = `errors.api.codes.${code}`
+    if (!i18n.exists(key)) return null
+    const values: Record<string, unknown> = {}
+    if (params !== null && params !== undefined) {
+      if (typeof params !== 'object' || Array.isArray(params)) return null
+      Object.assign(values, params)
+    }
+    if ('field' in values) {
+      const field = values.field
+      if (typeof field !== 'string' || !FIELD_PATH.test(field)) return null
+      const fieldKey = `errors.api.fields.${field.split('.').pop()}`
+      if (!i18n.exists(fieldKey)) return null
+      values.field = t(fieldKey)
+    }
+    // `replace` keeps a param named count, lng, ns or context from steering the lookup.
+    const text = t(key, { replace: values })
+    return text.includes('{{') ? null : text
+  }
+
+  if (!body || typeof body !== 'object') return null
+  const violations = body.params?.violations
+  if (violations !== undefined) {
+    if (!Array.isArray(violations) || violations.length === 0) return null
+    const parts: string[] = []
+    for (const v of violations) {
+      const text = one(v?.code, v?.params)
+      if (text === null) return null
+      parts.push(text)
+    }
+    return parts.join(' ')
+  }
+  return one(body.code, body.params)
+}
+
+// Turn an axios error into an actionable message. Order: the server's code in our wording,
+// then the server's own sentence, then the status, then the caller's fallback. Proxy misconfig (404/405) is
 // distinguished from real auth and server errors, so connectivity problems don't
 // masquerade as "Registration failed." Response-less failures go to the classifier,
 // which separates a blocked-cleartext or untrusted-certificate failure from a genuinely
@@ -41,6 +91,8 @@ export interface ServerInfo {
 export const isNotFound = (err: any): boolean => err?.response?.status === 404
 export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetail = 'brief'): string => {
   if (err?.response) {
+    const coded = codedMessage(err.response.data)
+    if (coded) return coded
     const serverError = err.response.data?.error
     if (serverError) return serverError
     const status = err.response.status

@@ -25,7 +25,7 @@ func TestChangeEmailRequiresAuth(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatal(err)
 	}
-	if body["error"] != "You need to sign in to do that." {
-		t.Errorf("error = %v", body["error"])
+	if body["error"] != "You need to sign in to do that." || body["code"] != "SIGN_IN_REQUIRED" {
+		t.Errorf("body = %v", body)
 	}
 }

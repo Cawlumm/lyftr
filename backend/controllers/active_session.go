@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
+	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
 )
@@ -23,11 +24,9 @@ func (h *Handler) GetActiveSession(c *gin.Context) {
 
 func (h *Handler) UpsertActiveSession(c *gin.Context) {
 	uid := middleware.UserID(c)
-	var body struct {
-		Data string `json:"data" binding:"required"`
-	}
+	var body models.ActiveSessionRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		utils.BadRequest(c, utils.BindMessage(err))
+		utils.BindError(c, err)
 		return
 	}
 	if utils.DBError(c, h.s.ActiveSession.Upsert(uid, body.Data)) {

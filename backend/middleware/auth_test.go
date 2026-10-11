@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -54,6 +55,16 @@ func pair(t *testing.T, version int) (access, refresh string) {
 	return a, r
 }
 
+func codeOf(t *testing.T, w *httptest.ResponseRecorder) string {
+	t.Helper()
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	s, _ := body["code"].(string)
+	return s
+}
+
 func TestAuthAcceptsATokenAtTheCurrentVersion(t *testing.T) {
 	useConfig(t)
 	access, _ := pair(t, 3)
@@ -67,8 +78,8 @@ func TestAuthRejectsATokenFromAnEarlierVersion(t *testing.T) {
 	useConfig(t)
 	access, _ := pair(t, 2)
 	w, reached := serve(t, fakeVersions{version: 3}, "Bearer "+access)
-	if w.Code != http.StatusUnauthorized || *reached {
-		t.Fatalf("status = %d reached = %v, want 401 and not reached", w.Code, *reached)
+	if w.Code != http.StatusUnauthorized || *reached || codeOf(t, w) != "SESSION_EXPIRED" {
+		t.Fatalf("status = %d reached = %v code = %s, want 401 SESSION_EXPIRED and not reached", w.Code, *reached, codeOf(t, w))
 	}
 }
 
@@ -76,8 +87,8 @@ func TestAuthRejectsADeletedAccount(t *testing.T) {
 	useConfig(t)
 	access, _ := pair(t, 1)
 	w, reached := serve(t, fakeVersions{err: sql.ErrNoRows}, "Bearer "+access)
-	if w.Code != http.StatusUnauthorized || *reached {
-		t.Fatalf("status = %d reached = %v, want 401 and not reached", w.Code, *reached)
+	if w.Code != http.StatusUnauthorized || *reached || codeOf(t, w) != "SESSION_INVALID" {
+		t.Fatalf("status = %d reached = %v code = %s, want 401 SESSION_INVALID and not reached", w.Code, *reached, codeOf(t, w))
 	}
 }
 
@@ -132,6 +143,9 @@ func TestAuthAnswers503WhenTheDatabaseIsLocked(t *testing.T) {
 	if w.Code != http.StatusServiceUnavailable || *reached {
 		t.Fatalf("status = %d reached = %v, want 503 and not reached", w.Code, *reached)
 	}
+	if got := codeOf(t, w); got != "DATABASE_BUSY" {
+		t.Errorf("code = %s", got)
+	}
 }
 
 // Tokens minted before the version claim existed decode as 0. They stay valid while the
@@ -150,14 +164,14 @@ func TestAuthTreatsAPreVersionTokenAsVersionOne(t *testing.T) {
 func TestAuthRejectsMissingMalformedAndRefreshTokens(t *testing.T) {
 	useConfig(t)
 	_, refresh := pair(t, 1)
-	for name, header := range map[string]string{
-		"no header":     "",
-		"not a bearer":  "Basic abc",
-		"garbage":       "Bearer not-a-token",
-		"a refresh one": "Bearer " + refresh,
+	for name, c := range map[string]struct{ header, code string }{
+		"no header":     {"", "SIGN_IN_REQUIRED"},
+		"not a bearer":  {"Basic abc", "SIGN_IN_REQUIRED"},
+		"garbage":       {"Bearer not-a-token", "SESSION_INVALID"},
+		"a refresh one": {"Bearer " + refresh, "WRONG_TOKEN_TYPE"},
 	} {
-		if w, reached := serve(t, fakeVersions{version: 1}, header); w.Code != http.StatusUnauthorized || *reached {
-			t.Errorf("%s: status = %d reached = %v, want 401", name, w.Code, *reached)
+		if w, reached := serve(t, fakeVersions{version: 1}, c.header); w.Code != http.StatusUnauthorized || *reached || codeOf(t, w) != c.code {
+			t.Errorf("%s: status = %d reached = %v code = %s, want 401 %s", name, w.Code, *reached, codeOf(t, w), c.code)
 		}
 	}
 }

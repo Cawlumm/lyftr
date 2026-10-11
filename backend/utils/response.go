@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 func OK(c *gin.Context, data any) {
@@ -14,39 +16,53 @@ func Created(c *gin.Context, data any) {
 	c.JSON(http.StatusCreated, gin.H{"data": data})
 }
 
-func BadRequest(c *gin.Context, msg string) {
-	c.JSON(http.StatusBadRequest, gin.H{"error": msg})
+// write is the one place an error body is built: the sentence in `error`, the stable id in
+// `code`, and `params` only when the sentence has variables.
+func write(c *gin.Context, code Code, msg string, params map[string]any) {
+	if code.Status == http.StatusServiceUnavailable {
+		c.Header("Retry-After", "2")
+	}
+	body := gin.H{"error": msg, "code": code.ID}
+	if len(params) > 0 {
+		body["params"] = params
+	}
+	c.JSON(code.Status, body)
 }
 
-func Unauthorized(c *gin.Context, msg string) {
-	c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
-}
-
-func Forbidden(c *gin.Context, msg string) {
-	c.JSON(http.StatusForbidden, gin.H{"error": msg})
-}
-
-func NotFound(c *gin.Context, msg string) {
-	c.JSON(http.StatusNotFound, gin.H{"error": msg})
+// Fail answers with a registered code and its English sentence.
+func Fail(c *gin.Context, code Code, params map[string]any) {
+	write(c, code, code.Message(params), params)
 }
 
 func InternalError(c *gin.Context) {
-	c.JSON(http.StatusInternalServerError, gin.H{"error": "Something went wrong on the server."})
+	Fail(c, CodeInternalError, nil)
 }
 
-// ValidationError reports a request whose fields broke a rule. The message is built
-// by validationMessage rather than taken from err.Error(), which is a Go struct dump.
+// fieldFailure answers a request whose fields broke a rule. The message is built by
+// describe rather than taken from err.Error(), which is a Go struct dump.
+func fieldFailure(c *gin.Context, code Code, err error) {
+	var fieldErrs validator.ValidationErrors
+	if !errors.As(err, &fieldErrs) || len(fieldErrs) == 0 {
+		Fail(c, code, nil)
+		return
+	}
+	msg, violations := describe(err)
+	write(c, code, msg, map[string]any{"violations": violations})
+}
+
+// ValidationError reports a request whose fields broke a rule (422).
 func ValidationError(c *gin.Context, err error) {
-	c.JSON(http.StatusUnprocessableEntity, gin.H{"error": validationMessage(err)})
+	fieldFailure(c, CodeValidationFailed, err)
 }
 
-func Conflict(c *gin.Context, msg string) {
-	c.JSON(http.StatusConflict, gin.H{"error": msg})
-}
-
-// ServiceUnavailable signals a transient failure the client may retry, such as
-// a busy/locked database.
-func ServiceUnavailable(c *gin.Context, msg string) {
-	c.Header("Retry-After", "2")
-	c.JSON(http.StatusServiceUnavailable, gin.H{"error": msg})
+// BindError reports a request body that could not be bound: undecodable JSON (400 with a
+// code per kind of failure) or, for `binding` tags, broken field rules (400 INVALID_FIELDS).
+func BindError(c *gin.Context, err error) {
+	var fe validator.ValidationErrors
+	if errors.As(err, &fe) {
+		fieldFailure(c, codeInvalidFields, err)
+		return
+	}
+	code, params := bindFailure(err)
+	Fail(c, code, params)
 }
