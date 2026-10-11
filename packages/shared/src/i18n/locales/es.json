@@ -931,7 +931,7 @@
       "exerciseFallback": "ejercicio",
       "exerciseNotesPlaceholder": "p. ej., Me sentí fuerte",
       "restBetweenSets": "Descanso entre series",
-      "set": "Serie",
+      "set": "N.º",
       "reps": "Reps",
       "weight": "Peso",
       "setWeightLabel": "Peso de la serie",
@@ -994,7 +994,7 @@
         "label": "Notas, {{name}}"
       },
       "columns": {
-        "set": "Serie",
+        "set": "N.º",
         "reps": "Reps",
         "weight": "Peso",
         "done": "Listo"
