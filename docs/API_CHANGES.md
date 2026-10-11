@@ -76,6 +76,16 @@ previously `BAD_REQUEST`, which no release shipped.
 
 New codes may appear in later releases: treat an unknown `code` as "show `error`".
 
+## `GET /api/v1/food/search`, `GET /api/v1/food/barcode/:code` — optional `locale` names the product in the reader's language
+
+Both accept `?locale=<tag>` (`es`, `pt-BR`; only the primary language is used). Open Food Facts
+holds a name per language, and the server now asks for the reader's, then English, then the
+product's main name. A missing or malformed `locale` means `en`, so existing callers see the same
+names as before. The response shape is unchanged.
+
+Saving a favourite still matches on name and brand, so the same product saved from a Spanish and
+an English search is two favourites. The shared client matches `barcode` first when one is present.
+
 ## `POST /api/v1/auth/register` — an address differing only in letter case is a duplicate
 
 An address that differs from an existing account only in letter case (`Carter@example.com`

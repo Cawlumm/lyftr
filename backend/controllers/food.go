@@ -287,6 +287,46 @@ type offProduct struct {
 	ServingQuantity     offFloat `json:"serving_quantity"`
 	ProductQuantityUnit string   `json:"product_quantity_unit"`
 	ImageURL            string   `json:"image_url"`
+
+	// Names holds every product_name_<lc> OFF sent, keyed by <lc>.
+	Names map[string]string `json:"-"`
+}
+
+func (p *offProduct) UnmarshalJSON(data []byte) error {
+	type plain offProduct
+	if err := json.Unmarshal(data, (*plain)(p)); err != nil {
+		return err
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for k, v := range raw {
+		lc, ok := strings.CutPrefix(k, "product_name_")
+		if !ok {
+			continue
+		}
+		var s string
+		if json.Unmarshal(v, &s) != nil {
+			continue
+		}
+		if p.Names == nil {
+			p.Names = map[string]string{}
+		}
+		p.Names[lc] = s
+	}
+	return nil
+}
+
+// name is the user's language, then English, then product_name, which is the main
+// language: whatever the packaging was entered in, hence last.
+func (p offProduct) name(lang string) string {
+	for _, s := range []string{p.Names[lang], p.Names["en"], p.ProductName} {
+		if s = strings.TrimSpace(s); s != "" {
+			return s
+		}
+	}
+	return ""
 }
 
 // A serving spelled in any volume unit means the product's figures are per 100 ml, not
@@ -323,7 +363,7 @@ type offNutrients struct {
 	FiberServing         float64 `json:"fiber_serving"`
 }
 
-func offProductToResult(p offProduct) models.FoodSearchResult {
+func offProductToResult(p offProduct, lang string) models.FoodSearchResult {
 	brand := strings.Join(p.Brands, ", ")
 	imageURL := p.ImageURL
 	if !strings.HasPrefix(imageURL, "https://") {
@@ -362,7 +402,7 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 	}
 
 	return models.FoodSearchResult{
-		Name:        p.ProductName,
+		Name:        p.name(lang),
 		Brand:       brand,
 		Calories:    cal,
 		Protein:     pro,
@@ -381,6 +421,9 @@ func offProductToResult(p offProduct) models.FoodSearchResult {
 	}
 }
 
+// No cache sits in front of OFF. A future one must key on rawURL, which already decides
+// the response: a search URL carries the language (langs=, fields=), and a barcode URL
+// fetches every language and the name is picked afterwards.
 func doOFFRequest(ctx context.Context, rawURL string) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -410,12 +453,20 @@ func (h *Handler) SearchFood(c *gin.Context) {
 		limit = l
 	}
 
+	lang := requestLanguage(c)
+	langs := lang
+	nameFields := "product_name,product_name_en"
+	if lang != "en" {
+		langs = lang + ",en"
+		nameFields += ",product_name_" + lang
+	}
+
 	start := time.Now()
 	searchURL := fmt.Sprintf(
-		"https://search.openfoodfacts.org/search?q=%s&lang=en&cc=world&page_size=%d&page=1&fields=code,product_name,brands,nutriments,serving_size,image_url",
-		url.QueryEscape(q), limit,
+		"https://search.openfoodfacts.org/search?q=%s&langs=%s&cc=world&page_size=%d&page=1&fields=code,%s,brands,nutriments,serving_size,image_url",
+		url.QueryEscape(q), langs, limit, nameFields,
 	)
-	log.Printf("[food/search] OFF request: q=%q limit=%d", q, limit)
+	log.Printf("[food/search] OFF request: q=%q limit=%d lang=%s", q, limit, lang)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -464,10 +515,11 @@ func (h *Handler) SearchFood(c *gin.Context) {
 	}
 	results := make([]models.FoodSearchResult, 0, len(products))
 	for _, p := range products {
-		if p.ProductName == "" {
+		r := offProductToResult(p, lang)
+		if r.Name == "" {
 			continue
 		}
-		results = append(results, offProductToResult(p))
+		results = append(results, r)
 	}
 	utils.OK(c, results)
 }
@@ -487,9 +539,10 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 		return
 	}
 
+	lang := requestLanguage(c)
 	start := time.Now()
-	lookupURL := fmt.Sprintf("https://world.openfoodfacts.org/api/v3/product/%s.json", url.PathEscape(code))
-	log.Printf("[food/barcode] OFF request: code=%q", code)
+	lookupURL :=fmt.Sprintf("https://world.openfoodfacts.org/api/v3/product/%s.json", url.PathEscape(code))
+	log.Printf("[food/barcode] OFF request: code=%q lang=%s", code, lang)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -528,12 +581,13 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 		return
 	}
 
-	if !strings.HasPrefix(parsed.Status, "success") || parsed.Product.ProductName == "" {
+	r := offProductToResult(parsed.Product, lang)
+	if !strings.HasPrefix(parsed.Status, "success") || r.Name == "" {
 		utils.Fail(c, utils.CodeProductNotFound, nil)
 		return
 	}
 
-	utils.OK(c, offProductToResult(parsed.Product))
+	utils.OK(c, r)
 }
 
 // ─── Saved Foods ──────────────────────────────────────────────────────────────

@@ -478,8 +478,8 @@ export function createClient(
     delete:  (id: number) => api.delete(`/food/${id}`),
     stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(unwrap),
     history: (days = 30) => api.get<{ data: types.FoodHistoryPoint[] }>('/food/history', { params: { days } }).then(unwrap),
-    search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit } }).then(unwrap),
-    barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`).then(unwrap),
+    search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit, locale: i18n.resolvedLanguage } }).then(unwrap),
+    barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`, { params: { locale: i18n.resolvedLanguage } }).then(unwrap),
   }
 
   const savedFoodsAPI = {

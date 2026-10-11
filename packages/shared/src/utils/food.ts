@@ -148,8 +148,14 @@ export function savedToResult(s: SavedFood): FoodSearchResult {
 // brand, while a search result can carry undefined.
 export function findSavedFood(
   saved: SavedFood[],
-  item: Pick<FoodSearchResult, 'name' | 'brand'>,
+  item: Pick<FoodSearchResult, 'name' | 'brand'> & { barcode?: string | null },
 ): SavedFood | undefined {
+  // A barcode names one product in every language; name+brand only matches while the
+  // name is spelled the way it was saved.
+  if (item.barcode) {
+    const byCode = saved.find(s => s.barcode === item.barcode)
+    if (byCode) return byCode
+  }
   const name = normaliseFoodKey(item.name)
   const brand = normaliseFoodKey(item.brand)
   return saved.find(s => normaliseFoodKey(s.name) === name && normaliseFoodKey(s.brand) === brand)
