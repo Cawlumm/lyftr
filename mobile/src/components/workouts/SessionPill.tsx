@@ -46,11 +46,11 @@ export function SessionPill() {
         </View>
         <View>
           <Text className="font-sans-bold text-xs text-white" numberOfLines={1} style={{ maxWidth: 140 }}>{session.name}</Text>
-          <Text className="text-[11px] text-white/70">{t('nav.session.sets', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</Text>
+          <Text className="text-[11px] text-white/70">{t('workouts.active.setProgress', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</Text>
         </View>
         {resting ? (
           <View className="flex-row items-center gap-1.5 rounded-full bg-white/15 py-1 pl-2.5 pr-1">
-            <Text className="text-[10px] font-sans-semibold uppercase text-white/70">{done ? t('nav.session.restOver') : paused ? t('nav.session.paused') : t('nav.session.rest')}</Text>
+            <Text className="text-[10px] font-sans-semibold uppercase text-white/70">{done ? t('workouts.rest.label.over') : paused ? t('workouts.rest.label.paused') : t('nav.session.rest')}</Text>
             {!done ? <Text className="font-sans-bold text-xs text-white" style={{ fontVariant: ['tabular-nums'] }}>{fmtClock(left)}</Text> : null}
           </View>
         ) : null}

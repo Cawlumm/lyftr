@@ -156,7 +156,7 @@ export default function LogFood() {
       setMeal(entry.meal)
       setDate(entryDay(entry))
       setPhase('detail')
-    }).catch(err => setEditError({ key: 'settings.unknownError', cause: err }))
+    }).catch(err => setEditError({ key: 'errors.unknown', cause: err }))
   }, [editId, navigate, editRetry, openOnEntry])
 
   useEffect(() => {
@@ -241,7 +241,7 @@ export default function LogFood() {
       // unreachable upstream is not an answer, and saying "not found" for it sent
       // people to type in a product that does exist.
       if (isNotFound(err)) enterManually()
-      else setLookup({ code, error: { key: 'food.log.lookupFailed', cause: err } })
+      else setLookup({ code, error: { key: 'food.log.lookupFailedHint', cause: err } })
     }
   }
 
@@ -257,7 +257,7 @@ export default function LogFood() {
           await foodAPI.log(payload)
         }
         navigate('/food', { replace: true })
-  }, t('food.log.saveFailed'))
+  }, t('common.saveFailed'))
 
   const handleLog = async () => {
     if (!selected || save.busy) return
@@ -408,7 +408,7 @@ export default function LogFood() {
             // what failed, and both ways forward keep the code already scanned.
             <div className="card">
               <ErrorState
-                title={t('food.log.lookupFailedTitle')}
+                title={t('food.log.lookupFailed')}
                 message={uiMessage(lookup.error)}
                 onRetry={() => lookUpBarcode(lookup.code)}
                 secondary={<button onClick={enterManually} className="btn-secondary btn-sm">{t('food.log.enterManually')}</button>}

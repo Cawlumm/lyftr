@@ -61,7 +61,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     onSuccess(log)
     onClose()
-  }, t('home.quickWeighIn.saveFailed'))
+  }, t('common.saveFailed'))
 
   const error = rejected === null ? '' : weightError(rejected, unit) ?? ''
 
@@ -109,7 +109,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
               actions={[
                 { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
                 {
-                  label: t('home.quickWeighIn.logAnyway'),
+                  label: t('weight.logAnyway'),
                   primary: true,
                   onPress: () => { setDupDismissed(true); setShowDuplicateWarning(false); submit(true) },
                 },
@@ -121,8 +121,8 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
 
           <StepperTile
             icon={Scale}
-            label={t('home.quickWeighIn.weightWithUnit', { unit: wUnit })}
-            name={t('home.quickWeighIn.weightName')}
+            label={t('common.weightWithUnit', { unit: wUnit })}
+            name={t('common.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={(d) => setValue(String(clampStep(parseFloat(value) || 0, d, { min: 0, max: maxWeight(unit) })))}
           >
@@ -147,7 +147,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
                 label={t('home.quickWeighIn.noteOptional')}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder={t('home.quickWeighIn.notePlaceholder')}
+                placeholder={t('weight.notePlaceholder')}
                 maxLength={200}
               />
             </View>

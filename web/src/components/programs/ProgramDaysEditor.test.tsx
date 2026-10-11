@@ -32,8 +32,8 @@ describe('ProgramDaysEditor', () => {
   it('reads its copy from the catalog in Spanish', async () => {
     await i18n.changeLanguage('es')
     renderEditor([dayDraft({ exercises: [{ exercise_id: 1, notes: '', rest_seconds: 90, sets: [] }] }), dayDraft({ order_index: 1, is_rest_day: true })])
-    expect(screen.getByText('Agregar día de entrenamiento')).toBeTruthy()
-    expect(screen.getByText('Agregar día de descanso')).toBeTruthy()
+    expect(screen.getByText('Día de entrenamiento')).toBeTruthy()
+    expect(screen.getByText('Día de descanso')).toBeTruthy()
     expect(screen.getByText('1 ejercicio')).toBeTruthy()
     expect(screen.getAllByLabelText('Quitar día')).toHaveLength(2)
     expect(screen.getByPlaceholderText('Día 1')).toBeTruthy()

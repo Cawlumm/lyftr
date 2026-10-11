@@ -52,7 +52,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
     })
     onSuccess(log)
     onClose()
-  }, t('home.quickWeighIn.saveFailed'))
+  }, t('common.saveFailed'))
 
   const handleClose = () => { setRejected(null); onClose() }
 
@@ -141,7 +141,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
                     }}
                     className="px-3 py-1 rounded-lg text-xs font-medium bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-colors"
                   >
-                    {t('home.quickWeighIn.logAnyway')}
+                    {t('weight.logAnyway')}
                   </button>
                 </div>
               </div>
@@ -150,8 +150,8 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
 
           <StepperTile
             icon={Scale}
-            label={t('home.quickWeighIn.weightWithUnit', { unit: wUnit })}
-            name={t('home.quickWeighIn.weightName')}
+            label={t('common.weightWithUnit', { unit: wUnit })}
+            name={t('common.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={d => setValue(String(clampStep(parseFloat(value) || 0, d, { max: maxWeight(settings.weight_unit) })))}
           >
@@ -188,7 +188,7 @@ export default function QuickWeighInSheet({ isOpen, lastValue, lastLog, onClose,
                   type="text"
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
-                  placeholder={t('home.quickWeighIn.notePlaceholder')}
+                  placeholder={t('weight.notePlaceholder')}
                   maxLength={200}
                   className="input mt-1"
                 />

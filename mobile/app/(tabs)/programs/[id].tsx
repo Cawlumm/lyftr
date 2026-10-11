@@ -152,7 +152,7 @@ export default function ProgramDetail() {
             loadedRef.current = true
           }
         } catch (err) {
-          if (!cancelled && !loadedRef.current) setError({ key: 'settings.unknownError', cause: err })
+          if (!cancelled && !loadedRef.current) setError({ key: 'errors.unknown', cause: err })
         } finally {
           if (!cancelled) setLoading(false)
         }
@@ -229,7 +229,7 @@ export default function ProgramDetail() {
           newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
-          newLabel = t('programs.count.reps', { count: sr })
+          newLabel = t('common.count.reps', { count: sr })
         }
         return {
           setId: s.id as number,
@@ -292,7 +292,7 @@ export default function ProgramDetail() {
           </View>
 
           <ConfirmSheet
-            {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), subject: `"${program.name}"` })}
+            {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
             open={confirming}
             busy={remove.busy}
             error={remove.error}
@@ -463,7 +463,7 @@ export default function ProgramDetail() {
                         distinguishable by shape/text (a11y) and reads as decoration. */}
                     {isToday ? (
                       <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
-                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('programs.detail.todayChip')}</AppText>
+                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('common.todayChip')}</AppText>
                       </View>
                     ) : null}
                   </Pressable>
@@ -486,7 +486,7 @@ export default function ProgramDetail() {
               {!restOn && (
                 <View className="flex-row items-center gap-1.5 px-1">
                   <TimerOff size={13} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">{t('workouts.detail.restOff')}</AppText>
+                  <AppText variant="caption" color="muted">{t('common.rest.timerOff')}</AppText>
                 </View>
               )}
               <View className="gap-3">
@@ -500,7 +500,7 @@ export default function ProgramDetail() {
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
               const setsSummary = [
-                t('programs.count.sets', { count: sets.length }),
+                t('common.count.sets', { count: sets.length }),
                 ...(maxTarget > 0 ? [t('programs.detail.target', { weight: maxTarget, unit: wUnit })] : []),
               ].join(' · ')
 
@@ -534,7 +534,7 @@ export default function ProgramDetail() {
                       </View>
                       {restOn && (
                         ex.rest_seconds === 0 ? (
-                          <AppText variant="caption" color="muted">{t('workouts.detail.noRest')}</AppText>
+                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
                         ) : (
                           <View className="flex-row items-center gap-1">
                             <Pause size={13} color={colors.txMuted} />

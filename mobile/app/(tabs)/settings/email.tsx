@@ -39,7 +39,7 @@ export default function ChangeEmailScreen() {
     setCurrent('')
     setCaseOnly(onlyCase)
     setChangedTo(updated.email)
-  }, t('settings.account.email.failedFallback'))
+  }, t('settings.account.email.changeFailed'))
 
   const ready = emailChanged(email, user?.email) && !!current
 

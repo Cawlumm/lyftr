@@ -334,7 +334,7 @@ export default function ActiveWorkout() {
                             "button" with no way to tell a done set from a pending one.
                             aria-pressed carries what the fill colour conveys visually. */}
                         <button
-                          aria-label={t('workouts.active.completeSetWeb', { number: set.set_number })}
+                          aria-label={t('workouts.active.markSetDone', { number: set.set_number })}
                           aria-pressed={!!set.completed}
                           onClick={() => handleCompleteSet(exIdx, setIdx)}
                           className={`flex items-center justify-center transition-colors min-h-[3rem] ${

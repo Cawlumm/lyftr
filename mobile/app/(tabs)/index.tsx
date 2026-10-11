@@ -130,7 +130,7 @@ export default function Dashboard() {
     }
     const absent: Record<string, UiMessage> = {}
     const note = (what: string, err: unknown) => {
-      absent[what] = { key: 'settings.unknownError', cause: err }
+      absent[what] = { key: 'errors.unknown', cause: err }
     }
     const [ws, ps, fs, wl, wst] = await Promise.all([
       // Uncaught on purpose, mirroring web: this is the primary request, and it is
@@ -158,7 +158,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchSettings()
     load()
-      .catch((err) => setError({ key: 'settings.unknownError', cause: err }))
+      .catch((err) => setError({ key: 'errors.unknown', cause: err }))
       .finally(() => setLoading(false))
   }, [fetchSettings, load])
 
@@ -201,7 +201,7 @@ export default function Dashboard() {
           onRetry={() => {
             setError(null)
             setLoading(true)
-            load().catch((err) => setError({ key: 'settings.unknownError', cause: err })).finally(() => setLoading(false))
+            load().catch((err) => setError({ key: 'errors.unknown', cause: err })).finally(() => setLoading(false))
           }}
         />
       </Screen>
@@ -381,7 +381,7 @@ export default function Dashboard() {
                     {dayLabel(upNext.day, upNext.day.order_index)}
                   </Text>
                   <AppText variant="caption" color="muted" className="mt-0.5">
-                    {t('home.upNext.exercises', { count: (upNext.day.exercises ?? []).length })}
+                    {t('common.count.exercises', { count: (upNext.day.exercises ?? []).length })}
                   </AppText>
                 </View>
                 <ChevronRight size={16} color={colors.txMuted} />
@@ -399,7 +399,7 @@ export default function Dashboard() {
             // here the screen reads as an account with no routine, which is a claim we
             // cannot make from a request that never answered.
             <Card>
-              <ErrorState title={t('home.upNext.loadFailed')} message={uiMessage(missing['your programs'])} onRetry={onRefresh} />
+              <ErrorState title={t('programs.list.loadFailed')} message={uiMessage(missing['your programs'])} onRetry={onRefresh} />
             </Card>
           ) : null}
 
@@ -541,7 +541,7 @@ export default function Dashboard() {
                         {[
                           formatDay(workoutDay(lastWorkout), 'monthDay'),
                           mins > 0 && t('home.lastWorkout.minutes', { mins }),
-                          totalSets > 0 && t('home.lastWorkout.sets', { count: totalSets }),
+                          totalSets > 0 && t('common.count.sets', { count: totalSets }),
                           totalVolume > 0 && `${totalVolume.toLocaleString()} ${wUnit}`,
                         ].filter(Boolean).join(' · ')}
                       </AppText>
@@ -653,9 +653,9 @@ export default function Dashboard() {
             <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
             <View className="gap-3">
               {[
-                { id: 'protein', label: t('home.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
+                { id: 'protein', label: t('food.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
                 { id: 'carbs', label: t('home.macro.carbs'), val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
-                { id: 'fat', label: t('home.macro.fat'), val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
+                { id: 'fat', label: t('food.macro.fat'), val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
               ].map((m) => (
                 <View key={m.id}>
                   <View className="mb-1 flex-row items-center justify-between">

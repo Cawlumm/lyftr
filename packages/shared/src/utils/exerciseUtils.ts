@@ -57,7 +57,11 @@ export function equipmentLabel(raw: string | undefined | null): string {
 // with muscles; the screens keep their CSS capitalize.
 export function categoryLabel(raw: string | undefined | null): string {
   const slug = slugOf(raw)
-  return isOneOf(CATEGORY_SLUGS, slug) ? i18n.t(`exercises.category.${slug}`) : (raw ?? '')
+  if (!isOneOf(CATEGORY_SLUGS, slug)) return raw ?? ''
+  const label = i18n.t(`exercises.category.${slug}`)
+  // English is the slug itself, so a spelling that only normalises to one (the spaced
+  // legacy value) is shown as it came, as before the catalog.
+  return label === slug ? (raw ?? '') : label
 }
 
 export function muscleLabel(raw: string | undefined | null): string {

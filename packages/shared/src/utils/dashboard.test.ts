@@ -106,7 +106,7 @@ describe('greeting', () => {
   })
 
   it('says "there" in English when there is no name', () => {
-    // useDisplayName hands the common.there word to a nameless account; the sentence stays
+    // useDisplayName hands the common.anonymousName word to a nameless account; the sentence stays
     // what it always read.
     expect(greeting(at(9), 'there')).toBe('Good morning, there')
     expect(greeting(at(9))).toBe('Good morning, there')
@@ -117,8 +117,8 @@ describe('greeting', () => {
     expect(greeting(at(9), 'Sam')).toBe('Buenos días, Sam')
     expect(greeting(at(14), 'Sam')).toBe('Buenas tardes, Sam')
     // The nameless word is "usuario" in es; the greeting must not read "Buenos días, usuario".
-    expect(greeting(at(9), es.common.there)).toBe(es.home.greeting.morning_anonymous)
-    expect(greeting(at(21), es.common.there)).toBe(es.home.greeting.evening_anonymous)
+    expect(greeting(at(9), es.common.anonymousName)).toBe(es.home.greeting.morning_anonymous)
+    expect(greeting(at(21), es.common.anonymousName)).toBe(es.home.greeting.evening_anonymous)
   })
 })
 describe('lifterQuip', () => {

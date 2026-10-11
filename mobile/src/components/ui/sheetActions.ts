@@ -18,16 +18,19 @@ export function deleteAction(onPress: () => void, label = i18n.t('common.delete'
 }
 
 // The static half of a delete ConfirmSheet — red trash badge, "Delete" / "Deleting…"
-// labels, and the standard "<subject> will be permanently deleted." message. Spread it
+// labels, and the standard "<subject> will be permanently deleted." message (pass a
+// `name` instead of a `subject` and the catalog puts the quotes around it). Spread it
 // and add the stateful props (open / busy / onConfirm / onCancel):
-//   <ConfirmSheet {...deleteConfirmProps({ title: 'Delete Workout?', subject: `"${name}"` })}
+//   <ConfirmSheet {...deleteConfirmProps({ title: 'Delete Workout?', name })}
 //     open={confirming} busy={deleting} onConfirm={handleDelete} onCancel={close} />
 export function deleteConfirmProps(
-  { title, subject }: { title: string; subject: string },
+  { title, ...who }: { title: string } & ({ subject: string } | { name: string }),
 ): Pick<ConfirmSheetProps, 'title' | 'message' | 'confirmLabel' | 'busyLabel' | 'destructive' | 'icon'> {
   return {
     title,
-    message: i18n.t('common.deleteConfirmMessage', { subject }),
+    message: 'name' in who
+      ? i18n.t('common.deleteNamedConfirmMessage', { name: who.name })
+      : i18n.t('common.deleteConfirmMessage', { subject: who.subject }),
     confirmLabel: i18n.t('common.delete'),
     busyLabel: i18n.t('common.deleting'),
     destructive: true,

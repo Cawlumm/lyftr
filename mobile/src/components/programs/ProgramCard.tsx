@@ -87,12 +87,12 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
             <View className="flex-row items-center gap-1">
               <Dumbbell size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.count.exercises', { count: exCount })}</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.exercises', { count: exCount })}</AppText>
             </View>
             <AppText variant="caption" color="muted">·</AppText>
             <View className="flex-row items-center gap-1">
               <Layers size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.count.sets', { count: totalSets })}</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.sets', { count: totalSets })}</AppText>
             </View>
             {dayCount > 1 && today ? (
               <>
@@ -149,8 +149,8 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
               <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
                 {t('programs.card.summary', {
-                  exercises: t('programs.count.exercises', { count: exCount }),
-                  sets: t('programs.count.sets', { count: totalSets }),
+                  exercises: t('common.count.exercises', { count: exCount }),
+                  sets: t('common.count.sets', { count: totalSets }),
                 })}
               </AppText>
             </View>
@@ -163,7 +163,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), subject: `"${program.name}"` })}
+        {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

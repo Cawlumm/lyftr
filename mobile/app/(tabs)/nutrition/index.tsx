@@ -13,7 +13,7 @@ import {
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
 import { NutritionSkeleton } from '../../../src/components/nutrition/NutritionSkeleton'
-import { MACRO_COLORS, MEALS, type Meal } from '../../../src/components/nutrition/nutritionMeta'
+import { MACRO_COLORS, MEALS, mealMessage, type Meal } from '../../../src/components/nutrition/nutritionMeta'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -53,7 +53,7 @@ export default function Nutrition() {
   const { width: windowWidth } = useWindowDimensions()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
-  // One-shot courier from the log flow: ?logged=<meal label> | 'Updated' → success toast.
+  // One-shot courier from the log flow: ?logged=<meal slug> | 'Updated' → success toast.
   const params = useLocalSearchParams<{ logged?: string }>()
   const [toast, setToast] = useState<UiMessage | null>(null)
 
@@ -119,7 +119,7 @@ export default function Nutrition() {
           // rendered as 0 kcal, which is what "hasn't eaten yet" looks like.
           .then((st) => (isDailyStats(st) ? st : Promise.reject(new Error('unreadable'))))
           .catch((err) => {
-            statsMessage = { key: 'settings.unknownError', cause: err }
+            statsMessage = { key: 'errors.unknown', cause: err }
             return defaultStats
           }),
       ])
@@ -130,7 +130,7 @@ export default function Nutrition() {
       setLoadedDate(date)
     } catch (err: any) {
       if (id !== dayRequest.current) return
-      setError({ key: 'settings.unknownError', cause: err })
+      setError({ key: 'errors.unknown', cause: err })
     } finally {
       if (id === dayRequest.current) hasLoadedRef.current = true
     }
@@ -154,7 +154,7 @@ export default function Nutrition() {
         setHistoryDataPeriod(historyPeriod)
         setHistoryError(null)
       })
-      .catch((err) => { if (id === historyRequest.current) setHistoryError({ key: 'settings.unknownError', cause: err }) })
+      .catch((err) => { if (id === historyRequest.current) setHistoryError({ key: 'errors.unknown', cause: err }) })
       .finally(() => { if (id === historyRequest.current) setHistoryLoading(false) })
   }, [historyPeriod])
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -205,14 +205,14 @@ export default function Nutrition() {
       })
       .catch((err) => {
         if (day !== selectedDateRef.current) return
-        setStatsError({ key: 'settings.unknownError', cause: err })
+        setStatsError({ key: 'errors.unknown', cause: err })
       })
   }, [selectedDate])
 
   if (!hasLoadedRef.current) return <NutritionSkeleton />
 
   const toastView = toast ? (
-    <Toast variant="success" icon={CheckCircle2} title={uiMessage(toast)} onDismiss={() => setToast(null)} />
+    <Toast variant="success" icon={CheckCircle2} title={mealMessage(toast)} onDismiss={() => setToast(null)} />
   ) : null
 
   // Rings at 0 kcal and four empty meal sections say "you have eaten nothing today",

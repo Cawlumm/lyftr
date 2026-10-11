@@ -57,12 +57,12 @@ export function DayPickerSheet({ program, onSelect, onClose }: Props) {
                   <AppText variant="bodySemibold">{dayLabel(day, day.order_index)}</AppText>
                   {day.id === todayId ? (
                     <View className="rounded-full bg-brand-500/15 px-1.5 py-0.5">
-                      <AppText variant="caption" style={{ color: accent }}>{t('programs.detail.todayChip')}</AppText>
+                      <AppText variant="caption" style={{ color: accent }}>{t('common.todayChip')}</AppText>
                     </View>
                   ) : null}
                 </View>
               }
-              secondary={t('programs.count.exercises', { count: (day.exercises ?? []).length })}
+              secondary={t('common.count.exercises', { count: (day.exercises ?? []).length })}
               right={<Dumbbell size={16} color={accent} />}
               onPress={() => onSelect(program, day)}
             />

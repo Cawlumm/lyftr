@@ -25,7 +25,7 @@ export default function ChangePassword() {
     await userAPI.changePassword({ current_password: current, new_password: next })
     setCurrent(''); setNext(''); setConfirm('')
     setDone(true)
-  }, t('settings.account.password.failedFallback'))
+  }, t('settings.account.password.changeFailed'))
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()

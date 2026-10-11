@@ -126,7 +126,7 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), subject: `"${entry.name}"` })}
+        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), name: entry.name })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

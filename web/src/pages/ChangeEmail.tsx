@@ -24,7 +24,7 @@ export default function ChangeEmail() {
     setCurrent('')
     setCaseOnly(onlyCase)
     setChangedTo(updated.email)
-  }, t('settings.account.email.failedFallback'))
+  }, t('settings.account.email.changeFailed'))
 
   const ready = emailChanged(email, user?.email) && !!current
 
@@ -51,6 +51,8 @@ export default function ChangeEmail() {
               <Trans
                 i18nKey="settings.account.email.signInWith"
                 values={{ email: changedTo }}
+                tOptions={{ interpolation: { escapeValue: true } }}
+                shouldUnescape
                 components={{ email: <span className="break-all text-tx-secondary" /> }}
               />{' '}
               {caseOnly

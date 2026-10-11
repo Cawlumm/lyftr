@@ -4,7 +4,6 @@
     "subtitle": "Preferences and account configuration",
     "back": "Home",
     "saved": "Settings saved successfully",
-    "unknownError": "The server didn't say what went wrong.",
     "language": {
       "label": "Language",
       "description": "Defaults to your device language",
@@ -19,12 +18,10 @@
         "description": "The name the app greets you by. Leave it empty and we'll use your email instead.",
         "loadFailed": "Couldn't load your name, so we won't offer to overwrite it.",
         "saveFailed": "Couldn't save your name.",
-        "save": "Save",
-        "saving": "Saving…",
         "title": "Name",
         "subtitle": "The name the app greets you by.",
         "emptyHint": "Leave it empty and we'll use your email instead.",
-        "saveFailedFallback": "Couldn't save your name. Please try again."
+        "saveFailedRetry": "Couldn't save your name. Please try again."
       },
       "email": {
         "label": "Email",
@@ -36,12 +33,12 @@
         "current": "Current email",
         "new": "New email",
         "submit": "Update email",
-        "failedFallback": "Couldn't change your email. Please try again.",
         "changedTitle": "Email changed",
         "signInWith": "Sign in with <email>{{email}}</email> from now on.",
         "signInWithPlain": "Sign in with {{email}} from now on.",
         "caseOnly": "Only the letter case changed, so your other devices stay signed in.",
-        "signedOutElsewhere": "You stay signed in here; your other devices are signed out."
+        "signedOutElsewhere": "You stay signed in here; your other devices are signed out.",
+        "changeFailed": "Couldn't change your email. Please try again."
       },
       "memberSince": {
         "label": "Member since"
@@ -56,9 +53,9 @@
         "pageTitle": "Change password",
         "pageSubtitle": "You will stay signed in here. Every other device is signed out.",
         "submit": "Update password",
-        "failedFallback": "Couldn't change your password. Please try again.",
         "changedTitle": "Password changed",
-        "changedBody": "You are still signed in here. Every other device has been signed out and will need the new password."
+        "changedBody": "You are still signed in here. Every other device has been signed out and will need the new password.",
+        "changeFailed": "Couldn't change your password. Please try again."
       },
       "backLink": "Settings",
       "backToSettings": "Back to settings",
@@ -100,33 +97,18 @@
         "label": "Default rest",
         "description": "Seeds new exercises · per-exercise rest overrides it",
         "preset": "{{seconds}}s",
-        "custom": "Custom",
         "customLabel": "Custom rest seconds",
-        "secondsUnit": "sec",
-        "minusFive": "−5 seconds",
-        "plusFive": "+5 seconds",
         "decrease": "Decrease rest by 5 seconds",
         "increase": "Increase rest by 5 seconds"
       }
     },
-    "goalsUnits": {
-      "title": "Goals & Units",
-      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else on this page still works."
-    },
-    "unitsTargets": {
-      "title": "Units & Targets",
-      "footnote": "Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.",
-      "loadFailedMessage": "These are your saved targets and units, so we won't guess at them. Everything else here still works.",
-      "saved": "Targets saved",
-      "changeUnitFailedTitle": "Could not change units"
-    },
     "targets": {
-      "loadFailedTitle": "Couldn't load your goals",
       "weightUnit": {
         "label": "Weight unit",
         "description": "Changes apply immediately across the app",
         "changeFailed": "Couldn't change the weight unit.",
-        "changeFailedFallback": "Could not change the weight unit"
+        "changeFailedTitle": "Could not change units",
+        "changeFailedShort": "Could not change the weight unit"
       },
       "calorie": {
         "label": "Calorie target",
@@ -146,9 +128,15 @@
       },
       "saveHint": "Save calorie and macro targets",
       "save": "Save targets",
-      "saving": "Saving...",
-      "saveFailedFallback": "Failed to save settings",
-      "saveFailed": "Could not save targets"
+      "saving": "Saving…",
+      "saveFailed": "Could not save targets",
+      "titleWeb": "Goals & Units",
+      "loadFailedHintWeb": "These are your saved targets and units, so we won't guess at them. Everything else on this page still works.",
+      "title": "Units & Targets",
+      "footnote": "Weight unit applies instantly across the app. Nutrition targets power the dashboard rings.",
+      "loadFailedHint": "These are your saved targets and units, so we won't guess at them. Everything else here still works.",
+      "saved": "Targets saved",
+      "loadFailed": "Couldn't load your goals"
     },
     "server": {
       "title": "Server",
@@ -194,10 +182,10 @@
       "cleared_one": "Cleared {{amount}} unused exercise",
       "cleared_other": "Cleared {{amount}} unused exercises",
       "refresh": "Refresh cached",
-      "refreshing": "Refreshing...",
+      "refreshing": "Refreshing…",
       "refreshFailed": "Couldn't refresh the cache.",
       "clear": "Clear unused",
-      "clearing": "Clearing...",
+      "clearing": "Clearing…",
       "clearFailed": "Couldn't clear the cache."
     },
     "danger": {
@@ -212,16 +200,14 @@
     "deleteAccount": {
       "label": "Delete account",
       "description": "Permanently delete all your data",
-      "button": "Delete",
       "sheetTitle": "Delete account?",
       "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone.",
       "confirm": "Delete account",
-      "busy": "Deleting…",
       "failed": "Could not delete account"
-    }
+    },
+    "saveFailed": "Failed to save settings"
   },
   "common": {
-    "there": "there",
     "duration": {
       "seconds": "{{value}}s",
       "minutes": "{{value}}m"
@@ -255,6 +241,7 @@
     "delete": "Delete",
     "deleting": "Deleting…",
     "deleteConfirmMessage": "{{subject}} will be permanently deleted.",
+    "deleteNamedConfirmMessage": "\"{{name}}\" will be permanently deleted.",
     "dismiss": "Dismiss",
     "done": "Done",
     "dismissKeyboard": "Dismiss keyboard",
@@ -273,7 +260,38 @@
     "back": "Back",
     "goBack": "Go back",
     "save": "Save",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "count": {
+      "exercises_one": "{{count}} exercise",
+      "exercises_other": "{{count}} exercises",
+      "sets_one": "{{count}} set",
+      "sets_other": "{{count}} sets",
+      "reps_one": "{{count}} rep",
+      "reps_other": "{{count}} reps",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days"
+    },
+    "weightWithUnit": "Weight ({{unit}})",
+    "weightName": "weight",
+    "loadingMore": "Loading more…",
+    "tryDifferentSearch": "Try a different search",
+    "required": "(required)",
+    "saveFailed": "Failed to save",
+    "todayChip": "TODAY",
+    "card": {
+      "deleteNamed": "Delete \"{{name}}\"?",
+      "cannotUndo": "This cannot be undone"
+    },
+    "rest": {
+      "decrease5": "−5 seconds",
+      "increase5": "+5 seconds",
+      "timerOff": "Rest timer is off — turn it on in Settings",
+      "none": "No rest"
+    },
+    "anonymousName": "there",
+    "notes": "Notes",
+    "saveChanges": "Save Changes",
+    "addExercise": "Add Exercise"
   },
   "errors": {
     "api": {
@@ -311,7 +329,8 @@
       "title": "Couldn't show {{subject}}",
       "thisPage": "this page",
       "message": "Something went wrong on our side. Try again, and if it keeps happening reload the page."
-    }
+    },
+    "unknown": "The server didn't say what went wrong."
   },
   "server": {
     "insecureWarning": "Not encrypted — anyone on this network can read your login and stay signed in as you. Use https:// if you can.",
@@ -422,14 +441,11 @@
     "log": {
       "title": "Log Weight",
       "last": "last: {{weight}} {{unit}}",
-      "weightLabel": "Weight ({{unit}})",
       "weightField": "Weight",
-      "weightName": "weight",
       "dateAndNote": "Date & note",
       "collapse": "Collapse",
       "notePlaceholder": "Note — e.g. morning, post-run",
       "addDateAndNote": "Add date & note",
-      "logAnyway": "Log Anyway",
       "submit": "Log Weight",
       "submitting": "Logging…",
       "tip": "Best logged in the morning, after the bathroom",
@@ -484,7 +500,6 @@
     "history": {
       "title": "History",
       "subject": "your weight history",
-      "loadingMore": "Loading more…",
       "loadMoreFailed": "Couldn't load more entries"
     },
     "detail": {
@@ -499,13 +514,13 @@
       "editTitle": "Edit Entry",
       "date": "Date",
       "notesOptional": "Notes <hint>(optional)</hint>",
-      "notesOptionalPlain": "Notes (optional)",
-      "notePlaceholder": "e.g., morning, post-workout",
-      "saveFailed": "Failed to save"
+      "notesOptionalPlain": "Notes (optional)"
     },
     "row": {
       "options": "{{weight}} {{unit}} options"
-    }
+    },
+    "notePlaceholder": "e.g., morning, post-workout",
+    "logAnyway": "Log Anyway"
   },
   "programs": {
     "day": {
@@ -519,26 +534,14 @@
     "startWorkout": "Start Workout",
     "deleteConfirmTitle": "Delete Program?",
     "deleteFailed": "Failed to delete program",
-    "count": {
-      "exercises_one": "{{count}} exercise",
-      "exercises_other": "{{count}} exercises",
-      "sets_one": "{{count}} set",
-      "sets_other": "{{count}} sets",
-      "reps_one": "{{count}} rep",
-      "reps_other": "{{count}} reps",
-      "days_one": "{{count}} day",
-      "days_other": "{{count}} days"
-    },
     "list": {
       "searchPlaceholder": "Search programs…",
       "empty": {
         "title": "No programs found",
-        "searchHint": "Try a different search",
         "startHint": "Create a program to get started"
       },
       "loadFailed": "Couldn't load your programs",
-      "errorSubject": "your programs",
-      "loadingMore": "Loading more…"
+      "errorSubject": "your programs"
     },
     "stats": {
       "total": "Total",
@@ -549,8 +552,6 @@
       "perProgram": "per program"
     },
     "card": {
-      "deleteTitle": "Delete \"{{name}}\"?",
-      "cannotUndo": "This cannot be undone",
       "summary": "{{exercises}} · {{sets}}",
       "restToday": "Rest today",
       "today": "Today: {{day}}",
@@ -594,7 +595,6 @@
       },
       "noDays": "No days yet",
       "addDay": "Add a day →",
-      "todayChip": "TODAY",
       "restDayHint": "No exercises scheduled — recover and come back stronger.",
       "noExercises": "No exercises on this day yet",
       "target": "target {{weight}} {{unit}}"
@@ -611,7 +611,6 @@
       "createFailed": "Failed to create program",
       "updateFailed": "Failed to update program",
       "name": "Program Name",
-      "required": "(required)",
       "namePlaceholder": "e.g., Push Pull Legs, Upper Lower",
       "notesPlaceholder": "Program description or goals…",
       "days": "Days",
@@ -680,7 +679,6 @@
       "left": "{{amount}} left",
       "goal": "{{amount}} kcal goal",
       "totalsFailed": "Couldn't load today's totals",
-      "totalsFailedMessage": "Something went wrong on our end.",
       "items_one": "{{count}} item",
       "items_other": "{{count}} items",
       "filteredCount": "{{shown}} of {{total}}",
@@ -691,7 +689,8 @@
         "hint": "Tap to log your first meal"
       },
       "entryUpdated": "Entry updated",
-      "addedTo": "Added to {{meal}}"
+      "addedTo": "Added to {{meal}}",
+      "totalsFailedHint": "Something went wrong on our end."
     },
     "entry": {
       "logged": "Logged",
@@ -749,7 +748,6 @@
       "backToFood": "Back to food",
       "submit": "Log Food",
       "saveChanges": "Save Changes",
-      "saveFailed": "Failed to save",
       "editLoadFailed": "Couldn't load that entry.",
       "searchPlaceholder": "Search food…",
       "scan": "Scan",
@@ -761,8 +759,6 @@
       },
       "rateLimited": "Too many requests — wait a moment and try again",
       "searchUnavailable": "Food search unavailable — enter details manually",
-      "lookupFailedTitle": "Couldn't look up this barcode",
-      "lookupFailed": "Couldn't look up that barcode.",
       "enterManually": "Enter it manually",
       "rereadFailed": "Couldn't re-read this product.",
       "quickAdd": "Quick add {{kcal}} kcal",
@@ -796,7 +792,9 @@
       "enterAmountIn": "Enter an amount in {{unit}} to log this",
       "servingsOf_one": "{{count}} serving of {{serving}}",
       "servingsOf_other": "{{count}} servings of {{serving}}",
-      "when": "When"
+      "when": "When",
+      "lookupFailedHint": "Couldn't look up that barcode.",
+      "lookupFailed": "Couldn't look up this barcode"
     },
     "scan": {
       "title": "Scan barcode",
@@ -838,12 +836,10 @@
       "searchPlaceholder": "Search workouts…",
       "empty": {
         "title": "No workouts found",
-        "searchHint": "Try a different search",
         "startHint": "Log a workout to get started"
       },
       "loadFailed": "Couldn't load your workouts",
-      "errorSubject": "your workouts",
-      "loadingMore": "Loading more…"
+      "errorSubject": "your workouts"
     },
     "deleteFailed": "Failed to delete workout",
     "deleteConfirmTitle": "Delete Workout?",
@@ -858,11 +854,7 @@
       "tapToUndo": "Tap to undo"
     },
     "card": {
-      "deleteTitle": "Delete \"{{name}}\"?",
-      "cannotUndo": "This cannot be undone",
       "minutes": "{{minutes}} min",
-      "exercises_one": "{{count}} exercise",
-      "exercises_other": "{{count}} exercises",
       "options": "Options",
       "optionsNamed": "{{name}} options",
       "menuHeading": "Workout",
@@ -882,11 +874,7 @@
       "minutesUnit": "min",
       "sets": "Sets",
       "volume": "Volume",
-      "restOff": "Rest timer is off — turn it on in Settings",
-      "setCount_one": "{{count}} set",
-      "setCount_other": "{{count}} sets",
-      "best": "best",
-      "noRest": "No rest"
+      "best": "best"
     },
     "start": {
       "title": "Start Workout",
@@ -897,12 +885,9 @@
       "quickHint": "Start blank, add exercises as you go",
       "fromProgram": "Start from Program",
       "fromProgramHint": "Load a saved routine's day",
-      "programsLoadFailed": "Couldn't load your programs",
       "loadingPrograms": "Loading programs…",
       "noPrograms": "No programs yet",
       "createFirst": "Create your first program →",
-      "days_one": "{{count}} day",
-      "days_other": "{{count}} days",
       "noDays": "No days yet"
     },
     "form": {
@@ -910,10 +895,6 @@
       "editTitle": "Edit Workout",
       "summary": "{{exercises}} • {{sets}}",
       "summaryWithWeight": "{{exercises}} • {{sets}} • {{weight}} {{unit}}",
-      "exerciseCount_one": "{{count}} exercise",
-      "exerciseCount_other": "{{count}} exercises",
-      "setCount_one": "{{count}} set",
-      "setCount_other": "{{count}} sets",
       "errors": {
         "nameRequired": "Workout name required",
         "noExercises": "Add at least one exercise"
@@ -921,19 +902,16 @@
       "createFailed": "Failed to create workout",
       "updateFailed": "Failed to update workout",
       "name": "Workout Name",
-      "required": "(required)",
       "namePlaceholder": "e.g., Leg Day, Push Day",
       "date": "Date",
       "durationMinutes": "Duration (minutes)",
       "duration": "Duration",
       "durationHm": "{{hours}}h {{minutes}}m",
-      "notes": "Notes",
       "notesPlaceholder": "How did it feel? Any PRs?",
       "totalUnit": "Total {{unit}}",
       "exercises": "Exercises",
       "sets": "Sets",
       "loadProgram": "Load Program",
-      "addExercise": "Add Exercise",
       "addExerciseLabel": "Add exercise",
       "removeExercise": "Remove exercise",
       "removeNamed": "Remove {{name}}",
@@ -943,7 +921,6 @@
       "set": "Set",
       "reps": "Reps",
       "weight": "Weight",
-      "weightWithUnit": "Weight ({{unit}})",
       "setWeightLabel": "Set weight",
       "setRepsLabel": "Set reps",
       "addSet": "Add Set",
@@ -953,7 +930,6 @@
       "removeNoteLabel": "Remove note",
       "exerciseNotesLabel": "Exercise notes",
       "saveWorkout": "Save Workout",
-      "saveChanges": "Save Changes",
       "empty": {
         "createTitle": "No exercises yet",
         "createHint": "Add an exercise or load a program to start",
@@ -972,14 +948,12 @@
         "pickDay": "Pick a day to pre-fill exercises",
         "loadFailed": "Couldn't load your programs.",
         "back": "← Back to programs",
-        "today": "TODAY",
         "workoutDays_one": "{{count}} workout day",
         "workoutDays_other": "{{count}} workout days",
         "noExercises": "No exercises yet",
         "restDays": "rest days",
         "createFirst": "Create a program first",
         "close": "Close program picker",
-        "searchPlaceholder": "Search programs…",
         "noMatches": "No matching programs"
       }
     },
@@ -1009,10 +983,8 @@
         "set": "Set",
         "reps": "Reps",
         "weight": "Weight",
-        "weightUnit": "Weight ({{unit}})",
         "done": "Done"
       },
-      "completeSetWeb": "Set {{number}}, mark done",
       "completeSet": "Complete set {{number}}, {{name}}",
       "completedSet": "Completed set {{number}}, {{name}}",
       "repsLabel": "Reps, set {{number}}, {{name}}",
@@ -1032,14 +1004,13 @@
       "cancelConfirm": {
         "title": "Cancel Workout?",
         "message": "All progress will be lost."
-      }
+      },
+      "markSetDone": "Set {{number}}, mark done"
     },
     "rest": {
       "off": "Off",
       "custom": "Custom",
-      "stepDown5": "−5 seconds",
       "stepDown5Spoken": "Minus 5 seconds",
-      "stepUp5": "+5 seconds",
       "stepUp5Spoken": "Plus 5 seconds",
       "secondsLabel": "Rest seconds",
       "secondsUnit": "sec",
@@ -1099,8 +1070,6 @@
     },
     "target": {
       "label": "Target",
-      "reps_one": "{{count}} rep",
-      "reps_other": "{{count}} reps",
       "repsUnknown": "— reps"
     },
     "completeSet": "Complete Set",
@@ -1174,7 +1143,6 @@
       "search": "Search exercises…",
       "loading": "Loading exercises…",
       "loadingShort": "Loading…",
-      "loadingMore": "Loading more…",
       "loadMore": "Load more",
       "empty": "No exercises found",
       "errorSubject": "these exercises",
@@ -1236,10 +1204,7 @@
     "upNext": {
       "label": "Up next · {{name}}",
       "viewRoutine": "View {{name}} routine",
-      "start": "Start {{name}}",
-      "exercises_one": "{{count}} exercise",
-      "exercises_other": "{{count}} exercises",
-      "loadFailed": "Couldn't load your programs"
+      "start": "Start {{name}}"
     },
     "kpi": {
       "week": "Week",
@@ -1267,9 +1232,7 @@
       "title": "Last workout",
       "all": "All",
       "minutes": "{{mins}} min",
-      "sets_one": "{{count}} set",
-      "sets_other": "{{count}} sets",
-      "moreExercises_one": "+{{count}} more exercises",
+      "moreExercises_one": "+{{count}} more exercise",
       "moreExercises_other": "+{{count}} more exercises",
       "empty": "No workouts logged yet",
       "startFirst": "Start your first workout →"
@@ -1280,9 +1243,7 @@
       "loadFailed": "Couldn't load today's food"
     },
     "macro": {
-      "protein": "Protein",
-      "carbs": "Carbs",
-      "fat": "Fat"
+      "carbs": "Carbs"
     },
     "muscle": {
       "title": "Muscle Balance",
@@ -1346,17 +1307,12 @@
     "quickWeighIn": {
       "title": "Log Weight",
       "duplicateToday": "Already logged today ({{weight}} {{unit}}). Log again anyway?",
-      "logAnyway": "Log Anyway",
-      "weightWithUnit": "Weight ({{unit}})",
       "weight": "Weight",
-      "weightName": "weight",
       "changeDateOrNote": "+ Change date or add a note",
       "date": "Date",
       "note": "Note",
       "optional": "(optional)",
-      "noteOptional": "Note (optional)",
-      "notePlaceholder": "e.g., morning, post-workout",
-      "saveFailed": "Failed to save"
+      "noteOptional": "Note (optional)"
     }
   },
   "nav": {
@@ -1372,9 +1328,6 @@
     "darkMode": "Dark mode",
     "signOut": "Sign out",
     "session": {
-      "sets": "{{done}}/{{total}} sets",
-      "restOver": "Rest over",
-      "paused": "Paused",
       "rest": "Rest"
     }
   },

@@ -63,12 +63,12 @@ function ActiveSessionBar() {
         </div>
         <div className="text-left">
           <p className="text-xs font-bold text-white leading-tight truncate max-w-[140px]">{session.name}</p>
-          <p className="text-[11px] text-white/70 leading-tight">{t('nav.session.sets', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</p>
+          <p className="text-[11px] text-white/70 leading-tight">{t('workouts.active.setProgress', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</p>
         </div>
         {resting && (
           <div className="flex items-center gap-1.5 pl-2.5 py-1 pr-1 rounded-full bg-white/15 flex-shrink-0">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-white/70 leading-none">
-              {done ? t('nav.session.restOver') : paused ? t('nav.session.paused') : t('nav.session.rest')}
+              {done ? t('workouts.rest.label.over') : paused ? t('workouts.rest.label.paused') : t('nav.session.rest')}
             </span>
             {!done && <span className="text-xs font-bold text-white tabular-nums leading-none">{fmtClock(left)}</span>}
           </div>

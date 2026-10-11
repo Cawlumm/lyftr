@@ -83,7 +83,7 @@ export function DayExercisesEditor({
         className="mb-3 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
       >
         <Plus size={13} color="#ffffff" />
-        <Text className="font-sans-semibold text-xs text-white">{t('workouts.form.addExercise')}</Text>
+        <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
       </Pressable>
 
       {exercises.length === 0 ? (
@@ -117,7 +117,7 @@ export function DayExercisesEditor({
             className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
           >
             <Plus size={14} color={accent} />
-            <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addExercise')}</Text>
+            <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('common.addExercise')}</Text>
           </Pressable>
         </View>
       )}

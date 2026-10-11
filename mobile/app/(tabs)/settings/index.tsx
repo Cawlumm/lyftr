@@ -152,7 +152,7 @@ export default function SettingsScreen() {
   // back now; this is what says why.
   const changeUnit = useAsyncAction(async (unit: 'lbs' | 'kg') => {
     await updateSettings({ weight_unit: unit })
-  }, t('settings.targets.weightUnit.changeFailedFallback'))
+  }, t('settings.targets.weightUnit.changeFailedShort'))
 
   const saveServer = async () => {
     setTesting(true)
@@ -198,9 +198,9 @@ export default function SettingsScreen() {
   }, [deleteAccount.failureKey])
 
   const toastView: { variant: ToastVariant; title: string; description?: string } | null =
-    toast === 'saved' ? { variant: 'success', title: t('settings.unitsTargets.saved') }
+    toast === 'saved' ? { variant: 'success', title: t('settings.targets.saved') }
     : toast === 'saveTargets' ? { variant: 'error', title: t('settings.targets.saveFailed'), description: saveTargets.error }
-    : toast === 'changeUnit' ? { variant: 'error', title: t('settings.unitsTargets.changeUnitFailedTitle'), description: changeUnit.error }
+    : toast === 'changeUnit' ? { variant: 'error', title: t('settings.targets.weightUnit.changeFailedTitle'), description: changeUnit.error }
     : toast === 'deleteAccount' ? { variant: 'error', title: t('settings.deleteAccount.failed'), description: deleteAccount.error }
     : null
 
@@ -326,7 +326,7 @@ export default function SettingsScreen() {
                       }}
                       options={[
                         ...REST_PRESETS.map((s) => ({ value: String(s), label: t('settings.workout.defaultRest.preset', { seconds: s }) })),
-                        { value: 'custom', label: restIsCustom ? t('settings.workout.defaultRest.preset', { seconds: restCur }) : t('settings.workout.defaultRest.custom') },
+                        { value: 'custom', label: restIsCustom ? t('settings.workout.defaultRest.preset', { seconds: restCur }) : t('workouts.rest.custom') },
                       ]}
                     />
                     {restCustomActive ? (
@@ -370,16 +370,16 @@ export default function SettingsScreen() {
               2000/150/250/65 so the rest of the app keeps working, and Save would PUT
               those straight over the user's real targets. */}
           {settingsLoadFailed ? (
-            <SettingsGroup title={t('settings.unitsTargets.title')}>
+            <SettingsGroup title={t('settings.targets.title')}>
               <ErrorState
                 size="section"
-                title={t('settings.targets.loadFailedTitle')}
-                message={t('settings.unitsTargets.loadFailedMessage')}
+                title={t('settings.targets.loadFailed')}
+                message={t('settings.targets.loadFailedHint')}
                 onRetry={() => { void fetchSettings() }}
               />
             </SettingsGroup>
           ) : (
-          <SettingsGroup title={t('settings.unitsTargets.title')} footnote={t('settings.unitsTargets.footnote')}>
+          <SettingsGroup title={t('settings.targets.title')} footnote={t('settings.targets.footnote')}>
             <SettingsRow
               icon={Scale}
               label={t('settings.targets.weightUnit.label')}
@@ -513,7 +513,7 @@ export default function SettingsScreen() {
         title={t('settings.deleteAccount.sheetTitle')}
         message={t('settings.deleteAccount.sheetMessage')}
         confirmLabel={t('settings.deleteAccount.confirm')}
-        busyLabel={t('settings.deleteAccount.busy')}
+        busyLabel={t('common.deleting')}
         busy={deleteAccount.busy}
         onConfirm={() => { void deleteAccount.run() }}
         onCancel={() => setConfirmDelete(false)}

@@ -45,7 +45,7 @@ export default function RestPicker({ value, onChange }: Props) {
       </div>
       {customActive && (
         <div className="flex items-center justify-center gap-2 mt-3">
-          <button type="button" aria-label={t('workouts.rest.stepDown5')} onClick={() => onChange(Math.max(0, value - 5))}
+          <button type="button" aria-label={t('common.rest.decrease5')} onClick={() => onChange(Math.max(0, value - 5))}
             className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
             <Minus className="w-4 h-4" />
           </button>
@@ -61,7 +61,7 @@ export default function RestPicker({ value, onChange }: Props) {
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{t('workouts.rest.secondsUnit')}</span>
           </div>
-          <button type="button" aria-label={t('workouts.rest.stepUp5')} onClick={() => onChange(Math.min(3600, value + 5))}
+          <button type="button" aria-label={t('common.rest.increase5')} onClick={() => onChange(Math.min(3600, value + 5))}
             className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
             <Plus className="w-4 h-4" />
           </button>

@@ -35,7 +35,7 @@ Use the same word for the same thing everywhere, so the app reads as one voice:
 | Rest | descanso |
 | Rest day | día de descanso |
 | Gym Mode | Modo gimnasio |
-| countdown | cuenta atrás |
+| countdown | cuenta regresiva |
 | Program | programa |
 | Exercise | ejercicio |
 | Food, a meal | comida (a food item: alimento) |

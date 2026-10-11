@@ -66,7 +66,7 @@ export default function ProgramDetail() {
         setSelectedDayIdx(data.current_day_index || 0)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       } finally {
         setLoading(false)
       }
@@ -139,7 +139,7 @@ export default function ProgramDetail() {
           newLabel = targetWeightLabel(sw, wUnit)
         } else {
           oldLabel = `${s.target_reps}`
-          newLabel = t('programs.count.reps', { count: sr })
+          newLabel = t('common.count.reps', { count: sr })
         }
         return {
           setId: s.id as number,
@@ -192,7 +192,7 @@ export default function ProgramDetail() {
         icon={Trash2}
         destructive
         title={t('programs.deleteConfirmTitle')}
-        message={t('common.deleteConfirmMessage', { subject: `"${program.name}"` })}
+        message={t('common.deleteNamedConfirmMessage', { name: program.name })}
         confirmLabel={t('common.delete')}
         busyLabel={t('common.deleting')}
         busy={remove.busy}
@@ -365,7 +365,7 @@ export default function ProgramDetail() {
                 {/* Textual chip, not a bare dot — a color-only marker isn't
                     distinguishable by shape/text (a11y) and reads as decoration. */}
                 {isToday && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-brand-500/15 text-brand-400'}`}>{t('programs.detail.todayChip')}</span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-brand-500/15 text-brand-400'}`}>{t('common.todayChip')}</span>
                 )}
               </button>
             )
@@ -384,7 +384,7 @@ export default function ProgramDetail() {
         <>
           {!restOn && (
             <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
-              <TimerOff className="w-3.5 h-3.5" /> {t('workouts.detail.restOff')}
+              <TimerOff className="w-3.5 h-3.5" /> {t('common.rest.timerOff')}
             </div>
           )}
           <div className="space-y-2">
@@ -398,7 +398,7 @@ export default function ProgramDetail() {
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map(s => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
               const setsSummary = [
-                t('programs.count.sets', { count: sets.length }),
+                t('common.count.sets', { count: sets.length }),
                 ...(maxTarget > 0 ? [t('programs.detail.target', { weight: maxTarget, unit: wUnit })] : []),
               ].join(' · ')
 
@@ -423,13 +423,13 @@ export default function ProgramDetail() {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-tx-primary truncate">{ex.exercise?.name}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
                         {ex.exercise?.muscle_group && (
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${muscleColor(ex.exercise.muscle_group)}`}>
                             {muscleLabel(ex.exercise.muscle_group)}
                           </span>
                         )}
-                        <span className="text-xs text-tx-muted truncate">{setsSummary}</span>
+                        <span className="text-xs text-tx-muted">{setsSummary}</span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
@@ -452,7 +452,7 @@ export default function ProgramDetail() {
                         })}
                       </div>
                       {restOn && (ex.rest_seconds === 0
-                        ? <span className="text-xs text-tx-muted flex-shrink-0">{t('workouts.detail.noRest')}</span>
+                        ? <span className="text-xs text-tx-muted flex-shrink-0">{t('common.rest.none')}</span>
                         : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
                       )}
                     </div>

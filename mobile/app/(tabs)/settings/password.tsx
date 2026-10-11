@@ -43,7 +43,7 @@ export default function ChangePasswordScreen() {
     await client.userAPI.changePassword({ current_password: current, new_password: next })
     setCurrent(''); setNext(''); setConfirm('')
     setDone(true)
-  }, t('settings.account.password.failedFallback'))
+  }, t('settings.account.password.changeFailed'))
 
   const submit = async () => {
     // The rules render under the fields as the user types and the button stays disabled

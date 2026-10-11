@@ -64,7 +64,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch(err => setLoadError({ key: 'settings.unknownError', cause: err }))
+      .catch(err => setLoadError({ key: 'errors.unknown', cause: err }))
       .finally(() => setInitialLoading(false))
   }, [id, retryKey])
 
@@ -116,7 +116,8 @@ export default function EditWorkout() {
     navigate('/workouts')
   }, t('workouts.form.updateFailed'))
 
-  useEffect(() => { if (error || save.error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error, save.failureKey])
+  useEffect(() => { if (error) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [error])
+  useEffect(() => { if (save.failureKey) window.scrollTo({ top: 0, behavior: 'smooth' }) }, [save.failureKey])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -158,7 +159,7 @@ export default function EditWorkout() {
         </button>
         <div>
           <h1 className="font-display font-bold text-2xl text-tx-primary">{t('workouts.form.editTitle')}</h1>
-          <p className="text-xs text-tx-muted">{t('workouts.form.summary', { exercises: t('workouts.form.exerciseCount', { count: formData.exercises.length }), sets: t('workouts.form.setCount', { count: totalSets }) })}</p>
+          <p className="text-xs text-tx-muted">{t('workouts.form.summary', { exercises: t('common.count.exercises', { count: formData.exercises.length }), sets: t('common.count.sets', { count: totalSets }) })}</p>
         </div>
       </div>
 
@@ -194,7 +195,7 @@ export default function EditWorkout() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <FileText className="w-4 h-4 text-brand-500" />
-            <label className="label">{t('workouts.form.notes')}</label>
+            <label className="label">{t('common.notes')}</label>
           </div>
           <textarea value={formData.notes} onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))} className="input mt-1 min-h-20 resize-none" />
         </div>
@@ -215,7 +216,7 @@ export default function EditWorkout() {
             </div>
             <button type="button" onClick={() => setShowPicker(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors font-medium">
               <Plus className="w-3.5 h-3.5" />
-              {t('workouts.form.addExercise')}
+              {t('common.addExercise')}
             </button>
           </div>
 
@@ -242,14 +243,14 @@ export default function EditWorkout() {
                   </div>
 
                   <div className="mb-4">
-                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('workouts.form.notes')}</label>
+                    <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('common.notes')}</label>
                     <input type="text" value={workoutEx.notes} onChange={e => { const ex = [...formData.exercises]; ex[exIdx].notes = e.target.value; setFormData(p => ({ ...p, exercises: ex })) }} className="input text-sm" />
                   </div>
 
                   <div className="space-y-2 mb-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">{t('workouts.form.sets')}</label>
-                      <span className="text-xs text-tx-muted">{t('workouts.form.setCount', { count: workoutEx.sets.length })}</span>
+                      <span className="text-xs text-tx-muted">{t('common.count.sets', { count: workoutEx.sets.length })}</span>
                     </div>
                     {workoutEx.sets.map((set, setIdx) => (
                       <div key={setIdx} className="flex gap-2 items-end bg-surface-raised/40 p-3 rounded-lg border border-surface-border/50">
@@ -288,7 +289,7 @@ export default function EditWorkout() {
           </button>
           <button type="submit" disabled={save.busy} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
             <Dumbbell className="w-4 h-4" />
-            {save.busy ? t('common.saving') : t('workouts.form.saveChanges')}
+            {save.busy ? t('common.saving') : t('common.saveChanges')}
           </button>
         </div>
       </form>

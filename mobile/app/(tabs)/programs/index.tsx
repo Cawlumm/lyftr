@@ -187,7 +187,7 @@ export default function Programs() {
             <EmptyState
               icon={BookOpen}
               title={t('programs.list.empty.title')}
-              subtitle={search ? t('programs.list.empty.searchHint') : t('programs.list.empty.startHint')}
+              subtitle={search ? t('common.tryDifferentSearch') : t('programs.list.empty.startHint')}
             />
           )
         }

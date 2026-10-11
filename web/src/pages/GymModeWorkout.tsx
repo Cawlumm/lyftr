@@ -284,7 +284,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                           {muscleLabel(ex.exercise.muscle_group)}
                         </span>
-                        <span className="text-[10px] text-tx-muted">{t('workouts.detail.setCount', { count: ex.sets.length })}</span>
+                        <span className="text-[10px] text-tx-muted">{t('common.count.sets', { count: ex.sets.length })}</span>
                       </div>
                     </div>
                     {done && <CheckCircle2 className="w-4 h-4 text-brand-400 flex-shrink-0" />}
@@ -596,7 +596,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         {(set.target_reps > 0 || set.target_weight > 0) && (
           <p className="text-sm text-tx-muted text-center">
             {t('gym.target.label')}{' '}
-            <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? t('gym.target.reps', { count: set.target_reps }) : t('gym.target.repsUnknown')}</span>
+            <span className="font-semibold text-tx-secondary tabular-nums">{set.target_reps > 0 ? t('common.count.reps', { count: set.target_reps }) : t('gym.target.repsUnknown')}</span>
             {set.target_weight > 0 && (
               <> · <span className="font-semibold text-tx-secondary tabular-nums">{displayWeight(set.target_weight, wUnit)} {wUnit}</span></>
             )}
@@ -625,7 +625,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
 
           {/* Weight */}
           <StepperTile
-            icon={Dumbbell} label={t('workouts.form.weightWithUnit', { unit: wUnit })} name={t('weight.log.weightName')} step={PLATE_STEP} disabled={set.completed}
+            icon={Dumbbell} label={t('common.weightWithUnit', { unit: wUnit })} name={t('common.weightName')} step={PLATE_STEP} disabled={set.completed}
             onStep={d => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), wUnit))}
           >
             <NumberField

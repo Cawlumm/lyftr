@@ -52,8 +52,8 @@ describe('ProgramDaysEditor', () => {
       />
     )
     try {
-      expect(screen.getByText('Agregar día de entrenamiento')).toBeTruthy()
-      expect(screen.getByText('Agregar día de descanso')).toBeTruthy()
+      expect(screen.getByText('Día de entrenamiento')).toBeTruthy()
+      expect(screen.getByText('Día de descanso')).toBeTruthy()
       expect(screen.getByText('1 ejercicio')).toBeTruthy()
       expect(screen.getAllByLabelText('Quitar día')).toHaveLength(2)
       expect(screen.getByLabelText('Subir el día 1')).toBeTruthy()

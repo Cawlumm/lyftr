@@ -16,7 +16,7 @@ export function displayName(name?: string, email?: string): string {
   const given = (name ?? '').trim()
   if (given) return given
   const local = (email ?? '').split('@')[0].trim()
-  return local || i18n.t('common.there')
+  return local || i18n.t('common.anonymousName')
 }
 
 // Whether the typed address differs from the current one. A letter-case change counts:

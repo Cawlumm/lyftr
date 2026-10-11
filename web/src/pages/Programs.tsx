@@ -75,8 +75,8 @@ function ProgramCard({
               <Trash2 className="w-4 h-4 text-error-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-tx-primary">{t('programs.card.deleteTitle', { name: program.name })}</p>
-              <p className="text-xs text-tx-muted">{t('programs.card.cannotUndo')}</p>
+              <p className="text-sm font-semibold text-tx-primary">{t('common.card.deleteNamed', { name: program.name })}</p>
+              <p className="text-xs text-tx-muted">{t('common.card.cannotUndo')}</p>
               {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
@@ -129,9 +129,9 @@ function ProgramCard({
             <p className="text-sm font-semibold text-tx-primary truncate">{program.name}</p>
             <p className="text-xs text-tx-muted mt-0.5 whitespace-nowrap">{formatDate(new Date(program.created_at), 'monthDayYear')}</p>
             <div className="flex items-center gap-x-2 mt-0.5 min-w-0 overflow-hidden">
-              <span className="text-xs text-tx-muted whitespace-nowrap">{t('programs.count.exercises', { count: totalExercises })}</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{t('common.count.exercises', { count: totalExercises })}</span>
               <span className="text-tx-muted/40 text-xs">·</span>
-              <span className="text-xs text-tx-muted whitespace-nowrap">{t('programs.count.sets', { count: totalSets })}</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{t('common.count.sets', { count: totalSets })}</span>
               {dayCount > 1 && today && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
@@ -342,7 +342,7 @@ export default function Programs() {
               <BookOpen className="w-6 h-6 text-tx-muted" />
             </div>
             <p className="text-sm font-medium text-tx-primary mb-1">{t('programs.list.empty.title')}</p>
-            <p className="text-xs text-tx-muted">{search ? t('programs.list.empty.searchHint') : t('programs.list.empty.startHint')}</p>
+            <p className="text-xs text-tx-muted">{search ? t('common.tryDifferentSearch') : t('programs.list.empty.startHint')}</p>
           </div>
         ) : (
           <>
@@ -357,7 +357,7 @@ export default function Programs() {
             <div ref={sentinelRef} />
             {listError && <ListError subject={t('programs.list.errorSubject')} message={listError} onRetry={retryList} />}
             {hasMore && loading && (
-              <p className="text-center text-xs text-tx-muted py-2">{t('programs.list.loadingMore')}</p>
+              <p className="text-center text-xs text-tx-muted py-2">{t('common.loadingMore')}</p>
             )}
           </>
         )}

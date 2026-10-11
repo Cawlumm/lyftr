@@ -87,7 +87,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors font-medium"
         >
           <Plus className="w-3.5 h-3.5" />
-          {t('workouts.form.addExercise')}
+          {t('common.addExercise')}
         </button>
       </div>
 
@@ -123,7 +123,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                 </div>
 
                 <div className="mb-4">
-                  <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('workouts.form.notes')}</label>
+                  <label className="text-xs text-tx-muted font-medium uppercase tracking-wider block mb-1">{t('common.notes')}</label>
                   <input
                     type="text"
                     value={workoutEx.notes}
@@ -144,7 +144,7 @@ export default function DayExercisesEditor({ exercises, onChange, pickerExercise
                 <div className="space-y-2 mb-3">
                   <div className="flex items-center justify-between">
                     <label className="text-xs text-tx-muted font-medium uppercase tracking-wider">{t('programs.form.targetSets')}</label>
-                    <span className="text-xs text-tx-muted">{t('programs.count.sets', { count: workoutEx.sets.length })}</span>
+                    <span className="text-xs text-tx-muted">{t('common.count.sets', { count: workoutEx.sets.length })}</span>
                   </div>
                   {workoutEx.sets.map((set, setIdx) => (
                     <div key={setIdx} className="flex gap-2 items-end bg-surface-raised/40 p-3 rounded-lg border border-surface-border/50">

@@ -39,7 +39,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
     unit
   )
 
-  const exerciseCount = t('workouts.card.exercises', { count: workout.exercises?.length || 0 })
+  const exerciseCount = t('common.count.exercises', { count: workout.exercises?.length || 0 })
   const headerMeta = [
     formatDay(workoutDay(workout), 'monthDayYear'),
     ...(durationMin > 0 ? [t('workouts.card.minutes', { minutes: durationMin })] : []),
@@ -141,7 +141,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
       />
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), subject: `"${workout.name}"` })}
+        {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), name: workout.name })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

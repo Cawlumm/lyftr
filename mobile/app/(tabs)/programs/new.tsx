@@ -81,8 +81,12 @@ export default function AddProgram() {
   }, t('programs.form.createFailed'))
 
   useEffect(() => {
-    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error, save.failureKey])
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error])
+
+  useEffect(() => {
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [save.failureKey])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'programs.form.errors.nameRequired' }); return }
@@ -112,7 +116,7 @@ export default function AddProgram() {
             <View>
               <AppText variant="title">{t('programs.form.newTitle')}</AppText>
               <AppText variant="caption" color="muted">
-                {t('programs.form.summary', { days: t('programs.count.days', { count: formData.days.length }), exercises: t('programs.count.exercises', { count: totalExercises }), sets: t('programs.count.sets', { count: totalSets }) })}
+                {t('programs.form.summary', { days: t('common.count.days', { count: formData.days.length }), exercises: t('common.count.exercises', { count: totalExercises }), sets: t('common.count.sets', { count: totalSets }) })}
               </AppText>
             </View>
           </View>
@@ -125,7 +129,7 @@ export default function AddProgram() {
           ) : null}
 
           <View>
-            <FieldHeader icon={BookOpen} label={t('programs.form.name')} hint={t('programs.form.required')} />
+            <FieldHeader icon={BookOpen} label={t('programs.form.name')} hint={t('common.required')} />
             <Field
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
@@ -134,7 +138,7 @@ export default function AddProgram() {
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
+            <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}

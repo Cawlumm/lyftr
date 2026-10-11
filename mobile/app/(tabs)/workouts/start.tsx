@@ -31,7 +31,7 @@ export default function StartWorkout() {
     client.programAPI
       .list()
       .then((data) => setPrograms(data || []))
-      .catch((err) => setError({ key: 'settings.unknownError', cause: err }))
+      .catch((err) => setError({ key: 'errors.unknown', cause: err }))
       .finally(() => setLoading(false))
   }, [retryKey])
 
@@ -115,7 +115,7 @@ export default function StartWorkout() {
             {error ? (
               <ErrorState
                 size="section"
-                title={t('workouts.start.programsLoadFailed')}
+                title={t('programs.list.loadFailed')}
                 message={uiMessage(error)}
                 onRetry={() => { setError(null); setRetryKey((k) => k + 1) }}
               />
@@ -157,7 +157,7 @@ export default function StartWorkout() {
                       <View className="flex-1">
                         <AppText variant="bodySemibold" numberOfLines={1}>{p.name}</AppText>
                         <AppText variant="caption" color="muted" className="mt-0.5">
-                          {dayCount > 0 ? t('workouts.start.days', { count: dayCount }) : t('workouts.start.noDays')}
+                          {dayCount > 0 ? t('common.count.days', { count: dayCount }) : t('workouts.start.noDays')}
                         </AppText>
                       </View>
                       <Play size={16} color={accent} />

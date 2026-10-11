@@ -114,7 +114,7 @@ export default function EditWorkout() {
           })),
         })
       })
-      .catch((err) => setLoadError({ key: 'settings.unknownError', cause: err }))
+      .catch((err) => setLoadError({ key: 'errors.unknown', cause: err }))
       .finally(() => setInitialLoading(false))
     // Web effect deps: [id] only — settings are fetched before a user can navigate here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,8 +206,12 @@ export default function EditWorkout() {
   }, t('workouts.form.updateFailed'))
 
   useEffect(() => {
-    if (error || save.error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error, save.failureKey])
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [error])
+
+  useEffect(() => {
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: true })
+  }, [save.failureKey])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'workouts.form.errors.nameRequired' }); return }
@@ -240,8 +244,8 @@ export default function EditWorkout() {
     0
   )
   const counts = {
-    exercises: t('workouts.form.exerciseCount', { count: formData.exercises.length }),
-    sets: t('workouts.form.setCount', { count: totalSets }),
+    exercises: t('common.count.exercises', { count: formData.exercises.length }),
+    sets: t('common.count.sets', { count: totalSets }),
   }
   const summary = totalWeight > 0
     ? t('workouts.form.summaryWithWeight', { ...counts, weight: Math.round(totalWeight), unit: wUnit })
@@ -306,7 +310,7 @@ export default function EditWorkout() {
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
+            <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
@@ -327,7 +331,7 @@ export default function EditWorkout() {
                 className="flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95"
               >
                 <Plus size={13} color="#ffffff" />
-                <Text className="font-sans-semibold text-xs text-white">{t('workouts.form.addExercise')}</Text>
+                <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
               </Pressable>
             </View>
 
@@ -372,7 +376,7 @@ export default function EditWorkout() {
                   className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
                 >
                   <Plus size={14} color={accent} />
-                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addExercise')}</Text>
+                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('common.addExercise')}</Text>
                 </Pressable>
               )}
             </View>
@@ -385,7 +389,7 @@ export default function EditWorkout() {
           -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title={t('workouts.form.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
+        <Button title={t('common.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}
