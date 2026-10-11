@@ -93,10 +93,10 @@ export default function ProgramPicker({ onSelect, onClose }: Props) {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-tx-primary truncate flex items-center gap-1.5">
                           {dayLabel(day, day.order_index)}
-                          {isToday && <span className="text-[10px] font-bold text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded-full">{t('workouts.form.programPicker.today')}</span>}
+                          {isToday && <span className="text-[10px] font-bold text-brand-400 bg-brand-500/15 px-1.5 py-0.5 rounded-full">{t('common.todayChip')}</span>}
                         </p>
                         <span className="text-xs text-tx-muted">
-                          {t('workouts.form.exerciseCount', { count: (day.exercises ?? []).length })}
+                          {t('common.count.exercises', { count: (day.exercises ?? []).length })}
                         </span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />

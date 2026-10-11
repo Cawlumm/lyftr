@@ -52,8 +52,8 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
               <Trash2 className="w-4 h-4 text-error-400" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-tx-primary">{t('workouts.card.deleteTitle', { name: workout.name })}</p>
-              <p className="text-xs text-tx-muted">{t('workouts.card.cannotUndo')}</p>
+              <p className="text-sm font-semibold text-tx-primary">{t('common.card.deleteNamed', { name: workout.name })}</p>
+              <p className="text-xs text-tx-muted">{t('common.card.cannotUndo')}</p>
               {remove.error && <p className="text-xs text-error-400 mt-1">{remove.error}</p>}
             </div>
           </div>
@@ -101,7 +101,7 @@ function WorkoutCard({ workout, onEdit, onDelete }: { workout: types.Workout; on
                 </span>
               )}
               {durationMin > 0 && <span className="text-tx-muted/40 text-xs">·</span>}
-              <span className="text-xs text-tx-muted whitespace-nowrap">{t('workouts.card.exercises', { count: workout.exercises?.length || 0 })}</span>
+              <span className="text-xs text-tx-muted whitespace-nowrap">{t('common.count.exercises', { count: workout.exercises?.length || 0 })}</span>
               {totalVolume > 0 && (
                 <>
                   <span className="text-tx-muted/40 text-xs">·</span>
@@ -312,7 +312,7 @@ export default function Workouts() {
           <EmptyState
             icon={Dumbbell}
             title={t('workouts.list.empty.title')}
-            subtitle={search ? t('workouts.list.empty.searchHint') : t('workouts.list.empty.startHint')}
+            subtitle={search ? t('common.tryDifferentSearch') : t('workouts.list.empty.startHint')}
           />
         ) : (
           <>
@@ -323,7 +323,7 @@ export default function Workouts() {
             <div ref={sentinelRef} />
             {listError && <ListError subject={t('workouts.list.errorSubject')} message={listError} onRetry={retryList} />}
             {hasMore && loading && (
-              <p className="text-center text-xs text-tx-muted py-2">{t('workouts.list.loadingMore')}</p>
+              <p className="text-center text-xs text-tx-muted py-2">{t('common.loadingMore')}</p>
             )}
           </>
         )}

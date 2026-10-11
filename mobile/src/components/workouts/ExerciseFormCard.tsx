@@ -146,7 +146,7 @@ function ExerciseFormCardBase({
         <View className="flex-row items-center gap-2">
           <View className={`${COL_SET} items-center`}><Label>{t('workouts.form.set')}</Label></View>
           <View className="flex-1 items-center"><Label>{t('workouts.form.reps')}</Label></View>
-          <View className="flex-1 items-center"><Label>{t('workouts.form.weightWithUnit', { unit })}</Label></View>
+          <View className="flex-1 items-center"><Label>{t('common.weightWithUnit', { unit })}</Label></View>
           <View className={COL_DELETE} />
         </View>
         {sets.map((set, setIdx) => (

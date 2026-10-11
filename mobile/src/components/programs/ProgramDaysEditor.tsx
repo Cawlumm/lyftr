@@ -112,7 +112,7 @@ export function ProgramDaysEditor({
                 className="flex-row items-center justify-between border-t border-surface-border/60 px-3 py-2.5 active:bg-surface-muted/40"
               >
                 <AppText variant="caption" color="muted">
-                  {t('programs.count.exercises', { count: day.exercises.length })}
+                  {t('common.count.exercises', { count: day.exercises.length })}
                 </AppText>
                 {isOpen ? <ChevronDown size={14} color={colors.txMuted} /> : <ChevronRight size={14} color={colors.txMuted} />}
               </Pressable>

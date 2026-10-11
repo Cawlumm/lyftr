@@ -141,7 +141,7 @@ function ActiveExerciseCardBase({
         <View className="flex-row items-center gap-2 px-1">
           <View className="w-8 items-center"><AppText variant="caption" color="muted">{t('workouts.active.columns.set')}</AppText></View>
           <View className="flex-1 items-center"><AppText variant="caption" color="muted">{t('workouts.active.columns.reps')}</AppText></View>
-          <View className="flex-1 items-center"><AppText variant="caption" color="muted">{t('workouts.active.columns.weightUnit', { unit: wUnit })}</AppText></View>
+          <View className="flex-1 items-center"><AppText variant="caption" color="muted">{t('common.weightWithUnit', { unit: wUnit })}</AppText></View>
           <View className="w-12 items-center"><AppText variant="caption" color="muted">{t('workouts.active.columns.done')}</AppText></View>
           <View className="w-7" />
         </View>

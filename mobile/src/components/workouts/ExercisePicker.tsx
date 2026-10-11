@@ -178,7 +178,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               ) : hasMore && available.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
-                  <AppText variant="caption" color="muted">{t('exercises.picker.loadingMore')}</AppText>
+                  <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>
                 </View>
               ) : null
             }

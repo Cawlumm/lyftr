@@ -42,7 +42,7 @@ export default function NutritionDetail() {
       .then(setEntry)
       .catch((err) => {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       })
       .finally(() => setLoading(false))
   }, [id, retryKey])
@@ -221,7 +221,7 @@ export default function NutritionDetail() {
       </ScrollView>
 
       <ConfirmSheet
-        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), subject: `"${entry.name}"` })}
+        {...deleteConfirmProps({ title: t('food.entry.deleteTitle'), name: entry.name })}
         open={confirming}
         busy={remove.busy}
         error={remove.error}

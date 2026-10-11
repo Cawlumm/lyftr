@@ -78,7 +78,7 @@ export default function WorkoutDetail() {
         const data = await client.workoutAPI.get(Number(id))
         if (!cancelled) setWorkout(data)
       } catch (err) {
-        if (!cancelled) setError({ key: 'settings.unknownError', cause: err })
+        if (!cancelled) setError({ key: 'errors.unknown', cause: err })
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -164,7 +164,7 @@ export default function WorkoutDetail() {
 
           {/* Delete confirm — slide-up bottom sheet (mirrors web's portal sheet). */}
           <ConfirmSheet
-            {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), subject: `"${workout.name}"` })}
+            {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), name: workout.name })}
             open={confirming}
             busy={remove.busy}
             error={remove.error}
@@ -226,7 +226,7 @@ export default function WorkoutDetail() {
           {!restOn && (
             <View className="flex-row items-center gap-1.5 px-1">
               <TimerOff size={13} color={colors.txMuted} />
-              <AppText variant="caption" color="muted">{t('workouts.detail.restOff')}</AppText>
+              <AppText variant="caption" color="muted">{t('common.rest.timerOff')}</AppText>
             </View>
           )}
           <View className="gap-3">
@@ -236,7 +236,7 @@ export default function WorkoutDetail() {
               const maxWeight = displayWeight(maxWeightLbs, wUnit)
               const exVol = displayVolume(exerciseVolume(sets), wUnit)
               const setsSummary = [
-                t('workouts.detail.setCount', { count: sets.length }),
+                t('common.count.sets', { count: sets.length }),
                 ...(exVol > 0 ? [`${exVol.toLocaleString()} ${wUnit}`] : []),
               ].join(' · ')
 
@@ -281,7 +281,7 @@ export default function WorkoutDetail() {
                       </View>
                       {restOn && (
                         ex.rest_seconds === 0 ? (
-                          <AppText variant="caption" color="muted">{t('workouts.detail.noRest')}</AppText>
+                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
                         ) : (
                           <View className="flex-row items-center gap-1">
                             <Pause size={13} color={colors.txMuted} />

@@ -128,16 +128,16 @@ export default function Dashboard() {
       workoutAPI.list({ limit: 84 }),  // 12 weeks × 7 days max
       // backend's max — Up Next must see every program
       programAPI.list({ limit: 100 })
-        .catch(err => { absent['your programs'] = { key: 'settings.unknownError', cause: err }; return [] }),
+        .catch(err => { absent['your programs'] = { key: 'errors.unknown', cause: err }; return [] }),
       foodAPI.stats(format(TODAY, 'yyyy-MM-dd'))
         // A 200 carrying the wrong shape never reaches the catch. Unchecked, the missing
         // field went through Math.round and the ring read "NaN".
         .then(fs => isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable')))
-        .catch(err => { absent["today's food"] = { key: 'settings.unknownError', cause: err }; return DEFAULT_FOOD }),
+        .catch(err => { absent["today's food"] = { key: 'errors.unknown', cause: err }; return DEFAULT_FOOD }),
       weightAPI.list({ limit: 14 })
-        .catch(err => { absent['your weight'] = { key: 'settings.unknownError', cause: err }; return [] }),
+        .catch(err => { absent['your weight'] = { key: 'errors.unknown', cause: err }; return [] }),
       weightAPI.stats()
-        .catch(err => { absent['your weight'] = { key: 'settings.unknownError', cause: err }; return null }),
+        .catch(err => { absent['your weight'] = { key: 'errors.unknown', cause: err }; return null }),
     ])
       .then(([ws, ps, fs, wl, wst]) => {
         setWorkouts(ws || [])
@@ -147,7 +147,7 @@ export default function Dashboard() {
         setWeightStats(wst)
         setMissing(absent)
       })
-      .catch(err => setError({ key: 'settings.unknownError', cause: err }))
+      .catch(err => setError({ key: 'errors.unknown', cause: err }))
       .finally(() => setLoading(false))
   }, [TODAY, retryKey, fetchSettings])
 
@@ -344,7 +344,7 @@ export default function Dashboard() {
             <div className="flex-1 min-w-0">
               <p className="text-[10px] text-tx-muted uppercase tracking-wide font-medium truncate">{t('home.upNext.label', { name: upNext.program.name })}</p>
               <p className="text-sm font-semibold text-tx-primary truncate mt-0.5">{dayLabel(upNext.day, upNext.day.order_index)}</p>
-              <p className="text-xs text-tx-muted mt-0.5">{t('home.upNext.exercises', { count: (upNext.day.exercises ?? []).length })}</p>
+              <p className="text-xs text-tx-muted mt-0.5">{t('common.count.exercises', { count: (upNext.day.exercises ?? []).length })}</p>
             </div>
           </Link>
           <button
@@ -387,7 +387,7 @@ export default function Dashboard() {
 
         <div className="card p-3 flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">{t('home.macro.protein')}</span>
+            <span className="text-[10px] text-tx-muted uppercase tracking-wide font-medium">{t('food.macro.protein')}</span>
             <Beef className="w-3 h-3 text-tx-muted" />
           </div>
           {foodMissing ? (
@@ -557,7 +557,7 @@ export default function Dashboard() {
                     {[
                       formatDay(workoutDay(lastWorkout), 'monthDay'),
                       mins > 0 && t('home.lastWorkout.minutes', { mins }),
-                      totalSets > 0 && t('home.lastWorkout.sets', { count: totalSets }),
+                      totalSets > 0 && t('common.count.sets', { count: totalSets }),
                       totalVolume > 0 && `${totalVolume.toLocaleString()} ${wUnit}`,
                     ].filter(Boolean).join(' · ')}
                   </p>
@@ -666,9 +666,9 @@ export default function Dashboard() {
           {/* Macros */}
           <div className="space-y-2.5">
             {[
-              { id: 'protein', label: t('home.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct,  color: '#3b82f6' },
+              { id: 'protein', label: t('food.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct,  color: '#3b82f6' },
               { id: 'carbs',   label: t('home.macro.carbs'),   val: food.total_carbs,   target: settings.carb_target,    pct: carbsPct, color: '#f59e0b' },
-              { id: 'fat',     label: t('home.macro.fat'),     val: food.total_fat,     target: settings.fat_target,     pct: fatPct,   color: '#8b5cf6' },
+              { id: 'fat',     label: t('food.macro.fat'),     val: food.total_fat,     target: settings.fat_target,     pct: fatPct,   color: '#8b5cf6' },
             ].map(m => (
               <div key={m.id}>
                 <div className="flex justify-between items-center mb-1">

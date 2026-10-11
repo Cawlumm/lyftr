@@ -202,8 +202,8 @@ export default function AddWorkout() {
     0
   )
   const counts = {
-    exercises: t('workouts.form.exerciseCount', { count: formData.exercises.length }),
-    sets: t('workouts.form.setCount', { count: totalSets }),
+    exercises: t('common.count.exercises', { count: formData.exercises.length }),
+    sets: t('common.count.sets', { count: totalSets }),
   }
   const summary = totalWeight > 0
     ? t('workouts.form.summaryWithWeight', { ...counts, weight: Math.round(totalWeight), unit: wUnit })
@@ -240,7 +240,7 @@ export default function AddWorkout() {
           ) : null}
 
           <View>
-            <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} hint={t('workouts.form.required')} />
+            <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} hint={t('common.required')} />
             <Field
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
@@ -273,7 +273,7 @@ export default function AddWorkout() {
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
+            <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
@@ -292,7 +292,7 @@ export default function AddWorkout() {
               <View className="mb-2.5 flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>{t('workouts.form.exercises')}</Label>
-                <AppText variant="caption" color="muted">{t('workouts.form.required')}</AppText>
+                <AppText variant="caption" color="muted">{t('common.required')}</AppText>
               </View>
               <View className="flex-row items-center gap-2">
                 <Pressable
@@ -309,7 +309,7 @@ export default function AddWorkout() {
                   className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
                 >
                   <Plus size={13} color="#ffffff" />
-                  <Text className="font-sans-semibold text-xs text-white">{t('workouts.form.addExercise')}</Text>
+                  <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -355,7 +355,7 @@ export default function AddWorkout() {
                   className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
                 >
                   <Plus size={14} color={accent} />
-                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addExercise')}</Text>
+                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('common.addExercise')}</Text>
                 </Pressable>
               )}
             </View>

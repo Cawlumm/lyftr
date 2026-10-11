@@ -41,7 +41,7 @@ export default function WeightDetail() {
       .then(setLog)
       .catch(err => {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       })
       .finally(() => setLoading(false))
   }, [id, retryKey])
@@ -63,7 +63,7 @@ export default function WeightDetail() {
     })
     setLog(updated)
     setEditing(false)
-  }, t('weight.detail.saveFailed'))
+  }, t('common.saveFailed'))
 
   // `badWeight` is what this page can say about the value in the box; the hook carries
   // what the server said. The entry is passed to run() because the guard below is what
@@ -179,8 +179,8 @@ export default function WeightDetail() {
 
             <StepperTile
               icon={Scale}
-              label={t('weight.log.weightLabel', { unit: wUnit })}
-              name={t('weight.log.weightName')}
+              label={t('common.weightWithUnit', { unit: wUnit })}
+              name={t('common.weightName')}
               step={BODYWEIGHT_STEP}
               onStep={d => setEditWeight(String(clampStep(parseFloat(editWeight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
             >
@@ -206,7 +206,7 @@ export default function WeightDetail() {
                 type="text"
                 value={editNotes}
                 onChange={e => setEditNotes(e.target.value)}
-                placeholder={t('weight.detail.notePlaceholder')}
+                placeholder={t('weight.notePlaceholder')}
                 maxLength={200}
                 className="input mt-1"
               />

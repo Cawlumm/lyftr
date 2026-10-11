@@ -24,7 +24,7 @@ export default function ChangeEmail() {
     setCurrent('')
     setCaseOnly(onlyCase)
     setChangedTo(updated.email)
-  }, t('settings.account.email.failedFallback'))
+  }, t('settings.account.email.changeFailed'))
 
   const ready = emailChanged(email, user?.email) && !!current
 

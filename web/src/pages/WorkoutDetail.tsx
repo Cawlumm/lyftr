@@ -50,7 +50,7 @@ export default function WorkoutDetail() {
         setWorkout(data)
       } catch (err: any) {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       } finally {
         setLoading(false)
       }
@@ -123,7 +123,7 @@ export default function WorkoutDetail() {
         icon={Trash2}
         destructive
         title={t('workouts.deleteConfirmTitle')}
-        message={t('common.deleteConfirmMessage', { subject: `"${workout.name}"` })}
+        message={t('common.deleteNamedConfirmMessage', { name: workout.name })}
         confirmLabel={t('common.delete')}
         busyLabel={t('common.deleting')}
         busy={remove.busy}
@@ -191,7 +191,7 @@ export default function WorkoutDetail() {
       {/* Exercises */}
       {!restOn && (
         <div className="flex items-center gap-1.5 text-[11px] text-tx-muted px-1">
-          <TimerOff className="w-3.5 h-3.5" /> {t('workouts.detail.restOff')}
+          <TimerOff className="w-3.5 h-3.5" /> {t('common.rest.timerOff')}
         </div>
       )}
       <div className="space-y-3">
@@ -201,7 +201,7 @@ export default function WorkoutDetail() {
           const maxWeight = displayWeight(maxWeightLbs, wUnit)
           const exVol = displayVolume(exerciseVolume(sets), wUnit)
           const setsSummary = [
-            t('workouts.detail.setCount', { count: sets.length }),
+            t('common.count.sets', { count: sets.length }),
             ...(exVol > 0 ? [`${exVol.toLocaleString()} ${wUnit}`] : []),
           ].join(' · ')
 
@@ -252,7 +252,7 @@ export default function WorkoutDetail() {
                     ))}
                   </div>
                   {restOn && (ex.rest_seconds === 0
-                    ? <span className="text-xs text-tx-muted flex-shrink-0">{t('workouts.detail.noRest')}</span>
+                    ? <span className="text-xs text-tx-muted flex-shrink-0">{t('common.rest.none')}</span>
                     : <span className="flex items-center gap-1 text-xs text-tx-muted flex-shrink-0"><Pause className="w-3.5 h-3.5" />{restLabel(ex.rest_seconds ?? 90)}</span>
                   )}
                 </div>

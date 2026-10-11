@@ -88,12 +88,12 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                         <AppText variant="subheading" numberOfLines={1}>{dayLabel(day, day.order_index)}</AppText>
                         {isToday ? (
                           <View className="rounded-full bg-brand-500/15 px-1.5 py-0.5">
-                            <AppText variant="caption" style={{ color: accent }}>{t('workouts.form.programPicker.today')}</AppText>
+                            <AppText variant="caption" style={{ color: accent }}>{t('common.todayChip')}</AppText>
                           </View>
                         ) : null}
                       </View>
                       <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-                        {t('workouts.form.exerciseCount', { count: (day.exercises ?? []).length })}
+                        {t('common.count.exercises', { count: (day.exercises ?? []).length })}
                       </AppText>
                     </View>
                     <ChevronRight size={16} color={colors.txMuted} />
@@ -107,7 +107,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                 <Field
                   value={query}
                   onChangeText={setQuery}
-                  placeholder={t('workouts.form.programPicker.searchPlaceholder')}
+                  placeholder={t('programs.list.searchPlaceholder')}
                   autoCapitalize="none"
                   autoCorrect={false}
                   returnKeyType="search"
@@ -121,7 +121,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                 </View>
               ) : error ? (
                 <ErrorState
-                  title={t('workouts.start.programsLoadFailed')}
+                  title={t('programs.list.loadFailed')}
                   message={uiMessage(error)}
                   onRetry={() => setRetryKey((k) => k + 1)}
                 />
@@ -130,7 +130,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
                   compact
                   icon={BookOpen}
                   title={query ? t('workouts.form.programPicker.noMatches') : t('workouts.start.noPrograms')}
-                  subtitle={query ? t('workouts.list.empty.searchHint') : t('workouts.form.programPicker.createFirst')}
+                  subtitle={query ? t('common.tryDifferentSearch') : t('workouts.form.programPicker.createFirst')}
                 />
               ) : (
                 <FlatList

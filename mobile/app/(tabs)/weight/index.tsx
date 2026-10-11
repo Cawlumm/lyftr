@@ -349,8 +349,8 @@ export default function Weight() {
               <View className="gap-3">
                 <StepperTile
                   icon={Scale}
-                  label={t('weight.log.weightLabel', { unit: wUnit })}
-                  name={t('weight.log.weightName')}
+                  label={t('common.weightWithUnit', { unit: wUnit })}
+                  name={t('common.weightName')}
                   step={BODYWEIGHT_STEP}
                   onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
                 >
@@ -400,7 +400,7 @@ export default function Weight() {
                     actions={[
                       { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
                       {
-                        label: t('weight.log.logAnyway'),
+                        label: t('weight.logAnyway'),
                         primary: true,
                         onPress: () => {
                           duplicateWarningDismissedRef.current = true

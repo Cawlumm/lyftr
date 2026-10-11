@@ -109,7 +109,7 @@ export default function ProgramDaysEditor({ days, onChange, pickerExercises, onC
 
             {!day.is_rest_day && (
               <div className="px-3 pb-3 flex items-center gap-2 -mt-1">
-                <span className="text-[11px] text-tx-muted">{t('programs.count.exercises', { count: day.exercises.length })}</span>
+                <span className="text-[11px] text-tx-muted">{t('common.count.exercises', { count: day.exercises.length })}</span>
               </div>
             )}
 

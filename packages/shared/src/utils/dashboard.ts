@@ -49,12 +49,12 @@ export const muscleRoast = (m: string): string =>
 // "now" is sampled — and so this is testable without faking timers.
 //
 // `name` is what useDisplayName returned, which is never empty: with neither a name nor an
-// email it is the common.there word. That word means "no name", and the sentence for it is
+// email it is the common.anonymousName word. That word means "no name", and the sentence for it is
 // its own ('Buenos días', not 'Buenos días, usuario'), picked with the 'anonymous' context.
 export function greeting(now: Date, name?: string): string {
   const h = now.getHours()
   const band = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening'
-  const anonymous = !name || name === i18n.t('common.there')
+  const anonymous = !name || name === i18n.t('common.anonymousName')
   return i18n.t(`home.greeting.${band}`, { name, context: anonymous ? 'anonymous' : undefined })
 }
 

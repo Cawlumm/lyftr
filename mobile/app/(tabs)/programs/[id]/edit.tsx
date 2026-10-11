@@ -86,7 +86,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch((err) => { if (!cancelled) setLoadError({ key: 'settings.unknownError', cause: err }) })
+      .catch((err) => { if (!cancelled) setLoadError({ key: 'errors.unknown', cause: err }) })
       .finally(() => { if (!cancelled) setInitialLoading(false) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,7 +178,7 @@ export default function EditProgram() {
             <View>
               <AppText variant="title">{t('programs.form.editTitle')}</AppText>
               <AppText variant="caption" color="muted">
-                {t('programs.form.summary', { days: t('programs.count.days', { count: formData.days.length }), exercises: t('programs.count.exercises', { count: totalExercises }), sets: t('programs.count.sets', { count: totalSets }) })}
+                {t('programs.form.summary', { days: t('common.count.days', { count: formData.days.length }), exercises: t('common.count.exercises', { count: totalExercises }), sets: t('common.count.sets', { count: totalSets }) })}
               </AppText>
             </View>
           </View>
@@ -199,7 +199,7 @@ export default function EditProgram() {
           </View>
 
           <View>
-            <FieldHeader icon={FileText} label={t('workouts.form.notes')} />
+            <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
@@ -229,7 +229,7 @@ export default function EditProgram() {
 
       <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title={t('workouts.form.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
+        <Button title={t('common.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />

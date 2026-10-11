@@ -470,8 +470,8 @@ export default function Weight() {
         <form ref={logFormRef} onSubmit={handleLog} className="space-y-3">
           <StepperTile
             icon={Scale}
-            label={t('weight.log.weightLabel', { unit: wUnit })}
-            name={t('weight.log.weightName')}
+            label={t('common.weightWithUnit', { unit: wUnit })}
+            name={t('common.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={d => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { max: maxWeight(settings.weight_unit) })))}
           >
@@ -534,7 +534,7 @@ export default function Weight() {
                     }}
                     className="px-3 py-1 rounded-lg text-xs font-medium bg-amber-500/20 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-colors"
                   >
-                    {t('weight.log.logAnyway')}
+                    {t('weight.logAnyway')}
                   </button>
                 </div>
               </div>
@@ -710,7 +710,7 @@ export default function Weight() {
           </div>
           <div ref={sentinelRef} />
           {hasMore && listLoading && (
-            <p className="text-center text-xs text-tx-muted py-2">{t('weight.history.loadingMore')}</p>
+            <p className="text-center text-xs text-tx-muted py-2">{t('common.loadingMore')}</p>
           )}
         </>
       )}

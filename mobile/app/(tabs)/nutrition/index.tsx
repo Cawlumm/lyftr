@@ -119,7 +119,7 @@ export default function Nutrition() {
           // rendered as 0 kcal, which is what "hasn't eaten yet" looks like.
           .then((st) => (isDailyStats(st) ? st : Promise.reject(new Error('unreadable'))))
           .catch((err) => {
-            statsMessage = { key: 'settings.unknownError', cause: err }
+            statsMessage = { key: 'errors.unknown', cause: err }
             return defaultStats
           }),
       ])
@@ -130,7 +130,7 @@ export default function Nutrition() {
       setLoadedDate(date)
     } catch (err: any) {
       if (id !== dayRequest.current) return
-      setError({ key: 'settings.unknownError', cause: err })
+      setError({ key: 'errors.unknown', cause: err })
     } finally {
       if (id === dayRequest.current) hasLoadedRef.current = true
     }
@@ -154,7 +154,7 @@ export default function Nutrition() {
         setHistoryDataPeriod(historyPeriod)
         setHistoryError(null)
       })
-      .catch((err) => { if (id === historyRequest.current) setHistoryError({ key: 'settings.unknownError', cause: err }) })
+      .catch((err) => { if (id === historyRequest.current) setHistoryError({ key: 'errors.unknown', cause: err }) })
       .finally(() => { if (id === historyRequest.current) setHistoryLoading(false) })
   }, [historyPeriod])
   useEffect(() => { loadHistory() }, [loadHistory])
@@ -205,7 +205,7 @@ export default function Nutrition() {
       })
       .catch((err) => {
         if (day !== selectedDateRef.current) return
-        setStatsError({ key: 'settings.unknownError', cause: err })
+        setStatsError({ key: 'errors.unknown', cause: err })
       })
   }, [selectedDate])
 

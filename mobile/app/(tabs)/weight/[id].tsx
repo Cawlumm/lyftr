@@ -50,7 +50,7 @@ export default function WeightDetail() {
       })
       .catch((err) => {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +76,7 @@ export default function WeightDetail() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
     setLog(updated)
     setEditing(false)
-  }, t('weight.detail.saveFailed'))
+  }, t('common.saveFailed'))
 
   // `badWeight` is what this screen can say about the value in the box; the hook carries
   // what the server said. The entry is passed to run() because the guard above is what
@@ -196,8 +196,8 @@ export default function WeightDetail() {
 
                 <StepperTile
                   icon={Scale}
-                  label={t('weight.log.weightLabel', { unit: wUnit })}
-                  name={t('weight.log.weightName')}
+                  label={t('common.weightWithUnit', { unit: wUnit })}
+                  name={t('common.weightName')}
                   step={BODYWEIGHT_STEP}
                   onStep={(d) => setEditWeight(String(clampStep(parseFloat(editWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
                 >
@@ -217,7 +217,7 @@ export default function WeightDetail() {
                   label={t('weight.detail.notesOptionalPlain')}
                   value={editNotes}
                   onChangeText={setEditNotes}
-                  placeholder={t('weight.detail.notePlaceholder')}
+                  placeholder={t('weight.notePlaceholder')}
                   maxLength={200}
                 />
 

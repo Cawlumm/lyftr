@@ -288,7 +288,7 @@ export function GymModeWorkout() {
                     <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
                     <View className="mt-0.5 flex-row items-center gap-2">
                       <MuscleBadge muscle={ex.exercise.muscle_group} small />
-                      <AppText variant="caption" color="muted">{t('workouts.detail.setCount', { count: ex.sets.length })}</AppText>
+                      <AppText variant="caption" color="muted">{t('common.count.sets', { count: ex.sets.length })}</AppText>
                     </View>
                   </View>
                   {done ? <CheckCircle2 size={16} color={accent} /> : null}
@@ -517,7 +517,7 @@ export function GymModeWorkout() {
           {/* target reference */}
           {set.target_reps > 0 || set.target_weight > 0 ? (
             <AppText variant="body" color="muted" className="text-center">
-              {t('gym.target.label')}{' '}<Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{set.target_reps > 0 ? t('gym.target.reps', { count: set.target_reps }) : t('gym.target.repsUnknown')}</Text>
+              {t('gym.target.label')}{' '}<Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{set.target_reps > 0 ? t('common.count.reps', { count: set.target_reps }) : t('gym.target.repsUnknown')}</Text>
               {set.target_weight > 0 ? <Text> · <Text className="font-sans-semibold" style={{ color: colors.txSecondary, fontVariant: ['tabular-nums'] }}>{displayWeight(set.target_weight, wUnit)} {wUnit}</Text></Text> : null}
             </AppText>
           ) : null}
@@ -530,7 +530,7 @@ export function GymModeWorkout() {
               </StepperTile>
             </View>
             <View className="flex-1">
-              <StepperTile icon={Dumbbell} label={t('workouts.form.weightWithUnit', { unit: wUnit })} name={t('weight.log.weightName')} step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
+              <StepperTile icon={Dumbbell} label={t('common.weightWithUnit', { unit: wUnit })} name={t('common.weightName')} step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
                 <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.weight')} inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
               </StepperTile>
             </View>

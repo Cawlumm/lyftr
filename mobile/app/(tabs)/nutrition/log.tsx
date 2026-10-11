@@ -195,7 +195,7 @@ export default function LogFood() {
       // unreachable upstream is not an answer, and saying "not found" for it sent
       // people to type in a product that does exist.
       if (isNotFound(err)) enterManually()
-      else setLookup({ code, error: { key: 'food.log.lookupFailed', cause: err } })
+      else setLookup({ code, error: { key: 'food.log.lookupFailedHint', cause: err } })
     }
   }
 
@@ -218,7 +218,7 @@ export default function LogFood() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
         // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
         router.replace(`/nutrition?logged=${editId ? 'Updated' : meal}`)
-  }, t('food.log.saveFailed'))
+  }, t('common.saveFailed'))
 
   const handleLog = async () => {
     if (!selected || save.busy) return
@@ -357,7 +357,7 @@ export default function LogFood() {
               // what failed, and both ways forward keep the code already scanned.
               <Card>
                 <ErrorState
-                  title={t('food.log.lookupFailedTitle')}
+                  title={t('food.log.lookupFailed')}
                   message={uiMessage(lookup.error)}
                   onRetry={() => lookUpBarcode(lookup.code)}
                   secondary={<Button title={t('food.log.enterManually')} variant="secondary" onPress={enterManually} />}

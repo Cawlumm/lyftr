@@ -143,7 +143,7 @@ export default function Settings() {
         fat_target: s.fat_target,
       })
     } catch (err: any) {
-      setError({ key: 'settings.unknownError', cause: err })
+      setError({ key: 'errors.unknown', cause: err })
     } finally {
       setLoading(false)
     }
@@ -209,7 +209,7 @@ export default function Settings() {
     await updateSettings(formData)
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
-  }, t('settings.targets.saveFailedFallback'))
+  }, t('settings.saveFailed'))
 
   // Mobile has had this since it shipped; web rendered the button and wired nothing to
   // it, so "Delete account" was a control that did nothing at all — worse than absent,
@@ -306,7 +306,7 @@ export default function Settings() {
                   "Saving…" state with it. */}
               {(nameDirty || saveName.busy) && (
                 <button onClick={handleSaveName} disabled={saveName.busy} className="btn-secondary btn-sm flex-shrink-0">
-                  {saveName.busy ? t('settings.account.name.saving') : t('settings.account.name.save')}
+                  {saveName.busy ? t('common.saving') : t('common.save')}
                 </button>
               )}
             </div>
@@ -420,12 +420,12 @@ export default function Settings() {
                 ))}
                 <button disabled={!enabled} onClick={() => setShowCustomRest(true)} className={seg(customActive)}>
                   <Pencil className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="text-[11px] font-semibold leading-none">{isCustom ? t('settings.workout.defaultRest.preset', { seconds: cur }) : t('settings.workout.defaultRest.custom')}</span>
+                  <span className="text-[11px] font-semibold leading-none">{isCustom ? t('settings.workout.defaultRest.preset', { seconds: cur }) : t('workouts.rest.custom')}</span>
                 </button>
               </div>
               {customActive && (
                 <div className="flex items-center justify-center gap-2 mt-3">
-                  <button type="button" disabled={!enabled} aria-label={t('settings.workout.defaultRest.minusFive')} onClick={() => setRestSeconds(Math.max(0, cur - 5))}
+                  <button type="button" disabled={!enabled} aria-label={t('common.rest.decrease5')} onClick={() => setRestSeconds(Math.max(0, cur - 5))}
                     className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
                     <Minus className="w-4 h-4" />
                   </button>
@@ -440,9 +440,9 @@ export default function Settings() {
                       className="input w-28 text-center py-2.5 pr-9 text-base font-semibold tabular-nums"
                       aria-label={t('settings.workout.defaultRest.customLabel')}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{t('settings.workout.defaultRest.secondsUnit')}</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-tx-muted pointer-events-none">{t('workouts.rest.secondsUnit')}</span>
                   </div>
-                  <button type="button" disabled={!enabled} aria-label={t('settings.workout.defaultRest.plusFive')} onClick={() => setRestSeconds(Math.min(3600, cur + 5))}
+                  <button type="button" disabled={!enabled} aria-label={t('common.rest.increase5')} onClick={() => setRestSeconds(Math.min(3600, cur + 5))}
                     className="p-2.5 rounded-xl bg-surface-muted border border-surface-border text-tx-secondary active:scale-95 hover:text-tx-primary">
                     <Plus className="w-4 h-4" />
                   </button>
@@ -465,16 +465,16 @@ export default function Settings() {
           defaults, so the inputs showed 2000/150/250/65 and Save PUT them over real
           targets of 3175/205/310/88. Measured, not theorised. */}
       {settingsLoadFailed ? (
-        <Section title={t('settings.goalsUnits.title')}>
+        <Section title={t('settings.targets.titleWeb')}>
           <ErrorState
             size="section"
-            title={t('settings.targets.loadFailedTitle')}
-            message={t('settings.goalsUnits.loadFailedMessage')}
+            title={t('settings.targets.loadFailed')}
+            message={t('settings.targets.loadFailedHintWeb')}
             onRetry={() => { void load() }}
           />
         </Section>
       ) : (
-      <Section title={t('settings.goalsUnits.title')}>
+      <Section title={t('settings.targets.titleWeb')}>
         <SettingRow
           label={t('settings.targets.weightUnit.label')}
           description={unitError ? uiMessage(unitError) : t('settings.targets.weightUnit.description')}
@@ -635,7 +635,7 @@ export default function Settings() {
         </SettingRow>
         <SettingRow label={t('settings.deleteAccount.label')} description={t('settings.deleteAccount.description')}>
           <button onClick={() => setConfirmDelete(true)} className="btn-danger btn-sm">
-            <Trash2 className="w-3.5 h-3.5" /> {t('settings.deleteAccount.button')}
+            <Trash2 className="w-3.5 h-3.5" /> {t('common.delete')}
           </button>
         </SettingRow>
       </Section>
@@ -649,7 +649,7 @@ export default function Settings() {
         title={t('settings.deleteAccount.sheetTitle')}
         message={t('settings.deleteAccount.sheetMessage')}
         confirmLabel={t('settings.deleteAccount.confirm')}
-        busyLabel={t('settings.deleteAccount.busy')}
+        busyLabel={t('common.deleting')}
         busy={deleteAccount.busy}
         error={deleteAccount.error ?? undefined}
         onConfirm={() => { void deleteAccount.run() }}

@@ -63,7 +63,7 @@ export default function EditProgram() {
           })),
         })
       })
-      .catch(err => { setLoadError({ key: 'settings.unknownError', cause: err }); })
+      .catch(err => { setLoadError({ key: 'errors.unknown', cause: err }); })
       .finally(() => setInitialLoading(false))
   }, [id, retryKey])
 
@@ -135,7 +135,7 @@ export default function EditProgram() {
         <div>
           <h1 className="font-display font-bold text-2xl text-tx-primary">{t('programs.form.editTitle')}</h1>
           <p className="text-xs text-tx-muted">
-            {t('programs.form.summary', { days: t('programs.count.days', { count: formData.days.length }), exercises: t('programs.count.exercises', { count: totalExercises }), sets: t('programs.count.sets', { count: totalSets }) })}
+            {t('programs.form.summary', { days: t('common.count.days', { count: formData.days.length }), exercises: t('common.count.exercises', { count: totalExercises }), sets: t('common.count.sets', { count: totalSets }) })}
           </p>
         </div>
       </div>
@@ -159,7 +159,7 @@ export default function EditProgram() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <FileText className="w-4 h-4 text-brand-500" />
-            <label className="label">{t('workouts.form.notes')}</label>
+            <label className="label">{t('common.notes')}</label>
           </div>
           <textarea value={formData.notes} onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))} className="input mt-1 min-h-16 resize-none" />
         </div>
@@ -203,7 +203,7 @@ export default function EditProgram() {
           </button>
           <button type="submit" disabled={save.busy} className="flex-1 px-4 py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-40 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2">
             <BookOpen className="w-4 h-4" />
-            {save.busy ? t('common.saving') : t('workouts.form.saveChanges')}
+            {save.busy ? t('common.saving') : t('common.saveChanges')}
           </button>
         </div>
       </form>

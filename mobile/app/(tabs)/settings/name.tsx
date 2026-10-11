@@ -49,7 +49,7 @@ export default function ChangeNameScreen() {
   const save = useAsyncAction(async () => {
     await updateSettings({ display_name: name.trim() })
     back()
-  }, t('settings.account.name.saveFailedFallback'))
+  }, t('settings.account.name.saveFailedRetry'))
 
   return (
     <Screen>
@@ -93,7 +93,7 @@ export default function ChangeNameScreen() {
 
             <View className="flex-row gap-2">
               <Button
-                title={t('settings.account.name.save')}
+                title={t('common.save')}
                 onPress={() => void save.run()}
                 loading={save.busy}
                 disabled={name.trim() === (settings.display_name ?? '')}

@@ -80,7 +80,7 @@ export default function ExerciseDetail() {
       })
       .catch(err => {
         setGone(isNotFound(err))
-        setError({ key: 'settings.unknownError', cause: err })
+        setError({ key: 'errors.unknown', cause: err })
       })
       .finally(() => setLoading(false))
   }, [exerciseId, retryKey])

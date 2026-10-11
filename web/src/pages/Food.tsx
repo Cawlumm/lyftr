@@ -139,7 +139,7 @@ export default function Food() {
           .then(st => isDailyStats(st) ? st : Promise.reject(new Error('unreadable')))
           .catch(err => {
             statsFailed = true
-            statsMessage = { key: 'settings.unknownError', cause: err }
+            statsMessage = { key: 'errors.unknown', cause: err }
             return defaultStats
           }),
       ])
@@ -152,7 +152,7 @@ export default function Food() {
         return next
       })
     } catch (err: any) {
-      setLoadError({ key: 'settings.unknownError', cause: err })
+      setLoadError({ key: 'errors.unknown', cause: err })
     } finally {
       hasLoadedRef.current = true
       setLoading(false)
@@ -182,7 +182,7 @@ export default function Food() {
       .catch(err => {
         if (cancelled) return
         setMissing(m => ({
-          ...m, 'your history': { key: 'settings.unknownError', cause: err },
+          ...m, 'your history': { key: 'errors.unknown', cause: err },
         }))
       })
       .finally(() => { if (!cancelled) setHistoryLoading(false) })
@@ -307,7 +307,7 @@ export default function Food() {
           <ErrorState
             size="section"
             title={t('food.diary.totalsFailed')}
-            message={t('food.diary.totalsFailedMessage')}
+            message={t('food.diary.totalsFailedHint')}
             onRetry={() => void loadDay(selectedDate)}
           />
         </div>
