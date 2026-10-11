@@ -35,6 +35,22 @@ describe('useFavorites epoch', () => {
   })
 })
 
+// The barcode is how the same product is recognised when a search names it in another
+// language, so the star has to save it.
+describe('useFavorites barcode', () => {
+  it('sends the barcode when starring, and finds the favourite by it under a different name', async () => {
+    const sent: Array<Record<string, unknown>> = []
+    const spanish: SavedFood = { ...OATS, id: 9, name: 'Copos de avena', barcode: '3560071006587' }
+    const api = { create: (d: Record<string, unknown>) => { sent.push(d); return Promise.resolve(spanish) }, delete: () => Promise.resolve() }
+    const { result } = renderHook(() => useFavorites(api))
+
+    await act(async () => { await result.current.toggle({ ...oats, name: 'Copos de avena', barcode: '3560071006587' }) })
+
+    expect(sent[0].barcode).toBe('3560071006587')
+    expect(result.current.favoriteOf({ ...oats, name: 'Oat flakes', barcode: '3560071006587' })?.id).toBe(9)
+  })
+})
+
 // The star answers the tap at once; a refusal puts it back and says why.
 describe('useFavorites optimistic toggle', () => {
   const granola = { ...oats, name: 'Granola', brand: '' }
