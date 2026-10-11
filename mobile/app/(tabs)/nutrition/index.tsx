@@ -433,10 +433,10 @@ export default function Nutrition() {
                 <Label className="px-1">{t('food.trends.dailyAverage', { period: historyPeriod })}</Label>
                 <View className="flex-row gap-3">
                   {([
-                    [t('food.macro.protein'), 'protein', MACRO_COLORS.protein],
-                    [t('food.macro.carbs'), 'carbs', MACRO_COLORS.carbs],
-                    [t('food.macro.fat'), 'fat', MACRO_COLORS.fat],
-                  ] as const).map(([label, key, color]) => (
+                    { label: t('food.macro.protein'), key: 'protein', color: MACRO_COLORS.protein },
+                    { label: t('food.macro.carbs'), key: 'carbs', color: MACRO_COLORS.carbs },
+                    { label: t('food.macro.fat'), key: 'fat', color: MACRO_COLORS.fat },
+                  ] as const).map(({ label, key, color }) => (
                     <Card key={key} className="flex-1" style={{ paddingHorizontal: 12 }}>
                       <View className="mb-2 flex-row items-center gap-1.5">
                         <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: color }} />

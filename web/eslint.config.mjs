@@ -19,6 +19,8 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
+import i18next from 'eslint-plugin-i18next'
+import i18nLint from '../packages/shared/i18n-lint.cjs'
 
 export default tseslint.config(
   {
@@ -54,6 +56,17 @@ export default tseslint.config(
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+    },
+  },
+  {
+    // The i18n guard: new screen copy goes through t() (CLAUDE.md, "UI Strings"). The
+    // rule data lives in packages/shared/i18n-lint.cjs, shared with mobile.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/**/*.test.{ts,tsx}'],
+    plugins: { i18next },
+    rules: {
+      'i18next/no-literal-string': ['error', i18nLint.noLiteralString],
+      'no-restricted-syntax': ['error', ...i18nLint.restrictedSyntax],
     },
   },
   {

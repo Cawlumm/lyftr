@@ -137,6 +137,14 @@ describe('key safety', () => {
     // @ts-expect-error unknown key is a type error
     i18n.t('settings.noSuchKey')
   })
+
+  it('rejects a key that is only known to be a string', () => {
+    // A key built at run time cannot be checked against the catalog, so tsc refuses it:
+    // a template key has to be typed to a union of real keys (food.meal.${Meal}).
+    const dynamic: string = 'settings.title'
+    // @ts-expect-error a string-typed key is a type error
+    i18n.t(dynamic)
+  })
 })
 
 describe('language registry', () => {
