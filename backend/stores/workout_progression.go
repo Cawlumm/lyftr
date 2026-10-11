@@ -43,7 +43,7 @@ import (
 // struct-level validation (models.MaxWorkoutSets, enforced in
 // controllers/workouts.go's init()), which caps sum(len(Exercises[i].Sets)) across
 // the whole request.
-func (s *Stores) CreateWorkoutWithProgression(uid int64, req models.CreateWorkoutRequest) (models.Workout, *models.ProgressionResult, error) {
+func (s *Stores) CreateWorkoutWithProgression(uid int64, req models.CreateWorkoutRequest, locale string) (models.Workout, *models.ProgressionResult, error) {
 	var wid int64
 	var progression *models.ProgressionResult
 	err := inTxDo(s.db, func(tx *sql.Tx) error {
@@ -89,7 +89,7 @@ func (s *Stores) CreateWorkoutWithProgression(uid int64, req models.CreateWorkou
 	if err != nil {
 		return models.Workout{}, nil, err
 	}
-	w, err := s.Workout.get(wid)
+	w, err := s.Workout.get(wid, locale)
 	if err != nil {
 		return models.Workout{}, nil, err
 	}

@@ -11,6 +11,7 @@ import {
   createThemeStore,
   createLanguageStore,
   createWorkoutSession,
+  i18n,
   testServerConnection,
   useServerInfoFor,
 } from '@lyftr/shared'
@@ -30,6 +31,7 @@ export const client = createClient(storage, {
   onAuthFailure: () => {
     void useAuthStore.getState().logout()
   },
+  getLocale: () => i18n.resolvedLanguage,
 })
 
 export const useAuthStore = createAuthStore(client, storage)

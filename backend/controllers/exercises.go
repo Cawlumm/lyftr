@@ -11,12 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// requestLocale is the language the reader asked for. It is a query parameter, not a
+// header, so a URL names the whole response. Absent or malformed means English.
+func requestLocale(c *gin.Context) string { return stores.NormalizeLocale(c.Query("locale")) }
+
 func (h *Handler) ListExercises(c *gin.Context) {
 	f := stores.ExerciseFilter{
 		Query:       c.Query("q"),
 		MuscleGroup: c.Query("muscle_group"),
 		Category:    c.Query("category"),
 		Equipment:   c.Query("equipment"),
+		Locale:      requestLocale(c),
 		Limit:       100,
 	}
 	if l, err := strconv.Atoi(c.Query("limit")); err == nil && l > 0 && l <= 2000 {
@@ -38,7 +43,7 @@ func (h *Handler) GetExercise(c *gin.Context) {
 		utils.Fail(c, utils.CodeInvalidExerciseID, nil)
 		return
 	}
-	e, err := h.s.Exercise.Get(id)
+	e, err := h.s.Exercise.Get(id, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeExerciseNotFound, nil)
 		return

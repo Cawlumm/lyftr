@@ -196,3 +196,82 @@ func TestGetExerciseHistory_returnsSessionsGrouped(t *testing.T) {
 		t.Fatalf("missing fields in history point: %v", first)
 	}
 }
+
+// seedSpanishSquat is an English base row with a Spanish translation, a workout
+// that logged it, and returns the workout id and the exercise id.
+func seedSpanishSquat(t *testing.T, uid int64) (workoutID, exerciseID int64) {
+	t.Helper()
+	res, err := db.DB.Exec(`INSERT INTO exercises (name, muscle_group, category) VALUES ('Squat', 'legs', 'strength')`)
+	if err != nil {
+		t.Fatalf("insert exercise: %v", err)
+	}
+	exerciseID, _ = res.LastInsertId()
+	if _, err := db.DB.Exec(
+		`INSERT INTO exercise_translations (exercise_id, locale, name) VALUES (?, 'es', 'Sentadilla')`, exerciseID,
+	); err != nil {
+		t.Fatalf("insert translation: %v", err)
+	}
+	seedWorkoutWithSet(t, uid, exerciseID, 100, 5, 0)
+	if err := db.DB.QueryRow(`SELECT id FROM workouts WHERE user_id = ?`, uid).Scan(&workoutID); err != nil {
+		t.Fatalf("find workout: %v", err)
+	}
+	return workoutID, exerciseID
+}
+
+func TestLocaleQueryParam(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	wid, exID := seedSpanishSquat(t, uid)
+
+	workoutExerciseName := func(query string) (int, string) {
+		c, w := newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d%s", wid, query), nil)
+		setParam(c, "id", fmt.Sprintf("%d", wid))
+		th.GetWorkout(c)
+		if w.Code != http.StatusOK {
+			return w.Code, ""
+		}
+		data := decodeResponse(t, w)["data"].(map[string]any)
+		ex := data["exercises"].([]any)[0].(map[string]any)["exercise"].(map[string]any)
+		return w.Code, ex["name"].(string)
+	}
+
+	for query, want := range map[string]string{
+		"?locale=es":    "Sentadilla",
+		"?locale=es-MX": "Sentadilla",
+		"":              "Squat",
+		"?locale=fr":    "Squat",
+		"?locale=!!":    "Squat",
+		"?locale=":      "Squat",
+	} {
+		code, got := workoutExerciseName(query)
+		if code != http.StatusOK || got != want {
+			t.Errorf("GET workout%s = %d %q, want 200 %q", query, code, got, want)
+		}
+	}
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/exercises?q=sentadilla&locale=es", nil)
+	th.ListExercises(c)
+	list := decodeResponse(t, w)["data"].([]any)
+	if len(list) != 1 || list[0].(map[string]any)["name"] != "Sentadilla" {
+		t.Errorf("localized search = %v, want the one Spanish row", list)
+	}
+
+	c, w = newContext(uid, http.MethodGet, "/api/v1/exercises?q=sentadilla", nil)
+	th.ListExercises(c)
+	if list := decodeResponse(t, w)["data"].([]any); len(list) != 0 {
+		t.Errorf("English search for a Spanish name = %v, want nothing", list)
+	}
+
+	c, w = newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d?locale=es", exID), nil)
+	setParam(c, "id", fmt.Sprintf("%d", exID))
+	th.GetExercise(c)
+	if got := decodeResponse(t, w)["data"].(map[string]any)["name"]; got != "Sentadilla" {
+		t.Errorf("GetExercise?locale=es name = %v", got)
+	}
+	c, w = newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d?locale=xx!!", exID), nil)
+	setParam(c, "id", fmt.Sprintf("%d", exID))
+	th.GetExercise(c)
+	if w.Code != http.StatusOK || decodeResponse(t, w)["data"].(map[string]any)["name"] != "Squat" {
+		t.Errorf("GetExercise?locale=xx!! = %d %s, want 200 English", w.Code, w.Body.String())
+	}
+}

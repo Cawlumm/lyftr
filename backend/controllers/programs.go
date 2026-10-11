@@ -45,7 +45,7 @@ func (h *Handler) ListPrograms(c *gin.Context) {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		f.Offset = o
 	}
-	programs, err := h.s.Program.List(uid, f)
+	programs, err := h.s.Program.List(uid, f, requestLocale(c))
 	if utils.DBError(c, err) {
 		return
 	}
@@ -59,7 +59,7 @@ func (h *Handler) GetProgram(c *gin.Context) {
 		utils.Fail(c, utils.CodeInvalidProgramID, nil)
 		return
 	}
-	p, err := h.s.Program.Get(uid, pid)
+	p, err := h.s.Program.Get(uid, pid, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
@@ -81,7 +81,7 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	p, err := h.s.Program.Create(uid, req)
+	p, err := h.s.Program.Create(uid, req, requestLocale(c))
 	if utils.IsForeignKeyViolation(err) {
 		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
@@ -108,7 +108,7 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	p, err := h.s.Program.Update(uid, pid, req)
+	p, err := h.s.Program.Update(uid, pid, req, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return
@@ -159,7 +159,7 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	p, err := h.s.Program.ResolveSuggestions(uid, pid, req.Accept, req.Dismiss)
+	p, err := h.s.Program.ResolveSuggestions(uid, pid, req.Accept, req.Dismiss, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeProgramNotFound, nil)
 		return

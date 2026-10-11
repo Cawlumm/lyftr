@@ -40,7 +40,7 @@ func (h *Handler) ListWorkouts(c *gin.Context) {
 	if o, err := strconv.Atoi(c.Query("offset")); err == nil && o >= 0 {
 		f.Offset = o
 	}
-	workouts, err := h.s.Workout.List(uid, f)
+	workouts, err := h.s.Workout.List(uid, f, requestLocale(c))
 	if utils.DBError(c, err) {
 		return
 	}
@@ -54,7 +54,7 @@ func (h *Handler) GetWorkout(c *gin.Context) {
 		utils.Fail(c, utils.CodeInvalidWorkoutID, nil)
 		return
 	}
-	w, err := h.s.Workout.Get(uid, wid)
+	w, err := h.s.Workout.Get(uid, wid, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeWorkoutNotFound, nil)
 		return
@@ -94,7 +94,7 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	// #40) — closes a TOCTOU race where two concurrent submissions could both read the
 	// same stale prior best. Staging is still best-effort internally: a failure there
 	// never fails the already-saved workout.
-	w, progression, err := h.s.CreateWorkoutWithProgression(uid, req)
+	w, progression, err := h.s.CreateWorkoutWithProgression(uid, req, requestLocale(c))
 	if utils.IsForeignKeyViolation(err) {
 		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return
@@ -136,7 +136,7 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 		off := h.tzOffsetMinutes(uid, req.StartedAt)
 		req.TZOffsetMinutes = &off
 	}
-	w, err := h.s.Workout.Update(uid, wid, req)
+	w, err := h.s.Workout.Update(uid, wid, req, requestLocale(c))
 	if err == sql.ErrNoRows {
 		utils.Fail(c, utils.CodeWorkoutNotFound, nil)
 		return

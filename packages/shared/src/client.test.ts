@@ -808,3 +808,47 @@ describe('apiErrorMessage — server codes', () => {
     })
   })
 })
+
+// The language exercise names come back in is one parameter added in one place: the
+// request interceptor. No API method names it, so a screen cannot forget it.
+describe('getLocale adds locale to every request', () => {
+  const localizedClient = (getLocale?: () => string | null | undefined | Promise<string | null | undefined>) => {
+    const seen: Array<{ url?: string; params?: any }> = []
+    const client = createClient(memStorage(), { getLocale })
+    client.api.defaults.adapter = async (config: any) => {
+      seen.push({ url: config.url, params: config.params })
+      return { data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    return { client, seen }
+  }
+
+  it('sends locale on a list call, merged with its own params, and on a get', async () => {
+    const { client, seen } = localizedClient(() => 'es')
+    await client.exerciseAPI.list({ q: 'sent', page: 2 })
+    await client.workoutAPI.get(7)
+    expect(seen[0].params).toMatchObject({ q: 'sent', page: 2, limit: 50, locale: 'es' })
+    expect(seen[1].url).toBe('/workouts/7')
+    expect(seen[1].params).toEqual({ locale: 'es' })
+  })
+
+  it.each([[''], [null], [undefined]])('adds nothing when the getter returns %p', async (value) => {
+    const { client, seen } = localizedClient(() => value)
+    await client.workoutAPI.get(7)
+    expect(seen[0].params).toBeUndefined()
+  })
+
+  it('reads the getter on every request, awaiting an async one', async () => {
+    let current = 'es'
+    const { client, seen } = localizedClient(async () => current)
+    await client.workoutAPI.get(1)
+    current = 'fr'
+    await client.workoutAPI.get(1)
+    expect(seen.map((s) => s.params.locale)).toEqual(['es', 'fr'])
+  })
+
+  it('sends no locale when the client was created without a getter', async () => {
+    const { client, seen } = localizedClient()
+    await client.workoutAPI.get(1)
+    expect(seen[0].params).toBeUndefined()
+  })
+})

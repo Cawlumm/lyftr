@@ -202,6 +202,10 @@ export function createClient(
     // Optional hard override of the base URL (web passes import.meta.env.VITE_API_URL).
     // When set, the stored server_url is ignored.
     baseUrlOverride?: string
+    // The language exercise names should come back in. Resolved per request, like the
+    // server URL, so a language switch applies to the next call. Nothing is sent when it
+    // yields nothing, and the backend answers in English then.
+    getLocale?: () => string | null | undefined | Promise<string | null | undefined>
   } = {},
 ) {
   // Resolved per-request so a "Server settings" change takes effect immediately.
@@ -230,6 +234,8 @@ export function createClient(
     config.baseURL = await resolveAPIBase()
     const token = await storage.get(STORAGE_KEYS.access)
     if (token) config.headers.Authorization = `Bearer ${token}`
+    const locale = await opts.getLocale?.()
+    if (locale) config.params = { ...config.params, locale }
     return config
   })
 
