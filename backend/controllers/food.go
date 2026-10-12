@@ -466,7 +466,7 @@ func (h *Handler) SearchFood(c *gin.Context) {
 		"https://search.openfoodfacts.org/search?q=%s&langs=%s&cc=world&page_size=%d&page=1&fields=code,%s,brands,nutriments,serving_size,image_url",
 		url.QueryEscape(q), langs, limit, nameFields,
 	)
-	log.Printf("[food/search] OFF request: q=%q limit=%d lang=%s", q, limit, lang)
+	log.Printf("[food/search] OFF request: q=%q limit=%d lang=%q", q, limit, lang)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
@@ -541,8 +541,8 @@ func (h *Handler) LookupBarcode(c *gin.Context) {
 
 	lang := requestLanguage(c)
 	start := time.Now()
-	lookupURL :=fmt.Sprintf("https://world.openfoodfacts.org/api/v3/product/%s.json", url.PathEscape(code))
-	log.Printf("[food/barcode] OFF request: code=%q lang=%s", code, lang)
+	lookupURL := fmt.Sprintf("https://world.openfoodfacts.org/api/v3/product/%s.json", url.PathEscape(code))
+	log.Printf("[food/barcode] OFF request: code=%q lang=%q", code, lang)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 5*time.Second)
 	defer cancel()
