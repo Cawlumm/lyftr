@@ -50,6 +50,22 @@ describe('foodAPI day windowing', () => {
   })
 })
 
+// Open Food Facts names a product in the language it was entered in. The server asks for
+// the reader's, so the client has to say which that is.
+describe('foodAPI search and barcode send the UI language', () => {
+  afterEach(() => i18n.changeLanguage('en'))
+
+  it.each(['en', 'es'])('sends locale=%s', async (lang) => {
+    await i18n.changeLanguage(lang)
+    const { client, calls } = captureClient()
+    await client.foodAPI.search('nutella', 5)
+    await client.foodAPI.barcode('3017620406003')
+    expect(calls[0].params).toEqual({ q: 'nutella', limit: 5, locale: lang })
+    expect(calls[1].url).toBe('/food/barcode/3017620406003')
+    expect(calls[1].params).toEqual({ locale: lang })
+  })
+})
+
 // The offset must describe the instant being sent. A screen that re-picks the date
 // derives a new instant in this zone and wants this zone's offset; a screen that
 // resends the timestamp it loaded must keep the offset that instant was recorded with,
