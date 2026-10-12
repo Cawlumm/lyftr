@@ -15,6 +15,10 @@ import (
 // header, so a URL names the whole response. Absent or malformed means English.
 func requestLocale(c *gin.Context) string { return stores.NormalizeLocale(c.Query("locale")) }
 
+// requestLanguage is its primary language ("pt-BR" -> "pt"), for upstreams such as
+// Open Food Facts that key their names by language alone.
+func requestLanguage(c *gin.Context) string { return stores.BaseLanguage(requestLocale(c)) }
+
 func (h *Handler) ListExercises(c *gin.Context) {
 	f := stores.ExerciseFilter{
 		Query:       c.Query("q"),

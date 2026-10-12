@@ -76,8 +76,8 @@ func NormalizeLocale(raw string) string {
 	return strings.Join(subtags, "-")
 }
 
-// baseLanguage is the language subtag of a normalized locale: es for es-MX.
-func baseLanguage(locale string) string {
+// BaseLanguage is the language subtag of a normalized locale: es for es-MX.
+func BaseLanguage(locale string) string {
 	if i := strings.IndexByte(locale, '-'); i > 0 {
 		return locale[:i]
 	}
@@ -103,7 +103,7 @@ func translationJoin(locale string) (string, []any) {
 	return ` LEFT JOIN exercise_translations tr ON tr.id = (
 		SELECT t.id FROM exercise_translations t
 		WHERE t.exercise_id = e.id AND t.locale IN (?, ?)
-		ORDER BY t.locale = ? DESC LIMIT 1)`, []any{l, baseLanguage(l), l}
+		ORDER BY t.locale = ? DESC LIMIT 1)`, []any{l, BaseLanguage(l), l}
 }
 
 func exerciseSelect(locale string) (string, []any) {
@@ -133,7 +133,7 @@ func (s *ExerciseStore) List(f ExerciseFilter) ([]models.Exercise, error) {
 	if f.Query != "" {
 		like := "%" + f.Query + "%"
 		q += " AND (e.name LIKE ? OR EXISTS (SELECT 1 FROM exercise_translations t WHERE t.exercise_id = e.id AND t.locale IN (?, ?) AND t.name LIKE ?))"
-		args = append(args, like, locale, baseLanguage(locale), like)
+		args = append(args, like, locale, BaseLanguage(locale), like)
 	}
 	if f.MuscleGroup != "" {
 		q += " AND e.muscle_group = ?"
@@ -338,7 +338,7 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 	}
 	if _, err := tx.Exec(
 		`DELETE FROM exercise_translations WHERE exercise_id = ? AND locale IN (?, ?)`,
-		exerciseID, locale, baseLanguage(locale),
+		exerciseID, locale, BaseLanguage(locale),
 	); err != nil {
 		return err
 	}

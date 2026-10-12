@@ -193,6 +193,12 @@ const sessionWasRevoked = (err: any): boolean => {
 // Build a fully-wired API client bound to a platform storage adapter. All token
 // reads/writes and the base-URL resolution go through `storage`, so the same code
 // runs on web (localStorage) and mobile (SecureStore/AsyncStorage).
+// The endpoints whose answers hold text in the reader's language: exercise names, the
+// names inside workouts and programs, and Open Food Facts product names. Listing them
+// here keeps `locale` off every other request, so a URL a test or proxy matches on is
+// the one the API method wrote.
+const LOCALIZED_PATH = /^\/(exercises|workouts|programs|food\/(search|barcode))(\/|$)/
+
 export function createClient(
   storage: StorageAdapter,
   opts: {
@@ -205,6 +211,8 @@ export function createClient(
     // The language exercise names should come back in. Resolved per request, like the
     // server URL, so a language switch applies to the next call. Nothing is sent when it
     // yields nothing, and the backend answers in English then.
+    // Only the calls that answer with localized text carry it (LOCALIZED_PATH); every
+    // other URL stays exactly as its API method wrote it.
     getLocale?: () => string | null | undefined | Promise<string | null | undefined>
   } = {},
 ) {
@@ -235,7 +243,7 @@ export function createClient(
     const token = await storage.get(STORAGE_KEYS.access)
     if (token) config.headers.Authorization = `Bearer ${token}`
     const locale = await opts.getLocale?.()
-    if (locale) config.params = { ...config.params, locale }
+    if (locale && LOCALIZED_PATH.test(config.url ?? '')) config.params = { ...config.params, locale }
     return config
   })
 
@@ -484,8 +492,8 @@ export function createClient(
     delete:  (id: number) => api.delete(`/food/${id}`),
     stats:   (date?: string) => api.get<{ data: types.DailyStats }>('/food/stats', { params: { date } }).then(unwrap),
     history: (days = 30) => api.get<{ data: types.FoodHistoryPoint[] }>('/food/history', { params: { days } }).then(unwrap),
-    search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit, locale: i18n.resolvedLanguage } }).then(unwrap),
-    barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`, { params: { locale: i18n.resolvedLanguage } }).then(unwrap),
+    search:  (q: string, limit = 20) => api.get<{ data: types.FoodSearchResult[] }>('/food/search', { params: { q, limit } }).then(unwrap),
+    barcode: (code: string) => api.get<{ data: types.FoodSearchResult }>(`/food/barcode/${code}`).then(unwrap),
   }
 
   const savedFoodsAPI = {
