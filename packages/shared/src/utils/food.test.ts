@@ -100,6 +100,17 @@ describe('brand survives the log round-trip', () => {
 })
 
 describe('findSavedFood', () => {
+  // Same product saved under its Spanish name, searched under its English one.
+  it('matches on barcode even when the name is spelled differently', () => {
+    const list = [saved({ id: 9, name: 'Crema de cacahuete', barcode: '3017620406003' })]
+    expect(findSavedFood(list, { name: 'Peanut butter', brand: 'Tesco', barcode: '3017620406003' })?.id).toBe(9)
+  })
+
+  it('falls back to name and brand when the barcode matches nothing', () => {
+    const list = [saved({ id: 7, barcode: '111' })]
+    expect(findSavedFood(list, { name: 'Chicken Breast', brand: 'Tesco', barcode: '222' })?.id).toBe(7)
+  })
+
   it('matches on name and brand', () => {
     const list = [saved({ id: 7 })]
     expect(findSavedFood(list, { name: 'Chicken Breast', brand: 'Tesco' })?.id).toBe(7)

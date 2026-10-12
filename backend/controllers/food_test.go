@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -745,7 +746,7 @@ func TestOffProductToResult_usesServingWhenAvailable(t *testing.T) {
 		},
 		ImageURL: "https://images.openfoodfacts.org/jif.jpg",
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 
 	if r.Calories != 190 {
 		t.Errorf("expected per-serving calories 190, got %v", r.Calories)
@@ -764,7 +765,7 @@ func TestOffProductToResult_fallsBackTo100g(t *testing.T) {
 		Nutriments:  offNutrients{EnergyKcal100g: 265, Proteins100g: 9, Carbohydrates100g: 49, Fat100g: 3},
 		// No serving_size, no _serving nutriments
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 
 	if r.Calories != 265 {
 		t.Errorf("expected per-100g calories 265, got %v", r.Calories)
@@ -789,7 +790,7 @@ func TestOffProductToResult_liquidFallbackIsPer100ml(t *testing.T) {
 		// openfoodfacts-server#7768 tracks, and the one the reporter hit.
 		Nutriments: offNutrients{EnergyKcal100g: 800, Fat100g: 93.33},
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 
 	if r.Calories != 800 {
 		t.Errorf("expected per-100 calories 800, got %v", r.Calories)
@@ -813,7 +814,7 @@ func TestOffProductToResult_carriesServingQuantityAndBarcode(t *testing.T) {
 			EnergyKcalServing: 120, FatServing: 14,
 		},
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 
 	if r.Calories != 120 || r.Fat != 14 {
 		t.Errorf("expected the per-serving figures, got %v kcal %v fat", r.Calories, r.Fat)
@@ -836,7 +837,7 @@ func TestOffProductToResult_servingWithoutAQuantityStaysUnknown(t *testing.T) {
 		ServingSize: "12 fl oz",
 		Nutriments:  offNutrients{EnergyKcal100g: 41, EnergyKcalServing: 145},
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 
 	if r.ServingQuantity != 0 {
 		t.Errorf("expected an unknown quantity to stay 0, got %v", r.ServingQuantity)
@@ -908,7 +909,7 @@ func TestOffProductToResult_rejectsNonHTTPSImageURL(t *testing.T) {
 		ProductName: "Test",
 		ImageURL:    "http://example.com/img.jpg", // http, not https
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 	if r.ImageURL != "" {
 		t.Errorf("expected empty image_url for non-https, got %q", r.ImageURL)
 	}
@@ -919,7 +920,7 @@ func TestOffProductToResult_rejectsJavascriptImageURL(t *testing.T) {
 		ProductName: "Test",
 		ImageURL:    "javascript:alert(1)",
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 	if r.ImageURL != "" {
 		t.Errorf("expected empty image_url for javascript: URL, got %q", r.ImageURL)
 	}
@@ -930,7 +931,7 @@ func TestOffProductToResult_joinsMultipleBrands(t *testing.T) {
 		ProductName: "Cola",
 		Brands:      offBrands{"Coca-Cola", "TCCC"},
 	}
-	r := offProductToResult(p)
+	r := offProductToResult(p, "en")
 	if r.Brand != "Coca-Cola, TCCC" {
 		t.Errorf("expected joined brands, got %q", r.Brand)
 	}
@@ -1865,5 +1866,164 @@ func TestUpdateFoodLog_trimsNameAndBrand(t *testing.T) {
 	d := decodeResponse(t, w)["data"].(map[string]any)
 	if d["name"].(string) != "Rolled Oats" || d["brand"].(string) != "Quaker" {
 		t.Errorf("updated entry is %q/%q, want trimmed", d["name"], d["brand"])
+	}
+}
+
+// ─── Localised names ──────────────────────────────────────────────────────────
+
+func TestRequestLanguage(t *testing.T) {
+	cases := map[string]string{
+		"es": "es", "ES": "es", "en": "en", "pt-BR": "pt", "pt_BR": "pt",
+		"zh-Hant-TW": "zh", "": "en", "../x": "en", "e": "en", "español": "en",
+		"12": "en", "abcdefgh": "en",
+	}
+	for in, want := range cases {
+		c, _ := newContext(0, http.MethodGet, "/x?locale="+url.QueryEscape(in), nil)
+		if got := requestLanguage(c); got != want {
+			t.Errorf("locale %q: got %q, want %q", in, got, want)
+		}
+	}
+	c, _ := newContext(0, http.MethodGet, "/x", nil)
+	if got := requestLanguage(c); got != "en" {
+		t.Errorf("absent locale: got %q, want en", got)
+	}
+}
+
+func TestSearchFood_offURLCarriesLanguage(t *testing.T) {
+	const tail = "&cc=world&page_size=20&page=1&fields=code,product_name,product_name_en,"
+	const rest = "brands,nutriments,serving_size,image_url"
+	cases := []struct{ path, want string }{
+		{"/api/v1/food/search?q=leche&locale=es", "q=leche&langs=es,en" + tail + "product_name_es," + rest},
+		{"/api/v1/food/search?q=milk&locale=en", "q=milk&langs=en" + tail + rest},
+		{"/api/v1/food/search?q=milk", "q=milk&langs=en" + tail + rest},
+		{"/api/v1/food/search?q=milk&locale=" + url.QueryEscape("../x"), "q=milk&langs=en" + tail + rest},
+		{"/api/v1/food/search?q=pao&locale=pt-BR", "q=pao&langs=pt,en" + tail + "product_name_pt," + rest},
+	}
+	for _, tc := range cases {
+		setupTestDB(t)
+		uid := createTestUser(t)
+		var gotPath, gotQuery string
+		withOFFMock(t, func(w http.ResponseWriter, r *http.Request) {
+			gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"hits":[]}`))
+		})
+		c, w := newContext(uid, http.MethodGet, tc.path, nil)
+		th.SearchFood(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: got %d", tc.path, w.Code)
+		}
+		if gotPath != "/search" || gotQuery != tc.want {
+			t.Errorf("%s:\n got %s?%s\nwant /search?%s", tc.path, gotPath, gotQuery, tc.want)
+		}
+	}
+}
+
+func TestOffProductName(t *testing.T) {
+	cases := []struct{ name, js, lang, want string }{
+		{"user language", `{"product_name":"Nutella pate","product_name_en":"Nutella","product_name_es":"Nutella crema"}`, "es", "Nutella crema"},
+		{"falls to en", `{"product_name":"Nutella pate","product_name_en":"Nutella"}`, "es", "Nutella"},
+		{"en over main", `{"product_name":"ผลิตภัณฑ์นม","product_name_en":"Homogenized Milk"}`, "en", "Homogenized Milk"},
+		{"main only", `{"product_name":"Leche"}`, "en", "Leche"},
+		{"blank lang falls through", `{"product_name":"Leche","product_name_es":"   "}`, "es", "Leche"},
+		{"suffixed key is not a language", `{"product_name_fr_imported":"x","product_name":"y"}`, "fr", "y"},
+		{"null ignored", `{"product_name_de":null,"product_name":"z"}`, "de", "z"},
+		{"all empty", `{"product_name":"","product_name_en":""}`, "en", ""},
+	}
+	for _, tc := range cases {
+		var p offProduct
+		if err := json.Unmarshal([]byte(tc.js), &p); err != nil {
+			t.Fatalf("%s: decode: %v", tc.name, err)
+		}
+		if got := p.name(tc.lang); got != tc.want {
+			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestSearchFood_namesInRequestedLanguage(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	withOFFMock(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"hits":[
+			{"product_name":"Main1","product_name_en":"En1","product_name_es":"Es1"},
+			{"product_name":"Main2","product_name_en":"En2"},
+			{"product_name":"Main3"},
+			{"product_name":"","product_name_es":"Es4"},
+			{"product_name":"","product_name_en":""}
+		]}`))
+	})
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/food/search?q=x&locale=es", nil)
+	th.SearchFood(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("got %d", w.Code)
+	}
+	data := decodeResponse(t, w)["data"].([]any)
+	want := []string{"Es1", "En2", "Main3", "Es4"}
+	if len(data) != len(want) {
+		t.Fatalf("expected %d results, got %d", len(want), len(data))
+	}
+	for i, wn := range want {
+		if got := data[i].(map[string]any)["name"]; got != wn {
+			t.Errorf("hit %d: got %v, want %s", i, got, wn)
+		}
+	}
+}
+
+func TestLookupBarcode_localisedNameFromFullProduct(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	var gotPath, gotQuery string
+	withOFFMock(t, func(w http.ResponseWriter, r *http.Request) {
+		gotPath, gotQuery = r.URL.Path, r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"success","product":{"code":"3017620406003","product_name":"Nutella pate","product_name_en":"Nutella","product_name_es":"Nutella crema","serving_size":"15 g","serving_quantity":15,"nutriments":{"energy-kcal_serving":80,"energy-kcal_100g":539}}}`))
+	})
+
+	for locale, want := range map[string]string{"es": "Nutella crema", "fr": "Nutella"} {
+		c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/3017620406003?locale="+locale, nil)
+		setParam(c, "code", "3017620406003")
+		th.LookupBarcode(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: got %d", locale, w.Code)
+		}
+		if gotPath != "/api/v3/product/3017620406003.json" || gotQuery != "" {
+			t.Errorf("%s: OFF saw %s?%s, want the full product with no fields filter", locale, gotPath, gotQuery)
+		}
+		data := decodeResponse(t, w)["data"].(map[string]any)
+		if data["name"] != want {
+			t.Errorf("%s: name %v, want %s", locale, data["name"], want)
+		}
+		if data["calories"].(float64) != 80 {
+			t.Errorf("%s: calories %v, want per-serving 80", locale, data["calories"])
+		}
+	}
+}
+
+func TestLookupBarcode_nameOnlyInUserLanguage(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+
+	withOFFMock(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"success","product":{"product_name":"","product_name_es":"Solo es"}}`))
+	})
+
+	for q, want := range map[string]int{"?locale=es": http.StatusOK, "": http.StatusNotFound} {
+		c, w := newContext(uid, http.MethodGet, "/api/v1/food/barcode/012345678901"+q, nil)
+		setParam(c, "code", "012345678901")
+		th.LookupBarcode(c)
+		if w.Code != want {
+			t.Fatalf("%q: got %d, want %d", q, w.Code, want)
+		}
+		if want == http.StatusOK {
+			if n := decodeResponse(t, w)["data"].(map[string]any)["name"]; n != "Solo es" {
+				t.Errorf("%q: name %v", q, n)
+			}
+		}
 	}
 }

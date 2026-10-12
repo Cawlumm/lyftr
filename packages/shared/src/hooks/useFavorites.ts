@@ -86,6 +86,7 @@ export function useFavorites(api: SavedFoodsApi): Favorites {
       calories: item.calories, protein: item.protein,
       carbs: item.carbs, fat: item.fat, fiber: item.fiber ?? 0,
       serving_size: item.serving_size ?? '',
+      barcode: item.barcode ?? '',
     }
     // Answer the tap at once and put it back if the server refuses: on gym wifi the round
     // trip is seconds of a dead-looking star. `pending` stands in until the real id arrives.
