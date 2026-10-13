@@ -201,6 +201,21 @@ func alterMigrations() {
 		)`); err != nil {
 		log.Fatalf("create exercise_translations: %v", err)
 	}
+
+	// One row per language the exercise cache has been filled for. The translations table
+	// answers "what does this exercise say in es", never "have we asked yet", and without
+	// this a reader switching language would see English until each cached exercise
+	// happened to turn up in a search. It lives in the database, not in memory, so a
+	// restart or a second instance does not repeat the fetch, and synced_at is what lets
+	// upstream corrections reach readers after a TTL instead of never.
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS exercise_locale_sync (
+		  locale    TEXT PRIMARY KEY,
+		  synced_at DATETIME NOT NULL,
+		  rows      INTEGER  NOT NULL DEFAULT 0
+		)`); err != nil {
+		log.Fatalf("create exercise_locale_sync: %v", err)
+	}
 }
 
 // emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.

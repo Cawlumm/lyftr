@@ -16,3 +16,6 @@ func NewHandler(s *stores.Stores) *Handler { return &Handler{s: s} }
 // TokenVersions is the handler's user store as the auth middleware needs it, so routes can
 // wire Auth without reaching into the stores.
 func (h *Handler) TokenVersions() middleware.TokenVersions { return h.s.User }
+
+// ExerciseLocaleSync is what fills the exercise cache in a reader's language.
+func (h *Handler) ExerciseLocaleSync() middleware.LocaleSyncer { return h.s.Exercise }

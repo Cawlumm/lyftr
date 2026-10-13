@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 	"time"
 
@@ -19,9 +20,12 @@ import (
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
+	sync    *localeSyncer
 }
 
-func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db} }
+func NewExerciseStore(db *sql.DB) *ExerciseStore {
+	return &ExerciseStore{db: db, sync: newLocaleSyncer()}
+}
 
 // ExerciseFilter holds the optional list filters (empty string = no filter).
 type ExerciseFilter struct {
@@ -548,6 +552,17 @@ func (s *ExerciseStore) CachedCount() (int, error) { return s.Count() }
 // by id, because oedb has no batch-by-ids endpoint: refreshing 873 rows one at a
 // time would be 873 requests against a 60/minute limit, or about a quarter hour.
 func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
+	return s.refresh(ctx, defaultLocale)
+}
+
+// refresh re-reads every held row in one language. English comes from the bulk
+// export; any other language is read by id in oedb's batch size, because the export
+// is English-only and a list call is the only way to ask for a translation. One code
+// path serves every language, so adding a locale needs no new fetching logic.
+//
+// It stops at the first failed batch and reports how many rows it did apply: the
+// rows written so far are valid, and the caller decides whether a partial pass counts.
+func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
@@ -560,23 +575,41 @@ func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 		return 0, nil
 	}
 
-	items, err := s.catalog.Export(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	keep := items[:0]
-	for _, it := range items {
-		if held[it.ID] {
-			keep = append(keep, it)
+	if servedInEnglish(locale) {
+		items, err := s.catalog.Export(ctx)
+		if err != nil {
+			return 0, err
 		}
+		keep := items[:0]
+		for _, it := range items {
+			if held[it.ID] {
+				keep = append(keep, it)
+			}
+		}
+		out, err := s.Materialize(keep, s.catalog.BaseURL(), defaultLocale)
+		return len(out), err
 	}
 
-	out, err := s.Materialize(keep, s.catalog.BaseURL(), defaultLocale)
-	if err != nil {
-		return 0, err
+	ids := make([]string, 0, len(held))
+	for id := range held {
+		ids = append(ids, id)
 	}
-	return len(out), nil
+	sort.Strings(ids)
+
+	done := 0
+	for start := 0; start < len(ids); start += oedb.MaxPerPage {
+		end := min(start+oedb.MaxPerPage, len(ids))
+		res, err := s.catalog.List(ctx, oedb.ListParams{IDs: ids[start:end], Locale: locale, PerPage: oedb.MaxPerPage})
+		if err != nil {
+			return done, err
+		}
+		out, err := s.Materialize(res.Exercises, s.catalog.BaseURL(), locale)
+		if err != nil {
+			return done, err
+		}
+		done += len(out)
+	}
+	return done, nil
 }
 
 func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {

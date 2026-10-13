@@ -298,3 +298,9 @@ somebody will see the change.
   base language and then to English. With no `locale`, or a malformed one, responses are
   unchanged: English, status `200`. Local search also matches translated names in that
   locale.
+  The first request that names a non-English `locale` also starts a background pass that
+  fetches that language for every exercise this instance already holds (one oedb request per
+  100 exercises), so workout and program history follow a language switch instead of waiting
+  for each exercise to turn up in a search. The request itself does not wait for it, and the
+  pass repeats at most once a day per language. Nothing changes for an instance with no
+  catalog configured.

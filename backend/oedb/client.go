@@ -33,8 +33,8 @@ import (
 // self-hosted Lyftr at a self-hosted catalog.
 const DefaultBaseURL = "https://oedb-api-o4dqddih5q-uk.a.run.app"
 
-// maxPerPage is oedb's cap; asking for more is a 422, not a clamp.
-const maxPerPage = 100
+// MaxPerPage is oedb's cap; asking for more is a 422, not a clamp.
+const MaxPerPage = 100
 
 // Client is a cache-aware reader for the oedb HTTP API. Safe for concurrent use.
 type Client struct {
@@ -115,10 +115,10 @@ func (p ListParams) query() url.Values {
 	}
 	per := p.PerPage
 	if per <= 0 {
-		per = maxPerPage
+		per = MaxPerPage
 	}
-	if per > maxPerPage {
-		per = maxPerPage
+	if per > MaxPerPage {
+		per = MaxPerPage
 	}
 	v.Set("per_page", strconv.Itoa(per))
 	return v
