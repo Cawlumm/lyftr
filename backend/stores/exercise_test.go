@@ -73,7 +73,7 @@ func TestMaterialize_AdoptsLegacyRowByNameAndKeepsID(t *testing.T) {
 	}
 	legacyID, _ := res.LastInsertId()
 
-	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press")}, "https://oedb.test")
+	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press")}, "https://oedb.test", "en")
 	if err != nil {
 		t.Fatalf("materialize: %v", err)
 	}
@@ -112,12 +112,12 @@ func TestMaterialize_UpstreamRenameUpdatesSameRow(t *testing.T) {
 	conn := testDB(t)
 	s := NewExerciseStore(conn)
 
-	first, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Barbell Bench Press")}, "https://oedb.test")
+	first, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Barbell Bench Press")}, "https://oedb.test", "en")
 	if err != nil {
 		t.Fatalf("first materialize: %v", err)
 	}
 
-	second, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press (Barbell)")}, "https://oedb.test")
+	second, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press (Barbell)")}, "https://oedb.test", "en")
 	if err != nil {
 		t.Fatalf("second materialize: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestMaterialize_DecodesSecondaryMuscles(t *testing.T) {
 	conn := testDB(t)
 	s := NewExerciseStore(conn)
 
-	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press")}, "https://oedb.test")
+	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Bench Press")}, "https://oedb.test", "en")
 	if err != nil {
 		t.Fatalf("materialize: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestRefreshCached_UpdatesHeldRowsWithoutImporting(t *testing.T) {
 	s := NewExerciseStore(conn)
 	s.UseCatalog(oedb.New(srv.URL, "test"))
 
-	if _, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Held Original")}, srv.URL); err != nil {
+	if _, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Held Original")}, srv.URL, "en"); err != nil {
 		t.Fatalf("seed held row: %v", err)
 	}
 

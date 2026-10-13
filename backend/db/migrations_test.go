@@ -900,3 +900,83 @@ func TestEmailNocaseIndex_isIdempotentAcrossBoots(t *testing.T) {
 		t.Error("index not created after the collision was resolved")
 	}
 }
+
+// TestUpgrade_ExerciseTranslationsOnExistingData upgrades an install that already
+// holds exercises, workouts and programs. The new table must arrive empty and leave
+// every exercise id, name and foreign key as it was: exercises.name stays the English
+// base, so there is nothing to backfill and nothing that may be rewritten.
+func TestUpgrade_ExerciseTranslationsOnExistingData(t *testing.T) {
+	setupMigrationTestDB(t)
+	// An install that has the oedb link already (the column predates this table).
+	ensureColumn("exercises", "oedb_id", `ALTER TABLE exercises ADD COLUMN oedb_id TEXT`)
+
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('old@user', 'x')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (name, description, oedb_id) VALUES ('Bench Press', '1. Press.', 'uuid-1')`); err != nil {
+		t.Fatalf("seed exercise: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (name, description) VALUES ('My Own Lift', 'mine')`); err != nil {
+		t.Fatalf("seed legacy exercise: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workouts (user_id, name) VALUES (1, 'W')`); err != nil {
+		t.Fatalf("seed workout: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id) VALUES (1, 1), (1, 2)`); err != nil {
+		t.Fatalf("seed workout exercises: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO sets (workout_exercise_id, reps, weight) VALUES (1, 5, 135)`); err != nil {
+		t.Fatalf("seed set: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO programs (user_id, name) VALUES (1, 'P')`); err != nil {
+		t.Fatalf("seed program: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (1, 1, 0), (1, 2, 1)`); err != nil {
+		t.Fatalf("seed program exercises: %v", err)
+	}
+
+	verify := func(boot string) {
+		t.Helper()
+		if n := countRow(t, `SELECT COUNT(*) FROM exercise_translations`); n != 0 {
+			t.Fatalf("%s: exercise_translations holds %d rows, want it empty", boot, n)
+		}
+		for id, want := range map[int]string{1: "Bench Press", 2: "My Own Lift"} {
+			var name string
+			if err := DB.QueryRow(`SELECT name FROM exercises WHERE id = ?`, id).Scan(&name); err != nil || name != want {
+				t.Fatalf("%s: exercise %d = %q (%v), want %q", boot, id, name, err, want)
+			}
+		}
+		if n := countRow(t, `SELECT COUNT(*) FROM exercises WHERE description IN ('1. Press.', 'mine')`); n != 2 {
+			t.Fatalf("%s: exercise descriptions changed", boot)
+		}
+		if n := countRow(t, `SELECT COUNT(*) FROM workout_exercises we JOIN exercises e ON e.id = we.exercise_id`); n != 2 {
+			t.Fatalf("%s: a workout_exercises row lost its exercise (%d resolve)", boot, n)
+		}
+		if n := countRow(t, `SELECT COUNT(*) FROM program_exercises pe JOIN exercises e ON e.id = pe.exercise_id`); n != 2 {
+			t.Fatalf("%s: a program_exercises row lost its exercise (%d resolve)", boot, n)
+		}
+	}
+
+	alterMigrations()
+	verify("first boot")
+	alterMigrations()
+	verify("second boot")
+
+	// The cascade is load-bearing: deleting an exercise must take its translations
+	// with it rather than fail on the foreign key.
+	if _, err := DB.Exec(`INSERT INTO exercises (name) VALUES ('Spare')`); err != nil {
+		t.Fatalf("seed spare: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercise_translations (exercise_id, locale, name) VALUES (3, 'es', 'Repuesto')`); err != nil {
+		t.Fatalf("seed translation: %v", err)
+	}
+	if _, err := DB.Exec(`DELETE FROM exercises WHERE id = 3`); err != nil {
+		t.Fatalf("deleting an exercise with a translation: %v", err)
+	}
+	if n := countRow(t, `SELECT COUNT(*) FROM exercise_translations`); n != 0 {
+		t.Fatalf("translation survived its exercise: %d rows", n)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercise_translations (exercise_id, locale, name, origin) VALUES (1, 'es', 'x', 'robot')`); err == nil {
+		t.Fatal("an unknown origin was accepted")
+	}
+}

@@ -214,7 +214,7 @@ func TestResolveSuggestions_AcceptAndDismiss(t *testing.T) {
 	}
 
 	// Accept set0, dismiss set1.
-	prog, err := ps.ResolveSuggestions(uid, pid, []int64{ids[0]}, []int64{ids[1]})
+	prog, err := ps.ResolveSuggestions(uid, pid, []int64{ids[0]}, []int64{ids[1]}, "")
 	if err != nil {
 		t.Fatalf("ResolveSuggestions: %v", err)
 	}
@@ -251,7 +251,7 @@ func TestResolveSuggestions_OwnershipGuard(t *testing.T) {
 
 	// attacker's own program, tries to accept the owner's staged set id → join fails → no-op.
 	p2, _ := seedProgram(t, attacker, exID, []ptTarget{{5, 50}})
-	if _, err := ps.ResolveSuggestions(attacker, p2, []int64{ids[0]}, nil); err != nil {
+	if _, err := ps.ResolveSuggestions(attacker, p2, []int64{ids[0]}, nil, ""); err != nil {
 		t.Fatalf("ResolveSuggestions(attacker): %v", err)
 	}
 	if r, w := getTarget(t, ids[0]); r != 5 || w != 100 {

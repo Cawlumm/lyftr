@@ -27,6 +27,7 @@ export const client = createClient(storage, {
   // Same escape hatch as before: an explicit build-time API URL wins over the
   // user-configured server, for deployments that pin the backend.
   baseUrlOverride: import.meta.env.VITE_API_URL as string | undefined,
+  getLocale: () => i18n.resolvedLanguage,
 })
 
 export const useAuthStore = createAuthStore(client, storage)

@@ -50,22 +50,6 @@ describe('foodAPI day windowing', () => {
   })
 })
 
-// Open Food Facts names a product in the language it was entered in. The server asks for
-// the reader's, so the client has to say which that is.
-describe('foodAPI search and barcode send the UI language', () => {
-  afterEach(() => i18n.changeLanguage('en'))
-
-  it.each(['en', 'es'])('sends locale=%s', async (lang) => {
-    await i18n.changeLanguage(lang)
-    const { client, calls } = captureClient()
-    await client.foodAPI.search('nutella', 5)
-    await client.foodAPI.barcode('3017620406003')
-    expect(calls[0].params).toEqual({ q: 'nutella', limit: 5, locale: lang })
-    expect(calls[1].url).toBe('/food/barcode/3017620406003')
-    expect(calls[1].params).toEqual({ locale: lang })
-  })
-})
-
 // The offset must describe the instant being sent. A screen that re-picks the date
 // derives a new instant in this zone and wants this zone's offset; a screen that
 // resends the timestamp it loaded must keep the offset that instant was recorded with,
@@ -822,5 +806,71 @@ describe('apiErrorMessage — server codes', () => {
       expect(refreshCount()).toBe(0)
       expect(wasSignedOut()).toBe(false)
     })
+  })
+})
+
+// The language exercise names come back in is one parameter added in one place: the
+// request interceptor. No API method names it, so a screen cannot forget it.
+describe('getLocale adds locale to the endpoints that answer in the reader language', () => {
+  const localizedClient = (getLocale?: () => string | null | undefined | Promise<string | null | undefined>) => {
+    const seen: Array<{ url?: string; params?: any }> = []
+    const client = createClient(memStorage(), { getLocale })
+    client.api.defaults.adapter = async (config: any) => {
+      seen.push({ url: config.url, params: config.params })
+      return { data: { data: [] }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    return { client, seen }
+  }
+
+  it('sends locale on a list call, merged with its own params, and on a get', async () => {
+    const { client, seen } = localizedClient(() => 'es')
+    await client.exerciseAPI.list({ q: 'sent', page: 2 })
+    await client.workoutAPI.get(7)
+    expect(seen[0].params).toMatchObject({ q: 'sent', page: 2, limit: 50, locale: 'es' })
+    expect(seen[1].url).toBe('/workouts/7')
+    expect(seen[1].params).toEqual({ locale: 'es' })
+  })
+
+  // Open Food Facts names a product in the language it was entered in; the server asks
+  // for the reader's, so food search and barcode lookups carry it too.
+  it('sends locale on food search and barcode lookup', async () => {
+    const { client, seen } = localizedClient(() => 'es')
+    await client.foodAPI.search('nutella', 5)
+    await client.foodAPI.barcode('3017620406003')
+    expect(seen[0].params).toEqual({ q: 'nutella', limit: 5, locale: 'es' })
+    expect(seen[1].url).toBe('/food/barcode/3017620406003')
+    expect(seen[1].params).toEqual({ locale: 'es' })
+  })
+
+  // A request nothing localizes keeps its URL: a proxy, a cache key or an e2e route that
+  // matches on it must not start missing because a language was chosen.
+  it('leaves every other endpoint alone', async () => {
+    const { client, seen } = localizedClient(() => 'es')
+    await client.weightAPI.delete(3)
+    await client.foodAPI.list('2026-06-15')
+    expect(seen[0].url).toBe('/weight/3')
+    expect(seen[0].params).toBeUndefined()
+    expect(seen[1].params).toEqual({ date: '2026-06-15' })
+  })
+
+  it.each([[''], [null], [undefined]])('adds nothing when the getter returns %p', async (value) => {
+    const { client, seen } = localizedClient(() => value)
+    await client.workoutAPI.get(7)
+    expect(seen[0].params).toBeUndefined()
+  })
+
+  it('reads the getter on every request, awaiting an async one', async () => {
+    let current = 'es'
+    const { client, seen } = localizedClient(async () => current)
+    await client.workoutAPI.get(1)
+    current = 'fr'
+    await client.workoutAPI.get(1)
+    expect(seen.map((s) => s.params.locale)).toEqual(['es', 'fr'])
+  })
+
+  it('sends no locale when the client was created without a getter', async () => {
+    const { client, seen } = localizedClient()
+    await client.workoutAPI.get(1)
+    expect(seen[0].params).toBeUndefined()
   })
 })

@@ -3,6 +3,7 @@ package oedb
 import (
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -343,5 +344,63 @@ func TestRetryAfter(t *testing.T) {
 	d, ok := retryAfter("2")
 	if !ok || d < 2*time.Second {
 		t.Errorf("retryAfter(\"2\") = %v, %v", d, ok)
+	}
+}
+
+func TestListParams_LocaleAndIDsInURL(t *testing.T) {
+	q := ListParams{Locale: "es", IDs: []string{"a", "b"}}.query()
+	if q.Get("locale") != "es" {
+		t.Errorf("locale = %q, want es", q.Get("locale"))
+	}
+	if q.Get("ids") != "a,b" {
+		t.Errorf("ids = %q, want a,b", q.Get("ids"))
+	}
+
+	q = ListParams{}.query()
+	if q.Has("locale") || q.Has("ids") {
+		t.Errorf("zero params leaked a locale or ids: %v", q)
+	}
+}
+
+// The cache is one process-wide map keyed by path, so the locale has to be in the
+// path. A header would let a Spanish answer be served to an English reader.
+func TestGet_LocaleIsPartOfTheCacheKey(t *testing.T) {
+	var hits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hits, 1)
+		w.Header().Set("Cache-Control", "public, max-age=300")
+		name := "Squat"
+		if r.URL.Query().Get("locale") == "es" {
+			name = "Sentadilla"
+		}
+		fmt.Fprint(w, listBody(name))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test")
+	for _, tc := range []struct{ locale, want string }{{"es", "Sentadilla"}, {"", "Squat"}, {"es", "Sentadilla"}, {"", "Squat"}} {
+		res, err := c.List(context.Background(), ListParams{Locale: tc.locale})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := res.Exercises[0].Name(); got != tc.want {
+			t.Errorf("locale %q served %q, want %q", tc.locale, got, tc.want)
+		}
+	}
+	if got := atomic.LoadInt32(&hits); got != 2 {
+		t.Errorf("upstream hits = %d, want 2 (one per locale, then both cached)", got)
+	}
+}
+
+func TestTranslation_DecodesServedLocalesAndMachineFlags(t *testing.T) {
+	var out ListResult
+	body := `{"exercises":[{"id":"u","translation":{"name":"Sentadilla","name_locale":"es","name_machine_origin":true,
+		"instructions":["x"],"instructions_locale":"en","instructions_machine_origin":false}}]}`
+	if err := json.Unmarshal([]byte(body), &out); err != nil {
+		t.Fatal(err)
+	}
+	tr := out.Exercises[0].Translation
+	if tr.NameLocale != "es" || !tr.NameMachineOrigin || tr.InstructionsLocale != "en" || tr.InstructionsMachineOrigin {
+		t.Errorf("decoded %+v", tr)
 	}
 }

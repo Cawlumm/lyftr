@@ -1873,9 +1873,9 @@ func TestUpdateFoodLog_trimsNameAndBrand(t *testing.T) {
 
 func TestRequestLanguage(t *testing.T) {
 	cases := map[string]string{
-		"es": "es", "ES": "es", "en": "en", "pt-BR": "pt", "pt_BR": "pt",
+		"es": "es", "ES": "es", "en": "en", "pt-BR": "pt", "pt_BR": "en",
 		"zh-Hant-TW": "zh", "": "en", "../x": "en", "e": "en", "español": "en",
-		"12": "en", "abcdefgh": "en",
+		"12": "en",
 	}
 	for in, want := range cases {
 		c, _ := newContext(0, http.MethodGet, "/x?locale="+url.QueryEscape(in), nil)

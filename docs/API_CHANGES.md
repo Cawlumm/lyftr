@@ -291,3 +291,10 @@ somebody will see the change.
 - **`DEMO_MODE` no longer defaults on in development.** A deployment default rather than an
   HTTP contract, and the published config docs already said `false`, but a dev instance
   that relied on signing in as `demo@lyftr.local` must now set `DEMO_MODE=true`.
+- **`locale` on exercise text.** `GET /exercises`, `GET /exercises/:id`, the workout reads
+  and writes and the program reads and writes accept an optional `locale` query parameter
+  (a BCP-47 tag such as `es` or `es-MX`). Exercise `name` and `description` come back in
+  that locale where this instance holds a translation, falling back field by field to the
+  base language and then to English. With no `locale`, or a malformed one, responses are
+  unchanged: English, status `200`. Local search also matches translated names in that
+  locale.

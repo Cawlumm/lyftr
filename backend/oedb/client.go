@@ -87,8 +87,12 @@ type ListParams struct {
 	MuscleGroup string
 	Category    string
 	Equipment   string
-	Page        int
-	PerPage     int
+	// Locale asks for translated text. It is part of the URL, never a header,
+	// because the response cache is keyed by path.
+	Locale  string
+	IDs     []string
+	Page    int
+	PerPage int
 }
 
 func (p ListParams) query() url.Values {
@@ -102,6 +106,10 @@ func (p ListParams) query() url.Values {
 	set("muscle_group", p.MuscleGroup)
 	set("category", p.Category)
 	set("equipment", p.Equipment)
+	set("locale", p.Locale)
+	if len(p.IDs) > 0 {
+		v.Set("ids", strings.Join(p.IDs, ","))
+	}
 	if p.Page > 1 {
 		v.Set("page", strconv.Itoa(p.Page))
 	}
@@ -130,11 +138,17 @@ type Image struct {
 // Translation is the locale-resolved text for an exercise. oedb keeps name and
 // instructions here rather than on the exercise because they vary by locale
 // while the taxonomy does not.
+//
+// Each field reports the locale it was actually served in, because a locale that
+// was asked for may be answered per field in English.
 type Translation struct {
-	Name         string   `json:"name"`
-	Aliases      []string `json:"aliases"`
-	Instructions []string `json:"instructions"`
-	Locale       string   `json:"name_locale"`
+	Name                      string   `json:"name"`
+	Aliases                   []string `json:"aliases"`
+	Instructions              []string `json:"instructions"`
+	NameLocale                string   `json:"name_locale"`
+	NameMachineOrigin         bool     `json:"name_machine_origin"`
+	InstructionsLocale        string   `json:"instructions_locale"`
+	InstructionsMachineOrigin bool     `json:"instructions_machine_origin"`
 }
 
 // Exercise is one oedb catalog row, trimmed to the fields Lyftr reads.

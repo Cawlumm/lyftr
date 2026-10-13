@@ -25,7 +25,7 @@ func scanWorkout(row interface{ Scan(...any) error }, w *models.Workout) error {
 	return row.Scan(&w.ID, &w.UserID, &w.Name, &w.Notes, &w.Duration, &w.StartedAt, &w.TZOffsetMinutes, &w.CreatedAt)
 }
 
-func (s *WorkoutStore) List(uid int64, f WorkoutFilter) ([]models.Workout, error) {
+func (s *WorkoutStore) List(uid int64, f WorkoutFilter, locale string) ([]models.Workout, error) {
 	var rows *sql.Rows
 	var err error
 	if f.Query != "" {
@@ -58,7 +58,7 @@ func (s *WorkoutStore) List(uid int64, f WorkoutFilter) ([]models.Workout, error
 	rows.Close() // close the parent cursor BEFORE loading children (#36: avoid holding 2 pool connections per request)
 
 	for i := range workouts {
-		ex, err := s.loadExercises(workouts[i].ID)
+		ex, err := s.loadExercises(workouts[i].ID, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -68,14 +68,14 @@ func (s *WorkoutStore) List(uid int64, f WorkoutFilter) ([]models.Workout, error
 }
 
 // Get returns a user-owned workout with its exercises/sets, or sql.ErrNoRows.
-func (s *WorkoutStore) Get(uid, id int64) (models.Workout, error) {
+func (s *WorkoutStore) Get(uid, id int64, locale string) (models.Workout, error) {
 	var w models.Workout
 	if err := scanWorkout(
 		s.db.QueryRow(`SELECT `+workoutCols+` FROM workouts WHERE id = ? AND user_id = ?`, id, uid), &w,
 	); err != nil {
 		return models.Workout{}, err
 	}
-	ex, err := s.loadExercises(id)
+	ex, err := s.loadExercises(id, locale)
 	if err != nil {
 		return models.Workout{}, err
 	}
@@ -84,12 +84,12 @@ func (s *WorkoutStore) Get(uid, id int64) (models.Workout, error) {
 }
 
 // get re-reads by id (no user scope) — used after a user-scoped write.
-func (s *WorkoutStore) get(id int64) (models.Workout, error) {
+func (s *WorkoutStore) get(id int64, locale string) (models.Workout, error) {
 	var w models.Workout
 	if err := scanWorkout(s.db.QueryRow(`SELECT `+workoutCols+` FROM workouts WHERE id = ?`, id), &w); err != nil {
 		return models.Workout{}, err
 	}
-	ex, err := s.loadExercises(id)
+	ex, err := s.loadExercises(id, locale)
 	if err != nil {
 		return models.Workout{}, err
 	}
@@ -157,7 +157,7 @@ func createWorkoutTx(tx *sql.Tx, uid int64, req models.CreateWorkoutRequest) (in
 
 // Update replaces a user-owned workout and its children in one tx. sql.ErrNoRows
 // if the workout isn't theirs (nothing is mutated).
-func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest) (models.Workout, error) {
+func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest, locale string) (models.Workout, error) {
 	// Ownership check + replace-children, all in one transaction (no TOCTOU).
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
@@ -194,7 +194,7 @@ func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest) (m
 	}); err != nil {
 		return models.Workout{}, err
 	}
-	return s.get(id)
+	return s.get(id, locale)
 }
 
 func (s *WorkoutStore) Delete(uid, id int64) (int64, error) {
@@ -236,14 +236,15 @@ func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWork
 // loadExercises loads a workout's exercises (JOIN exercises for display) then
 // their sets. Scans + closes the parent cursor fully BEFORE the per-exercise set
 // queries (#36) so a request never holds two pool connections at once.
-func (s *WorkoutStore) loadExercises(workoutID int64) ([]models.WorkoutExercise, error) {
+func (s *WorkoutStore) loadExercises(workoutID int64, locale string) ([]models.WorkoutExercise, error) {
+	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
 		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes, we.rest_seconds,
-		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
+		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM workout_exercises we
-		 JOIN exercises e ON e.id = we.exercise_id
+		 JOIN exercises e ON e.id = we.exercise_id`+join+`
 		 WHERE we.workout_id = ? ORDER BY we.order_index`,
-		workoutID,
+		append(joinArgs, workoutID)...,
 	)
 	if err != nil {
 		return nil, err

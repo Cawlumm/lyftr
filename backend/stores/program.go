@@ -25,7 +25,7 @@ func scanProgram(row interface{ Scan(...any) error }, p *models.Program) error {
 	return row.Scan(&p.ID, &p.UserID, &p.Name, &p.Notes, &p.CreatedAt)
 }
 
-func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error) {
+func (s *ProgramStore) List(uid int64, f ProgramFilter, locale string) ([]models.Program, error) {
 	var rows *sql.Rows
 	var err error
 	if f.Query != "" {
@@ -63,7 +63,7 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 	// of that, and SetMaxOpenConns(1) serializes every one of them on the process's
 	// single connection.
 	for i := range programs {
-		days, err := s.loadDays(programs[i].ID)
+		days, err := s.loadDays(programs[i].ID, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -80,25 +80,25 @@ func (s *ProgramStore) List(uid int64, f ProgramFilter) ([]models.Program, error
 }
 
 // Get returns a user-owned program with its days/exercises/sets, or sql.ErrNoRows.
-func (s *ProgramStore) Get(uid, id int64) (models.Program, error) {
+func (s *ProgramStore) Get(uid, id int64, locale string) (models.Program, error) {
 	var p models.Program
 	if err := scanProgram(
 		s.db.QueryRow(`SELECT `+programCols+` FROM programs WHERE id = ? AND user_id = ?`, id, uid), &p,
 	); err != nil {
 		return models.Program{}, err
 	}
-	if err := s.hydrate(&p); err != nil {
+	if err := s.hydrate(&p, locale); err != nil {
 		return models.Program{}, err
 	}
 	return p, nil
 }
 
-func (s *ProgramStore) get(id int64) (models.Program, error) {
+func (s *ProgramStore) get(id int64, locale string) (models.Program, error) {
 	var p models.Program
 	if err := scanProgram(s.db.QueryRow(`SELECT `+programCols+` FROM programs WHERE id = ?`, id), &p); err != nil {
 		return models.Program{}, err
 	}
-	if err := s.hydrate(&p); err != nil {
+	if err := s.hydrate(&p, locale); err != nil {
 		return models.Program{}, err
 	}
 	return p, nil
@@ -106,8 +106,8 @@ func (s *ProgramStore) get(id int64) (models.Program, error) {
 
 // hydrate loads a program's Days (with their Exercises/Sets) and computes
 // CurrentDayIndex in place.
-func (s *ProgramStore) hydrate(p *models.Program) error {
-	days, err := s.loadDays(p.ID)
+func (s *ProgramStore) hydrate(p *models.Program, locale string) error {
+	days, err := s.loadDays(p.ID, locale)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (s *ProgramStore) currentDayIndex(uid int64, programs []models.Program) (ma
 	return result, rows.Err()
 }
 
-func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (models.Program, error) {
+func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest, locale string) (models.Program, error) {
 	pid, err := inTx(s.db, func(tx *sql.Tx) (int64, error) {
 		res, err := tx.Exec(`INSERT INTO programs (user_id, name, notes) VALUES (?, ?, ?)`, uid, req.Name, req.Notes)
 		if err != nil {
@@ -273,7 +273,7 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 	if err != nil {
 		return models.Program{}, err
 	}
-	return s.get(pid)
+	return s.get(pid, locale)
 }
 
 // Update replaces a user-owned program and its days/exercises/sets in one tx.
@@ -306,7 +306,7 @@ func (s *ProgramStore) Create(uid int64, req models.CreateProgramRequest) (model
 // (a logged set's program_set_id is request-only, never stored), so recreating them
 // is safe — the delete cascades to program_sets via the program_exercise_id FK,
 // same layered cascade the flat model relied on.
-func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (models.Program, error) {
+func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest, locale string) (models.Program, error) {
 	if err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
 		if err := tx.QueryRow(`SELECT id FROM programs WHERE id = ? AND user_id = ?`, id, uid).Scan(&ownedID); err != nil {
@@ -396,7 +396,7 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest) (m
 	}); err != nil {
 		return models.Program{}, err
 	}
-	return s.get(id)
+	return s.get(id, locale)
 }
 
 // dropDayLinkage severs workouts.program_day_id for a day that's being deleted or
@@ -526,7 +526,7 @@ func suggestTargetsTx(tx *sql.Tx, uid, programID int64, sets []ProgressInput) (s
 // target_*; both paths clear the suggestion. Ownership-gated, and every id is re-scoped
 // to this program via the pe.program_id sub-select — the same IDOR guard as SuggestTargets,
 // so a client can't touch another user's routine by guessing ids.
-func (s *ProgramStore) ResolveSuggestions(uid, programID int64, accept, dismiss []int64) (models.Program, error) {
+func (s *ProgramStore) ResolveSuggestions(uid, programID int64, accept, dismiss []int64, locale string) (models.Program, error) {
 	err := inTxDo(s.db, func(tx *sql.Tx) error {
 		var ownedID int64
 		if err := tx.QueryRow(`SELECT id FROM programs WHERE id = ? AND user_id = ?`, programID, uid).Scan(&ownedID); err != nil {
@@ -560,7 +560,7 @@ func (s *ProgramStore) ResolveSuggestions(uid, programID int64, accept, dismiss 
 	if err != nil {
 		return models.Program{}, err
 	}
-	return s.get(programID)
+	return s.get(programID, locale)
 }
 
 // progressedTarget applies the upward-only progression rule for a single set and
@@ -655,7 +655,7 @@ func insertProgramExercises(tx *sql.Tx, programID, dayID int64, exercises []mode
 
 // loadDays scans + closes the parent cursor BEFORE loading each day's exercises
 // (#36 — same close-then-load discipline as loadExercises/loadSets below).
-func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
+func (s *ProgramStore) loadDays(programID int64, locale string) ([]models.ProgramDay, error) {
 	rows, err := s.db.Query(
 		`SELECT id, program_id, order_index, is_rest_day, name FROM program_days WHERE program_id = ? ORDER BY order_index`,
 		programID,
@@ -685,7 +685,7 @@ func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
 			days[i].Exercises = []models.ProgramExercise{}
 			continue
 		}
-		ex, err := s.loadExercises(days[i].ID)
+		ex, err := s.loadExercises(days[i].ID, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -696,14 +696,15 @@ func (s *ProgramStore) loadDays(programID int64) ([]models.ProgramDay, error) {
 
 // loadExercises scans + closes the parent cursor BEFORE loading each exercise's
 // sets (#36), and surfaces scan errors.
-func (s *ProgramStore) loadExercises(dayID int64) ([]models.ProgramExercise, error) {
+func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.ProgramExercise, error) {
+	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
 		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
-		        e.name, e.muscle_group, e.category, e.equipment, e.image_url
+		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
-		 JOIN exercises e ON e.id = pe.exercise_id
+		 JOIN exercises e ON e.id = pe.exercise_id`+join+`
 		 WHERE pe.program_day_id = ? ORDER BY pe.order_index`,
-		dayID,
+		append(joinArgs, dayID)...,
 	)
 	if err != nil {
 		return nil, err

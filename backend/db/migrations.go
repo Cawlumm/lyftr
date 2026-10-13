@@ -182,6 +182,25 @@ func alterMigrations() {
 		ensureIndex("idx_users_email_nocase",
 			`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)`)
 	}
+
+	// exercises.name and .description are English: only Materialize writes them, and only
+	// from text oedb served in English, so there is nothing to backfill. Every other
+	// language lives here, one row per (exercise, locale), and a reader falls through to
+	// the base row field by field (stores.translationJoin). The cascade is required, not
+	// tidy: ClearUnreferenced deletes exercises with foreign keys on, and a single
+	// translation row without it would make that delete fail.
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS exercise_translations (
+		  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+		  exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+		  locale      TEXT    NOT NULL,
+		  name        TEXT    NOT NULL DEFAULT '',
+		  description TEXT    NOT NULL DEFAULT '',
+		  origin      TEXT    NOT NULL DEFAULT 'human' CHECK (origin IN ('human', 'machine')),
+		  UNIQUE (exercise_id, locale)
+		)`); err != nil {
+		log.Fatalf("create exercise_translations: %v", err)
+	}
 }
 
 // emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.
