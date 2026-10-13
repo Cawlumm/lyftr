@@ -153,6 +153,7 @@ func TestSyncLocale_FailureLeavesTheLanguageUnmarkedAndTheCacheIntact(t *testing
 func TestSyncLocale_EnglishAndMissingCatalogAreNoOps(t *testing.T) {
 	cat := newLocaleCatalog(t)
 	s := NewExerciseStore(testDB(t))
+	s.SyncLocales("es")
 	s.SyncLocale("es") // no catalog configured: must not panic
 	s.UseCatalog(oedb.New(cat.srv.URL, "test"))
 	holdEnglish(t, s, 3)
@@ -177,5 +178,60 @@ func TestLocaleSyncer_OnePassPerLanguageAtATime(t *testing.T) {
 	l.end("es")
 	if !l.begin("es") {
 		t.Error("the language must be claimable again once the pass ends")
+	}
+}
+
+// Any signed-in user can name any tag, and every language is a pass against the
+// catalog, so only the languages the operator listed may start one.
+func TestSyncLocale_OnlyListedLanguagesStartAPass(t *testing.T) {
+	cat := newLocaleCatalog(t)
+	s := NewExerciseStore(testDB(t))
+	s.UseCatalog(oedb.New(cat.srv.URL, "test"))
+	s.SyncLocales("es")
+	holdEnglish(t, s, 3)
+
+	for _, locale := range []string{"fr", "fr-CA", "xx", "pt-BR", "zz-ZZ"} {
+		s.SyncLocale(locale)
+	}
+	time.Sleep(50 * time.Millisecond)
+	if got := cat.requests(); got != 0 {
+		t.Fatalf("requests = %d for unlisted languages, want 0", got)
+	}
+
+	s.SyncLocale("es")
+	waitFor(t, func() bool { return cat.requests() == 1 })
+}
+
+// es-MX and es-AR readers are served from the same Spanish rows, so they must share
+// one pass rather than each costing the catalog a full read.
+func TestSyncLocale_RegionalTagsShareTheLanguagesPass(t *testing.T) {
+	cat := newLocaleCatalog(t)
+	s := NewExerciseStore(testDB(t))
+	s.UseCatalog(oedb.New(cat.srv.URL, "test"))
+	s.SyncLocales("ES")
+	holdEnglish(t, s, 3)
+
+	s.SyncLocale("es-MX")
+	waitFor(t, func() bool { return cat.requests() == 1 })
+	waitFor(t, func() bool { return !s.sync.inFlightNow("es") })
+	s.SyncLocale("es-AR")
+	s.SyncLocale("es")
+	time.Sleep(50 * time.Millisecond)
+	if got := cat.requests(); got != 1 {
+		t.Errorf("requests = %d, want 1: regional tags of a synced language are already covered", got)
+	}
+	if got := cat.queries[0]["locale"]; got != "es" {
+		t.Errorf("fetched with locale %q, want the base language es", got)
+	}
+}
+
+func waitFor(t *testing.T, cond func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for !cond() {
+		if time.Now().After(deadline) {
+			t.Fatal("condition not reached in time")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }

@@ -112,6 +112,7 @@ func main() {
 	// fully functional.
 	s := stores.New(db.DB)
 	s.Exercise.UseCatalog(oedb.New(config.C.OEDBBaseURL, config.Version()))
+	s.Exercise.SyncLocales(config.C.ExerciseSyncLocales...)
 
 	if config.C.DemoMode {
 		go seed.DemoData(db.DB, s.Exercise)

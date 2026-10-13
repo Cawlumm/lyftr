@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetEnvBool(t *testing.T) {
 	cases := []struct {
@@ -74,6 +77,20 @@ func TestValidRegistration(t *testing.T) {
 	for _, mode := range []string{"", "frst-user", "Open", "first user", "disabled", "true"} {
 		if ValidRegistration(mode) {
 			t.Errorf("ValidRegistration(%q) = true, want false", mode)
+		}
+	}
+}
+
+func TestSplitList(t *testing.T) {
+	for in, want := range map[string]string{
+		"es":           "es",
+		" ES , pt-BR ": "es,pt-br",
+		",,":           "",
+		"":             "",
+		"es,,fr":       "es,fr",
+	} {
+		if got := strings.Join(splitList(in), ","); got != want {
+			t.Errorf("splitList(%q) = %q, want %q", in, got, want)
 		}
 	}
 }

@@ -302,5 +302,6 @@ somebody will see the change.
   fetches that language for every exercise this instance already holds (one oedb request per
   100 exercises), so workout and program history follow a language switch instead of waiting
   for each exercise to turn up in a search. The request itself does not wait for it, and the
-  pass repeats at most once a day per language. Nothing changes for an instance with no
-  catalog configured.
+  pass repeats at most once a day per language. Only the languages in `EXERCISE_SYNC_LOCALES`
+  (default `es`) start a pass, and a regional tag such as `es-MX` shares its language's pass.
+  Nothing changes for an instance with no catalog configured.

@@ -24,22 +24,40 @@ const localeSyncTimeout = 2 * time.Minute
 type localeSyncer struct {
 	mu       sync.Mutex
 	inFlight map[string]bool
+	allowed  map[string]bool
 	now      func() time.Time
 }
 
 func newLocaleSyncer() *localeSyncer {
-	return &localeSyncer{inFlight: map[string]bool{}, now: time.Now}
+	return &localeSyncer{inFlight: map[string]bool{}, allowed: map[string]bool{}, now: time.Now}
 }
 
-// SyncLocale fills the cache for locale if it has not been filled within the TTL, and
-// returns without waiting: the pass runs in the background. English, an unreachable
-// catalog and a fresh language are all no-ops, and concurrent callers for the same
-// language share one pass. Failure is logged and leaves the language unmarked, so the
-// next request tries again; it never reaches the reader.
+// SyncLocales sets the languages SyncLocale will fill. Anything else is ignored: a
+// request can name any tag, and each language is a pass against the catalog.
+func (s *ExerciseStore) SyncLocales(languages ...string) {
+	s.sync.mu.Lock()
+	defer s.sync.mu.Unlock()
+	s.sync.allowed = map[string]bool{}
+	for _, l := range languages {
+		if l = BaseLanguage(NormalizeLocale(l)); l != defaultLocale {
+			s.sync.allowed[l] = true
+		}
+	}
+}
+
+// SyncLocale fills the cache for the language of locale if it is one the operator
+// listed and has not been filled within the TTL, and returns without waiting: the pass
+// runs in the background. English, an unlisted language, an unreachable catalog and a
+// fresh language are all no-ops, and concurrent callers share one pass. Failure is
+// logged and leaves the language unmarked, so the next request tries again; it never
+// reaches the reader.
+//
+// The unit is the language, not the tag: oedb falls es-MX back to es itself, and the
+// store reads a regional request through the base-language rows, so es-MX and es-AR
+// readers share the one pass instead of each costing the catalog nine requests.
 func (s *ExerciseStore) SyncLocale(locale string) {
-	locale = NormalizeLocale(locale)
-	// By language, not tag: en-GB is English too, and oedb has nothing to add to it.
-	if s.catalog == nil || BaseLanguage(locale) == defaultLocale {
+	locale = BaseLanguage(NormalizeLocale(locale))
+	if s.catalog == nil || locale == defaultLocale || !s.sync.permits(locale) {
 		return
 	}
 	if !s.sync.begin(locale) {
@@ -85,6 +103,12 @@ func (s *ExerciseStore) localeIsFresh(locale string) (bool, error) {
 	return s.sync.now().Sub(at) < localeSyncTTL, nil
 }
 
+func (l *localeSyncer) permits(language string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.allowed[language]
+}
+
 // begin claims the language for one pass, reporting false if another is running.
 func (l *localeSyncer) begin(locale string) bool {
 	l.mu.Lock()
@@ -94,6 +118,12 @@ func (l *localeSyncer) begin(locale string) bool {
 	}
 	l.inFlight[locale] = true
 	return true
+}
+
+func (l *localeSyncer) inFlightNow(language string) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.inFlight[language]
 }
 
 func (l *localeSyncer) end(locale string) {
