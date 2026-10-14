@@ -172,21 +172,16 @@
       "title": "Exercise Library",
       "database": {
         "label": "Exercise database",
-        "description": "Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
+        "description": "Exercises come from open-exercise-db. This server keeps a copy of the whole catalog and refreshes it daily."
       },
       "cached_one": "{{amount}} cached",
       "cached_other": "{{amount}} cached",
       "cachedUnknown": "— cached",
       "refreshed_one": "Refreshed {{amount}} exercise",
       "refreshed_other": "Refreshed {{amount}} exercises",
-      "cleared_one": "Cleared {{amount}} unused exercise",
-      "cleared_other": "Cleared {{amount}} unused exercises",
       "refresh": "Refresh cached",
       "refreshing": "Refreshing…",
-      "refreshFailed": "Couldn't refresh the cache.",
-      "clear": "Clear unused",
-      "clearing": "Clearing…",
-      "clearFailed": "Couldn't clear the cache."
+      "refreshFailed": "Couldn't refresh the cache."
     },
     "danger": {
       "title": "Danger Zone",
@@ -358,6 +353,7 @@
         "BARCODE_LOOKUP_UNAVAILABLE": "Barcode lookup is temporarily unavailable.",
         "NO_EXERCISE_CATALOG": "This server has no exercise catalog configured.",
         "EXERCISE_CATALOG_UNREACHABLE": "Couldn't reach the exercise catalog.",
+        "EXERCISE_SYNC_RUNNING": "An exercise sync is already running. Try again when it finishes.",
         "DISPLAY_NAME_CONTROL_CHARS": "A name can't contain line breaks or other control characters.",
         "TIMEZONE_EMPTY": "Timezone can't be empty.",
         "UNKNOWN_TIMEZONE": "Unknown timezone: {{timezone}}.",

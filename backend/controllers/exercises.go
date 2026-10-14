@@ -101,16 +101,17 @@ func (h *Handler) GetExerciseHistory(c *gin.Context) {
 	utils.OK(c, history)
 }
 
-// RefreshExerciseCache re-reads the catalog rows this instance already holds and
-// applies any upstream edits.
-//
-// Not a re-import: Lyftr does not keep a copy of open-exercise-db, and this
-// endpoint does not create one. New exercises appear the way every cached row
-// did — the first time a search returns them.
+// RefreshExerciseCache runs the scheduled catalog pass now, importing every upstream
+// exercise in English and refreshing translations for every held one. `refreshed` is
+// how many exercises the English pass recorded.
 func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 	n, err := h.s.Exercise.RefreshCached(c.Request.Context())
 	if errors.Is(err, stores.ErrNoCatalog) {
 		utils.Fail(c, utils.CodeNoExerciseCatalog, nil)
+		return
+	}
+	if errors.Is(err, stores.ErrSyncRunning) {
+		utils.Fail(c, utils.CodeExerciseSyncRunning, nil)
 		return
 	}
 	if errors.Is(err, stores.ErrCatalogUnreachable) {
@@ -131,13 +132,4 @@ func (h *Handler) ExerciseCacheStatus(c *gin.Context) {
 		return
 	}
 	utils.OK(c, gin.H{"count": count})
-}
-
-// ClearExerciseCache drops cached rows nothing references.
-func (h *Handler) ClearExerciseCache(c *gin.Context) {
-	n, err := h.s.Exercise.ClearUnreferenced()
-	if utils.DBError(c, err) {
-		return
-	}
-	utils.OK(c, gin.H{"cleared": n})
 }

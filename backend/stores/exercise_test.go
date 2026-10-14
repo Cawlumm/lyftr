@@ -210,79 +210,32 @@ func TestCacheControls_WithoutCatalogError(t *testing.T) {
 	}
 }
 
-// Clearing the cache must leave anything a workout or program references. Those
-// foreign keys have no cascade, so deleting a referenced row would either be
-// refused or, without the FK, orphan a user's logged sets.
-func TestClearUnreferenced_KeepsReferencedRows(t *testing.T) {
-	conn := testDB(t)
-	s := NewExerciseStore(conn)
-
-	if _, err := conn.Exec(`INSERT INTO exercises (id, name) VALUES (1, 'Used'), (2, 'Unused')`); err != nil {
-		t.Fatalf("seed exercises: %v", err)
-	}
-	if _, err := conn.Exec(`INSERT INTO users (id, email, password_hash) VALUES (1, 'a@b.c', 'x')`); err != nil {
-		t.Fatalf("seed user: %v", err)
-	}
-	if _, err := conn.Exec(`INSERT INTO workouts (id, user_id, name) VALUES (1, 1, 'W')`); err != nil {
-		t.Fatalf("seed workout: %v", err)
-	}
-	if _, err := conn.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (1, 1, 0)`); err != nil {
-		t.Fatalf("seed workout_exercise: %v", err)
-	}
-
-	n, err := s.ClearUnreferenced()
-	if err != nil {
-		t.Fatalf("clear: %v", err)
-	}
-	if n != 1 {
-		t.Errorf("cleared %d, want 1", n)
-	}
-	var remaining string
-	if err := conn.QueryRow(`SELECT name FROM exercises`).Scan(&remaining); err != nil {
-		t.Fatalf("read remaining: %v", err)
-	}
-	if remaining != "Used" {
-		t.Errorf("remaining = %q, want the referenced row", remaining)
-	}
-}
-
-// Refresh applies upstream edits to rows already held, and must not import rows
-// the instance has never seen — that is the line between refreshing a cache and
-// seeding a library.
-func TestRefreshCached_UpdatesHeldRowsWithoutImporting(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"exercises":[
-			{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}},
-			{"id":"uuid-2","slug":"new","muscle_group":"back","translation":{"name":"Never Seen","instructions":[]}}
-		],"total":2}`)
-	}))
-	defer srv.Close()
-
-	conn := testDB(t)
-	s := NewExerciseStore(conn)
-	s.UseCatalog(oedb.New(srv.URL, "test"))
-
-	if _, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-1", "Held Original")}, srv.URL, "en"); err != nil {
+// The admin entry point is the scheduled pass: it imports rows the instance never
+// held, and updates the ones it did hold under the same local id.
+func TestRefreshCached_ImportsTheWholeCatalog(t *testing.T) {
+	s, _ := catalogStore(t, 3, "en")
+	if _, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-000", "Held Original")}, s.catalog.BaseURL(), "en"); err != nil {
 		t.Fatalf("seed held row: %v", err)
 	}
+	heldID := localID(t, s, "uuid-000")
 
 	n, err := s.RefreshCached(context.Background())
 	if err != nil {
 		t.Fatalf("refresh: %v", err)
 	}
-	if n != 1 {
-		t.Errorf("refreshed %d, want 1", n)
+	if n != 3 {
+		t.Errorf("refreshed %d, want 3", n)
 	}
-
-	var total int
-	conn.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&total)
-	if total != 1 {
-		t.Errorf("exercise count = %d, want 1 — refresh imported an unseen row", total)
+	if got := countRows(t, s.db, "SELECT COUNT(*) FROM exercises"); got != 3 {
+		t.Errorf("exercise count = %d, want the whole catalog of 3", got)
 	}
 	var name string
-	conn.QueryRow(`SELECT name FROM exercises WHERE oedb_id = 'uuid-1'`).Scan(&name)
-	if name != "Held Renamed" {
-		t.Errorf("name = %q, want the upstream edit applied", name)
+	s.db.QueryRow("SELECT name FROM exercises WHERE id = ?", heldID).Scan(&name)
+	if name != "Exercise 000" {
+		t.Errorf("held row name = %q, want the upstream edit under the same local id", name)
+	}
+	for _, id := range []string{"uuid-001", "uuid-002"} {
+		localID(t, s, id)
 	}
 }
 

@@ -207,14 +207,64 @@ func TestRefreshExerciseCache_catalogFailureCodes(t *testing.T) {
 
 func TestRefreshExerciseCache_success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}}],"total":1}`))
+		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}},{"id":"uuid-2","slug":"new","muscle_group":"back","translation":{"name":"New One","instructions":[]}}],"total":2}`))
 	}))
 	defer srv.Close()
 	w := refreshWithCatalog(t, srv.URL)
 
 	body := decodeResponse(t, w)
 	data, _ := body["data"].(map[string]any)
-	if w.Code != http.StatusOK || data["refreshed"] != float64(1) || body["code"] != nil {
-		t.Fatalf("got %d %v, want 200 refreshed 1", w.Code, body)
+	if w.Code != http.StatusOK || data["refreshed"] != float64(2) || body["code"] != nil {
+		t.Fatalf("got %d %v, want 200 refreshed 2", w.Code, body)
 	}
+}
+
+// A second sync while one is running must be refused, not run alongside it: the
+// route is open to every signed-in user and a pass is a full catalog import.
+func TestRefreshExerciseCache_secondCallWhileRunningIs409(t *testing.T) {
+	release := make(chan struct{})
+	started := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "locales") {
+			_, _ = w.Write([]byte(`{"locales":[],"total":0}`))
+			return
+		}
+		select {
+		case started <- struct{}{}:
+		default:
+		}
+		<-release
+		_, _ = w.Write([]byte(`{"exercises":[],"total":0}`))
+	}))
+	defer srv.Close()
+
+	setupTestDB(t)
+	uid := createTestUser(t)
+	th.s.Exercise.UseCatalog(oedb.New(srv.URL, "test"))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		c, _ := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
+		th.RefreshExerciseCache(c)
+	}()
+	<-started
+
+	second := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
+		th.RefreshExerciseCache(c)
+		second <- w
+	}()
+	var w *httptest.ResponseRecorder
+	select {
+	case w = <-second:
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("the second sync blocked instead of being refused")
+	}
+	wantCode(t, w, http.StatusConflict, "EXERCISE_SYNC_RUNNING", "An exercise sync is already running. Try again when it finishes.")
+
+	close(release)
+	<-done
 }

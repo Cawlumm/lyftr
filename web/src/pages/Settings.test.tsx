@@ -64,7 +64,6 @@ vi.mock('../services/api', () => ({
   exerciseAPI: {
     cacheStatus: vi.fn().mockResolvedValue({ count: 0 }),
     refreshCache: vi.fn(),
-    clearCacheOnServer: vi.fn(),
   },
   userAPI: { deleteAccount: vi.fn() },
 }))

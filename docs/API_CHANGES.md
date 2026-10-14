@@ -14,6 +14,19 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `POST /api/v1/admin/reset-exercises` removed; `POST /api/v1/admin/sync-exercises` imports the whole catalog
+
+`reset-exercises` no longer exists and answers 404, so a caller using it to drop unreferenced
+rows has nothing to call: the server now keeps the whole catalog. A background pass at boot
+and every 24h, retried with backoff on failure, imports every open-exercise-db exercise in
+English, then translations for every held exercise in each catalog language.
+
+`sync-exercises` runs that same pass on demand. It now fills an empty install, `refreshed`
+is the number of exercises the English pass recorded, and it covers every language, so it
+takes longer, and answers 409 `EXERCISE_SYNC_RUNNING` if a pass (this call or the daily one) is already running. A pass that fails partway keeps what it wrote and answers 503
+`EXERCISE_CATALOG_UNREACHABLE` (upstream) or a database error code. `GET
+/admin/seed-status` `count` is the whole catalog once a pass has completed.
+
 ## Every error response — gains a stable `code` beside `error`
 
 Additive: `error` is byte-identical to before and still authoritative for any caller that
@@ -21,7 +34,7 @@ ignores `code`. Every error body is now `{"error": "...", "code": "UPPER_SNAKE"}
 optional `params` object when the sentence has variables. The first-party clients key their
 own (localized) wording on `code` and fall back to `error`.
 
-Codes (71). Every error has its own code with a fixed status; there is no generic
+Codes (72). Every error has its own code with a fixed status; there is no generic
 `BAD_REQUEST`, `NOT_FOUND` or `SERVICE_UNAVAILABLE`.
 
 - Sign-in and session: `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
@@ -40,7 +53,7 @@ Codes (71). Every error has its own code with a fixed status; there is no generi
 - Resources: `INVALID_ID`, `INVALID_EXERCISE_ID`, `INVALID_PROGRAM_ID`, `INVALID_WORKOUT_ID`
   (`400`); `ENTRY_NOT_FOUND`, `SAVED_FOOD_NOT_FOUND`, `EXERCISE_NOT_FOUND`,
   `PROGRAM_NOT_FOUND`, `WORKOUT_NOT_FOUND` (`404`); `UNKNOWN_EXERCISES`, `NO_EXERCISE_CATALOG`
-  (`400`); `EXERCISE_CATALOG_UNREACHABLE` (`503`, with `Retry-After: 2`).
+  (`400`); `EXERCISE_CATALOG_UNREACHABLE` (`503`, with `Retry-After: 2`); `EXERCISE_SYNC_RUNNING` (`409`).
 - Dates: `INVALID_DATE`, `INVALID_LOGGED_ON`, `INVALID_FROM_DATE`, `INVALID_TO_DATE` (`400`).
 - Food: `FOOD_NAME_TOO_LONG`, `FOOD_BRAND_TOO_LONG`, `SERVING_SIZE_TOO_LONG`,
   `BARCODE_TOO_LONG`, `IMAGE_URL_TOO_LONG`, `SEARCH_TERM_REQUIRED`, `INVALID_BARCODE` (`400`);
