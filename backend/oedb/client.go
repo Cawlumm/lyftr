@@ -394,13 +394,20 @@ func (c *Client) fetchAttempt(ctx context.Context, path, etag string, attempt in
 	// worth sending at all — a revalidation that changes nothing costs headers.
 	if resp.StatusCode == http.StatusNotModified {
 		c.mu.Lock()
-		defer c.mu.Unlock()
-		if e, ok := c.cache[path]; ok {
+		e, ok := c.cache[path]
+		if ok {
 			fresh, stale := cacheWindow(resp.Header.Get("Cache-Control"))
 			now := time.Now()
 			e.freshFor = now.Add(fresh)
 			e.staleFor = now.Add(fresh + stale)
+		}
+		c.mu.Unlock()
+		if ok {
 			return e.body, nil
+		}
+		// Evicted while the request was out. Ask again without the ETag for the body.
+		if etag != "" {
+			return c.fetchAttempt(ctx, path, "", attempt)
 		}
 		return nil, fmt.Errorf("oedb: %s: 304 with no cached body", path)
 	}
@@ -423,15 +430,39 @@ func (c *Client) fetchAttempt(ctx context.Context, path, etag string, attempt in
 	fresh, stale := cacheWindow(resp.Header.Get("Cache-Control"))
 	now := time.Now()
 	c.mu.Lock()
-	c.cache[path] = &entry{
+	c.store(path, &entry{
 		body:     body,
 		etag:     resp.Header.Get("ETag"),
 		freshFor: now.Add(fresh),
 		staleFor: now.Add(fresh + stale),
-	}
+	}, now)
 	c.mu.Unlock()
 
 	return body, nil
+}
+
+// maxCacheEntries bounds the response cache. Keys are request paths, and the search
+// box makes those user-controlled, so without a cap every distinct query stays in
+// memory until restart.
+const maxCacheEntries = 256
+
+// store adds e under path, first making room: entries past their stale window go
+// first, then whichever expires soonest. Callers hold c.mu.
+func (c *Client) store(path string, e *entry, now time.Time) {
+	if _, ok := c.cache[path]; !ok && len(c.cache) >= maxCacheEntries {
+		var oldest string
+		for k, v := range c.cache {
+			if !now.Before(v.staleFor) {
+				delete(c.cache, k)
+			} else if oldest == "" || v.staleFor.Before(c.cache[oldest].staleFor) {
+				oldest = k
+			}
+		}
+		if len(c.cache) >= maxCacheEntries {
+			delete(c.cache, oldest)
+		}
+	}
+	c.cache[path] = e
 }
 
 // cacheWindow reads max-age and stale-while-revalidate out of a Cache-Control
