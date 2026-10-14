@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -593,5 +594,49 @@ func TestMaterialize_NameOwnershipFollowsIndexCollation(t *testing.T) {
 	}
 	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id IN ('uuid-A', 'uuid-B')`); n != 2 {
 		t.Errorf("owned rows = %d, want 2", n)
+	}
+}
+
+// A duplicate-named upstream exercise must cost a non-English reader only itself.
+// The English read skips it (another id owns the name), so the localized read finds
+// no base row for it; that used to roll back the whole page.
+func TestSearch_DuplicateNameInSpanishPageKeepsTheOtherResults(t *testing.T) {
+	english := []oedb.Exercise{
+		served("uuid-b", "Squat", "en", []string{"Stand."}, "en"),
+		served("uuid-c", "Deadlift", "en", []string{"Lift."}, "en"),
+	}
+	spanish := []oedb.Exercise{
+		served("uuid-b", "Sentadilla", "es", []string{"Ponte."}, "es"),
+		served("uuid-c", "Peso muerto", "es", []string{"Levanta."}, "es"),
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		items := english
+		if r.URL.Query().Get("locale") == "es" {
+			items = spanish
+		}
+		json.NewEncoder(w).Encode(map[string]any{"exercises": items, "total": len(items)})
+	}))
+	defer srv.Close()
+
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+	materialize(t, s, "en", served("uuid-a", "Squat", "en", []string{"Stand."}, "en"))
+
+	out, err := s.Search(context.Background(), ExerciseFilter{Query: "e", Locale: "es", Limit: 50})
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+	var names []string
+	for _, e := range out {
+		names = append(names, e.Name)
+	}
+	if !slices.Contains(names, "Peso muerto") {
+		t.Errorf("results = %v, want the unrelated Spanish result kept", names)
+	}
+	var oedbID string
+	conn.QueryRow(`SELECT oedb_id FROM exercises WHERE name = 'Squat'`).Scan(&oedbID)
+	if oedbID != "uuid-a" {
+		t.Errorf("Squat oedb_id = %q, want uuid-a untouched", oedbID)
 	}
 }

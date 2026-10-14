@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -207,8 +206,8 @@ func (s *ExerciseStore) Count() (int, error) {
 // language the returned rows are shown in.
 //
 // Name matching only adopts a row that no upstream id owns yet. An upstream
-// exercise whose name is already owned by another id is skipped and left out of the
-// result, because oedb names are not unique and re-pointing the row would re-point
+// exercise whose name is already owned by another id, or that arrives translated
+// with no English row to attach to, is skipped and left out of the result, because oedb names are not unique and re-pointing the row would re-point
 // every workout that references it.
 func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale string) ([]models.Exercise, error) {
 	if len(items) == 0 {
@@ -300,7 +299,11 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 		}
 		if n == 0 {
 			if !nameEN {
-				return nil, fmt.Errorf("%w: %s", errNoEnglishBase, it.ID)
+				// No English row to hang the translation on, and none to invent: either
+				// the English read skipped this exercise (its name is held by another
+				// id) or oedb did not return it. Leave it out; the rest of the batch stands.
+				log.Printf("exercises: skipping upstream %s: no English base row for its %s translation", it.ID, locale)
+				continue
 			}
 			baseDesc := ""
 			if descEN {
@@ -348,15 +351,12 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	return out, nil
 }
 
-// errNoEnglishBase is returned when oedb served an exercise's name only in another
-// language and no local row exists to hold the English one. Inserting the translated
-// name as the base would show it to every English reader, so the whole batch rolls
-// back and the caller falls back to the local snapshot.
-var errNoEnglishBase = errors.New("exercises: no English base row for a translated exercise")
-
 // nameHolder reports which local row holds name, for the log line when an upstream exercise cannot take it.
 func nameHolder(tx *sql.Tx, name string) (id int64, oedbID string, err error) {
 	err = tx.QueryRow(`SELECT id, COALESCE(oedb_id, '') FROM exercises WHERE name = ?`, name).Scan(&id, &oedbID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, "", nil
+	}
 	return
 }
 
