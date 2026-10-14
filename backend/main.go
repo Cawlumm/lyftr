@@ -107,10 +107,9 @@ func main() {
 	} else {
 		seed.WarnLeftoverDemoUser(db.DB)
 	}
-	// Lyftr does not seed or mirror an exercise library. open-exercise-db is the
-	// source, queried live; the local exercises table is filled only as a
-	// side-effect of reads, so a fresh instance starts with an empty one and is
-	// fully functional.
+	// The background pass below imports the whole open-exercise-db catalog at boot and
+	// daily, and reads record rows too, so a fresh instance is usable before that pass
+	// finishes.
 	s := stores.New(db.DB)
 	s.Exercise.UseCatalog(oedb.New(config.C.OEDBBaseURL, config.Version()))
 

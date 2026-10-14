@@ -207,14 +207,14 @@ func TestRefreshExerciseCache_catalogFailureCodes(t *testing.T) {
 
 func TestRefreshExerciseCache_success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}}],"total":1}`))
+		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}},{"id":"uuid-2","slug":"new","muscle_group":"back","translation":{"name":"New One","instructions":[]}}],"total":2}`))
 	}))
 	defer srv.Close()
 	w := refreshWithCatalog(t, srv.URL)
 
 	body := decodeResponse(t, w)
 	data, _ := body["data"].(map[string]any)
-	if w.Code != http.StatusOK || data["refreshed"] != float64(1) || body["code"] != nil {
-		t.Fatalf("got %d %v, want 200 refreshed 1", w.Code, body)
+	if w.Code != http.StatusOK || data["refreshed"] != float64(2) || body["code"] != nil {
+		t.Fatalf("got %d %v, want 200 refreshed 2", w.Code, body)
 	}
 }

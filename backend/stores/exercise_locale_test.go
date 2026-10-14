@@ -349,31 +349,23 @@ func TestList_LocalSearchCoversTranslationAndEnglish(t *testing.T) {
 	eq(names("", "en"), "Bench Press", "Curl", "Squat")
 }
 
-func TestClearUnreferenced_CascadesTranslations(t *testing.T) {
+func TestDeletingAnExercise_CascadesItsTranslations(t *testing.T) {
 	conn := testDB(t)
 	s := NewExerciseStore(conn)
 	materialize(t, s, "en", englishSquat(), served("uuid-2", "Deadlift", "en", []string{"Lift."}, "en"))
 	materialize(t, s, "es", spanishSquat())
 	materialize(t, s, "es", served("uuid-2", "Peso muerto", "es", []string{"Levanta."}, "es"))
-
-	uid := seedUser(t, conn)
 	var keep int64
-	conn.QueryRow(`SELECT id FROM exercises WHERE oedb_id = 'uuid-2'`).Scan(&keep)
-	pid := seedProgram(t, conn, uid, keep)
-	_ = pid
+	conn.QueryRow("SELECT id FROM exercises WHERE oedb_id = 'uuid-2'").Scan(&keep)
 
-	n, err := s.ClearUnreferenced()
-	if err != nil {
-		t.Fatalf("ClearUnreferenced: %v", err)
+	if _, err := conn.Exec("DELETE FROM exercises WHERE oedb_id = 'uuid-1'"); err != nil {
+		t.Fatalf("delete: %v", err)
 	}
-	if n != 1 {
-		t.Errorf("deleted %d, want the one unreferenced exercise", n)
+	if c := countRows(t, conn, "SELECT COUNT(*) FROM exercise_translations"); c != 1 {
+		t.Errorf("translation rows = %d, want only the surviving exercise's", c)
 	}
-	if c := countRows(t, conn, `SELECT COUNT(*) FROM exercise_translations`); c != 1 {
-		t.Errorf("translation rows = %d, want only the referenced exercise's", c)
-	}
-	if c := countRows(t, conn, `SELECT COUNT(*) FROM exercise_translations WHERE exercise_id = ?`, keep); c != 1 {
-		t.Errorf("the referenced exercise lost its translation")
+	if c := countRows(t, conn, "SELECT COUNT(*) FROM exercise_translations WHERE exercise_id = ?", keep); c != 1 {
+		t.Errorf("the surviving exercise lost its translation")
 	}
 }
 

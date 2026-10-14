@@ -172,21 +172,16 @@
       "title": "Exercise Library",
       "database": {
         "label": "Exercise database",
-        "description": "Exercises come from open-exercise-db, queried as you search. This server keeps a copy of the ones it has shown."
+        "description": "Exercises come from open-exercise-db. This server keeps a copy of the whole catalog and refreshes it daily."
       },
       "cached_one": "{{amount}} cached",
       "cached_other": "{{amount}} cached",
       "cachedUnknown": "— cached",
       "refreshed_one": "Refreshed {{amount}} exercise",
       "refreshed_other": "Refreshed {{amount}} exercises",
-      "cleared_one": "Cleared {{amount}} unused exercise",
-      "cleared_other": "Cleared {{amount}} unused exercises",
       "refresh": "Refresh cached",
       "refreshing": "Refreshing…",
-      "refreshFailed": "Couldn't refresh the cache.",
-      "clear": "Clear unused",
-      "clearing": "Clearing…",
-      "clearFailed": "Couldn't clear the cache."
+      "refreshFailed": "Couldn't refresh the cache."
     },
     "danger": {
       "title": "Danger Zone",

@@ -449,16 +449,14 @@ export function createClient(
     get: (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(unwrap),
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
-    // Lyftr does not keep its own exercise library. open-exercise-db is the source and
-    // is queried live; the server holds only the rows it has had reason to look at, and
-    // these three manage that cache rather than a catalog.
+    // The server imports the whole open-exercise-db catalog in a daily background pass;
+    // these two report its size and run that pass now.
     cacheStatus: () => api.get<{ data: { count: number } }>('/admin/seed-status').then(unwrap),
-    // Re-reads every row the server already holds, applying upstream corrections. It
-    // pulls the full upstream export to do so, which on a cold server runs past the
+    // Runs the full catalog pass now: imports every upstream exercise and refreshes every
+    // language. On a cold server that runs past the
     // global 20s — the button is an explicit admin action the user waits on, so it gets
     // its own bound. A timeout here would report failure for work that goes on to finish.
     refreshCache: () => api.post<{ data: { refreshed: number } }>('/admin/sync-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
-    clearCacheOnServer: () => api.post<{ data: { cleared: number } }>('/admin/reset-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
   }
 
   const programAPI = {

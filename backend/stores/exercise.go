@@ -18,7 +18,7 @@ import (
 
 // ExerciseStore owns all SQL for the (global, read-only) exercises catalog: the
 // local cache of oedb rows, the scheduled sync that fills it, and the admin
-// refresh/reset endpoints.
+// sync endpoint.
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
@@ -573,29 +573,23 @@ var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
 
 // CachedCount reports how many catalog rows this instance currently holds.
 //
-// Lyftr does not maintain a copy of the catalog, so this is not "how big is the
-// exercise library" — it is how much of open-exercise-db this instance has had
-// reason to look at. A fresh install reports zero and is fully functional.
+// After the first scheduled pass the table holds the whole catalog plus any legacy
+// rows; before it, only what reads have had reason to record. A fresh install reports
+// zero and is fully functional.
 func (s *ExerciseStore) CachedCount() (int, error) { return s.Count() }
 
-// RefreshCached re-reads the rows this instance already holds and applies any
-// upstream edits, returning how many were refreshed.
-//
-// Deliberately scoped to rows already present: it picks up corrections made
-// upstream without importing the catalog. New exercises arrive the same way every
-// other row did — the first time someone's search returns one.
-//
-// It reads the bulk export and intersects locally rather than fetching each row
-// by id, because oedb has no batch-by-ids endpoint: refreshing 873 rows one at a
-// time would be 873 requests against a 60/minute limit, or about a quarter hour.
+// RefreshCached is the scheduled catalog pass run on demand: it imports every upstream
+// exercise in English and re-reads every held one in each other language. The int is
+// the number of exercises the English pass recorded.
 func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
-	return s.refresh(ctx, defaultLocale)
+	return s.syncCatalog(ctx)
 }
 
-// refresh re-reads every held row in one language. English comes from the bulk
-// export; any other language is read by id in oedb's batch size, because the export
-// is English-only and a list call is the only way to ask for a translation. One code
-// path serves every language, so adding a locale needs no new fetching logic.
+// refresh brings one language up to date. English imports every exercise in the bulk
+// export, oedb.MaxPerPage rows per transaction so a pass never holds the single
+// connection for long. Any other language re-reads every held row by id in oedb's
+// batch size, because the export is English-only and a list call is the only way to
+// ask for a translation.
 //
 // It stops at the first failed batch and reports how many rows it did apply: the
 // rows written so far are valid, and the caller decides whether a partial pass counts.
@@ -608,27 +602,25 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 	}
 	cat := s.catalog.Revalidating()
 
-	held, err := s.cachedOedbIDs()
-	if err != nil {
-		return 0, err
-	}
-	if len(held) == 0 {
-		return 0, nil
-	}
-
 	if servedInEnglish(locale) {
 		items, err := cat.Export(ctx)
 		if err != nil {
 			return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
-		keep := items[:0]
-		for _, it := range items {
-			if held[it.ID] {
-				keep = append(keep, it)
+		done := 0
+		for start := 0; start < len(items); start += oedb.MaxPerPage {
+			out, err := s.Materialize(items[start:min(start+oedb.MaxPerPage, len(items))], s.catalog.BaseURL(), defaultLocale)
+			if err != nil {
+				return done, err
 			}
+			done += len(out)
 		}
-		out, err := s.Materialize(keep, s.catalog.BaseURL(), defaultLocale)
-		return len(out), err
+		return done, nil
+	}
+
+	held, err := s.cachedOedbIDs()
+	if err != nil {
+		return 0, err
 	}
 
 	ids := make([]string, 0, len(held))
@@ -670,29 +662,10 @@ func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
 	return held, rows.Err()
 }
 
-// ClearUnreferenced drops cached rows no workout or program points at, returning
-// how many went.
-//
-// Referenced rows are left alone rather than the whole table being emptied:
-// workout_exercises and program_exercises FK into exercises(id) with no cascade,
-// so deleting a referenced row is (correctly) refused by SQLite and would take a
-// user's logged history with it if it were not.
-func (s *ExerciseStore) ClearUnreferenced() (int, error) {
-	res, err := s.db.Exec(`DELETE FROM exercises
-		WHERE id NOT IN (SELECT exercise_id FROM workout_exercises)
-		  AND id NOT IN (SELECT exercise_id FROM program_exercises)`)
-	if err != nil {
-		return 0, err
-	}
-	n, err := res.RowsAffected()
-	return int(n), err
-}
-
 // PrimeQuery materializes whatever the catalog returns for one search term.
 //
 // This is how a caller that needs specific exercises to exist locally — demo data
-// building a routine, say — gets them, without anything importing the catalog
-// wholesale.
+// building a routine, say — gets them, so it does not wait for the scheduled pass.
 func (s *ExerciseStore) PrimeQuery(ctx context.Context, query string) error {
 	if s.catalog == nil {
 		return ErrNoCatalog

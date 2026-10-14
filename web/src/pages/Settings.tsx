@@ -98,7 +98,7 @@ export default function Settings() {
   const [unitError, setUnitError] = useState<UiMessage | null>(null)
 
   const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
-  const [seedAction, setSeedAction] = useState<'refresh' | 'clear' | null>(null)
+  const [seedAction, setSeedAction] = useState<'refresh' | null>(null)
   // Carries whether it FAILED, not just what it said. Both outcomes used to land in
   // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
   // right now." were the same small grey text — a failure that does not read as one.
@@ -154,8 +154,8 @@ export default function Settings() {
     loadCacheStatus()
   }, [load, loadCacheStatus])
 
-  // No polling: nothing populates the cache in the background any more. It fills as
-  // a side-effect of reads, and these two actions are synchronous.
+  // No polling: the count is a snapshot, the server's daily pass fills the table on its
+  // own schedule, and Refresh runs that pass synchronously.
 
   const handleRefreshCache = async () => {
     setSeedAction('refresh')
@@ -166,20 +166,6 @@ export default function Settings() {
       loadCacheStatus()
     } catch (err: any) {
       setSeedMsg({ message: { key: 'settings.library.refreshFailed', cause: err }, failed: true })
-    } finally {
-      setSeedAction(null)
-    }
-  }
-
-  const handleClearCache = async () => {
-    setSeedAction('clear')
-    setSeedMsg(null)
-    try {
-      const res = await exerciseAPI.clearCacheOnServer()
-      setSeedMsg({ message: { key: 'settings.library.cleared', params: { count: res.cleared, amount: res.cleared.toLocaleString() } }, failed: false })
-      loadCacheStatus()
-    } catch (err) {
-      setSeedMsg({ message: { key: 'settings.library.clearFailed', cause: err }, failed: true })
     } finally {
       setSeedAction(null)
     }
@@ -611,16 +597,6 @@ export default function Settings() {
             {seedAction === 'refresh'
               ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.library.refreshing')}</>
               : <><RefreshCw className="w-3.5 h-3.5" /> {t('settings.library.refresh')}</>
-            }
-          </button>
-          <button
-            onClick={handleClearCache}
-            disabled={!!seedAction}
-            className="btn-secondary btn-sm"
-          >
-            {seedAction === 'clear'
-              ? <><Loader className="w-3.5 h-3.5 animate-spin" /> {t('settings.library.clearing')}</>
-              : <><Trash2 className="w-3.5 h-3.5" /> {t('settings.library.clear')}</>
             }
           </button>
         </div>

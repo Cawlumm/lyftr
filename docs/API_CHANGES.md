@@ -14,6 +14,19 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `POST /api/v1/admin/reset-exercises` removed; `POST /api/v1/admin/sync-exercises` imports the whole catalog
+
+`reset-exercises` no longer exists and answers 404, so a caller using it to drop unreferenced
+rows has nothing to call: the server now keeps the whole catalog. A background pass at boot
+and every 24h, retried with backoff on failure, imports every open-exercise-db exercise in
+English, then translations for every held exercise in each catalog language.
+
+`sync-exercises` runs that same pass on demand. It now fills an empty install, `refreshed`
+is the number of exercises the English pass recorded, and it covers every language, so it
+takes longer. A pass that fails partway keeps what it wrote and answers 503
+`EXERCISE_CATALOG_UNREACHABLE` (upstream) or a database error code. `GET
+/admin/seed-status` `count` is the whole catalog once a pass has completed.
+
 ## Every error response — gains a stable `code` beside `error`
 
 Additive: `error` is byte-identical to before and still authoritative for any caller that

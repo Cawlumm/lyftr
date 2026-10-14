@@ -94,7 +94,6 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		// Admin
 		protected.POST("admin/sync-exercises", h.RefreshExerciseCache)
 		protected.GET("admin/seed-status", h.ExerciseCacheStatus)
-		protected.POST("admin/reset-exercises", h.ClearExerciseCache)
 	}
 }
 

@@ -187,8 +187,8 @@ func alterMigrations() {
 	// from text oedb served in English, so there is nothing to backfill. Every other
 	// language lives here, one row per (exercise, locale), and a reader falls through to
 	// the base row field by field (stores.translationJoin). The cascade is required, not
-	// tidy: ClearUnreferenced deletes exercises with foreign keys on, and a single
-	// translation row without it would make that delete fail.
+	// tidy: deleting an exercise with foreign keys on would otherwise fail on its first
+	// translation row.
 	if _, err := DB.Exec(`
 		CREATE TABLE IF NOT EXISTS exercise_translations (
 		  id          INTEGER PRIMARY KEY AUTOINCREMENT,

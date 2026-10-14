@@ -172,7 +172,7 @@
       "title": "Biblioteca de ejercicios",
       "database": {
         "label": "Base de datos de ejercicios",
-        "description": "Los ejercicios vienen de open-exercise-db y se consultan mientras buscas. Este servidor guarda una copia de los que ha mostrado."
+        "description": "Los ejercicios vienen de open-exercise-db. Este servidor guarda una copia de todo el catálogo y la actualiza cada día."
       },
       "cached_one": "{{amount}} en caché",
       "cached_many": "{{amount}} en caché",
@@ -181,15 +181,9 @@
       "refreshed_one": "Se actualizó {{amount}} ejercicio",
       "refreshed_many": "Se actualizaron {{amount}} de ejercicios",
       "refreshed_other": "Se actualizaron {{amount}} ejercicios",
-      "cleared_one": "Se eliminó {{amount}} ejercicio sin usar",
-      "cleared_many": "Se eliminaron {{amount}} de ejercicios sin usar",
-      "cleared_other": "Se eliminaron {{amount}} ejercicios sin usar",
       "refresh": "Actualizar caché",
       "refreshing": "Actualizando…",
-      "refreshFailed": "No se pudo actualizar la caché.",
-      "clear": "Eliminar no usados",
-      "clearing": "Eliminando…",
-      "clearFailed": "No se pudo borrar la caché."
+      "refreshFailed": "No se pudo actualizar la caché."
     },
     "danger": {
       "title": "Zona de peligro",
