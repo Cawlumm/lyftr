@@ -217,32 +217,39 @@ func TestMaterialize_OnlyReplacesItsOwnLocales(t *testing.T) {
 	}
 }
 
-func TestMaterialize_RefusesNonEnglishBaseInsert(t *testing.T) {
+func TestMaterialize_SkipsTranslatedItemWithNoEnglishBase(t *testing.T) {
 	conn := testDB(t)
 	s := NewExerciseStore(conn)
 
-	_, err := s.Materialize([]oedb.Exercise{spanishSquat()}, imageBase, "es")
-	if err == nil {
-		t.Fatal("a translated item with no English base row was accepted")
+	out, err := s.Materialize([]oedb.Exercise{spanishSquat()}, imageBase, "es")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	if len(out) != 0 {
+		t.Errorf("returned %d rows, want the translated item left out", len(out))
 	}
 	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 0 {
-		t.Errorf("exercises = %d, want nothing written", n)
+		t.Errorf("exercises = %d, want no English base invented from Spanish text", n)
 	}
 	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercise_translations`); n != 0 {
 		t.Errorf("translations = %d, want nothing written", n)
 	}
 }
 
-func TestMaterialize_RefusalRollsBackTheWholeBatch(t *testing.T) {
+func TestMaterialize_SkippedTranslatedItemKeepsTheRestOfTheBatch(t *testing.T) {
 	conn := testDB(t)
 	s := NewExerciseStore(conn)
 
 	other := served("uuid-2", "Deadlift", "en", []string{"Lift."}, "en")
-	if _, err := s.Materialize([]oedb.Exercise{other, spanishSquat()}, imageBase, "es"); err == nil {
-		t.Fatal("expected the batch to fail")
+	out, err := s.Materialize([]oedb.Exercise{other, spanishSquat()}, imageBase, "es")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
 	}
-	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 0 {
-		t.Errorf("exercises = %d, want the English item rolled back with the batch", n)
+	if len(out) != 1 || out[0].Name != "Deadlift" {
+		t.Errorf("returned %+v, want only Deadlift", out)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 1 {
+		t.Errorf("exercises = %d, want 1", n)
 	}
 }
 
