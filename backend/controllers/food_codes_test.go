@@ -250,8 +250,19 @@ func TestRefreshExerciseCache_secondCallWhileRunningIs409(t *testing.T) {
 	}()
 	<-started
 
-	c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
-	th.RefreshExerciseCache(c)
+	second := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
+		th.RefreshExerciseCache(c)
+		second <- w
+	}()
+	var w *httptest.ResponseRecorder
+	select {
+	case w = <-second:
+	case <-time.After(5 * time.Second):
+		close(release)
+		t.Fatal("the second sync blocked instead of being refused")
+	}
 	wantCode(t, w, http.StatusConflict, "EXERCISE_SYNC_RUNNING", "An exercise sync is already running. Try again when it finishes.")
 
 	close(release)
