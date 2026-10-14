@@ -94,3 +94,29 @@ describe('useServerList — a page that never arrived', () => {
     await waitFor(() => expect(result.current.error).toBe('Database is locked'))
   })
 })
+
+describe('useServerList — a change of deps', () => {
+  it('is not settled on the render that sees the new deps', async () => {
+    const fetcher = jest.fn().mockResolvedValue([])
+    const seen: boolean[] = []
+
+    const { result, rerender } = renderHook(
+      ({ q }: { q: string }) => {
+        const list = useServerList<number>({ fetcher, pageSize: 2, deps: [q] })
+        seen.push(list.hasMore)
+        return list
+      },
+      { initialProps: { q: 'zzz' } },
+    )
+
+    await waitFor(() => expect(result.current.hasMore).toBe(false))
+    seen.length = 0
+
+    rerender({ q: '' })
+
+    // The first render after the change must already say "not settled"; the reset
+    // effect that sets the state itself runs only after it.
+    expect(seen[0]).toBe(true)
+    await waitFor(() => expect(result.current.hasMore).toBe(false))
+  })
+})

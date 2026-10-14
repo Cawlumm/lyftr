@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Search } from 'lucide-react-native'
-import { useTranslation, type Exercise } from '@lyftr/shared'
-import { AppText, ErrorState, IconButton } from '../ui'
+import { ArrowLeft, Dumbbell, Search } from 'lucide-react-native'
+import { exerciseCatalogEmpty, useTranslation, type Exercise } from '@lyftr/shared'
+import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
@@ -81,7 +81,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   )
 
   const {
-    items: exercises, loadMore, hasMore, initialLoading, error: listError, retry: retryList,
+    items: exercises, loadMore, hasMore, loading, initialLoading, error: listError, retry: retryList, reload,
   } = useServerInfiniteList<Exercise>({
     fetcher,
     pageSize: PAGE_SIZE,
@@ -161,6 +161,21 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               // it reads as an empty catalogue rather than a connection that dropped.
               listError ? (
                 <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
+              ) : exerciseCatalogEmpty(debouncedQuery, { items: exercises, hasMore, error: listError }) ? (
+                <EmptyState
+                  compact
+                  icon={Dumbbell}
+                  title={t('exercises.picker.catalogEmpty.title')}
+                  subtitle={t('exercises.picker.catalogEmpty.body')}
+                  action={
+                    <Button
+                      variant="secondary"
+                      title={loading ? t('common.retrying') : t('common.tryAgain')}
+                      onPress={() => { void reload() }}
+                      loading={loading}
+                    />
+                  }
+                />
               ) : (
                 <View className="items-center py-16">
                   <AppText variant="body" color="muted">{t('exercises.picker.empty')}</AppText>

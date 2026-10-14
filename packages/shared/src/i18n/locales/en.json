@@ -1261,6 +1261,7 @@
       "triceps": "triceps"
     },
     "picker": {
+      "catalogEmpty": { "title": "The exercise library is still loading", "body": "Try again in a moment." },
       "title": "Add Exercise",
       "loaded_one": "{{count}} loaded",
       "loaded_other": "{{count}} loaded",

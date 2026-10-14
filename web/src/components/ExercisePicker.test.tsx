@@ -157,4 +157,60 @@ describe('ExercisePicker', () => {
     expect(screen.getByText('Barra')).toBeTruthy()
     expect(screen.getByPlaceholderText('Buscar ejercicios…')).toBeTruthy()
   })
+
+  it('says the library is still loading when an unfiltered list comes back empty', async () => {
+    listMock.mockResolvedValue([])
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+
+    expect(await screen.findByText('The exercise library is still loading')).toBeTruthy()
+    expect(screen.getByText('Try again in a moment.')).toBeTruthy()
+    expect(screen.queryByText(/no exercises found/i)).toBeNull()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('Try again on an empty library re-requests and shows what arrives', async () => {
+    let release: (v: types.Exercise[]) => void = () => {}
+    listMock
+      .mockResolvedValueOnce([])
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /try again/i }))
+
+    const retrying = await screen.findByRole('button', { name: /retrying/i })
+    expect((retrying as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('The exercise library is still loading')).toBeTruthy()
+    expect(screen.queryByText(/no exercises found/i)).toBeNull()
+
+    await act(async () => { release([exercise(1, 'Barbell Squat')]) })
+
+    expect(await screen.findByText('Barbell Squat')).toBeTruthy()
+    expect(screen.queryByText('The exercise library is still loading')).toBeNull()
+    const last = listMock.mock.calls[listMock.mock.calls.length - 1][0]
+    expect(last.page).toBe(1)
+    expect(last).not.toHaveProperty('q')
+  })
+
+  it('a search with no matches keeps No exercises found', async () => {
+    listMock.mockImplementation((params?: ListParams) =>
+      Promise.resolve(params?.q || params?.page !== 1 ? [] : fullPage('Exercise')))
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+    await screen.findByText('Exercise 1')
+
+    fireEvent.change(screen.getByPlaceholderText(/search exercises/i), { target: { value: 'zzz' } })
+
+    expect(await screen.findByText('No exercises found')).toBeTruthy()
+    expect(screen.queryByText('The exercise library is still loading')).toBeNull()
+  })
+
+  it('the empty-library state follows a switch to Spanish (es)', async () => {
+    listMock.mockResolvedValue([])
+    render(<ExercisePicker selectedIds={[]} onSelect={() => {}} onClose={() => {}} />)
+    await screen.findByText('The exercise library is still loading')
+
+    await act(async () => { await i18n.changeLanguage('es') })
+
+    expect(screen.getByText('La biblioteca de ejercicios todavía se está cargando')).toBeTruthy()
+    expect(screen.getByText('Intentar de nuevo')).toBeTruthy()
+  })
 })

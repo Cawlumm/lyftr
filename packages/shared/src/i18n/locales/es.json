@@ -1274,6 +1274,7 @@
       "triceps": "tríceps"
     },
     "picker": {
+      "catalogEmpty": { "title": "La biblioteca de ejercicios todavía se está cargando", "body": "Inténtalo de nuevo en un momento." },
       "title": "Agregar ejercicio",
       "loaded_one": "{{count}} cargado",
       "loaded_other": "{{count}} cargados",

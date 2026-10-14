@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { categoryLabel, equipmentLabel, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { categoryLabel, equipmentLabel, exerciseCatalogEmpty, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -111,5 +111,29 @@ describe('categoryLabel', () => {
     expect(categoryLabel('olympic-weightlifting')).toBe('halterofilia')
     expect(categoryLabel('olympic weightlifting')).toBe('halterofilia')
     expect(categoryLabel('flexibility')).toBe('flexibility')
+  })
+})
+
+describe('exerciseCatalogEmpty (locale-independent)', () => {
+  const settled = { items: [], hasMore: false, error: null }
+
+  it('is true for an unfiltered page that settled empty', () => {
+    expect(exerciseCatalogEmpty('', settled)).toBe(true)
+  })
+
+  it('is false for a search that matched nothing', () => {
+    expect(exerciseCatalogEmpty('squat', settled)).toBe(false)
+  })
+
+  it('is false while a page is still expected', () => {
+    expect(exerciseCatalogEmpty('', { ...settled, hasMore: true })).toBe(false)
+  })
+
+  it('is false after a failure', () => {
+    expect(exerciseCatalogEmpty('', { ...settled, error: 'offline' })).toBe(false)
+  })
+
+  it('is false when rows arrived', () => {
+    expect(exerciseCatalogEmpty('', { ...settled, items: [{ id: 1 }] })).toBe(false)
   })
 })

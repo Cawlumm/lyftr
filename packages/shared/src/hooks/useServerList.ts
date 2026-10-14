@@ -80,6 +80,7 @@ export function useServerList<T>({
   // ignored, so a slow request for an old query (e.g. "a") can't overwrite the results
   // of a newer one ("ab") when they resolve out of order — the classic search race.
   const reqIdRef = useRef(0)
+  const appliedDepsRef = useRef(deps)
 
   const fetchPage = useCallback(async (currentOffset: number, replace: boolean) => {
     if (fetchingRef.current) return
@@ -136,6 +137,7 @@ export function useServerList<T>({
   // revalidate) so the list/summary never flash to empty. `refreshing` drives the
   // screen's "searching" cue over the stale list; it clears when the fetch settles.
   useEffect(() => {
+    appliedDepsRef.current = deps
     offsetRef.current = 0
     setHasMore(true)
     setFailure(null)
@@ -164,12 +166,18 @@ export function useServerList<T>({
     fetchPage(offsetRef.current, offsetRef.current === 0)
   }, [fetchPage])
 
+  // The reset above runs after the render that saw the new deps, so that one render
+  // still carries the previous query's hasMore. A caller reading "settled" from it
+  // would answer for a query nobody asked any more; a change of deps means unsettled.
+  const depsPending = deps.length !== appliedDepsRef.current.length
+    || deps.some((d, i) => !Object.is(d, appliedDepsRef.current[i]))
+
   const error = failure === null ? null
     : 'cause' in failure ? apiErrorMessage(failure.cause, errorFallback ?? t('errors.list.loadFailed'))
       : t('errors.list.unreadable')
 
   return {
-    items, loadMore, hasMore, loading,
+    items, loadMore, hasMore: hasMore || depsPending, loading,
     initialLoading: loading && !initializedRef.current,
     refreshing, reload, error, retry,
   }
