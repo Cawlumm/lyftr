@@ -343,3 +343,46 @@ func TestExerciseCacheStatus_afterSuccessfulRefresh(t *testing.T) {
 		t.Errorf("last_synced_at = %q, want RFC3339 UTC", at)
 	}
 }
+
+// An exercise removed upstream leaves the picker feed but stays a valid reference: the
+// FK is satisfied, so history renders and it can still be logged.
+func TestExercises_RemovedUpstreamHiddenFromListButResolvable(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	wid, exID := seedSpanishSquat(t, uid)
+	if _, err := db.DB.Exec(`UPDATE exercises SET oedb_id = 'uuid-1', upstream_missing_at = CURRENT_TIMESTAMP WHERE id = ?`, exID); err != nil {
+		t.Fatal(err)
+	}
+
+	c, w := newContext(uid, http.MethodGet, "/api/v1/exercises?q=squat", nil)
+	th.ListExercises(c)
+	if list := decodeResponse(t, w)["data"].([]any); len(list) != 0 {
+		t.Errorf("list = %v, want the removed exercise left out", list)
+	}
+
+	c, w = newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/exercises/%d", exID), nil)
+	setParam(c, "id", fmt.Sprintf("%d", exID))
+	th.GetExercise(c)
+	if w.Code != http.StatusOK || decodeResponse(t, w)["data"].(map[string]any)["name"] != "Squat" {
+		t.Errorf("GetExercise = %d %s, want 200 Squat", w.Code, w.Body.String())
+	}
+
+	c, w = newContext(uid, http.MethodGet, fmt.Sprintf("/api/v1/workouts/%d", wid), nil)
+	setParam(c, "id", fmt.Sprintf("%d", wid))
+	th.GetWorkout(c)
+	data := decodeResponse(t, w)["data"].(map[string]any)
+	ex := data["exercises"].([]any)[0].(map[string]any)["exercise"].(map[string]any)
+	if ex["name"] != "Squat" {
+		t.Errorf("workout exercise = %v, want it still joined by name", ex)
+	}
+
+	body := map[string]any{
+		"name":      "Again",
+		"exercises": []map[string]any{{"exercise_id": exID, "sets": []map[string]any{{"set_number": 1, "reps": 5, "weight": 100.0}}}},
+	}
+	c, w = newContext(uid, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+	if w.Code != http.StatusCreated {
+		t.Errorf("logging a removed exercise = %d %s, want 201", w.Code, w.Body.String())
+	}
+}

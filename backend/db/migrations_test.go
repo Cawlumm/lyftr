@@ -980,3 +980,51 @@ func TestUpgrade_ExerciseTranslationsOnExistingData(t *testing.T) {
 		t.Fatal("an unknown origin was accepted")
 	}
 }
+
+// upstream_missing_at is a nullable column on a table that workouts and routines FK
+// into, so adding it must change no row and must be safe to run on every boot.
+func TestUpgrade_ExerciseUpstreamMissingAt(t *testing.T) {
+	setupMigrationTestDB(t)
+	alterMigrations()
+	// The previous release's schema: everything but the new column.
+	if _, err := DB.Exec(`ALTER TABLE exercises DROP COLUMN upstream_missing_at`); err != nil {
+		t.Fatalf("recreate the old schema: %v", err)
+	}
+	if has, _ := hasColumn("exercises", "upstream_missing_at"); has {
+		t.Fatal("the old schema must not have the column")
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (id, name, description, oedb_id) VALUES (1, 'Upstream Row', 'desc', 'uuid-1'), (2, 'Legacy Row', 'old', NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO users (id, email, password_hash) VALUES (1, 'u@example.com', 'x')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workouts (id, user_id, name, started_at) VALUES (1, 1, 'W', '2026-01-01 00:00:00')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (1, 1, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	alterMigrations()
+	alterMigrations()
+
+	if has, err := hasColumn("exercises", "upstream_missing_at"); err != nil || !has {
+		t.Fatalf("hasColumn = %v, %v, want the column added", has, err)
+	}
+	if n := countRow(t, `SELECT COUNT(*) FROM exercises WHERE upstream_missing_at IS NULL`); n != 2 {
+		t.Errorf("rows with a NULL mark = %d, want 2", n)
+	}
+	if n := countRow(t, `SELECT COUNT(*) FROM exercises WHERE (id = 1 AND name = 'Upstream Row' AND description = 'desc' AND oedb_id = 'uuid-1') OR (id = 2 AND name = 'Legacy Row' AND description = 'old' AND oedb_id IS NULL)`); n != 2 {
+		t.Errorf("migrated rows = %d, want both unchanged", n)
+	}
+	if n := countRow(t, `SELECT COUNT(*) FROM workout_exercises we JOIN exercises e ON e.id = we.exercise_id`); n != 1 {
+		t.Errorf("joined references = %d, want 1", n)
+	}
+
+	setupMigrationTestDB(t)
+	alterMigrations()
+	if has, _ := hasColumn("exercises", "upstream_missing_at"); !has {
+		t.Error("a fresh database must have the column")
+	}
+}
