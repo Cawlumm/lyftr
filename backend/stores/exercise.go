@@ -738,6 +738,9 @@ func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise) error {
 	}
 	if n, _ := res.RowsAffected(); n > 0 {
 		log.Printf("exercises: %d exercises no longer in the upstream catalog; hidden from search, kept for history", n)
+		// A cached search answer still lists them, and recording it would un-hide them
+		// until the next pass.
+		s.catalog.DropCache()
 	}
 	return nil
 }

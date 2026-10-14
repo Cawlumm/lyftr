@@ -723,3 +723,30 @@ func TestGet_304ForAnEvictedEntryRefetchesTheBody(t *testing.T) {
 		t.Errorf("calls = %d, want 3 (initial, conditional, refetch)", n)
 	}
 }
+
+func TestDropCache_NextReadAsksAgain(t *testing.T) {
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		w.Header().Set("Cache-Control", "max-age=900")
+		fmt.Fprint(w, listBody("Bench"))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test")
+	for i := 0; i < 2; i++ {
+		if _, err := c.get(context.Background(), "/x"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if n := atomic.LoadInt32(&calls); n != 1 {
+		t.Fatalf("calls before the drop = %d, want 1 (second read from cache)", n)
+	}
+	c.Revalidating().DropCache()
+	if _, err := c.get(context.Background(), "/x"); err != nil {
+		t.Fatal(err)
+	}
+	if n := atomic.LoadInt32(&calls); n != 2 {
+		t.Errorf("calls after the drop = %d, want 2 (a view shares the cache it drops)", n)
+	}
+}
