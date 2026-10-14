@@ -298,3 +298,11 @@ somebody will see the change.
   base language and then to English. With no `locale`, or a malformed one, responses are
   unchanged: English, status `200`. Local search also matches translated names in that
   locale.
+  At startup and every 24 hours after, the instance re-reads every exercise it already holds
+  in every language the catalog lists at oedb's `/api/v1/meta/locales`, English included:
+  English through one export request, every other language with one request per 100
+  exercises. That is how workout and program history follow a language switch and how
+  upstream corrections arrive. No request triggers this pass or waits for it, and it adds no
+  exercises the instance did not already hold. If the catalog cannot be reached, the pass is
+  retried at the next interval and responses are served from what is already held. Nothing
+  changes for an instance with no catalog configured.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -113,9 +114,13 @@ func main() {
 	s := stores.New(db.DB)
 	s.Exercise.UseCatalog(oedb.New(config.C.OEDBBaseURL, config.Version()))
 
-	if config.C.DemoMode {
-		go seed.DemoData(db.DB, s.Exercise)
-	}
+	// The demo's exercises are primed first so the boot pass translates them too.
+	go func() {
+		if config.C.DemoMode {
+			seed.DemoData(db.DB, s.Exercise)
+		}
+		s.Exercise.RunCatalogSync(context.Background(), stores.CatalogSyncInterval)
+	}()
 
 	if config.C.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
