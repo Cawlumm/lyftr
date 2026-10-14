@@ -4,8 +4,9 @@
 // Lyftr queries oedb rather than mirroring it. The local exercises table still
 // exists, but as the rows a user has actually seen — see
 // stores.ExerciseStore.Materialize — which a daily pass keeps current in every
-// catalog language, and not as a copy of the catalog. Search, filtering and ordering are answered upstream, so the
-// data Lyftr shows improves when oedb improves, without a redeploy.
+// catalog language, and not as a copy of the catalog. Search, filtering and
+// ordering are answered upstream, so the data Lyftr shows improves when oedb
+// improves, without a redeploy.
 //
 // The cache here is what makes that affordable. oedb serves list and detail reads
 // with `Cache-Control: public, max-age=300, stale-while-revalidate=86400` plus an
