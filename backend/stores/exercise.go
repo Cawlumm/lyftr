@@ -531,6 +531,10 @@ var errNoCatalog = errors.New("This server has no exercise catalog configured.")
 // no upstream configured.
 var ErrNoCatalog = errors.New("This server has no exercise catalog configured.")
 
+// ErrCatalogUnreachable marks a refresh that failed reading the upstream catalog, so a
+// caller can tell an oedb outage from a local database failure.
+var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
+
 // CachedCount reports how many catalog rows this instance currently holds.
 //
 // Lyftr does not maintain a copy of the catalog, so this is not "how big is the
@@ -579,7 +583,7 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 	if servedInEnglish(locale) {
 		items, err := cat.Export(ctx)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
 		keep := items[:0]
 		for _, it := range items {
@@ -602,7 +606,7 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 		end := min(start+oedb.MaxPerPage, len(ids))
 		res, err := cat.List(ctx, oedb.ListParams{IDs: ids[start:end], Locale: locale, PerPage: oedb.MaxPerPage})
 		if err != nil {
-			return done, err
+			return done, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
 		out, err := s.Materialize(res.Exercises, s.catalog.BaseURL(), locale)
 		if err != nil {

@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"strconv"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -112,8 +113,12 @@ func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 		utils.Fail(c, utils.CodeNoExerciseCatalog, nil)
 		return
 	}
-	if err != nil {
-		utils.BindError(c, err)
+	if errors.Is(err, stores.ErrCatalogUnreachable) {
+		log.Printf("exercises: refresh could not reach the catalog: %v", err)
+		utils.Fail(c, utils.CodeCatalogUnreachable, nil)
+		return
+	}
+	if utils.DBError(c, err) {
 		return
 	}
 	utils.OK(c, gin.H{"refreshed": n})

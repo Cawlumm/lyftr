@@ -364,6 +364,7 @@
         "FOOD_SEARCH_UNAVAILABLE": "La búsqueda de alimentos no está disponible por ahora.",
         "BARCODE_LOOKUP_UNAVAILABLE": "La búsqueda por código de barras no está disponible por ahora.",
         "NO_EXERCISE_CATALOG": "Este servidor no tiene un catálogo de ejercicios configurado.",
+        "EXERCISE_CATALOG_UNREACHABLE": "No se pudo conectar con el catálogo de ejercicios.",
         "DISPLAY_NAME_CONTROL_CHARS": "Un nombre no puede contener saltos de línea ni otros caracteres de control.",
         "TIMEZONE_EMPTY": "La zona horaria no puede estar vacía.",
         "UNKNOWN_TIMEZONE": "Zona horaria desconocida: {{timezone}}.",
