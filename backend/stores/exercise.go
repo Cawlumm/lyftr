@@ -9,6 +9,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -22,6 +23,9 @@ import (
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
+	// syncing is held for the length of a catalog pass, so the daily timer and the
+	// admin endpoint can never run two imports against the one SQLite connection.
+	syncing atomic.Bool
 }
 
 func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db} }
@@ -570,6 +574,9 @@ var ErrNoCatalog = errors.New("This server has no exercise catalog configured.")
 // ErrCatalogUnreachable marks a refresh that failed reading the upstream catalog, so a
 // caller can tell an oedb outage from a local database failure.
 var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
+
+// ErrSyncRunning is returned when a catalog pass is already in progress.
+var ErrSyncRunning = errors.New("exercise sync already running")
 
 // CachedCount reports how many catalog rows this instance currently holds.
 //

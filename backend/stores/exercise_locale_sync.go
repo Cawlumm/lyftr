@@ -62,6 +62,10 @@ func (s *ExerciseStore) syncCatalog(ctx context.Context) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
+	if !s.syncing.CompareAndSwap(false, true) {
+		return 0, ErrSyncRunning
+	}
+	defer s.syncing.Store(false)
 	dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
 	codes, err := s.catalog.Revalidating().Locales(dctx)
 	cancel()

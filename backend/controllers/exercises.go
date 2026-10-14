@@ -110,6 +110,10 @@ func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 		utils.Fail(c, utils.CodeNoExerciseCatalog, nil)
 		return
 	}
+	if errors.Is(err, stores.ErrSyncRunning) {
+		utils.Fail(c, utils.CodeExerciseSyncRunning, nil)
+		return
+	}
 	if errors.Is(err, stores.ErrCatalogUnreachable) {
 		log.Printf("exercises: refresh could not reach the catalog: %v", err)
 		utils.Fail(c, utils.CodeCatalogUnreachable, nil)

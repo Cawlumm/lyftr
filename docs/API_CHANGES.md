@@ -23,7 +23,7 @@ English, then translations for every held exercise in each catalog language.
 
 `sync-exercises` runs that same pass on demand. It now fills an empty install, `refreshed`
 is the number of exercises the English pass recorded, and it covers every language, so it
-takes longer. A pass that fails partway keeps what it wrote and answers 503
+takes longer, and answers 409 `EXERCISE_SYNC_RUNNING` if a pass (this call or the daily one) is already running. A pass that fails partway keeps what it wrote and answers 503
 `EXERCISE_CATALOG_UNREACHABLE` (upstream) or a database error code. `GET
 /admin/seed-status` `count` is the whole catalog once a pass has completed.
 

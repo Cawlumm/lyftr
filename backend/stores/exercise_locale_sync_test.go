@@ -671,3 +671,25 @@ func TestSyncCatalog_LocaleDiscoveryHasADeadline(t *testing.T) {
 		t.Errorf("non-English translations = %d, want 0", got)
 	}
 }
+
+func TestSyncCatalog_RefusesASecondPassWhileOneRuns(t *testing.T) {
+	s, cat := syncStore(t, 3, "es")
+	before := len(cat.snapshot())
+	s.syncing.Store(true)
+
+	_, err := s.syncCatalog(context.Background())
+	if !errors.Is(err, ErrSyncRunning) {
+		t.Fatalf("err = %v, want ErrSyncRunning", err)
+	}
+	if n := len(cat.snapshot()) - before; n != 0 {
+		t.Errorf("a refused pass made %d upstream requests, want none", n)
+	}
+
+	s.syncing.Store(false)
+	if _, err := s.syncCatalog(context.Background()); err != nil {
+		t.Fatalf("pass after the flag cleared: %v", err)
+	}
+	if s.syncing.Load() {
+		t.Error("the flag was left held after a pass")
+	}
+}
