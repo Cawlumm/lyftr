@@ -594,3 +594,132 @@ func TestLocales_BoundedAgainstHostileLists(t *testing.T) {
 		})
 	}
 }
+
+// The search box makes cache keys user-controlled, so the cache has to stay bounded
+// however many distinct queries are made.
+func TestStore_BoundsTheCache(t *testing.T) {
+	now := time.Now()
+	live := func(left time.Duration) *entry { return &entry{staleFor: now.Add(left)} }
+	fill := func(c *Client, left func(i int) time.Duration) {
+		for i := 0; i < maxCacheEntries; i++ {
+			c.cache[fmt.Sprintf("/p%d", i)] = live(left(i))
+		}
+	}
+
+	t.Run("below the cap nothing is evicted", func(t *testing.T) {
+		c := New("", "test")
+		c.store("/a", live(time.Minute), now)
+		c.store("/b", live(time.Minute), now)
+		if len(c.cache) != 2 {
+			t.Errorf("len = %d, want 2", len(c.cache))
+		}
+	})
+
+	t.Run("expired entries go first", func(t *testing.T) {
+		c := New("", "test")
+		fill(c, func(i int) time.Duration {
+			if i < 10 {
+				return -time.Second
+			}
+			return time.Hour
+		})
+		c.store("/new", live(time.Minute), now)
+		if len(c.cache) != maxCacheEntries-10+1 {
+			t.Errorf("len = %d, want the 10 expired entries swept and one added", len(c.cache))
+		}
+		if _, ok := c.cache["/p0"]; ok {
+			t.Error("an expired entry survived")
+		}
+		if _, ok := c.cache["/p10"]; !ok {
+			t.Error("a live entry was swept")
+		}
+	})
+
+	t.Run("with none expired the soonest to expire goes", func(t *testing.T) {
+		c := New("", "test")
+		fill(c, func(i int) time.Duration { return time.Duration(i+1) * time.Minute })
+		c.store("/new", live(time.Hour*24), now)
+		if len(c.cache) != maxCacheEntries {
+			t.Fatalf("len = %d, want %d", len(c.cache), maxCacheEntries)
+		}
+		if _, ok := c.cache["/p0"]; ok {
+			t.Error("the soonest-expiring entry survived")
+		}
+		if _, ok := c.cache["/p1"]; !ok {
+			t.Error("a later-expiring entry was evicted")
+		}
+		if _, ok := c.cache["/new"]; !ok {
+			t.Error("the new entry was not stored")
+		}
+	})
+
+	t.Run("replacing a key at the cap evicts nothing", func(t *testing.T) {
+		c := New("", "test")
+		fill(c, func(i int) time.Duration { return time.Hour })
+		c.store("/p5", live(2*time.Hour), now)
+		if len(c.cache) != maxCacheEntries {
+			t.Errorf("len = %d, want %d", len(c.cache), maxCacheEntries)
+		}
+		if _, ok := c.cache["/p0"]; !ok {
+			t.Error("an unrelated entry was evicted by an overwrite")
+		}
+	})
+}
+
+func TestGet_ManyDistinctQueriesStayWithinTheCap(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "max-age=900")
+		fmt.Fprint(w, listBody("Bench"))
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test")
+	for i := 0; i < maxCacheEntries+50; i++ {
+		if _, err := c.get(context.Background(), fmt.Sprintf("/api/v1/exercises?q=%d", i)); err != nil {
+			t.Fatalf("get %d: %v", i, err)
+		}
+	}
+	if len(c.cache) != maxCacheEntries {
+		t.Errorf("cache holds %d entries, want it held at %d", len(c.cache), maxCacheEntries)
+	}
+}
+
+// An entry can be evicted between reading its ETag and the 304 coming back. The read
+// must ask again for the body rather than fail.
+func TestGet_304ForAnEvictedEntryRefetchesTheBody(t *testing.T) {
+	var c *Client
+	var calls int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&calls, 1)
+		if r.Header.Get("If-None-Match") != "" {
+			c.mu.Lock()
+			delete(c.cache, "/x")
+			c.mu.Unlock()
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", `"v1"`)
+		fmt.Fprint(w, listBody("Bench"))
+	}))
+	defer srv.Close()
+
+	c = New(srv.URL, "test")
+	if _, err := c.get(context.Background(), "/x"); err != nil {
+		t.Fatalf("first get: %v", err)
+	}
+	c.mu.Lock()
+	c.cache["/x"].freshFor = time.Now().Add(-time.Hour)
+	c.cache["/x"].staleFor = time.Now().Add(-time.Hour)
+	c.mu.Unlock()
+
+	body, err := c.get(context.Background(), "/x")
+	if err != nil {
+		t.Fatalf("get after eviction: %v", err)
+	}
+	if !strings.Contains(string(body), "Bench") {
+		t.Errorf("body = %q", body)
+	}
+	if n := atomic.LoadInt32(&calls); n != 3 {
+		t.Errorf("calls = %d, want 3 (initial, conditional, refetch)", n)
+	}
+}
