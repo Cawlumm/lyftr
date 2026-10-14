@@ -20,12 +20,9 @@ import (
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
-	sync    *localeSyncer
 }
 
-func NewExerciseStore(db *sql.DB) *ExerciseStore {
-	return &ExerciseStore{db: db, sync: newLocaleSyncer()}
-}
+func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db} }
 
 // ExerciseFilter holds the optional list filters (empty string = no filter).
 type ExerciseFilter struct {

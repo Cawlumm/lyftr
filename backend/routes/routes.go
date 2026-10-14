@@ -34,9 +34,6 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 	// Protected routes
 	protected := api.Group("/")
 	protected.Use(middleware.Auth(h.TokenVersions()))
-	// Every route here answers with exercise names, in the reader's language when
-	// the request names one; the group is what keeps the exercise cache filled for it.
-	localized := protected.Group("", middleware.SyncExerciseLocale(h.ExerciseLocaleSync()))
 	{
 		// User
 		protected.GET("me", h.GetMe)
@@ -47,11 +44,11 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.DELETE("me", h.DeleteAccount)
 
 		// Workouts
-		localized.GET("workouts", h.ListWorkouts)
-		localized.POST("workouts", h.CreateWorkout)
-		localized.GET("workouts/:id", h.GetWorkout)
-		localized.PUT("workouts/:id", h.UpdateWorkout)
-		localized.DELETE("workouts/:id", h.DeleteWorkout)
+		protected.GET("workouts", h.ListWorkouts)
+		protected.POST("workouts", h.CreateWorkout)
+		protected.GET("workouts/:id", h.GetWorkout)
+		protected.PUT("workouts/:id", h.UpdateWorkout)
+		protected.DELETE("workouts/:id", h.DeleteWorkout)
 
 		// Weight
 		protected.GET("weight", h.ListWeightLogs)
@@ -76,10 +73,10 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.DELETE("food/:id", h.DeleteFoodLog)
 
 		// Exercises (read-only for users)
-		localized.GET("exercises", h.ListExercises)
-		localized.GET("exercises/:id", h.GetExercise)
-		localized.GET("exercises/:id/prs", h.GetExercisePRs)
-		localized.GET("exercises/:id/history", h.GetExerciseHistory)
+		protected.GET("exercises", h.ListExercises)
+		protected.GET("exercises/:id", h.GetExercise)
+		protected.GET("exercises/:id/prs", h.GetExercisePRs)
+		protected.GET("exercises/:id/history", h.GetExerciseHistory)
 
 		// Active session
 		protected.GET("active-session", h.GetActiveSession)
@@ -87,12 +84,12 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.DELETE("active-session", h.DeleteActiveSession)
 
 		// Programs
-		localized.GET("programs", h.ListPrograms)
-		localized.POST("programs", h.CreateProgram)
-		localized.GET("programs/:id", h.GetProgram)
-		localized.PUT("programs/:id", h.UpdateProgram)
-		localized.DELETE("programs/:id", h.DeleteProgram)
-		localized.POST("programs/:id/suggestions/resolve", h.ResolveSuggestions)
+		protected.GET("programs", h.ListPrograms)
+		protected.POST("programs", h.CreateProgram)
+		protected.GET("programs/:id", h.GetProgram)
+		protected.PUT("programs/:id", h.UpdateProgram)
+		protected.DELETE("programs/:id", h.DeleteProgram)
+		protected.POST("programs/:id/suggestions/resolve", h.ResolveSuggestions)
 
 		// Admin
 		protected.POST("admin/sync-exercises", h.RefreshExerciseCache)

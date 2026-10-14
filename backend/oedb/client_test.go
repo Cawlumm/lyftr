@@ -404,3 +404,54 @@ func TestTranslation_DecodesServedLocalesAndMachineFlags(t *testing.T) {
 		t.Errorf("decoded %+v", tr)
 	}
 }
+
+func TestLocales_WalksEveryPage(t *testing.T) {
+	var agents []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("per_page") != "100" {
+			t.Errorf("per_page = %q, want 100", r.URL.Query().Get("per_page"))
+		}
+		agents = append(agents, r.UserAgent())
+		w.Header().Set("Cache-Control", "max-age=0")
+		if r.URL.Query().Get("page") == "1" {
+			fmt.Fprint(w, `{"locales":[{"code":"en"},{"code":"es"}],"total":3}`)
+			return
+		}
+		fmt.Fprint(w, `{"locales":[{"code":"pt"}],"total":3}`)
+	}))
+	defer srv.Close()
+
+	got, err := New(srv.URL, "test").Locales(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(got, ",") != "en,es,pt" {
+		t.Errorf("Locales = %v, want [en es pt]", got)
+	}
+	if len(agents) != 2 {
+		t.Fatalf("requests = %d, want 2", len(agents))
+	}
+	for _, ua := range agents {
+		if !strings.Contains(ua, "test") {
+			t.Errorf("User-Agent %q does not identify the client", ua)
+		}
+	}
+}
+
+func TestLocales_PropagatesErrors(t *testing.T) {
+	status := http.StatusInternalServerError
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "x", status)
+	}))
+	defer srv.Close()
+
+	c := New(srv.URL, "test")
+	if _, err := c.Locales(context.Background()); err == nil {
+		t.Error("500: want an error")
+	}
+	status = http.StatusNotFound
+	c = New(srv.URL, "test")
+	if _, err := c.Locales(context.Background()); !errors.Is(err, ErrNotFound) {
+		t.Errorf("404: err = %v, want ErrNotFound", err)
+	}
+}

@@ -2,9 +2,9 @@
 // exercise catalog.
 //
 // Lyftr queries oedb rather than mirroring it. The local exercises table still
-// exists, but as a snapshot of rows a user has actually seen — see
-// stores.ExerciseStore.Materialize — not as a copy of the catalog kept in step by
-// a periodic sync. Search, filtering and ordering are answered upstream, so the
+// exists, but as the rows a user has actually seen — see
+// stores.ExerciseStore.Materialize — which a daily pass keeps current in every
+// catalog language, and not as a copy of the catalog. Search, filtering and ordering are answered upstream, so the
 // data Lyftr shows improves when oedb improves, without a redeploy.
 //
 // The cache here is what makes that affordable. oedb serves list and detail reads
@@ -440,6 +440,30 @@ func cacheWindow(header string) (fresh, stale time.Duration) {
 		}
 	}
 	return fresh, stale
+}
+
+// Locales lists every locale the catalog holds translated content in; oedb always
+// includes en.
+func (c *Client) Locales(ctx context.Context) ([]string, error) {
+	var codes []string
+	for page := 1; ; page++ {
+		var out struct {
+			Locales []struct {
+				Code string `json:"code"`
+			} `json:"locales"`
+			Total int `json:"total"`
+		}
+		path := "/api/v1/meta/locales?page=" + strconv.Itoa(page) + "&per_page=" + strconv.Itoa(MaxPerPage)
+		if err := c.getJSON(ctx, path, &out); err != nil {
+			return nil, err
+		}
+		for _, l := range out.Locales {
+			codes = append(codes, l.Code)
+		}
+		if len(out.Locales) == 0 || len(codes) >= out.Total {
+			return codes, nil
+		}
+	}
 }
 
 // Export fetches the entire published catalog in one request.

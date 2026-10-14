@@ -2,132 +2,86 @@ package stores
 
 import (
 	"context"
-	"database/sql"
-	"errors"
+	"fmt"
 	"log"
-	"sync"
+	"sort"
 	"time"
 )
 
-// localeSyncTTL is how long a language counts as filled before the cache is read
-// again. It bounds how long an upstream correction (a better Spanish name, a fixed
-// step) takes to reach readers, without a request ever waiting on it.
-const localeSyncTTL = 24 * time.Hour
+// CatalogSyncInterval is how long an upstream correction or a new translation takes to
+// reach readers.
+const CatalogSyncInterval = 24 * time.Hour
 
-// localeSyncTimeout bounds one pass. A pass is background work for a request that has
-// already been answered, so it must not outlive a hung upstream.
+// catalogRetryBackoff spaces out retries after a failed pass, so a blip at boot costs
+// minutes of stale text rather than a day. Past the last step it repeats that step until
+// a pass comes back clean; CatalogSyncInterval still caps every wait.
+var catalogRetryBackoff = []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Minute}
+
+// localeSyncTimeout bounds one language, so a hung upstream cannot stall the loop.
 const localeSyncTimeout = 2 * time.Minute
 
-// localeSyncer keeps the cache filled for every language readers ask in. Nothing in
-// it is specific to a language: a locale needs only to be a valid tag that oedb can
-// serve, so adding Portuguese is a client and catalog change, not a change here.
-type localeSyncer struct {
-	mu       sync.Mutex
-	inFlight map[string]bool
-	allowed  map[string]bool
-	now      func() time.Time
-}
-
-func newLocaleSyncer() *localeSyncer {
-	return &localeSyncer{inFlight: map[string]bool{}, allowed: map[string]bool{}, now: time.Now}
-}
-
-// SyncLocales sets the languages SyncLocale will fill. Anything else is ignored: a
-// request can name any tag, and each language is a pass against the catalog.
-func (s *ExerciseStore) SyncLocales(languages ...string) {
-	s.sync.mu.Lock()
-	defer s.sync.mu.Unlock()
-	s.sync.allowed = map[string]bool{}
-	for _, l := range languages {
-		if l = BaseLanguage(NormalizeLocale(l)); l != defaultLocale {
-			s.sync.allowed[l] = true
+// RunCatalogSync re-reads every held exercise in every language the catalog offers, once
+// at start and then every interval, sooner while a pass is failing. No request triggers it
+// or waits on it; it blocks until ctx is done, so callers run it in a goroutine.
+func (s *ExerciseStore) RunCatalogSync(ctx context.Context, every time.Duration) {
+	if s.catalog == nil {
+		return
+	}
+	failures := 0
+	for {
+		wait := every
+		if err := s.syncCatalog(ctx); err != nil {
+			wait = retryDelay(failures, every)
+			failures++
+			log.Printf("exercises: catalog sync incomplete, will try again in %s: %v", wait, err)
+		} else {
+			failures = 0
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(wait):
 		}
 	}
 }
 
-// SyncLocale fills the cache for the language of locale if it is one the operator
-// listed and has not been filled within the TTL, and returns without waiting: the pass
-// runs in the background. English, an unlisted language, an unreachable catalog and a
-// fresh language are all no-ops, and concurrent callers share one pass. Failure is
-// logged and leaves the language unmarked, so the next request tries again; it never
-// reaches the reader.
-//
-// The unit is the language, not the tag: oedb falls es-MX back to es itself, and the
-// store reads a regional request through the base-language rows, so es-MX and es-AR
-// readers share the one pass instead of each costing the catalog nine requests.
-func (s *ExerciseStore) SyncLocale(locale string) {
-	locale = BaseLanguage(NormalizeLocale(locale))
-	if s.catalog == nil || locale == defaultLocale || !s.sync.permits(locale) {
-		return
+// retryDelay is the wait after the failures-th consecutive failed pass, never longer than
+// the regular interval.
+func retryDelay(failures int, every time.Duration) time.Duration {
+	d := catalogRetryBackoff[min(failures, len(catalogRetryBackoff)-1)]
+	return min(d, every)
+}
+
+func (s *ExerciseStore) syncCatalog(ctx context.Context) error {
+	codes, err := s.catalog.Locales(ctx)
+	if err != nil {
+		return err
 	}
-	if !s.sync.begin(locale) {
-		return
-	}
-	go func() {
-		defer s.sync.end(locale)
-		ctx, cancel := context.WithTimeout(context.Background(), localeSyncTimeout)
-		defer cancel()
-		if _, err := s.syncLocaleNow(ctx, locale); err != nil {
-			log.Printf("exercises: locale sync for %q failed, will retry on the next request: %v", locale, err)
+	seen := map[string]bool{}
+	var locales []string
+	for _, c := range codes {
+		if l := NormalizeLocale(c); !seen[l] {
+			seen[l] = true
+			locales = append(locales, l)
 		}
-	}()
-}
-
-// syncLocaleNow is the pass itself, synchronous so that tests and the admin endpoint
-// can wait for it. It reports whether a fetch happened.
-func (s *ExerciseStore) syncLocaleNow(ctx context.Context, locale string) (bool, error) {
-	fresh, err := s.localeIsFresh(locale)
-	if err != nil || fresh {
-		return false, err
 	}
-	n, err := s.refresh(ctx, locale)
-	if err != nil {
-		return true, err
+	// replaceTranslation for es-MX deletes the es row it falls back over, so every
+	// regional tag must be synced before its base language.
+	sort.Sort(sort.Reverse(sort.StringSlice(locales)))
+	failed := 0
+	for _, l := range locales {
+		lctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
+		n, err := s.refresh(lctx, l)
+		cancel()
+		if err != nil {
+			failed++
+			log.Printf("exercises: catalog sync for %q failed after %d rows: %.200v", l, n, err)
+			continue
+		}
+		log.Printf("exercises: refreshed %d cached exercises in %q", n, l)
 	}
-	_, err = s.db.Exec(`
-		INSERT INTO exercise_locale_sync (locale, synced_at, rows) VALUES (?, ?, ?)
-		ON CONFLICT(locale) DO UPDATE SET synced_at = excluded.synced_at, rows = excluded.rows`,
-		locale, s.sync.now().UTC(), n)
-	return true, err
-}
-
-func (s *ExerciseStore) localeIsFresh(locale string) (bool, error) {
-	var at time.Time
-	err := s.db.QueryRow(`SELECT synced_at FROM exercise_locale_sync WHERE locale = ?`, locale).Scan(&at)
-	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
+	if failed > 0 {
+		return fmt.Errorf("%d of %d languages did not sync", failed, len(locales))
 	}
-	if err != nil {
-		return false, err
-	}
-	return s.sync.now().Sub(at) < localeSyncTTL, nil
-}
-
-func (l *localeSyncer) permits(language string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.allowed[language]
-}
-
-// begin claims the language for one pass, reporting false if another is running.
-func (l *localeSyncer) begin(locale string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.inFlight[locale] {
-		return false
-	}
-	l.inFlight[locale] = true
-	return true
-}
-
-func (l *localeSyncer) inFlightNow(language string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.inFlight[language]
-}
-
-func (l *localeSyncer) end(locale string) {
-	l.mu.Lock()
-	delete(l.inFlight, locale)
-	l.mu.Unlock()
+	return nil
 }

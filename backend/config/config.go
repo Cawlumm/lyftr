@@ -32,12 +32,6 @@ type Config struct {
 	// catalog. Empty selects the hosted one; point it at a self-hosted catalog, or
 	// at a test double, by setting OEDB_BASE_URL.
 	OEDBBaseURL string
-	// ExerciseSyncLocales are the languages whose exercise names are fetched ahead of
-	// time for every cached exercise, so history follows a language switch. A
-	// whitelist, not "whatever a request names": each language costs the catalog a
-	// request per hundred exercises, and any signed-in user can name any tag. Adding a
-	// language the apps offer is adding it here (EXERCISE_SYNC_LOCALES, comma separated).
-	ExerciseSyncLocales []string
 
 	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
 	// development: the credentials are published in the README, so an instance that
@@ -91,8 +85,6 @@ func Load() {
 
 		OEDBBaseURL: getEnv("OEDB_BASE_URL", ""),
 
-		ExerciseSyncLocales: splitList(getEnv("EXERCISE_SYNC_LOCALES", "es")),
-
 		Registration: getEnv("REGISTRATION", RegistrationOpen),
 		// Opt-in everywhere, including development. This used to default to
 		// `env == "development"`, and ENV itself defaults to "development" — so running
@@ -127,17 +119,6 @@ func Load() {
 
 func ValidRegistration(mode string) bool {
 	return slices.Contains(registrationModes, mode)
-}
-
-// splitList reads a comma-separated setting, dropping blanks and case differences.
-func splitList(raw string) []string {
-	var out []string
-	for _, part := range strings.Split(raw, ",") {
-		if p := strings.ToLower(strings.TrimSpace(part)); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func getEnv(key, fallback string) string {
