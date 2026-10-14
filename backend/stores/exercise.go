@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -302,7 +303,7 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 				// No English row to hang the translation on, and none to invent: either
 				// the English read skipped this exercise (its name is held by another
 				// id) or oedb did not return it. Leave it out; the rest of the batch stands.
-				log.Printf("exercises: skipping upstream %s: no English base row for its %s translation", it.ID, locale)
+				log.Printf("exercises: skipping upstream %s: no English base row for its %q translation", it.ID, locale)
 				continue
 			}
 			baseDesc := ""
