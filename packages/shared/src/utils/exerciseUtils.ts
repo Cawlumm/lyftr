@@ -64,6 +64,16 @@ export function categoryLabel(raw: string | undefined | null): string {
   return label === slug ? (raw ?? '') : label
 }
 
+// An unfiltered page that settled empty means the server holds no exercises yet, which
+// is a different answer from a search that matched nothing. hasMore is true until a page
+// settles and again on every query change, so this never claims it before an answer.
+export function exerciseCatalogEmpty(
+  query: string,
+  list: { items: readonly unknown[]; hasMore: boolean; error: string | null },
+): boolean {
+  return !query && !list.error && !list.hasMore && list.items.length === 0
+}
+
 export function muscleLabel(raw: string | undefined | null): string {
   const slug = raw ?? ''
   return isOneOf(MUSCLE_SLUGS, slug) ? i18n.t(`exercises.muscle.${slug}`) : slug
