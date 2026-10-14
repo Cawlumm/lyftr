@@ -42,8 +42,12 @@ type Client struct {
 	userAgent string
 	http      *http.Client
 
-	mu    sync.Mutex
+	// mu is a pointer so a Revalidating view shares the lock along with the map it guards.
+	mu    *sync.Mutex
 	cache map[string]*entry
+
+	// alwaysRevalidate: never answer from cache; every read is a conditional GET.
+	alwaysRevalidate bool
 }
 
 // entry is one cached response body plus the metadata needed to revalidate it.
@@ -77,6 +81,7 @@ func New(baseURL, version string) *Client {
 		// see the context each caller passes in.
 		http:  &http.Client{Timeout: 90 * time.Second},
 		cache: map[string]*entry{},
+		mu:    &sync.Mutex{},
 	}
 }
 
@@ -254,17 +259,21 @@ func (c *Client) getJSON(ctx context.Context, path string, dst any) error {
 //     spends most of its life in, and serving through it is what keeps a user's
 //     search off the critical path of an upstream round trip.
 //   - beyond both: fetch synchronously.
+//
+// A Revalidating view skips the first two states and always takes the third,
+// conditionally.
 func (c *Client) get(ctx context.Context, path string) ([]byte, error) {
 	now := time.Now()
 
 	c.mu.Lock()
 	e, ok := c.cache[path]
-	if ok && now.Before(e.freshFor) {
+	cached := ok && !c.alwaysRevalidate
+	if cached && now.Before(e.freshFor) {
 		body := e.body
 		c.mu.Unlock()
 		return body, nil
 	}
-	if ok && now.Before(e.staleFor) && len(e.body) > 0 {
+	if cached && now.Before(e.staleFor) && len(e.body) > 0 {
 		body := e.body
 		if !e.refreshing {
 			e.refreshing = true
@@ -280,6 +289,17 @@ func (c *Client) get(ctx context.Context, path string) ([]byte, error) {
 	c.mu.Unlock()
 
 	return c.fetch(ctx, path, etag)
+}
+
+// Revalidating returns a view of c that never answers from cache: every read is a
+// conditional GET with the stored ETag, and a 304 reuses the cached body. It shares
+// c's cache, so what it learns also refreshes what interactive reads are served.
+// The catalog sync reads through it; served from cache, each pass would apply what
+// the previous pass fetched, a whole interval late.
+func (c *Client) Revalidating() *Client {
+	v := *c
+	v.alwaysRevalidate = true
+	return &v
 }
 
 // revalidate refreshes a stale entry off the request path. It deliberately uses
@@ -442,11 +462,17 @@ func cacheWindow(header string) (fresh, stale time.Duration) {
 	return fresh, stale
 }
 
+// maxLocalePages bounds locale discovery. oedb's locale list is a curated taxonomy
+// that fits on one page; a list still going after this many is a broken or hostile
+// upstream, and every listed locale costs the sync a pass of its own.
+const maxLocalePages = 5
+
 // Locales lists every locale the catalog holds translated content in; oedb always
-// includes en.
+// includes en. The list is bounded, and a list that exceeds it is an error rather
+// than a partial answer.
 func (c *Client) Locales(ctx context.Context) ([]string, error) {
 	var codes []string
-	for page := 1; ; page++ {
+	for page := 1; page <= maxLocalePages; page++ {
 		var out struct {
 			Locales []struct {
 				Code string `json:"code"`
@@ -460,10 +486,14 @@ func (c *Client) Locales(ctx context.Context) ([]string, error) {
 		for _, l := range out.Locales {
 			codes = append(codes, l.Code)
 		}
+		if out.Total > maxLocalePages*MaxPerPage || len(codes) > maxLocalePages*MaxPerPage {
+			return nil, fmt.Errorf("oedb: locale list exceeds %d entries", maxLocalePages*MaxPerPage)
+		}
 		if len(out.Locales) == 0 || len(codes) >= out.Total {
 			return codes, nil
 		}
 	}
+	return nil, fmt.Errorf("oedb: locale list did not end within %d pages", maxLocalePages)
 }
 
 // Export fetches the entire published catalog in one request.

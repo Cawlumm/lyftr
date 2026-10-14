@@ -3,6 +3,7 @@ package stores
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,11 @@ import (
 	"github.com/Cawlumm/lyftr-backend/oedb"
 )
 
-type catalogCall struct{ path, locale, ids string }
+type catalogCall struct {
+	path, locale, ids string
+	inm               string
+	notModified       bool
+}
 
 // localeCatalog is a fake oedb routed by path. It answers the locale list, the English
 // export of every held id and by-id lists in the requested locale, and records each call.
@@ -27,6 +32,11 @@ type localeCatalog struct {
 	held       int
 	failPath   map[string]bool
 	failLocale map[string]bool
+
+	// cacheControl is sent on every response; empty means max-age=0.
+	cacheControl string
+	// rev changes every body and the ETag; 0 keeps names as they were.
+	rev int
 }
 
 func newLocaleCatalog(t *testing.T, held int, locales ...string) *localeCatalog {
@@ -35,15 +45,32 @@ func newLocaleCatalog(t *testing.T, held int, locales ...string) *localeCatalog 
 	c.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		c.mu.Lock()
-		c.calls = append(c.calls, catalogCall{r.URL.Path, q.Get("locale"), q.Get("ids")})
 		failed := c.failPath[r.URL.Path] || c.failLocale[q.Get("locale")] && r.URL.Path == "/api/v1/exercises"
 		locs := append([]string(nil), c.locales...)
+		rev := c.rev
+		cc := c.cacheControl
+		etag := fmt.Sprintf("\"r%d\"", rev)
+		inm := r.Header.Get("If-None-Match")
+		notModified := !failed && inm == etag
+		c.calls = append(c.calls, catalogCall{path: r.URL.Path, locale: q.Get("locale"), ids: q.Get("ids"), inm: inm, notModified: notModified})
 		c.mu.Unlock()
 		// Without this oedb.Client serves a repeat from memory and counts lie.
-		w.Header().Set("Cache-Control", "max-age=0")
+		if cc == "" {
+			cc = "max-age=0"
+		}
+		w.Header().Set("Cache-Control", cc)
 		if failed {
 			http.Error(w, "down", http.StatusInternalServerError)
 			return
+		}
+		w.Header().Set("ETag", etag)
+		if notModified {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		suffix := ""
+		if rev > 0 {
+			suffix = fmt.Sprintf(" r%d", rev)
 		}
 		switch r.URL.Path {
 		case "/api/v1/meta/locales":
@@ -61,14 +88,14 @@ func newLocaleCatalog(t *testing.T, held int, locales ...string) *localeCatalog 
 		case "/api/v1/exercises/export":
 			var items []oedb.Exercise
 			for i := 0; i < c.held; i++ {
-				items = append(items, catalogExercise(fmt.Sprintf("uuid-%03d", i), fmt.Sprintf("Exercise %03d", i)))
+				items = append(items, catalogExercise(fmt.Sprintf("uuid-%03d", i), fmt.Sprintf("Exercise %03d", i)+suffix))
 			}
 			_ = json.NewEncoder(w).Encode(oedb.ListResult{Exercises: items, Total: len(items)})
 		case "/api/v1/exercises":
 			loc := q.Get("locale")
 			var items []oedb.Exercise
 			for _, id := range strings.Split(q.Get("ids"), ",") {
-				items = append(items, served(id, loc+" "+id, loc, []string{"Uno.", "Dos."}, loc))
+				items = append(items, served(id, loc+" "+id+suffix, loc, []string{"Uno.", "Dos."}, loc))
 			}
 			_ = json.NewEncoder(w).Encode(oedb.ListResult{Exercises: items, Total: len(items)})
 		default:
@@ -98,6 +125,24 @@ func (c *localeCatalog) count(path, locale string) int {
 func (c *localeCatalog) listCount(locale string) int { return c.count("/api/v1/exercises", locale) }
 
 func (c *localeCatalog) localeRequests() int { return c.count("/api/v1/meta/locales", "") }
+
+func (c *localeCatalog) setCacheControl(v string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.cacheControl = v
+}
+
+func (c *localeCatalog) setRev(n int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.rev = n
+}
+
+func (c *localeCatalog) setLocales(l ...string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.locales = l
+}
 
 func (c *localeCatalog) setFail(path string, locale string) {
 	c.mu.Lock()
@@ -369,5 +414,92 @@ func TestRunCatalogSync_BacksOffToTheFullIntervalOnceAPassIsClean(t *testing.T) 
 	time.Sleep(100 * time.Millisecond)
 	if got := cat.localeRequests(); got != 1 {
 		t.Errorf("locale requests = %d after a clean pass, want 1: a clean pass must wait the full interval", got)
+	}
+}
+
+const slowCacheControl = "public, max-age=300, stale-while-revalidate=86400"
+
+func TestSyncCatalog_SecondPassAppliesUpstreamChangesInsideTheCacheWindow(t *testing.T) {
+	s, cat := syncStore(t, 3, "en", "es")
+	cat.setCacheControl(slowCacheControl)
+
+	if err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	cat.setRev(1)
+	cat.setLocales("en", "es", "pt")
+	if err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	id := localID(t, s, "uuid-001")
+	if got := mustGet(t, s, id, "es").Name; got != "es uuid-001 r1" {
+		t.Errorf("Get(es).Name = %q, want the second pass's name", got)
+	}
+	if got := mustGet(t, s, id, "en").Name; got != "Exercise 001 r1" {
+		t.Errorf("Get(en).Name = %q, want the second pass's name", got)
+	}
+	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercise_translations WHERE locale = 'pt'`); got != 3 {
+		t.Errorf("pt translations = %d, want 3 from the newly listed locale", got)
+	}
+}
+
+func TestSyncCatalog_UnchangedUpstreamIsRevalidatedWithout304Bodies(t *testing.T) {
+	s, cat := syncStore(t, 3, "en", "es")
+	cat.setCacheControl(slowCacheControl)
+
+	if err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE exercise_translations SET name = 'tampered' WHERE locale = 'es'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.db.Exec(`UPDATE exercises SET name = 'tampered ' || oedb_id`); err != nil {
+		t.Fatal(err)
+	}
+	before := len(cat.snapshot())
+	if err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	second := cat.snapshot()[before:]
+	if len(second) == 0 {
+		t.Fatal("second pass made no requests: it was served from cache")
+	}
+	for _, c := range second {
+		if c.inm != `"r0"` || !c.notModified {
+			t.Errorf("call %+v: want a conditional GET answered 304", c)
+		}
+	}
+	id := localID(t, s, "uuid-001")
+	if got := mustGet(t, s, id, "es").Name; got != "es uuid-001" {
+		t.Errorf("Get(es).Name = %q, want it restored from the cached body", got)
+	}
+	if got := mustGet(t, s, id, "en").Name; got != "Exercise 001" {
+		t.Errorf("Get(en).Name = %q, want it restored from the cached body", got)
+	}
+}
+
+func TestSyncCatalog_LocaleDiscoveryHasADeadline(t *testing.T) {
+	old := localeSyncTimeout
+	localeSyncTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { localeSyncTimeout = old })
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	t.Cleanup(srv.Close)
+	s := NewExerciseStore(testDB(t))
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+	holdEnglish(t, s, 2)
+
+	start := time.Now()
+	err := s.syncCatalog(t.Context())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("err = %v, want context.DeadlineExceeded", err)
+	}
+	if time.Since(start) > 2*time.Second {
+		t.Errorf("discovery took %s, want it cut off by the deadline", time.Since(start))
+	}
+	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercise_translations WHERE locale <> 'en'`); got != 0 {
+		t.Errorf("non-English translations = %d, want 0", got)
 	}
 }
