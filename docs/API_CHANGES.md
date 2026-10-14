@@ -14,6 +14,18 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `GET /api/v1/exercises` no longer lists exercises removed from the upstream catalog
+
+When a complete daily catalog pass no longer finds an exercise in open-exercise-db, it is left
+out of list and search results (the offline fallback included), but it is never deleted.
+`GET /exercises/:id`, its PRs and history, and every workout and routine that uses it still
+return it, and logging a workout with it still works. It comes back if upstream lists it
+again. A pass whose export is empty or holds under half the held catalog marks nothing and
+is reported as failed (`POST /admin/sync-exercises` answers 503 `EXERCISE_CATALOG_UNREACHABLE`),
+so it is retried. Translations in a language the catalog stops offering are removed after a
+successful locale discovery, unless that would drop more than half of the languages held, in which case nothing is removed; the English text is unaffected. `/admin/seed-status` `count`
+still includes hidden rows.
+
 ## `GET /api/v1/admin/seed-status` — gains sync status (additive)
 
 `count` is unchanged. The response now also carries `syncing` (a catalog pass is running),

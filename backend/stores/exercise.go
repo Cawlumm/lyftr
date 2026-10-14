@@ -140,7 +140,7 @@ func scanExercise(row scanner, e *models.Exercise) error {
 func (s *ExerciseStore) List(f ExerciseFilter) ([]models.Exercise, error) {
 	locale := NormalizeLocale(f.Locale)
 	sel, args := exerciseSelect(locale)
-	q := sel + ` WHERE 1=1`
+	q := sel + ` WHERE e.upstream_missing_at IS NULL`
 	if f.Query != "" {
 		like := "%" + f.Query + "%"
 		q += " AND (e.name LIKE ? OR EXISTS (SELECT 1 FROM exercise_translations t WHERE t.exercise_id = e.id AND t.locale IN (?, ?) AND t.name LIKE ?))"
@@ -215,7 +215,9 @@ func (s *ExerciseStore) Count() (int, error) {
 // what an English reader sees. locale is the language that was asked for, and the
 // language the returned rows are shown in.
 //
-// Name matching only adopts a row that no upstream id owns yet. An upstream
+// Name matching only adopts a row that no upstream id owns yet, or whose upstream
+// exercise has since been removed (wger's replaced_by: the history follows the
+// exercise that replaced it). An upstream
 // exercise whose name is already owned by another id, or that arrives translated
 // with no English row to attach to, is skipped and left out of the result, because oedb names are not unique and re-pointing the row would re-point
 // every workout that references it.
@@ -236,7 +238,8 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	byOedbID, err := tx.Prepare(`
 		UPDATE exercises SET
 		  name = COALESCE(?, name), muscle_group = ?, secondary_muscles = ?, category = ?,
-		  equipment = ?, description = COALESCE(?, description), image_url = ?, slug = ?
+		  equipment = ?, description = COALESCE(?, description), image_url = ?, slug = ?,
+		  upstream_missing_at = NULL
 		WHERE oedb_id = ?`)
 	if err != nil {
 		return nil, err
@@ -254,8 +257,9 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 		  description       = COALESCE(?, description),
 		  image_url         = excluded.image_url,
 		  oedb_id           = excluded.oedb_id,
-		  slug              = excluded.slug
-		WHERE exercises.oedb_id IS NULL`)
+		  slug              = excluded.slug,
+		  upstream_missing_at = NULL
+		WHERE exercises.oedb_id IS NULL OR exercises.upstream_missing_at IS NOT NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -642,6 +646,10 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 			}
 			done += len(out)
 		}
+		// Only after the whole export imported: a half-read export must not hide anything.
+		if err := s.markUpstreamMissing(items); err != nil {
+			return done, err
+		}
 		return done, nil
 	}
 
@@ -673,7 +681,7 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 }
 
 func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
-	rows, err := s.db.Query(`SELECT oedb_id FROM exercises WHERE oedb_id IS NOT NULL AND oedb_id != ''`)
+	rows, err := s.db.Query(`SELECT oedb_id FROM exercises WHERE oedb_id IS NOT NULL AND oedb_id != '' AND upstream_missing_at IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -687,6 +695,51 @@ func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
 		held[id] = true
 	}
 	return held, rows.Err()
+}
+
+// markUpstreamMissing hides every held upstream row the complete English export no longer
+// lists. oedb has no deletion log, so absence from a whole export is the only signal, and
+// a truncated export looks exactly like a mass removal: when the export holds under half
+// as many exercises as the visible held rows, nothing is marked and the pass fails so it
+// is retried rather than trusted. Rows are never deleted, because workout_exercises and
+// program_exercises reference them with no cascade. One statement in one transaction, so
+// the write lock is held for a single scan of the table.
+func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise) error {
+	ids := make([]string, len(items))
+	for i, it := range items {
+		ids[i] = it.ID
+	}
+	idsJSON, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var held int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM exercises WHERE oedb_id IS NOT NULL AND oedb_id != '' AND upstream_missing_at IS NULL`).Scan(&held); err != nil {
+		return err
+	}
+	if held > 0 && 2*len(ids) < held {
+		log.Printf("exercises: upstream export lists %d exercises against %d held; not marking any as removed", len(ids), held)
+		return fmt.Errorf("%w: export lists %d exercises against %d held; marking none as removed", ErrCatalogUnreachable, len(ids), held)
+	}
+	res, err := tx.Exec(`UPDATE exercises SET upstream_missing_at = CURRENT_TIMESTAMP
+		WHERE oedb_id IS NOT NULL AND oedb_id != '' AND upstream_missing_at IS NULL
+		  AND oedb_id NOT IN (SELECT value FROM json_each(?))`, string(idsJSON))
+	if err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n > 0 {
+		log.Printf("exercises: %d exercises no longer in the upstream catalog; hidden from search, kept for history", n)
+	}
+	return nil
 }
 
 // PrimeQuery materializes whatever the catalog returns for one search term.

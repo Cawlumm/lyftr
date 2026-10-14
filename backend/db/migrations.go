@@ -142,6 +142,11 @@ func alterMigrations() {
 	ensureColumn("exercises", "slug", `ALTER TABLE exercises ADD COLUMN slug TEXT`)
 	ensureIndex("idx_exercises_oedb_id", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_oedb_id ON exercises(oedb_id)`)
 
+	// Set when a complete English export no longer lists this oedb_id. The row is hidden
+	// from list and search but kept for every reference: workout_exercises and
+	// program_exercises FK it with no cascade. NULL means present, or never upstream.
+	ensureColumn("exercises", "upstream_missing_at", `ALTER TABLE exercises ADD COLUMN upstream_missing_at DATETIME`)
+
 	normalizeExerciseTaxonomy()
 
 	// The product a diary entry was, so it survives into Recent and can be matched
