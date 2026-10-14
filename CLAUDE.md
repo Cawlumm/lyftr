@@ -38,7 +38,7 @@ backend/
   middleware/auth.go    — JWT validation middleware
   models/models.go      — all structs + request types
   routes/routes.go      — all routes, protected vs public
-  stores/exercise.go    — exercise store, incl. free-exercise-db seeding
+  stores/exercise.go    — exercise store: local cache of oedb rows + scheduled sync
   seed/users.go         — demo user seeding (see also seed/demo_data.go)
   utils/response.go     — utils.OK / utils.BadRequest helpers
 
@@ -252,7 +252,7 @@ answering 502 must not evict anyone.
 - `User` → `UserSettings` (calorie/macro targets, weight unit)
 - `Workout` → `WorkoutExercise[]` → `Set[]`
 - `Program` → `ProgramExercise[]` → `ProgramSet[]` (target reps/weight)
-- `Exercise` (seeded, 800+, shared across users)
+- `Exercise` (cached from oedb, 800+, shared across users; names/instructions per language in `exercise_translations`)
 - `FoodLog` (meal, macros, per day)
 - `WeightLog` (bodyweight over time)
 

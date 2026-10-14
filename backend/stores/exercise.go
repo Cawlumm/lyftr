@@ -16,8 +16,9 @@ import (
 	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
-// ExerciseStore owns all SQL for the (global, read-only) exercises catalog, and
-// wraps the seed subsystem for the admin sync/reset endpoints.
+// ExerciseStore owns all SQL for the (global, read-only) exercises catalog: the
+// local cache of oedb rows, the scheduled sync that fills it, and the admin
+// refresh/reset endpoints.
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
@@ -561,9 +562,6 @@ func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]o
 		}
 	}
 }
-
-// with no upstream configured.
-var errNoCatalog = errors.New("This server has no exercise catalog configured.")
 
 // ErrNoCatalog is returned by the cache-management operations on an instance with
 // no upstream configured.
