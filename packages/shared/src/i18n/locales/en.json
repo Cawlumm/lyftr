@@ -181,7 +181,12 @@
       "refreshed_other": "Refreshed {{amount}} exercises",
       "refresh": "Refresh cached",
       "refreshing": "Refreshing…",
-      "refreshFailed": "Couldn't refresh the cache."
+      "refreshFailed": "Couldn't refresh the cache.",
+      "lastSynced": "Last synced at {{when}}",
+      "syncing": "Syncing…",
+      "syncUnreachable": "Last sync couldn't reach the exercise catalog.",
+      "syncFailed": "Last sync didn't finish.",
+      "syncRetry": "Trying again at {{when}}."
     },
     "danger": {
       "title": "Danger Zone",
@@ -220,7 +225,9 @@
       "weekdayMonthDay": "EEE, MMM d",
       "weekdayMonthDayYear": "EEE, MMM d, yyyy",
       "year": "yyyy",
-      "monthYearLong": "MMMM yyyy"
+      "monthYearLong": "MMMM yyyy",
+      "time": "h:mm a",
+      "monthDayTime": "MMM d, h:mm a"
     },
     "day": {
       "today": "Today",

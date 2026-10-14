@@ -451,7 +451,7 @@ export function createClient(
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
     // The server imports the whole open-exercise-db catalog in a daily background pass;
     // these two report its size and run that pass now.
-    cacheStatus: () => api.get<{ data: { count: number } }>('/admin/seed-status').then(unwrap),
+    cacheStatus: () => api.get<{ data: types.ExerciseCacheStatus }>('/admin/seed-status').then(unwrap),
     // Runs the full catalog pass now: imports every upstream exercise and refreshes every
     // language. On a cold server that runs past the
     // global 20s — the button is an explicit admin action the user waits on, so it gets

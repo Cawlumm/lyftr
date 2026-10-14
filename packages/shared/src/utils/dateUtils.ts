@@ -195,6 +195,17 @@ export const formatDate = (d: Date, name: DateFormatName): string =>
   format(d, i18n.t(`common.dateFormat.${name}`), { locale: DATE_LOCALES[i18n.language] })
 
 /**
+ * An instant, drawn: the time alone when it falls on the reader's today, else the date
+ * and time. Device zone on purpose: this answers "when, relative to me now", not which
+ * day a row belongs to. An unreadable instant reads as unknown.
+ */
+export const formatInstant = (iso: string): string => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return UNKNOWN_DAY
+  return formatDate(d, instantToDay(iso) === todayStr() ? 'time' : 'monthDayTime')
+}
+
+/**
  * A calendar day, drawn. The single point of truth for turning a `YYYY-MM-DD` into text
  * a person reads — the day equivalent of `formatNumber`, and the only place the idiom
  * `format(dayToLocalDate(x), pattern)` should appear.

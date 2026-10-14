@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import Settings from './Settings'
 import { i18n } from '@lyftr/shared'
+import { exerciseAPI } from '../services/api'
 import { useLanguageStore } from '../lib/lyftr'
 
 // What these pin is the shape of the WRITES this page makes, which is where #170 went
@@ -194,5 +195,40 @@ describe('language', () => {
 
     fireEvent.change(picker(), { target: { value: 'system' } })
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Settings' })).toBeTruthy())
+  })
+})
+
+describe('the catalog sync lines', () => {
+  const cacheStatus = vi.mocked(exerciseAPI.cacheStatus)
+  const base = { count: 5, syncing: false, last_synced_at: null, last_attempt_at: null, next_attempt_at: null, last_failed: false, last_failure: null }
+
+  it('says Syncing while a pass runs', async () => {
+    cacheStatus.mockResolvedValueOnce({ ...base, syncing: true })
+    renderPage()
+    expect(await screen.findByText('Syncing…')).toBeTruthy()
+  })
+
+  it('names an unreachable catalog and when it tries again', async () => {
+    cacheStatus.mockResolvedValueOnce({
+      ...base, last_failed: true, last_failure: 'unreachable',
+      next_attempt_at: new Date(Date.now() + 30 * 60e3).toISOString(),
+    })
+    renderPage()
+    expect(await screen.findByText(/Last sync couldn't reach the exercise catalog\. Trying again at /)).toBeTruthy()
+  })
+
+  it('shows no sync line for a server that sends only the count', async () => {
+    cacheStatus.mockResolvedValueOnce({ count: 0 })
+    renderPage()
+    await waitFor(() => expect(cacheStatus).toHaveBeenCalled())
+    expect(screen.queryByText(/Last synced/)).toBeNull()
+  })
+
+  it('reloads the status after a refresh that failed', async () => {
+    vi.mocked(exerciseAPI.refreshCache).mockRejectedValueOnce(new Error('503'))
+    renderPage()
+    await waitFor(() => expect(cacheStatus).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh cached' }))
+    await waitFor(() => expect(cacheStatus).toHaveBeenCalledTimes(2))
   })
 })

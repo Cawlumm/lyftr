@@ -693,3 +693,183 @@ func TestSyncCatalog_RefusesASecondPassWhileOneRuns(t *testing.T) {
 		t.Error("the flag was left held after a pass")
 	}
 }
+
+func TestCacheStatus_NothingKnownBeforeAPass(t *testing.T) {
+	s := NewExerciseStore(testDB(t))
+	st, err := s.CacheStatus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.LastSyncedAt != nil || st.LastAttemptAt != nil || st.NextAttemptAt != nil || st.LastFailure != nil {
+		t.Errorf("status = %+v, want every time and the reason unknown", st)
+	}
+	if st.LastFailed || st.Syncing || st.Count != 0 {
+		t.Errorf("status = %+v, want not failed, not syncing, count 0", st)
+	}
+}
+
+func TestSyncCatalog_CleanPassRecordsSuccess(t *testing.T) {
+	s, _ := syncStore(t, 2, "en")
+	before := time.Now()
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	after := time.Now()
+	st, _ := s.CacheStatus()
+	if st.LastAttemptAt == nil || st.LastSyncedAt == nil {
+		t.Fatalf("status = %+v, want both times set", st)
+	}
+	for _, ts := range []*time.Time{st.LastAttemptAt, st.LastSyncedAt} {
+		if ts.Before(before) || ts.After(after) {
+			t.Errorf("time %s outside [%s, %s]", ts, before, after)
+		}
+		if ts.Location() != time.UTC {
+			t.Errorf("time %s is not UTC", ts)
+		}
+	}
+	if st.LastAttemptAt.After(*st.LastSyncedAt) {
+		t.Errorf("attempt %s after success %s", st.LastAttemptAt, st.LastSyncedAt)
+	}
+	if st.LastFailed || st.LastFailure != nil || st.Syncing {
+		t.Errorf("status = %+v, want clean and idle", st)
+	}
+}
+
+func TestSyncCatalog_UnreachableFailureKeepsLastSuccess(t *testing.T) {
+	s, cat := syncStore(t, 2, "en")
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := s.CacheStatus()
+
+	cat.setFail("/api/v1/meta/locales", "")
+	time.Sleep(2 * time.Millisecond)
+	if _, err := s.syncCatalog(t.Context()); !errors.Is(err, ErrCatalogUnreachable) {
+		t.Fatalf("err = %v, want unreachable", err)
+	}
+	st, _ := s.CacheStatus()
+	if !st.LastFailed || st.LastFailure == nil || *st.LastFailure != "unreachable" {
+		t.Fatalf("status = %+v, want failed unreachable", st)
+	}
+	if !st.LastSyncedAt.Equal(*first.LastSyncedAt) {
+		t.Errorf("LastSyncedAt moved to %s on a failed pass, want %s", st.LastSyncedAt, first.LastSyncedAt)
+	}
+	if !st.LastAttemptAt.After(*first.LastAttemptAt) {
+		t.Errorf("LastAttemptAt = %s, want after %s", st.LastAttemptAt, first.LastAttemptAt)
+	}
+
+	cat.mu.Lock()
+	delete(cat.failPath, "/api/v1/meta/locales")
+	cat.mu.Unlock()
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	st, _ = s.CacheStatus()
+	if st.LastFailed || st.LastFailure != nil {
+		t.Errorf("status = %+v, want the failure cleared by a clean pass", st)
+	}
+}
+
+func TestSyncCatalog_DatabaseFailureIsOther(t *testing.T) {
+	s, _ := catalogStore(t, 250, "en")
+	if _, err := s.db.Exec("CREATE TRIGGER t BEFORE INSERT ON exercises WHEN NEW.oedb_id = 'uuid-150' BEGIN SELECT RAISE(ABORT, 'boom'); END"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.syncCatalog(t.Context()); err == nil {
+		t.Fatal("want an error")
+	}
+	st, _ := s.CacheStatus()
+	if !st.LastFailed || st.LastFailure == nil || *st.LastFailure != "other" {
+		t.Errorf("status = %+v, want failed other", st)
+	}
+}
+
+func TestSyncCatalog_RefusedPassRecordsNothing(t *testing.T) {
+	s, _ := syncStore(t, 1, "en")
+	s.syncing.Store(true)
+	if _, err := s.syncCatalog(t.Context()); !errors.Is(err, ErrSyncRunning) {
+		t.Fatalf("err = %v, want ErrSyncRunning", err)
+	}
+	st, _ := s.CacheStatus()
+	if st.LastAttemptAt != nil || st.LastFailed {
+		t.Errorf("status = %+v, want a refused pass to record nothing", st)
+	}
+	if !st.Syncing {
+		t.Error("Syncing = false, want it read from the running flag")
+	}
+}
+
+func TestCacheStatus_ReportsRunningDuringAPassAndReleasesAfter(t *testing.T) {
+	release := make(chan struct{})
+	started := make(chan struct{}, 1)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "locales") {
+			select {
+			case started <- struct{}{}:
+			default:
+			}
+			<-release
+			_, _ = w.Write([]byte(`{"locales":[],"total":0}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"exercises":[],"total":0}`))
+	}))
+	defer srv.Close()
+	s := NewExerciseStore(testDB(t))
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_, _ = s.syncCatalog(t.Context())
+	}()
+	<-started
+	st, _ := s.CacheStatus()
+	if !st.Syncing || st.LastAttemptAt != nil {
+		t.Errorf("mid-pass status = %+v, want syncing with no attempt recorded yet", st)
+	}
+	close(release)
+	<-done
+	st, _ = s.CacheStatus()
+	if st.Syncing || st.LastSyncedAt == nil {
+		t.Errorf("after status = %+v, want idle and synced", st)
+	}
+}
+
+func TestRunCatalogSync_SchedulesNextAttempt(t *testing.T) {
+	t.Run("clean pass waits the full interval", func(t *testing.T) {
+		s, _ := syncStore(t, 2, "en")
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go s.RunCatalogSync(ctx, time.Hour)
+		waitFor(t, func() bool {
+			st, _ := s.CacheStatus()
+			return st.LastSyncedAt != nil && st.NextAttemptAt != nil
+		})
+		st, _ := s.CacheStatus()
+		if st.NextAttemptAt.Before(st.LastSyncedAt.Add(time.Hour-time.Second)) || st.NextAttemptAt.After(time.Now().Add(time.Hour)) {
+			t.Errorf("next = %s, want about an hour after %s", st.NextAttemptAt, st.LastSyncedAt)
+		}
+	})
+	t.Run("failed pass waits the retry delay", func(t *testing.T) {
+		old := catalogRetryBackoff
+		catalogRetryBackoff = []time.Duration{30 * time.Minute}
+		t.Cleanup(func() { catalogRetryBackoff = old })
+		s, cat := syncStore(t, 2, "en")
+		cat.setFail("/api/v1/meta/locales", "")
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		go s.RunCatalogSync(ctx, time.Hour)
+		waitFor(t, func() bool {
+			st, _ := s.CacheStatus()
+			return st.NextAttemptAt != nil
+		})
+		st, _ := s.CacheStatus()
+		if d := time.Until(*st.NextAttemptAt); d < 29*time.Minute || d > 30*time.Minute {
+			t.Errorf("next in %s, want about 30m, not the full hour", d)
+		}
+		if st.LastFailure == nil || *st.LastFailure != "unreachable" {
+			t.Errorf("status = %+v, want unreachable", st)
+		}
+	})
+}

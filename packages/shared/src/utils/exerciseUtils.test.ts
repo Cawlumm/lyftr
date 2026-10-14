@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { categoryLabel, equipmentLabel, exerciseCatalogEmpty, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseCatalogEmpty, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -135,5 +135,58 @@ describe('exerciseCatalogEmpty (locale-independent)', () => {
 
   it('is false when rows arrived', () => {
     expect(exerciseCatalogEmpty('', { ...settled, items: [{ id: 1 }] })).toBe(false)
+  })
+})
+
+describe('catalogSyncLines', () => {
+  // The clock is 2026-10-10 15:00 local, so "today" times draw as a time alone. English
+  // unless a case says otherwise.
+  beforeEach(() => { jest.useFakeTimers({ now: new Date(2026, 9, 10, 15, 0) }) })
+  afterEach(async () => {
+    jest.useRealTimers()
+    await i18n.changeLanguage('en')
+  })
+
+  const at = (h: number, m = 0) => new Date(2026, 9, 10, h, m).toISOString()
+
+  it('says nothing without a status or from a server too old to send sync fields', () => {
+    expect(catalogSyncLines(null)).toEqual([])
+    expect(catalogSyncLines({ count: 5 })).toEqual([])
+  })
+
+  it('reports the last clean pass', () => {
+    expect(catalogSyncLines({ count: 5, last_synced_at: at(14) })).toEqual([{ text: 'Last synced at 2:00 PM', warning: false }])
+  })
+
+  it('says Syncing while a pass runs and hides the failure', () => {
+    const lines = catalogSyncLines({ count: 5, syncing: true, last_failed: true, last_failure: 'other', last_synced_at: at(14) })
+    expect(lines).toEqual([
+      { text: 'Last synced at 2:00 PM', warning: false },
+      { text: 'Syncing…', warning: false },
+    ])
+  })
+
+  it('names an unreachable catalog and the retry time', () => {
+    expect(catalogSyncLines({ count: 5, last_failed: true, last_failure: 'unreachable', next_attempt_at: at(15, 30) })).toEqual([
+      { text: "Last sync couldn't reach the exercise catalog. Trying again at 3:30 PM.", warning: true },
+    ])
+  })
+
+  it('uses the generic sentence for any other reason, known or not', () => {
+    const generic = "Last sync didn't finish. Trying again at 3:30 PM."
+    expect(catalogSyncLines({ count: 5, last_failed: true, last_failure: 'other', next_attempt_at: at(15, 30) })[0].text).toBe(generic)
+    expect(catalogSyncLines({ count: 5, last_failed: true, last_failure: 'newer' as 'other', next_attempt_at: at(15, 30) })[0].text).toBe(generic)
+  })
+
+  it('drops the retry clause when the time is past or unknown', () => {
+    const base = { count: 5, last_failed: true, last_failure: 'other' as const }
+    expect(catalogSyncLines({ ...base, next_attempt_at: at(14, 59) })[0].text).toBe("Last sync didn't finish.")
+    expect(catalogSyncLines({ ...base, next_attempt_at: null })[0].text).toBe("Last sync didn't finish.")
+  })
+
+  it('draws in Spanish', async () => {
+    await i18n.changeLanguage('es')
+    const text = catalogSyncLines({ count: 5, last_failed: true, last_failure: 'other', next_attempt_at: at(15, 30) })[0].text
+    expect(text).toContain('Nuevo intento: 15:30.')
   })
 })

@@ -1,4 +1,4 @@
-import { todayStr, daysAgoStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, formatDate, relativeDayLabel, defaultWorkoutName, UNKNOWN_DAY, type DateFormatName } from './dateUtils'
+import { todayStr, daysAgoStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, formatDate, formatInstant, relativeDayLabel, defaultWorkoutName, UNKNOWN_DAY, type DateFormatName } from './dateUtils'
 import { i18n } from '../i18n'
 
 
@@ -284,6 +284,8 @@ describe('display format names', () => {
     weekdayMonthDayYear: 'Sat, Oct 10, 2026',
     year: '2026',
     monthYearLong: 'October 2026',
+    time: '12:00 PM',
+    monthDayTime: 'Oct 10, 12:00 PM',
   }
 
   it.each(Object.entries(en))('en %s', (name, expected) => {
@@ -301,6 +303,8 @@ describe('display format names', () => {
       expect(formatDay('2026-08-01', 'numericMonthDay')).toBe('1/8')
       expect(formatDay(day, 'weekdayDate')).toBe('sábado, 10 de octubre de 2026')
       expect(formatDay(day, 'monthYearLong')).toBe('octubre de 2026')
+      expect(formatDay(day, 'time')).toBe('12:00')
+      expect(formatDay(day, 'monthDayTime')).toBe('10 oct, 12:00')
     })
 
     it('keeps an unknown day unknown', () => {
@@ -340,5 +344,31 @@ describe('defaultWorkoutName', () => {
     } finally {
       await i18n.changeLanguage('en')
     }
+  })
+})
+
+describe('formatInstant', () => {
+  const today = () => { const n = new Date(); n.setHours(15, 42, 0, 0); return n }
+
+  it('shows the time alone for today', () => {
+    expect(formatInstant(today().toISOString())).toBe('3:42 PM')
+  })
+
+  it('adds the date for another day', () => {
+    expect(formatInstant(new Date(2020, 9, 10, 15, 42).toISOString())).toBe('Oct 10, 3:42 PM')
+  })
+
+  it('reads an unreadable instant as unknown', () => {
+    expect(formatInstant('garbage')).toBe(UNKNOWN_DAY)
+  })
+
+  describe('in es', () => {
+    beforeEach(async () => { await i18n.changeLanguage('es') })
+    afterEach(async () => { await i18n.changeLanguage('en') })
+
+    it('draws 24-hour times and day-month order', () => {
+      expect(formatInstant(today().toISOString())).toBe('15:42')
+      expect(formatInstant(new Date(2020, 9, 10, 15, 42).toISOString())).toBe('10 oct, 15:42')
+    })
   })
 })

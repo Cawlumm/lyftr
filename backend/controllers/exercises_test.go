@@ -3,7 +3,10 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/db"
 )
@@ -273,5 +276,70 @@ func TestLocaleQueryParam(t *testing.T) {
 	th.GetExercise(c)
 	if w.Code != http.StatusOK || decodeResponse(t, w)["data"].(map[string]any)["name"] != "Squat" {
 		t.Errorf("GetExercise?locale=xx!! = %d %s, want 200 English", w.Code, w.Body.String())
+	}
+}
+
+func TestExerciseCacheStatus_shapeBeforeAnyPass(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	c, w := newContext(uid, http.MethodGet, "/api/v1/admin/seed-status", nil)
+	th.ExerciseCacheStatus(c)
+
+	data, _ := decodeResponse(t, w)["data"].(map[string]any)
+	want := []string{"count", "syncing", "last_synced_at", "last_attempt_at", "next_attempt_at", "last_failed", "last_failure"}
+	if len(data) != len(want) {
+		t.Errorf("data = %v, want exactly %v", data, want)
+	}
+	for _, k := range want {
+		if _, ok := data[k]; !ok {
+			t.Errorf("key %q missing from %v", k, data)
+		}
+	}
+	for _, k := range []string{"last_synced_at", "last_attempt_at", "next_attempt_at", "last_failure"} {
+		if v, ok := data[k]; !ok || v != nil {
+			t.Errorf("%s = %v, want null", k, v)
+		}
+	}
+	if data["count"] != float64(0) || data["syncing"] != false || data["last_failed"] != false {
+		t.Errorf("data = %v", data)
+	}
+}
+
+func seedStatusAfter(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
+	t.Helper()
+	if w.Code != http.StatusOK && w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("refresh = %d", w.Code)
+	}
+	c, w2 := newContext(1, http.MethodGet, "/api/v1/admin/seed-status", nil)
+	th.ExerciseCacheStatus(c)
+	data, _ := decodeResponse(t, w2)["data"].(map[string]any)
+	return data
+}
+
+func TestExerciseCacheStatus_afterFailedRefresh(t *testing.T) {
+	w := refreshWithCatalog(t, "http://127.0.0.1:1")
+	data := seedStatusAfter(t, w)
+	if data["last_failed"] != true || data["last_failure"] != "unreachable" || data["last_synced_at"] != nil {
+		t.Fatalf("data = %v, want failed unreachable with no success", data)
+	}
+	at, _ := data["last_attempt_at"].(string)
+	if _, err := time.Parse(time.RFC3339, at); err != nil || !strings.HasSuffix(at, "Z") {
+		t.Errorf("last_attempt_at = %q, want RFC3339 UTC", at)
+	}
+}
+
+func TestExerciseCacheStatus_afterSuccessfulRefresh(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}},{"id":"uuid-2","slug":"new","muscle_group":"back","translation":{"name":"New One","instructions":[]}}],"total":2}`))
+	}))
+	defer srv.Close()
+	w := refreshWithCatalog(t, srv.URL)
+	data := seedStatusAfter(t, w)
+	if data["count"] != float64(2) || data["last_failed"] != false || data["last_failure"] != nil || data["syncing"] != false {
+		t.Fatalf("data = %v", data)
+	}
+	at, _ := data["last_synced_at"].(string)
+	if _, err := time.Parse(time.RFC3339, at); err != nil || !strings.HasSuffix(at, "Z") {
+		t.Errorf("last_synced_at = %q, want RFC3339 UTC", at)
 	}
 }

@@ -25,7 +25,10 @@ import { useTranslation } from '../i18n'
 interface Options<T> {
   fetcher: (offset: number, limit: number) => Promise<T[]>
   pageSize?: number
-  // Changing any dep resets the list and re-fetches from offset 0 (e.g. search query)
+  // Changing any dep resets the list and re-fetches from offset 0 (e.g. search query).
+  // Compared with Object.is, so pass primitives or stable references: a fresh object or
+  // array each render reads as a change every render, which keeps hasMore true and
+  // refetches page 0 every render.
   deps?: readonly unknown[]
   // Shown when the server gives us nothing better to say. Pass it translated, at render.
   errorFallback?: string

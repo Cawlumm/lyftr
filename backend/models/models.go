@@ -531,3 +531,15 @@ type DailyStats struct {
 type ActiveSessionRequest struct {
 	Data string `json:"data" binding:"required"`
 }
+
+// ExerciseCacheStatus is what GET /admin/seed-status reports. The sync fields are this
+// process's memory, so they read null after a restart until the boot pass ends.
+type ExerciseCacheStatus struct {
+	Count         int        `json:"count"`
+	Syncing       bool       `json:"syncing"`
+	LastSyncedAt  *time.Time `json:"last_synced_at"`
+	LastAttemptAt *time.Time `json:"last_attempt_at"`
+	NextAttemptAt *time.Time `json:"next_attempt_at"`
+	LastFailed    bool       `json:"last_failed"`
+	LastFailure   *string    `json:"last_failure"`
+}
