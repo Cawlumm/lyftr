@@ -455,3 +455,142 @@ func TestLocales_PropagatesErrors(t *testing.T) {
 		t.Errorf("404: err = %v, want ErrNotFound", err)
 	}
 }
+
+func TestRevalidating_SendsAConditionalGetEvenWhenFresh(t *testing.T) {
+	var hits, bodies int32
+	var secondINM atomic.Value
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&hits, 1)
+		w.Header().Set("Cache-Control", "public, max-age=300, stale-while-revalidate=86400")
+		w.Header().Set("ETag", `"v1"`)
+		if n == 2 {
+			secondINM.Store(r.Header.Get("If-None-Match"))
+		}
+		if r.Header.Get("If-None-Match") == `"v1"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		atomic.AddInt32(&bodies, 1)
+		fmt.Fprint(w, listBody("Bench Press"))
+	}))
+	defer srv.Close()
+
+	v := New(srv.URL, "test").Revalidating()
+	for i := 0; i < 2; i++ {
+		res, err := v.List(context.Background(), ListParams{})
+		if err != nil {
+			t.Fatalf("list %d: %v", i, err)
+		}
+		if len(res.Exercises) != 1 {
+			t.Fatalf("list %d: %d exercises, want 1", i, len(res.Exercises))
+		}
+	}
+	if got := atomic.LoadInt32(&hits); got != 2 {
+		t.Errorf("hits = %d, want 2: a fresh entry must still be revalidated", got)
+	}
+	if got, _ := secondINM.Load().(string); got != `"v1"` {
+		t.Errorf("second If-None-Match = %q, want \"v1\"", got)
+	}
+	if got := atomic.LoadInt32(&bodies); got != 1 {
+		t.Errorf("full bodies served = %d, want 1", got)
+	}
+}
+
+func TestRevalidating_SharesTheCacheButInteractiveReadsStillServeStale(t *testing.T) {
+	var hits int32
+	release := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := atomic.AddInt32(&hits, 1)
+		if n >= 3 {
+			<-release
+		}
+		v := "v1"
+		if n >= 2 {
+			v = "v2"
+		}
+		w.Header().Set("Cache-Control", "public, max-age=0, stale-while-revalidate=86400")
+		w.Header().Set("ETag", `"`+v+`"`)
+		fmt.Fprint(w, listBody(v))
+	}))
+	defer srv.Close()
+	defer close(release)
+
+	c := New(srv.URL, "test")
+	first, err := c.List(context.Background(), ListParams{})
+	if err != nil || first.Exercises[0].Name() != "v1" {
+		t.Fatalf("prime: %v %+v", err, first)
+	}
+	second, err := c.Revalidating().List(context.Background(), ListParams{})
+	if err != nil || second.Exercises[0].Name() != "v2" {
+		t.Fatalf("revalidating read must return the new body synchronously: %v %+v", err, second)
+	}
+
+	done := make(chan string, 1)
+	go func() {
+		res, err := c.List(context.Background(), ListParams{})
+		if err != nil {
+			done <- err.Error()
+			return
+		}
+		done <- res.Exercises[0].Name()
+	}()
+	select {
+	case got := <-done:
+		if got != "v2" {
+			t.Errorf("interactive read = %q, want the view's v2 from the shared cache", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("interactive read waited on the network instead of serving stale")
+	}
+	if got := atomic.LoadInt32(&hits); got > 3 {
+		t.Errorf("hits = %d, want at most 2 synchronous plus 1 background", got)
+	}
+}
+
+func TestLocales_BoundedAgainstHostileLists(t *testing.T) {
+	cases := []struct {
+		name     string
+		total    int
+		perPage  func(page int) int
+		wantErr  bool
+		wantHits int32
+		wantLen  int
+	}{
+		{"endless one-per-page", 500, func(int) int { return 1 }, true, maxLocalePages, 0},
+		{"absurd total", 1_000_000, func(int) int { return 1 }, true, 1, 0},
+		{"oversized page", 1, func(int) int { return 501 }, true, 1, 0},
+		{"exactly the cap", 500, func(int) int { return 100 }, false, 5, 500},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var hits int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				page := int(atomic.AddInt32(&hits, 1))
+				type loc struct {
+					Code string `json:"code"`
+				}
+				out := struct {
+					Locales []loc `json:"locales"`
+					Total   int   `json:"total"`
+				}{Total: tc.total}
+				for i := 0; i < tc.perPage(page); i++ {
+					out.Locales = append(out.Locales, loc{fmt.Sprintf("l%d-%d", page, i)})
+				}
+				w.Header().Set("Cache-Control", "max-age=0")
+				_ = json.NewEncoder(w).Encode(out)
+			}))
+			defer srv.Close()
+
+			codes, err := New(srv.URL, "test").Locales(context.Background())
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if len(codes) != tc.wantLen {
+				t.Errorf("codes = %d, want %d", len(codes), tc.wantLen)
+			}
+			if got := atomic.LoadInt32(&hits); got != tc.wantHits {
+				t.Errorf("hits = %d, want %d", got, tc.wantHits)
+			}
+		})
+	}
+}

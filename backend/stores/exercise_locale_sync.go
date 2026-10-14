@@ -17,8 +17,9 @@ const CatalogSyncInterval = 24 * time.Hour
 // a pass comes back clean; CatalogSyncInterval still caps every wait.
 var catalogRetryBackoff = []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Minute}
 
-// localeSyncTimeout bounds one language, so a hung upstream cannot stall the loop.
-const localeSyncTimeout = 2 * time.Minute
+// localeSyncTimeout bounds locale discovery and each language, so a hung upstream cannot
+// stall the loop. A var so a test can shrink it.
+var localeSyncTimeout = 2 * time.Minute
 
 // RunCatalogSync re-reads every held exercise in every language the catalog offers, once
 // at start and then every interval, sooner while a pass is failing. No request triggers it
@@ -53,7 +54,9 @@ func retryDelay(failures int, every time.Duration) time.Duration {
 }
 
 func (s *ExerciseStore) syncCatalog(ctx context.Context) error {
-	codes, err := s.catalog.Locales(ctx)
+	dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
+	codes, err := s.catalog.Revalidating().Locales(dctx)
+	cancel()
 	if err != nil {
 		return err
 	}
