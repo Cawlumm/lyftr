@@ -3,9 +3,14 @@ package stores
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/oedb"
@@ -376,5 +381,67 @@ func TestPurgeDroppedLocales_RefusesToDropMostLanguagesAtOnce(t *testing.T) {
 	}
 	if n := countRows(t, s.db, `SELECT COUNT(*) FROM exercise_translations`); n != 2 {
 		t.Errorf("translations = %d, want 2 after dropping 1 of 3", n)
+	}
+}
+
+// A search answered from the response cache can still list an exercise the daily pass
+// has just found removed. Recording that answer must not bring the exercise back.
+func TestSyncCatalog_RemovalIsNotUndoneByACachedSearch(t *testing.T) {
+	var removed atomic.Bool
+	both := []oedb.Exercise{catalogExercise("uuid-x", "Squat X"), catalogExercise("uuid-y", "Squat Y")}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "max-age=300")
+		items := both
+		if removed.Load() {
+			items = both[1:]
+		}
+		switch r.URL.Path {
+		case "/api/v1/meta/locales":
+			fmt.Fprint(w, `{"locales":[{"code":"en"}],"total":1}`)
+		case "/api/v1/exercises/export":
+			json.NewEncoder(w).Encode(map[string]any{"exercises": items})
+		default:
+			if removed.Load() && r.URL.Query().Get("q") != "" {
+				items = both[1:]
+			} else if !removed.Load() {
+				items = both
+			}
+			json.NewEncoder(w).Encode(map[string]any{"exercises": items, "total": len(items)})
+		}
+	}))
+	defer srv.Close()
+
+	s := NewExerciseStore(testDB(t))
+	s.UseCatalog(oedb.New(srv.URL, "test"))
+	names := func() []string {
+		out, err := s.Search(context.Background(), ExerciseFilter{Query: "squat", Limit: 50})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var n []string
+		for _, e := range out {
+			n = append(n, e.Name)
+		}
+		return n
+	}
+
+	if got := names(); len(got) != 2 {
+		t.Fatalf("before the removal, search = %v, want both", got)
+	}
+	removed.Store(true)
+	if _, err := s.syncCatalog(context.Background()); err != nil {
+		t.Fatalf("sync: %v", err)
+	}
+	if got := names(); slices.Contains(got, "Squat X") {
+		t.Errorf("search after the removal = %v, want Squat X to stay hidden", got)
+	}
+	list, err := s.List(ExerciseFilter{Query: "squat", Limit: 50})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range list {
+		if e.Name == "Squat X" {
+			t.Error("the removed exercise was un-hidden by a search")
+		}
 	}
 }

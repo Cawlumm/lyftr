@@ -303,6 +303,17 @@ func (c *Client) Revalidating() *Client {
 	return &v
 }
 
+// DropCache forgets every cached response, in the map the Revalidating views share. A
+// caller that has just learned upstream changed uses it so the next read asks again
+// instead of being answered from before.
+func (c *Client) DropCache() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for k := range c.cache {
+		delete(c.cache, k)
+	}
+}
+
 // revalidate refreshes a stale entry off the request path. It deliberately uses
 // its own timeout-bounded context rather than the caller's: the caller has
 // already been served, and cancelling the refresh when that request finishes
