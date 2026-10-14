@@ -21,7 +21,7 @@ ignores `code`. Every error body is now `{"error": "...", "code": "UPPER_SNAKE"}
 optional `params` object when the sentence has variables. The first-party clients key their
 own (localized) wording on `code` and fall back to `error`.
 
-Codes (70). Every error has its own code with a fixed status; there is no generic
+Codes (71). Every error has its own code with a fixed status; there is no generic
 `BAD_REQUEST`, `NOT_FOUND` or `SERVICE_UNAVAILABLE`.
 
 - Sign-in and session: `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
@@ -40,7 +40,7 @@ Codes (70). Every error has its own code with a fixed status; there is no generi
 - Resources: `INVALID_ID`, `INVALID_EXERCISE_ID`, `INVALID_PROGRAM_ID`, `INVALID_WORKOUT_ID`
   (`400`); `ENTRY_NOT_FOUND`, `SAVED_FOOD_NOT_FOUND`, `EXERCISE_NOT_FOUND`,
   `PROGRAM_NOT_FOUND`, `WORKOUT_NOT_FOUND` (`404`); `UNKNOWN_EXERCISES`, `NO_EXERCISE_CATALOG`
-  (`400`).
+  (`400`); `EXERCISE_CATALOG_UNREACHABLE` (`503`, with `Retry-After: 2`).
 - Dates: `INVALID_DATE`, `INVALID_LOGGED_ON`, `INVALID_FROM_DATE`, `INVALID_TO_DATE` (`400`).
 - Food: `FOOD_NAME_TOO_LONG`, `FOOD_BRAND_TOO_LONG`, `SERVING_SIZE_TOO_LONG`,
   `BARCODE_TOO_LONG`, `IMAGE_URL_TOO_LONG`, `SEARCH_TERM_REQUIRED`, `INVALID_BARCODE` (`400`);
@@ -202,6 +202,9 @@ populate an empty one. A caller using this to fill a fresh install gets `{"refre
 and an instance that is still empty — search populates the cache now, so there is nothing
 to call. New failure mode: `400` with "This server has no exercise catalog configured."
 when no upstream is set.
+When the upstream is configured but cannot be reached, or answers with an error, it answers
+`503` `EXERCISE_CATALOG_UNREACHABLE` "Couldn't reach the exercise catalog."; it used to
+answer `400` "The request couldn't be read."
 
 ## `POST /api/v1/admin/reset-exercises` — `{"reset","message"}` became `{"cleared"}`, and it no longer re-seeds
 

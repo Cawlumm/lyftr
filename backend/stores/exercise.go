@@ -568,6 +568,10 @@ var errNoCatalog = errors.New("This server has no exercise catalog configured.")
 // no upstream configured.
 var ErrNoCatalog = errors.New("This server has no exercise catalog configured.")
 
+// ErrCatalogUnreachable marks a refresh that failed reading the upstream catalog, so a
+// caller can tell an oedb outage from a local database failure.
+var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
+
 // CachedCount reports how many catalog rows this instance currently holds.
 //
 // Lyftr does not maintain a copy of the catalog, so this is not "how big is the
@@ -596,10 +600,14 @@ func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 //
 // It stops at the first failed batch and reports how many rows it did apply: the
 // rows written so far are valid, and the caller decides whether a partial pass counts.
+//
+// It reads through Revalidating, because a re-read that a cache can answer re-applies
+// what this instance already holds.
 func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
+	cat := s.catalog.Revalidating()
 
 	held, err := s.cachedOedbIDs()
 	if err != nil {
@@ -610,9 +618,9 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 	}
 
 	if servedInEnglish(locale) {
-		items, err := s.catalog.Export(ctx)
+		items, err := cat.Export(ctx)
 		if err != nil {
-			return 0, err
+			return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
 		keep := items[:0]
 		for _, it := range items {
@@ -633,9 +641,9 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 	done := 0
 	for start := 0; start < len(ids); start += oedb.MaxPerPage {
 		end := min(start+oedb.MaxPerPage, len(ids))
-		res, err := s.catalog.List(ctx, oedb.ListParams{IDs: ids[start:end], Locale: locale, PerPage: oedb.MaxPerPage})
+		res, err := cat.List(ctx, oedb.ListParams{IDs: ids[start:end], Locale: locale, PerPage: oedb.MaxPerPage})
 		if err != nil {
-			return done, err
+			return done, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
 		out, err := s.Materialize(res.Exercises, s.catalog.BaseURL(), locale)
 		if err != nil {
