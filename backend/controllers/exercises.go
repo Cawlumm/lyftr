@@ -125,11 +125,12 @@ func (h *Handler) RefreshExerciseCache(c *gin.Context) {
 	utils.OK(c, gin.H{"refreshed": n})
 }
 
-// ExerciseCacheStatus reports how many catalog rows this instance holds.
+// ExerciseCacheStatus reports how many catalog rows this instance holds and how catalog
+// passes are going.
 func (h *Handler) ExerciseCacheStatus(c *gin.Context) {
-	count, err := h.s.Exercise.CachedCount()
+	st, err := h.s.Exercise.CacheStatus()
 	if utils.DBError(c, err) {
 		return
 	}
-	utils.OK(c, gin.H{"count": count})
+	utils.OK(c, st)
 }

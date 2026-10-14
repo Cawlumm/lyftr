@@ -15,6 +15,8 @@
 // The *lookup rule* over those tables is identical on both sides, so it lives here.
 
 import { i18n } from '../i18n'
+import type { ExerciseCacheStatus } from '../types'
+import { formatInstant } from './dateUtils'
 
 // Equipment and muscle names are read off exercises the server serves. Both vocabularies are
 // open-exercise-db's slugs, so a label is looked up by slug and anything outside the list
@@ -72,6 +74,30 @@ export function exerciseCatalogEmpty(
   list: { items: readonly unknown[]; hasMore: boolean; error: string | null },
 ): boolean {
   return !query && !list.error && !list.hasMore && list.items.length === 0
+}
+
+export interface CatalogSyncLine { text: string; warning: boolean }
+
+// What the library section says about the catalog sync, for web and mobile alike. Looked up
+// at call time, so render under useTranslation() like relativeDayLabel. A server too old
+// to send sync fields, or no answer yet, gives no lines.
+export function catalogSyncLines(s: ExerciseCacheStatus | null | undefined): CatalogSyncLine[] {
+  if (!s) return []
+  const lines: CatalogSyncLine[] = []
+  if (s.last_synced_at) {
+    lines.push({ text: i18n.t('settings.library.lastSynced', { when: formatInstant(s.last_synced_at) }), warning: false })
+  }
+  if (s.syncing) {
+    lines.push({ text: i18n.t('settings.library.syncing'), warning: false })
+  } else if (s.last_failed) {
+    let text = i18n.t(s.last_failure === 'unreachable' ? 'settings.library.syncUnreachable' : 'settings.library.syncFailed')
+    // A retry time already past (stale page, skewed clock) is dropped rather than named.
+    if (s.next_attempt_at && Date.parse(s.next_attempt_at) > Date.now()) {
+      text += ' ' + i18n.t('settings.library.syncRetry', { when: formatInstant(s.next_attempt_at) })
+    }
+    lines.push({ text, warning: true })
+  }
+  return lines
 }
 
 export function muscleLabel(raw: string | undefined | null): string {

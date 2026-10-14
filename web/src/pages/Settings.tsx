@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   uiMessage, useAsyncAction, memberSince, displayName, MAX_DISPLAY_NAME_LEN,
   useTranslation, LANGUAGE_ORDER, LANGUAGE_NAMES, languageChoiceLabel,
-  type LanguagePreference, type UiMessage,
+  catalogSyncLines, type ExerciseCacheStatus, type LanguagePreference, type UiMessage,
 } from '@lyftr/shared'
 import { useLanguageStore } from '../lib/lyftr'
 import { useAuthStore } from '../stores/auth'
@@ -97,7 +97,7 @@ export default function Settings() {
   // "say it where the tap was" failure this whole branch exists to stop.
   const [unitError, setUnitError] = useState<UiMessage | null>(null)
 
-  const [cacheStatus, setCacheStatus] = useState<{ count: number } | null>(null)
+  const [cacheStatus, setCacheStatus] = useState<ExerciseCacheStatus | null>(null)
   const [seedAction, setSeedAction] = useState<'refresh' | null>(null)
   // Carries whether it FAILED, not just what it said. Both outcomes used to land in
   // one muted grey line, so "Refreshed 812 exercises" and "Can't reach the server
@@ -163,13 +163,17 @@ export default function Settings() {
     try {
       const res = await exerciseAPI.refreshCache()
       setSeedMsg({ message: { key: 'settings.library.refreshed', params: { count: res.refreshed, amount: res.refreshed.toLocaleString() } }, failed: false })
-      loadCacheStatus()
     } catch (err: any) {
       setSeedMsg({ message: { key: 'settings.library.refreshFailed', cause: err }, failed: true })
     } finally {
+      // Also after a failed or refused refresh: the failure line and Syncing state are
+      // exactly what changed.
+      loadCacheStatus()
       setSeedAction(null)
     }
   }
+
+  const syncLines = catalogSyncLines(cacheStatus)
 
 
   // The store rolls its own optimistic patch back when the write fails, so the app no
@@ -579,6 +583,14 @@ export default function Settings() {
               : t('settings.library.cachedUnknown')}
           </span>
         </SettingRow>
+
+        {syncLines.length > 0 && (
+          <div className="py-2 px-1 space-y-1">
+            {syncLines.map(l => (
+              <p key={l.text} className={`text-xs break-words ${l.warning ? 'text-warning-400' : 'text-tx-muted'}`}>{l.text}</p>
+            ))}
+          </div>
+        )}
 
         {seedMsg && (
           <div className="py-2 px-1">

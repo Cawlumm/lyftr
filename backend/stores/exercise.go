@@ -9,6 +9,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -26,6 +27,9 @@ type ExerciseStore struct {
 	// syncing is held for the length of a catalog pass, so the daily timer and the
 	// admin endpoint can never run two imports against the one SQLite connection.
 	syncing atomic.Bool
+	// status is how recent passes went. syncing above stays the one running flag.
+	statusMu sync.Mutex
+	status   models.ExerciseCacheStatus
 }
 
 func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db} }
@@ -578,12 +582,25 @@ var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
 // ErrSyncRunning is returned when a catalog pass is already in progress.
 var ErrSyncRunning = errors.New("exercise sync already running")
 
-// CachedCount reports how many catalog rows this instance currently holds.
+// CacheStatus reports how many catalog rows this instance currently holds and how the
+// sync passes are going.
 //
 // After the first scheduled pass the table holds the whole catalog plus any legacy
 // rows; before it, only what reads have had reason to record. A fresh install reports
 // zero and is fully functional.
-func (s *ExerciseStore) CachedCount() (int, error) { return s.Count() }
+func (s *ExerciseStore) CacheStatus() (models.ExerciseCacheStatus, error) {
+	n, err := s.Count()
+	if err != nil {
+		return models.ExerciseCacheStatus{}, err
+	}
+	s.statusMu.Lock()
+	st := s.status
+	s.statusMu.Unlock()
+	st.Count = n
+	st.Syncing = s.syncing.Load()
+	st.LastFailed = st.LastFailure != nil
+	return st, nil
+}
 
 // RefreshCached is the scheduled catalog pass run on demand: it imports every upstream
 // exercise in English and re-reads every held one in each other language. The int is

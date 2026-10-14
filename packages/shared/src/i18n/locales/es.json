@@ -183,7 +183,12 @@
       "refreshed_other": "Se actualizaron {{amount}} ejercicios",
       "refresh": "Actualizar caché",
       "refreshing": "Actualizando…",
-      "refreshFailed": "No se pudo actualizar la caché."
+      "refreshFailed": "No se pudo actualizar la caché.",
+      "lastSynced": "Última sincronización: {{when}}",
+      "syncing": "Sincronizando…",
+      "syncUnreachable": "La última sincronización no pudo conectar con el catálogo de ejercicios.",
+      "syncFailed": "La última sincronización no terminó.",
+      "syncRetry": "Nuevo intento: {{when}}."
     },
     "danger": {
       "title": "Zona de peligro",
@@ -222,7 +227,9 @@
       "weekdayMonthDay": "EEE, d MMM",
       "weekdayMonthDayYear": "EEE, d MMM yyyy",
       "year": "yyyy",
-      "monthYearLong": "MMMM 'de' yyyy"
+      "monthYearLong": "MMMM 'de' yyyy",
+      "time": "H:mm",
+      "monthDayTime": "d MMM, H:mm"
     },
     "day": {
       "today": "Hoy",

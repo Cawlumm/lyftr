@@ -18,6 +18,11 @@ const CatalogSyncInterval = 24 * time.Hour
 // a pass comes back clean; CatalogSyncInterval still caps every wait.
 var catalogRetryBackoff = []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Minute}
 
+const (
+	syncFailureUnreachable = "unreachable"
+	syncFailureOther       = "other"
+)
+
 // localeSyncTimeout bounds locale discovery and each language, so a hung upstream cannot
 // stall the loop. A var so a test can shrink it.
 var localeSyncTimeout = 2 * time.Minute
@@ -32,6 +37,7 @@ func (s *ExerciseStore) RunCatalogSync(ctx context.Context, every time.Duration)
 	}
 	failures := 0
 	for {
+		s.setNextAttempt(nil)
 		wait := every
 		if _, err := s.syncCatalog(ctx); err != nil {
 			wait = retryDelay(failures, every)
@@ -40,12 +46,40 @@ func (s *ExerciseStore) RunCatalogSync(ctx context.Context, every time.Duration)
 		} else {
 			failures = 0
 		}
+		next := time.Now().Add(wait).UTC()
+		s.setNextAttempt(&next)
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(wait):
 		}
 	}
+}
+
+func (s *ExerciseStore) setNextAttempt(t *time.Time) {
+	s.statusMu.Lock()
+	defer s.statusMu.Unlock()
+	s.status.NextAttemptAt = t
+}
+
+// recordPass is the one place a finished pass is written to the status. A failed pass
+// leaves LastSyncedAt at the last clean one.
+func (s *ExerciseStore) recordPass(started time.Time, err error) {
+	s.statusMu.Lock()
+	defer s.statusMu.Unlock()
+	at := started.UTC()
+	s.status.LastAttemptAt = &at
+	if err == nil {
+		now := time.Now().UTC()
+		s.status.LastSyncedAt = &now
+		s.status.LastFailure = nil
+		return
+	}
+	reason := syncFailureOther
+	if errors.Is(err, ErrCatalogUnreachable) {
+		reason = syncFailureUnreachable
+	}
+	s.status.LastFailure = &reason
 }
 
 // retryDelay is the wait after the failures-th consecutive failed pass, never longer than
@@ -58,7 +92,7 @@ func retryDelay(failures int, every time.Duration) time.Duration {
 // syncCatalog is the one catalog pass. English goes first, because it creates the rows
 // every translation attaches to; the other languages follow. The int is how many
 // exercises the English pass recorded. A language that fails does not stop the rest.
-func (s *ExerciseStore) syncCatalog(ctx context.Context) (int, error) {
+func (s *ExerciseStore) syncCatalog(ctx context.Context) (_ int, err error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
@@ -66,6 +100,10 @@ func (s *ExerciseStore) syncCatalog(ctx context.Context) (int, error) {
 		return 0, ErrSyncRunning
 	}
 	defer s.syncing.Store(false)
+	started := time.Now()
+	// Deferred after the flag's release, so it runs first: a reader never sees the pass
+	// finished with the old outcome.
+	defer func() { s.recordPass(started, err) }()
 	dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
 	codes, err := s.catalog.Revalidating().Locales(dctx)
 	cancel()

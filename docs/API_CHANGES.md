@@ -14,6 +14,17 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `GET /api/v1/admin/seed-status` — gains sync status (additive)
+
+`count` is unchanged. The response now also carries `syncing` (a catalog pass is running),
+`last_synced_at` (when the last clean pass ended), `last_attempt_at` (when the last pass
+started), `next_attempt_at` (when the scheduled pass runs next, null while one runs),
+`last_failed`, and `last_failure` (`"unreachable"` for an open-exercise-db outage,
+`"other"` for anything else, null when the last pass was clean). Times are RFC3339 UTC and
+may carry fractional seconds; unknown ones are null. The values live in memory, so they are
+null after a restart until the boot pass finishes. Callers that read only `count` see no
+change.
+
 ## `POST /api/v1/admin/reset-exercises` removed; `POST /api/v1/admin/sync-exercises` imports the whole catalog
 
 `reset-exercises` no longer exists and answers 404, so a caller using it to drop unreferenced

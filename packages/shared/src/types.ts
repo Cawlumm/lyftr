@@ -319,3 +319,14 @@ export interface ChangePasswordRequest {
   current_password: string
   new_password: string
 }
+
+// The sync fields are absent from servers older than the one that added them.
+export interface ExerciseCacheStatus {
+  count: number
+  syncing?: boolean
+  last_synced_at?: string | null
+  last_attempt_at?: string | null
+  next_attempt_at?: string | null
+  last_failed?: boolean
+  last_failure?: 'unreachable' | 'other' | null
+}
