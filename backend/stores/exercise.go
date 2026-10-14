@@ -13,6 +13,7 @@ import (
 
 	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/oedb"
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 // ExerciseStore owns all SQL for the (global, read-only) exercises catalog, and
@@ -204,6 +205,11 @@ func (s *ExerciseStore) Count() (int, error) {
 // exercise_translations row instead, so one user's Spanish search never rewrites
 // what an English reader sees. locale is the language that was asked for, and the
 // language the returned rows are shown in.
+//
+// Name matching only adopts a row that no upstream id owns yet. An upstream
+// exercise whose name is already owned by another id is skipped and left out of the
+// result, because oedb names are not unique and re-pointing the row would re-point
+// every workout that references it.
 func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale string) ([]models.Exercise, error) {
 	if len(items) == 0 {
 		return []models.Exercise{}, nil
@@ -239,7 +245,8 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 		  description       = COALESCE(?, description),
 		  image_url         = excluded.image_url,
 		  oedb_id           = excluded.oedb_id,
-		  slug              = excluded.slug`)
+		  slug              = excluded.slug
+		WHERE exercises.oedb_id IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -269,10 +276,21 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 			descEnglish = desc
 		}
 
-		res, err := byOedbID.Exec(
+		args := []any{
 			nameEnglish, it.MuscleGroup, string(secondaryJSON), it.Category,
 			it.Equipment, descEnglish, it.ImageURL(imageBase), it.Slug, it.ID,
-		)
+		}
+		res, err := byOedbID.Exec(args...)
+		if utils.IsUniqueViolation(err) {
+			// Moving the name would mean merging two rows that workouts point at.
+			holderID, holderOedb, herr := nameHolder(tx, name)
+			if herr != nil {
+				return nil, herr
+			}
+			log.Printf("exercises: upstream %s renamed to %q, already held by local exercise %d (oedb_id %q); keeping its current name", it.ID, name, holderID, holderOedb)
+			args[0] = nil
+			res, err = byOedbID.Exec(args...)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -288,12 +306,25 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 			if descEN {
 				baseDesc = desc
 			}
-			if _, err := byName.Exec(
+			nameRes, err := byName.Exec(
 				name, it.MuscleGroup, string(secondaryJSON), it.Category,
 				it.Equipment, baseDesc, it.ImageURL(imageBase), it.ID, it.Slug,
 				descEnglish,
-			); err != nil {
+			)
+			if err != nil {
 				return nil, err
+			}
+			adopted, err := nameRes.RowsAffected()
+			if err != nil {
+				return nil, err
+			}
+			if adopted == 0 {
+				holderID, holderOedb, herr := nameHolder(tx, name)
+				if herr != nil {
+					return nil, herr
+				}
+				log.Printf("exercises: skipping upstream %s %q: name already held by local exercise %d (oedb_id %q)", it.ID, name, holderID, holderOedb)
+				continue
 			}
 		}
 
@@ -322,6 +353,12 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 // name as the base would show it to every English reader, so the whole batch rolls
 // back and the caller falls back to the local snapshot.
 var errNoEnglishBase = errors.New("exercises: no English base row for a translated exercise")
+
+// nameHolder reports which local row holds name, for the log line when an upstream exercise cannot take it.
+func nameHolder(tx *sql.Tx, name string) (id int64, oedbID string, err error) {
+	err = tx.QueryRow(`SELECT id, COALESCE(oedb_id, '') FROM exercises WHERE name = ?`, name).Scan(&id, &oedbID)
+	return
+}
 
 // servedInEnglish reports whether a field oedb served is the English text. An empty
 // locale is an oedb that predates name_locale, which only ever served English.

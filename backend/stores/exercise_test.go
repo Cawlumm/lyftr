@@ -403,3 +403,195 @@ func TestList_LocalFallbackPages(t *testing.T) {
 		t.Errorf("page 3 starts at %q, want Exercise 20", page3[0].Name)
 	}
 }
+
+func ownerOf(t *testing.T, conn *sql.DB, id int64) string {
+	t.Helper()
+	var o sql.NullString
+	if err := conn.QueryRow(`SELECT oedb_id FROM exercises WHERE id = ?`, id).Scan(&o); err != nil {
+		t.Fatalf("owner of %d: %v", id, err)
+	}
+	return o.String
+}
+
+// oedb names are not unique. A second upstream id with a name another id already
+// owns must not take that row over: every workout pointing at it would silently
+// point at a different exercise.
+func TestMaterialize_DuplicateNameDoesNotTakeOverOwnedRow(t *testing.T) {
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+
+	first, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-A", "Squat")}, imageBase, "en")
+	if err != nil || len(first) != 1 {
+		t.Fatalf("first: %v %v", first, err)
+	}
+	aID := first[0].ID
+	for _, q := range []string{
+		`INSERT INTO users (id, email, password_hash) VALUES (1, 'a@b.c', 'x')`,
+		`INSERT INTO workouts (id, user_id, name) VALUES (1, 1, 'W')`,
+	} {
+		if _, err := conn.Exec(q); err != nil {
+			t.Fatalf("seed: %v", err)
+		}
+	}
+	if _, err := conn.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (1, ?, 0)`, aID); err != nil {
+		t.Fatalf("seed workout_exercise: %v", err)
+	}
+
+	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-B", "Squat")}, imageBase, "en")
+	if err != nil {
+		t.Fatalf("duplicate: %v", err)
+	}
+	if len(out) != 0 {
+		t.Errorf("skipped duplicate returned %d rows, want 0", len(out))
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 1 {
+		t.Errorf("exercises = %d, want 1", n)
+	}
+	if got := ownerOf(t, conn, aID); got != "uuid-A" {
+		t.Errorf("owner = %q, want uuid-A", got)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id = 'uuid-B'`); n != 0 {
+		t.Errorf("uuid-B has %d rows, want 0", n)
+	}
+	var joined string
+	if err := conn.QueryRow(`SELECT e.oedb_id FROM workout_exercises we JOIN exercises e ON e.id = we.exercise_id`).Scan(&joined); err != nil || joined != "uuid-A" {
+		t.Errorf("workout points at %q (%v), want uuid-A", joined, err)
+	}
+
+	out, err = s.Materialize([]oedb.Exercise{catalogExercise("uuid-A", "Squat"), catalogExercise("uuid-B", "Squat")}, imageBase, "en")
+	if err != nil {
+		t.Fatalf("both: %v", err)
+	}
+	if got := ownerOf(t, conn, aID); got != "uuid-A" {
+		t.Errorf("owner after both = %q, want uuid-A", got)
+	}
+	if len(out) != 1 || out[0].ID != aID {
+		t.Errorf("out = %+v, want only local id %d", out, aID)
+	}
+}
+
+func TestMaterialize_DuplicateInBatchKeepsTheRest(t *testing.T) {
+	for _, locale := range []string{"en", "es"} {
+		t.Run(locale, func(t *testing.T) {
+			conn := testDB(t)
+			s := NewExerciseStore(conn)
+			mk := func(id, name string) oedb.Exercise {
+				return served(id, name, "en", []string{"Step."}, "en")
+			}
+			out, err := s.Materialize([]oedb.Exercise{
+				mk("uuid-A", "Squat"), mk("uuid-C", "Deadlift"), mk("uuid-B", "Squat"), mk("uuid-D", "Row"),
+			}, imageBase, locale)
+			if err != nil {
+				t.Fatalf("Materialize: %v", err)
+			}
+			if len(out) != 3 {
+				t.Fatalf("out = %d rows, want 3", len(out))
+			}
+			for i, want := range []string{"Squat", "Deadlift", "Row"} {
+				if out[i].Name != want {
+					t.Errorf("out[%d] = %q, want %q", i, out[i].Name, want)
+				}
+			}
+			if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 3 {
+				t.Errorf("exercises = %d, want 3", n)
+			}
+			if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id = 'uuid-A' AND name = 'Squat'`); n != 1 {
+				t.Errorf("uuid-A does not own Squat")
+			}
+			if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id = 'uuid-B'`); n != 0 {
+				t.Errorf("uuid-B has a row")
+			}
+		})
+	}
+}
+
+func TestMaterialize_LegacyAdoptionThenDuplicateIsSkipped(t *testing.T) {
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	res, err := conn.Exec(`INSERT INTO exercises (name, muscle_group) VALUES ('Squat', 'legs')`)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	legacyID, _ := res.LastInsertId()
+
+	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-A", "Squat"), catalogExercise("uuid-B", "Squat")}, imageBase, "en")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	if got := ownerOf(t, conn, legacyID); got != "uuid-A" {
+		t.Errorf("legacy owner = %q, want uuid-A", got)
+	}
+	if len(out) != 1 || out[0].ID != legacyID {
+		t.Errorf("out = %+v, want only legacy id %d", out, legacyID)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises`); n != 1 {
+		t.Errorf("exercises = %d, want 1", n)
+	}
+}
+
+// An upstream rename onto a name another row holds cannot move the name without
+// merging two rows workouts point at, so the row keeps its name and takes the rest.
+func TestMaterialize_RenameOntoHeldNameKeepsCurrentName(t *testing.T) {
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	if _, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-A", "Barbell Squat"), catalogExercise("uuid-B", "Squat")}, imageBase, "en"); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	var aID int64
+	if err := conn.QueryRow(`SELECT id FROM exercises WHERE oedb_id = 'uuid-A'`).Scan(&aID); err != nil {
+		t.Fatalf("a id: %v", err)
+	}
+	if _, err := conn.Exec(`INSERT INTO exercises (name) VALUES ('Bench Press')`); err != nil {
+		t.Fatalf("legacy: %v", err)
+	}
+
+	renamed := catalogExercise("uuid-A", "Squat")
+	renamed.MuscleGroup = "quadriceps"
+	out, err := s.Materialize([]oedb.Exercise{renamed, catalogExercise("uuid-C", "Lunge")}, imageBase, "en")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	if len(out) != 2 || out[0].ID != aID {
+		t.Errorf("out = %+v, want A then C", out)
+	}
+	var name, muscle string
+	if err := conn.QueryRow(`SELECT name, muscle_group FROM exercises WHERE id = ?`, aID).Scan(&name, &muscle); err != nil {
+		t.Fatalf("read a: %v", err)
+	}
+	if name != "Barbell Squat" || muscle != "quadriceps" {
+		t.Errorf("A = %q/%q, want Barbell Squat/quadriceps", name, muscle)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE name = 'Squat' AND oedb_id = 'uuid-B'`); n != 1 {
+		t.Errorf("B lost its row")
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id = 'uuid-C'`); n != 1 {
+		t.Errorf("C not inserted")
+	}
+
+	onto := catalogExercise("uuid-A", "Bench Press")
+	if _, err := s.Materialize([]oedb.Exercise{onto}, imageBase, "en"); err != nil {
+		t.Fatalf("rename onto legacy: %v", err)
+	}
+	if err := conn.QueryRow(`SELECT name FROM exercises WHERE id = ?`, aID).Scan(&name); err != nil || name != "Barbell Squat" {
+		t.Errorf("A name = %q (%v), want Barbell Squat", name, err)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE name = 'Bench Press' AND oedb_id IS NULL`); n != 1 {
+		t.Errorf("legacy Bench Press was adopted")
+	}
+}
+
+// idx_exercises_name is BINARY, so names differing in case are different names.
+func TestMaterialize_NameOwnershipFollowsIndexCollation(t *testing.T) {
+	conn := testDB(t)
+	s := NewExerciseStore(conn)
+	out, err := s.Materialize([]oedb.Exercise{catalogExercise("uuid-A", "Squat"), catalogExercise("uuid-B", "squat")}, imageBase, "en")
+	if err != nil {
+		t.Fatalf("Materialize: %v", err)
+	}
+	if len(out) != 2 {
+		t.Errorf("out = %d rows, want 2", len(out))
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE oedb_id IN ('uuid-A', 'uuid-B')`); n != 2 {
+		t.Errorf("owned rows = %d, want 2", n)
+	}
+}
