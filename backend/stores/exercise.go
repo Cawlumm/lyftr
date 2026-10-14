@@ -593,11 +593,14 @@ func (s *ExerciseStore) CacheStatus() (models.ExerciseCacheStatus, error) {
 	if err != nil {
 		return models.ExerciseCacheStatus{}, err
 	}
+	// Flag first: recordPass runs before it is released, so a reader that sees it down
+	// is guaranteed to read the finished pass's outcome below.
+	syncing := s.syncing.Load()
 	s.statusMu.Lock()
 	st := s.status
 	s.statusMu.Unlock()
 	st.Count = n
-	st.Syncing = s.syncing.Load()
+	st.Syncing = syncing
 	st.LastFailed = st.LastFailure != nil
 	return st, nil
 }
