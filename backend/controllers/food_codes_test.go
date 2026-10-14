@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/oedb"
 )
 
 // These pin the code, the status and the sentence of every error the food-database and
@@ -156,4 +159,62 @@ func TestRefreshExerciseCache_withoutCatalogCode(t *testing.T) {
 	th.RefreshExerciseCache(c)
 
 	wantCode(t, w, http.StatusBadRequest, "NO_EXERCISE_CATALOG", "This server has no exercise catalog configured.")
+}
+
+func refreshWithCatalog(t *testing.T, baseURL string) *httptest.ResponseRecorder {
+	t.Helper()
+	setupTestDB(t)
+	uid := createTestUser(t)
+	if _, err := db.DB.Exec("INSERT INTO exercises (name, oedb_id) VALUES ('Held', 'uuid-1')"); err != nil {
+		t.Fatal(err)
+	}
+	th.s.Exercise.UseCatalog(oedb.New(baseURL, "test"))
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
+	th.RefreshExerciseCache(c)
+	return w
+}
+
+func TestRefreshExerciseCache_catalogFailureCodes(t *testing.T) {
+	const sentence = "Couldn't reach the exercise catalog."
+
+	t.Run("upstream 5xx", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		defer srv.Close()
+		w := refreshWithCatalog(t, srv.URL)
+		wantCode(t, w, http.StatusServiceUnavailable, "EXERCISE_CATALOG_UNREACHABLE", sentence)
+		if got := w.Header().Get("Retry-After"); got != "2" {
+			t.Fatalf("Retry-After = %q, want 2", got)
+		}
+	})
+
+	t.Run("unreachable", func(t *testing.T) {
+		w := refreshWithCatalog(t, "http://127.0.0.1:1")
+		wantCode(t, w, http.StatusServiceUnavailable, "EXERCISE_CATALOG_UNREACHABLE", sentence)
+	})
+
+	t.Run("malformed body", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte("{not json"))
+		}))
+		defer srv.Close()
+		w := refreshWithCatalog(t, srv.URL)
+		wantCode(t, w, http.StatusServiceUnavailable, "EXERCISE_CATALOG_UNREACHABLE", sentence)
+	})
+}
+
+func TestRefreshExerciseCache_success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held Renamed","instructions":[]}}],"total":1}`))
+	}))
+	defer srv.Close()
+	w := refreshWithCatalog(t, srv.URL)
+
+	body := decodeResponse(t, w)
+	data, _ := body["data"].(map[string]any)
+	if w.Code != http.StatusOK || data["refreshed"] != float64(1) || body["code"] != nil {
+		t.Fatalf("got %d %v, want 200 refreshed 1", w.Code, body)
+	}
 }

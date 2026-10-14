@@ -357,6 +357,7 @@
         "FOOD_SEARCH_UNAVAILABLE": "Food search is temporarily unavailable.",
         "BARCODE_LOOKUP_UNAVAILABLE": "Barcode lookup is temporarily unavailable.",
         "NO_EXERCISE_CATALOG": "This server has no exercise catalog configured.",
+        "EXERCISE_CATALOG_UNREACHABLE": "Couldn't reach the exercise catalog.",
         "DISPLAY_NAME_CONTROL_CHARS": "A name can't contain line breaks or other control characters.",
         "TIMEZONE_EMPTY": "Timezone can't be empty.",
         "UNKNOWN_TIMEZONE": "Unknown timezone: {{timezone}}.",
