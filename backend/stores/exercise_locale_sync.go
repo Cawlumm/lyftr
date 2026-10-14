@@ -161,6 +161,10 @@ func (s *ExerciseStore) syncCatalog(ctx context.Context) (_ int, err error) {
 // stays if it is offered or is the base language of an offered one, because
 // translationJoin falls back from es-MX to es. English lives in the base columns, not in
 // this table, so it is never touched.
+//
+// A discovery answer is upstream's word alone, and a wrong or truncated one would read as
+// "every language was dropped". When it would remove more than half of the languages held,
+// nothing is deleted: leftover translations are harmless, wiping them costs a full re-import.
 func (s *ExerciseStore) purgeDroppedLocales(offered []string) error {
 	keep := make([]string, 0, 2*len(offered))
 	for _, l := range offered {
@@ -169,6 +173,16 @@ func (s *ExerciseStore) purgeDroppedLocales(offered []string) error {
 	keepJSON, err := json.Marshal(keep)
 	if err != nil {
 		return err
+	}
+	var held, dropped int
+	if err := s.db.QueryRow(`SELECT COUNT(DISTINCT locale),
+		COUNT(DISTINCT CASE WHEN locale NOT IN (SELECT value FROM json_each(?1)) THEN locale END)
+		FROM exercise_translations`, string(keepJSON)).Scan(&held, &dropped); err != nil {
+		return err
+	}
+	if dropped*2 > held {
+		log.Printf("exercises: catalog now offers %d languages and would drop %d of the %d held; keeping their translations", len(offered), dropped, held)
+		return nil
 	}
 	res, err := s.db.Exec(`DELETE FROM exercise_translations WHERE locale NOT IN (SELECT value FROM json_each(?))`, string(keepJSON))
 	if err != nil {

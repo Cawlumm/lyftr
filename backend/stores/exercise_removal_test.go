@@ -353,3 +353,28 @@ func TestSyncCatalog_KeepsTranslationsWhenDiscoveryFailsOrIsEmpty(t *testing.T) 
 		t.Errorf("translations = %d after an empty discovery, want %d", got, before)
 	}
 }
+
+// One discovery answer must not be able to wipe the translations: dropping most of the
+// held languages at once is far more likely a bad answer than a catalog that shrank.
+func TestPurgeDroppedLocales_RefusesToDropMostLanguagesAtOnce(t *testing.T) {
+	s := NewExerciseStore(testDB(t))
+	materialize(t, s, "en", catalogExercise("uuid-1", "One"))
+	id := localID(t, s, "uuid-1")
+	for _, l := range []string{"es", "fr", "de"} {
+		if _, err := s.db.Exec(`INSERT INTO exercise_translations (exercise_id, locale, name) VALUES (?, ?, ?)`, id, l, l); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.purgeDroppedLocales([]string{"es"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, s.db, `SELECT COUNT(*) FROM exercise_translations`); n != 3 {
+		t.Errorf("translations = %d, want all 3 kept when 2 of 3 languages would go", n)
+	}
+	if err := s.purgeDroppedLocales([]string{"es", "fr"}); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, s.db, `SELECT COUNT(*) FROM exercise_translations`); n != 2 {
+		t.Errorf("translations = %d, want 2 after dropping 1 of 3", n)
+	}
+}

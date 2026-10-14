@@ -23,7 +23,7 @@ return it, and logging a workout with it still works. It comes back if upstream 
 again. A pass whose export is empty or holds under half the held catalog marks nothing and
 is reported as failed (`POST /admin/sync-exercises` answers 503 `EXERCISE_CATALOG_UNREACHABLE`),
 so it is retried. Translations in a language the catalog stops offering are removed after a
-successful locale discovery; the English text is unaffected. `/admin/seed-status` `count`
+successful locale discovery, unless that would drop more than half of the languages held, in which case nothing is removed; the English text is unaffected. `/admin/seed-status` `count`
 still includes hidden rows.
 
 ## `GET /api/v1/admin/seed-status` — gains sync status (additive)
