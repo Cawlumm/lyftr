@@ -16,6 +16,7 @@ services:
       - DB_PATH=/app/data/lyftr.db
       - REGISTRATION=${REGISTRATION:-open}
       - DEMO_MODE=${DEMO_MODE:-false}
+      - OEDB_BASE_URL=${OEDB_BASE_URL:-}
     expose:
       - "3000"
     healthcheck:
