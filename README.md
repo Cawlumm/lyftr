@@ -80,14 +80,6 @@ Open `http://localhost` and create your account.
 - **Live demo**: [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly; that account is demo-only, your own install has no default login)
 - **Android**: [download the APK](https://github.com/Cawlumm/lyftr/releases) from the newest release, then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
 
-## Roadmap
-
-- [x] Workouts, programs, gym mode, rest timer
-- [x] Exercise PRs, progression charts, dashboard
-- [x] Weight + nutrition tracking
-- [x] Docker deploy · Android app · docs site
-- [ ] PWA · Strong/Hevy CSV import · iOS app · web translation tool · hosted option
-
 ## Tech stack
 
 Go · Gin · SQLite, React · TypeScript · Tailwind · Vite (web), React Native · Expo (mobile),
