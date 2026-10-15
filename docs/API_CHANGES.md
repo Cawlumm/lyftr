@@ -50,6 +50,12 @@ takes longer, and answers 409 `EXERCISE_SYNC_RUNNING` if a pass (this call or th
 `EXERCISE_CATALOG_UNREACHABLE` (upstream) or a database error code. `GET
 /admin/seed-status` `count` is the whole catalog once a pass has completed.
 
+When the catalog lists fewer than half of the exercises the server holds, the pass cannot tell
+a real mass removal from a truncated read, so it hides nothing and answers 409
+`EXERCISE_CATALOG_SHRANK` (the scheduled pass logs the same and retries). Once the removal is
+confirmed, `POST /admin/sync-exercises?confirm_removals=true` accepts that one pass. The query
+parameter is additive; an empty catalog is still refused.
+
 ## Every error response — gains a stable `code` beside `error`
 
 Additive: `error` is byte-identical to before and still authoritative for any caller that
@@ -57,7 +63,7 @@ ignores `code`. Every error body is now `{"error": "...", "code": "UPPER_SNAKE"}
 optional `params` object when the sentence has variables. The first-party clients key their
 own (localized) wording on `code` and fall back to `error`.
 
-Codes (72). Every error has its own code with a fixed status; there is no generic
+Codes (73). Every error has its own code with a fixed status; there is no generic
 `BAD_REQUEST`, `NOT_FOUND` or `SERVICE_UNAVAILABLE`.
 
 - Sign-in and session: `INVALID_CREDENTIALS`, `EMAIL_TAKEN`, `REGISTRATION_CLOSED`,
@@ -76,7 +82,7 @@ Codes (72). Every error has its own code with a fixed status; there is no generi
 - Resources: `INVALID_ID`, `INVALID_EXERCISE_ID`, `INVALID_PROGRAM_ID`, `INVALID_WORKOUT_ID`
   (`400`); `ENTRY_NOT_FOUND`, `SAVED_FOOD_NOT_FOUND`, `EXERCISE_NOT_FOUND`,
   `PROGRAM_NOT_FOUND`, `WORKOUT_NOT_FOUND` (`404`); `UNKNOWN_EXERCISES`, `NO_EXERCISE_CATALOG`
-  (`400`); `EXERCISE_CATALOG_UNREACHABLE` (`503`, with `Retry-After: 2`); `EXERCISE_SYNC_RUNNING` (`409`).
+  (`400`); `EXERCISE_CATALOG_UNREACHABLE` (`503`, with `Retry-After: 2`); `EXERCISE_SYNC_RUNNING`, `EXERCISE_CATALOG_SHRANK` (`409`).
 - Dates: `INVALID_DATE`, `INVALID_LOGGED_ON`, `INVALID_FROM_DATE`, `INVALID_TO_DATE` (`400`).
 - Food: `FOOD_NAME_TOO_LONG`, `FOOD_BRAND_TOO_LONG`, `SERVING_SIZE_TOO_LONG`,
   `BARCODE_TOO_LONG`, `IMAGE_URL_TOO_LONG`, `SEARCH_TERM_REQUIRED`, `INVALID_BARCODE` (`400`);

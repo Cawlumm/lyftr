@@ -199,8 +199,8 @@ func TestSyncCatalog_TruncatedExportMarksNothing(t *testing.T) {
 	s, cat := syncStore(t, 10, "en")
 	cat.setUpstream(4)
 	_, err := s.syncCatalog(t.Context())
-	if !errors.Is(err, ErrCatalogUnreachable) {
-		t.Fatalf("err = %v, want ErrCatalogUnreachable so the pass is retried", err)
+	if !errors.Is(err, ErrCatalogShrank) || errors.Is(err, ErrCatalogUnreachable) {
+		t.Fatalf("err = %v, want ErrCatalogShrank (retried, but not an outage)", err)
 	}
 	if marked(t, s.db) != 0 {
 		t.Errorf("marked = %d, want 0", marked(t, s.db))
@@ -213,6 +213,34 @@ func TestSyncCatalog_TruncatedExportMarksNothing(t *testing.T) {
 	}
 	if marked(t, s2.db) != 5 {
 		t.Errorf("marked = %d, want 5", marked(t, s2.db))
+	}
+}
+
+func TestRefreshCachedConfirmed_AcceptsAShrunkenExport(t *testing.T) {
+	s, cat := syncStore(t, 10, "en")
+	cat.setUpstream(4)
+	if _, err := s.RefreshCached(t.Context()); !errors.Is(err, ErrCatalogShrank) {
+		t.Fatalf("unconfirmed err = %v, want ErrCatalogShrank", err)
+	}
+	if _, err := s.RefreshCachedConfirmed(t.Context()); err != nil {
+		t.Fatalf("confirmed pass: %v", err)
+	}
+	if marked(t, s.db) != 6 {
+		t.Errorf("marked = %d, want 6", marked(t, s.db))
+	}
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Errorf("the next scheduled pass must see 4 against 4 visible: %v", err)
+	}
+}
+
+func TestRefreshCachedConfirmed_StillRefusesAnEmptyExport(t *testing.T) {
+	s, cat := syncStore(t, 10, "en")
+	cat.setUpstream(0)
+	if _, err := s.RefreshCachedConfirmed(t.Context()); !errors.Is(err, ErrCatalogUnreachable) {
+		t.Fatalf("err = %v, want ErrCatalogUnreachable", err)
+	}
+	if marked(t, s.db) != 0 {
+		t.Errorf("marked = %d, want 0", marked(t, s.db))
 	}
 }
 

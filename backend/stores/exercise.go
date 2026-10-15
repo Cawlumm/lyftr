@@ -586,6 +586,11 @@ var ErrCatalogUnreachable = errors.New("exercise catalog unreachable")
 // ErrSyncRunning is returned when a catalog pass is already in progress.
 var ErrSyncRunning = errors.New("exercise sync already running")
 
+// ErrCatalogShrank marks an English export that lists under half of the visible held
+// exercises. It is indistinguishable from a truncated read, so the scheduled pass refuses it;
+// an operator who knows the removal is real accepts it with a confirmed sync.
+var ErrCatalogShrank = errors.New("exercise catalog shrank")
+
 // CacheStatus reports how many catalog rows this instance currently holds and how the
 // sync passes are going.
 //
@@ -616,6 +621,13 @@ func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 	return s.syncCatalog(ctx)
 }
 
+// RefreshCachedConfirmed is RefreshCached for an operator who has checked that the upstream
+// catalog really did lose most of its exercises: this one pass accepts a shrunken export
+// instead of failing with ErrCatalogShrank. An empty export is still refused.
+func (s *ExerciseStore) RefreshCachedConfirmed(ctx context.Context) (int, error) {
+	return s.syncCatalogWith(ctx, true)
+}
+
 // refresh brings one language up to date. English imports every exercise in the bulk
 // export, oedb.MaxPerPage rows per transaction so a pass never holds the single
 // connection for long. Any other language re-reads every held row by id in oedb's
@@ -627,7 +639,7 @@ func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
 //
 // It reads through Revalidating, because a re-read that a cache can answer re-applies
 // what this instance already holds.
-func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error) {
+func (s *ExerciseStore) refresh(ctx context.Context, locale string, acceptShrink bool) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
@@ -647,7 +659,7 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string) (int, error)
 			done += len(out)
 		}
 		// Only after the whole export imported: a half-read export must not hide anything.
-		if err := s.markUpstreamMissing(items); err != nil {
+		if err := s.markUpstreamMissing(items, acceptShrink); err != nil {
 			return done, err
 		}
 		return done, nil
@@ -700,11 +712,12 @@ func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
 // markUpstreamMissing hides every held upstream row the complete English export no longer
 // lists. oedb has no deletion log, so absence from a whole export is the only signal, and
 // a truncated export looks exactly like a mass removal: when the export holds under half
-// as many exercises as the visible held rows, nothing is marked and the pass fails so it
-// is retried rather than trusted. Rows are never deleted, because workout_exercises and
+// as many exercises as the visible held rows, nothing is marked and the pass fails with
+// ErrCatalogShrank so it is retried rather than trusted, unless acceptShrink says an
+// operator confirmed the removal. An empty export is never accepted. Rows are never deleted, because workout_exercises and
 // program_exercises reference them with no cascade. One statement in one transaction, so
 // the write lock is held for a single scan of the table.
-func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise) error {
+func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise, acceptShrink bool) error {
 	ids := make([]string, len(items))
 	for i, it := range items {
 		ids[i] = it.ID
@@ -723,9 +736,12 @@ func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise) error {
 	if err := tx.QueryRow(`SELECT COUNT(*) FROM exercises WHERE oedb_id IS NOT NULL AND oedb_id != '' AND upstream_missing_at IS NULL`).Scan(&held); err != nil {
 		return err
 	}
-	if held > 0 && 2*len(ids) < held {
+	if held > 0 && (len(ids) == 0 || (2*len(ids) < held && !acceptShrink)) {
 		log.Printf("exercises: upstream export lists %d exercises against %d held; not marking any as removed", len(ids), held)
-		return fmt.Errorf("%w: export lists %d exercises against %d held; marking none as removed", ErrCatalogUnreachable, len(ids), held)
+		if len(ids) == 0 {
+			return fmt.Errorf("%w: export is empty against %d held; marking none as removed", ErrCatalogUnreachable, held)
+		}
+		return fmt.Errorf("%w: export lists %d exercises against %d held; marking none as removed", ErrCatalogShrank, len(ids), held)
 	}
 	res, err := tx.Exec(`UPDATE exercises SET upstream_missing_at = CURRENT_TIMESTAMP
 		WHERE oedb_id IS NOT NULL AND oedb_id != '' AND upstream_missing_at IS NULL
