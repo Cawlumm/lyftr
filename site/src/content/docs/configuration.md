@@ -15,6 +15,7 @@ All configuration lives in a `.env` file at the project root.
 | `BACKEND_ORIGIN` | `backend:3000` | Docker **service name**:port the frontend proxies `/api` to — not a host IP. Only change the port, to match a custom backend `PORT`. |
 | `REGISTRATION` | `open` | Who may create an account: `open`, `first-user`, or `closed`. See below. |
 | `DEMO_MODE` | `false` | Seeds the demo account and sample data. Leave off — its password is public. |
+| `OEDB_BASE_URL` | hosted instance | The open-exercise-db the exercise catalog is downloaded from. Set it to use a catalog you host. See [Exercise Library](../exercise-library/). |
 
 ## Locking down registration
 
@@ -219,8 +220,8 @@ connect() failed (111: Connection refused)
 
 If you run the backend on a custom `PORT`, change **only** the port (e.g. `backend:3008`).
 
-## Re-syncing exercises
+## Refreshing exercises
 
-Go to **Settings → Exercise Library** to see the current exercise count and a seeding progress
-indicator. Hit **Re-sync** to pull the latest exercises — it's a safe upsert, so existing workout
-data is untouched.
+The server refreshes the exercise catalog by itself at startup and every 24 hours. To refresh now,
+go to **Settings → Exercise Library** and press **Refresh cached**. It never touches your workout
+data. See [Exercise Library](../exercise-library/).

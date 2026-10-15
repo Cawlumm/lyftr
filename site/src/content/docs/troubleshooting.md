@@ -1,6 +1,6 @@
 ---
 title: Troubleshooting
-description: Fixes for the most common Lyftr self-hosting issues — 502 errors, login, ports, and exercise seeding.
+description: Fixes for the most common Lyftr self-hosting issues — 502 errors, login, ports, and the exercise library.
 ---
 
 The common issues, and how to fix them.
@@ -69,12 +69,14 @@ the phone's camera rather than the browser's.
 
 ## No exercises show up
 
-They seed in the background on first startup and appear within a few seconds. If the list is empty,
-check the logs and use **Settings → Exercise Library → Re-sync**. See
-[Exercise Library](../exercise-library/).
+The server downloads the exercise catalog in the background on first startup. If the picker says
+**The exercise library is still loading**, it hasn't been able to reach the catalog yet. It retries
+by itself; **Settings → Exercise Library → Refresh cached** tries now, and shows why it failed.
+The server needs outbound HTTPS to the catalog host (`OEDB_BASE_URL`, or the hosted instance by
+default). See [Exercise Library](../exercise-library/).
 
 ```bash
-docker compose logs backend | grep -i seed
+docker compose logs backend | grep -i exercises
 ```
 
 ## Still stuck?

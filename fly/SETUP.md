@@ -42,7 +42,7 @@ The first deploy will:
 - Seed the demo user (`demo@lyftr.local` / `password123`) — this happens because
   `fly.toml` sets `DEMO_MODE = "true"`. It is off by default everywhere else, and
   without it the demo deploys with no account to log into
-- Begin seeding 800+ exercises async (takes ~30s)
+- Begin importing the whole exercise catalog (800+ exercises, English and Spanish) from open-exercise-db in the background (under a minute)
 - `DemoData` goroutine waits for exercises then seeds 8 weeks of workouts,
   90 days of weight logs, and 7 days of food logs automatically
 

@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/banner.png" alt="Lyftr — self-hosted workout tracking" width="100%" />
+  <img src="docs/banner.png" alt="Lyftr: self-hosted workout tracking" width="100%" />
 </p>
 
 <p align="center">
   <b>Self-hosted, mobile-first workout &amp; nutrition tracker.</b><br />
-  Free, open source, and yours to run — own your data.
+  Free, open source, and yours to run. Own your data.
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
 ## What is Lyftr?
 
 A workout tracker you fully own. Log workouts, build reusable programs, run a guided gym session with
-a rest timer, and track nutrition and bodyweight — all self-hosted and lightweight, with your data in
+a rest timer, and track nutrition and bodyweight, all self-hosted and lightweight, with your data in
 a single SQLite file on your server.
 
 No subscription. No lock-in. No "your export is a Pro feature."
@@ -46,9 +46,7 @@ No subscription. No lock-in. No "your export is a Pro feature."
 | 📈 **Progress** | Personal records, progression charts, muscle diagrams, dashboard |
 | 🍎 **Nutrition** | Calories, macros, barcode scan, food search |
 | ⚖️ **Weight** | Trend graph, lbs / kg across all data |
-| 🔒 **Yours** | Self-hosted — a single SQLite file, all data on your server |
-
-_Planned: PWA · Strong/Hevy CSV import · iOS app._
+| 🔒 **Yours** | Self-hosted, a single SQLite file, all data on your server |
 
 <p align="center">
   <img src="docs/screenshots/workouts-mobile.png" width="150" alt="Workouts" />
@@ -60,7 +58,7 @@ _Planned: PWA · Strong/Hevy CSV import · iOS app._
 
 ## Quick start
 
-No clone, no build — just Docker:
+No clone, no build, just Docker:
 
 ```bash
 curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
@@ -71,45 +69,41 @@ docker compose pull && docker compose up -d
 
 Open `http://localhost` and create your account.
 
-📖 **Full guide** — configuration, HTTPS, backups, the mobile app, and troubleshooting live in the
+📖 **Full guide**: configuration, HTTPS, backups, the mobile app, and troubleshooting live in the
 **[docs → lyftr-app.pages.dev](https://lyftr-app.pages.dev)**.
 
 ## Try it
 
-- **Live demo** — [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly; that account is demo-only — your own install has no default login)
-- **Android** — [download the APK](https://github.com/Cawlumm/lyftr/releases) from the newest release, then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
-
-## Roadmap
-
-- [x] Workouts, programs, gym mode, rest timer
-- [x] Exercise PRs, progression charts, dashboard
-- [x] Weight + nutrition tracking
-- [x] Docker deploy · Android app · docs site
-- [ ] PWA · Strong/Hevy CSV import · iOS app · hosted option
+- **Live demo**: [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly; that account is demo-only, your own install has no default login)
+- **Android**: [download the APK](https://github.com/Cawlumm/lyftr/releases) from the newest release, then point it at your server ([mobile docs](https://lyftr-app.pages.dev/mobile/)). iOS is planned.
 
 ## Tech stack
 
-Go · Gin · SQLite — React · TypeScript · Tailwind · Vite (web) — React Native · Expo (mobile) —
-Astro · Starlight (docs) — Docker · nginx.
+Go · Gin · SQLite, React · TypeScript · Tailwind · Vite (web), React Native · Expo (mobile),
+Astro · Starlight (docs), Docker · nginx.
+
+## Translations
+
+Help translate Lyftr into your language. See [CONTRIBUTING.md](CONTRIBUTING.md#translations) for how.
 
 ## Contributing
 
-Bug reports, feature requests, and PRs are welcome — open an issue before large changes. Start with
+Bug reports, feature requests, translations, and PRs are welcome. Open an issue before large changes. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md) for setup and conventions, and [docs/TESTING.md](docs/TESTING.md)
 for how the test suite is organised.
 
-> **Beta** — actively built, expect rough edges and frequent updates. The software equivalent of
+> **Beta**: actively built, expect rough edges and frequent updates. The software equivalent of
 > going to the gym for the first time.
 
 ## Support
 
-Lyftr is free and open source under the MIT license — run it on your own hardware, no subscription.
+Lyftr is free and open source under the MIT license. Run it on your own hardware, no subscription.
 
 The most useful things you can do are free: file a reproducible bug report, fix a doc page that was
 wrong, or tell another self-hoster it exists.
 
 If you'd rather help with the running costs, sponsorship covers the demo server (~$4/month) and the
-developer accounts Lyftr needs to reach more platforms — the iOS app is blocked on a $99/year Apple
+developer accounts Lyftr needs to reach more platforms. The iOS app is blocked on a $99/year Apple
 Developer account, not on the code.
 
 [Sponsor on GitHub](https://github.com/sponsors/Cawlumm) · [All the ways to help](https://lyftr-app.pages.dev/support/)
