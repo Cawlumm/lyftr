@@ -19,8 +19,8 @@ go run .
 # API listens on http://localhost:3000
 ```
 
-On first run the backend imports the exercise catalog from open-exercise-db in the background
-(it needs network; the picker says "still loading" until it has, and retries by itself). The demo account is
+On first run the backend downloads the exercise catalog in the background (it needs network), so
+the exercise picker can be empty for a moment. The demo account is
 **not** seeded unless you ask for it — its password is published right below, so the
 default is off everywhere, development included:
 
@@ -112,6 +112,9 @@ git rebase origin/main
 ---
 
 ## Translations
+
+Today you add or fix a language with a pull request. A web tool for translating without Git (like
+Weblate) is planned.
 
 UI strings live in one catalog per language in `packages/shared/src/i18n/locales`, shared
 by web and mobile. `en.json` is the source and the fallback. The languages the app ships

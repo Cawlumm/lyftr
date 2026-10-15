@@ -30,6 +30,11 @@ No. Your server downloads the whole open-exercise-db
 catalog (800+ exercises, with Spanish translations) on first startup and refreshes it every day. No
 key, no setup. See [Exercise Library](../exercise-library/).
 
+## Which languages does Lyftr support?
+
+English and Spanish, in the app and in the exercise library. More are welcome. To add one, open a
+pull request: see [Translations](https://github.com/Cawlumm/lyftr#translations).
+
 ## Which platforms are supported?
 
 Android (side-load APK) and web today; iOS is planned via TestFlight / the App Store. The server

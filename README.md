@@ -41,14 +41,15 @@ No subscription. No lock-in. No "your export is a Pro feature."
 
 | | |
 |---|---|
-| 🏋️ **Workouts** | 800+ exercise library in English and Spanish, kept in sync, program builder, guided active mode |
+| 🏋️ **Workouts** | 800+ exercise library, program builder, guided active mode |
 | 📱 **Gym Mode** | Full-screen, one exercise at a time, with a rest timer |
 | 📈 **Progress** | Personal records, progression charts, muscle diagrams, dashboard |
 | 🍎 **Nutrition** | Calories, macros, barcode scan, food search |
 | ⚖️ **Weight** | Trend graph, lbs / kg across all data |
+| 🌍 **Languages** | English and Spanish, in the app and the exercise library |
 | 🔒 **Yours** | Self-hosted — a single SQLite file, all data on your server |
 
-_Planned: PWA · Strong/Hevy CSV import · iOS app._
+_Planned: PWA · Strong/Hevy CSV import · iOS app · a web tool for translating._
 
 <p align="center">
   <img src="docs/screenshots/workouts-mobile.png" width="150" alt="Workouts" />
@@ -85,16 +86,23 @@ Open `http://localhost` and create your account.
 - [x] Exercise PRs, progression charts, dashboard
 - [x] Weight + nutrition tracking
 - [x] Docker deploy · Android app · docs site
-- [ ] PWA · Strong/Hevy CSV import · iOS app · hosted option
+- [ ] PWA · Strong/Hevy CSV import · iOS app · web translation tool · hosted option
 
 ## Tech stack
 
 Go · Gin · SQLite — React · TypeScript · Tailwind · Vite (web) — React Native · Expo (mobile) —
 Astro · Starlight (docs) — Docker · nginx.
 
+## Translations
+
+Lyftr is available in English and Spanish, and more languages are welcome. To add or fix one, open a
+pull request: copy `en.json`, translate it, and follow the steps in
+[CONTRIBUTING.md](CONTRIBUTING.md#translations). A web tool for translating without Git (like
+[Weblate](https://weblate.org)) is planned.
+
 ## Contributing
 
-Bug reports, feature requests, and PRs are welcome — open an issue before large changes. Start with
+Bug reports, feature requests, translations, and PRs are welcome — open an issue before large changes. Start with
 [CONTRIBUTING.md](CONTRIBUTING.md) for setup and conventions, and [docs/TESTING.md](docs/TESTING.md)
 for how the test suite is organised.
 
