@@ -366,7 +366,7 @@
         "BARCODE_LOOKUP_UNAVAILABLE": "La búsqueda por código de barras no está disponible por ahora.",
         "NO_EXERCISE_CATALOG": "Este servidor no tiene un catálogo de ejercicios configurado.",
         "EXERCISE_CATALOG_UNREACHABLE": "No se pudo conectar con el catálogo de ejercicios.",
-        "EXERCISE_CATALOG_SHRANK": "El catálogo de ejercicios lista muchos menos ejercicios de los que tiene este servidor, así que no se quitó ninguno. Si es correcto, sincroniza de nuevo con confirm_removals=true.",
+        "EXERCISE_CATALOG_SHRANK": "El catálogo de ejercicios lista muchos menos ejercicios de los que tiene este servidor, así que no se quitó ninguno. Si es correcto, quien administre el servidor puede confirmarlo con confirm_removals=true.",
         "EXERCISE_SYNC_RUNNING": "Ya hay una sincronización de ejercicios en curso. Inténtalo de nuevo cuando termine.",
         "DISPLAY_NAME_CONTROL_CHARS": "Un nombre no puede contener saltos de línea ni otros caracteres de control.",
         "TIMEZONE_EMPTY": "La zona horaria no puede estar vacía.",

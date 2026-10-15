@@ -714,7 +714,8 @@ func (s *ExerciseStore) cachedOedbIDs() (map[string]bool, error) {
 // a truncated export looks exactly like a mass removal: when the export holds under half
 // as many exercises as the visible held rows, nothing is marked and the pass fails with
 // ErrCatalogShrank so it is retried rather than trusted, unless acceptShrink says an
-// operator confirmed the removal. An empty export is never accepted. Rows are never deleted, because workout_exercises and
+// operator confirmed the removal. An empty export is never accepted.
+// Rows are never deleted, because workout_exercises and
 // program_exercises reference them with no cascade. One statement in one transaction, so
 // the write lock is held for a single scan of the table.
 func (s *ExerciseStore) markUpstreamMissing(items []oedb.Exercise, acceptShrink bool) error {

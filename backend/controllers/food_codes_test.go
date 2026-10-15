@@ -227,7 +227,7 @@ func TestRefreshExerciseCache_shrunkenCatalogNeedsConfirmation(t *testing.T) {
 
 	c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
 	th.RefreshExerciseCache(c)
-	wantCode(t, w, http.StatusConflict, "EXERCISE_CATALOG_SHRANK", "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, sync again with confirm_removals=true.")
+	wantCode(t, w, http.StatusConflict, "EXERCISE_CATALOG_SHRANK", "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, a server operator can confirm it with confirm_removals=true.")
 
 	c, w = newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises?confirm_removals=true", nil)
 	th.RefreshExerciseCache(c)

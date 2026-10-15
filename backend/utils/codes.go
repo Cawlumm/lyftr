@@ -116,7 +116,7 @@ var (
 	CodeNoExerciseCatalog        = define("NO_EXERCISE_CATALOG", 400, "This server has no exercise catalog configured.")
 	CodeCatalogUnreachable       = define("EXERCISE_CATALOG_UNREACHABLE", 503, "Couldn't reach the exercise catalog.")
 	CodeExerciseSyncRunning      = define("EXERCISE_SYNC_RUNNING", 409, "An exercise sync is already running. Try again when it finishes.")
-	CodeExerciseCatalogShrank    = define("EXERCISE_CATALOG_SHRANK", 409, "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, sync again with confirm_removals=true.")
+	CodeExerciseCatalogShrank    = define("EXERCISE_CATALOG_SHRANK", 409, "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, a server operator can confirm it with confirm_removals=true.")
 	CodeDisplayNameControlChars  = define("DISPLAY_NAME_CONTROL_CHARS", 400, "A name can't contain line breaks or other control characters.")
 	CodeTimezoneEmpty            = define("TIMEZONE_EMPTY", 400, "Timezone can't be empty.")
 	CodeUnknownTimezone          = define("UNKNOWN_TIMEZONE", 400, "Unknown timezone: {{timezone}}.")
