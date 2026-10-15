@@ -49,8 +49,6 @@ No subscription. No lock-in. No "your export is a Pro feature."
 | 🌍 **Languages** | English and Spanish, in the app and the exercise library |
 | 🔒 **Yours** | Self-hosted, a single SQLite file, all data on your server |
 
-_Planned: PWA · Strong/Hevy CSV import · iOS app · a web tool for translating._
-
 <p align="center">
   <img src="docs/screenshots/workouts-mobile.png" width="150" alt="Workouts" />
   <img src="docs/screenshots/active-workout-mobile.png" width="150" alt="Active workout" />
