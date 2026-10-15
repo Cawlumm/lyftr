@@ -46,7 +46,6 @@ No subscription. No lock-in. No "your export is a Pro feature."
 | 📈 **Progress** | Personal records, progression charts, muscle diagrams, dashboard |
 | 🍎 **Nutrition** | Calories, macros, barcode scan, food search |
 | ⚖️ **Weight** | Trend graph, lbs / kg across all data |
-| 🌍 **Languages** | English and Spanish, in the app and the exercise library |
 | 🔒 **Yours** | Self-hosted, a single SQLite file, all data on your server |
 
 <p align="center">
@@ -85,10 +84,7 @@ Astro · Starlight (docs), Docker · nginx.
 
 ## Translations
 
-Lyftr is available in English and Spanish, and more languages are welcome. To add or fix one, open a
-pull request: copy `en.json`, translate it, and follow the steps in
-[CONTRIBUTING.md](CONTRIBUTING.md#translations). A web tool for translating without Git (like
-[Weblate](https://weblate.org)) is planned.
+Help translate Lyftr into your language. See [CONTRIBUTING.md](CONTRIBUTING.md#translations) for how.
 
 ## Contributing
 
