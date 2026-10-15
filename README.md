@@ -41,7 +41,7 @@ No subscription. No lock-in. No "your export is a Pro feature."
 
 | | |
 |---|---|
-| 🏋️ **Workouts** | 800+ exercise library, program builder, guided active mode |
+| 🏋️ **Workouts** | 800+ exercise library in English and Spanish, kept in sync, program builder, guided active mode |
 | 📱 **Gym Mode** | Full-screen, one exercise at a time, with a rest timer |
 | 📈 **Progress** | Personal records, progression charts, muscle diagrams, dashboard |
 | 🍎 **Nutrition** | Calories, macros, barcode scan, food search |

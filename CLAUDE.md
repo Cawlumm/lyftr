@@ -261,6 +261,9 @@ answering 502 must not evict anyone.
 ## Known Constraints
 
 - SQLite FK: `workout_exercises` and `program_exercises` reference `exercises(id)` with no cascade. Never DELETE from exercises while user data exists.
+  A row oedb stops listing is hidden (`exercises.upstream_missing_at`, hidden from `List` only), never deleted;
+  `markUpstreamMissing` is the one place that decides, and it refuses an export under half of what is held
+  (`ErrCatalogShrank`) unless an operator confirms with `?confirm_removals=true`.
 - Go 1.26 required — Dockerfile must use `golang:1.26-alpine`
 - Build via `backend/build.sh`, which both Dockerfiles invoke — never `go build` by hand.
   It is the single source of the version ldflag

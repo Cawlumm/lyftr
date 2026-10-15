@@ -26,8 +26,9 @@ that one file.
 
 ## Do I need an API key or account for the exercise library?
 
-No. Lyftr seeds 800+ exercises from [free-exercise-db](https://github.com/yuhonas/free-exercise-db)
-automatically on first startup. No key, no setup.
+No. Your server downloads the whole open-exercise-db
+catalog (800+ exercises, with Spanish translations) on first startup and refreshes it every day. No
+key, no setup. See [Exercise Library](../exercise-library/).
 
 ## Which platforms are supported?
 

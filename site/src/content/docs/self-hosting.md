@@ -40,9 +40,10 @@ step matters.
 :::
 
 :::tip[Exercise library]
-On first startup Lyftr seeds **800+ exercises** from
-[free-exercise-db](https://github.com/yuhonas/free-exercise-db) in the background — no API key, no
-setup. They appear in the UI within a few seconds.
+On first startup Lyftr downloads the whole **800+ exercise** catalog from
+open-exercise-db in the background — no API key, no
+setup — and refreshes it every 24 hours. It needs outbound HTTPS to do that. See
+[Exercise Library](../exercise-library/).
 :::
 
 ## Where it runs

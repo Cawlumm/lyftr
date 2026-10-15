@@ -19,7 +19,8 @@ go run .
 # API listens on http://localhost:3000
 ```
 
-On first run the backend seeds the exercise database automatically. The demo account is
+On first run the backend imports the exercise catalog from open-exercise-db in the background
+(it needs network; the picker says "still loading" until it has, and retries by itself). The demo account is
 **not** seeded unless you ask for it — its password is published right below, so the
 default is off everywhere, development included:
 
