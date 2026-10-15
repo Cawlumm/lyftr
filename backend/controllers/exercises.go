@@ -103,15 +103,25 @@ func (h *Handler) GetExerciseHistory(c *gin.Context) {
 
 // RefreshExerciseCache runs the scheduled catalog pass now, importing every upstream
 // exercise in English and refreshing translations for every held one. `refreshed` is
-// how many exercises the English pass recorded.
+// how many exercises the English pass recorded. `confirm_removals=true` accepts one pass
+// in which the catalog lists under half of the exercises held.
 func (h *Handler) RefreshExerciseCache(c *gin.Context) {
-	n, err := h.s.Exercise.RefreshCached(c.Request.Context())
+	refresh := h.s.Exercise.RefreshCached
+	if c.Query("confirm_removals") == "true" {
+		refresh = h.s.Exercise.RefreshCachedConfirmed
+	}
+	n, err := refresh(c.Request.Context())
 	if errors.Is(err, stores.ErrNoCatalog) {
 		utils.Fail(c, utils.CodeNoExerciseCatalog, nil)
 		return
 	}
 	if errors.Is(err, stores.ErrSyncRunning) {
 		utils.Fail(c, utils.CodeExerciseSyncRunning, nil)
+		return
+	}
+	if errors.Is(err, stores.ErrCatalogShrank) {
+		log.Printf("exercises: refresh refused a shrunken catalog: %v", err)
+		utils.Fail(c, utils.CodeExerciseCatalogShrank, nil)
 		return
 	}
 	if errors.Is(err, stores.ErrCatalogUnreachable) {

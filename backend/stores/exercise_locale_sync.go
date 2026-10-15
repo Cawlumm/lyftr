@@ -95,7 +95,12 @@ func retryDelay(failures int, every time.Duration) time.Duration {
 // exercises the English pass recorded. A language that fails does not stop the rest.
 // After a discovery that listed languages, translations in languages no longer offered
 // are deleted; a failed or empty discovery deletes nothing.
-func (s *ExerciseStore) syncCatalog(ctx context.Context) (_ int, err error) {
+func (s *ExerciseStore) syncCatalog(ctx context.Context) (int, error) {
+	return s.syncCatalogWith(ctx, false)
+}
+
+// syncCatalogWith is syncCatalog with the shrink guard optionally lifted for this pass.
+func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) (_ int, err error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
@@ -139,7 +144,7 @@ func (s *ExerciseStore) syncCatalog(ctx context.Context) (_ int, err error) {
 	english := 0
 	for _, l := range locales {
 		lctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
-		n, err := s.refresh(lctx, l)
+		n, err := s.refresh(lctx, l, acceptShrink)
 		cancel()
 		if l == defaultLocale {
 			english = n

@@ -360,6 +360,7 @@
         "BARCODE_LOOKUP_UNAVAILABLE": "Barcode lookup is temporarily unavailable.",
         "NO_EXERCISE_CATALOG": "This server has no exercise catalog configured.",
         "EXERCISE_CATALOG_UNREACHABLE": "Couldn't reach the exercise catalog.",
+        "EXERCISE_CATALOG_SHRANK": "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, a server operator can confirm it with confirm_removals=true.",
         "EXERCISE_SYNC_RUNNING": "An exercise sync is already running. Try again when it finishes.",
         "DISPLAY_NAME_CONTROL_CHARS": "A name can't contain line breaks or other control characters.",
         "TIMEZONE_EMPTY": "Timezone can't be empty.",

@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -203,6 +204,36 @@ func TestRefreshExerciseCache_catalogFailureCodes(t *testing.T) {
 		w := refreshWithCatalog(t, srv.URL)
 		wantCode(t, w, http.StatusServiceUnavailable, "EXERCISE_CATALOG_UNREACHABLE", sentence)
 	})
+}
+
+func TestRefreshExerciseCache_shrunkenCatalogNeedsConfirmation(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "locales") {
+			_, _ = w.Write([]byte(`{"locales":[],"total":0}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"exercises":[{"id":"uuid-1","slug":"held","muscle_group":"chest","translation":{"name":"Held","instructions":[]}}],"total":1}`))
+	}))
+	defer srv.Close()
+
+	setupTestDB(t)
+	uid := createTestUser(t)
+	for i := 1; i <= 4; i++ {
+		if _, err := db.DB.Exec("INSERT INTO exercises (name, oedb_id) VALUES (?, ?)", fmt.Sprintf("Held %d", i), fmt.Sprintf("uuid-%d", i)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	th.s.Exercise.UseCatalog(oedb.New(srv.URL, "test"))
+
+	c, w := newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises", nil)
+	th.RefreshExerciseCache(c)
+	wantCode(t, w, http.StatusConflict, "EXERCISE_CATALOG_SHRANK", "The exercise catalog lists far fewer exercises than this server holds, so none were removed. If that is right, a server operator can confirm it with confirm_removals=true.")
+
+	c, w = newContext(uid, http.MethodPost, "/api/v1/admin/sync-exercises?confirm_removals=true", nil)
+	th.RefreshExerciseCache(c)
+	if w.Code != http.StatusOK {
+		t.Fatalf("confirmed: got %d %s, want 200", w.Code, w.Body.String())
+	}
 }
 
 func TestRefreshExerciseCache_success(t *testing.T) {

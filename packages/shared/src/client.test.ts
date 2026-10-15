@@ -690,6 +690,7 @@ describe('apiErrorMessage — server codes', () => {
     ['FOOD_DATABASE_TIMEOUT', 503, undefined, undefined],
     ['EXERCISE_CATALOG_UNREACHABLE', 503, undefined, undefined],
     ['EXERCISE_SYNC_RUNNING', 409, undefined, undefined],
+    ['EXERCISE_CATALOG_SHRANK', 409, undefined, undefined],
     ['PRODUCT_NOT_FOUND', 404, undefined, undefined],
     ['SEARCH_TERM_REQUIRED', 400, undefined, undefined],
     ['INVALID_WORKOUT_ID', 400, undefined, undefined],

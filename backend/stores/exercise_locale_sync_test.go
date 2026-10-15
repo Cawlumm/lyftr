@@ -197,7 +197,7 @@ func localID(t *testing.T, s *ExerciseStore, oedbID string) int64 {
 func TestRefresh_FillsEveryHeldRowInBatches(t *testing.T) {
 	s, cat := syncStore(t, 250)
 
-	if _, err := s.refresh(t.Context(), "es"); err != nil {
+	if _, err := s.refresh(t.Context(), "es", false); err != nil {
 		t.Fatal(err)
 	}
 	if got := cat.listCount("es"); got != 3 {
