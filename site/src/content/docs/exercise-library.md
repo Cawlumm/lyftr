@@ -30,8 +30,11 @@ The web app shows what the server is doing:
 |---|---|
 | **N cached** | How many exercises your server holds. |
 | **Last synced at …** | When the last pass finished cleanly. |
-| **Last sync couldn't reach the exercise catalog. Trying again at …** | The catalog was unreachable. It retries by itself. |
-| **Last sync didn't finish** | A pass failed for another reason. It retries by itself. |
+| **Syncing…** | A pass is running right now. |
+| **Last sync couldn't reach the exercise catalog.** | The catalog was unreachable. |
+| **Last sync didn't finish.** | A pass failed for another reason, such as the catalog shrinking. |
+
+After a failure the line ends with **Trying again at …**, the time of the next automatic attempt.
 
 **Refresh cached** runs a pass now instead of waiting for the next one. Any signed-in user can press
 it. If a pass is already running it tells you so; wait for it to finish.
@@ -61,7 +64,9 @@ If the catalog stops listing one:
   logged.
 - If the catalog lists it again later, it comes back in the picker.
 
-Languages the catalog no longer offers are removed from your server too.
+Languages the catalog no longer offers are removed from your server too, unless that would
+drop more than half of the languages it holds. A catalog that suddenly offers far fewer languages
+is treated as a bad answer, not a decision.
 
 :::note[Your data is safe]
 A refresh only adds and updates catalog rows and hides removed ones. It never touches your logged
@@ -74,9 +79,10 @@ A catalog that lists less than half of the exercises your server holds looks the
 or half-downloaded answer, so Lyftr refuses to act on it. It hides nothing, and **Refresh cached**
 shows:
 
-> The exercise catalog lists far fewer exercises than this server holds, so none were removed.
+> The exercise catalog lists far fewer exercises than this server holds, so none were removed. If
+> that is right, a server operator can confirm it with confirm_removals=true.
 
-The daily pass keeps retrying and keeps refusing. If you have checked that the removal is real
+The scheduled pass keeps retrying (1, 5, then every 30 minutes) and keeps refusing. If you have checked that the removal is real
 (for example, you switched `OEDB_BASE_URL` to a smaller catalog), confirm it once from the server
 operator's side:
 
