@@ -131,7 +131,7 @@ export default function ActiveWorkout() {
                 <Timer className="w-3.5 h-3.5" />
                 {formatElapsed(elapsed)}
               </span>
-              <span className="text-xs text-tx-muted">{t('workouts.active.setsDone', { done: completedSets, total: totalSets })}</span>
+              <span className="text-xs text-tx-muted">{t('workouts.active.setsDone', { done: completedSets, count: totalSets })}</span>
             </div>
           </div>
           <button
@@ -254,7 +254,7 @@ export default function ActiveWorkout() {
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                         {muscleLabel(ex.exercise.muscle_group)}
                       </span>
-                      <span className="text-xs text-tx-muted tabular-nums">{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</span>
+                      <span className="text-xs text-tx-muted tabular-nums">{t('workouts.active.setProgress', { done: completedHere, count: ex.sets.length })}</span>
                     </div>
                   </button>
 
@@ -440,7 +440,7 @@ export default function ActiveWorkout() {
         open={confirmFinish}
         icon={Flag}
         title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, total: totalSets })}
+        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
         confirmLabel={t('workouts.active.finish')}
         busyLabel={t('common.saving')}
         cancelLabel={t('workouts.active.keepGoing')}

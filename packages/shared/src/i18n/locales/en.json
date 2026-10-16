@@ -1099,7 +1099,8 @@
         "goHome": "Go Home",
         "goWorkouts": "Go to Workouts"
       },
-      "setsDone": "{{done}}/{{total}} sets done",
+      "setsDone_one": "{{done}}/{{count}} set done",
+      "setsDone_other": "{{done}}/{{count}} sets done",
       "finish": "Finish",
       "empty": {
         "title": "No exercises yet",
@@ -1133,7 +1134,8 @@
       "keepGoing": "Keep Going",
       "finishConfirm": {
         "title": "Finish Workout?",
-        "message": "{{done}} of {{total}} sets completed. Workout will be saved."
+        "message_one": "{{done}} of {{count}} set completed. Workout will be saved.",
+        "message_other": "{{done}} of {{count}} sets completed. Workout will be saved."
       },
       "cancelConfirm": {
         "title": "Cancel Workout?",
