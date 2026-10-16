@@ -22,7 +22,7 @@
     "@lyftr/shared": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "8.4.4",
-    "axios": "^1.6.2",
+    "axios": "^1.20.0",
     "date-fns": "^3.0.0",
     "expo": "^54.0.0",
     "expo-build-properties": "~1.0.10",
