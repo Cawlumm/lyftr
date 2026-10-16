@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import { router } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
@@ -69,7 +69,7 @@ export default function AddWorkout() {
     date: todayStr(),
     exercises: [],
   })
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ScrollViewInstance>(null)
 
   useEffect(() => {
     fetchSettings()

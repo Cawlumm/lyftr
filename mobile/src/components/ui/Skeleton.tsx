@@ -55,12 +55,12 @@ export function Skeleton({ width, height = 14, radius = 8, style, className }: P
       className={className}
     >
       {w > 0 ? (
-        <Animated.View style={[StyleSheet.absoluteFillObject, { width: w }, sweep]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { width: w }, sweep]}>
           <LinearGradient
             colors={[edge, highlight, edge]}
             start={{ x: 0, y: 0.5 }}
             end={{ x: 1, y: 0.5 }}
-            style={StyleSheet.absoluteFillObject}
+            style={StyleSheet.absoluteFill}
           />
         </Animated.View>
       ) : null}

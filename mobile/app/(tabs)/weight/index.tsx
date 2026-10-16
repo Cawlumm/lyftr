@@ -553,7 +553,7 @@ export default function Weight() {
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
       {/* iOS Done bar above the numeric keyboard (the weight NumberField links it). */}

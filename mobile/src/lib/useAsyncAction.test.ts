@@ -25,10 +25,10 @@ describe('useAsyncAction', () => {
   it('reports busy while in flight and clears it after', async () => {
     let release: () => void = () => {}
     const action = jest.fn(() => new Promise<void>((resolve) => { release = resolve }))
-    const { result } = renderHook(() => useAsyncAction(action, 'Failed'))
+    const { result } = await renderHook(() => useAsyncAction(action, 'Failed'))
 
     expect(result.current.busy).toBe(false)
-    act(() => { void result.current.run() })
+    await act(async () => { void result.current.run() })
     await waitFor(() => expect(result.current.busy).toBe(true))
 
     await act(async () => { release() })
@@ -39,7 +39,7 @@ describe('useAsyncAction', () => {
   // Clearing in `finally` rather than only on failure: a screen that stays put after
   // succeeding would otherwise read "Saving…" for the rest of its life.
   it('clears busy on success too, not just on failure', async () => {
-    const { result } = renderHook(() => useAsyncAction(async () => {}, 'Failed'))
+    const { result } = await renderHook(() => useAsyncAction(async () => {}, 'Failed'))
 
     await act(async () => { await result.current.run() })
 
@@ -47,8 +47,8 @@ describe('useAsyncAction', () => {
   })
 
   it('resolves true on success and false on failure', async () => {
-    const ok = renderHook(() => useAsyncAction(async () => {}, 'Failed'))
-    const bad = renderHook(() => useAsyncAction(async () => { throw silence() }, 'Failed'))
+    const ok = await renderHook(() => useAsyncAction(async () => {}, 'Failed'))
+    const bad = await renderHook(() => useAsyncAction(async () => { throw silence() }, 'Failed'))
 
     let okResult: boolean | undefined
     let badResult: boolean | undefined
@@ -60,7 +60,7 @@ describe('useAsyncAction', () => {
   })
 
   it('prefers the message the server sent', async () => {
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useAsyncAction(async () => { throw httpError(400, { error: 'name is required' }) }, 'Failed to save'))
 
     await act(async () => { await result.current.run() })
@@ -72,7 +72,7 @@ describe('useAsyncAction', () => {
   // `err.response.data.error || 'Failed to save'` renders "Failed to save" here, which
   // tells a user on bad wifi nothing about why or whether to try again.
   it('explains a failure that carries no response, instead of falling back', async () => {
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useAsyncAction(async () => { throw silence() }, 'Failed to save'))
 
     await act(async () => { await result.current.run() })
@@ -82,7 +82,7 @@ describe('useAsyncAction', () => {
   })
 
   it('falls back only when the error says nothing useful', async () => {
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useAsyncAction(async () => { throw httpError(400) }, 'Failed to save'))
 
     await act(async () => { await result.current.run() })
@@ -94,7 +94,7 @@ describe('useAsyncAction', () => {
   // language (as every call site does, via t(...) at render) gets the new sentence for a
   // message that was raised before the switch.
   it('stores the cause, so a later render with a different fallback changes the message', async () => {
-    const { result, rerender } = renderHook(
+    const { result, rerender } = await renderHook(
       ({ fallback }: { fallback: string }) =>
         useAsyncAction(async () => { throw httpError(400) }, fallback),
       { initialProps: { fallback: 'Failed to save' } },
@@ -103,13 +103,13 @@ describe('useAsyncAction', () => {
     await act(async () => { await result.current.run() })
     expect(result.current.error).toBe('Failed to save')
 
-    rerender({ fallback: 'No se pudo guardar' })
+    await rerender({ fallback: 'No se pudo guardar' })
     expect(result.current.error).toBe('No se pudo guardar')
   })
 
   it('drops a stale message when the next attempt starts', async () => {
     let fail = true
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useAsyncAction(async () => { if (fail) throw silence() }, 'Failed'))
 
     await act(async () => { await result.current.run() })
@@ -121,13 +121,13 @@ describe('useAsyncAction', () => {
   })
 
   it('drops a stale message on reset, for a sheet being dismissed', async () => {
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useAsyncAction(async () => { throw silence() }, 'Failed'))
 
     await act(async () => { await result.current.run() })
     expect(result.current.error).not.toBe('')
 
-    act(() => result.current.reset())
+    await act(async () => result.current.reset())
     expect(result.current.error).toBe('')
   })
 
@@ -137,13 +137,13 @@ describe('useAsyncAction', () => {
   it('keeps run stable across renders while still calling the newest closure', async () => {
     let calls = 0
     let token = 'first'
-    const { result, rerender } = renderHook(
+    const { result, rerender } = await renderHook(
       ({ t }: { t: string }) => useAsyncAction(async () => { calls += 1; token = t }, 'Failed'),
       { initialProps: { t: 'first' } },
     )
     const firstRun = result.current.run
 
-    rerender({ t: 'second' })
+    await rerender({ t: 'second' })
     expect(result.current.run).toBe(firstRun)
 
     await act(async () => { await result.current.run() })
@@ -153,7 +153,7 @@ describe('useAsyncAction', () => {
 
   it('passes its arguments through to the action', async () => {
     const action = jest.fn(async (_id: number, _name: string) => {})
-    const { result } = renderHook(() => useAsyncAction(action, 'Failed'))
+    const { result } = await renderHook(() => useAsyncAction(action, 'Failed'))
 
     await act(async () => { await result.current.run(7, 'squat') })
 
@@ -168,7 +168,7 @@ describe('useAsyncAction', () => {
 
     it('does not change with the language, so an effect keyed on it does not re-fire', async () => {
       const raised = jest.fn()
-      const { result } = renderHook(() => {
+      const { result } = await renderHook(() => {
         const a = useAsyncAction(async () => { throw new Error('boom') }, i18n.t('settings.deleteAccount.failed'))
         useEffect(() => { if (a.failureKey) raised(a.failureKey) }, [a.failureKey])
         return a

@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native'
 import { FileText, Plus, Timer, Trash2, X } from 'lucide-react-native'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
@@ -54,7 +54,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
   onChange: (next: string) => void
   placeholderColor: string
   /** Callback ref so the parent's focus chain can jump reps → weight. */
-  inputRef?: (r: TextInput | null) => void
+  inputRef?: (r: TextInputInstance | null) => void
   /** Present on all but the last set: Android's numeric "next" key hops to the next row's reps. */
   onNext?: () => void
   inputAccessoryViewID?: string
@@ -105,8 +105,8 @@ function ExerciseFormCardBase({
   // Android numeric keyboard's next key without re-tapping each cell. (iOS numeric
   // pads have no return key — there the accessory Done bar is the exit instead.)
   // Plain refs mutated in callback refs: never triggers a render (Fabric rule).
-  const repsRefs = useRef<(TextInput | null)[]>([])
-  const weightRefs = useRef<(TextInput | null)[]>([])
+  const repsRefs = useRef<(TextInputInstance | null)[]>([])
+  const weightRefs = useRef<(TextInputInstance | null)[]>([])
 
   return (
     <View className="rounded-2xl border border-surface-border bg-surface-muted/30 p-4">

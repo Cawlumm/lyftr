@@ -29,13 +29,13 @@ const entry = (overrides: Partial<FoodLog> = {}): FoodLog => ({
   ...overrides,
 }) as FoodLog
 
-const row = (e: FoodLog) =>
-  render(<FoodEntryRow entry={e} first onPress={() => {}} onEdit={() => {}} onDeleted={() => {}} />)
+const row = async (e: FoodLog) =>
+  await render(<FoodEntryRow entry={e} first onPress={() => {}} onEdit={() => {}} onDeleted={() => {}} />)
 
 describe('FoodEntryRow copy', () => {
   it('reads its copy from the catalog in Spanish', async () => {
     await i18n.changeLanguage('es')
-    const view = row(entry({ meal: 'dinner' }))
+    const view = await row(entry({ meal: 'dinner' }))
     try {
       expect(screen.getByText('Cena')).toBeTruthy()
       expect(screen.getByText('G')).toBeTruthy()
@@ -43,7 +43,7 @@ describe('FoodEntryRow copy', () => {
       expect(screen.queryByText('Dinner')).toBeNull()
     } finally {
       // Unmount first: restoring English under a mounted tree is a state update outside act.
-      view.unmount()
+      await view.unmount()
       await i18n.changeLanguage('en')
     }
   })
@@ -53,19 +53,19 @@ describe('FoodEntryRow amount', () => {
   // The bug this pins: the row rendered `entry.servings` raw, so a third of a 15 ml
   // serving read "× 0.3333333333333333" here while the entry's own screen — which goes
   // through formatLoggedAmount — read "5 ml" (#171).
-  it('reads in the unit the food was logged in', () => {
-    row(entry({ servings: 1 / 3, serving_quantity: 15, serving_unit: 'ml' }))
+  it('reads in the unit the food was logged in', async () => {
+    await row(entry({ servings: 1 / 3, serving_quantity: 15, serving_unit: 'ml' }))
     expect(screen.getByText('5 ml')).toBeTruthy()
   })
 
-  it('falls back to servings when nothing knows what one measures', () => {
-    row(entry({ servings: 1 / 3, serving_quantity: 0, serving_unit: '' }))
+  it('falls back to servings when nothing knows what one measures', async () => {
+    await row(entry({ servings: 1 / 3, serving_quantity: 0, serving_unit: '' }))
     expect(screen.getByText('0.33 servings')).toBeTruthy()
   })
 
   // One serving is the default and says nothing, so the row stays quiet.
-  it('says nothing for a single serving', () => {
-    row(entry({ servings: 1, serving_quantity: 15, serving_unit: 'ml' }))
+  it('says nothing for a single serving', async () => {
+    await row(entry({ servings: 1, serving_quantity: 15, serving_unit: 'ml' }))
     expect(screen.queryByText('15 ml')).toBeNull()
   })
 })
