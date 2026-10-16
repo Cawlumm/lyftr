@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"sort"
 	"strings"
 	"sync"
@@ -30,9 +31,17 @@ type ExerciseStore struct {
 	// status is how recent passes went. syncing above stays the one running flag.
 	statusMu sync.Mutex
 	status   models.ExerciseCacheStatus
+	// searchDownUntil (unix nanos, 0 = up) is when Search may next ask the catalog. See
+	// searchAllowed.
+	searchDownUntil atomic.Int64
+	// searchTimeout bounds one live search call. A healthy catalog answers in well under
+	// a second; a picker that hangs is worse than one that falls back.
+	searchTimeout time.Duration
 }
 
-func NewExerciseStore(db *sql.DB) *ExerciseStore { return &ExerciseStore{db: db} }
+func NewExerciseStore(db *sql.DB) *ExerciseStore {
+	return &ExerciseStore{db: db, searchTimeout: defaultSearchTimeout}
+}
 
 // ExerciseFilter holds the optional list filters (empty string = no filter).
 type ExerciseFilter struct {
@@ -430,9 +439,47 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 // exercises. Nothing in Lyftr requires the network to work.
 func (s *ExerciseStore) UseCatalog(c *oedb.Client) { s.catalog = c }
 
+const (
+	defaultSearchTimeout = 3 * time.Second
+	// searchBackoff is how long Search stops asking a catalog that did not answer, so
+	// one dead upstream costs one slow request, not one per keystroke.
+	searchBackoff = time.Minute
+)
+
+// searchAllowed reports whether this search may call the catalog. After a failed call
+// the answer is no until searchBackoff has passed. The first caller after that claims
+// the retry, holding the rest off for as long as its own call can take, so a catalog
+// that is still down is probed once, not by every request that arrives meanwhile.
+func (s *ExerciseStore) searchAllowed() bool {
+	until := s.searchDownUntil.Load()
+	if until == 0 {
+		return true
+	}
+	now := time.Now()
+	if now.UnixNano() < until {
+		return false
+	}
+	return s.searchDownUntil.CompareAndSwap(until, now.Add(s.searchTimeout+time.Second).UnixNano())
+}
+
+// searchFailed backs Search off the catalog when it gave no answer: a timeout or a
+// connection that never completed. An answer that says no (a 4xx for one bad query,
+// a 5xx) arrives fast, costs nothing to repeat and says nothing about the next query,
+// and a caller that gave up on its own request says nothing about the catalog.
+func (s *ExerciseStore) searchFailed(ctx context.Context, err error) {
+	var netErr net.Error
+	if ctx.Err() != nil || !(errors.Is(err, context.DeadlineExceeded) || errors.As(err, &netErr)) {
+		s.searchDownUntil.Store(0)
+		return
+	}
+	s.searchDownUntil.Store(time.Now().Add(searchBackoff).UnixNano())
+	log.Printf("exercises: catalog is not answering, serving the local copy for %s: %v", searchBackoff, err)
+}
+
 // Search answers an exercise query from the upstream catalog, recording what it
 // returns locally, and falls back to the local table when the catalog cannot be
-// reached.
+// reached. A catalog that does not answer is left alone for searchBackoff, so the
+// fallback is immediate rather than a timeout on every request.
 //
 // The fallback is not a nicety. oedb being down, slow, or rate-limiting must
 // never stop someone logging a workout, and the local table already holds every
@@ -443,16 +490,23 @@ func (s *ExerciseStore) Search(ctx context.Context, f ExerciseFilter) ([]models.
 		return s.List(f)
 	}
 
+	if !s.searchAllowed() {
+		return s.List(f)
+	}
+
 	items, err := s.fetchCatalog(ctx, f)
 	if err != nil {
+		s.searchFailed(ctx, err)
 		log.Printf("exercises: catalog query failed, serving local snapshot: %v", err)
 		return s.List(f)
 	}
 
 	if err := s.ensureEnglishBase(ctx, items); err != nil {
+		s.searchFailed(ctx, err)
 		log.Printf("exercises: could not fetch English base rows, serving local snapshot: %v", err)
 		return s.List(f)
 	}
+	s.searchDownUntil.Store(0)
 
 	out, err := s.Materialize(items, s.catalog.BaseURL(), f.Locale)
 	if err != nil {
@@ -485,7 +539,7 @@ func (s *ExerciseStore) ensureEnglishBase(ctx context.Context, items []oedb.Exer
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, s.searchTimeout)
 	defer cancel()
 	for len(missing) > 0 {
 		batch := missing[:min(len(missing), 100)]
@@ -538,7 +592,7 @@ func (s *ExerciseStore) fetchCatalog(ctx context.Context, f ExerciseFilter) ([]o
 
 	// An interactive search gets a short deadline: a picker that hangs is worse
 	// than one that falls back to the local snapshot immediately.
-	ctx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, s.searchTimeout)
 	defer cancel()
 
 	// A filtered request for more than one page walks the pages. oedb caps
