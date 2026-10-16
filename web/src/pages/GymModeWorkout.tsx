@@ -192,7 +192,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
         open={confirmFinish}
         icon={Flag}
         title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, total: totalSets })}
+        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
         confirmLabel={t('workouts.active.finish')}
         busyLabel={t('common.saving')}
         cancelLabel={t('workouts.active.keepGoing')}
@@ -536,7 +536,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
               <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${muscleColor(ex.exercise.muscle_group)}`}>
                 {muscleLabel(ex.exercise.muscle_group)}
               </span>
-              <span className="text-xs text-tx-muted tabular-nums">{t('workouts.active.setsDone', { done: completedHere, total: ex.sets.length })}</span>
+              <span className="text-xs text-tx-muted tabular-nums">{t('workouts.active.setsDone', { done: completedHere, count: ex.sets.length })}</span>
             </div>
           </div>
           {!allSetsComplete && (

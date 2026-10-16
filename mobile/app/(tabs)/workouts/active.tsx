@@ -145,7 +145,7 @@ export default function ActiveWorkout() {
                 <Timer size={14} color={accent} />
                 <Text className="font-sans text-sm" style={{ color: accent, fontVariant: ['tabular-nums'] }}>{formatElapsed(elapsed)}</Text>
               </View>
-              <AppText variant="caption" color="muted">{t('workouts.active.setsDone', { done: completedSets, total: totalSets })}</AppText>
+              <AppText variant="caption" color="muted">{t('workouts.active.setsDone', { done: completedSets, count: totalSets })}</AppText>
             </View>
           </View>
           <Pressable
@@ -242,7 +242,7 @@ export default function ActiveWorkout() {
         open={confirmFinish}
         icon={Flag}
         title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, total: totalSets })}
+        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
         confirmLabel={t('workouts.active.finish')}
         busyLabel={t('common.saving')}
         cancelLabel={t('workouts.active.keepGoing')}
@@ -259,7 +259,7 @@ export default function ActiveWorkout() {
         destructive
         title={t('workouts.active.cancelConfirm.title')}
         message={t('workouts.active.cancelConfirm.message')}
-        confirmLabel={t('workouts.active.cancelWorkout')}
+        confirmLabel={t('common.cancel')}
         cancelLabel={t('workouts.active.keepGoing')}
         onConfirm={() => { setOutcome({ kind: 'discarded', session }); cancelSession(); router.replace('/workouts') }}
         onCancel={() => setConfirmCancel(false)}

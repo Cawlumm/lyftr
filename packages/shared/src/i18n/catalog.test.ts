@@ -116,6 +116,16 @@ describe('plural selection', () => {
     expect(i18n.t('settings.library.refreshed', { count: 2, amount: '2' })).toBe(lib.refreshed_other.replace('{{amount}}', '2'))
     expect(i18n.t('settings.library.refreshed', { count: 1000000, amount: '1.000.000' })).toBe(lib.refreshed_many.replace('{{amount}}', '1.000.000'))
   })
+
+  // "1 de 1 series completadas" shipped because the total was interpolated, not counted.
+  it('a workout with one set says "set"/"serie", not "sets"/"series"', async () => {
+    expect(i18n.t('workouts.active.setsDone', { done: 1, count: 1 })).toBe('1/1 set done')
+    expect(i18n.t('workouts.active.setsDone', { done: 0, count: 3 })).toBe('0/3 sets done')
+    await i18n.changeLanguage('es')
+    expect(i18n.t('workouts.active.setsDone', { done: 1, count: 1 })).toBe('1/1 serie completada')
+    expect(i18n.t('workouts.active.finishConfirm.message', { done: 1, count: 1 })).toBe('1 de 1 serie completada. Se guardará el entrenamiento.')
+    expect(i18n.t('workouts.active.finishConfirm.message', { done: 2, count: 5 })).toBe('2 de 5 series completadas. Se guardará el entrenamiento.')
+  })
 })
 
 describe('resolveLanguage', () => {

@@ -167,7 +167,7 @@ export function GymModeWorkout() {
         open={confirmFinish}
         icon={Flag}
         title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, total: totalSets })}
+        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
         confirmLabel={t('workouts.active.finish')} busyLabel={t('common.saving')} cancelLabel={t('workouts.active.keepGoing')} busy={finish.busy}
         error={finish.error}
         onConfirm={() => { void finish.run() }} onCancel={() => { setConfirmFinish(false); finish.reset() }}
@@ -473,7 +473,7 @@ export function GymModeWorkout() {
             <AppText variant="heading" numberOfLines={1}>{ex.exercise.name}</AppText>
             <View className="mt-1 flex-row items-center gap-2">
               <MuscleBadge muscle={ex.exercise.muscle_group} small />
-              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setsDone', { done: completedHere, total: ex.sets.length })}</AppText>
+              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setsDone', { done: completedHere, count: ex.sets.length })}</AppText>
             </View>
           </View>
           {!allSetsComplete ? (

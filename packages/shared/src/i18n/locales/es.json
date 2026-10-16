@@ -1112,7 +1112,9 @@
         "goHome": "Ir al inicio",
         "goWorkouts": "Ir a Entrenos"
       },
-      "setsDone": "{{done}}/{{total}} series completadas",
+      "setsDone_one": "{{done}}/{{count}} serie completada",
+      "setsDone_other": "{{done}}/{{count}} series completadas",
+      "setsDone_many": "{{done}}/{{count}} de series completadas",
       "finish": "Terminar",
       "empty": {
         "title": "Aún no hay ejercicios",
@@ -1146,7 +1148,9 @@
       "keepGoing": "Seguir entrenando",
       "finishConfirm": {
         "title": "¿Terminar el entrenamiento?",
-        "message": "{{done}} de {{total}} series completadas. Se guardará el entrenamiento."
+        "message_one": "{{done}} de {{count}} serie completada. Se guardará el entrenamiento.",
+        "message_other": "{{done}} de {{count}} series completadas. Se guardará el entrenamiento.",
+        "message_many": "{{done}} de {{count}} de series completadas. Se guardará el entrenamiento."
       },
       "cancelConfirm": {
         "title": "¿Cancelar el entrenamiento?",
