@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime/debug"
 	"sort"
 	"time"
 )
@@ -112,6 +113,14 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 	// Deferred after the flag's release, so it runs first: a reader never sees the pass
 	// finished with the old outcome.
 	defer func() { s.recordPass(started, err) }()
+	// Runs before recordPass, so a panic is recorded as the failed pass it was, and the
+	// scheduler goroutine survives to retry instead of taking the whole server down.
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("catalog sync panicked: %v", r)
+			log.Printf("exercises: %v\n%s", err, debug.Stack())
+		}
+	}()
 	dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
 	codes, err := s.catalog.Revalidating().Locales(dctx)
 	cancel()
