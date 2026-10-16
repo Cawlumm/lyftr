@@ -873,3 +873,39 @@ func TestRunCatalogSync_SchedulesNextAttempt(t *testing.T) {
 		}
 	})
 }
+
+func TestRefreshCached_SurvivesACancelledCaller(t *testing.T) {
+	s, cat := syncStore(t, 3, "en", "es")
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	n, err := s.RefreshCached(ctx)
+	if err != nil || n != 3 {
+		t.Fatalf("RefreshCached(cancelled ctx) = %d, %v; want 3, nil", n, err)
+	}
+	if cat.listCount("es") == 0 {
+		t.Error("translations were not refreshed after the caller gave up")
+	}
+	if st, _ := s.CacheStatus(); st.LastFailure != nil {
+		t.Errorf("a cancelled caller was recorded as a failure: %v", *st.LastFailure)
+	}
+}
+
+func TestSyncCatalog_PanicIsAFailedPassNotACrash(t *testing.T) {
+	s, _ := syncStore(t, 2, "en", "es")
+	real := s.db
+	s.db = nil // purgeDroppedLocales dereferences it
+
+	_, err := s.syncCatalog(t.Context())
+	s.db = real
+	if err == nil || !strings.Contains(err.Error(), "panicked") {
+		t.Fatalf("err = %v, want a recovered panic", err)
+	}
+	st, _ := s.CacheStatus()
+	if st.LastFailure == nil || st.LastSyncedAt != nil {
+		t.Errorf("status = %+v, want a recorded failure and no clean sync", st)
+	}
+	if st.Syncing {
+		t.Error("the single-flight flag stayed set after a panic")
+	}
+}

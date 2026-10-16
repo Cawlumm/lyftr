@@ -616,16 +616,18 @@ func (s *ExerciseStore) CacheStatus() (models.ExerciseCacheStatus, error) {
 
 // RefreshCached is the scheduled catalog pass run on demand: it imports every upstream
 // exercise in English and re-reads every held one in each other language. The int is
-// the number of exercises the English pass recorded.
+// the number of exercises the English pass recorded. The pass outlives ctx: a caller that
+// gives up (a proxy timing out at 60s) must not abort a half-written import and record a
+// false "unreachable".
 func (s *ExerciseStore) RefreshCached(ctx context.Context) (int, error) {
-	return s.syncCatalog(ctx)
+	return s.syncCatalog(context.WithoutCancel(ctx))
 }
 
 // RefreshCachedConfirmed is RefreshCached for an operator who has checked that the upstream
 // catalog really did lose most of its exercises: this one pass accepts a shrunken export
 // instead of failing with ErrCatalogShrank. An empty export is still refused.
 func (s *ExerciseStore) RefreshCachedConfirmed(ctx context.Context) (int, error) {
-	return s.syncCatalogWith(ctx, true)
+	return s.syncCatalogWith(context.WithoutCancel(ctx), true)
 }
 
 // refresh brings one language up to date. English imports every exercise in the bulk
