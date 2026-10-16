@@ -35,7 +35,7 @@ const program = (days: ProgramDay[], currentDayIndex = 0): Program => ({
 })
 
 describe('pickProgramDay', () => {
-  it('zero workout days → onEmpty, never the sheet or a selection', () => {
+  it('zero workout days → onEmpty, never the sheet or a selection', async () => {
     const onSelect = jest.fn()
     const openSheet = jest.fn()
     const onEmpty = jest.fn()
@@ -45,7 +45,7 @@ describe('pickProgramDay', () => {
     expect(openSheet).not.toHaveBeenCalled()
   })
 
-  it('exactly one workout day resolves immediately (one-tap flow preserved)', () => {
+  it('exactly one workout day resolves immediately (one-tap flow preserved)', async () => {
     const onSelect = jest.fn()
     const openSheet = jest.fn()
     const only = day({ id: 5, order_index: 1 })
@@ -55,7 +55,7 @@ describe('pickProgramDay', () => {
     expect(openSheet).not.toHaveBeenCalled()
   })
 
-  it('multiple workout days defer to the sheet', () => {
+  it('multiple workout days defer to the sheet', async () => {
     const onSelect = jest.fn()
     const openSheet = jest.fn()
     const p = program([day({ id: 1 }), day({ id: 2, order_index: 1 })])
@@ -72,13 +72,13 @@ describe('DayPickerSheet', () => {
     day({ id: 3, order_index: 2 }), // unnamed → label from its cycle position
   ]
 
-  it('renders nothing when program is null', () => {
-    render(<DayPickerSheet program={null} onSelect={() => {}} onClose={() => {}} />)
+  it('renders nothing when program is null', async () => {
+    await render(<DayPickerSheet program={null} onSelect={() => {}} onClose={() => {}} />)
     expect(screen.queryByText('Pick a Day')).toBeNull()
   })
 
-  it('lists only workout days, labeled by cycle position (not filtered index)', () => {
-    render(<DayPickerSheet program={program(days)} onSelect={() => {}} onClose={() => {}} />)
+  it('lists only workout days, labeled by cycle position (not filtered index)', async () => {
+    await render(<DayPickerSheet program={program(days)} onSelect={() => {}} onClose={() => {}} />)
     expect(screen.getByText('Push')).toBeTruthy()
     // The unnamed day sits at cycle position 2 → "Day 3", NOT "Day 2" (the
     // rest-filtered loop index) — regression guard for the dayLabel(day, i) bug.
@@ -86,16 +86,16 @@ describe('DayPickerSheet', () => {
     expect(screen.queryByText('Rest Day')).toBeNull()
   })
 
-  it('marks the due day with a TODAY chip', () => {
-    render(<DayPickerSheet program={program(days, 2)} onSelect={() => {}} onClose={() => {}} />)
+  it('marks the due day with a TODAY chip', async () => {
+    await render(<DayPickerSheet program={program(days, 2)} onSelect={() => {}} onClose={() => {}} />)
     expect(screen.getByText('TODAY')).toBeTruthy()
   })
 
-  it('selecting a day fires onSelect with the program and that day', () => {
+  it('selecting a day fires onSelect with the program and that day', async () => {
     const onSelect = jest.fn()
     const p = program(days)
-    render(<DayPickerSheet program={p} onSelect={onSelect} onClose={() => {}} />)
-    fireEvent.press(screen.getByText('Push'))
+    await render(<DayPickerSheet program={p} onSelect={onSelect} onClose={() => {}} />)
+    await fireEvent.press(screen.getByText('Push'))
     expect(onSelect).toHaveBeenCalledWith(p, days[0])
   })
 })

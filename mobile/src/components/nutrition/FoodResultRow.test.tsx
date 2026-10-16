@@ -35,7 +35,7 @@ const REMOVE = 'Remove Chicken Breast from Favorites'
 describe('FoodResultRow copy', () => {
   it('reads its copy from the catalog in Spanish', async () => {
     await i18n.changeLanguage('es')
-    const view = render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
+    const view = await render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
     try {
       expect(screen.getByLabelText('Agregar Chicken Breast a favoritos')).toBeTruthy()
       expect(screen.getByText('31g P')).toBeTruthy()
@@ -43,7 +43,7 @@ describe('FoodResultRow copy', () => {
       expect(screen.queryByLabelText(ADD)).toBeNull()
     } finally {
       // Unmount first: restoring English under a mounted tree is a state update outside act.
-      view.unmount()
+      await view.unmount()
       await i18n.changeLanguage('en')
     }
   })
@@ -52,47 +52,47 @@ describe('FoodResultRow copy', () => {
 describe('FoodResultRow', () => {
   // The label carries the toggle state, because the fill that conveys it visually is
   // invisible to a screen reader.
-  it('offers to add when the food is not favourited', () => {
-    render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
+  it('offers to add when the food is not favourited', async () => {
+    await render(<FoodResultRow item={item()} onPress={() => {}} favorited={false} onToggleFavorite={() => {}} />)
     expect(screen.getByLabelText(ADD)).toBeTruthy()
     expect(screen.queryByLabelText(REMOVE)).toBeNull()
   })
 
-  it('offers to remove when the food is favourited', () => {
-    render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={() => {}} />)
+  it('offers to remove when the food is favourited', async () => {
+    await render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={() => {}} />)
     expect(screen.getByLabelText(REMOVE)).toBeTruthy()
     expect(screen.queryByLabelText(ADD)).toBeNull()
   })
 
   // One tap, no confirmation sheet in between — that is the whole point of the change.
-  it('toggles on a single tap', () => {
+  it('toggles on a single tap', async () => {
     const onToggleFavorite = jest.fn()
-    render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={onToggleFavorite} />)
-    fireEvent.press(screen.getByLabelText(REMOVE))
+    await render(<FoodResultRow item={item()} onPress={() => {}} favorited onToggleFavorite={onToggleFavorite} />)
+    await fireEvent.press(screen.getByLabelText(REMOVE))
     expect(onToggleFavorite).toHaveBeenCalledTimes(1)
   })
 
   // Tapping the star must not also select the food; the row press and the star press are
   // separate targets even though the star sits inside the row's Pressable.
-  it('does not select the food when the star is tapped', () => {
+  it('does not select the food when the star is tapped', async () => {
     const onPress = jest.fn()
-    render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
-    fireEvent.press(screen.getByLabelText(ADD))
+    await render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
+    await fireEvent.press(screen.getByLabelText(ADD))
     expect(onPress).not.toHaveBeenCalled()
   })
 
-  it('still selects the food when the row body is tapped', () => {
+  it('still selects the food when the row body is tapped', async () => {
     const onPress = jest.fn()
-    render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
-    fireEvent.press(screen.getByText('Chicken Breast'))
+    await render(<FoodResultRow item={item()} onPress={onPress} favorited={false} onToggleFavorite={() => {}} />)
+    await fireEvent.press(screen.getByText('Chicken Breast'))
     expect(onPress).toHaveBeenCalled()
   })
 
   // Mid-request the star is inert, so a double tap can't fire a create and a delete for
   // the same food and leave the list disagreeing with the server.
-  it('ignores taps while the toggle is in flight', () => {
+  it('ignores taps while the toggle is in flight', async () => {
     const onToggleFavorite = jest.fn()
-    render(
+    await render(
       <FoodResultRow
         item={item()}
         onPress={() => {}}
@@ -101,7 +101,7 @@ describe('FoodResultRow', () => {
         togglingFavorite
       />,
     )
-    fireEvent.press(screen.getByLabelText(REMOVE))
+    await fireEvent.press(screen.getByLabelText(REMOVE))
     expect(onToggleFavorite).not.toHaveBeenCalled()
   })
 })

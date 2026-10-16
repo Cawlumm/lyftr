@@ -24,8 +24,8 @@ const bench: Exercise = {
 const fullPage = (): Exercise[] =>
   Array.from({ length: 50 }, (_, i) => ({ ...bench, id: i + 1, name: `Exercise ${i + 1}` }))
 
-const renderPicker = () =>
-  render(<ExercisePicker selectedIds={[]} onSelect={jest.fn()} onClose={jest.fn()} />)
+const renderPicker = async () =>
+  await render(<ExercisePicker selectedIds={[]} onSelect={jest.fn()} onClose={jest.fn()} />)
 
 afterEach(() => { jest.restoreAllMocks() })
 
@@ -34,12 +34,12 @@ describe('ExercisePicker (mobile)', () => {
     jest.spyOn(client.exerciseAPI, 'list')
       .mockResolvedValueOnce([])
       .mockResolvedValue([bench])
-    renderPicker()
+    await renderPicker()
 
     expect(await screen.findByText('The exercise library is still loading')).toBeTruthy()
     expect(screen.queryByText('No exercises found')).toBeNull()
 
-    fireEvent.press(screen.getByText('Try again'))
+    await fireEvent.press(screen.getByText('Try again'))
 
     expect(await screen.findByText('Bench Press')).toBeTruthy()
   })
@@ -48,7 +48,7 @@ describe('ExercisePicker (mobile)', () => {
     const err: any = new Error('timeout of 20000ms exceeded')
     err.code = 'ECONNABORTED'
     jest.spyOn(client.exerciseAPI, 'list').mockRejectedValue(err)
-    renderPicker()
+    await renderPicker()
 
     expect(await screen.findByText("Couldn't load exercises")).toBeTruthy()
     expect(screen.getByText(/didn't respond in time/i)).toBeTruthy()
@@ -60,10 +60,10 @@ describe('ExercisePicker (mobile)', () => {
   it('a search with no matches keeps No exercises found', async () => {
     jest.spyOn(client.exerciseAPI, 'list').mockImplementation(((params?: { q?: string }) =>
       Promise.resolve(params?.q ? [] : fullPage())) as never)
-    renderPicker()
+    await renderPicker()
     await screen.findByText('Exercise 1')
 
-    fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'zzz')
+    await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'zzz')
 
     await waitFor(() => expect(screen.getByText('No exercises found')).toBeTruthy(), { timeout: 2000 })
     expect(screen.queryByText('The exercise library is still loading')).toBeNull()

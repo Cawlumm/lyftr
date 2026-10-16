@@ -24,8 +24,8 @@ const dayDraft = (overrides: Partial<DayDraft> = {}): DayDraft => ({
   ...overrides,
 })
 
-const renderEditor = (days: DayDraft[], onChange = jest.fn()) => {
-  render(
+const renderEditor = async (days: DayDraft[], onChange = jest.fn()) => {
+  await render(
     <ProgramDaysEditor
       days={days}
       onChange={onChange}
@@ -41,7 +41,7 @@ const renderEditor = (days: DayDraft[], onChange = jest.fn()) => {
 describe('ProgramDaysEditor', () => {
   it('reads its copy from the catalog in Spanish', async () => {
     await i18n.changeLanguage('es')
-    const view = render(
+    const view = await render(
       <ProgramDaysEditor
         days={[dayDraft({ exercises: [{ exercise_id: 1, notes: '', rest_seconds: 90, sets: [] }] }), dayDraft({ order_index: 1, is_rest_day: true })]}
         onChange={jest.fn()}
@@ -61,71 +61,71 @@ describe('ProgramDaysEditor', () => {
       expect(screen.queryByText('Add Workout Day')).toBeNull()
     } finally {
       // Unmount first: restoring English under a mounted tree is a state update outside act.
-      view.unmount()
+      await view.unmount()
       await i18n.changeLanguage('en')
     }
   })
 
-  it('renders the empty state when there are no days', () => {
-    renderEditor([])
+  it('renders the empty state when there are no days', async () => {
+    await renderEditor([])
     expect(screen.getByText(/No days yet/)).toBeTruthy()
   })
 
-  it('Add Workout Day appends a workout day with a reindexed order_index', () => {
-    const onChange = renderEditor([dayDraft({ name: 'Push' })])
-    fireEvent.press(screen.getByText('Add Workout Day'))
+  it('Add Workout Day appends a workout day with a reindexed order_index', async () => {
+    const onChange = await renderEditor([dayDraft({ name: 'Push' })])
+    await fireEvent.press(screen.getByText('Add Workout Day'))
     const next: DayDraft[] = onChange.mock.calls[0][0]
     expect(next).toHaveLength(2)
     expect(next[1]).toMatchObject({ order_index: 1, is_rest_day: false, exercises: [] })
   })
 
-  it('Add Rest Day appends a rest day', () => {
-    const onChange = renderEditor([])
-    fireEvent.press(screen.getByText('Add Rest Day'))
+  it('Add Rest Day appends a rest day', async () => {
+    const onChange = await renderEditor([])
+    await fireEvent.press(screen.getByText('Add Rest Day'))
     expect(onChange.mock.calls[0][0]).toEqual([dayDraft({ is_rest_day: true })])
   })
 
-  it('removing a day reindexes the survivors', () => {
-    const onChange = renderEditor([
+  it('removing a day reindexes the survivors', async () => {
+    const onChange = await renderEditor([
       dayDraft({ order_index: 0, name: 'A' }),
       dayDraft({ order_index: 1, name: 'B' }),
       dayDraft({ order_index: 2, name: 'C' }),
     ])
-    fireEvent.press(screen.getAllByLabelText('Remove day')[1])
+    await fireEvent.press(screen.getAllByLabelText('Remove day')[1])
     const next: DayDraft[] = onChange.mock.calls[0][0]
     expect(next.map((d) => d.name)).toEqual(['A', 'C'])
     expect(next.map((d) => d.order_index)).toEqual([0, 1])
   })
 
-  it('move-down swaps a day with its neighbor and rewrites order_index', () => {
-    const onChange = renderEditor([
+  it('move-down swaps a day with its neighbor and rewrites order_index', async () => {
+    const onChange = await renderEditor([
       dayDraft({ order_index: 0, name: 'A' }),
       dayDraft({ order_index: 1, name: 'B' }),
     ])
-    fireEvent.press(screen.getByLabelText('Move day 1 down'))
+    await fireEvent.press(screen.getByLabelText('Move day 1 down'))
     const next: DayDraft[] = onChange.mock.calls[0][0]
     expect(next.map((d) => d.name)).toEqual(['B', 'A'])
     expect(next.map((d) => d.order_index)).toEqual([0, 1])
   })
 
-  it('move-up on the first day is a no-op (disabled)', () => {
-    const onChange = renderEditor([dayDraft({ name: 'A' }), dayDraft({ order_index: 1, name: 'B' })])
-    fireEvent.press(screen.getByLabelText('Move day 1 up'))
+  it('move-up on the first day is a no-op (disabled)', async () => {
+    const onChange = await renderEditor([dayDraft({ name: 'A' }), dayDraft({ order_index: 1, name: 'B' })])
+    await fireEvent.press(screen.getByLabelText('Move day 1 up'))
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('toggling a workout day to rest CLEARS its exercises (a rest day never carries any)', () => {
+  it('toggling a workout day to rest CLEARS its exercises (a rest day never carries any)', async () => {
     const exercises = [{ exercise_id: 1, notes: '', rest_seconds: 90, sets: [] }]
-    const onChange = renderEditor([dayDraft({ exercises })])
-    fireEvent.press(screen.getByText('Rest'))
+    const onChange = await renderEditor([dayDraft({ exercises })])
+    await fireEvent.press(screen.getByText('Rest'))
     const next: DayDraft[] = onChange.mock.calls[0][0]
     expect(next[0].is_rest_day).toBe(true)
     expect(next[0].exercises).toEqual([])
   })
 
-  it('renaming a day emits the patch without touching siblings', () => {
-    const onChange = renderEditor([dayDraft({ name: 'A' }), dayDraft({ order_index: 1, name: 'B' })])
-    fireEvent.changeText(screen.getAllByPlaceholderText(/^Day \d$/)[0], 'Push')
+  it('renaming a day emits the patch without touching siblings', async () => {
+    const onChange = await renderEditor([dayDraft({ name: 'A' }), dayDraft({ order_index: 1, name: 'B' })])
+    await fireEvent.changeText(screen.getAllByPlaceholderText(/^Day \d$/)[0], 'Push')
     const next: DayDraft[] = onChange.mock.calls[0][0]
     expect(next[0].name).toBe('Push')
     expect(next[1].name).toBe('B')

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, Text, View } from 'react-native'
+import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
@@ -39,7 +39,7 @@ export default function ActiveWorkout() {
   const [activeExIdx, setActiveExIdx] = useState(0)
   const [showPicker, setShowPicker] = useState(false)
 
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ScrollViewInstance>(null)
   const cardY = useRef<number[]>([])
 
   useEffect(() => {

@@ -13,16 +13,16 @@ jest.mock('react-native-safe-area-context', () => ({
 import { LANGUAGE_ORDER, LANGUAGE_NAMES } from '@lyftr/shared'
 import { LanguageSheet, filterLanguages } from './LanguageSheet'
 
-const setup = (value: 'system' | 'en' | 'es' = 'system') => {
+const setup = async (value: 'system' | 'en' | 'es' = 'system') => {
   const onSelect = jest.fn()
   const onClose = jest.fn()
-  render(<LanguageSheet open value={value} onSelect={onSelect} onClose={onClose} />)
+  await render(<LanguageSheet open value={value} onSelect={onSelect} onClose={onClose} />)
   return { onSelect, onClose }
 }
 
 describe('LanguageSheet', () => {
-  it('lists System first, then names in registry order', () => {
-    setup()
+  it('lists System first, then names in registry order', async () => {
+    await setup()
     const buttons = screen.getAllByRole('button')
     const labels = ['System (English)', ...LANGUAGE_ORDER.map((c) => LANGUAGE_NAMES[c])]
     expect(buttons).toHaveLength(labels.length)
@@ -31,8 +31,8 @@ describe('LanguageSheet', () => {
     LANGUAGE_ORDER.forEach((c, i) => expect(buttons[i + 1]).toHaveTextContent(new RegExp('^' + LANGUAGE_NAMES[c])))
   })
 
-  it('marks only the current value as selected', () => {
-    setup('es')
+  it('marks only the current value as selected', async () => {
+    await setup('es')
     const buttons = screen.getAllByRole('button')
     const selected = buttons.filter((b) => b.props.accessibilityState?.selected === true)
     expect(selected).toHaveLength(1)
@@ -40,22 +40,22 @@ describe('LanguageSheet', () => {
   })
 
 
-  it('pressing a different language closes and selects', () => {
-    const { onSelect, onClose } = setup('system')
-    fireEvent.press(screen.getByText('English'))
+  it('pressing a different language closes and selects', async () => {
+    const { onSelect, onClose } = await setup('system')
+    await fireEvent.press(screen.getByText('English'))
     expect(onClose).toHaveBeenCalled()
     expect(onSelect).toHaveBeenCalledWith('en')
   })
 
-  it('pressing the current language closes without selecting', () => {
-    const { onSelect, onClose } = setup('en')
-    fireEvent.press(screen.getByText('English'))
+  it('pressing the current language closes without selecting', async () => {
+    const { onSelect, onClose } = await setup('en')
+    await fireEvent.press(screen.getByText('English'))
     expect(onClose).toHaveBeenCalled()
     expect(onSelect).not.toHaveBeenCalled()
   })
 
-  it('has no search field at the current language count', () => {
-    setup()
+  it('has no search field at the current language count', async () => {
+    await setup()
     expect(screen.queryByPlaceholderText('Search languages')).toBeNull()
   })
 })
@@ -74,7 +74,7 @@ describe('filterLanguages', () => {
 })
 
 describe('filterLanguages without String.prototype.normalize', () => {
-  it('falls back to a plain lowercase match instead of throwing', () => {
+  it('falls back to a plain lowercase match instead of throwing', async () => {
     const spy = jest.spyOn(String.prototype, 'normalize').mockImplementation(() => {
       throw new RangeError('unsupported')
     })

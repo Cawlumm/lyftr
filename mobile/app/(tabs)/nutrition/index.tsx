@@ -516,7 +516,7 @@ export default function Nutrition() {
           </View>
         }
         ListEmptyComponent={
-          !isDiary ? null : dayPending ? (
+          !isDiary ? undefined : dayPending ? (
             <SkeletonList count={3} />
           ) : q ? (
             <View className="items-center px-4 py-8">
@@ -538,7 +538,7 @@ export default function Nutrition() {
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
 

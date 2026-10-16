@@ -26,12 +26,12 @@ describe('Settings screen Language row', () => {
   })
 
   it('opens the language sheet and switches language', async () => {
-    render(<SettingsScreen />)
+    await render(<SettingsScreen />)
 
     expect(screen.getByText('Language')).toBeTruthy()
     expect(screen.queryByText('Español')).toBeNull()
 
-    fireEvent.press(screen.getByText('Language'))
+    await fireEvent.press(screen.getByText('Language'))
 
     expect(screen.getByText('Español')).toBeTruthy()
     // The row's own value reads "System (English)" too, so the sheet's option makes two.
@@ -39,7 +39,7 @@ describe('Settings screen Language row', () => {
     expect(screen.getByText('English')).toBeTruthy()
 
     await act(async () => {
-      fireEvent.press(screen.getByText('Español'))
+      await fireEvent.press(screen.getByText('Español'))
     })
 
     expect(useLanguageStore.getState().preference).toBe('es')

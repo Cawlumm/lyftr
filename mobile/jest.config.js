@@ -12,6 +12,9 @@
 //    syntax breaks the transform. The nutritionMeta test doubles as a canary for this.
 module.exports = {
   preset: 'jest-expo',
+  // Reanimated 4 and worklets 0.13 import native code; their resolver serves the JS
+  // implementations under jest instead (the SDK 54 pair did not need this).
+  resolver: 'react-native-reanimated/jest/resolver',
   testMatch: ['<rootDir>/src/**/*.test.{ts,tsx}'],
   // No trailing slash after the group: the prefixes must prefix-match so `react-native`
   // covers react-native-svg/-reanimated/-worklets/-css-interop and `expo` covers

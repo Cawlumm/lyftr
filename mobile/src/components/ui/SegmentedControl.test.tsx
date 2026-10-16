@@ -7,23 +7,23 @@ const options = [
 ] as const
 
 describe('SegmentedControl', () => {
-  it('renders every option label', () => {
-    render(<SegmentedControl options={options} value="a" onChange={() => {}} />)
+  it('renders every option label', async () => {
+    await render(<SegmentedControl options={options} value="a" onChange={() => {}} />)
     expect(screen.getByText('Alpha')).toBeTruthy()
     expect(screen.getByText('Beta')).toBeTruthy()
   })
 
-  it('fires onChange with the value when an inactive option is pressed', () => {
+  it('fires onChange with the value when an inactive option is pressed', async () => {
     const onChange = jest.fn()
-    render(<SegmentedControl options={options} value="a" onChange={onChange} />)
-    fireEvent.press(screen.getByText('Beta'))
+    await render(<SegmentedControl options={options} value="a" onChange={onChange} />)
+    await fireEvent.press(screen.getByText('Beta'))
     expect(onChange).toHaveBeenCalledWith('b')
   })
 
-  it('does not fire onChange when the already-active option is pressed', () => {
+  it('does not fire onChange when the already-active option is pressed', async () => {
     const onChange = jest.fn()
-    render(<SegmentedControl options={options} value="a" onChange={onChange} />)
-    fireEvent.press(screen.getByText('Alpha'))
+    await render(<SegmentedControl options={options} value="a" onChange={onChange} />)
+    await fireEvent.press(screen.getByText('Alpha'))
     expect(onChange).not.toHaveBeenCalled()
   })
 })

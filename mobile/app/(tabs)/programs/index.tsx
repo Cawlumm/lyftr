@@ -179,7 +179,7 @@ export default function Programs() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : listError ? (
+          loading ? undefined : listError ? (
             // Reached only with a search on screen; "No programs found" would blame the
             // query for a request that never landed.
             <ErrorState title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
@@ -201,7 +201,7 @@ export default function Programs() {
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
     </Screen>
