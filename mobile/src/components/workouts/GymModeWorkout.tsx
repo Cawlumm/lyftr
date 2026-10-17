@@ -460,8 +460,6 @@ export function GymModeWorkout() {
   if (!set) return null
 
   const restingHere = restExIdx === activeIdx
-  const restNextSet = restingHere && restSetIdx != null ? nextIncompleteSet(ex.sets, restSetIdx) : -1
-  const hideCompleteForRest = restingHere && clampedSetIdx === restNextSet
 
   return overlay(
     <>
@@ -536,20 +534,17 @@ export function GymModeWorkout() {
             </View>
           </View>
 
-          {/* complete + remove (hidden while resting before this set) */}
-          {!hideCompleteForRest ? (
-            <View className="w-full items-center gap-6">
-              <Pressable onPress={() => handleCompleteSetGym(clampedSetIdx)} className={`w-full flex-row items-center justify-center gap-3 rounded-2xl py-5 active:scale-95 ${set.completed ? 'border-2 border-brand-500/40 bg-brand-500/15' : 'bg-brand-500'}`}>
-                <CheckCircle2 size={24} color={set.completed ? accent : '#ffffff'} />
-                <Text className={`font-sans-bold text-base ${set.completed ? '' : 'text-white'}`} style={set.completed ? { color: accent } : undefined}>{set.completed ? t('gym.completed') : t('gym.completeSet')}</Text>
+          <View className="w-full items-center gap-6">
+            <Pressable onPress={() => handleCompleteSetGym(clampedSetIdx)} className={`w-full flex-row items-center justify-center gap-3 rounded-2xl py-5 active:scale-95 ${set.completed ? 'border-2 border-brand-500/40 bg-brand-500/15' : 'bg-brand-500'}`}>
+              <CheckCircle2 size={24} color={set.completed ? accent : '#ffffff'} />
+              <Text className={`font-sans-bold text-base ${set.completed ? '' : 'text-white'}`} style={set.completed ? { color: accent } : undefined}>{set.completed ? t('gym.completed') : t('gym.completeSet')}</Text>
+            </Pressable>
+            {ex.sets.length > 1 ? (
+              <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} className="active:opacity-60">
+                <Text className="font-sans text-xs text-tx-muted">{t('gym.removeSet')}</Text>
               </Pressable>
-              {ex.sets.length > 1 ? (
-                <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} className="active:opacity-60">
-                  <Text className="font-sans text-xs text-tx-muted">{t('gym.removeSet')}</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : null}
+            ) : null}
+          </View>
         </View>
       </ScrollView>
 

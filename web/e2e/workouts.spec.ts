@@ -446,6 +446,40 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(page.getByRole('button', { name: /completed/i })).toBeVisible({ timeout: 2000 })
   })
 
+  test('gym mode can complete sets while the rest timer is running or paused', async ({ page }) => {
+    await seedGymSession(page, 'E2E Complete During Rest', 'Bench Press', [1, 2, 3].map(set_number => ({
+      set_number, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false,
+    })))
+    await page.addInitScript(() => {
+      localStorage.setItem('lyftr_rest_enabled', 'true')
+      localStorage.setItem('lyftr_rest_seconds', '90')
+    })
+    await page.goto('/workout/active')
+    await page.getByRole('button', { name: /start workout/i }).click()
+    await page.getByRole('button', { name: /begin exercise/i }).click()
+
+    const complete = page.getByRole('button', { name: /^complete set$/i })
+    await complete.click()
+    await expect(page.getByRole('button', { name: 'Pause rest timer' })).toBeVisible()
+    await page.getByRole('button', { name: 'Shorten rest by 15 seconds' }).click()
+    await page.getByRole('button', { name: 'Shorten rest by 15 seconds' }).click()
+
+    // The next set remains loggable without first skipping the previous rest.
+    await complete.click()
+    await expect(page.getByText('Set 2 done · set 3 next')).toBeVisible()
+    await expect(page.getByText(/^1:(?:2[0-9]|30)$/)).toBeVisible()
+    await page.getByRole('button', { name: 'Pause rest timer' }).click()
+    await expect(page.getByRole('button', { name: 'Resume rest timer' })).toBeVisible()
+
+    await complete.click()
+    await expect(page.getByRole('button', { name: /^completed$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Pause rest timer' })).toBeVisible()
+    await expect.poll(() => page.evaluate(key => {
+      const session = JSON.parse(localStorage.getItem(key)!)
+      return session.exercises[0].sets.filter((set: { completed: boolean }) => set.completed).length
+    }, SESSION_KEY)).toBe(3)
+  })
+
   // #193: the rest panel used to float over Begin Exercise / Start Workout. It is docked
   // in-flow below each phase's CTA now, so it must sit under the button, not over it.
   test('gym mode rest panel sits below Begin Exercise and Start Workout', async ({ page }) => {

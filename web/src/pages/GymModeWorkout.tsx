@@ -518,10 +518,6 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
   // Rest-timer view state for this exercise (restExIdx/restSetIdx are cleared or
   // remapped by the store on structural edits, so they're safe to key on here).
   const restingHere = restExIdx === activeIdx
-  // The set the rest is "before" — the one auto-advance focuses. We only collapse the
-  // Complete Set control for THAT set, so navigating to a different set stays loggable.
-  const restNextSet = restingHere && restSetIdx != null ? nextIncompleteSet(ex.sets, restSetIdx) : -1
-  const hideCompleteForRest = restingHere && clampedSetIdx === restNextSet
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t('gym.workout')} className="fixed inset-0 z-[60] bg-surface-base flex flex-col">
@@ -640,14 +636,7 @@ export default function GymModeWorkout({ wUnit }: GymModeWorkoutProps) {
           </StepperTile>
         </div>
 
-        {/* While resting before this set, collapse + fade the Complete Set / Remove
-            controls out of the way — you Skip the timer to begin it. This also frees
-            the space so the set content never clips behind the docked rest panel.
-            Keyed on the specific up-next set (not the whole exercise) so navigating to
-            another set to log it still shows its Complete button. */}
-        <div className={`w-full flex flex-col items-center gap-6 overflow-hidden transition-all duration-300 ${
-          hideCompleteForRest ? 'max-h-0 opacity-0 pointer-events-none' : 'max-h-40 opacity-100'
-        }`}>
+        <div className="w-full flex flex-col items-center gap-6">
           {/* Complete button */}
           <button
             onClick={() => handleCompleteSetGym(clampedSetIdx)}
