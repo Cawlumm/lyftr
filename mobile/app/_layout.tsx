@@ -40,13 +40,18 @@ SplashScreen.preventAutoHideAsync().catch(() => {})
 // The two guards are complementary on purpose: exactly one group is reachable at any
 // moment, so a signed-out user cannot sit on a tab and a signed-in one cannot sit on
 // login. Making the loop unrepresentable beats detecting it.
+//
+// redirectTo is explicit because SDK 58 renders a guarded screen as a redirect to it, and
+// the default is the navigator's anchor, which this stack does not have. Without it a
+// signed-out cold start at "/" (a fresh install, or relaunching after sign-out) landed on
+// "Unmatched Route" with no way into the login screen. Signed-in launches were unaffected.
 function RootStack({ isAuthed }: { isAuthed: boolean }) {
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isAuthed}>
+      <Stack.Protected guard={isAuthed} redirectTo="/login">
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
-      <Stack.Protected guard={!isAuthed}>
+      <Stack.Protected guard={!isAuthed} redirectTo="/">
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
     </Stack>

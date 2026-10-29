@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Platform, ScrollView, View } from 'react-native'
+import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
@@ -47,7 +47,7 @@ export default function EditProgram() {
   const [retryKey, setRetryKey] = useState(0)
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<ProgramFormData>({ name: '', notes: '', days: [] })
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ScrollViewInstance>(null)
 
   useEffect(() => {
     fetchSettings()

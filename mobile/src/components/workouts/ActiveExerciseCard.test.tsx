@@ -27,29 +27,29 @@ jest.mock('react-native-safe-area-context', () => ({
 // round-trips the value through Number(). Rendering the whole card would need the theme,
 // router and session store mocked to assert the same one thing.
 describe('ActiveExerciseCard weight entry', () => {
-  it('keeps a trailing separator when the parent re-derives value through Number()', () => {
-    const { result, rerender } = renderHook((v: string) => useNumericText(v), {
+  it('keeps a trailing separator when the parent re-derives value through Number()', async () => {
+    const { result, rerender } = await renderHook((v: string) => useNumericText(v), {
       initialProps: '',
     })
 
-    act(() => result.current[1]('12.'))
+    await act(async () => result.current[1]('12.'))
     expect(result.current[0]).toBe('12.')
 
     // Exactly what the card does: Number('12.') is 12, stored, handed back as '12'.
-    rerender(String(Number('12.')))
+    await rerender(String(Number('12.')))
 
     // Without the buffer this reads '12' and the fraction is unreachable.
     expect(result.current[0]).toBe('12.')
 
-    act(() => result.current[1]('12.5'))
+    await act(async () => result.current[1]('12.5'))
     expect(result.current[0]).toBe('12.5')
   })
 
-  it('still follows the parent when the weight genuinely changes elsewhere', () => {
-    const { result, rerender } = renderHook((v: string) => useNumericText(v), {
+  it('still follows the parent when the weight genuinely changes elsewhere', async () => {
+    const { result, rerender } = await renderHook((v: string) => useNumericText(v), {
       initialProps: '100',
     })
-    rerender('102.5')
+    await rerender('102.5')
     expect(result.current[0]).toBe('102.5')
   })
 })
@@ -65,7 +65,7 @@ describe('ActiveExerciseCard copy', () => {
   it('reads its column headers and add-set label from the catalog in Spanish', async () => {
     await i18n.changeLanguage('es')
     const noop = () => {}
-    const view = render(
+    const view = await render(
       <ActiveExerciseCard
         index={0} ex={exercise} isActive isLast wUnit="kg" weightUnit="kg"
         onCardLayout={noop} onRemoveExercise={noop} onNotesChange={noop} onAddSet={noop} onRemoveSet={noop}
@@ -79,7 +79,7 @@ describe('ActiveExerciseCard copy', () => {
       expect(screen.queryByText('Add Set')).toBeNull()
     } finally {
       // Unmount first: restoring English under a mounted tree is a state update outside act.
-      view.unmount()
+      await view.unmount()
       await i18n.changeLanguage('en')
     }
   })

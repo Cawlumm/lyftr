@@ -29,8 +29,8 @@ const draft = (overrides: Partial<DayExerciseDraft> = {}): DayExerciseDraft => (
   ...overrides,
 })
 
-const renderEditor = (exercises: DayExerciseDraft[], onChange = jest.fn()) => {
-  render(
+const renderEditor = async (exercises: DayExerciseDraft[], onChange = jest.fn()) => {
+  await render(
     <DayExercisesEditor
       exercises={exercises}
       onChange={onChange}
@@ -44,53 +44,53 @@ const renderEditor = (exercises: DayExerciseDraft[], onChange = jest.fn()) => {
 }
 
 describe('DayExercisesEditor', () => {
-  it('renders the empty state when the day has no exercises', () => {
-    renderEditor([])
+  it('renders the empty state when the day has no exercises', async () => {
+    await renderEditor([])
     expect(screen.getByText('No exercises yet')).toBeTruthy()
   })
 
-  it('shows the cached exercise', () => {
-    renderEditor([draft()])
+  it('shows the cached exercise', async () => {
+    await renderEditor([draft()])
     expect(screen.getByText('Bench Press')).toBeTruthy()
   })
 
-  it('Add Set appends a set copying the previous set\'s reps/weight', () => {
-    const onChange = renderEditor([draft()]) // draft's one set: { set_number: 1, reps: 5, weight: 135 }
-    fireEvent.press(screen.getByText('Add Set'))
+  it('Add Set appends a set copying the previous set\'s reps/weight', async () => {
+    const onChange = await renderEditor([draft()]) // draft's one set: { set_number: 1, reps: 5, weight: 135 }
+    await fireEvent.press(screen.getByText('Add Set'))
     const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
     expect(next[0].sets).toHaveLength(2)
     expect(next[0].sets[1]).toEqual({ set_number: 2, reps: 5, weight: 135 })
   })
 
-  it('Add Set on the first set (no prior set) falls back to 0/0', () => {
-    const onChange = renderEditor([draft({ sets: [] })])
-    fireEvent.press(screen.getByText('Add Set'))
+  it('Add Set on the first set (no prior set) falls back to 0/0', async () => {
+    const onChange = await renderEditor([draft({ sets: [] })])
+    await fireEvent.press(screen.getByText('Add Set'))
     const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
     expect(next[0].sets).toEqual([{ set_number: 1, reps: 0, weight: 0 }])
   })
 
-  it('editing reps coerces to a number (garbage → 0)', () => {
-    const onChange = renderEditor([draft()])
-    fireEvent.changeText(screen.getByLabelText('Set reps'), '8')
+  it('editing reps coerces to a number (garbage → 0)', async () => {
+    const onChange = await renderEditor([draft()])
+    await fireEvent.changeText(screen.getByLabelText('Set reps'), '8')
     expect(onChange.mock.calls[0][0][0].sets[0].reps).toBe(8)
-    fireEvent.changeText(screen.getByLabelText('Set reps'), 'abc')
+    await fireEvent.changeText(screen.getByLabelText('Set reps'), 'abc')
     expect(onChange.mock.calls[1][0][0].sets[0].reps).toBe(0)
   })
 
-  it('removing the exercise emits an empty list', () => {
-    const onChange = renderEditor([draft()])
-    fireEvent.press(screen.getByLabelText('Remove Bench Press'))
+  it('removing the exercise emits an empty list', async () => {
+    const onChange = await renderEditor([draft()])
+    await fireEvent.press(screen.getByLabelText('Remove Bench Press'))
     expect(onChange.mock.calls[0][0]).toEqual([])
   })
 
-  it('removing a set only touches that set', () => {
-    const onChange = renderEditor([draft({
+  it('removing a set only touches that set', async () => {
+    const onChange = await renderEditor([draft({
       sets: [
         { set_number: 1, reps: 5, weight: 135 },
         { set_number: 2, reps: 5, weight: 145 },
       ],
     })])
-    fireEvent.press(screen.getAllByLabelText('Remove set')[0])
+    await fireEvent.press(screen.getAllByLabelText('Remove set')[0])
     const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
     expect(next[0].sets).toHaveLength(1)
     expect(next[0].sets[0].weight).toBe(145)

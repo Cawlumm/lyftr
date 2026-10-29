@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Platform, Pressable, ScrollView, Text, View } from 'react-native'
+import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
@@ -71,7 +71,7 @@ export default function EditWorkout() {
   const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
   const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', date: '', duration: 0, exercises: [] })
   const [originalStartedAt, setOriginalStartedAt] = useState('')
-  const scrollRef = useRef<ScrollView>(null)
+  const scrollRef = useRef<ScrollViewInstance>(null)
 
   useEffect(() => {
     fetchSettings()

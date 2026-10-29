@@ -53,7 +53,7 @@ const NON_COPY_OBJECT_KEYS = [
   'fontSize', 'fill', 'stroke', 'strokeWidth', 'radius', 'r', 'cursor', 'letterSpacing',
   'plate', 'plateEdge', 'collar', 'kind', 'source',
   'alignItems', 'alignSelf', 'justifyContent', 'flexDirection', 'textAlign', 'position',
-  'overflow',
+  'overflow', 'display',
 ]
 
 // Strings that are never words. Each entry is anchored by the plugin (^...$).

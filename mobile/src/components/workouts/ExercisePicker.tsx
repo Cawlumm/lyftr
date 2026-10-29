@@ -195,7 +195,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>
                 </View>
-              ) : null
+              ) : undefined
             }
           />
         )}

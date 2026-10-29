@@ -275,7 +275,7 @@ export default function Workouts() {
           </View>
         )}
         ListEmptyComponent={
-          loading ? null : listError ? (
+          loading ? undefined : listError ? (
             // Reached only with a search on screen (the early return covers the rest):
             // "No workouts found" would blame the query for a request that never landed.
             <ErrorState title={t('workouts.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
@@ -294,7 +294,7 @@ export default function Workouts() {
             <View className="items-center py-3">
               <ActivityIndicator size="small" color={accent} />
             </View>
-          ) : null
+          ) : undefined
         }
       />
 

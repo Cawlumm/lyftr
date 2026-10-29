@@ -21,7 +21,7 @@ describe('useServerList — a page that never arrived', () => {
   it('reports why the first page failed instead of looking empty', async () => {
     const fetcher = jest.fn().mockRejectedValue(timeout())
 
-    const { result } = renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
 
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.items).toEqual([])
@@ -35,11 +35,11 @@ describe('useServerList — a page that never arrived', () => {
       .mockResolvedValueOnce(page(0, 2))
       .mockRejectedValueOnce(timeout())
 
-    const { result } = renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
 
     await waitFor(() => expect(result.current.items).toEqual([0, 1]))
 
-    act(() => { result.current.loadMore() })
+    await act(async () => { result.current.loadMore() })
 
     await waitFor(() => expect(result.current.error).toBeTruthy())
     expect(result.current.items).toEqual([0, 1])
@@ -52,13 +52,13 @@ describe('useServerList — a page that never arrived', () => {
       .mockRejectedValueOnce(timeout())
       .mockResolvedValueOnce(page(1, 2))
 
-    const { result } = renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
     await waitFor(() => expect(result.current.items).toEqual([0, 1]))
 
-    act(() => { result.current.loadMore() })
+    await act(async () => { result.current.loadMore() })
     await waitFor(() => expect(result.current.error).toBeTruthy())
 
-    act(() => { result.current.retry() })
+    await act(async () => { result.current.retry() })
 
     // Appends rather than replaces: retry is a resume, so the two rows already on screen
     // are not thrown away to recover the page that failed.
@@ -72,12 +72,12 @@ describe('useServerList — a page that never arrived', () => {
       .mockRejectedValueOnce(timeout())
       .mockResolvedValueOnce(page(0, 2))
 
-    const { result } = renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
     await waitFor(() => expect(result.current.error).toBeTruthy())
 
     // Nothing loaded, so this retries page 0 and replaces rather than appending — the
     // offset is still 0 and appending an empty list to an empty list is the same thing.
-    act(() => { result.current.retry() })
+    await act(async () => { result.current.retry() })
 
     await waitFor(() => expect(result.current.items).toEqual([0, 1]))
     expect(result.current.error).toBeNull()
@@ -88,7 +88,7 @@ describe('useServerList — a page that never arrived', () => {
     err.response = { status: 500, data: { error: 'Database is locked' }, statusText: '', headers: {}, config: {} }
     const fetcher = jest.fn().mockRejectedValue(err)
 
-    const { result } = renderHook(() =>
+    const { result } = await renderHook(() =>
       useServerList<number>({ fetcher, pageSize: 2, errorFallback: 'Never shown.' }))
 
     await waitFor(() => expect(result.current.error).toBe('Database is locked'))
@@ -100,7 +100,7 @@ describe('useServerList — a change of deps', () => {
     const fetcher = jest.fn().mockResolvedValue([])
     const seen: boolean[] = []
 
-    const { result, rerender } = renderHook(
+    const { result, rerender } = await renderHook(
       ({ q }: { q: string }) => {
         const list = useServerList<number>({ fetcher, pageSize: 2, deps: [q] })
         seen.push(list.hasMore)
@@ -112,7 +112,7 @@ describe('useServerList — a change of deps', () => {
     await waitFor(() => expect(result.current.hasMore).toBe(false))
     seen.length = 0
 
-    rerender({ q: '' })
+    await rerender({ q: '' })
 
     // The first render after the change must already say "not settled"; the reset
     // effect that sets the state itself runs only after it.

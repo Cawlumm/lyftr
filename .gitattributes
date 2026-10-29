@@ -1,0 +1,2 @@
+# patch-package parses these byte-for-byte; a CRLF checkout on Windows makes them fail to apply.
+patches/*.patch text eol=lf
