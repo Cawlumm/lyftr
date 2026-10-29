@@ -13,5 +13,6 @@ release rehearsal), so prebuild fails with `Failed to match "/versionName "[\d.]
 The patch loosens the pattern to `versionName "[^"]+"`. It touches only the config plugin,
 which runs on the build machine; nothing from it ships in the app.
 
-Introduced upstream by expo/expo#48092 (SDK 57). Delete this patch, and pin back to a
+Introduced upstream by expo/expo#48092 and first shipped in SDK 58 (58.0.0); SDK 54 and 57
+do not have it. Fix proposed in expo/expo#52512. Delete this patch, and pin back to a
 `~` range, once the `expo-localization` we run has the fix.
