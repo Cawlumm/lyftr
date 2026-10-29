@@ -39,8 +39,9 @@ export default function TabsLayout() {
         options={{ title: t('nav.weight'), tabBarIcon: ({ color, size }) => <Scale color={color} size={size} /> }}
       />
       {/* Settings lives off the footer now — reached via the avatar in the Home header.
-          href:null keeps /settings routable while hiding it from the tab bar. */}
-      <Tabs.Screen name="settings" options={{ href: null }} />
+          Not href:null: since SDK 58 that hides the tab and makes its route unreachable, so the
+          avatar went nowhere. Rendering no button keeps /settings routable without a tab. */}
+      <Tabs.Screen name="settings" options={{ tabBarButton: () => null }} />
     </Tabs>
   )
 }
