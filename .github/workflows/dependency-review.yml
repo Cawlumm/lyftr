@@ -36,3 +36,11 @@ jobs:
           comment-summary-in-pr: always
           # Copyleft licences would make the project undistributable as it stands.
           deny-licenses: AGPL-3.0, GPL-3.0
+          # zod 3.25.76 arrives with Expo SDK 58's @expo/cli, which pins ^3.25.76 even in its
+          # newest release, and the advisory's only fix is zod 4.6.6, so there is nothing to
+          # upgrade to. @expo/cli imports zod in two dev-server schema files (DevToolsPlugin,
+          # createMCPDevToolsExtensionSchema), from the v3 entry rather than the zod 4 core the
+          # advisory describes; it is build tooling, never shipped in the app. Tracked upstream
+          # at expo/expo#52470. Remove this when @expo/cli moves off zod 3.
+          # Allows this one advisory only: anything else new at moderate or above still fails.
+          allow-ghsas: GHSA-mrhx-c7xc-m3w5
