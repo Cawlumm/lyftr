@@ -41,12 +41,12 @@ afterEach(() => {
   jest.useRealTimers()
 })
 
-it.each([false, true])('can complete the next set during rest (paused: %s)', (paused) => {
+it.each([false, true])('can complete the next set during rest (paused: %s)', async (paused) => {
   if (paused) useWorkoutSession.getState().pauseRest()
-  const view = render(<GymModeWorkout />)
-  act(() => { jest.advanceTimersByTime(15_000) })
+  const view = await render(<GymModeWorkout />)
+  await act(async () => { jest.advanceTimersByTime(15_000) })
 
-  fireEvent.press(screen.getByText('Complete Set'))
+  await fireEvent.press(screen.getByText('Complete Set'))
 
   const state = useWorkoutSession.getState()
   expect(state.session!.exercises[0].sets.map((set) => set.completed)).toEqual([true, true, false])
@@ -57,9 +57,9 @@ it.each([false, true])('can complete the next set during rest (paused: %s)', (pa
   expect(screen.getByText('Complete Set')).toBeTruthy()
 
   // Undoing the set that owns the new timer still clears that timer.
-  act(() => { state.setGymState('exercise', 0, 1) })
-  fireEvent.press(screen.getByText('Completed'))
+  await act(async () => { state.setGymState('exercise', 0, 1) })
+  await fireEvent.press(screen.getByText('Completed'))
   expect(useWorkoutSession.getState().restEndsAt).toBeNull()
   expect(useWorkoutSession.getState().session!.exercises[0].sets[1].completed).toBe(false)
-  view.unmount()
+  await view.unmount()
 })
