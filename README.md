@@ -72,6 +72,10 @@ Open `http://localhost` and create your account.
 📖 **Full guide**: configuration, HTTPS, backups, the mobile app, and troubleshooting live in the
 **[docs → lyftr-app.pages.dev](https://lyftr-app.pages.dev)**.
 
+## One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Lyftr/)
+
 ## Try it
 
 - **Live demo**: [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev) · `demo@lyftr.local` / `password123` (resets hourly; that account is demo-only, your own install has no default login)
