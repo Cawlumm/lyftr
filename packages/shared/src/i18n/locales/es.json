@@ -978,6 +978,7 @@
       "title": "Entrenamientos",
       "subtitle": "Registra y revisa tus sesiones de entrenamiento",
       "logWorkout": "Registrar entrenamiento",
+      "browseExercises": "Explorar ejercicios",
       "searchPlaceholder": "Buscar entrenamientos…",
       "empty": {
         "title": "No se encontraron entrenamientos",
@@ -1284,6 +1285,15 @@
       "shoulders": "hombros",
       "traps": "trapecios",
       "triceps": "tríceps"
+    },
+    "browse": {
+      "title": "Ejercicios",
+      "subtitle": "Consulta cualquier ejercicio y cómo se hace",
+      "backToWorkouts": "Volver a entrenamientos",
+      "muscle": "Músculo",
+      "equipment": "Equipo",
+      "clearFilters": "Quitar filtros",
+      "noMatch": "Ningún ejercicio coincide. Prueba otra búsqueda o quita los filtros."
     },
     "picker": {
       "catalogEmpty": { "title": "La biblioteca de ejercicios todavía se está cargando", "body": "Inténtalo de nuevo en un momento." },

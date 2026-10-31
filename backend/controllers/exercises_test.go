@@ -386,3 +386,26 @@ func TestExercises_RemovedUpstreamHiddenFromListButResolvable(t *testing.T) {
 		t.Errorf("logging a removed exercise = %d %s, want 201", w.Code, w.Body.String())
 	}
 }
+
+// A filter is a lowercase slug. Capitals or stray spaces used to match nothing, and the
+// empty list that came back read as "no exercises for this muscle".
+func TestListExercises_filtersAreNormalised(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	seedSpanishSquat(t, uid) // muscle_group 'legs', category 'strength'
+
+	count := func(query string) int {
+		c, w := newContext(uid, http.MethodGet, "/api/v1/exercises"+query, nil)
+		th.ListExercises(c)
+		return len(decodeResponse(t, w)["data"].([]any))
+	}
+
+	for _, query := range []string{"?muscle_group=legs", "?muscle_group=Legs", "?muscle_group=%20LEGS%20", "?category=STRENGTH"} {
+		if got := count(query); got != 1 {
+			t.Errorf("GET /exercises%s returned %d rows, want 1", query, got)
+		}
+	}
+	if got := count("?muscle_group=bogus"); got != 0 {
+		t.Errorf("an unknown muscle returned %d rows, want 0", got)
+	}
+}

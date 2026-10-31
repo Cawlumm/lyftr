@@ -967,6 +967,7 @@
       "title": "Workouts",
       "subtitle": "Track and review your training sessions",
       "logWorkout": "Log Workout",
+      "browseExercises": "Browse exercises",
       "searchPlaceholder": "Search workouts…",
       "empty": {
         "title": "No workouts found",
@@ -1269,6 +1270,15 @@
       "shoulders": "shoulders",
       "traps": "traps",
       "triceps": "triceps"
+    },
+    "browse": {
+      "title": "Exercises",
+      "subtitle": "Look up any exercise and how it is done",
+      "backToWorkouts": "Back to workouts",
+      "muscle": "Muscle",
+      "equipment": "Equipment",
+      "clearFilters": "Clear filters",
+      "noMatch": "No exercises match. Try another search or clear the filters."
     },
     "picker": {
       "catalogEmpty": { "title": "The exercise library is still loading", "body": "Try again in a moment." },

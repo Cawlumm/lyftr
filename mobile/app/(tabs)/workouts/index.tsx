@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect, type Href } from 'expo-router'
-import { Award, CheckCircle2, Dumbbell, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
+import { Award, CheckCircle2, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, useTranslation, type Workout } from '@lyftr/shared'
 import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
@@ -216,13 +216,22 @@ export default function Workouts() {
               title={t('workouts.list.title')}
               subtitle={t('workouts.list.subtitle')}
               action={
-                <IconButton
-                  icon={Plus}
-                  label={t('workouts.list.logWorkout')}
-                  variant="solid"
-                  size="md"
-                  onPress={() => router.push('/workouts/new')}
-                />
+                <View className="flex-row items-center gap-2">
+                  <IconButton
+                    icon={Library}
+                    label={t('workouts.list.browseExercises')}
+                    variant="secondary"
+                    size="md"
+                    onPress={() => router.push('/workouts/exercises')}
+                  />
+                  <IconButton
+                    icon={Plus}
+                    label={t('workouts.list.logWorkout')}
+                    variant="solid"
+                    size="md"
+                    onPress={() => router.push('/workouts/new')}
+                  />
+                </View>
               }
             />
 

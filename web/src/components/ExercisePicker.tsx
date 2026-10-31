@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useServerList, types, useTranslation } from '@lyftr/shared'
+import { useServerList, types, useTranslation, hasEquipmentToShow } from '@lyftr/shared'
 import ExerciseListEmpty from './ExerciseListEmpty'
 import { exerciseAPI } from '../services/api'
 import { muscleColorBordered, muscleLabel, equipmentLabel } from '../utils/exerciseUtils'
@@ -162,7 +162,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${muscleColorBordered(ex.muscle_group)}`}>
                           {muscleLabel(ex.muscle_group)}
                         </span>
-                        {ex.equipment && ex.equipment !== 'other' && (
+                        {hasEquipmentToShow(ex.equipment) && (
                           <span className="text-xs text-tx-muted">
                             {equipmentLabel(ex.equipment)}
                           </span>

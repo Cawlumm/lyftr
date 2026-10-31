@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
-import { useServerList, types, useTranslation } from '@lyftr/shared'
+import { useServerList, types, useTranslation, hasEquipmentToShow } from '@lyftr/shared'
 import ExerciseListEmpty from '../components/ExerciseListEmpty'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
@@ -138,7 +138,7 @@ export default function WorkoutExercisePicker() {
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${muscleColorBordered(ex.muscle_group)}`}>
                       {muscleLabel(ex.muscle_group)}
                     </span>
-                    {ex.equipment && ex.equipment !== 'other' && (
+                    {hasEquipmentToShow(ex.equipment) && (
                       <span className="text-xs text-tx-muted">
                         {equipmentLabel(ex.equipment)}
                       </span>

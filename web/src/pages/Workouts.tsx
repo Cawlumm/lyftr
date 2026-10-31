@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
-import { Dumbbell, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, ChevronRight, MoreVertical } from 'lucide-react'
+import { Dumbbell, Library, Plus, Clock, Search, Edit2, Trash2, TrendingUp, Award, ChevronRight, MoreVertical } from 'lucide-react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import Loading from '../components/Loading'
 import EmptyState from '../components/ui/EmptyState'
@@ -257,9 +257,20 @@ export default function Workouts() {
         title={t('workouts.list.title')}
         subtitle={t('workouts.list.subtitle')}
         action={
-          <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
-            <Plus className="w-4 h-4" /> {t('workouts.list.logWorkout')}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Icon-only below sm: two labelled buttons do not fit beside the title at 390px. */}
+            <button
+              onClick={() => navigate('/exercises')}
+              aria-label={t('workouts.list.browseExercises')}
+              className="btn-secondary btn-sm"
+            >
+              <Library className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('workouts.list.browseExercises')}</span>
+            </button>
+            <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
+              <Plus className="w-4 h-4" /> {t('workouts.list.logWorkout')}
+            </button>
+          </div>
         }
       />
 

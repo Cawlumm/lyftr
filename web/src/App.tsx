@@ -10,6 +10,7 @@ import ActiveWorkout from './pages/ActiveWorkout'
 import StartWorkout from './pages/StartWorkout'
 import WorkoutExercisePicker from './pages/WorkoutExercisePicker'
 import ExerciseDetail from './pages/ExerciseDetail'
+import ExercisesBrowse from './pages/ExercisesBrowse'
 import AddProgram from './pages/AddProgram'
 import EditProgram from './pages/EditProgram'
 import AddWorkout from './pages/AddWorkout'
@@ -61,6 +62,7 @@ function App() {
             <Route path="/workout/active" element={<ActiveWorkout />} />
             <Route path="/workout/active/add-exercise" element={<WorkoutExercisePicker />} />
             <Route path="/workout/active/exercise/:exerciseId" element={<ExerciseDetail />} />
+            <Route path="/exercises" element={<ExercisesBrowse />} />
             <Route path="/exercises/:exerciseId" element={<ExerciseDetail />} />
             <Route path="/food" element={<Food />} />
             <Route path="/food/log" element={<LogFood />} />

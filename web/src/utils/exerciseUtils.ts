@@ -21,6 +21,11 @@ const MUSCLE_COLORS: Record<string, string> = {
   forearms:   'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
   traps:      'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   lats:       'bg-sky-500/20 text-sky-400 border-sky-500/30',
+  'lower-back':  'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  'middle-back': 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+  neck:       'bg-rose-500/20 text-rose-400 border-rose-500/30',
+  adductors:  'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+  abductors:  'bg-violet-500/20 text-violet-400 border-violet-500/30',
 }
 
 export function muscleColor(m: string): string {
