@@ -148,6 +148,7 @@ export function GradientButton({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
       style={{
         marginTop: 26,
         borderRadius: 16,

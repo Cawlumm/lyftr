@@ -35,6 +35,9 @@ web/coverage
 web/test-results
 web/playwright-report
 web/.vite
+mobile/test-results
+mobile/playwright-report
+mobile/e2e/.auth
 mobile/.expo
 mobile/android
 mobile/ios

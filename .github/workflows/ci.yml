@@ -78,6 +78,9 @@ jobs:
               - 'packages/shared/**'
               - 'package.json'
               - 'package-lock.json'
+              - 'docker-compose.app-web.yml'
+              - 'patches/**'
+              - '.dockerignore'
               - '.github/workflows/ci.yml'
 
   test:
@@ -186,7 +189,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -331,6 +334,7 @@ jobs:
         run: |
           echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
           echo "APP_PORT=8081" >> .env
+          echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
 
       - uses: docker/setup-buildx-action@v3
 
@@ -338,7 +342,13 @@ jobs:
       # the other. Only the two services this job starts are built.
       - name: Build images with layer cache
         run: |
-          docker buildx bake             -f docker-compose.yml -f docker-compose.app-web.yml             --set "backend.cache-from=type=gha,scope=lyftr-backend"             --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max"             --set "app-web.cache-from=type=gha,scope=lyftr-app-web"             --set "app-web.cache-to=type=gha,scope=lyftr-app-web,mode=max"             --load backend app-web
+          docker buildx bake \
+            -f docker-compose.yml -f docker-compose.app-web.yml \
+            --set "backend.cache-from=type=gha,scope=lyftr-backend" \
+            --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max" \
+            --set "app-web.cache-from=type=gha,scope=lyftr-app-web" \
+            --set "app-web.cache-to=type=gha,scope=lyftr-app-web,mode=max" \
+            --load backend app-web
 
       - name: Start stack
         run: docker compose -f docker-compose.yml -f docker-compose.app-web.yml up -d --wait backend app-web
