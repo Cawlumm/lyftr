@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Animated as RNAnimated, Modal, PanResponder, Pressable, View } from 'react-native'
+import { Animated as RNAnimated, Modal, PanResponder, Platform, Pressable, View } from 'react-native'
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
@@ -11,6 +11,9 @@ export const SHEET_ANIM_MS = 240
 // How far, or how fast, a downward swipe on the grabber has to go to dismiss the sheet.
 const DISMISS_DISTANCE = 90
 const DISMISS_VELOCITY = 0.8
+
+// react-native-web has no native animation module; asking for one logs a warning on every drag.
+const nativeDriver = () => Platform.OS !== 'web'
 
 type SheetHaptic = 'selection' | 'warning' | 'none'
 
@@ -50,18 +53,18 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
       onPanResponderMove: (_, g) => dragY.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_, g) => {
         if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
-          RNAnimated.timing(dragY, { toValue: 600, duration: 160, useNativeDriver: true }).start(() => {
+          RNAnimated.timing(dragY, { toValue: 600, duration: 160, useNativeDriver: nativeDriver() }).start(() => {
             onCloseRef.current()
             // A sheet whose parent declines to close (a confirm that is mid-request) must come
             // back rather than sit invisible behind its scrim. A no-op when it did close.
-            RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
+            RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: nativeDriver(), bounciness: 0 }).start()
           })
         } else {
-          RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
+          RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: nativeDriver(), bounciness: 0 }).start()
         }
       },
       onPanResponderTerminate: () => {
-        RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
+        RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: nativeDriver(), bounciness: 0 }).start()
       },
     }),
   ).current
@@ -92,7 +95,7 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
             >
               {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
                   zone is taller than the bar so it is easy to hit; matches the web handle. */}
-              <View {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
+              <View testID="sheet-grabber" {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
                 <View className="h-1 w-10 rounded-full bg-surface-muted" />
               </View>
               {children}
