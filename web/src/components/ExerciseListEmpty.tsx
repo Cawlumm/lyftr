@@ -1,4 +1,5 @@
-import { Dumbbell } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Dumbbell, SearchX } from 'lucide-react'
 import { exerciseCatalogEmpty, types, useTranslation } from '@lyftr/shared'
 import { EmptyState, ListError } from './ui'
 
@@ -8,7 +9,11 @@ interface Props {
   // to whether there is a query, which is all the picker has.
   filtered?: boolean
   // What a narrowed list that matched nothing says, when "No exercises found" is too bare.
-  emptyText?: string
+  // A title alone is enough; the body and action say what to try.
+  emptyTitle?: string
+  emptyBody?: string
+  // What the person can do about a narrowed list that matched nothing (drop the filters).
+  emptyAction?: ReactNode
   items: readonly types.Exercise[]
   hasMore: boolean
   error: string | null
@@ -19,7 +24,7 @@ interface Props {
 
 // What an exercise list shows when it has no rows: a failure, an empty library, or a
 // search that matched nothing. Each reads differently and only one is true.
-export default function ExerciseListEmpty({ query, filtered = query !== '', emptyText, items, hasMore, error, loading, retry, reload }: Props) {
+export default function ExerciseListEmpty({ query, filtered = query !== '', emptyTitle, emptyBody, emptyAction, items, hasMore, error, loading, retry, reload }: Props) {
   const { t } = useTranslation()
 
   if (error) {
@@ -53,9 +58,13 @@ export default function ExerciseListEmpty({ query, filtered = query !== '', empt
     )
   }
 
+  if (emptyTitle) {
+    return <EmptyState compact icon={SearchX} title={emptyTitle} subtitle={emptyBody} action={emptyAction} />
+  }
+
   return (
     <div className="flex items-center justify-center py-16 text-tx-muted text-sm">
-      {emptyText ?? t('exercises.picker.empty')}
+      {t('exercises.picker.empty')}
     </div>
   )
 }

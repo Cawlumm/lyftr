@@ -52,9 +52,12 @@ describe('ExercisesBrowse', () => {
     expect(listMock).toHaveBeenCalledWith({ page: 1 })
   })
 
-  it('sends the muscle and equipment chips to the server, and clears them again', async () => {
+  const openFilters = () => fireEvent.click(screen.getByRole('button', { name: /^filters/i }))
+
+  it('sends the muscle and equipment filters to the server, and resets them', async () => {
     renderPage()
     await screen.findByText('Bench Press')
+    openFilters()
 
     fireEvent.click(screen.getByRole('button', { name: 'chest', pressed: false }))
     await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ muscle_group: 'chest', page: 1 }))
@@ -63,21 +66,60 @@ describe('ExercisesBrowse', () => {
     await waitFor(() =>
       expect(listMock).toHaveBeenLastCalledWith({ muscle_group: 'chest', equipment: 'dumbbell', page: 1 }))
 
-    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }))
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }))
     await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ page: 1 }))
   })
 
-  it('tapping the active chip again turns it off', async () => {
+  it('picking the option that is on turns it off', async () => {
     renderPage()
     await screen.findByText('Bench Press')
+    openFilters()
     fireEvent.click(screen.getByRole('button', { name: 'chest' }))
     fireEvent.click(await screen.findByRole('button', { name: 'chest', pressed: true }))
     await waitFor(() => expect(listMock).toHaveBeenLastCalledWith({ page: 1 }))
   })
 
+  it('counts the filters on the button and shows each as a chip that removes only itself', async () => {
+    renderPage('/exercises?muscle=chest&equipment=barbell')
+    await screen.findByText('Bench Press')
+    expect(screen.getByRole('button', { name: 'Filters, 2 active' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove filter: chest' }))
+    await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/exercises?equipment=barbell'))
+    expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
+    expect(listMock).toHaveBeenLastCalledWith({ equipment: 'barbell', page: 1 })
+  })
+
+  it('shows no filter chips when nothing is on', async () => {
+    renderPage()
+    await screen.findByText('Bench Press')
+    expect(screen.queryByRole('group', { name: /active filters/i })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeTruthy()
+  })
+
+  // The stale rows stay up and dim while a new query is in flight, as on the other lists,
+  // instead of blanking or jumping.
+  it('fades the list while a new filter loads, then restores it', async () => {
+    renderPage()
+    await screen.findByText('Bench Press')
+    let release: (v: types.Exercise[]) => void = () => {}
+    listMock.mockImplementationOnce(() => new Promise(resolve => { release = resolve }))
+    openFilters()
+    fireEvent.click(screen.getByRole('button', { name: 'chest' }))
+
+    const list = () => document.querySelector('.overflow-y-auto.flex-1') as HTMLElement
+    await waitFor(() => expect(list().className).toContain('opacity-50'))
+    expect(screen.getByText('Bench Press')).toBeTruthy()
+
+    release([exercise(2, 'Cable Fly')])
+    await screen.findByText('Cable Fly')
+    await waitFor(() => expect(list().className).not.toContain('opacity-50'))
+  })
+
   it('searches by name alongside the chips', async () => {
     renderPage()
     await screen.findByText('Bench Press')
+    openFilters()
     fireEvent.click(screen.getByRole('button', { name: 'chest' }))
     fireEvent.change(screen.getByPlaceholderText(/search exercises/i), { target: { value: 'press' } })
     await waitFor(() =>
@@ -90,6 +132,7 @@ describe('ExercisesBrowse', () => {
     renderPage()
     await screen.findByText('Bench Press')
     listMock.mockResolvedValue([])
+    openFilters()
     fireEvent.click(screen.getByRole('button', { name: 'calves' }))
     expect(await screen.findByText(/no exercises match/i)).toBeTruthy()
     expect(screen.queryByText(/still loading/i)).toBeNull()
@@ -115,6 +158,7 @@ describe('ExercisesBrowse', () => {
     await screen.findByText('Bench Press')
     expect(listMock).toHaveBeenCalledWith({ q: 'press', muscle_group: 'chest', equipment: 'dumbbell', page: 1 })
     expect((screen.getByPlaceholderText(/search exercises/i) as HTMLInputElement).value).toBe('press')
+    openFilters()
     expect(screen.getByRole('button', { name: 'chest', pressed: true })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Dumbbell', pressed: true })).toBeTruthy()
   })
@@ -122,6 +166,7 @@ describe('ExercisesBrowse', () => {
   it('writes the chips and the search to the URL without piling up history entries', async () => {
     renderPage()
     await screen.findByText('Bench Press')
+    openFilters()
     fireEvent.click(screen.getByRole('button', { name: 'chest' }))
     fireEvent.click(screen.getByRole('button', { name: 'Barbell' }))
     fireEvent.change(screen.getByPlaceholderText(/search exercises/i), { target: { value: ' bench ' } })
@@ -129,10 +174,11 @@ describe('ExercisesBrowse', () => {
       expect(screen.getByTestId('where').textContent).toBe('/exercises?muscle=chest&equipment=barbell&q=bench'))
   })
 
-  it('drops a filter from the URL when its chip is cleared', async () => {
+  it('drops the filters from the URL on reset', async () => {
     renderPage('/exercises?muscle=chest&equipment=barbell')
     await screen.findByText('Bench Press')
-    fireEvent.click(screen.getByRole('button', { name: /clear filters/i }))
+    openFilters()
+    fireEvent.click(screen.getByRole('button', { name: /reset/i }))
     await waitFor(() => expect(screen.getByTestId('where').textContent).toBe('/exercises'))
   })
 

@@ -1,66 +1,48 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Dumbbell } from 'lucide-react-native'
+import { ArrowLeft, ChevronRight, Dumbbell, SearchX } from 'lucide-react-native'
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import {
-  EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES,
-  exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, hasEquipmentToShow,
-  useTranslation, type Exercise,
+  EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS,
+  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty,
+  exerciseFilterGroups, hasEquipmentToShow, setFilter, useTranslation,
+  type Exercise, type FilterValues,
 } from '@lyftr/shared'
-import { AppText, Button, EmptyState, ErrorState, IconButton, SearchField } from '../ui'
+import {
+  ActiveFilters, AppText, Button, EmptyState, ErrorState, FilterButton, FilterSheet, IconButton,
+  PageHeader, SearchField, Skeleton,
+} from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 
-// Must match the server's default page size: a short page is what tells us there
-// is nothing left for this query.
-const PAGE_SIZE = 50
-const DEBOUNCE_MS = 250
-
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
-function ChipRow({ label, options, value, onChange, labelOf }: {
-  label: string
-  options: readonly string[]
-  value: string | null
-  onChange: (next: string | null) => void
-  labelOf: (slug: string) => string
-}) {
+// Row-shaped placeholders for the first load, so the list fills in rather than popping in
+// after a spinner. Same thumbnail size and two text lines as BrowseRow.
+function BrowseSkeleton() {
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      accessibilityLabel={label}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }}
-    >
-      {options.map((slug) => {
-        const on = value === slug
-        return (
-          <Pressable
-            key={slug}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(on ? null : slug)}
-            className={`rounded-full border px-3 py-1.5 ${
-              on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
-            }`}
-          >
-            <AppText variant="caption" color={on ? 'brand' : 'muted'} className="capitalize">
-              {labelOf(slug)}
-            </AppText>
-          </Pressable>
-        )
-      })}
-    </ScrollView>
+    <View className="px-4 py-2">
+      {Array.from({ length: 8 }, (_, i) => (
+        <View key={i} className="flex-row items-center gap-3 px-3 py-3">
+          <Skeleton width={44} height={44} radius={12} />
+          <View className="flex-1 gap-2">
+            <Skeleton width="65%" height={14} />
+            <Skeleton width="35%" height={11} />
+          </View>
+        </View>
+      ))}
+    </View>
   )
 }
 
 function BrowseRow({ exercise }: { exercise: Exercise }) {
   useTranslation() // re-renders on a language switch: the labels below come from the catalog
+  const { colors } = useTheme()
   return (
     <Pressable
       accessibilityRole="button"
@@ -81,23 +63,27 @@ function BrowseRow({ exercise }: { exercise: Exercise }) {
           ) : null}
         </View>
       </View>
+      <ChevronRight size={16} color={colors.txMuted} />
     </Pressable>
   )
 }
 
 // Read-only catalogue, reached from the Workouts tab: look an exercise up and open its page
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
-// the muscle and equipment filters the API already takes.
+// the muscle and equipment filters the API already takes, behind a filter button.
 export function ExerciseBrowser() {
   const { t } = useTranslation()
   const { accent } = useTheme()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [muscle, setMuscle] = useState<string | null>(null)
-  const [equipment, setEquipment] = useState<string | null>(null)
+  const [filters, setFilters] = useState<FilterValues>(() => emptyFilters(exerciseFilterGroups()))
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const groups = exerciseFilterGroups()
+  const { muscle, equipment } = filters
+  const count = activeFilterCount(groups, filters)
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query])
 
@@ -112,110 +98,115 @@ export function ExerciseBrowser() {
   )
 
   const {
-    items: exercises, loadMore, hasMore, loading, initialLoading, error: listError, retry: retryList, reload,
+    items: exercises, loadMore, hasMore, loading, initialLoading, refreshing, error: listError, retry: retryList, reload,
   } = useServerInfiniteList<Exercise>({
     fetcher,
-    pageSize: PAGE_SIZE,
+    pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery, muscle, equipment],
   })
 
+  // Eased rather than snapped, so a fresh query reads as the same list updating.
+  const fade = useAnimatedStyle(
+    () => ({ opacity: withTiming(refreshing ? 0.5 : 1, { duration: 150 }) }),
+    [refreshing],
+  )
+  const resetFilters = () => setFilters(emptyFilters(groups))
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
+  const changeFilter = (key: string, value: string | null) => setFilters((f) => setFilter(f, key, value))
 
   return (
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
         <IconButton icon={ArrowLeft} label={t('exercises.browse.backToWorkouts')} variant="ghost" size="md" onPress={goBack} />
         <View className="flex-1">
-          <AppText variant="title">{t('exercises.browse.title')}</AppText>
-          <AppText variant="caption" color="muted">{t('exercises.browse.subtitle')}</AppText>
+          <PageHeader title={t('exercises.browse.title')} subtitle={t('exercises.browse.subtitle')} />
         </View>
       </View>
 
-      <View className="px-4 pb-3">
-        <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
+      <View className="flex-row items-center gap-2 px-4 pb-3">
+        <View className="flex-1">
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
+        </View>
+        <FilterButton active={count} onPress={() => setSheetOpen(true)} />
       </View>
 
-      <View className="gap-2 pb-2">
-        <ChipRow
-          label={t('exercises.browse.muscle')}
-          options={EXERCISE_FILTER_MUSCLES}
-          value={muscle}
-          onChange={setMuscle}
-          labelOf={muscleLabel}
-        />
-        <ChipRow
-          label={t('exercises.browse.equipment')}
-          options={EXERCISE_FILTER_EQUIPMENT}
-          value={equipment}
-          onChange={setEquipment}
-          labelOf={equipmentLabel}
-        />
-        {muscle || equipment ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => { setMuscle(null); setEquipment(null) }}
-            className="px-4"
-          >
-            <AppText variant="caption" color="brand">{t('exercises.browse.clearFilters')}</AppText>
-          </Pressable>
-        ) : null}
-      </View>
+      {count > 0 ? (
+        <View className="px-4 pb-2">
+          <ActiveFilters groups={groups} values={filters} onRemove={(key) => changeFilter(key, null)} />
+        </View>
+      ) : null}
+
+      <FilterSheet
+        open={sheetOpen}
+        groups={groups}
+        values={filters}
+        onChange={changeFilter}
+        onReset={resetFilters}
+        onClose={() => setSheetOpen(false)}
+      />
 
       {initialLoading ? (
-        <View className="flex-row items-center justify-center gap-2 py-16">
-          <ActivityIndicator color={accent} />
-          <AppText variant="body" color="muted">{t('exercises.picker.loading')}</AppText>
-        </View>
+        <BrowseSkeleton />
       ) : (
-        <FlatList
-          data={exercises}
-          keyExtractor={(e) => String(e.id)}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-          ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
-          renderItem={({ item }) => <BrowseRow exercise={item} />}
-          onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
-          ListEmptyComponent={
-            // "No exercises found" is only true if we heard back; on a failed fetch it would
-            // read as an empty catalogue rather than a connection that dropped.
-            listError ? (
-              <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
-            ) : exerciseCatalogEmpty(filtered, { items: exercises, hasMore, error: listError }) ? (
-              <EmptyState
-                compact
-                icon={Dumbbell}
-                title={t('exercises.picker.catalogEmpty.title')}
-                subtitle={t('exercises.picker.catalogEmpty.body')}
-                action={
-                  <Button
-                    variant="secondary"
-                    title={loading ? t('common.retrying') : t('common.tryAgain')}
-                    onPress={() => { void reload() }}
-                    loading={loading}
-                  />
-                }
-              />
-            ) : (
-              <View className="items-center py-16">
-                <AppText variant="body" color="muted">
-                  {filtered ? t('exercises.browse.noMatch') : t('exercises.picker.empty')}
-                </AppText>
-              </View>
-            )
-          }
-          ListFooterComponent={
-            listError && exercises.length > 0 ? (
-              <ErrorState title={t('exercises.picker.loadMoreFailed')} message={listError} onRetry={retryList} />
-            ) : hasMore && exercises.length > 0 ? (
-              <View className="flex-row items-center justify-center gap-2 py-4">
-                <ActivityIndicator color={accent} />
-                <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>
-              </View>
-            ) : undefined
-          }
-        />
+        // Fade the stale rows while a new query or filter revalidates (they swap in place when
+        // the fresh page lands); the search field and filters above stay interactive.
+        <Animated.View className="flex-1" style={fade}>
+          <FlatList
+            data={exercises}
+            keyExtractor={(e) => String(e.id)}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
+            renderItem={({ item }) => <BrowseRow exercise={item} />}
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListEmptyComponent={
+              // "No exercises found" is only true if we heard back; on a failed fetch it would
+              // read as an empty catalogue rather than a connection that dropped.
+              listError ? (
+                <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
+              ) : exerciseCatalogEmpty(filtered, { items: exercises, hasMore, error: listError }) ? (
+                <EmptyState
+                  compact
+                  icon={Dumbbell}
+                  title={t('exercises.picker.catalogEmpty.title')}
+                  subtitle={t('exercises.picker.catalogEmpty.body')}
+                  action={
+                    <Button
+                      variant="secondary"
+                      title={loading ? t('common.retrying') : t('common.tryAgain')}
+                      onPress={() => { void reload() }}
+                      loading={loading}
+                    />
+                  }
+                />
+              ) : (
+                <EmptyState
+                  compact
+                  icon={SearchX}
+                  title={filtered ? t('exercises.browse.noMatchTitle') : t('exercises.picker.empty')}
+                  subtitle={filtered
+                    ? (count > 0 ? t('exercises.browse.noMatchBody') : t('common.tryDifferentSearch'))
+                    : undefined}
+                  action={count > 0
+                    ? <Button variant="secondary" title={t('filters.reset')} onPress={resetFilters} />
+                    : undefined}
+                />
+              )
+            }
+            ListFooterComponent={
+              listError && exercises.length > 0 ? (
+                <ErrorState title={t('exercises.picker.loadMoreFailed')} message={listError} onRetry={retryList} />
+              ) : hasMore && exercises.length > 0 ? (
+                <View className="flex-row items-center justify-center gap-2 py-4">
+                  <ActivityIndicator color={accent} />
+                  <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>
+                </View>
+              ) : undefined
+            }
+          />
+        </Animated.View>
       )}
     </SafeAreaView>
   )

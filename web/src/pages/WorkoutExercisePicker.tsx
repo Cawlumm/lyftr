@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
-import { useServerList, types, useTranslation, hasEquipmentToShow } from '@lyftr/shared'
+import { useServerList, types, useTranslation, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS } from '@lyftr/shared'
 import ExerciseListEmpty from '../components/ExerciseListEmpty'
 import { exerciseAPI } from '../services/api'
 import { useWorkoutSession } from '../stores/workoutSession'
 import { muscleColorBordered, muscleLabel, equipmentLabel } from '../utils/exerciseUtils'
 
-// Must match the server's default page size: a short page is what signals the end.
-const PAGE_SIZE = 50
-const DEBOUNCE_MS = 250
 
 export default function WorkoutExercisePicker() {
   const { t } = useTranslation()
@@ -19,7 +16,7 @@ export default function WorkoutExercisePicker() {
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query])
 
@@ -39,7 +36,7 @@ export default function WorkoutExercisePicker() {
 
   const list = useServerList<types.Exercise>({
     fetcher,
-    pageSize: PAGE_SIZE,
+    pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery],
   })
   const { items: exercises, loadMore, hasMore, loading, initialLoading, error } = list

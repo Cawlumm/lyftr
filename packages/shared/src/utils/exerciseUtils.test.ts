@@ -67,9 +67,15 @@ describe('equipmentLabel', () => {
 
 describe('muscleLabel', () => {
   it('gives the slug back unchanged in en, as the screens rendered it before the catalog', () => {
-    for (const slug of ['chest', 'lower-back', 'middle-back', 'full-body', 'quadriceps', 'abs']) {
+    for (const slug of ['chest', 'full-body', 'quadriceps', 'abs']) {
       expect(muscleLabel(slug)).toBe(slug)
     }
+  })
+
+  // The two back slugs are hyphenated for the API, which reads as a typo on a chip.
+  it('spaces the hyphenated back slugs in en', () => {
+    expect(muscleLabel('lower-back')).toBe('lower back')
+    expect(muscleLabel('middle-back')).toBe('middle back')
   })
 
   it('passes an unknown or empty value through as it came', () => {

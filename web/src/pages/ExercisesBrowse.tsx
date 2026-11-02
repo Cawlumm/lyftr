@@ -1,65 +1,16 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Dumbbell, Search, X } from 'lucide-react'
 import {
   useServerList, types, useTranslation,
-  EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES,
-  exerciseBrowseFiltered, exerciseBrowseParams, hasEquipmentToShow,
+  EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS,
+  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseFilterGroups,
+  hasEquipmentToShow, parseFilters,
 } from '@lyftr/shared'
 import ExerciseListEmpty from '../components/ExerciseListEmpty'
+import { ActiveFilters, FilterButton, FilterSheet, PageHeader } from '../components/ui'
 import { exerciseAPI } from '../services/api'
 import { muscleColorBordered, muscleLabel, equipmentLabel } from '../utils/exerciseUtils'
-
-// Must match the server's default page size: a short page is what signals the end.
-const PAGE_SIZE = 50
-const DEBOUNCE_MS = 250
-
-// A filter read off the URL is only trusted if it is one we offer: a hand-edited
-// ?muscle=bogus would otherwise filter to nothing with no chip lit to explain why.
-const chipValue = (raw: string | null, options: readonly string[]) =>
-  raw !== null && options.includes(raw) ? raw : null
-
-function ChipRow({ label, options, value, onChange, labelOf }: {
-  label: string
-  options: readonly string[]
-  value: string | null
-  onChange: (next: string | null) => void
-  labelOf: (slug: string) => string
-}) {
-  // A chip restored from the URL can sit past the right edge of the row; bring it into view
-  // so the filter that is shaping the list is not the one you cannot see.
-  const activeRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    const reveal = () => activeRef.current?.scrollIntoView?.({ block: 'nearest', inline: 'center' })
-    reveal()
-    // The webfont swaps in after first paint and widens every chip, so the position measured
-    // above is stale by then and the last chips end up off the edge.
-    void document.fonts?.ready.then(reveal)
-  }, [])
-  return (
-    <div role="group" aria-label={label} className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-1">
-      {options.map(slug => {
-        const on = value === slug
-        return (
-          <button
-            key={slug}
-            ref={on ? activeRef : undefined}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(on ? null : slug)}
-            className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border capitalize transition-colors ${
-              on
-                ? 'bg-brand-500/15 border-brand-500/40 text-brand-500'
-                : 'bg-surface-muted border-surface-border text-tx-muted hover:text-tx-primary'
-            }`}
-          >
-            {labelOf(slug)}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 // Read-only catalogue: look an exercise up and open its page without starting a workout.
 // The list is the picker's (server-paged, nothing downloaded to slice here) minus the
@@ -72,13 +23,16 @@ export default function ExercisesBrowse() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const muscle = chipValue(params.get('muscle'), EXERCISE_FILTER_MUSCLES)
-  const equipment = chipValue(params.get('equipment'), EXERCISE_FILTER_EQUIPMENT)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const groups = exerciseFilterGroups()
+  const values = parseFilters(groups, key => params.get(key))
+  const muscle = values.muscle
+  const equipment = values.equipment
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [debouncedQuery, setDebouncedQuery] = useState(query)
 
-  // replace, not push: every chip tap in history would make Back step through filter states
-  // instead of leaving the page.
+  // replace, not push: every filter change in history would make Back step through filter
+  // states instead of leaving the page.
   const setParam = useCallback((key: string, value: string | null) => {
     setParams(prev => {
       const next = new URLSearchParams(prev)
@@ -92,15 +46,12 @@ export default function ExercisesBrowse() {
     const timer = setTimeout(() => {
       setDebouncedQuery(query)
       setParam('q', query.trim() || null)
-    }, DEBOUNCE_MS)
+    }, EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query, setParam])
 
-  const setMuscle = (next: string | null) => setParam('muscle', next)
-  const setEquipment = (next: string | null) => setParam('equipment', next)
-
-  const filters = { query: debouncedQuery, muscle, equipment }
-  const filtered = exerciseBrowseFiltered(filters)
+  const filtered = exerciseBrowseFiltered({ query: debouncedQuery, muscle, equipment })
+  const count = activeFilterCount(groups, values)
 
   const fetcher = useCallback(
     (offset: number, limit: number) =>
@@ -112,75 +63,76 @@ export default function ExercisesBrowse() {
 
   const list = useServerList<types.Exercise>({
     fetcher,
-    pageSize: PAGE_SIZE,
+    pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery, muscle, equipment],
   })
-  const { items: exercises, loadMore, hasMore, loading, initialLoading } = list
+  const { items: exercises, loadMore, hasMore, loading, initialLoading, refreshing } = list
 
-  const clearFilters = () => {
+  const resetFilters = () => {
     setParams(prev => {
       const next = new URLSearchParams(prev)
-      next.delete('muscle')
-      next.delete('equipment')
+      for (const key of Object.keys(emptyFilters(groups))) next.delete(key)
       return next
     }, { replace: true })
   }
 
   return (
     <div className="flex flex-col h-[calc(100dvh-8rem)] animate-slide-up">
-      <div className="flex-shrink-0 space-y-4 pb-3">
-      <div className="flex items-center gap-3">
-        <button
-          aria-label={t('exercises.browse.backToWorkouts')}
-          onClick={() => navigate('/workouts')}
-          className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-tx-muted" />
-        </button>
-        <div className="min-w-0">
-          <h1 className="font-display font-bold text-xl text-tx-primary">{t('exercises.browse.title')}</h1>
-          <p className="text-xs text-tx-muted">{t('exercises.browse.subtitle')}</p>
-        </div>
-      </div>
-
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tx-muted pointer-events-none" />
-        <input
-          type="text"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder={t('exercises.picker.search')}
-          aria-label={t('exercises.picker.search')}
-          className="input pl-10 w-full"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <ChipRow
-          label={t('exercises.browse.muscle')}
-          options={EXERCISE_FILTER_MUSCLES}
-          value={muscle}
-          onChange={setMuscle}
-          labelOf={muscleLabel}
-        />
-        <ChipRow
-          label={t('exercises.browse.equipment')}
-          options={EXERCISE_FILTER_EQUIPMENT}
-          value={equipment}
-          onChange={setEquipment}
-          labelOf={equipmentLabel}
-        />
-        {(muscle || equipment) && (
-          <button type="button" onClick={clearFilters} className="text-xs text-brand-500 hover:underline">
-            {t('exercises.browse.clearFilters')}
+      <div className="flex-shrink-0 space-y-3 pb-3">
+        <div className="flex items-center gap-3">
+          <button
+            aria-label={t('exercises.browse.backToWorkouts')}
+            onClick={() => navigate('/workouts')}
+            className="p-2 hover:bg-surface-muted rounded-lg transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-tx-muted" />
           </button>
-        )}
+          <div className="min-w-0 flex-1">
+            <PageHeader title={t('exercises.browse.title')} subtitle={t('exercises.browse.subtitle')} />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-tx-muted pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder={t('exercises.picker.search')}
+              aria-label={t('exercises.picker.search')}
+              className={`input pl-10 w-full ${query ? 'pr-10' : ''}`}
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery('')}
+                aria-label={t('common.clearSearch')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-tx-muted hover:text-tx-primary transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <FilterButton active={count} onClick={() => setSheetOpen(true)} />
+        </div>
+
+        <ActiveFilters groups={groups} values={values} onRemove={key => setParam(key, null)} />
       </div>
-      </div>
+
+      <FilterSheet
+        open={sheetOpen}
+        groups={groups}
+        values={values}
+        onChange={setParam}
+        onReset={resetFilters}
+        onClose={() => setSheetOpen(false)}
+      />
 
       {/* The header above stays put and only the list scrolls, as in the picker: a hundred
-          rows in, changing a filter should not mean scrolling back to the top for it. */}
-      <div className="flex-1 overflow-y-auto -mx-4 px-4">
+          rows in, changing a filter should not mean scrolling back to the top for it. The
+          rows fade while a new query or filter revalidates and swap in place when it lands. */}
+      <div className={`flex-1 overflow-y-auto -mx-4 px-4 transition-opacity ${refreshing ? 'opacity-50' : ''}`}>
       {initialLoading ? (
         <div className="flex items-center justify-center py-12 text-tx-muted text-sm">
           <Dumbbell className="w-5 h-5 mr-2 animate-pulse text-brand-500" />
@@ -190,7 +142,13 @@ export default function ExercisesBrowse() {
         <ExerciseListEmpty
           query={debouncedQuery}
           filtered={filtered}
-          emptyText={filtered ? t('exercises.browse.noMatch') : undefined}
+          emptyTitle={filtered ? t('exercises.browse.noMatchTitle') : undefined}
+          emptyBody={filtered ? (count > 0 ? t('exercises.browse.noMatchBody') : t('common.tryDifferentSearch')) : undefined}
+          emptyAction={count > 0 ? (
+            <button type="button" onClick={resetFilters} className="btn-secondary btn-sm">
+              {t('filters.reset')}
+            </button>
+          ) : undefined}
           {...list}
         />
       ) : (
@@ -225,6 +183,7 @@ export default function ExercisesBrowse() {
                   )}
                 </div>
               </div>
+              <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
             </Link>
           ))}
           {hasMore && (

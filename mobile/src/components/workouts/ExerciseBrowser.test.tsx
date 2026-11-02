@@ -37,32 +37,51 @@ describe('ExerciseBrowser (mobile)', () => {
     expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/1')
   })
 
-  it('sends the chips to the server and clears them again', async () => {
+  const openFilters = async () => await fireEvent.press(screen.getByRole('button', { name: 'Filters' }))
+
+  it('sends the sheet filters to the server and resets them', async () => {
     const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
     await renderBrowser()
     await screen.findByText('Bench Press')
+    await openFilters()
 
-    await fireEvent.press(screen.getByRole('button', { name: 'chest' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ muscle_group: 'chest', page: 1 }))
 
     await fireEvent.press(screen.getByText('Dumbbell'))
     await waitFor(() =>
       expect(list).toHaveBeenLastCalledWith({ muscle_group: 'chest', equipment: 'dumbbell', page: 1 }))
 
-    await fireEvent.press(screen.getByText('Clear filters'))
+    await fireEvent.press(screen.getByText('Reset'))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ page: 1 }))
   })
 
-  // An empty chip result must not read as an empty library: that answer offers "Try again"
+  it('counts the filters on the button and removes one from its chip', async () => {
+    const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+    await renderBrowser()
+    await screen.findByText('Bench Press')
+    await openFilters()
+    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Barbell', selected: false }))
+    await fireEvent.press(screen.getByText('Done'))
+
+    expect(await screen.findByRole('button', { name: 'Filters, 2 active' })).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: chest' }))
+    await waitFor(() => expect(list).toHaveBeenLastCalledWith({ equipment: 'barbell', page: 1 }))
+    expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
+  })
+
+  // An empty filter result must not read as an empty library: that answer offers "Try again"
   // and says the library is still loading, which is false when the server answered.
   it('says no exercise matches when a filter returns nothing, not that the library is empty', async () => {
     jest.spyOn(client.exerciseAPI, 'list').mockResolvedValueOnce([bench]).mockResolvedValue([])
     await renderBrowser()
     await screen.findByText('Bench Press')
+    await openFilters()
 
     await fireEvent.press(screen.getByText('calves'))
 
-    expect(await screen.findByText('No exercises match. Try another search or clear the filters.')).toBeTruthy()
+    expect(await screen.findByText('No exercises match')).toBeTruthy()
     expect(screen.queryByText('The exercise library is still loading')).toBeNull()
   })
 
@@ -71,7 +90,7 @@ describe('ExerciseBrowser (mobile)', () => {
     await renderBrowser()
 
     expect(await screen.findByText('The exercise library is still loading')).toBeTruthy()
-    expect(screen.queryByText('No exercises match. Try another search or clear the filters.')).toBeNull()
+    expect(screen.queryByText('No exercises match')).toBeNull()
   })
 
   it('says the load failed instead of an empty catalogue', async () => {

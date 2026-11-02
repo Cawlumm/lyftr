@@ -22,6 +22,9 @@ export { SectionHeader } from './SectionHeader'
 export { Button } from './Button'
 export { IconButton } from './IconButton'
 export { SegmentedControl } from './SegmentedControl'
+export { FilterButton } from './FilterButton'
+export { FilterSheet } from './FilterSheet'
+export { ActiveFilters } from './ActiveFilters'
 
 // Inputs
 export { Field } from './Field'

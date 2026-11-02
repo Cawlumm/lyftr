@@ -17,6 +17,7 @@
 import { i18n } from '../i18n'
 import type { ExerciseCacheStatus } from '../types'
 import { formatInstant } from './dateUtils'
+import type { FilterGroup } from './filters'
 
 // Equipment and muscle names are read off exercises the server serves. Both vocabularies are
 // open-exercise-db's slugs, so a label is looked up by slug and anything outside the list
@@ -114,6 +115,29 @@ export function exerciseBrowseParams(f: ExerciseBrowseFilters): { q?: string; mu
 
 // Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
 // the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
+// One screenful and change; the server caps a page at 100. Every exercise list pages by this, and
+// a short page is what tells it there is nothing left, so it must match the server's default.
+export const EXERCISE_PAGE_SIZE = 50
+// How long typing pauses before an exercise search goes to the server.
+export const EXERCISE_SEARCH_DEBOUNCE_MS = 250
+
+// The browser's filters as a generic FilterGroup list, labelled in the active language. Built
+// per render rather than held as a constant, since the labels change with the language.
+export function exerciseFilterGroups(): FilterGroup[] {
+  return [
+    {
+      key: 'muscle',
+      label: i18n.t('exercises.browse.muscle'),
+      options: EXERCISE_FILTER_MUSCLES.map((value) => ({ value, label: muscleLabel(value) })),
+    },
+    {
+      key: 'equipment',
+      label: i18n.t('exercises.browse.equipment'),
+      options: EXERCISE_FILTER_EQUIPMENT.map((value) => ({ value, label: equipmentLabel(value) })),
+    },
+  ]
+}
+
 export function hasEquipmentToShow(raw: string | undefined | null): boolean {
   const slug = slugOf(raw)
   return slug !== '' && slug !== 'other' && slug !== 'none'

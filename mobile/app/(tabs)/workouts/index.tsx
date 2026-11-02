@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect, type Href } from 'expo-router'
-import { Award, CheckCircle2, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
+import { Award, CheckCircle2, ChevronRight, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from 'lucide-react-native'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, useTranslation, type Workout } from '@lyftr/shared'
 import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
@@ -21,7 +21,7 @@ export default function Workouts() {
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = weightShort(settings.weight_unit)
-  const { accent } = useTheme()
+  const { accent, colors } = useTheme()
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -216,24 +216,33 @@ export default function Workouts() {
               title={t('workouts.list.title')}
               subtitle={t('workouts.list.subtitle')}
               action={
-                <View className="flex-row items-center gap-2">
-                  <IconButton
-                    icon={Library}
-                    label={t('workouts.list.browseExercises')}
-                    variant="secondary"
-                    size="md"
-                    onPress={() => router.push('/workouts/exercises')}
-                  />
-                  <IconButton
-                    icon={Plus}
-                    label={t('workouts.list.logWorkout')}
-                    variant="solid"
-                    size="md"
-                    onPress={() => router.push('/workouts/new')}
-                  />
-                </View>
+                <IconButton
+                  icon={Plus}
+                  label={t('workouts.list.logWorkout')}
+                  variant="solid"
+                  size="md"
+                  onPress={() => router.push('/workouts/new')}
+                />
               }
             />
+
+            {/* A labelled row, not a header icon: the exercise library is a place to go, and an
+                unlabelled glyph beside the plus did not say where. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('workouts.list.browseExercises')}
+              onPress={() => router.push('/workouts/exercises')}
+              className="flex-row items-center gap-3 rounded-xl border border-surface-border bg-surface-raised p-3.5 active:bg-surface-muted"
+            >
+              <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                <Library size={20} color={accent} strokeWidth={2} />
+              </View>
+              <View className="flex-1">
+                <AppText variant="bodySemibold">{t('workouts.list.browseExercises')}</AppText>
+                <AppText variant="caption" color="muted" numberOfLines={1}>{t('exercises.browse.subtitle')}</AppText>
+              </View>
+              <ChevronRight size={16} color={colors.txMuted} />
+            </Pressable>
 
             {/* Summary — web's 3-card grid. Dimmed while a new search revalidates: the
                 stats summarize the loaded items, so they're stale mid-search — fading

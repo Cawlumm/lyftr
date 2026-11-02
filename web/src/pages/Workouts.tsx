@@ -257,22 +257,28 @@ export default function Workouts() {
         title={t('workouts.list.title')}
         subtitle={t('workouts.list.subtitle')}
         action={
-          <div className="flex items-center gap-2">
-            {/* Icon-only below sm: two labelled buttons do not fit beside the title at 390px. */}
-            <button
-              onClick={() => navigate('/exercises')}
-              aria-label={t('workouts.list.browseExercises')}
-              className="btn-secondary btn-sm"
-            >
-              <Library className="w-4 h-4" />
-              <span className="hidden sm:inline">{t('workouts.list.browseExercises')}</span>
-            </button>
-            <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
-              <Plus className="w-4 h-4" /> {t('workouts.list.logWorkout')}
-            </button>
-          </div>
+          <button onClick={() => navigate('/workouts/new')} className="btn-primary btn-sm">
+            <Plus className="w-4 h-4" /> {t('workouts.list.logWorkout')}
+          </button>
         }
       />
+
+      {/* A labelled row, not a header icon: the exercise library is a place to go, and an
+          unlabelled glyph beside Log Workout did not say where. */}
+      <button
+        type="button"
+        onClick={() => navigate('/exercises')}
+        className="card-interactive w-full flex items-center gap-3 p-3.5 text-left"
+      >
+        <div className="w-10 h-10 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center flex-shrink-0">
+          <Library className="w-5 h-5 text-brand-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-tx-primary">{t('workouts.list.browseExercises')}</p>
+          <p className="text-xs text-tx-muted truncate">{t('exercises.browse.subtitle')}</p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-tx-muted flex-shrink-0" />
+      </button>
 
       {/* Summary — derived from `workouts`, so it is only true if the list arrived.
           On a failed load the array is empty and these read "0 logged · 0 sessions",

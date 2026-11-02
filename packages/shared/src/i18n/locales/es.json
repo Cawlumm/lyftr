@@ -209,6 +209,15 @@
     },
     "saveFailed": "No se pudieron guardar los ajustes"
   },
+  "filters": {
+    "title": "Filtros",
+    "button": "Filtros",
+    "buttonActive": "Filtros, {{active}} activos",
+    "reset": "Restablecer",
+    "done": "Listo",
+    "active": "Filtros activos",
+    "remove": "Quitar filtro: {{label}}"
+  },
   "common": {
     "duration": {
       "seconds": "{{value}} s",
@@ -1292,8 +1301,8 @@
       "backToWorkouts": "Volver a entrenamientos",
       "muscle": "Músculo",
       "equipment": "Equipo",
-      "clearFilters": "Quitar filtros",
-      "noMatch": "Ningún ejercicio coincide. Prueba otra búsqueda o quita los filtros."
+      "noMatchTitle": "Ningún ejercicio coincide",
+      "noMatchBody": "Prueba otra búsqueda o restablece los filtros."
     },
     "picker": {
       "catalogEmpty": { "title": "La biblioteca de ejercicios todavía se está cargando", "body": "Inténtalo de nuevo en un momento." },
