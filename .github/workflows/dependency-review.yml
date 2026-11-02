@@ -42,5 +42,13 @@ jobs:
           # createMCPDevToolsExtensionSchema), from the v3 entry rather than the zod 4 core the
           # advisory describes; it is build tooling, never shipped in the app. Tracked upstream
           # at expo/expo#52470. Remove this when @expo/cli moves off zod 3.
-          # Allows this one advisory only: anything else new at moderate or above still fails.
-          allow-ghsas: GHSA-mrhx-c7xc-m3w5
+          #
+          # glob 10.5.0 (GHSA-3g3m-2fjr-6pw4, an AbortSignal bypass in glob's own timeout handling)
+          # is test-exclude's, which jest and vitest coverage use to pick files. It is already in
+          # the lockfile on main; it shows as new whenever the install is re-resolved, because npm
+          # recomputes its dev flag. The fix is glob 14.0.2 and test-exclude pins ^10, so there is
+          # nothing to upgrade to; it is test tooling, never shipped, and nothing there passes an
+          # AbortSignal. Remove this when test-exclude moves past glob 10.
+          #
+          # Allows these advisories only: anything else new at moderate or above still fails.
+          allow-ghsas: GHSA-mrhx-c7xc-m3w5, GHSA-3g3m-2fjr-6pw4
