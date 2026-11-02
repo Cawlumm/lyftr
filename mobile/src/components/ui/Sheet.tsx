@@ -52,6 +52,9 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
         if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
           RNAnimated.timing(dragY, { toValue: 600, duration: 160, useNativeDriver: true }).start(() => {
             onCloseRef.current()
+            // A sheet whose parent declines to close (a confirm that is mid-request) must come
+            // back rather than sit invisible behind its scrim. A no-op when it did close.
+            RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
           })
         } else {
           RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
@@ -89,7 +92,7 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
             >
               {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
                   zone is taller than the bar so it is easy to hit; matches the web handle. */}
-              <View {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-6">
+              <View {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
                 <View className="h-1 w-10 rounded-full bg-surface-muted" />
               </View>
               {children}

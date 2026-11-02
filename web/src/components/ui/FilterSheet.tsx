@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, X } from 'lucide-react'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
@@ -24,6 +25,18 @@ export default function FilterSheet({ open, groups, values, onChange, onReset, o
   useBodyScrollLock(open)
   useEscapeKey(open, onClose)
   const drag = useSheetDrag(onClose)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const downOnScrim = useRef(false)
+
+  // Move focus into the sheet when it opens and back to what opened it when it closes, so a
+  // keyboard or screen-reader user is not left tabbing through the page behind the scrim.
+  useEffect(() => {
+    if (!open) return
+    const opener = document.activeElement as HTMLElement | null
+    dialogRef.current?.focus()
+    return () => opener?.focus?.()
+  }, [open])
+
   if (!open) return null
 
   const count = activeFilterCount(groups, values)
@@ -31,17 +44,19 @@ export default function FilterSheet({ open, groups, values, onChange, onReset, o
   return createPortal(
     <div
       className="fixed inset-0 bg-black/60 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4"
-      onClick={onClose}
+      onMouseDown={e => { downOnScrim.current = e.target === e.currentTarget }}
+      onClick={e => { if (downOnScrim.current && e.target === e.currentTarget) onClose() }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-label={t('filters.title')}
-        onClick={e => e.stopPropagation()}
         style={drag.style}
-        className="animate-slide-up bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85dvh] flex flex-col"
+        className="outline-none animate-slide-up bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85dvh] flex flex-col"
       >
-        <div {...drag.handlers}>
+        <div {...drag.handlers} style={drag.handleStyle} data-testid="filter-sheet-handle">
           <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mt-3 sm:hidden" />
           <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-surface-border">
             <h3 className="font-display font-bold text-lg text-tx-primary">{t('filters.title')}</h3>

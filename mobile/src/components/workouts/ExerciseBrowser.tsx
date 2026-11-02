@@ -98,7 +98,8 @@ export function ExerciseBrowser() {
   )
 
   const {
-    items: exercises, loadMore, hasMore, loading, initialLoading, refreshing, error: listError, retry: retryList, reload,
+    items: exercises, loadMore, hasMore, loading, initialLoading, refreshing, staleResults,
+    error: listError, retry: retryList, reload,
   } = useServerInfiniteList<Exercise>({
     fetcher,
     pageSize: EXERCISE_PAGE_SIZE,
@@ -111,6 +112,9 @@ export function ExerciseBrowser() {
     [refreshing],
   )
   const resetFilters = () => setFilters(emptyFilters(groups))
+  // The hook keeps the previous query's rows when a new query's first page fails; shown as they
+  // are they read as its results, so the failure takes their place.
+  const shown = staleResults ? [] : exercises
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
   const changeFilter = (key: string, value: string | null) => setFilters((f) => setFilter(f, key, value))
 
@@ -131,7 +135,7 @@ export function ExerciseBrowser() {
       </View>
 
       {count > 0 ? (
-        <View className="px-4 pb-2">
+        <View className="pb-2">
           <ActiveFilters groups={groups} values={filters} onRemove={(key) => changeFilter(key, null)} />
         </View>
       ) : null}
@@ -152,7 +156,7 @@ export function ExerciseBrowser() {
         // the fresh page lands); the search field and filters above stay interactive.
         <Animated.View className="flex-1" style={fade}>
           <FlatList
-            data={exercises}
+            data={shown}
             keyExtractor={(e) => String(e.id)}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -196,9 +200,9 @@ export function ExerciseBrowser() {
               )
             }
             ListFooterComponent={
-              listError && exercises.length > 0 ? (
+              listError && shown.length > 0 ? (
                 <ErrorState title={t('exercises.picker.loadMoreFailed')} message={listError} onRetry={retryList} />
-              ) : hasMore && exercises.length > 0 ? (
+              ) : hasMore && shown.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
                   <ActivityIndicator color={accent} />
                   <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>

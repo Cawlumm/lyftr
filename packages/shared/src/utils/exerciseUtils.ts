@@ -113,14 +113,14 @@ export function exerciseBrowseParams(f: ExerciseBrowseFilters): { q?: string; mu
   }
 }
 
-// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
-// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 // One screenful and change; the server caps a page at 100. Every exercise list pages by this, and
 // a short page is what tells it there is nothing left, so it must match the server's default.
 export const EXERCISE_PAGE_SIZE = 50
 // How long typing pauses before an exercise search goes to the server.
 export const EXERCISE_SEARCH_DEBOUNCE_MS = 250
 
+// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
+// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 // The browser's filters as a generic FilterGroup list, labelled in the active language. Built
 // per render rather than held as a constant, since the labels change with the language.
 export function exerciseFilterGroups(): FilterGroup[] {

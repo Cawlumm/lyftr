@@ -42,13 +42,17 @@ export default function ExercisesBrowse() {
     }, { replace: true })
   }, [setParams])
 
+  // The box and the URL change together; only the request waits out the debounce. Otherwise
+  // opening an exercise inside that window drops the search, and Back lands on the full list.
+  const changeQuery = (value: string) => {
+    setQuery(value)
+    setParam('q', value.trim() || null)
+  }
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query)
-      setParam('q', query.trim() || null)
-    }, EXERCISE_SEARCH_DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
-  }, [query, setParam])
+  }, [query])
 
   const filtered = exerciseBrowseFiltered({ query: debouncedQuery, muscle, equipment })
   const count = activeFilterCount(groups, values)
@@ -66,7 +70,7 @@ export default function ExercisesBrowse() {
     pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery, muscle, equipment],
   })
-  const { items: exercises, loadMore, hasMore, loading, initialLoading, refreshing } = list
+  const { items: exercises, loadMore, hasMore, loading, initialLoading, refreshing, staleResults } = list
 
   const resetFilters = () => {
     setParams(prev => {
@@ -98,7 +102,7 @@ export default function ExercisesBrowse() {
             <input
               type="text"
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={e => changeQuery(e.target.value)}
               placeholder={t('exercises.picker.search')}
               aria-label={t('exercises.picker.search')}
               className={`input pl-10 w-full ${query ? 'pr-10' : ''}`}
@@ -106,7 +110,7 @@ export default function ExercisesBrowse() {
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery('')}
+                onClick={() => changeQuery('')}
                 aria-label={t('common.clearSearch')}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-tx-muted hover:text-tx-primary transition-colors"
               >
@@ -138,7 +142,7 @@ export default function ExercisesBrowse() {
           <Dumbbell className="w-5 h-5 mr-2 animate-pulse text-brand-500" />
           {t('exercises.picker.loadingShort')}
         </div>
-      ) : exercises.length === 0 ? (
+      ) : exercises.length === 0 || staleResults ? (
         <ExerciseListEmpty
           query={debouncedQuery}
           filtered={filtered}

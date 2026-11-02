@@ -63,7 +63,7 @@ describe('FilterSheet', () => {
 
   // Touch only: the grabber and header are the handle, so a swipe down past the threshold closes.
   const swipe = (to: number) => {
-    const handle = screen.getByText('Filters').parentElement!.parentElement!
+    const handle = screen.getByTestId('filter-sheet-handle')
     fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] })
     fireEvent.touchMove(handle, { touches: [{ clientY: to }] })
     fireEvent.touchEnd(handle)
@@ -75,6 +75,32 @@ describe('FilterSheet', () => {
     expect(onClose).not.toHaveBeenCalled()
     swipe(260)
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not close when the touch is cancelled partway', () => {
+    const { onClose } = renderSheet()
+    const handle = screen.getByTestId('filter-sheet-handle')
+    fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(handle, { touches: [{ clientY: 300 }] })
+    fireEvent.touchCancel(handle)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('closes on a click on the scrim but not on one that started inside the sheet', () => {
+    const { onClose } = renderSheet()
+    const dialog = screen.getByRole('dialog')
+    const scrim = dialog.parentElement!
+    fireEvent.mouseDown(dialog)
+    fireEvent.click(scrim)
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.mouseDown(scrim)
+    fireEvent.click(scrim)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('moves focus into the sheet', () => {
+    renderSheet()
+    expect(document.activeElement).toBe(screen.getByRole('dialog'))
   })
 
   it('closes on Escape', () => {

@@ -35,6 +35,8 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
         <View className="flex-row items-center gap-3">
           <Pressable
             accessibilityRole="button"
+            accessibilityLabel={t('filters.reset')}
+            accessibilityState={{ disabled: count === 0 }}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {})
               onReset()

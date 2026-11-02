@@ -174,6 +174,27 @@ describe('ExercisesBrowse', () => {
       expect(screen.getByTestId('where').textContent).toBe('/exercises?muscle=chest&equipment=barbell&q=bench'))
   })
 
+  // Opening an exercise inside the debounce window used to drop the search: the URL only got
+  // it once the timer fired, and the timer dies with the page.
+  it('puts the search in the URL as it is typed, without waiting for the debounce', async () => {
+    renderPage()
+    await screen.findByText('Bench Press')
+    fireEvent.change(screen.getByPlaceholderText(/search exercises/i), { target: { value: 'press' } })
+    expect(screen.getByTestId('where').textContent).toBe('/exercises?q=press')
+  })
+
+  // The hook keeps the previous rows when a refresh fails; left up they read as the results for
+  // the filter just chosen, so the failure replaces them.
+  it('shows the failure instead of the old rows when a refresh fails', async () => {
+    renderPage()
+    await screen.findByText('Bench Press')
+    listMock.mockRejectedValue(new Error('network'))
+    fireEvent.click(screen.getByRole('button', { name: /^filters/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'calves' }))
+    expect(await screen.findByRole('button', { name: /retry|try again/i })).toBeTruthy()
+    expect(screen.queryByText('Bench Press')).toBeNull()
+  })
+
   it('drops the filters from the URL on reset', async () => {
     renderPage('/exercises?muscle=chest&equipment=barbell')
     await screen.findByText('Bench Press')
