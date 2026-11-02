@@ -310,6 +310,77 @@ jobs:
           path: web/playwright-report/
           retention-days: 7
 
+  # The Expo app's web export, served by mobile/Dockerfile.web and driven by the Playwright
+  # harness in mobile/e2e. It sits beside `e2e` (which still gates, against the Vite image)
+  # and only grows: specs are ported here chunk by chunk until the cutover.
+  e2e-app:
+    name: Playwright E2E (Expo app)
+    needs: changes
+    if: >-
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
+    # ubuntu-24.04 for the same WebKit/ICU reason as `e2e`.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create .env
+        run: |
+          echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
+          echo "APP_PORT=8081" >> .env
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Same bake cache scope for the backend as `e2e`, so whichever job runs first warms
+      # the other. Only the two services this job starts are built.
+      - name: Build images with layer cache
+        run: |
+          docker buildx bake             -f docker-compose.yml -f docker-compose.app-web.yml             --set "backend.cache-from=type=gha,scope=lyftr-backend"             --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max"             --set "app-web.cache-from=type=gha,scope=lyftr-app-web"             --set "app-web.cache-to=type=gha,scope=lyftr-app-web,mode=max"             --load backend app-web
+
+      - name: Start stack
+        run: docker compose -f docker-compose.yml -f docker-compose.app-web.yml up -d --wait backend app-web
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: cd mobile && npx playwright install chromium webkit
+
+      - name: Install Playwright system dependencies
+        run: cd mobile && npx playwright install-deps chromium webkit
+
+      - name: Run E2E tests
+        run: cd mobile && npm run test:e2e
+
+      - name: Show container logs
+        if: failure()
+        run: docker compose -f docker-compose.yml -f docker-compose.app-web.yml logs --no-color --tail=200
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-app
+          path: |
+            mobile/playwright-report/
+            mobile/test-results/
+          retention-days: 7
+
   version-smoke:
     name: Version injection smoke test
     needs: changes
@@ -385,7 +456,7 @@ jobs:
 
   build-backend:
     name: Build & push backend image
-    needs: [test, unit, e2e, version-smoke]
+    needs: [test, unit, e2e, e2e-app, version-smoke]
     # Still verify the image builds even if a test dependency was *skipped* by filtering;
     # only a genuine failure/cancel of a dependency should stop it.
     if: ${{ !failure() && !cancelled() }}
@@ -426,7 +497,7 @@ jobs:
 
   build-frontend:
     name: Build & push frontend image
-    needs: [test, unit, e2e]
+    needs: [test, unit, e2e, e2e-app]
     if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
     runs-on: ubuntu-latest
     steps:
@@ -459,7 +530,7 @@ jobs:
 
   deploy-demo:
     name: Deploy to Fly.io
-    needs: [test, unit, e2e, version-smoke]
+    needs: [test, unit, e2e, e2e-app, version-smoke]
     # main pushes run every test job (their `if` includes main), so this only deploys on a
     # clean run; the failure/cancel guard keeps a filtered skip from ever cascading here.
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
