@@ -971,6 +971,7 @@
     }
   },
   "workouts": {
+    "keepAwakeUnavailable": "La pantalla puede apagarse durante tu entrenamiento. Abre Lyftr por HTTPS para mantenerla encendida.",
     "defaultName": "Entrenamiento — {{date}}",
     "stats": {
       "total": "Total",
@@ -1511,6 +1512,7 @@
     }
   },
   "app": {
-    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición"
+    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición",
+    "pageTitle": "{{page}} · Lyftr"
   }
 }

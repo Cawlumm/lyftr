@@ -1,0 +1,14 @@
+{
+  "name": "Lyftr",
+  "short_name": "Lyftr",
+  "description": "Log workouts, run guided gym sessions, and track nutrition and bodyweight.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070d1a",
+  "theme_color": "#070d1a",
+  "icons": [
+    { "src": "/favicon-transparent.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon.png", "sizes": "1024x1024", "type": "image/png" }
+  ]
+}

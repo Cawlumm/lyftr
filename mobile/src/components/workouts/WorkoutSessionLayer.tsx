@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as Haptics from 'expo-haptics'
-import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
+import { useTranslation } from '@lyftr/shared'
+import { useSessionKeepAwake } from '../../lib/keepAwake'
+import { Toast } from '../ui/Toast'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { SessionPill } from './SessionPill'
-
-const KEEP_AWAKE_TAG = 'lyftr-workout-session'
 
 // One success buzz the moment rest hits zero — you're not looking at the screen mid-
 // rest, so the haptic is the cue. ISOLATED in its own null-rendering leaf: useRestTimer
@@ -30,20 +30,24 @@ function RestOverHaptic() {
 // those fire exactly once rather than per banner/pill consumer. It deliberately does NOT
 // subscribe to the ticking rest timer (that lives in the RestOverHaptic leaf).
 export function WorkoutSessionLayer() {
+  const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
 
   // Keep the screen on for the duration of an active session (logging between sets can
-  // leave it idle past the lock timeout). Released as soon as the session ends.
-  useEffect(() => {
-    if (!session) return
-    activateKeepAwakeAsync(KEEP_AWAKE_TAG).catch(() => {})
-    return () => { deactivateKeepAwake(KEEP_AWAKE_TAG).catch(() => {}) }
-  }, [!!session])
+  // leave it idle past the lock timeout). Released as soon as the session ends. On web
+  // this can be unavailable (plain HTTP), in which case the user is told once per session.
+  const hasSession = !!session
+  const screenMaySleep = useSessionKeepAwake(hasSession)
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => { if (!hasSession) setDismissed(false) }, [hasSession])
 
   return (
     <>
       {session ? <RestOverHaptic /> : null}
       <SessionPill />
+      {hasSession && screenMaySleep && !dismissed ? (
+        <Toast variant="warning" title={t('workouts.keepAwakeUnavailable')} autoDismissMs={0} onDismiss={() => setDismissed(true)} />
+      ) : null}
     </>
   )
 }

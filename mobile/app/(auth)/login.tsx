@@ -1,14 +1,12 @@
 import { useState } from 'react'
-import { Text, View, Linking } from 'react-native'
+import { Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
-import { IconInput, GradientButton, SecondaryButton, AuthDivider, AuthError, ServerRow, Footer } from '../../src/components/authui'
-import { registrationOpen, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { IconInput, GradientButton, AuthDivider, AuthError, ServerRow, Footer } from '../../src/components/authui'
+import { DemoButton } from '../../src/components/auth/DemoButton'
+import { demoMode, registrationOpen, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { useAuthStore, useServerInfo } from '../../src/lib/lyftr'
 import { useTheme } from '../../src/theme/useTheme'
-
-// Public hosted demo (Fly) — the "Try demo account" button opens it in the browser.
-const DEMO_URL = 'https://lyftr-demo.fly.dev'
 
 // Same intent as the web's <input type=email required>: a lightweight shape check,
 // not RFC validation — the server has the final say.
@@ -24,7 +22,8 @@ export default function Login() {
   const error = useAuthStore((s) => s.error)
   const clearError = useAuthStore((s) => s.clearError)
   const { accent, colors } = useTheme()
-  const isOpen = registrationOpen(useServerInfo())
+  const serverInfo = useServerInfo()
+  const isOpen = registrationOpen(serverInfo)
 
   // Clear both the client-side and the server error when a field is edited.
   const onChange = (setter: (t: string) => void) => (t: string) => {
@@ -41,9 +40,7 @@ export default function Login() {
     setLocalError(null)
     try { await login(email.trim(), password) } catch {}
   }
-  const demo = () => {
-    Linking.openURL(DEMO_URL).catch(() => {})
-  }
+  const demoFailed = (err: unknown) => setLocalError({ key: 'auth.login.demoFailed', cause: err })
 
   const shownError = localError || error
 
@@ -69,7 +66,7 @@ export default function Login() {
       {shownError ? <AuthError message={uiMessage(shownError)} /> : null}
       <GradientButton title={t('auth.login.submit')} onPress={submit} loading={loading} />
       <AuthDivider />
-      <SecondaryButton title={t('auth.login.demo')} hint={t('auth.login.demoHint')} onPress={demo} />
+      <DemoButton demoEnabled={demoMode(serverInfo)} signIn={login} onFailed={demoFailed} />
       {/* A closed server says so instead of offering a link that 403s on submit — but it
           does still say so, rather than leaving someone who came to sign up hunting for a
           button that is not there (mastodon/mastodon#21556). */}
