@@ -199,6 +199,10 @@ jobs:
         run: |
           test -f mobile/dist/index.html || { echo "mobile/dist/index.html missing"; exit 1; }
           grep -q '<script' mobile/dist/index.html || { echo "index.html has no <script> tag"; exit 1; }
+          for pat in 'name="description"' 'name="theme-color"' 'name="color-scheme"' 'rel="manifest"' 'rel="apple-touch-icon"' 'rel="icon"' 'noindex'; do
+            grep -q "$pat" mobile/dist/index.html || { echo "index.html is missing $pat"; exit 1; }
+          done
+          test -f mobile/dist/manifest.json || { echo "mobile/dist/manifest.json missing"; exit 1; }
           # Pins the zustand CJS override in mobile/metro.config.js: its ESM build uses
           # import.meta, which throws when the bundle runs as a classic script.
           if grep -rl --include='*.js' 'import\.meta' mobile/dist; then

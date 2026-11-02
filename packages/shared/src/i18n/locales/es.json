@@ -1511,6 +1511,7 @@
     }
   },
   "app": {
-    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición"
+    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición",
+    "pageTitle": "{{page}} · Lyftr"
   }
 }

@@ -1,7 +1,7 @@
 import '../src/lib/polyfills'
 import '../global.css'
 import { useEffect } from 'react'
-import { Stack } from 'expo-router'
+import { Stack, useSegments } from 'expo-router'
 import * as SplashScreen from 'expo-splash-screen'
 import { StatusBar } from 'expo-status-bar'
 import { colorScheme } from 'nativewind'
@@ -13,6 +13,8 @@ import {
   PlusJakartaSans_700Bold,
   PlusJakartaSans_800ExtraBold,
 } from '@expo-google-fonts/plus-jakarta-sans'
+import { useDocumentChrome } from '../src/lib/useDocumentChrome'
+import { useDocumentTitle } from '../src/lib/useDocumentTitle'
 import { useFontFallback } from '../src/lib/useFontFallback'
 import { useAuthStore, useLanguageStore, useServerStore, useSettingsStore, useThemeStore, useWorkoutSession } from '../src/lib/lyftr'
 import { useTheme } from '../src/theme/useTheme'
@@ -72,6 +74,8 @@ export default function RootLayout() {
   const languageHydrated = useLanguageStore((s) => s.isHydrated)
   const isAuthed = useAuthStore((s) => s.isAuthenticated)
   const { mode, isDark } = useTheme()
+  useDocumentTitle(useSegments())
+  useDocumentChrome(mode)
   const [fontsLoaded, fontError] = useFonts({
     Outfit_700Bold,
     Outfit_800ExtraBold,

@@ -1488,6 +1488,7 @@
     }
   },
   "app": {
-    "documentTitle": "Lyftr — Workout & Nutrition Tracker"
+    "documentTitle": "Lyftr — Workout & Nutrition Tracker",
+    "pageTitle": "{{page}} · Lyftr"
   }
 }
