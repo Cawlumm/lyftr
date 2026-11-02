@@ -8,9 +8,15 @@ FROM --platform=$BUILDPLATFORM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Manifests first (layer cache). mobile/package.json is copied but its dependencies are
+# Manifests first (layer cache). mobile/package.json is copied but its own dependencies are
 # never installed: `npm ci` validates the lockfile against every workspace it declares,
-# so the file has to exist, while `-w lyfter-web` keeps Expo's toolchain out of the image.
+# so the file has to exist, while `-w lyfter-web` leaves mobile's dependencies out.
+#
+# What does still install is the root workspace's devDependencies (--include-workspace-root),
+# and that now includes expo-router, which the root declares only so the Expo CLI can resolve
+# it (see "//devDependencies" in package.json). Its peers (expo, react-native, ...) come with
+# it, so this stage installs more than the web build needs. It is install time in this builder
+# stage only: nothing from it is copied into the nginx image below.
 COPY package.json package-lock.json ./
 COPY web/package.json ./web/
 COPY mobile/package.json ./mobile/
