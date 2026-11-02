@@ -50,5 +50,10 @@ jobs:
           # nothing to upgrade to; it is test tooling, never shipped, and nothing there passes an
           # AbortSignal. Remove this when test-exclude moves past glob 10.
           #
+          # minimatch 9.0.9 (GHSA-g3hv-75wg-m249, globparts amplification) is glob 10's own
+          # dependency in the same subtree, flagged for the same reason; its fix is minimatch
+          # 11.0.1, which glob 10 does not take. Test tooling, never shipped. Remove it together
+          # with the glob entry above.
+          #
           # Allows these advisories only: anything else new at moderate or above still fails.
-          allow-ghsas: GHSA-mrhx-c7xc-m3w5, GHSA-3g3m-2fjr-6pw4
+          allow-ghsas: GHSA-mrhx-c7xc-m3w5, GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249
