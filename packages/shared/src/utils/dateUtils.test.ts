@@ -1,4 +1,5 @@
-import { todayStr, daysAgoStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, formatDate, formatInstant, relativeDayLabel, defaultWorkoutName, UNKNOWN_DAY, type DateFormatName } from './dateUtils'
+import { execFileSync } from 'node:child_process'
+import { dateToDay, todayStr, daysAgoStr, dayToInstant, dayToLocalDate, instantToDay, entryDay, workoutDay, memberSince, withLoggedOn, formatDay, formatDate, formatInstant, relativeDayLabel, defaultWorkoutName, UNKNOWN_DAY, type DateFormatName } from './dateUtils'
 import { i18n } from '../i18n'
 
 
@@ -370,5 +371,24 @@ describe('formatInstant', () => {
       expect(formatInstant(today().toISOString())).toBe('15:42')
       expect(formatInstant(new Date(2020, 9, 10, 15, 42).toISOString())).toBe('10 oct, 15:42')
     })
+  })
+})
+
+// The suite's TZ is fixed in jest.config and jest's sandboxed process.env cannot change
+// it mid-run, so the compiled functions run in a child node under each zone. No locale
+// is involved: the output is the canonical YYYY-MM-DD in every language.
+describe('dateToDay', () => {
+  const inZone = (tz: string, expr: string): unknown => JSON.parse(execFileSync(process.execPath, ['-e',
+    `const dateToDay = ${dateToDay.toString()}; const dayToLocalDate = ${dayToLocalDate.toString()}; console.log(JSON.stringify(${expr}))`,
+  ], { env: { ...process.env, TZ: tz }, encoding: 'utf8' }))
+
+  it.each(['America/Los_Angeles', 'Pacific/Auckland'])('round-trips with dayToLocalDate in %s', (tz) => {
+    const days = ['2026-01-01', '2026-03-08', '2026-09-27', '2026-11-01', '2026-12-31']
+    expect(inZone(tz, `${JSON.stringify(days)}.map((d) => dateToDay(dayToLocalDate(d)))`)).toEqual(days)
+  })
+
+  it('reads the local day, not the UTC day', () => {
+    expect(inZone('Pacific/Auckland', "dateToDay(new Date('2026-06-15T20:00:00Z'))")).toBe('2026-06-16')
+    expect(inZone('America/Los_Angeles', "dateToDay(new Date('2026-06-16T03:00:00Z'))")).toBe('2026-06-15')
   })
 })

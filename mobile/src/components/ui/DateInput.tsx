@@ -3,7 +3,7 @@ import { Modal, Platform, Pressable, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { CalendarDays } from 'lucide-react-native'
-import { formatDate, useTranslation } from '@lyftr/shared'
+import { dateToDay, formatDate, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText, Label } from './Typography'
 
@@ -23,8 +23,6 @@ const toLocalDate = (v: string): Date => {
   const [y, m, d] = v.split('-').map(Number)
   return new Date(y, (m ?? 1) - 1, d ?? 1)
 }
-const pad = (n: number) => String(n).padStart(2, '0')
-const toValue = (d: Date): string => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
 // Mirrors web ui/DateInput / <input type=date>: a Field-look row that opens the
 // platform date picker.
@@ -57,7 +55,7 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
     // Android fires exactly once (set|dismissed) and the dialog is already gone.
     // On iOS the inline picker stays up (it's in our Modal) — emit on 'set', keep
     // the Modal open so the user can keep scrolling; Done closes it.
-    if (event.type === 'set' && selected) onChange(toValue(selected))
+    if (event.type === 'set' && selected) onChange(dateToDay(selected))
     if (!isIOS) setOpen(false)
   }
 

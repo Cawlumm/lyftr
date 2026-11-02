@@ -23,12 +23,17 @@ import { i18n } from '../i18n'
 //
 // Instants are persisted as UTC ISO strings and rendered in the device's zone.
 
-/** Today's calendar date as YYYY-MM-DD in the device's local timezone. */
-export const todayStr = (): string => {
-  const d = new Date()
+/**
+ * The calendar day a Date shows on the device clock, as YYYY-MM-DD. The inverse of
+ * `dayToLocalDate`: a date picker hands back a Date, and its day is what the user saw.
+ */
+export const dateToDay = (d: Date): string => {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/** Today's calendar date as YYYY-MM-DD in the device's local timezone. */
+export const todayStr = (): string => dateToDay(new Date())
 
 
 
