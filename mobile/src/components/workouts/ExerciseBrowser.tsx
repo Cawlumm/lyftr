@@ -71,12 +71,12 @@ function BrowseRow({ exercise }: { exercise: Exercise }) {
 // Read-only catalogue, reached from the Workouts tab: look an exercise up and open its page
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
 // the muscle and equipment filters the API already takes, behind a filter button.
-export function ExerciseBrowser() {
+export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initialQuery?: string; initialFilters?: FilterValues } = {}) {
   const { t } = useTranslation()
   const { accent } = useTheme()
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [filters, setFilters] = useState<FilterValues>(() => emptyFilters(exerciseFilterGroups()))
+  const [query, setQuery] = useState(initialQuery)
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
+  const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups()))
   const [sheetOpen, setSheetOpen] = useState(false)
   const groups = exerciseFilterGroups()
   const { muscle, equipment } = filters
