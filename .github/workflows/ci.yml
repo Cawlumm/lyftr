@@ -169,6 +169,67 @@ jobs:
       - run: npm run lint -w @lyftr/mobile
       - run: npm run test -w @lyftr/mobile -- --ci
 
+  web-export:
+    name: Web export
+    needs: changes
+    if: >-
+      needs.changes.outputs.mobile == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ci-web-export-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Export web bundle
+        run: npm run export:web -w @lyftr/mobile
+
+      - name: Check the export
+        run: |
+          test -f mobile/dist/index.html || { echo "mobile/dist/index.html missing"; exit 1; }
+          grep -q '<script' mobile/dist/index.html || { echo "index.html has no <script> tag"; exit 1; }
+          # Pins the zustand CJS override in mobile/metro.config.js: its ESM build uses
+          # import.meta, which throws when the bundle runs as a classic script.
+          if grep -rl --include='*.js' 'import\.meta' mobile/dist; then
+            echo "import.meta found in the exported bundle"; exit 1
+          fi
+
+      # Reported, not gated.
+      - name: Report bundle size
+        run: |
+          {
+            echo "### Web export size"
+            echo
+            echo "Entry: \`$(grep -o '[^"]*_expo/static/js/web/entry-[^"]*\.js' mobile/dist/index.html | head -n1)\`"
+            echo
+            echo "| File | Raw (bytes) | Gzip (bytes) |"
+            echo "|---|---:|---:|"
+            raw_total=0; gz_total=0
+            while IFS= read -r f; do
+              raw=$(wc -c < "$f"); gz=$(gzip -c "$f" | wc -c)
+              raw_total=$((raw_total + raw)); gz_total=$((gz_total + gz))
+              echo "| \`${f#mobile/dist/}\` | $raw | $gz |"
+            done < <(find mobile/dist -type f \( -name '*.js' -o -name '*.css' \) | sort)
+            echo "| **Total** | **$raw_total** | **$gz_total** |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-export
+          path: mobile/dist/
+          retention-days: 7
+
   e2e:
     name: Playwright E2E
     needs: changes

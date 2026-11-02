@@ -9,6 +9,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "export:web": "expo export --platform web --output-dir dist",
     "doctor": "npx expo-doctor@latest",
     "type-check": "tsc --noEmit",
     "test": "jest",
