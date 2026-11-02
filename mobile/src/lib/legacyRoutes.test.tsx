@@ -69,7 +69,6 @@ describe('legacyHref', () => {
 })
 
 describe('redirect routes', () => {
-  
   it('/food/log?edit=5&date=2026-01-02 lands on /nutrition/log with both params', async () => {
     await renderRouter(
       { '(legacy)/food/log': FoodLog, 'nutrition/log': target('NLOG') },
@@ -80,13 +79,15 @@ describe('redirect routes', () => {
     expect(screen).toHaveSearchParams({ edit: '5', date: '2026-01-02' })
   })
 
-  it('/exercises/:id and /exercises?filters keep their params', async () => {
+  it('/exercises/:id keeps its id', async () => {
     await renderRouter(
       { '(legacy)/exercises/[exerciseId]': ExerciseById, 'workouts/exercise/[exerciseId]': target('EX') },
       { initialUrl: '/exercises/12' },
     )
     expect(screen).toHavePathname('/workouts/exercise/12')
+  })
 
+  it('/exercises?filters keeps its params', async () => {
     await renderRouter(
       { '(legacy)/exercises/index': ExercisesIndex, 'workouts/exercises': target('LIST') },
       { initialUrl: '/exercises?q=bench&muscle=chest&equipment=barbell' },
@@ -98,7 +99,7 @@ describe('redirect routes', () => {
 
 describe('+not-found', () => {
   const routes = { index: target('HOME'), login: target('LOGIN'), '+not-found': NotFound }
-    it.each([[true, 'HOME'], [false, 'LOGIN']])('signed in = %s goes to %s', async (authed, label) => {
+  it.each([[true, 'HOME'], [false, 'LOGIN']])('signed in = %s goes to %s', async (authed, label) => {
     useAuthStore.setState({ isAuthenticated: authed })
     await renderRouter(routes, { initialUrl: '/no/such/page' })
     expect(screen.getByText(label)).toBeTruthy()

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { exerciseFilterGroups, parseFilters } from '@lyftr/shared'
 import type { Exercise } from '@lyftr/shared'
 
 const mockPush = jest.fn()
@@ -35,6 +36,23 @@ describe('ExerciseBrowser (mobile)', () => {
 
     expect(list).toHaveBeenCalledWith({ page: 1 })
     expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/1')
+  })
+
+  // The /exercises?q=&muscle=&equipment= redirect seeds the browser; the first request must
+  // already carry them, not fire unfiltered and then refetch.
+  it('makes its first request with the seeded query and filters, dropping an invalid muscle', async () => {
+    const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+    const raw: Record<string, string> = { muscle: 'not-a-muscle', equipment: 'barbell' }
+    const initialFilters = parseFilters(exerciseFilterGroups(), (key) => raw[key] ?? null)
+    await render(<ExerciseBrowser initialQuery="bench" initialFilters={initialFilters} />)
+    await screen.findByText('Bench Press')
+
+    expect(list).toHaveBeenCalledTimes(1)
+    expect(list).toHaveBeenNthCalledWith(1, expect.objectContaining({ equipment: 'barbell', page: 1 }))
+    expect(list.mock.calls[0][0]).not.toHaveProperty('muscle_group')
+    expect(JSON.stringify(list.mock.calls[0][0])).toContain('bench')
+    expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove filter: Barbell' })).toBeTruthy()
   })
 
   const openFilters = async () => await fireEvent.press(screen.getByRole('button', { name: 'Filters' }))
