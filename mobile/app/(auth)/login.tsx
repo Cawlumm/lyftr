@@ -48,6 +48,7 @@ export default function Login() {
     <AuthScaffold heading={t('auth.login.heading')} subtitle={t('auth.login.subtitle')}>
       <ServerRow />
       <IconInput
+        id="email"
         label={t('auth.field.email')}
         icon="mail"
         value={email}
@@ -56,6 +57,7 @@ export default function Login() {
         placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
+        id="password"
         label={t('auth.field.password')}
         icon="lock"
         password

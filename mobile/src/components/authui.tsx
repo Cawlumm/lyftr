@@ -77,6 +77,7 @@ export function IconInput({
           style={{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }}
           placeholderTextColor={colors.txMuted}
           secureTextEntry={hide}
+          accessibilityLabel={label}
           autoCapitalize="none"
           autoCorrect={false}
           onFocus={() => { focus.value = withTiming(1, { duration: 150 }) }}

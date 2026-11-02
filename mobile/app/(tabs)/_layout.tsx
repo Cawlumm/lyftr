@@ -1,4 +1,6 @@
+import { Platform, View } from 'react-native'
 import { Tabs } from 'expo-router'
+import { BottomTabBar } from 'expo-router/js-tabs'
 import { House, Dumbbell, BookOpen, Apple, Scale } from 'lucide-react-native'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../src/theme/useTheme'
@@ -8,6 +10,8 @@ export default function TabsLayout() {
   const { colors, brand } = useTheme()
   return (
     <Tabs
+      // The default bar renders a tablist; the web needs a navigation landmark around it.
+      tabBar={Platform.OS === 'web' ? (props) => <View role="navigation"><BottomTabBar {...props} /></View> : undefined}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: brand.cyan,

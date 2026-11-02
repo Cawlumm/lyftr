@@ -141,6 +141,8 @@ export function AuthScaffold({
               </View>
 
               <Text
+                role="heading"
+                aria-level={1}
                 style={{
                   fontFamily: 'Outfit_800ExtraBold',
                   fontSize: 37,

@@ -33,6 +33,8 @@ interface Props {
    * Drives both platform hints — textContentType on iOS, autoComplete on Android.
    */
   textContentType: 'password' | 'newPassword'
+  /** DOM id on web (native ignores it); the e2e specs and password managers key off it. */
+  id?: string
   /** Rule rows rendered under the field. */
   children?: ReactNode
 }
@@ -44,7 +46,7 @@ interface Props {
 //
 // No Caps Lock warning here, unlike web: a soft keyboard shows its own shift state, and
 // React Native surfaces no modifier state to read anyway.
-export function PasswordField({ label, value, onChangeText, textContentType, children }: Props) {
+export function PasswordField({ id, label, value, onChangeText, textContentType, children }: Props) {
   const { t } = useTranslation()
   const { colors } = useTheme()
   const [visible, setVisible] = useState(false)
@@ -56,6 +58,7 @@ export function PasswordField({ label, value, onChangeText, textContentType, chi
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={!visible}
+        id={id}
         autoCapitalize="none"
         autoCorrect={false}
         textContentType={textContentType}

@@ -103,6 +103,7 @@ export default function ChangeEmailScreen() {
             </View>
 
             <Field
+              id="new-email"
               label={t('settings.account.email.new')}
               value={email}
               onChangeText={setEmail}
@@ -114,6 +115,7 @@ export default function ChangeEmailScreen() {
               autoFocus
             />
             <PasswordField
+              id="current-password"
               label={t('settings.account.password.current')}
               value={current}
               onChangeText={setCurrent}

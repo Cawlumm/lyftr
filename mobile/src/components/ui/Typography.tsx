@@ -44,6 +44,10 @@ const VARIANT: Record<TextVariant, string> = {
   numeric: 'font-display-heavy text-3xl',
 }
 
+// Headings are real headings on both platforms: react-native-web renders role=heading +
+// aria-level as <h1>/<h2>, native maps role=heading to the header accessibility trait.
+const HEADING_LEVEL: Partial<Record<TextVariant, 1 | 2>> = { title: 1, heading: 2 }
+
 const COLOR: Record<TextColor, string> = {
   primary: 'text-tx-primary',
   secondary: 'text-tx-secondary',
@@ -107,8 +111,11 @@ export function AppText({
     ? { color: semanticInk[isDark ? 'dark' : 'light'][tone] }
     : undefined
   const styles = [variant === 'numeric' ? TABULAR : undefined, inkStyle, style].filter(Boolean)
+  const level = HEADING_LEVEL[variant]
   return (
     <RNText
+      role={level ? 'heading' : undefined}
+      aria-level={level}
       className={`${VARIANT[variant]} ${COLOR[key]} ${className}`}
       style={styles}
       {...rest}

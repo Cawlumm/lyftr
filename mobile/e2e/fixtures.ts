@@ -26,14 +26,12 @@ export const test = base.extend<object, { workerAuth: WorkerAuth }>({
     const context = await browser.newContext({ baseURL, storageState: undefined })
     const page = await context.newPage()
     await page.goto('/register')
-    // The Expo inputs carry no ids or associated labels yet, so they are found by
-    // placeholder, and only the visible ones: the stack keeps the login screen mounted
-    // under register with display:none, so each placeholder matches twice. The two
-    // password fields share one, in DOM order.
-    await page.getByPlaceholder('you@example.com').locator('visible=true').fill(email)
-    const passwords = page.getByPlaceholder('••••••••').locator('visible=true')
-    await passwords.nth(0).fill(password)
-    await passwords.nth(1).fill(password)
+    // Same ids as the Vite app's register form. Only the visible match: the stack keeps
+    // the login screen mounted under register with display:none, and it has #email and
+    // #password too.
+    await page.locator('#email').locator('visible=true').fill(email)
+    await page.locator('#password').locator('visible=true').fill(password)
+    await page.locator('#password-confirm').locator('visible=true').fill(password)
     await page.getByRole('button', { name: 'Create account', exact: true }).click()
     await page.waitForURL(u => new URL(u).pathname === '/')
     await context.storageState({ path: storageStatePath })

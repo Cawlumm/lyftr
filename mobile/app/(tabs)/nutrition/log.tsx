@@ -245,7 +245,7 @@ export default function LogFood() {
     <Screen>
       {/* Header */}
       <View className="flex-row items-center gap-3 py-4">
-        <Pressable onPress={goBack} className="h-10 w-10 items-center justify-center rounded-xl active:scale-95" accessibilityLabel={t('common.back')}>
+        <Pressable onPress={goBack} className="h-10 w-10 items-center justify-center rounded-xl active:scale-95" accessibilityLabel={t('common.goBack')}>
           <ArrowLeft size={20} color={colors.txMuted} />
         </Pressable>
         <View className="min-w-0 flex-1">

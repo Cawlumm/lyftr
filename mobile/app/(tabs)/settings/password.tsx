@@ -105,6 +105,7 @@ export default function ChangePasswordScreen() {
 
           <Card className="gap-4">
             <PasswordField
+              id="current-password"
               label={t('settings.account.password.current')}
               value={current}
               onChangeText={setCurrent}
@@ -113,6 +114,7 @@ export default function ChangePasswordScreen() {
             {/* newPassword lets the OS keychain offer to generate and save one, and stops
                 it filing the new value under the old password's entry. */}
             <PasswordField
+              id="new-password"
               label={t('settings.account.password.new')}
               value={next}
               onChangeText={setNext}
@@ -122,6 +124,7 @@ export default function ChangePasswordScreen() {
               <PasswordRule state={rules.different}>{differentRuleLabel()}</PasswordRule>
             </PasswordField>
             <PasswordField
+              id="confirm-password"
               label={t('settings.account.password.confirmNew')}
               value={confirm}
               onChangeText={setConfirm}
