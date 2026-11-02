@@ -960,6 +960,7 @@
     }
   },
   "workouts": {
+    "keepAwakeUnavailable": "The screen may turn off during your workout. Open Lyftr over HTTPS to keep it awake.",
     "defaultName": "Workout — {{date}}",
     "stats": {
       "total": "Total",
