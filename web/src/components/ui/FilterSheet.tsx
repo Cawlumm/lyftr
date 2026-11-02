@@ -1,8 +1,9 @@
 import { createPortal } from 'react-dom'
-import { Check } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useBodyScrollLock } from '../../hooks/useBodyScrollLock'
+import { useSheetDrag } from '../../hooks/useSheetDrag'
 
 interface Props {
   open: boolean
@@ -22,6 +23,7 @@ export default function FilterSheet({ open, groups, values, onChange, onReset, o
   const { t } = useTranslation()
   useBodyScrollLock(open)
   useEscapeKey(open, onClose)
+  const drag = useSheetDrag(onClose)
   if (!open) return null
 
   const count = activeFilterCount(groups, values)
@@ -36,19 +38,32 @@ export default function FilterSheet({ open, groups, values, onChange, onReset, o
         aria-modal="true"
         aria-label={t('filters.title')}
         onClick={e => e.stopPropagation()}
+        style={drag.style}
         className="animate-slide-up bg-surface-base border border-surface-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85dvh] flex flex-col"
       >
-        <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mt-3 sm:hidden" />
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-surface-border">
-          <h3 className="font-display font-bold text-lg text-tx-primary">{t('filters.title')}</h3>
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={count === 0}
-            className="px-2 py-1.5 -mr-2 rounded-lg text-sm font-medium text-brand-500 hover:bg-brand-500/10 transition-colors disabled:text-tx-muted disabled:opacity-50 disabled:hover:bg-transparent"
-          >
-            {t('filters.reset')}
-          </button>
+        <div {...drag.handlers}>
+          <div className="mx-auto w-10 h-1 rounded-full bg-surface-muted mt-3 sm:hidden" />
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-surface-border">
+            <h3 className="font-display font-bold text-lg text-tx-primary">{t('filters.title')}</h3>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={onReset}
+                disabled={count === 0}
+                className="px-2 py-1.5 rounded-lg text-sm font-medium text-brand-500 hover:bg-brand-500/10 transition-colors disabled:text-tx-muted disabled:opacity-50 disabled:hover:bg-transparent"
+              >
+                {t('filters.reset')}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t('common.close')}
+                className="p-2 -mr-2 rounded-lg text-tx-muted hover:text-tx-primary hover:bg-surface-muted transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">

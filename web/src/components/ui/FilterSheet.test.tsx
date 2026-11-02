@@ -55,6 +55,28 @@ describe('FilterSheet', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('closes from the close button', () => {
+    const { onClose } = renderSheet()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  // Touch only: the grabber and header are the handle, so a swipe down past the threshold closes.
+  const swipe = (to: number) => {
+    const handle = screen.getByText('Filters').parentElement!.parentElement!
+    fireEvent.touchStart(handle, { touches: [{ clientY: 100 }] })
+    fireEvent.touchMove(handle, { touches: [{ clientY: to }] })
+    fireEvent.touchEnd(handle)
+  }
+
+  it('closes on a long swipe down and stays open on a short one', () => {
+    const { onClose } = renderSheet()
+    swipe(130)
+    expect(onClose).not.toHaveBeenCalled()
+    swipe(260)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('closes on Escape', () => {
     const { onClose } = renderSheet()
     fireEvent.keyDown(document, { key: 'Escape' })

@@ -1,10 +1,11 @@
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check, X } from 'lucide-react-native'
 import * as Haptics from 'expo-haptics'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 import { Button } from './Button'
+import { IconButton } from './IconButton'
 import { Sheet } from './Sheet'
 
 interface Props {
@@ -31,18 +32,21 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
     <Sheet open={open} onClose={onClose} haptic="selection">
       <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-3 pt-1">
         <AppText variant="title">{t('filters.title')}</AppText>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            Haptics.selectionAsync().catch(() => {})
-            onReset()
-          }}
-          disabled={count === 0}
-          hitSlop={10}
-          className={`active:opacity-60 ${count === 0 ? 'opacity-40' : ''}`}
-        >
-          <AppText variant="label" color="brand">{t('filters.reset')}</AppText>
-        </Pressable>
+        <View className="flex-row items-center gap-3">
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {})
+              onReset()
+            }}
+            disabled={count === 0}
+            hitSlop={10}
+            className={`active:opacity-60 ${count === 0 ? 'opacity-40' : ''}`}
+          >
+            <AppText variant="label" color="brand">{t('filters.reset')}</AppText>
+          </Pressable>
+          <IconButton icon={X} label={t('common.close')} variant="ghost" size="md" onPress={onClose} />
+        </View>
       </View>
 
       <ScrollView style={{ maxHeight: height * 0.6 }} contentContainerClassName="gap-6 px-5 py-4">

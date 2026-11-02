@@ -47,6 +47,13 @@ describe('FilterSheet (mobile)', () => {
     expect(onChange).toHaveBeenLastCalledWith('meal', null)
   })
 
+  it('closes from the close button', async () => {
+    const onClose = jest.fn()
+    await render(<FilterSheet open groups={groups} values={none} onChange={jest.fn()} onReset={jest.fn()} onClose={onClose} />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
   it('does not reset when nothing is on, and resets and closes when something is', async () => {
     const onReset = jest.fn()
     const onClose = jest.fn()

@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react'
-import { Modal, Pressable, View } from 'react-native'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { Animated as RNAnimated, Modal, PanResponder, Pressable, View } from 'react-native'
 import Animated, { Easing, SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
@@ -7,6 +7,10 @@ import * as Haptics from 'expo-haptics'
 // Duration of the slide-up; exported so callers can time a follow-up sheet (e.g. an
 // ActionSheet handing off to a ConfirmSheet) to start after this one dismisses.
 export const SHEET_ANIM_MS = 240
+
+// How far, or how fast, a downward swipe on the grabber has to go to dismiss the sheet.
+const DISMISS_DISTANCE = 90
+const DISMISS_VELOCITY = 0.8
 
 type SheetHaptic = 'selection' | 'warning' | 'none'
 
@@ -33,6 +37,36 @@ interface Props {
 export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'none' }: Props) {
   const insets = useSafeAreaInsets()
 
+  // Swipe down on the grabber to dismiss. PanResponder rather than gesture-handler: a Modal is
+  // its own native root, and gesture-handler needs a root view inside it to receive touches.
+  // Only the grabber zone listens, so a ScrollView inside the sheet keeps its own scrolling.
+  const dragY = useRef(new RNAnimated.Value(0)).current
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 4,
+      onPanResponderMove: (_, g) => dragY.setValue(Math.max(0, g.dy)),
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
+          RNAnimated.timing(dragY, { toValue: 600, duration: 160, useNativeDriver: true }).start(() => {
+            onCloseRef.current()
+          })
+        } else {
+          RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
+        }
+      },
+      onPanResponderTerminate: () => {
+        RNAnimated.spring(dragY, { toValue: 0, useNativeDriver: true, bounciness: 0 }).start()
+      },
+    }),
+  ).current
+
+  useEffect(() => {
+    if (open) dragY.setValue(0)
+  }, [open, dragY])
+
   useEffect(() => {
     if (!open || haptic === 'none') return
     const fire = haptic === 'warning'
@@ -47,15 +81,20 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
     <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 justify-end bg-black/60" onPress={onClose}>
         <Animated.View entering={SlideInDown.duration(SHEET_ANIM_MS).easing(Easing.out(Easing.cubic))}>
-          <Pressable
-            onPress={(e) => e.stopPropagation()}
-            style={{ paddingBottom: insets.bottom + bottomInset }}
-            className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
-          >
-            {/* Grabber — signals a dismissible sheet; matches the web handle. */}
-            <View className="mx-auto mb-3 h-1 w-10 rounded-full bg-surface-muted" />
-            {children}
-          </Pressable>
+          <RNAnimated.View style={{ transform: [{ translateY: dragY }] }}>
+            <Pressable
+              onPress={(e) => e.stopPropagation()}
+              style={{ paddingBottom: insets.bottom + bottomInset }}
+              className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
+            >
+              {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
+                  zone is taller than the bar so it is easy to hit; matches the web handle. */}
+              <View {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-6">
+                <View className="h-1 w-10 rounded-full bg-surface-muted" />
+              </View>
+              {children}
+            </Pressable>
+          </RNAnimated.View>
         </Animated.View>
       </Pressable>
     </Modal>
