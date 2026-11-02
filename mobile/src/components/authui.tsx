@@ -190,6 +190,7 @@ export function SecondaryButton({ title, hint, onPress }: { title: string; hint?
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
       style={{
         height: 55,
         borderRadius: 16,
