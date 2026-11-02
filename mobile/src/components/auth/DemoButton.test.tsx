@@ -1,5 +1,5 @@
 import { Linking, Platform } from 'react-native'
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { DemoButton, DEMO_EMAIL, DEMO_PASSWORD, DEMO_URL } from './DemoButton'
 
 jest.mock('@lyftr/shared', () => ({ useTranslation: () => ({ t: (k: string) => k }) }))
@@ -25,6 +25,19 @@ describe('DemoButton', () => {
     await fireEvent.press(screen.getByRole('button', { name: /auth\.login\.demo/ }))
     expect(signIn).toHaveBeenCalledWith(DEMO_EMAIL, DEMO_PASSWORD)
     expect(open).not.toHaveBeenCalled()
+  })
+
+  it('ignores a second press while the first sign-in is pending', async () => {
+    setOS('web')
+    let finish!: () => void
+    const signIn = jest.fn(() => new Promise<void>((resolve) => { finish = resolve }))
+    await render(<DemoButton demoEnabled signIn={signIn} onFailed={jest.fn()} />)
+    await fireEvent.press(screen.getByRole('button'))
+    await fireEvent.press(screen.getByRole('button'))
+    expect(signIn).toHaveBeenCalledTimes(1)
+    await act(async () => { finish() })
+    await fireEvent.press(screen.getByRole('button'))
+    expect(signIn).toHaveBeenCalledTimes(2)
   })
 
   it('reports a failed sign-in on web', async () => {

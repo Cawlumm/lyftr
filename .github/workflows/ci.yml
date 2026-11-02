@@ -203,6 +203,11 @@ jobs:
             grep -q "$pat" mobile/dist/index.html || { echo "index.html is missing $pat"; exit 1; }
           done
           test -f mobile/dist/manifest.json || { echo "mobile/dist/manifest.json missing"; exit 1; }
+          # polyfills.web.ts leaves the Hermes-only intl-pluralrules out; browsers ship Intl.PluralRules.
+          # Match that package's own error strings, not 'PluralRules', which i18next contains legitimately.
+          if grep -rlE --include='*.js' 'Not a valid plural type|select\(\) called on incompatible' mobile/dist; then
+            echo "intl-pluralrules shipped to web"; exit 1
+          fi
           # Pins the zustand CJS override in mobile/metro.config.js: its ESM build uses
           # import.meta, which throws when the bundle runs as a classic script.
           if grep -rl --include='*.js' 'import\.meta' mobile/dist; then

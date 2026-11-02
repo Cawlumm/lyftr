@@ -28,6 +28,19 @@ describe('DateInput.web', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it('opens the native picker on click', async () => {
+    const showPicker = jest.fn()
+    await render(<DateInput value="2026-06-15" onChange={() => {}} />)
+    await fireEvent(input(), 'click', { currentTarget: { showPicker } })
+    expect(showPicker).toHaveBeenCalledTimes(1)
+  })
+
+  it('survives a click where showPicker is missing or throws', async () => {
+    await render(<DateInput value="2026-06-15" onChange={() => {}} />)
+    await fireEvent(input(), 'click', { currentTarget: {} })
+    await fireEvent(input(), 'click', { currentTarget: { showPicker: () => { throw new Error('SecurityError') } } })
+  })
+
   it('uses the bound as max', async () => {
     await render(<DateInput value="2026-06-15" onChange={() => {}} maximumDate={new Date(2026, 5, 20, 9)} />)
     expect(input().props.max).toBe('2026-06-20')

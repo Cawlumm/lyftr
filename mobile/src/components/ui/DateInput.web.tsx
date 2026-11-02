@@ -41,6 +41,10 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
           // A cleared field reports '' — there is no day to emit, and the controlled
           // value snaps back to the last real one.
           onChange={(e) => { if (e.target.value) onChange(e.target.value) }}
+          // Desktop browsers only focus the segments on a click in the text area; the picker
+          // opens from the (invisible) calendar icon alone. showPicker throws in a
+          // cross-origin iframe and is missing in older browsers.
+          onClick={(e) => { try { e.currentTarget.showPicker?.() } catch { /* typing still works */ } }}
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', border: 0 }}
         />
       </View>

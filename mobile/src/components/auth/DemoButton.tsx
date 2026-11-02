@@ -1,3 +1,4 @@
+import { useRef, useState } from 'react'
 import { Linking, Platform } from 'react-native'
 import { useTranslation } from '@lyftr/shared'
 import { SecondaryButton } from '../authui'
@@ -18,11 +19,17 @@ type Props = {
 export function DemoButton({ demoEnabled, signIn, onFailed }: Props) {
   const { t } = useTranslation()
   const isWeb = Platform.OS === 'web'
+  const [busy, setBusy] = useState(false)
+  // A ref as well as state: two presses in one frame both read the stale state.
+  const inFlight = useRef(false)
   if (isWeb && !demoEnabled) return null
 
   const press = () => {
     if (!isWeb) { Linking.openURL(DEMO_URL).catch(() => {}); return }
-    signIn(DEMO_EMAIL, DEMO_PASSWORD).catch(onFailed)
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    signIn(DEMO_EMAIL, DEMO_PASSWORD).catch(onFailed).finally(() => { inFlight.current = false; setBusy(false) })
   }
-  return <SecondaryButton title={t('auth.login.demo')} hint={t('auth.login.demoHint')} onPress={press} />
+  return <SecondaryButton title={t('auth.login.demo')} hint={t('auth.login.demoHint')} onPress={press} disabled={busy} />
 }

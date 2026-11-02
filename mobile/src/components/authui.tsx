@@ -185,11 +185,13 @@ export function GradientButton({
   )
 }
 
-export function SecondaryButton({ title, hint, onPress }: { title: string; hint?: string; onPress?: () => void }) {
+export function SecondaryButton({ title, hint, onPress, disabled }: { title: string; hint?: string; onPress?: () => void; disabled?: boolean }) {
   const { colors, brand } = useTheme()
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled: !!disabled }}
       accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
       style={{
         height: 55,
