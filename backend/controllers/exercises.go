@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/stores"
@@ -20,12 +21,19 @@ func requestLocale(c *gin.Context) string { return stores.NormalizeLocale(c.Quer
 // Open Food Facts that key their names by language alone.
 func requestLanguage(c *gin.Context) string { return stores.BaseLanguage(requestLocale(c)) }
 
+// filterParam reads a catalogue filter. The values are lowercase slugs, and a filter that
+// matches nothing is answered with an empty list rather than an error, so `muscle_group=Chest`
+// used to look exactly like a muscle with no exercises.
+func filterParam(c *gin.Context, key string) string {
+	return strings.ToLower(strings.TrimSpace(c.Query(key)))
+}
+
 func (h *Handler) ListExercises(c *gin.Context) {
 	f := stores.ExerciseFilter{
 		Query:       c.Query("q"),
-		MuscleGroup: c.Query("muscle_group"),
-		Category:    c.Query("category"),
-		Equipment:   c.Query("equipment"),
+		MuscleGroup: filterParam(c, "muscle_group"),
+		Category:    filterParam(c, "category"),
+		Equipment:   filterParam(c, "equipment"),
 		Locale:      requestLocale(c),
 		Limit:       100,
 	}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Dumbbell, Search } from 'lucide-react-native'
-import { exerciseCatalogEmpty, useTranslation, type Exercise } from '@lyftr/shared'
+import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
@@ -16,11 +16,6 @@ interface Props {
   onClose: () => void
 }
 
-// Must match the server's default page size: a short page is what tells us there
-// is nothing left for this query.
-const PAGE_SIZE = 50
-// Matches the search debounce used elsewhere on mobile (programs/workouts/weight).
-const DEBOUNCE_MS = 250
 
 function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
   useTranslation() // re-renders on a language switch: the labels below come from the catalog
@@ -42,7 +37,7 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
               {muscleLabel(exercise.muscle_group)}
             </AppText>
           </View>
-          {exercise.equipment && exercise.equipment !== 'other' ? (
+          {hasEquipmentToShow(exercise.equipment) ? (
             <AppText variant="caption" color="muted">
               {equipmentLabel(exercise.equipment)}
             </AppText>
@@ -64,7 +59,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query])
 
@@ -84,7 +79,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
     items: exercises, loadMore, hasMore, loading, initialLoading, error: listError, retry: retryList, reload,
   } = useServerInfiniteList<Exercise>({
     fetcher,
-    pageSize: PAGE_SIZE,
+    pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery],
   })
 

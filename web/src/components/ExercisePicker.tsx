@@ -2,18 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft, Search, Dumbbell } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useServerList, types, useTranslation } from '@lyftr/shared'
+import { useServerList, types, useTranslation, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS } from '@lyftr/shared'
 import ExerciseListEmpty from './ExerciseListEmpty'
 import { exerciseAPI } from '../services/api'
 import { muscleColorBordered, muscleLabel, equipmentLabel } from '../utils/exerciseUtils'
 
-// Must match the server's default page size, since a short page is what signals
-// the end of the results.
-const PAGE_SIZE = 50
 // How close to the end of the loaded rows to get before fetching the next page.
 const PREFETCH_ROWS = 10
-// Matches the debounce the hand-rolled version of this picker shipped with.
-const DEBOUNCE_MS = 250
 
 interface Props {
   selectedIds: number[]
@@ -28,7 +23,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS)
+    const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query])
 
@@ -46,7 +41,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
 
   const list = useServerList<types.Exercise>({
     fetcher,
-    pageSize: PAGE_SIZE,
+    pageSize: EXERCISE_PAGE_SIZE,
     deps: [debouncedQuery],
   })
   const { items: exercises, loadMore, hasMore, loading, initialLoading, error } = list
@@ -162,7 +157,7 @@ export default function ExercisePicker({ selectedIds, onSelect, onClose }: Props
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium border ${muscleColorBordered(ex.muscle_group)}`}>
                           {muscleLabel(ex.muscle_group)}
                         </span>
-                        {ex.equipment && ex.equipment !== 'other' && (
+                        {hasEquipmentToShow(ex.equipment) && (
                           <span className="text-xs text-tx-muted">
                             {equipmentLabel(ex.equipment)}
                           </span>

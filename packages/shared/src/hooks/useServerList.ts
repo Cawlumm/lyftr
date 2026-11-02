@@ -54,6 +54,10 @@ interface Result<T> {
   // hasMore=false, so the list stopped exactly like a list that had reached its end —
   // the one shape a reader cannot tell from success. Render it, with retry().
   error: string | null
+  // The rows on screen are from an earlier query: a new query's first page failed, and the old
+  // rows are kept rather than blanked. Dim them and say so, or they read as the answer to the
+  // search or filter just made. False when a later page failed (the rows are still the answer).
+  staleResults: boolean
   // Resume from wherever we stopped. Keeps whatever already loaded.
   retry: () => void
 }
@@ -72,7 +76,7 @@ export function useServerList<T>({
   // What failed, not what to say about it: the sentence is made at render so it follows a
   // language switch. `unreadable` is a 200 with a body that is not a list; `cause` is a
   // rejected fetch.
-  const [failure, setFailure] = useState<{ unreadable: true } | { cause: unknown } | null>(null)
+  const [failure, setFailure] = useState<(({ unreadable: true } | { cause: unknown }) & { firstPage: boolean }) | null>(null)
   const offsetRef = useRef(0)
   // Tracks whether a fetch is in flight to prevent double-fetches (onEndReached can
   // fire repeatedly during momentum scrolling)
@@ -105,7 +109,7 @@ export function useServerList<T>({
       if (!Array.isArray(page)) {
         if (myId === reqIdRef.current) {
           setHasMore(false)
-          setFailure({ unreadable: true })
+          setFailure({ unreadable: true, firstPage: replace })
         }
         return
       }
@@ -122,7 +126,7 @@ export function useServerList<T>({
       // all there is". Name it and let the screen offer retry().
       if (myId === reqIdRef.current) {
         setHasMore(false)
-        setFailure({ cause: err })
+        setFailure({ cause: err, firstPage: replace })
       }
     } finally {
       // Only the latest fetch owns the shared flags — a stale response bows out without
@@ -183,5 +187,6 @@ export function useServerList<T>({
     items, loadMore, hasMore: hasMore || depsPending, loading,
     initialLoading: loading && !initializedRef.current,
     refreshing, reload, error, retry,
+    staleResults: failure !== null && failure.firstPage && items.length > 0,
   }
 }

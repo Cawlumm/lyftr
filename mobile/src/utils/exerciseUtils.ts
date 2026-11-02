@@ -37,6 +37,11 @@ const MUSCLE_COLORS: Record<string, MuscleTint> = {
   forearms:   { chip: 'bg-cyan-500/20',   border: 'border-cyan-500/30',   text: '#22d3ee' },
   traps:      { chip: 'bg-indigo-500/20', border: 'border-indigo-500/30', text: '#818cf8' },
   lats:       { chip: 'bg-sky-500/20',    border: 'border-sky-500/30',    text: '#38bdf8' },
+  'lower-back':  { chip: 'bg-blue-500/20',    border: 'border-blue-500/30',    text: '#60a5fa' },
+  'middle-back': { chip: 'bg-blue-500/20',    border: 'border-blue-500/30',    text: '#60a5fa' },
+  neck:       { chip: 'bg-rose-500/20',    border: 'border-rose-500/30',    text: '#fb7185' },
+  adductors:  { chip: 'bg-emerald-500/20', border: 'border-emerald-500/30', text: '#34d399' },
+  abductors:  { chip: 'bg-violet-500/20',  border: 'border-violet-500/30',  text: '#a78bfa' },
 }
 
 // null → caller renders the muted fallback (bg-surface-muted chip + colors.txMuted).

@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseCatalogEmpty, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -67,9 +67,15 @@ describe('equipmentLabel', () => {
 
 describe('muscleLabel', () => {
   it('gives the slug back unchanged in en, as the screens rendered it before the catalog', () => {
-    for (const slug of ['chest', 'lower-back', 'middle-back', 'full-body', 'quadriceps', 'abs']) {
+    for (const slug of ['chest', 'full-body', 'quadriceps', 'abs']) {
       expect(muscleLabel(slug)).toBe(slug)
     }
+  })
+
+  // The two back slugs are hyphenated for the API, which reads as a typo on a chip.
+  it('spaces the hyphenated back slugs in en', () => {
+    expect(muscleLabel('lower-back')).toBe('lower back')
+    expect(muscleLabel('middle-back')).toBe('middle back')
   })
 
   it('passes an unknown or empty value through as it came', () => {
@@ -188,5 +194,60 @@ describe('catalogSyncLines', () => {
     await i18n.changeLanguage('es')
     const text = catalogSyncLines({ count: 5, last_failed: true, last_failure: 'other', next_attempt_at: at(15, 30) })[0].text
     expect(text).toContain('Nuevo intento: 15:30.')
+  })
+})
+
+describe('exerciseBrowseParams', () => {
+  const none = { query: '', muscle: null, equipment: null }
+
+  it('omits every empty filter rather than sending an empty one', () => {
+    expect(exerciseBrowseParams(none)).toEqual({})
+  })
+
+  it('trims the query and treats whitespace-only as no query', () => {
+    expect(exerciseBrowseParams({ ...none, query: '  press ' })).toEqual({ q: 'press' })
+    expect(exerciseBrowseParams({ ...none, query: '   ' })).toEqual({})
+  })
+
+  it('maps muscle and equipment to the server param names', () => {
+    expect(exerciseBrowseParams({ query: 'curl', muscle: 'biceps', equipment: 'dumbbell' })).toEqual({
+      q: 'curl', muscle_group: 'biceps', equipment: 'dumbbell',
+    })
+  })
+})
+
+describe('exerciseBrowseFiltered', () => {
+  it('is false with nothing narrowing the list, true for any one filter', () => {
+    expect(exerciseBrowseFiltered({ query: '', muscle: null, equipment: null })).toBe(false)
+    expect(exerciseBrowseFiltered({ query: ' ', muscle: null, equipment: null })).toBe(false)
+    expect(exerciseBrowseFiltered({ query: 'x', muscle: null, equipment: null })).toBe(true)
+    expect(exerciseBrowseFiltered({ query: '', muscle: 'chest', equipment: null })).toBe(true)
+    expect(exerciseBrowseFiltered({ query: '', muscle: null, equipment: 'cable' })).toBe(true)
+  })
+})
+
+describe('exercise filter chips', () => {
+  it('only offers slugs the label tables know, so no chip falls back to a raw slug', () => {
+    for (const m of EXERCISE_FILTER_MUSCLES) expect(muscleLabel(m)).toBe(i18n.t(`exercises.muscle.${m}`))
+    for (const e of EXERCISE_FILTER_EQUIPMENT) expect(equipmentLabel(e)).toBe(i18n.t(`exercises.equipment.${e}`))
+  })
+})
+
+describe('hasEquipmentToShow', () => {
+  it('hides the values the catalogue uses to say nothing', () => {
+    for (const none of ['other', 'none', 'None', '', '  ', null, undefined]) expect(hasEquipmentToShow(none)).toBe(false)
+  })
+
+  it('shows real equipment, including the legacy spaced spelling', () => {
+    for (const real of ['barbell', 'body-only', 'body only', 'e-z-curl-bar']) expect(hasEquipmentToShow(real)).toBe(true)
+  })
+})
+
+describe('muscle filter chips', () => {
+  it('offers no alias the catalogue never returns, and no duplicates', () => {
+    for (const dead of ['back', 'abs', 'core', 'legs', 'obliques', 'full-body', 'other']) {
+      expect(EXERCISE_FILTER_MUSCLES).not.toContain(dead)
+    }
+    expect(new Set(EXERCISE_FILTER_MUSCLES).size).toBe(EXERCISE_FILTER_MUSCLES.length)
   })
 })

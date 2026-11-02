@@ -46,6 +46,34 @@ describe('useServerList — a page that never arrived', () => {
     expect(result.current.hasMore).toBe(false)
   })
 
+  // Rows from the previous query stay up when a new query's first page fails; a screen has to
+  // be able to tell that apart from a later page failing, where the rows are still the answer.
+  it('flags the rows as stale when a new query fails, and not when only a later page does', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(page(0, 2))
+      .mockRejectedValueOnce(timeout())
+      .mockResolvedValueOnce(page(0, 2))
+      .mockRejectedValueOnce(timeout())
+
+    const { result, rerender } = await renderHook(
+      ({ q }: { q: string }) => useServerList<number>({ fetcher, pageSize: 2, deps: [q] }),
+      { initialProps: { q: 'a' } },
+    )
+    await waitFor(() => expect(result.current.items).toEqual([0, 1]))
+    expect(result.current.staleResults).toBe(false)
+
+    await act(async () => { result.current.loadMore() })
+    await waitFor(() => expect(result.current.error).toBeTruthy())
+    expect(result.current.staleResults).toBe(false)
+
+    await rerender({ q: 'b' })
+    await waitFor(() => expect(result.current.items).toEqual([0, 1]))
+    await rerender({ q: 'c' })
+    await waitFor(() => expect(result.current.error).toBeTruthy())
+    expect(result.current.items).toEqual([0, 1])
+    expect(result.current.staleResults).toBe(true)
+  })
+
   it('resumes from where it stopped, without discarding what loaded', async () => {
     const fetcher = jest.fn()
       .mockResolvedValueOnce(page(0, 2))
