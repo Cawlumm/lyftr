@@ -38,6 +38,7 @@ export function Button({
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
+      accessibilityRole="button"
       // active:scale-95 is the standard press feedback for every tappable (see
       // CONVENTIONS.md "native feel") — it reads as native where hover states can't.
       // px-4 matters only when the button sizes to its own label. Nearly every caller
