@@ -19,7 +19,9 @@
     "shared:type-check": "npm run type-check -w @lyftr/shared",
     "shared:test": "npm run test -w @lyftr/shared"
   },
+  "//devDependencies": "expo-router is declared here only so npm hoists it to the root node_modules. The Expo CLI keeps its own @expo/router-server under root node_modules/@expo/cli and resolves expo-router as a peer by walking up from there; with expo-router left in mobile/node_modules `expo start` dies with 'Cannot find module expo-router/internal/testing' while typedRoutes is on. Keep it in step with mobile/package.json.",
   "devDependencies": {
+    "expo-router": "58.0.28",
     "patch-package": "8.0.1"
   }
 }
