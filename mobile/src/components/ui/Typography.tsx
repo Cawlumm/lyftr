@@ -95,6 +95,9 @@ export interface AppTextProps extends TextProps {
   color?: TextColor
   className?: string
   children?: ReactNode
+  // Overrides the outline level without changing the look: a sheet's title keeps the
+  // `title` size but is an h2, so the screen underneath keeps its one h1.
+  headingLevel?: 1 | 2
 }
 
 export function AppText({
@@ -102,6 +105,7 @@ export function AppText({
   color,
   className = '',
   style,
+  headingLevel,
   ...rest
 }: AppTextProps) {
   const { isDark } = useTheme()
@@ -111,7 +115,7 @@ export function AppText({
     ? { color: semanticInk[isDark ? 'dark' : 'light'][tone] }
     : undefined
   const styles = [variant === 'numeric' ? TABULAR : undefined, inkStyle, style].filter(Boolean)
-  const level = HEADING_LEVEL[variant]
+  const level = headingLevel ?? HEADING_LEVEL[variant]
   return (
     <RNText
       role={level ? 'heading' : undefined}

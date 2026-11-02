@@ -25,4 +25,9 @@ describe('AppText headings', () => {
     expect(screen.getByRole('heading', { name: 'Section' }).props['aria-level']).toBe(2)
     expect(screen.queryByRole('heading', { name: 'Copy' })).toBeNull()
   })
+
+  it('headingLevel demotes a sheet title to h2 without changing the variant', async () => {
+    await render(<AppText variant="title" headingLevel={2}>Filters</AppText>)
+    expect(screen.getByRole('heading', { name: 'Filters' }).props['aria-level']).toBe(2)
+  })
 })

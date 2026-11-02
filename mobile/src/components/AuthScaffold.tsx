@@ -170,6 +170,7 @@ export function AuthScaffold({
 
         {/* SHEET */}
         <View
+          role={Platform.OS === 'web' ? 'main' : undefined}
           style={{
             flex: 1,
             marginTop: -26,

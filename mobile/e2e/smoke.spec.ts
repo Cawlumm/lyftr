@@ -23,6 +23,18 @@ test('home loads after register with a tab bar and no console errors @mobile', a
   expect(errors).toEqual([])
 })
 
+// The auth screens sit outside Screen, so AuthScaffold carries its own main landmark.
+test.describe('auth screens', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  for (const route of ['/login', '/register']) {
+    test(`${route} has a main landmark and a single h1`, async ({ page }) => {
+      await page.goto(route)
+      await expect(page.getByRole('main')).toBeVisible()
+      await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    })
+  }
+})
+
 // One h1 per screen: the document outline a screen reader (and axe) navigates by.
 for (const route of ['/', '/workouts', '/programs', '/nutrition', '/weight', '/settings']) {
   test(`${route} has a single visible h1 @mobile`, async ({ page }) => {

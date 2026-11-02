@@ -2,6 +2,13 @@ import { test as base, expect } from '@playwright/test'
 import path from 'path'
 import { recordCreatedUser } from './userRegistry'
 
+// Duplicate ids: expo-router keeps earlier stack screens mounted but hidden (display:none),
+// so while register is open the DOM holds two #email and two #password (login's and
+// register's), and likewise #current-password when settings/email and settings/password
+// are both on the stack. Duplicate ids are invalid HTML, but the ids stay for parity with
+// the Vite app's specs and password managers fill the visible field. The convention is
+// therefore: any locator on a shared id adds .locator('visible=true'), never a
+// per-screen id and never first().
 export type WorkerAuth = { token: string; email: string }
 
 // One fresh, isolated account per worker — the foundation for test isolation.

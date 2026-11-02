@@ -41,14 +41,15 @@ test.describe('A failing request does not end the session', () => {
 
     // The server revoked it — the one answer that may end a session.
     //
-    // Waiting on the login screen rather than on the URL: web's onAuthFailure is a hard
-    // `location.href = '/login'`, which aborts the navigation still in flight, so
-    // waitForURL('**/login') loses the race with net::ERR_ABORTED. A web-first assertion
-    // on what the user actually ends up looking at survives the reload.
+    // onAuthFailure calls useAuthStore.logout(), which clears the tokens and flips
+    // isAuthenticated; the layout gate then routes to /login client-side (no reload).
+    // So wait on what the user ends up looking at, then poll the token rather than
+    // reading it once - the gate's redirect and the storage clear are separate steps.
     await expect(page.getByRole('button', { name: /sign in/i })).toBeVisible()
     expect(page.url()).toContain('/login')
-    const token = await page.evaluate(() => window.localStorage.getItem('access_token'))
-    expect(token).toBeFalsy()
+    await expect
+      .poll(() => page.evaluate(() => window.localStorage.getItem('access_token')))
+      .toBeFalsy()
   })
 
   test('a burst of 401s shares one refresh round-trip', async ({ page }) => {
