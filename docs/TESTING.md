@@ -75,6 +75,13 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
   `npx expo start` also listens on 8081 but is **not** the e2e target; stop it first or the
   stack cannot bind the port.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
+- **Workers:** CI runs four (`playwright.config.ts`: the public-repo `ubuntu-24.04` runner
+  has 4 vCPUs and 16 GB; four ran the suite in 4.5 min against 6.3 for three); locally one,
+  because the machine is shared. `--workers=2` opts in. Files run in parallel, tests within a file
+  in order (`fullyParallel: false`), so a file's tests may share its `beforeAll` seed.
+- **Widths:** a sideways-scroll check loads once per layout regime and resizes through it,
+  with `sweepWidths` and `WIDTH_GROUPS` from `e2e/widths.ts` (320/390/768, then
+  1024/1280/1920). Don't add a test per width that reloads the page at each.
 
 ## Where does a new test go?
 
@@ -108,8 +115,10 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 - **Isolation: one fresh user per worker + idempotent seeding.** Each worker
   registers its own account (`e2e/fixtures.ts`), so runs are hermetic. Seed via
   `cleanupSeed` (delete your exact seed names, then create) so a `beforeAll` is
-  idempotent — it runs once *per project* (chromium + mobile), so on the shared
-  workers:1 user it executes twice; idempotent seeding keeps the result to one set.
+  idempotent — it runs once *per project* (chromium + mobile), and both may land on
+  the same worker's user; idempotent seeding keeps the result to one set. A worker's
+  account also holds whatever the other files it ran seeded, and which files those are
+  changes with the worker count: never assert that your seed is the first or only data.
 - **No strict-mode traps on list items.** For "this row is gone after filter/delete"
   use `await expect(page.getByText(name)).toHaveCount(0)` (auto-retries to zero) —
   NOT `.not.toBeVisible()`, which throws a strict-mode error (not retried) if a
@@ -165,7 +174,7 @@ CI runs all of these on every PR (see `.github/workflows/ci.yml`).
   and calculations currently inline in `GetDailyStats` / `GetWeightStats` (extract →
   unit-test the math).
 - ✅ **Integration** — 82 Go controller tests.
-- 🔧 **E2E** — being rebalanced (API-contract tests moving down to Go) and
-  parallelized (per-test user isolation → multiple workers).
+- ✅ **E2E** — parallel by file on CI (four workers, per-worker accounts); being
+  rebalanced (API-contract tests moving down to Go).
 
 Tracked in the testing-architecture overhaul issue.

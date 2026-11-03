@@ -17,9 +17,10 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // CI: a public repo's ubuntu-24.04 runner has 4 vCPUs and 16 GB. Three Chromium workers
-  // leave a core for the compose stack (backend + nginx) the tests are driving. Locally one,
-  // because the machine is shared: pass --workers=2 to opt in.
+  // CI: a public repo's ubuntu-24.04 runner has 4 vCPUs and 16 GB, one worker per core.
+  // Measured on that runner: 3 workers ran the suite in 6.3 min, 4 in 4.5 min, both with no
+  // retries, so the compose stack keeps up. Locally one, because the machine is shared:
+  // pass --workers=2 to opt in.
   workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
