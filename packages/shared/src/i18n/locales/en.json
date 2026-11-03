@@ -190,7 +190,7 @@
       "footnote": "Affects everyone on this server.",
       "confirmRemovals": {
         "title": "Accept the smaller catalog?",
-        "message": "The exercise catalog now lists under half of the exercises this server holds, so the sync stopped without changing anything. If that is expected, sync again and hide the exercises it no longer lists. Workouts and programs that use them keep them.",
+        "message": "The exercise catalog now lists under half of the exercises this server holds, so the sync updated what it found but hid nothing. If that is expected, sync again and hide the exercises it no longer lists. Workouts and programs that use them keep them.",
         "confirm": "Sync and hide"
       }
     },

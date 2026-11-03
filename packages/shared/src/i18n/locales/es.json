@@ -192,7 +192,7 @@
       "footnote": "Afecta a todas las personas de este servidor.",
       "confirmRemovals": {
         "title": "¿Aceptar el catálogo más pequeño?",
-        "message": "El catálogo de ejercicios lista ahora menos de la mitad de los ejercicios que tiene este servidor, así que la sincronización se detuvo sin cambiar nada. Si es lo esperado, sincroniza de nuevo y oculta los ejercicios que ya no lista. Los entrenamientos y programas que los usan los conservan.",
+        "message": "El catálogo de ejercicios lista ahora menos de la mitad de los ejercicios que tiene este servidor, así que la sincronización actualizó lo que encontró pero no ocultó nada. Si es lo esperado, sincroniza de nuevo y oculta los ejercicios que ya no lista. Los entrenamientos y programas que los usan los conservan.",
         "confirm": "Sincronizar y ocultar"
       }
     },

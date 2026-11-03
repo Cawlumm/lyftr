@@ -3,6 +3,7 @@ import { View } from 'react-native'
 import {
   apiErrorCode,
   catalogSyncLines,
+  formatNumber,
   uiMessage,
   useTranslation,
   type ExerciseCacheStatus,
@@ -31,7 +32,7 @@ export function ExerciseCacheAdmin() {
 
   useEffect(() => { void loadStatus() }, [loadStatus])
 
-  const refreshed = (n: number): UiMessage => ({ key: 'settings.library.refreshed', params: { count: n, amount: n.toLocaleString() } })
+  const refreshed = (n: number): UiMessage => ({ key: 'settings.library.refreshed', params: { count: n, amount: formatNumber(n, { decimals: 0, grouped: true }) } })
 
   const refresh = async () => {
     setBusy(true)
@@ -79,16 +80,20 @@ export function ExerciseCacheAdmin() {
         label={t('settings.library.database.label')}
         description={t('settings.library.database.description')}
         value={status
-          ? t('settings.library.cached', { count: status.count, amount: status.count.toLocaleString() })
+          ? t('settings.library.cached', { count: status.count, amount: formatNumber(status.count, { decimals: 0, grouped: true }) })
           : t('settings.library.cachedUnknown')}
       />
       <View className="gap-2 border-t border-surface-border py-4">
         {lines.map((l) => (
           <AppText key={l.text} variant="caption" color={l.warning ? 'warning' : 'muted'}>{l.text}</AppText>
         ))}
-        {result ? (
-          <View role={result.failed ? 'alert' : 'status'}>
-            <AppText variant="caption" color={result.failed ? 'error' : 'muted'}>{uiMessage(result.message)}</AppText>
+        {/* Mounted before it has anything to say: a live region is only announced when its text changes. */}
+        <View role="status">
+          {result && !result.failed ? <AppText variant="caption" color="muted">{uiMessage(result.message)}</AppText> : null}
+        </View>
+        {result?.failed ? (
+          <View role="alert">
+            <AppText variant="caption" color="error">{uiMessage(result.message)}</AppText>
           </View>
         ) : null}
         <View className="flex-row">
