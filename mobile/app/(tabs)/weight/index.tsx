@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent, type ViewStyle } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -18,10 +18,16 @@ import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { semanticInk } from '../../../src/theme/theme'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]
 const PERIOD_DAYS: Record<Period, number | null> = { '7d': 7, '30d': 30, '90d': 90, 'All': null }
+
+// Wide web: the log form and the history in a column on the right, beside the figures and trend.
+const SIDE_COLUMN = 360
+// 'sticky' is not in RN's position type, but react-native-web passes it to the DOM.
+const STICKY = { position: 'sticky', top: 16 } as unknown as ViewStyle
 
 export default function Weight() {
   const { t, i18n } = useTranslation()
@@ -30,6 +36,16 @@ export default function Weight() {
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
   const { colors, accent, brand, isDark } = useTheme()
+  // Web from lg: figures and trend on the left, log and history on the right. Below lg, and on
+  // every native device, the phone's single column.
+  const { lg, xl } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
+  const { height: windowHeight } = useWindowDimensions()
+  // The figures and trend stay in view beside a long history, but only when they fit: a
+  // sticky column taller than the window would hide its own bottom until the page ended.
+  const [figuresHeight, setFiguresHeight] = useState(0)
+  const stickFigures = figuresHeight > 0 && figuresHeight + 32 <= windowHeight
+  const figuresRow = wide && xl
 
   const [period, setPeriod] = useState<Period>('30d')
   const [stats, setStats] = useState<WeightStats | null>(null)
@@ -210,7 +226,7 @@ export default function Weight() {
     void log.run(w)
   }
 
-  if (initialLoading) return <WeightSkeleton />
+  if (initialLoading) return <WeightSkeleton wide={wide} />
 
   // Period stats computed from chartLogs (period-scoped server fetch). For "All" prefer
   // the server-computed aggregate since it isn't capped at 1000.
@@ -290,7 +306,7 @@ export default function Weight() {
   // and neither does the log form — a save that cannot succeed would outrank the retry.
   if (pageError != null) {
     return (
-      <Screen>
+      <Screen maxWidth={wide ? 'wide' : undefined}>
         <View className="flex-1 gap-5 py-4">
           <PageHeader title={t('weight.title')} subtitle={t('weight.subtitle')} />
           <ErrorState
@@ -301,6 +317,308 @@ export default function Weight() {
             retrying={retrying}
           />
         </View>
+      </Screen>
+    )
+  }
+
+  const header = (
+    <PageHeader
+      title={t('weight.title')}
+      subtitle={t('weight.subtitle')}
+      action={
+        <View className="flex-row items-center gap-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1">
+          <Calendar size={12} color={accent} />
+          <AppText variant="caption" color="brand">{wUnit}</AppText>
+        </View>
+      }
+    />
+  )
+
+  // Quick log — kept at the top so entry is reachable on first paint.
+  const logCard = (
+    <Card>
+      <View className="mb-3 flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <Scale size={16} color={accent} />
+          <AppText variant="bodySemibold">{t('weight.log.title')}</AppText>
+        </View>
+        {items.length > 0 ? (
+          <AppText variant="caption" color="muted">
+            {t('weight.log.last', { weight: displayWeight(items[0].weight, unit), unit: wUnit })}
+          </AppText>
+        ) : null}
+      </View>
+
+      <View className="gap-3">
+        <StepperTile
+          icon={Scale}
+          label={t('common.weightWithUnit', { unit: wUnit })}
+          name={t('common.weightName')}
+          step={BODYWEIGHT_STEP}
+          onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
+        >
+          <NumberField
+            inputMode="decimal"
+            value={newWeight}
+            onChange={setNewWeight}
+            placeholder="0"
+            accessibilityLabel={t('weight.log.weightField')}
+            inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+          />
+        </StepperTile>
+
+        {showNotes ? (
+          <View className="gap-2 rounded-xl border border-surface-border bg-surface-overlay p-3">
+            <View className="mb-1 flex-row items-center justify-between">
+              <AppText variant="caption" color="secondary">{t('weight.log.dateAndNote')}</AppText>
+              <Pressable onPress={() => setShowNotes(false)} hitSlop={8} className="p-1 active:opacity-60" accessibilityLabel={t('weight.log.collapse')}>
+                <X size={14} color={colors.txMuted} />
+              </Pressable>
+            </View>
+            <DateInput value={newDate} onChange={setNewDate} maximumDate={new Date()} />
+            <Field
+              value={newNotes}
+              onChangeText={setNewNotes}
+              placeholder={t('weight.log.notePlaceholder')}
+              maxLength={200}
+            />
+          </View>
+        ) : (
+          <Pressable
+            onPress={() => setShowNotes(true)}
+            className="h-11 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-overlay active:scale-[0.99]"
+          >
+            <Calendar size={16} color={colors.txMuted} />
+            <AppText variant="body" color="secondary">{t('weight.log.addDateAndNote')}</AppText>
+          </Pressable>
+        )}
+
+        {error || log.error ? (
+          <Alert variant="error" size="compact">{error || log.error}</Alert>
+        ) : null}
+
+        {showDuplicateWarning && items.length > 0 ? (
+          <Alert
+            variant="warning"
+            actions={[
+              { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
+              {
+                label: t('weight.logAnyway'),
+                primary: true,
+                onPress: () => {
+                  duplicateWarningDismissedRef.current = true
+                  setShowDuplicateWarning(false)
+                  handleLog()
+                },
+              },
+            ]}
+          >
+            {t('weight.duplicateWarning', { date: formatDay(entryDay(items[0]), 'monthDay'), weight: displayWeight(items[0].weight, unit), unit: wUnit })}
+          </Alert>
+        ) : null}
+
+        <Button
+          title={log.busy ? t('weight.log.submitting') : t('weight.log.submit')}
+          onPress={handleLog}
+          loading={log.busy}
+          disabled={!(parseFloat(newWeight) > 0) || log.busy}
+        />
+        <View className="flex-row items-center justify-center gap-1.5">
+          <Sunrise size={14} color={brand.warningSoft} />
+          <AppText variant="caption" color="muted">{t('weight.log.tip')}</AppText>
+        </View>
+      </View>
+    </Card>
+  )
+
+  // Current-weight hero
+  const hero = (
+    <Card className={`border-brand-500/20 bg-brand-500/5${figuresRow ? ' flex-1' : ''}`}>
+      {items.length === 0 && loadFailed ? (
+        // Empty and unreachable look identical from here, so the empty copy
+        // cannot be the default: it told someone with years of entries they had
+        // never weighed themselves.
+        <ErrorState
+          title={t('weight.loadFailed')}
+          message={listError ?? (chartError ? uiMessage(chartError) : statsError ? uiMessage(statsError) : '')}
+          onRetry={retryAll}
+          retrying={retrying}
+        />
+      ) : items.length === 0 ? (
+        <View className="items-center py-2">
+          <Label className="mb-1">{t('weight.hero.current')}</Label>
+          <AppText variant="body" color="muted">{t('weight.hero.empty')}</AppText>
+        </View>
+      ) : (
+        <>
+          {/* In the xl row the hero is narrow, so a long figure pushes the pill underneath. */}
+          <View className={`flex-row items-start justify-between${figuresRow ? ' flex-wrap gap-2' : ''}`}>
+            <View>
+              <Label className="mb-2">{t('weight.hero.current')}</Label>
+              <View className="flex-row items-end gap-2">
+                <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{currentKnown ? current : '—'}</AppText>
+                {currentKnown ? <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText> : null}
+              </View>
+            </View>
+            {changeKnown ? (
+              <View className={`flex-row items-center gap-1.5 rounded-lg border px-3 py-1.5 ${trendPill}`}>
+                <TrendIcon size={16} color={trendText} />
+                <Text className="font-sans-semibold text-sm" style={{ color: trendText, fontVariant: ['tabular-nums'] }}>
+                  {Math.abs(change)} {wUnit}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          {changeKnown ? (
+            <AppText variant="caption" color="muted" className="mt-3">
+              {t(changeKey, { amount: Math.abs(change), unit: wUnit, period: t(`weight.period.span.${period}`) })}
+            </AppText>
+          ) : null}
+        </>
+      )}
+    </Card>
+  )
+
+  const statsRow = (
+    <View className={`flex-row gap-3${figuresRow ? ' flex-1' : ''}`}>
+      {statCards.map((s) => (
+        <Card key={s.id} className="flex-1" style={{ paddingHorizontal: 12 }}>
+          <View className="mb-2 flex-row items-center gap-1.5">
+            <s.icon size={14} color={s.color} />
+            <Label numberOfLines={1}>{t(`weight.stats.${s.id}.label`)}</Label>
+          </View>
+          {chartPending ? (
+            <Skeleton width={56} height={22} />
+          ) : figuresFailed ? (
+            <StatFailure label={t(`weight.stats.${s.id}.failed`)} />
+          ) : (
+            <View className="flex-row items-end gap-1">
+              <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{aggregatesUnknown ? '—' : Math.round(s.value)}</AppText>
+              {aggregatesUnknown ? null : <AppText variant="caption" color="muted" className="mb-0.5">{wUnit}</AppText>}
+            </View>
+          )}
+        </Card>
+      ))}
+    </View>
+  )
+
+  const staleNote = figuresStale ? (
+    <View className="flex-row flex-wrap items-center gap-2 px-1" accessibilityLiveRegion="polite">
+      {/* The same mark every other failure on this screen uses, in warning ink
+          rather than error: these numbers are real, just not fresh. */}
+      <BarbellBroken size={20} color={semanticInk[isDark ? 'dark' : 'light'].warning} />
+      <AppText variant="caption" color="muted">{t('weight.stale')}</AppText>
+      <Pressable onPress={retryAll} hitSlop={8} accessibilityRole="button" className="active:opacity-60">
+        <AppText variant="caption" color="secondary" className="underline">{t('common.tryAgain')}</AppText>
+      </Pressable>
+    </View>
+  ) : null
+
+  // Chart + period selector. Wide web has the room for a taller plot; every placeholder in
+  // the box takes the plot's height so the chart arriving does not move what is below it.
+  const plotBox = wide ? 'h-[280px]' : 'h-44'
+  const chartCard = (
+    <Card>
+      <View className="mb-3 flex-row items-center justify-between gap-2">
+        <AppText variant="bodySemibold">{t('weight.trend.title')}</AppText>
+        <View className="flex-1 max-w-[220px]">
+          <SegmentedControl size="sm" options={periodOptions} value={period} onChange={setPeriod} />
+        </View>
+      </View>
+      <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+        {chartPending ? (
+          <View className={`${plotBox} justify-center gap-2 px-2`}>
+            <Skeleton width="100%" height={wide ? 240 : 120} radius={12} />
+          </View>
+        ) : chartData.length === 0 && chartError ? (
+          <ErrorState title={t('weight.trend.loadFailed')} message={uiMessage(chartError)} onRetry={retryAll} retrying={retrying} />
+        ) : chartData.length < 2 ? (
+          <View className={`${plotBox} items-center justify-center`}>
+            <AppText variant="body" color="muted">
+              {chartData.length === 0 ? t('weight.trend.noData') : t('weight.trend.needMore')}
+            </AppText>
+          </View>
+        ) : (
+          <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} readoutNote="" height={wide ? 280 : 180} />
+        )}
+      </View>
+    </Card>
+  )
+
+  const historyLabel = items.length > 0 ? <Label className="px-1">{t('weight.history.title')}</Label> : null
+
+  const renderRow = (item: WeightLog, index: number) => (
+    <WeightEntryRow
+      item={item}
+      next={items[index + 1]}
+      unit={unit}
+      onDeleted={refreshAll}
+    />
+  )
+
+  const footer =
+    // Only under rows that arrived: with none, the hero above already carries the
+    // failure, and saying it twice is two retries for one problem.
+    listError && items.length > 0 ? (
+      <ErrorState title={t('weight.history.loadMoreFailed')} message={listError} onRetry={retryList} />
+    ) : hasMore && loading && items.length > 0 ? (
+      <View className="items-center py-3">
+        <ActivityIndicator size="small" color={accent} accessibilityLabel={Platform.OS === 'web' ? t('common.loading') : undefined} />
+      </View>
+    ) : undefined
+
+  if (wide) {
+    // One page scroll rather than a list, so the history can sit in a column beside the
+    // figures; it still pages in as the reader nears the end, as onEndReached does below.
+    const onScroll = ({ nativeEvent: e }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (e.contentOffset.y + e.layoutMeasurement.height >= e.contentSize.height - e.layoutMeasurement.height / 2) loadMore()
+    }
+    return (
+      <Screen maxWidth="wide">
+        <ScrollView
+          style={scrollBleed} showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          onScroll={onScroll}
+          scrollEventThrottle={100}
+        >
+          <View className="gap-6 py-4">
+            {header}
+            <View className="flex-row items-start gap-6">
+              <View
+                className="min-w-0 flex-1 gap-5"
+                style={stickFigures ? STICKY : undefined}
+                onLayout={(e) => setFiguresHeight(e.nativeEvent.layout.height)}
+              >
+                {figuresRow ? (
+                  // From xl the column is wide enough for the hero and the tiles in one row.
+                  <View className="flex-row gap-3">
+                    <View style={{ flex: 2 }}>{hero}</View>
+                    <View style={{ flex: 3 }}>{statsRow}</View>
+                  </View>
+                ) : (
+                  <>
+                    {hero}
+                    {statsRow}
+                  </>
+                )}
+                {staleNote}
+                {chartCard}
+              </View>
+              <View style={{ width: SIDE_COLUMN }} className="gap-5">
+                {logCard}
+                {items.length > 0 ? (
+                  <View className="gap-4">
+                    {historyLabel}
+                    <View>
+                      {items.map((item, index) => <Fragment key={item.id}>{renderRow(item, index)}</Fragment>)}
+                      {footer}
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </ScrollView>
       </Screen>
     )
   }
@@ -321,240 +639,17 @@ export default function Weight() {
         }
         ListHeaderComponent={
           <View className="gap-5 py-4">
-            <PageHeader
-              title={t('weight.title')}
-              subtitle={t('weight.subtitle')}
-              action={
-                <View className="flex-row items-center gap-1.5 rounded-full border border-brand-500/25 bg-brand-500/10 px-3 py-1">
-                  <Calendar size={12} color={accent} />
-                  <AppText variant="caption" color="brand">{wUnit}</AppText>
-                </View>
-              }
-            />
-
-            {/* Quick log — kept at the top so entry is reachable on first paint. */}
-            <Card>
-              <View className="mb-3 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-2">
-                  <Scale size={16} color={accent} />
-                  <AppText variant="bodySemibold">{t('weight.log.title')}</AppText>
-                </View>
-                {items.length > 0 ? (
-                  <AppText variant="caption" color="muted">
-                    {t('weight.log.last', { weight: displayWeight(items[0].weight, unit), unit: wUnit })}
-                  </AppText>
-                ) : null}
-              </View>
-
-              <View className="gap-3">
-                <StepperTile
-                  icon={Scale}
-                  label={t('common.weightWithUnit', { unit: wUnit })}
-                  name={t('common.weightName')}
-                  step={BODYWEIGHT_STEP}
-                  onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
-                >
-                  <NumberField
-                    inputMode="decimal"
-                    value={newWeight}
-                    onChange={setNewWeight}
-                    placeholder="0"
-                    accessibilityLabel={t('weight.log.weightField')}
-                    inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
-                  />
-                </StepperTile>
-
-                {showNotes ? (
-                  <View className="gap-2 rounded-xl border border-surface-border bg-surface-overlay p-3">
-                    <View className="mb-1 flex-row items-center justify-between">
-                      <AppText variant="caption" color="secondary">{t('weight.log.dateAndNote')}</AppText>
-                      <Pressable onPress={() => setShowNotes(false)} hitSlop={8} className="p-1 active:opacity-60" accessibilityLabel={t('weight.log.collapse')}>
-                        <X size={14} color={colors.txMuted} />
-                      </Pressable>
-                    </View>
-                    <DateInput value={newDate} onChange={setNewDate} maximumDate={new Date()} />
-                    <Field
-                      value={newNotes}
-                      onChangeText={setNewNotes}
-                      placeholder={t('weight.log.notePlaceholder')}
-                      maxLength={200}
-                    />
-                  </View>
-                ) : (
-                  <Pressable
-                    onPress={() => setShowNotes(true)}
-                    className="h-11 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-overlay active:scale-[0.99]"
-                  >
-                    <Calendar size={16} color={colors.txMuted} />
-                    <AppText variant="body" color="secondary">{t('weight.log.addDateAndNote')}</AppText>
-                  </Pressable>
-                )}
-
-                {error || log.error ? (
-                  <Alert variant="error" size="compact">{error || log.error}</Alert>
-                ) : null}
-
-                {showDuplicateWarning && items.length > 0 ? (
-                  <Alert
-                    variant="warning"
-                    actions={[
-                      { label: t('common.cancel'), onPress: () => setShowDuplicateWarning(false) },
-                      {
-                        label: t('weight.logAnyway'),
-                        primary: true,
-                        onPress: () => {
-                          duplicateWarningDismissedRef.current = true
-                          setShowDuplicateWarning(false)
-                          handleLog()
-                        },
-                      },
-                    ]}
-                  >
-                    {t('weight.duplicateWarning', { date: formatDay(entryDay(items[0]), 'monthDay'), weight: displayWeight(items[0].weight, unit), unit: wUnit })}
-                  </Alert>
-                ) : null}
-
-                <Button
-                  title={log.busy ? t('weight.log.submitting') : t('weight.log.submit')}
-                  onPress={handleLog}
-                  loading={log.busy}
-                  disabled={!(parseFloat(newWeight) > 0) || log.busy}
-                />
-                <View className="flex-row items-center justify-center gap-1.5">
-                  <Sunrise size={14} color={brand.warningSoft} />
-                  <AppText variant="caption" color="muted">{t('weight.log.tip')}</AppText>
-                </View>
-              </View>
-            </Card>
-
-            {/* Current-weight hero */}
-            <Card className="border-brand-500/20 bg-brand-500/5">
-              {items.length === 0 && loadFailed ? (
-                // Empty and unreachable look identical from here, so the empty copy
-                // cannot be the default: it told someone with years of entries they had
-                // never weighed themselves.
-                <ErrorState
-                  title={t('weight.loadFailed')}
-                  message={listError ?? (chartError ? uiMessage(chartError) : statsError ? uiMessage(statsError) : '')}
-                  onRetry={retryAll}
-                  retrying={retrying}
-                />
-              ) : items.length === 0 ? (
-                <View className="items-center py-2">
-                  <Label className="mb-1">{t('weight.hero.current')}</Label>
-                  <AppText variant="body" color="muted">{t('weight.hero.empty')}</AppText>
-                </View>
-              ) : (
-                <>
-                  <View className="flex-row items-start justify-between">
-                    <View>
-                      <Label className="mb-2">{t('weight.hero.current')}</Label>
-                      <View className="flex-row items-end gap-2">
-                        <AppText variant="display" style={{ fontSize: 40, lineHeight: 44, fontVariant: ['tabular-nums'] }}>{currentKnown ? current : '—'}</AppText>
-                        {currentKnown ? <AppText variant="body" color="muted" className="mb-1.5">{wUnit}</AppText> : null}
-                      </View>
-                    </View>
-                    {changeKnown ? (
-                      <View className={`flex-row items-center gap-1.5 rounded-lg border px-3 py-1.5 ${trendPill}`}>
-                        <TrendIcon size={16} color={trendText} />
-                        <Text className="font-sans-semibold text-sm" style={{ color: trendText, fontVariant: ['tabular-nums'] }}>
-                          {Math.abs(change)} {wUnit}
-                        </Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  {changeKnown ? (
-                    <AppText variant="caption" color="muted" className="mt-3">
-                      {t(changeKey, { amount: Math.abs(change), unit: wUnit, period: t(`weight.period.span.${period}`) })}
-                    </AppText>
-                  ) : null}
-                </>
-              )}
-            </Card>
-
-            {/* Stats row */}
-            <View className="flex-row gap-3">
-              {statCards.map((s) => (
-                <Card key={s.id} className="flex-1" style={{ paddingHorizontal: 12 }}>
-                  <View className="mb-2 flex-row items-center gap-1.5">
-                    <s.icon size={14} color={s.color} />
-                    <Label numberOfLines={1}>{t(`weight.stats.${s.id}.label`)}</Label>
-                  </View>
-                  {chartPending ? (
-                    <Skeleton width={56} height={22} />
-                  ) : figuresFailed ? (
-                    <StatFailure label={t(`weight.stats.${s.id}.failed`)} />
-                  ) : (
-                    <View className="flex-row items-end gap-1">
-                      <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{aggregatesUnknown ? '—' : Math.round(s.value)}</AppText>
-                      {aggregatesUnknown ? null : <AppText variant="caption" color="muted" className="mb-0.5">{wUnit}</AppText>}
-                    </View>
-                  )}
-                </Card>
-              ))}
-            </View>
-
-            {figuresStale ? (
-              <View className="flex-row flex-wrap items-center gap-2 px-1" accessibilityLiveRegion="polite">
-                {/* The same mark every other failure on this screen uses, in warning ink
-                    rather than error: these numbers are real, just not fresh. */}
-                <BarbellBroken size={20} color={semanticInk[isDark ? 'dark' : 'light'].warning} />
-                <AppText variant="caption" color="muted">{t('weight.stale')}</AppText>
-                <Pressable onPress={retryAll} hitSlop={8} accessibilityRole="button" className="active:opacity-60">
-                  <AppText variant="caption" color="secondary" className="underline">{t('common.tryAgain')}</AppText>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {/* Chart + period selector */}
-            <Card>
-              <View className="mb-3 flex-row items-center justify-between gap-2">
-                <AppText variant="bodySemibold">{t('weight.trend.title')}</AppText>
-                <View className="flex-1 max-w-[220px]">
-                  <SegmentedControl size="sm" options={periodOptions} value={period} onChange={setPeriod} />
-                </View>
-              </View>
-              <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartPending ? (
-                  <View className="h-44 justify-center gap-2 px-2">
-                    <Skeleton width="100%" height={120} radius={12} />
-                  </View>
-                ) : chartData.length === 0 && chartError ? (
-                  <ErrorState title={t('weight.trend.loadFailed')} message={uiMessage(chartError)} onRetry={retryAll} retrying={retrying} />
-                ) : chartData.length < 2 ? (
-                  <View className="h-44 items-center justify-center">
-                    <AppText variant="body" color="muted">
-                      {chartData.length === 0 ? t('weight.trend.noData') : t('weight.trend.needMore')}
-                    </AppText>
-                  </View>
-                ) : (
-                  <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} readoutNote="" height={180} />
-                )}
-              </View>
-            </Card>
-
-            {items.length > 0 ? <Label className="px-1">{t('weight.history.title')}</Label> : null}
+            {header}
+            {logCard}
+            {hero}
+            {statsRow}
+            {staleNote}
+            {chartCard}
+            {historyLabel}
           </View>
         }
-        renderItem={({ item, index }) => (
-          <WeightEntryRow
-            item={item}
-            next={items[index + 1]}
-            unit={unit}
-            onDeleted={refreshAll}
-          />
-        )}
-        ListFooterComponent={
-          // Only under rows that arrived: with none, the hero above already carries the
-          // failure, and saying it twice is two retries for one problem.
-          listError && items.length > 0 ? (
-            <ErrorState title={t('weight.history.loadMoreFailed')} message={listError} onRetry={retryList} />
-          ) : hasMore && loading && items.length > 0 ? (
-            <View className="items-center py-3">
-              <ActivityIndicator size="small" color={accent} />
-            </View>
-          ) : undefined
-        }
+        renderItem={({ item, index }) => renderRow(item, index)}
+        ListFooterComponent={footer}
       />
       {/* iOS Done bar above the numeric keyboard (the weight NumberField links it). */}
       <NumericKeyboardAccessory />

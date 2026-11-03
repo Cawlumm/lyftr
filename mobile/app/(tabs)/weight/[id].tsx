@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Scale, Trash2 } from '../../../src/components/ui/icons'
@@ -10,6 +10,10 @@ import { Alert,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+
+// Web centres the entry in a narrower column than the screen default: a single entry at
+// the list's width is a stretched phone card. Native keeps the full width.
+const COLUMN = Platform.OS === 'web' ? 'mx-auto w-full max-w-2xl ' : ''
 
 export default function WeightDetail() {
   const { t } = useTranslation()
@@ -108,7 +112,7 @@ export default function WeightDetail() {
   if (error || !log) {
     return (
       <Screen>
-        <View className="flex-1 py-4">
+        <View className={`${COLUMN}flex-1 py-4`}>
           <ErrorState
             size="page"
             title={t('weight.detail.loadFailed')}
@@ -124,7 +128,7 @@ export default function WeightDetail() {
   return (
     <Screen>
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
-        <View className="gap-5 py-4">
+        <View className={`${COLUMN}gap-5 py-4`}>
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">
             <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
