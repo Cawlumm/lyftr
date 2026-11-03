@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import {
   ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
 } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
+import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
 
 // Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
-const exerciseHref = (exerciseId: number) => `/workouts/exercise/${exerciseId}` as unknown as Href
+const exercisePath = (exerciseId: number) => `/workouts/exercise/${exerciseId}`
 
 
 function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit: string }) {
@@ -105,7 +107,7 @@ export default function WorkoutDetail() {
 
   if (error || !workout) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <View className="flex-1 py-4">
           <ErrorState
             size="page"
@@ -125,12 +127,17 @@ export default function WorkoutDetail() {
   const durationMin = Math.round(workout.duration / 60)
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions (web's top row) */}
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
+            <Pressable
+              onPress={goBack}
+              accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+              hitSlop={8}
+              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+            >
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('workouts.detail.back')}</AppText>
             </Pressable>
@@ -140,11 +147,10 @@ export default function WorkoutDetail() {
                   quiet ghost glyph and only turns red at the confirm step (ConfirmSheet).
                   Both are h-9 so they read as a matched pair. */}
               <Pressable
-                accessibilityRole="button"
+                {...linkProps(`/workouts/${workout.id}/edit`, () => router.push(`/workouts/${workout.id}/edit`))}
                 accessibilityLabel={t('workouts.detail.editLabel')}
-                onPress={() => router.push(`/workouts/${workout.id}/edit`)}
                 hitSlop={6}
-                className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95 ${interactive('hover:bg-brand-500/20')}`}
               >
                 <Edit2 size={15} color={accent} strokeWidth={2.2} />
                 <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
@@ -155,7 +161,7 @@ export default function WorkoutDetail() {
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''} ${interactive('hover:bg-error-500/10', { disabled: remove.busy })}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -243,12 +249,13 @@ export default function WorkoutDetail() {
               return (
                 <Pressable
                   key={ex.id ?? ex.exercise_id}
-                  accessibilityRole="button"
-                  onPress={() => router.push(exerciseHref(ex.exercise_id))}
+                  {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
+                  // On web the card is a link, named by what it opens rather than its text run together.
+                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
                   // Card surface inlined (not <Card>): its baked-in p-4 can't be
                   // overridden safely (two padding classes = stylesheet-order
                   // roulette) and this card needs edge-to-edge inner sections.
-                  className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99]"
+                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
                 >
                   <View className="flex-row items-center gap-3 p-4">
                     <ExerciseImage url={ex.exercise?.image_url} />

@@ -1,14 +1,17 @@
 import { memo } from 'react'
-import { Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
+import { Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
+import { WEB_BUTTON, interactive } from '../ui/interaction'
+import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
 import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
+
 
 const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
@@ -104,7 +107,7 @@ function ActiveExerciseCardBase({
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         <ExerciseImage url={ex.exercise.image_url} />
-        <Pressable className="min-w-0 flex-1" onPress={() => router.push(exerciseHref(ex.exercise_id))}>
+        <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
@@ -118,7 +121,7 @@ function ActiveExerciseCardBase({
             <CheckCircle2 size={18} color="#ffffff" />
           </View>
         ) : (
-          <Pressable onPress={() => onRemoveExercise(index)} hitSlop={6} accessibilityLabel={t('workouts.active.removeExercise')} className="h-9 w-9 items-center justify-center rounded-xl active:bg-error-500/10">
+          <Pressable onPress={() => onRemoveExercise(index)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.removeExercise')} className={`h-9 w-9 items-center justify-center rounded-xl active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>
             <X size={16} color={colors.txMuted} />
           </Pressable>
         )}
@@ -179,13 +182,13 @@ function ActiveExerciseCardBase({
               </View>
               <Pressable
                 onPress={() => onCompleteSet(index, setIdx)}
-                className={`h-11 w-12 items-center justify-center ${set.completed ? 'bg-brand-500' : isNextSet ? 'bg-brand-500/20' : ''}`}
+                className={`h-11 w-12 items-center justify-center ${set.completed ? 'bg-brand-500' : isNextSet ? 'bg-brand-500/20' : ''} ${interactive(set.completed ? 'hover:bg-brand-600' : 'hover:bg-brand-500/30', { inset: true })}`}
                 accessibilityRole="button"
                 accessibilityLabel={t(set.completed ? 'workouts.active.completedSet' : 'workouts.active.completeSet', { number: set.set_number, name: ex.exercise.name })}
               >
                 <CheckCircle2 size={24} color={set.completed ? '#ffffff' : isNextSet ? accent : colors.txMuted} />
               </Pressable>
-              <Pressable onPress={() => onRemoveSet(index, setIdx)} hitSlop={6} accessibilityLabel={t('workouts.active.removeSet')} className="w-7 items-center justify-center">
+              <Pressable onPress={() => onRemoveSet(index, setIdx)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.removeSet')} className={`w-7 items-center justify-center ${interactive('rounded hover:opacity-70', { inset: true })}`}>
                 <X size={14} color={colors.txMuted} />
               </Pressable>
             </View>
@@ -195,22 +198,22 @@ function ActiveExerciseCardBase({
         {/* Add Set / Prev / Next / Finish */}
         <View className="mt-1 flex-row gap-2">
           {isActive && index > 0 ? (
-            <Pressable onPress={() => onJumpToExercise(index - 1)} accessibilityLabel={t('workouts.active.previous')} className="items-center justify-center rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95">
+            <Pressable onPress={() => onJumpToExercise(index - 1)} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.previous')} className={`items-center justify-center rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}>
               <ChevronLeft size={16} color={colors.txSecondary} />
             </Pressable>
           ) : null}
-          <Pressable onPress={() => onAddSet(index)} className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-border py-2.5 active:opacity-60">
+          <Pressable onPress={() => onAddSet(index)} accessibilityRole={WEB_BUTTON} className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-border py-2.5 active:opacity-60 ${interactive('hover:bg-surface-muted')}`}>
             <Plus size={14} color={colors.txMuted} />
             <Text className="font-sans-semibold text-xs text-tx-muted">{t('workouts.active.addSet')}</Text>
           </Pressable>
           {isActive && !isLast ? (
-            <Pressable onPress={() => onJumpToExercise(index + 1)} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'}`}>
+            <Pressable onPress={() => onJumpToExercise(index + 1)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allSetsComplete ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
               <Text className={`font-sans-semibold text-xs ${allSetsComplete ? 'text-white' : 'text-tx-secondary'}`}>{t('workouts.active.next')}</Text>
               <ChevronRight size={14} color={allSetsComplete ? '#ffffff' : colors.txSecondary} />
             </Pressable>
           ) : null}
           {isActive && isLast ? (
-            <Pressable onPress={onRequestFinish} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'}`}>
+            <Pressable onPress={onRequestFinish} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-1 rounded-xl px-3 py-2.5 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allSetsComplete ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
               <Flag size={14} color={allSetsComplete ? '#ffffff' : colors.txSecondary} />
               <Text className={`font-sans-semibold text-xs ${allSetsComplete ? 'text-white' : 'text-tx-secondary'}`}>{t('workouts.active.finish')}</Text>
             </Pressable>

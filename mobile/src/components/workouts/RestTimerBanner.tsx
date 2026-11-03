@@ -12,6 +12,8 @@ import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { AMBIENT, EASING } from '../../theme/motion'
 import { useMotion } from '../../lib/useMotion'
+import { WEB_BUTTON, interactive } from '../ui/interaction'
+
 
 // Port of web/components/RestTimerBanner.tsx, styled as a full-width bottom sheet
 // (matches the ConfirmSheet/ActionSheet visual language: rounded-top, grabber,
@@ -102,8 +104,8 @@ export function RestTimerBanner() {
   const drainColor = urgent ? brand.warning : brand.cyan
   const numColor = urgent ? brand.warning : colors.txPrimary
 
-  const secBtn = 'flex-1 items-center justify-center py-3.5 rounded-2xl bg-surface-muted border border-surface-border active:scale-95'
-  const brandBtn = 'flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl bg-brand-500 active:scale-95'
+  const secBtn = `flex-1 items-center justify-center py-3.5 rounded-2xl bg-surface-muted border border-surface-border active:scale-95 ${interactive('hover:bg-surface-border')}`
+  const brandBtn = `flex-1 flex-row items-center justify-center gap-2 py-3.5 rounded-2xl bg-brand-500 active:scale-95 ${interactive('hover:bg-brand-600')}`
 
   const panel = (
     <View className="overflow-hidden rounded-t-3xl border-t border-surface-border bg-surface-raised shadow-lg">
@@ -128,10 +130,10 @@ export function RestTimerBanner() {
           // `flex-1`; as a lone column child, flex-1 collapses its height on native into
           // a thin sliver. It gets its own full-width class with a real py instead.)
           <View className="mt-3 items-center gap-3">
-            <Animated.View style={pulseStyle} className="h-12 w-12 items-center justify-center rounded-full bg-success-500/15">
+            <Animated.View testID="rest-done-pulse" style={pulseStyle} className="h-12 w-12 items-center justify-center rounded-full bg-success-500/15">
               <Check size={26} color={brand.success} />
             </Animated.View>
-            <Pressable onPress={() => clearRest()} className="w-full items-center justify-center rounded-2xl bg-brand-500 py-4 active:scale-95">
+            <Pressable onPress={() => clearRest()} accessibilityRole={WEB_BUTTON} className={`w-full items-center justify-center rounded-2xl bg-brand-500 py-4 active:scale-95 ${interactive('hover:bg-brand-600')}`}>
               <Text className="font-sans-bold text-base text-white">{t('common.done')}</Text>
             </Pressable>
           </View>
@@ -155,13 +157,13 @@ export function RestTimerBanner() {
               <View className="w-14" />
             </View>
             <View className="flex-row gap-2.5">
-              <Pressable onPress={() => adjustRest(-15)} accessibilityLabel={t('workouts.rest.shorten')} className={secBtn}>
+              <Pressable onPress={() => adjustRest(-15)} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.rest.shorten')} className={secBtn}>
                 <Text className="font-sans-bold text-base text-tx-secondary" style={{ fontVariant: ['tabular-nums'] }}>−15</Text>
               </Pressable>
-              <Pressable onPress={() => adjustRest(15)} accessibilityLabel={t('workouts.rest.extend')} className={secBtn}>
+              <Pressable onPress={() => adjustRest(15)} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.rest.extend')} className={secBtn}>
                 <Text className="font-sans-bold text-base text-tx-secondary" style={{ fontVariant: ['tabular-nums'] }}>+15</Text>
               </Pressable>
-              <Pressable onPress={() => clearRest()} className={brandBtn}>
+              <Pressable onPress={() => clearRest()} accessibilityRole={WEB_BUTTON} className={brandBtn}>
                 <SkipForward size={18} color="#ffffff" />
                 <Text className="font-sans-bold text-base text-white">{t('workouts.rest.skip')}</Text>
               </Pressable>

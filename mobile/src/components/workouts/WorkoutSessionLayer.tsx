@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import * as Haptics from 'expo-haptics'
-import { useTranslation } from '@lyftr/shared'
 import { useSessionKeepAwake } from '../../lib/keepAwake'
-import { Toast } from '../ui/Toast'
+import { KeepAwakeNotice, publishKeepAwake } from './KeepAwakeNotice'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { SessionPill } from './SessionPill'
@@ -30,7 +29,6 @@ function RestOverHaptic() {
 // those fire exactly once rather than per banner/pill consumer. It deliberately does NOT
 // subscribe to the ticking rest timer (that lives in the RestOverHaptic leaf).
 export function WorkoutSessionLayer() {
-  const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
 
   // Keep the screen on for the duration of an active session (logging between sets can
@@ -38,16 +36,13 @@ export function WorkoutSessionLayer() {
   // this can be unavailable (plain HTTP), in which case the user is told once per session.
   const hasSession = !!session
   const screenMaySleep = useSessionKeepAwake(hasSession)
-  const [dismissed, setDismissed] = useState(false)
-  useEffect(() => { if (!hasSession) setDismissed(false) }, [hasSession])
+  useEffect(() => { publishKeepAwake(hasSession, screenMaySleep) }, [hasSession, screenMaySleep])
 
   return (
     <>
       {session ? <RestOverHaptic /> : null}
       <SessionPill />
-      {hasSession && screenMaySleep && !dismissed ? (
-        <Toast variant="warning" title={t('workouts.keepAwakeUnavailable')} autoDismissMs={0} onDismiss={() => setDismissed(true)} />
-      ) : null}
+      <KeepAwakeNotice />
     </>
   )
 }
