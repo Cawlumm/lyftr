@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 
 test('keyboard focus draws the ring on a Button and a row', async ({ page }) => {
   for (const target of [
-    page.getByRole('button', { name: /^Name/ }),
+    page.getByRole('link', { name: /^Name/ }),
     page.getByRole('button', { name: 'Save targets' }),
   ]) {
     await tabTo(page, target)
@@ -49,7 +49,7 @@ test('a mouse click focuses without a ring', async ({ page }) => {
 
 test('hover changes the background and shows a pointer', async ({ page }) => {
   const save = page.getByRole('button', { name: 'Save targets' })
-  const row = page.getByRole('button', { name: /^Name/ })
+  const row = page.getByRole('link', { name: /^Name/ })
   for (const target of [save, row]) {
     await page.mouse.move(0, 0)
     const before = await style(target, 'backgroundColor')

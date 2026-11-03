@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Platform, Pressable, View } from 'react-native'
 import { Check, Eye, EyeOff, X } from './icons'
 import { useTranslation, type RuleState } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
@@ -39,6 +39,14 @@ interface Props {
   children?: ReactNode
 }
 
+// react-native-web writes autoComplete to the DOM as is, and "password" is not an HTML token
+// (axe autocomplete-valid); the browser's are current-password and new-password.
+// https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#autofill-field
+const AUTOCOMPLETE = {
+  native: { password: 'password', newPassword: 'password-new' },
+  web: { password: 'current-password', newPassword: 'new-password' },
+} as const
+
 // The reveal toggle the auth screens already have (see IconInput's `password` prop in
 // src/components/authui.tsx), for the screens built on `Field` instead. Change password
 // asks for three in a row with no way to check what went in, which is the case that
@@ -66,7 +74,7 @@ export function PasswordField({ id, label, value, onChangeText, textContentType,
         // autoComplete is React Native's unified hint — without it the Android password
         // manager gets no signal and neither offers to save the new password nor fills
         // the current one, which web has had all along via its own autoComplete.
-        autoComplete={textContentType === 'newPassword' ? 'password-new' : 'password'}
+        autoComplete={AUTOCOMPLETE[Platform.OS === 'web' ? 'web' : 'native'][textContentType]}
         rightSlot={
           <Pressable
             onPress={() => setVisible((v) => !v)}

@@ -34,7 +34,7 @@ const contentLeft = async (page: Page) => {
   return side.x + side.width
 }
 
-// Settings keeps the default column; the dashboard opts into 'wide' (dashboard.spec.ts).
+// Settings opts into the 'medium' column; the dashboard into 'wide' (dashboard.spec.ts).
 test('at 1280 the main column is centred in the content area at its max width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/settings')
@@ -42,8 +42,8 @@ test('at 1280 the main column is centred in the content area at its max width', 
   await expect(main).toBeVisible()
   const box = await main.boundingBox()
   if (!box) throw new Error('main has no box')
-  // Screen's default column is max-w-3xl (48rem = 768px on web).
-  expect(box.width).toBeLessThanOrEqual(768)
+  // Settings' column is max-w-2xl (42rem = 672px on web).
+  expect(box.width).toBeLessThanOrEqual(672)
   expect(box.width).toBeGreaterThan(600)
   const left = await contentLeft(page)
   expect(Math.abs(box.x - left - (1280 - box.x - box.width))).toBeLessThanOrEqual(1)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { PasswordRule } from '../../src/components/ui'
@@ -88,6 +88,8 @@ export default function Register() {
         value={email}
         onChangeText={onChange(setEmail)}
         keyboardType="email-address"
+        // Browser autofill tokens, as the Vite page had; native keeps its defaults.
+        autoComplete={Platform.OS === 'web' ? 'email' : undefined}
         placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
@@ -97,6 +99,7 @@ export default function Register() {
         password
         value={password}
         onChangeText={onChange(setPassword)}
+        autoComplete={Platform.OS === 'web' ? 'new-password' : undefined}
         placeholder="••••••••"
       />
       <View className="gap-1.5 mt-2">
@@ -109,6 +112,7 @@ export default function Register() {
         password
         value={passwordConfirm}
         onChangeText={onChange(setPasswordConfirm)}
+        autoComplete={Platform.OS === 'web' ? 'new-password' : undefined}
         placeholder="••••••••"
       />
       <View className="gap-1.5 mt-2">

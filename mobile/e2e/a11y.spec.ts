@@ -65,7 +65,7 @@ test.describe('axe: no structural violations', () => {
     }
   })
 
-  for (const path of ['/', '/workouts', '/settings']) {
+  for (const path of ['/', '/workouts', '/settings', '/settings/password']) {
     test(`${path}`, async ({ page }) => {
       await page.goto(path)
       expect(await violations(page, { disable: ['color-contrast'] })).toEqual([])
@@ -73,9 +73,8 @@ test.describe('axe: no structural violations', () => {
   }
 })
 
-// The same scan with contrast on fails across the app (muted text on every screen), and
-// /settings/password also fails autocomplete-valid, because the password fields pass the
-// native-only token "password". Both want a design/token pass, not a spec edit.
+// The same scan with contrast on fails across the app (muted text on every screen), which
+// wants a design/token pass, not a spec edit.
 test.fixme('axe: colour contrast meets WCAG AA', async ({ page }) => {
   await page.goto('/')
   expect(await violations(page, {})).toEqual([])
