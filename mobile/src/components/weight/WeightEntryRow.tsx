@@ -95,8 +95,8 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
               label={t('weight.row.options', { weight: Math.round(displayW), unit: wUnit })}
               disabled={remove.busy}
               items={[
-                { label: t('common.edit'), namedLabel: t('weight.row.editNamed', { date: dateLabel }), icon: Edit2, onSelect: () => router.push(`/weight/${item.id}?edit=1`) },
-                { label: t('common.delete'), namedLabel: t('weight.row.deleteNamed', { date: dateLabel }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
+                { label: t('common.edit'), namedLabel: t('weight.row.editNamed', { weight: Math.round(displayW), unit: wUnit, date: dateLabel }), icon: Edit2, onSelect: () => router.push(`/weight/${item.id}?edit=1`) },
+                { label: t('common.delete'), namedLabel: t('weight.row.deleteNamed', { weight: Math.round(displayW), unit: wUnit, date: dateLabel }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
               ]}
             />
           }

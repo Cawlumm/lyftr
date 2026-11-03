@@ -7,6 +7,8 @@ import { API_BASE as API } from './config'
 // Where the old spec reached for recharts classes, Tailwind classes or `.divide-y > div`,
 // this one uses roles, aria-pressed, accessible names and links. Layout, axe, keyboard and
 // CLS live in nutrition.spec.ts and are not repeated here.
+// Scanner coverage is open/close against Chromium's synthetic fake camera only. Barcode
+// decoding is not covered: whether expo-camera decodes on web is unverified.
 const SEED_PREFIX = 'E2EFood'
 // Local calendar date, the same day the app computes for "today".
 const _now = new Date()

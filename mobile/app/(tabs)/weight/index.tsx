@@ -44,6 +44,7 @@ export default function Weight() {
   // The figures and trend stay in view beside a long history, but only when they fit: a
   // sticky column taller than the window would hide its own bottom until the page ended.
   const [figuresHeight, setFiguresHeight] = useState(0)
+  const [content, setContent] = useState({ height: 0, rows: 0 })
   const stickFigures = figuresHeight > 0 && figuresHeight + 32 <= windowHeight
   const figuresRow = wide && xl
 
@@ -225,6 +226,13 @@ export default function Weight() {
     setShowDuplicateWarning(false)
     void log.run(w)
   }
+
+  // A tall window can hold the first page whole, so nothing scrolls and onScroll never fires;
+  // keep paging until the content passes the window or the rows run out. The height only
+  // counts once it was measured with the rows now held, else a stale one pages needlessly.
+  useEffect(() => {
+    if (wide && content.rows === items.length && items.length > 0 && content.height <= windowHeight && hasMore && !loading && !listError) loadMore()
+  }, [wide, content, items.length, windowHeight, hasMore, loading, listError, loadMore])
 
   if (initialLoading) return <WeightSkeleton wide={wide} />
 
@@ -580,6 +588,7 @@ export default function Weight() {
           contentContainerStyle={{ paddingBottom: 32 }}
           onScroll={onScroll}
           scrollEventThrottle={100}
+          onContentSizeChange={(_, h) => setContent({ height: h, rows: items.length })}
         >
           <View className="gap-6 py-4">
             {header}

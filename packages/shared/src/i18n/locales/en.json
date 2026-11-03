@@ -665,8 +665,8 @@
     "row": {
       "options": "{{weight}} {{unit}} options",
       "link": "{{weight}} {{unit}}, {{date}}",
-      "editNamed": "Edit the entry for {{date}}",
-      "deleteNamed": "Delete the entry for {{date}}"
+      "editNamed": "Edit {{weight}} {{unit}}, {{date}}",
+      "deleteNamed": "Delete {{weight}} {{unit}}, {{date}}"
     },
     "notePlaceholder": "e.g., morning, post-workout",
     "logAnyway": "Log Anyway"

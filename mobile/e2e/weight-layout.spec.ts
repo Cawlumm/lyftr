@@ -123,6 +123,11 @@ test('at 1280 the history pages in as it scrolls', async ({ page }) => {
   }).toBeGreaterThan(20)
 })
 
+test('a window tall enough for the first page still pages in the rest', async ({ page }) => {
+  await open(page, '/weight', 1280, 2800)
+  await expect.poll(() => rows(page).count()).toBeGreaterThan(20)
+})
+
 test('at 390 it is one column: log, figures, trend, then history @mobile', async ({ page }) => {
   await open(page, '/weight', 390, 844)
   const log = await box(logButton(page))
@@ -158,11 +163,11 @@ test('keyboard: from Log Weight, Tab reaches the first entry, its actions, then 
   await page.keyboard.press('Tab')
   const first = rows(page).first()
   await expect(first).toBeFocused()
-  const date = (await first.getAttribute('aria-label'))!.split(', ').slice(1).join(', ')
+  const label = (await first.getAttribute('aria-label'))!
   await page.keyboard.press('Tab')
-  await expect(page.getByRole('button', { name: `Edit the entry for ${date}` })).toBeFocused()
+  await expect(page.getByRole('button', { name: `Edit ${label}` })).toBeFocused()
   await page.keyboard.press('Tab')
-  const del = page.getByRole('button', { name: `Delete the entry for ${date}` })
+  const del = page.getByRole('button', { name: `Delete ${label}` })
   await expect(del).toBeFocused()
   // Delete confirms in a dialog; Escape closes it and gives focus back to the button.
   await page.keyboard.press('Enter')
@@ -193,9 +198,9 @@ test('detail: Delete opens the confirm as a dialog, and Escape closes it', async
 
 test('rows open the edit form from their Edit action', async ({ page }) => {
   await open(page, '/weight', 1280)
-  const date = (await rows(page).first().getAttribute('aria-label'))!.split(', ').slice(1).join(', ')
+  const label = (await rows(page).first().getAttribute('aria-label'))!
   await rows(page).first().hover()
-  await page.getByRole('button', { name: `Edit the entry for ${date}` }).click()
+  await page.getByRole('button', { name: `Edit ${label}` }).click()
   await expect(page).toHaveURL(/\/weight\/\d+\?edit=1$/)
   await expect(page.getByText('Edit Entry', { exact: true })).toBeVisible()
 })
