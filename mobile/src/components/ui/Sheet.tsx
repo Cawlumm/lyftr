@@ -1,12 +1,14 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { Animated as RNAnimated, Modal, PanResponder, Platform, Pressable, View } from 'react-native'
-import Animated, { Easing, SlideInDown } from 'react-native-reanimated'
+import Animated, { SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
+import { DURATION, EASING } from '../../theme/motion'
+import { useMotion } from '../../lib/useMotion'
 
 // Duration of the slide-up; exported so callers can time a follow-up sheet (e.g. an
 // ActionSheet handing off to a ConfirmSheet) to start after this one dismisses.
-export const SHEET_ANIM_MS = 240
+export const SHEET_ANIM_MS = DURATION.slow
 
 // How far, or how fast, a downward swipe on the grabber has to go to dismiss the sheet.
 const DISMISS_DISTANCE = 90
@@ -39,6 +41,7 @@ interface Props {
 // safe bottom. Tap the scrim to dismiss; the sheet body stops propagation.
 export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'none' }: Props) {
   const insets = useSafeAreaInsets()
+  const { duration } = useMotion()
 
   // Swipe down on the grabber to dismiss. PanResponder rather than gesture-handler: a Modal is
   // its own native root, and gesture-handler needs a root view inside it to receive touches.
@@ -53,7 +56,7 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
       onPanResponderMove: (_, g) => dragY.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_, g) => {
         if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
-          RNAnimated.timing(dragY, { toValue: 600, duration: 160, useNativeDriver: nativeDriver() }).start(() => {
+          RNAnimated.timing(dragY, { toValue: 600, duration: DURATION.fast, useNativeDriver: nativeDriver() }).start(() => {
             onCloseRef.current()
             // A sheet whose parent declines to close (a confirm that is mid-request) must come
             // back rather than sit invisible behind its scrim. A no-op when it did close.
@@ -86,7 +89,7 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
   return (
     <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 justify-end bg-black/60" onPress={onClose}>
-        <Animated.View entering={SlideInDown.duration(SHEET_ANIM_MS).easing(Easing.out(Easing.cubic))}>
+        <Animated.View entering={SlideInDown.duration(duration(SHEET_ANIM_MS)).easing(EASING.enter)}>
           <RNAnimated.View style={{ transform: [{ translateY: dragY }] }}>
             <Pressable
               onPress={(e) => e.stopPropagation()}

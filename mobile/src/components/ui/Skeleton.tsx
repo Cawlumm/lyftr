@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, View, type ViewStyle } from 'react-native'
 import Animated, {
-  Easing,
+  cancelAnimation,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -10,6 +10,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTheme } from '../../theme/useTheme'
 import { Card } from './Card'
+import { AMBIENT, EASING } from '../../theme/motion'
+import { useMotion } from '../../lib/useMotion'
 
 // A shimmering placeholder block — the skeleton-screen primitive. Research is clear
 // that skeletons beat spinners for *content* loads (users read them as ~20–30% faster
@@ -18,8 +20,6 @@ import { Card } from './Card'
 // sweeps across on a ~1.2s loop, clipped by overflow-hidden. Compose these into
 // content-shaped skeletons (see WorkoutsSkeleton); never use it for confirmations —
 // a spinner is right there.
-const SWEEP_MS = 1200
-
 interface Props {
   /** Explicit width; omit to fill the parent (flex/stretch) and measure via onLayout. */
   width?: number | string
@@ -34,11 +34,13 @@ export function Skeleton({ width, height = 14, radius = 8, style, className }: P
   // The sweep needs a pixel width to translate across; capture it once laid out.
   const [w, setW] = useState(typeof width === 'number' ? width : 0)
   const t = useSharedValue(0)
+  const { reduced } = useMotion()
 
   useEffect(() => {
-    if (!w) return
-    t.value = withRepeat(withTiming(1, { duration: SWEEP_MS, easing: Easing.inOut(Easing.ease) }), -1, false)
-  }, [w, t])
+    if (!w || reduced) return
+    t.value = withRepeat(withTiming(1, { duration: AMBIENT.shimmer, easing: EASING.standard }), -1, false)
+    return () => cancelAnimation(t)
+  }, [w, t, reduced])
 
   // Band travels from fully off the left edge to fully off the right edge.
   const sweep = useAnimatedStyle(() => ({ transform: [{ translateX: -w + t.value * (2 * w) }] }))

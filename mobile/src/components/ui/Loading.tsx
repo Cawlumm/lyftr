@@ -15,6 +15,8 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { AMBIENT, EASING } from '../../theme/motion'
+import { useMotion } from '../../lib/useMotion'
 import { AppText } from './Typography'
 
 // The web app's full-screen loader (web/src/components/Loading.tsx), ported 1:1: a
@@ -23,7 +25,7 @@ import { AppText } from './Typography'
 // absolute Tailwind offsets, several non-standard) so the rig reads identically on
 // RN. Motion is on the UI thread via Reanimated (CSS @keyframes have no RN analog).
 
-const CYCLE = 1600 // ms — matches the web loop
+const CYCLE = AMBIENT.loadingCycle
 const DIP = 18 // px the bar assembly drops at the bottom of the rep
 const DOTS = 5
 
@@ -36,16 +38,18 @@ const FLEX_AT = [1, 1, 0.55, 0.55, 1, 1]
 // One lit rep-dot in the chase — owns its own clock so the five stagger cleanly.
 function RepDot({ index, mutedColor }: { index: number; mutedColor: string }) {
   const on = useSharedValue(0)
+  const { reduced } = useMotion()
   useEffect(() => {
+    if (reduced) return
     on.value = withDelay(
-      index * 160,
+      index * AMBIENT.loadingDotStagger,
       withRepeat(withSequence(
-        withTiming(1, { duration: 260, easing: Easing.out(Easing.quad) }),
-        withTiming(0, { duration: CYCLE - 260, easing: Easing.in(Easing.quad) }),
+        withTiming(1, { duration: AMBIENT.loadingBlink, easing: Easing.out(Easing.quad) }),
+        withTiming(0, { duration: CYCLE - AMBIENT.loadingBlink, easing: EASING.exit }),
       ), -1),
     )
     return () => cancelAnimation(on)
-  }, [index, on])
+  }, [index, on, reduced])
 
   const style = useAnimatedStyle(() => ({
     backgroundColor: interpolateColor(on.value, [0, 1], [mutedColor, '#00b8d9']),
@@ -67,11 +71,13 @@ export function Loading({ sublabel }: { sublabel?: string }) {
   const { t: translate } = useTranslation()
   const { colors, brand } = useTheme()
   const t = useSharedValue(0)
+  const { reduced } = useMotion()
 
   useEffect(() => {
-    t.value = withRepeat(withTiming(1, { duration: CYCLE, easing: Easing.linear }), -1)
+    if (reduced) return
+    t.value = withRepeat(withTiming(1, { duration: CYCLE, easing: EASING.linear }), -1)
     return () => cancelAnimation(t)
-  }, [t])
+  }, [t, reduced])
 
   // The whole bar assembly (bar + plates + collars) dips together.
   const assembly = useAnimatedStyle(() => ({

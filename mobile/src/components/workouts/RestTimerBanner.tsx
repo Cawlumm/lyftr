@@ -10,6 +10,8 @@ import { useRestTimer } from '../../hooks/useRestTimer'
 import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
+import { AMBIENT, EASING } from '../../theme/motion'
+import { useMotion } from '../../lib/useMotion'
 
 // Port of web/components/RestTimerBanner.tsx, styled as a full-width bottom sheet
 // (matches the ConfirmSheet/ActionSheet visual language: rounded-top, grabber,
@@ -50,7 +52,7 @@ export function RestTimerBanner() {
     if (restEndsAt != null) {
       const remMs = Math.max(0, restEndsAt - Date.now())
       drain.value = Math.min(100, (remMs / 1000 / restDurationSec) * 100)
-      drain.value = withTiming(0, { duration: remMs, easing: Easing.linear })
+      drain.value = withTiming(0, { duration: remMs, easing: EASING.linear })
     }
   }, [restEndsAt, restPausedRemainingMs, done, paused, restDurationSec])
   const drainStyle = useAnimatedStyle(() => ({ width: `${drain.value}%` }))
@@ -58,19 +60,20 @@ export function RestTimerBanner() {
   // A short celebratory pulse the moment rest hits zero (paired with the haptic in
   // WorkoutSessionLayer). Runs on the check chip; reset whenever rest isn't done.
   const pulse = useSharedValue(1)
+  const { reduced } = useMotion()
   useEffect(() => {
-    if (done) {
+    if (done && !reduced) {
       pulse.value = withRepeat(
         withSequence(
-          withTiming(1.14, { duration: 240, easing: Easing.out(Easing.quad) }),
-          withTiming(1, { duration: 240, easing: Easing.in(Easing.quad) }),
+          withTiming(1.14, { duration: AMBIENT.pulse, easing: Easing.out(Easing.quad) }),
+          withTiming(1, { duration: AMBIENT.pulse, easing: EASING.exit }),
         ), 3, false,
       )
     } else {
       cancelAnimation(pulse)
       pulse.value = 1
     }
-  }, [done])
+  }, [done, reduced])
   const pulseStyle = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }))
 
   // Hidden when no rest is running or paused (auto-dismiss lives in useRestTimer).

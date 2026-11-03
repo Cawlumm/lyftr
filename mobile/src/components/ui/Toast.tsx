@@ -5,6 +5,8 @@ import { X, ChevronRight } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { useMotion } from '../../lib/useMotion'
+import { DURATION } from '../../theme/motion'
 import { AppText } from './Typography'
 
 export type ToastVariant = 'default' | 'success' | 'brand' | 'warning' | 'error'
@@ -49,6 +51,7 @@ export function Toast({
 }: Props) {
   const { t } = useTranslation()
   const { colors, brand, accent, isDark } = useTheme()
+  const { duration } = useMotion()
 
   // Armed once on mount — parent re-renders must not extend the window (0 disables).
   useEffect(() => {
@@ -91,8 +94,8 @@ export function Toast({
 
   return (
     <Animated.View
-      entering={FadeInUp.duration(200)}
-      exiting={FadeOutDown.duration(150)}
+      entering={FadeInUp.duration(duration(DURATION.base))}
+      exiting={FadeOutDown.duration(duration(DURATION.fast))}
       accessibilityRole="alert"
       className={`absolute bottom-3 left-3 right-3 z-50 ${className}`}
     >
