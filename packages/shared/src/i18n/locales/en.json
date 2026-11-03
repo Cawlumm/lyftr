@@ -710,6 +710,7 @@
       "editProgram": "Edit Program",
       "deleteProgram": "Delete Program",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "startNamed": "Start {{name}}"
     },
     "detail": {
@@ -1009,6 +1010,7 @@
       "editWorkout": "Edit Workout",
       "deleteWorkout": "Delete Workout",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "totalVolume": "{{amount}} {{unit}} total volume"
     },
     "detail": {

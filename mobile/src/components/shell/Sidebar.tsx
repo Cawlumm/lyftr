@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native'
 import type { BottomTabBarProps } from 'expo-router/js-tabs'
 import { useTranslation } from '@lyftr/shared'
 import { BarbellMark } from '../Logo'
-import { AppText, Icon, interactive } from '../ui'
+import { AppText, Icon, interactive, isPlainClick, type Click } from '../ui'
 import { Apple, BookOpen, Dumbbell, House, Scale, type LucideIcon } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 import { SkipLink } from './SkipLink'
@@ -19,12 +19,6 @@ const NAV: Record<string, { href: string; label: 'nav.home' | 'nav.workouts' | '
   nutrition: { href: '/nutrition', label: 'nav.nutrition', icon: Apple },
   weight: { href: '/weight', label: 'nav.weight', icon: Scale },
 }
-
-type Click = { button?: number; metaKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; altKey?: boolean; preventDefault?: () => void }
-
-// A modified or non-primary click is the browser's (new tab, new window, download), exactly as
-// react-navigation's PlatformPressable decides for the default tab bar.
-const isPlainClick = (e: Click) => !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey && (e.button == null || e.button === 0)
 
 // RN's types have neither prop; react-native-web renders an <a href> with aria-current.
 const linkProps = (href: string, current: boolean) => ({ href, 'aria-current': current ? 'page' : undefined }) as object

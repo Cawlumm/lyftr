@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Platform, Pressable, View } from 'react-native'
 import { router } from 'expo-router'
-import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from '../ui/icons'
+import { ChevronRight, Clock, Dumbbell, Edit2, MoreVertical, Trash2, TrendingUp } from '../ui/icons'
 import { useAsyncAction, displayVolume, type Workout, workoutDay, formatDay, useTranslation } from '@lyftr/shared'
-import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { ActionSheet, AppText, Card, CardActions, ConfirmSheet, IconButton, LinkCard, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { ExerciseImage } from './ExerciseImage'
@@ -54,49 +54,90 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
     onDeleted(workout.id)
   }, t('workouts.deleteFailed'))
 
+  const body = (
+    <>
+      <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} />
+      <View className="flex-1">
+        <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
+        {/* Two balanced meta lines instead of one overloaded row: date + duration,
+            then exercises + volume — three items on one line truncated at 390pt. */}
+        <View className="flex-row items-center gap-x-2 mt-0.5">
+          <AppText variant="caption" color="muted" numberOfLines={1}>
+            {formatDay(workoutDay(workout), 'monthDayYear')}
+          </AppText>
+          {durationMin > 0 && (
+            <>
+              <AppText variant="caption" color="muted">·</AppText>
+              <View className="flex-row items-center gap-1">
+                <Clock size={12} color={colors.txMuted} />
+                <AppText variant="caption" color="muted">{t('workouts.card.minutes', { minutes: durationMin })}</AppText>
+              </View>
+            </>
+          )}
+        </View>
+        <View className="flex-row items-center gap-x-2 mt-0.5">
+          {/* Dumbbell = exercises (shared icon taxonomy with ProgramCard + both detail strips). */}
+          <View className="flex-row items-center gap-1">
+            <Dumbbell size={12} color={colors.txMuted} />
+            <AppText variant="caption" color="muted" numberOfLines={1}>
+              {exerciseCount}
+            </AppText>
+          </View>
+          {totalVolume > 0 && (
+            <>
+              <AppText variant="caption" color="muted">·</AppText>
+              <View className="flex-row items-center gap-1 flex-shrink">
+                <TrendingUp size={12} color={colors.txMuted} />
+                <AppText variant="caption" color="muted" numberOfLines={1}>
+                  {compact(totalVolume)} {unit}
+                </AppText>
+              </View>
+            </>
+          )}
+        </View>
+      </View>
+    </>
+  )
+  const confirmSheet = (
+    <ConfirmSheet
+      {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), name: workout.name })}
+      open={confirming}
+      busy={remove.busy}
+      error={remove.error}
+      onConfirm={() => { void remove.run() }}
+      onCancel={() => { setConfirming(false); remove.reset() }}
+    />
+  )
+
+  if (Platform.OS === 'web') {
+    return (
+      <View>
+        <LinkCard
+          href={`/workouts/${workout.id}`}
+          onPress={onPress}
+          label={workout.name}
+          actions={
+            <CardActions
+              label={t('workouts.card.optionsNamed', { name: workout.name })}
+              disabled={remove.busy}
+              items={[
+                { label: t('common.edit'), namedLabel: t('workouts.card.editNamed', { name: workout.name }), icon: Edit2, onSelect: () => router.push(`/workouts/${workout.id}/edit`) },
+                { label: t('common.delete'), namedLabel: t('workouts.card.deleteNamed', { name: workout.name }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
+              ]}
+            />
+          }
+        >
+          {body}
+        </LinkCard>
+        {confirmSheet}
+      </View>
+    )
+  }
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
       <Card className="flex-row items-center gap-3 rounded-2xl">
-        <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} />
-        <View className="flex-1">
-          <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
-          {/* Two balanced meta lines instead of one overloaded row: date + duration,
-              then exercises + volume — three items on one line truncated at 390pt. */}
-          <View className="flex-row items-center gap-x-2 mt-0.5">
-            <AppText variant="caption" color="muted" numberOfLines={1}>
-              {formatDay(workoutDay(workout), 'monthDayYear')}
-            </AppText>
-            {durationMin > 0 && (
-              <>
-                <AppText variant="caption" color="muted">·</AppText>
-                <View className="flex-row items-center gap-1">
-                  <Clock size={12} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted">{t('workouts.card.minutes', { minutes: durationMin })}</AppText>
-                </View>
-              </>
-            )}
-          </View>
-          <View className="flex-row items-center gap-x-2 mt-0.5">
-            {/* Dumbbell = exercises (shared icon taxonomy with ProgramCard + both detail strips). */}
-            <View className="flex-row items-center gap-1">
-              <Dumbbell size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>
-                {exerciseCount}
-              </AppText>
-            </View>
-            {totalVolume > 0 && (
-              <>
-                <AppText variant="caption" color="muted">·</AppText>
-                <View className="flex-row items-center gap-1 flex-shrink">
-                  <TrendingUp size={12} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted" numberOfLines={1}>
-                    {compact(totalVolume)} {unit}
-                  </AppText>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
+        {body}
         {/* Kebab (⋮) options menu — the native pattern other apps use. A muted glyph
             keeps the row reading as tap-to-open media; the ActionSheet holds Edit +
             Delete, and Delete still routes through the ConfirmSheet. */}
@@ -140,14 +181,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
         ]}
       />
 
-      <ConfirmSheet
-        {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), name: workout.name })}
-        open={confirming}
-        busy={remove.busy}
-        error={remove.error}
-        onConfirm={() => { void remove.run() }}
-        onCancel={() => { setConfirming(false); remove.reset() }}
-      />
+      {confirmSheet}
     </Pressable>
   )
 }

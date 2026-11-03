@@ -4,6 +4,7 @@ import { MoreVertical, type LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { ActionSheet } from './ActionSheet'
 import { Icon } from './Icon'
+import { MENU_TRIGGER_BOX } from './overlay'
 
 export interface MenuItem {
   label: string
@@ -28,7 +29,6 @@ export interface MenuProps {
   subtitle?: string
 }
 
-export const MENU_TRIGGER_BOX = 'w-8 h-8 rounded-lg items-center justify-center'
 
 // On a phone a menu is a bottom sheet, so native renders the trigger over an ActionSheet.
 // The web dropdown is Menu.web.tsx.

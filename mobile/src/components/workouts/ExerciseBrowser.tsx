@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, View } from 'react-native'
+import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, ChevronRight, Dumbbell, SearchX } from '../ui/icons'
@@ -12,7 +12,7 @@ import {
 } from '@lyftr/shared'
 import {
   ActiveFilters, AppText, Button, EmptyState, ErrorState, FilterButton, FilterSheet, IconButton,
-  PageHeader, SearchField, Skeleton,
+  PageHeader, SearchField, Skeleton, interactive, linkProps, scrollBleed, useCardGrid,
 } from '../ui'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
@@ -20,7 +20,8 @@ import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 
-const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
+const exercisePath = (id: number) => `/workouts/exercise/${id}`
+const exerciseHref = (id: number) => exercisePath(id) as unknown as Href
 
 // Row-shaped placeholders for the first load, so the list fills in rather than popping in
 // after a spinner. Same thumbnail size and two text lines as BrowseRow.
@@ -40,14 +41,16 @@ function BrowseSkeleton() {
   )
 }
 
-function BrowseRow({ exercise }: { exercise: Exercise }) {
+// In the wide grid a row is a card of its own: a hairline between cells reads as nothing.
+function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: boolean }) {
   useTranslation() // re-renders on a language switch: the labels below come from the catalog
   const { colors } = useTheme()
   return (
     <Pressable
-      accessibilityRole="button"
-      onPress={() => router.push(exerciseHref(exercise.id))}
-      className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
+      {...linkProps(exercisePath(exercise.id), () => router.push(exerciseHref(exercise.id)))}
+      className={`flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60 ${card
+        ? `rounded-xl border border-surface-border bg-surface-raised motion-safe:transition-colors motion-safe:duration-[120ms] ${interactive('hover:border-brand-500/40')}`
+        : interactive('hover:bg-surface-muted/60', { inset: true })}`}
     >
       <ExerciseImage url={exercise.image_url} />
       <View className="flex-1">
@@ -74,6 +77,7 @@ function BrowseRow({ exercise }: { exercise: Exercise }) {
 export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initialQuery?: string; initialFilters?: FilterValues } = {}) {
   const { t } = useTranslation()
   const { accent } = useTheme()
+  const grid = useCardGrid({ lg: 2, xl: 3 })
   const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
   const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups()))
@@ -86,6 +90,16 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
     const timer = setTimeout(() => setDebouncedQuery(query), EXERCISE_SEARCH_DEBOUNCE_MS)
     return () => clearTimeout(timer)
   }, [query])
+
+  // On web the URL carries the search and filters, so reload and Back from an exercise restore
+  // them (the route seeds from it). setParams replaces the history entry rather than pushing, so
+  // Back leaves the page instead of stepping through filter states. The box and the URL change
+  // together; only the request waits out the debounce, or opening an exercise inside that
+  // window would drop the search. Native has no URL and stays as it was.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return
+    router.setParams({ q: query.trim() || undefined, muscle: muscle ?? undefined, equipment: equipment ?? undefined })
+  }, [query, muscle, equipment])
 
   const filtered = exerciseBrowseFiltered({ query: debouncedQuery, muscle, equipment })
 
@@ -118,8 +132,8 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
   const changeFilter = (key: string, value: string | null) => setFilters((f) => setFilter(f, key, value))
 
-  return (
-    <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
+  const content = (
+    <>
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
         <IconButton icon={ArrowLeft} label={t('exercises.browse.backToWorkouts')} variant="ghost" size="md" onPress={goBack} />
         <View className="flex-1">
@@ -128,7 +142,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
       </View>
 
       <View className="flex-row items-center gap-2 px-4 pb-3">
-        <View className="flex-1">
+        <View className={grid.wide ? 'max-w-md flex-1' : 'flex-1'}>
           <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
         </View>
         <FilterButton active={count} onPress={() => setSheetOpen(true)} />
@@ -156,13 +170,19 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
         // the fresh page lands); the search field and filters above stay interactive.
         <Animated.View className="flex-1" style={fade}>
           <FlatList
+            key={grid.key}
+            numColumns={grid.numColumns}
+            columnWrapperStyle={grid.columnWrapperStyle}
+            style={grid.wide ? scrollBleed : undefined}
             data={shown}
             keyExtractor={(e) => String(e.id)}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
-            ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
-            renderItem={({ item }) => <BrowseRow exercise={item} />}
+            ItemSeparatorComponent={() => <View className={grid.wide ? 'h-3' : 'ml-[56px] h-px bg-surface-border/60'} />}
+            renderItem={({ item }) => grid.wide
+              ? <View style={grid.cellStyle}><BrowseRow exercise={item} card /></View>
+              : <BrowseRow exercise={item} />}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
@@ -212,6 +232,12 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
           />
         </Animated.View>
       )}
+    </>
+  )
+
+  return (
+    <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
+      {grid.wide ? <View className="mx-auto w-full max-w-6xl flex-1">{content}</View> : content}
     </SafeAreaView>
   )
 }

@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, ChevronRight, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from '../../../src/components/ui/icons'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, useTranslation, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, scrollBleed, SearchField, Toast } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, scrollBleed, SearchField, Toast, interactive, linkProps, useCardGrid } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -22,6 +22,7 @@ export default function Workouts() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = weightShort(settings.weight_unit)
   const { accent, colors } = useTheme()
+  const grid = useCardGrid({ lg: 2 })
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -193,9 +194,51 @@ export default function Workouts() {
     },
   ]
 
+  const browseRow = (
+    <Pressable
+      {...linkProps('/workouts/exercises', () => router.push('/workouts/exercises'))}
+      accessibilityLabel={t('workouts.list.browseExercises')}
+      className={`flex-row items-center gap-3 rounded-xl border border-surface-border bg-surface-raised p-3.5 active:bg-surface-muted ${grid.wide ? 'flex-1' : ''} ${interactive('hover:border-brand-500/40')}`}
+    >
+      <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+        <Library size={20} color={accent} strokeWidth={2} />
+      </View>
+      <View className="flex-1">
+        <AppText variant="bodySemibold">{t('workouts.list.browseExercises')}</AppText>
+        <AppText variant="caption" color="muted" numberOfLines={1}>{t('exercises.browse.subtitle')}</AppText>
+      </View>
+      <ChevronRight size={16} color={colors.txMuted} />
+    </Pressable>
+  )
+
+  // Summary — web's 3-card grid. Dimmed while a new search revalidates: the stats summarize
+  // the loaded items, so they're stale mid-search — fading them (and the rows below) signals
+  // "updating" without a blank flash. Tighter horizontal padding than Card's default:
+  // three-up columns are narrow and the uppercase wide-tracked label truncates at p-4.
+  const statTiles = stats.map((s) => (
+    <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
+      <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
+      {countsUnknown ? (
+        <StatFailure label={s.failed} />
+      ) : (
+      <View className="flex-row items-end gap-1">
+        <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
+          {s.value}
+        </AppText>
+        <AppText variant="caption" color="muted" className="mb-0.5" numberOfLines={1}>
+          {s.unit}
+        </AppText>
+      </View>
+      )}
+    </Card>
+  ))
+
   return (
-    <Screen>
+    <Screen maxWidth={grid.wide ? 'wide' : undefined}>
       <FlatList
+        key={grid.key}
+        numColumns={grid.numColumns}
+        columnWrapperStyle={grid.columnWrapperStyle}
         data={queryAnswered ? workouts : []}
         keyExtractor={(w) => String(w.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
@@ -227,63 +270,41 @@ export default function Workouts() {
             />
 
             {/* A labelled row, not a header icon: the exercise library is a place to go, and an
-                unlabelled glyph beside the plus did not say where. */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('workouts.list.browseExercises')}
-              onPress={() => router.push('/workouts/exercises')}
-              className="flex-row items-center gap-3 rounded-xl border border-surface-border bg-surface-raised p-3.5 active:bg-surface-muted"
-            >
-              <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
-                <Library size={20} color={accent} strokeWidth={2} />
+                unlabelled glyph beside the plus did not say where. On a wide screen it takes the
+                first of four columns beside the stat tiles. */}
+            {grid.wide ? (
+              <View className="flex-row gap-3">
+                {browseRow}
+                <View className="flex-row gap-3" style={{ flex: 3, opacity: refreshing ? 0.5 : 1 }}>
+                  {statTiles}
+                </View>
               </View>
-              <View className="flex-1">
-                <AppText variant="bodySemibold">{t('workouts.list.browseExercises')}</AppText>
-                <AppText variant="caption" color="muted" numberOfLines={1}>{t('exercises.browse.subtitle')}</AppText>
-              </View>
-              <ChevronRight size={16} color={colors.txMuted} />
-            </Pressable>
-
-            {/* Summary — web's 3-card grid. Dimmed while a new search revalidates: the
-                stats summarize the loaded items, so they're stale mid-search — fading
-                them (and the rows below) signals "updating" without a blank flash. */}
-            <View className="flex-row gap-3" style={{ opacity: refreshing ? 0.5 : 1 }}>
-              {/* Tighter horizontal padding than Card's default: three-up columns are
-                  narrow and the uppercase wide-tracked label truncates at p-4. */}
-              {stats.map((s) => (
-                <Card key={s.label} className="flex-1 rounded-2xl" style={{ paddingHorizontal: 12 }}>
-                  <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
-                  {countsUnknown ? (
-                    <StatFailure label={s.failed} />
-                  ) : (
-                  <View className="flex-row items-end gap-1">
-                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
-                      {s.value}
-                    </AppText>
-                    <AppText variant="caption" color="muted" className="mb-0.5" numberOfLines={1}>
-                      {s.unit}
-                    </AppText>
-                  </View>
-                  )}
-                </Card>
-              ))}
-            </View>
+            ) : (
+              <>
+                {browseRow}
+                <View className="flex-row gap-3" style={{ opacity: refreshing ? 0.5 : 1 }}>
+                  {statTiles}
+                </View>
+              </>
+            )}
 
             {/* Reusable SearchField: leading search icon + a trailing slot that is a
                 spinner while a new query fetches (previous results stay on screen and
                 swap in place — no flash-to-zero) or a clear (×) button once there's text. */}
-            <SearchField
-              value={search}
-              onChangeText={setSearch}
-              loading={refreshing}
-              placeholder={t('workouts.list.searchPlaceholder')}
-            />
+            <View className={grid.wide ? 'max-w-md' : ''}>
+              <SearchField
+                value={search}
+                onChangeText={setSearch}
+                loading={refreshing}
+                placeholder={t('workouts.list.searchPlaceholder')}
+              />
+            </View>
           </View>
         }
         renderItem={({ item }) => (
           // Fade the stale rows while a new search revalidates (they swap in place when
           // the fresh page lands); the search field above stays full-opacity/interactive.
-          <View style={{ opacity: refreshing ? 0.5 : 1 }}>
+          <View style={[{ opacity: refreshing ? 0.5 : 1 }, grid.cellStyle]}>
             <WorkoutCard
               workout={item}
               unit={unit}

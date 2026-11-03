@@ -7,6 +7,10 @@ export type Align = 'start' | 'center' | 'end'
 interface Rect { top: number; left: number; width: number; height: number }
 interface Size { width: number; height: number }
 
+// The default menu trigger's box. Here rather than in Menu.tsx: on web './Menu' resolves to
+// Menu.web.tsx itself, so the web menu importing it from there read undefined.
+export const MENU_TRIGGER_BOX = 'w-8 h-8 rounded-lg items-center justify-center'
+
 // Keeps the overlay off the viewport's edge, the way a native menu never touches the screen edge.
 export const EDGE = 8
 
