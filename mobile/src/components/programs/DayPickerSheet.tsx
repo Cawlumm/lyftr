@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Dumbbell } from '../ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
@@ -35,18 +36,19 @@ export function pickProgramDay(
 export function DayPickerSheet({ program, onSelect, onClose }: Props) {
   const { t } = useTranslation()
   const { accent } = useTheme()
+  const titleId = useId()
   if (!program) return null
   const days = workoutDays(program)
   const todayId = todaysDay(program)?.id
 
   return (
-    <Sheet open onClose={onClose} haptic="selection">
+    <Sheet open onClose={onClose} haptic="selection" labelledBy={titleId}>
       <View className="px-6">
         <View className="items-center pb-4">
           <AppText variant="label" color="muted" className="uppercase" style={{ letterSpacing: 1.5 }}>
             {program.name}
           </AppText>
-          <AppText variant="heading" className="mt-0.5">{t('programs.form.dayPicker.title')}</AppText>
+          <AppText nativeID={titleId} variant="heading" className="mt-0.5">{t('programs.form.dayPicker.title')}</AppText>
         </View>
         <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
           {days.map((day, i) => (

@@ -1,10 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Animated as RNAnimated, Modal, PanResponder, Platform, Pressable, View } from 'react-native'
-import Animated, { SlideInDown } from 'react-native-reanimated'
+import { Animated as RNAnimated, Modal, PanResponder, Platform, View } from 'react-native'
+import Animated, { Keyframe, SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { DURATION, EASING } from '../../theme/motion'
 import { useMotion } from '../../lib/useMotion'
+import { SheetBackdrop, SheetSurface, dialogA11y, useSheetDialog } from './SheetFrame'
 
 // Duration of the slide-up; exported so callers can time a follow-up sheet (e.g. an
 // ActionSheet handing off to a ConfirmSheet) to start after this one dismisses.
@@ -19,6 +20,14 @@ const nativeDriver = () => Platform.OS !== 'web'
 
 type SheetHaptic = 'selection' | 'warning' | 'none'
 
+// The dialog's width on a wide web screen; a phone always gets the full-width sheet.
+const DIALOG_WIDTH = { sm: 'max-w-sm', md: 'max-w-md', lg: 'max-w-lg' } as const
+
+const dialogEnter = new Keyframe({
+  0: { opacity: 0, transform: [{ scale: 0.96 }] },
+  100: { opacity: 1, transform: [{ scale: 1 }], easing: EASING.enter },
+})
+
 interface Props {
   open: boolean
   onClose: () => void
@@ -27,6 +36,12 @@ interface Props {
   bottomInset?: number
   /** Haptic fired as the sheet opens. */
   haptic?: SheetHaptic
+  /** nativeID of the visible title, which names the dialog on web. */
+  labelledBy?: string
+  /** nativeID of a short message that describes it (web). */
+  describedBy?: string
+  /** Max width when shown as a dialog on a wide web screen. */
+  width?: keyof typeof DIALOG_WIDTH
 }
 
 // The generic bottom-sheet shell every sheet in the app is built from (ConfirmSheet,
@@ -39,9 +54,13 @@ interface Props {
 //    the sheet slides, on an ease-out curve (no spring bounce).
 // Children own their horizontal padding; the shell provides the surface, grabber, and
 // safe bottom. Tap the scrim to dismiss; the sheet body stops propagation.
-export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'none' }: Props) {
+// On a web screen from sm up the same content is a centred dialog instead (SheetFrame.web).
+export function Sheet({
+  open, onClose, children, bottomInset = 20, haptic = 'none', labelledBy, describedBy, width = 'md',
+}: Props) {
   const insets = useSafeAreaInsets()
-  const { duration } = useMotion()
+  const { duration, reduced } = useMotion()
+  const dialog = useSheetDialog()
 
   // Swipe down on the grabber to dismiss. PanResponder rather than gesture-handler: a Modal is
   // its own native root, and gesture-handler needs a root view inside it to receive touches.
@@ -88,26 +107,53 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
 
   if (!open) return null
 
+  // RN Modal on web holds back its focus trap and Escape until its fade ends, so under reduced
+  // motion the fade goes too. Native keeps its fade either way.
+  const animationType = Platform.OS === 'web' && reduced ? 'none' : 'fade'
+
   return (
-    <Modal visible transparent statusBarTranslucent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 justify-end bg-black/60" onPress={onClose}>
-        <Animated.View entering={SlideInDown.duration(duration(SHEET_ANIM_MS)).easing(EASING.enter)}>
-          <RNAnimated.View style={{ transform: [{ translateY: dragY }] }}>
-            <Pressable
-              onPress={(e) => e.stopPropagation()}
-              style={{ paddingBottom: insets.bottom + bottomInset }}
-              className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
-            >
-              {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
-                  zone is taller than the bar so it is easy to hit; matches the web handle. */}
-              <View testID="sheet-grabber" {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
-                <View className="h-1 w-10 rounded-full bg-surface-muted" />
-              </View>
-              {children}
-            </Pressable>
-          </RNAnimated.View>
-        </Animated.View>
-      </Pressable>
+    <Modal
+      visible
+      transparent
+      statusBarTranslucent
+      animationType={animationType}
+      onRequestClose={onClose}
+      {...dialogA11y(labelledBy, describedBy)}
+    >
+      <SheetBackdrop onClose={onClose} dialog={dialog}>
+        {dialog ? (
+          // The width sits on a plain View: on the Animated.View carrying `entering` the class
+          // did not apply (measured).
+          // The surface is capped to the viewport and scrolls: a short window (a phone in landscape)
+          // would otherwise clip a sheet that has no ScrollView of its own, past both edges.
+          <View className={`w-full ${DIALOG_WIDTH[width]}`}>
+            <Animated.View entering={reduced ? undefined : dialogEnter.duration(DURATION.base)}>
+              <SheetSurface
+                style={{ paddingBottom: bottomInset }}
+                className="max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-2xl border border-surface-border bg-surface-base pt-6"
+              >
+                {children}
+              </SheetSurface>
+            </Animated.View>
+          </View>
+        ) : (
+          <Animated.View entering={SlideInDown.duration(duration(SHEET_ANIM_MS)).easing(EASING.enter)}>
+            <RNAnimated.View style={{ transform: [{ translateY: dragY }] }}>
+              <SheetSurface
+                style={{ paddingBottom: insets.bottom + bottomInset }}
+                className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
+              >
+                {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
+                    zone is taller than the bar so it is easy to hit; matches the web handle. */}
+                <View testID="sheet-grabber" {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
+                  <View className="h-1 w-10 rounded-full bg-surface-muted" />
+                </View>
+                {children}
+              </SheetSurface>
+            </RNAnimated.View>
+          </Animated.View>
+        )}
+      </SheetBackdrop>
     </Modal>
   )
 }
