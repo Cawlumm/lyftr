@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
@@ -41,6 +41,7 @@ export function ActionSheet({
   open, title, subtitle, header, actions, cancelLabel, layout = 'stack', onClose,
 }: Props) {
   const { t } = useTranslation()
+  const headingId = useId()
   const run = (onPress: () => void) => {
     onClose()
     setTimeout(onPress, SHEET_ANIM_MS)
@@ -60,12 +61,12 @@ export function ActionSheet({
   )
 
   return (
-    <Sheet open={open} onClose={onClose} haptic="selection">
+    <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={headingId} width="sm">
       <View className="px-6">
         {header ? (
-          <View className="pb-4">{header}</View>
+          <View nativeID={headingId} className="pb-4">{header}</View>
         ) : (title || subtitle) ? (
-          <View className="items-center pb-5">
+          <View nativeID={headingId} className="items-center pb-5">
             {title ? (
               <AppText variant="label" color="muted" className="uppercase" style={{ letterSpacing: 1.5 }}>
                 {title}

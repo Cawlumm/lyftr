@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { ScrollView, View } from 'react-native'
 import { Check } from '../ui/icons'
 import {
@@ -43,6 +43,7 @@ export function LanguageSheet({ open, value, onSelect, onClose }: Props) {
   const { t } = useTranslation()
   const { accent } = useTheme()
   const [query, setQuery] = useState('')
+  const titleId = useId()
   const showSearch = SUPPORTED_LANGUAGES.length >= LANGUAGE_SEARCH_FROM
   const shown = filterLanguages(LANGUAGE_ORDER, showSearch ? query : '')
 
@@ -53,10 +54,10 @@ export function LanguageSheet({ open, value, onSelect, onClose }: Props) {
   const mark = (p: LanguagePreference) => (value === p ? <Check size={18} color={accent} /> : undefined)
 
   return (
-    <Sheet open={open} onClose={onClose} haptic="selection">
+    <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={titleId}>
       <View className="px-6">
         <View className="items-center pb-4">
-          <AppText variant="heading">{t('settings.language.label')}</AppText>
+          <AppText nativeID={titleId} variant="heading">{t('settings.language.label')}</AppText>
         </View>
         {showSearch ? (
           <View className="pb-2">

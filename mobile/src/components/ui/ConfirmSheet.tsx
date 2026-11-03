@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { View } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
@@ -38,13 +39,22 @@ export function ConfirmSheet({
 }: ConfirmSheetProps) {
   const { t } = useTranslation()
   const { brand, accent, isDark } = useTheme()
+  const titleId = useId()
+  const messageId = useId()
   // errorSoft reads on dark, error on light — same split as IconButton.
   const badgeIconColor = destructive ? (isDark ? brand.errorSoft : brand.error) : accent
 
   return (
     // Scrim tap and Android back both come through onClose, and neither may dismiss a
     // confirmed action still in flight: the sheet is where its failure gets reported.
-    <Sheet open={open} onClose={busy ? () => {} : onCancel} haptic={destructive ? 'warning' : 'selection'}>
+    <Sheet
+      open={open}
+      onClose={busy ? () => {} : onCancel}
+      haptic={destructive ? 'warning' : 'selection'}
+      labelledBy={titleId}
+      describedBy={messageId}
+      width="sm"
+    >
       <View className="px-6">
         {Icon ? (
           <View
@@ -56,8 +66,8 @@ export function ConfirmSheet({
           </View>
         ) : null}
 
-        <AppText variant="heading" className="mb-1.5 text-center">{title}</AppText>
-        <AppText variant="body" color="muted" className="mb-6 text-center">{message}</AppText>
+        <AppText nativeID={titleId} variant="heading" className="mb-1.5 text-center">{title}</AppText>
+        <AppText nativeID={messageId} variant="body" color="muted" className="mb-6 text-center">{message}</AppText>
 
         {error ? <Alert variant="error" size="compact" className="mb-5">{error}</Alert> : null}
 

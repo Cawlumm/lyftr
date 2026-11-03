@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
 import { Check, X } from './icons'
 import * as Haptics from 'expo-haptics'
@@ -27,11 +28,12 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
   const { height } = useWindowDimensions()
   const { accent } = useTheme()
   const count = activeFilterCount(groups, values)
+  const titleId = useId()
 
   return (
-    <Sheet open={open} onClose={onClose} haptic="selection">
+    <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={titleId} width="lg">
       <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-3 pt-1">
-        <AppText variant="title" headingLevel={2}>{t('filters.title')}</AppText>
+        <AppText nativeID={titleId} variant="title" headingLevel={2}>{t('filters.title')}</AppText>
         <View className="flex-row items-center gap-3">
           <Pressable
             accessibilityRole="button"

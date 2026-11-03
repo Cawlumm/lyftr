@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { Scale, X } from '../ui/icons'
@@ -29,6 +29,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
   const { colors, accent } = useTheme()
+  const titleId = useId()
 
   const [value, setValue] = useState('')
   const [date, setDate] = useState(todayStr())
@@ -83,7 +84,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
   }
 
   return (
-    <Sheet open={open} onClose={onClose} haptic="selection">
+    <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={titleId}>
       <View className="px-5 pb-2">
         {/* Header */}
         <View className="mb-4 flex-row items-center justify-between">
@@ -91,7 +92,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
             <View className="h-8 w-8 items-center justify-center rounded-lg border border-brand-500/20 bg-brand-500/10">
               <Scale size={16} color={accent} />
             </View>
-            <AppText variant="heading">{t('home.quickWeighIn.title')}</AppText>
+            <AppText nativeID={titleId} variant="heading">{t('home.quickWeighIn.title')}</AppText>
           </View>
           <Pressable onPress={onClose} hitSlop={8} className="p-1.5 active:opacity-60" accessibilityLabel={t('common.close')}>
             <X size={20} color={colors.txMuted} />
