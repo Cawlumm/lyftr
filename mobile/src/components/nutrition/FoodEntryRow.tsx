@@ -1,10 +1,11 @@
 import { formatLoggedAmount, useAsyncAction, useTranslation } from '@lyftr/shared'
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { ChevronRight, Flame, MoreVertical } from '../ui/icons'
 import type { FoodLog } from '@lyftr/shared'
-import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction, interactive } from '../ui'
+import { linkProps } from '../ui/link'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { FoodThumb } from './FoodImage'
@@ -83,11 +84,8 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
     </View>
   )
 
-  return (
-    <Pressable
-      onPress={onPress}
-      className={`flex-row items-center gap-3 px-4 py-3 active:bg-surface-muted/50 ${first ? '' : 'border-t border-surface-border'}`}
-    >
+  const info = (
+    <>
       <Thumb />
       <View className="min-w-0 flex-1">
         <View className="flex-row items-center gap-2">
@@ -96,16 +94,22 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         </View>
         {macroLine}
       </View>
-      <IconButton
-        icon={MoreVertical}
-        label={t('food.entry.optionsNamed', { name: entry.name })}
-        variant="ghost"
-        size="sm"
-        onPress={() => setMenuOpen(true)}
-        disabled={remove.busy}
-      />
-      <ChevronRight size={16} color={colors.txMuted} />
+    </>
+  )
 
+  const options = (
+    <IconButton
+      icon={MoreVertical}
+      label={t('food.entry.optionsNamed', { name: entry.name })}
+      variant="ghost"
+      size="sm"
+      onPress={() => setMenuOpen(true)}
+      disabled={remove.busy}
+    />
+  )
+
+  const sheets = (
+    <>
       <ActionSheet
         open={menuOpen}
         layout="row"
@@ -133,6 +137,43 @@ export function FoodEntryRow({ entry, first, onPress, onEdit, onDeleted }: Props
         onConfirm={() => { void remove.run() }}
         onCancel={() => { setConfirming(false); remove.reset() }}
       />
+    </>
+  )
+
+  // Web: the row is a real link to the entry (middle-click, open in new tab), laid over the
+  // row with the options button above it as a sibling, as LinkCard does: a button inside a
+  // link is invalid.
+  if (Platform.OS === 'web') {
+    return (
+      <View className={`flex-row items-center gap-3 px-4 py-3 hover:bg-surface-muted/50 ${first ? '' : 'border-t border-surface-border'}`}>
+        <Pressable
+          {...linkProps(`/nutrition/${entry.id}`, onPress)}
+          accessibilityLabel={entry.name}
+          style={StyleSheet.absoluteFill}
+          className={interactive('', { inset: true })}
+        />
+        <View style={{ pointerEvents: 'none' }} className="min-w-0 flex-1 flex-row items-center gap-3">
+          {info}
+        </View>
+        {options}
+        <View style={{ pointerEvents: 'none' }}>
+          <ChevronRight size={16} color={colors.txMuted} />
+        </View>
+        {sheets}
+      </View>
+    )
+  }
+
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-row items-center gap-3 px-4 py-3 active:bg-surface-muted/50 ${first ? '' : 'border-t border-surface-border'}`}
+    >
+      {info}
+      {options}
+      <ChevronRight size={16} color={colors.txMuted} />
+
+      {sheets}
     </Pressable>
   )
 }

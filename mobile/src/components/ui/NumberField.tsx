@@ -1,5 +1,5 @@
 import { useReducer } from 'react'
-import { TextInput } from 'react-native'
+import { Platform, TextInput } from 'react-native'
 import { useTheme } from '../../theme/useTheme'
 import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
 
@@ -39,6 +39,8 @@ export function NumberField({
       placeholderTextColor={colors.txMuted}
       keyboardType={inputMode === 'numeric' ? 'number-pad' : 'decimal-pad'}
       returnKeyType="done"
+      // An amount is never something to autofill (web only; native autofill is unchanged).
+      autoComplete={Platform.OS === 'web' ? 'off' : undefined}
       selectTextOnFocus
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}

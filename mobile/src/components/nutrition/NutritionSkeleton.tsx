@@ -1,6 +1,7 @@
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import { useTranslation } from '@lyftr/shared'
 import { Card, PageHeader, Screen, Skeleton } from '../ui'
+import { useBreakpoint } from '../../lib/useBreakpoint'
 
 // Initial-load skeleton for the Nutrition page — content-shaped placeholders laid out
 // 1:1 with the real screen's default (Diary) view: Diary/Trends switch · date nav ·
@@ -9,6 +10,8 @@ import { Card, PageHeader, Screen, Skeleton } from '../ui'
 // ProgramsSkeleton. The PageHeader is the real, live title.
 export function NutritionSkeleton() {
   const { t } = useTranslation()
+  const { lg } = useBreakpoint()
+  if (Platform.OS === 'web' && lg) return <WideNutritionSkeleton />
   return (
     <Screen>
       <View className="gap-4 py-4">
@@ -18,53 +21,96 @@ export function NutritionSkeleton() {
         <Skeleton height={44} radius={12} />
 
         {/* Date navigator */}
-        <View className="flex-row items-center gap-2">
-          <Skeleton width={44} height={44} radius={12} />
-          <View className="flex-1"><Skeleton height={40} radius={12} /></View>
-          <Skeleton width={44} height={44} radius={12} />
-        </View>
+        <DateNavPlaceholder />
 
         {/* Calorie hero + rings */}
-        <Card className="gap-5">
-          <View className="flex-row items-center justify-between">
-            <View className="gap-2">
-              <Skeleton width={60} height={12} />
-              <Skeleton width={120} height={36} radius={8} />
-            </View>
-            <Skeleton width={80} height={36} radius={12} />
-          </View>
-          <Skeleton height={10} radius={999} />
-          <View className="flex-row justify-around">
-            {[0, 1, 2].map((i) => (
-              <View key={i} className="items-center gap-1.5">
-                <Skeleton width={72} height={72} radius={999} />
-                <Skeleton width={54} height={12} />
-              </View>
-            ))}
-          </View>
-        </Card>
+        <SummaryPlaceholder />
 
         {/* Today's Food — label + count, search bar, a few rows */}
         <View className="mt-2 gap-2">
-          <View className="flex-row items-center justify-between px-1">
-            <Skeleton width={110} height={14} />
-            <Skeleton width={54} height={12} />
-          </View>
-          <Skeleton height={44} radius={12} />
-          <Card className="mt-1 gap-3">
-            {[0, 1, 2].map((i) => (
-              <View key={i} className="flex-row items-center gap-3">
-                <Skeleton width={44} height={44} radius={12} />
-                <View className="flex-1 gap-1.5">
-                  <Skeleton width={140} height={14} />
-                  <Skeleton width={100} height={10} />
-                </View>
-                <Skeleton width={16} height={16} radius={4} />
-              </View>
-            ))}
-          </Card>
+          <FoodListPlaceholder />
         </View>
       </View>
     </Screen>
+  )
+}
+
+// The wide web diary (nutrition/index.tsx): the switch and the date navigator in one
+// toolbar, then the food list beside the 360px totals column, so loading does not reflow.
+function WideNutritionSkeleton() {
+  const { t } = useTranslation()
+  return (
+    <Screen maxWidth="wide">
+      <View className="gap-6 pt-4">
+        <PageHeader title={t('food.page.title')} subtitle={t('food.page.subtitle')} action={<Skeleton width={40} height={40} radius={12} />} />
+        <View className="flex-row items-center justify-between gap-6">
+          <View style={{ width: 288 }}><Skeleton height={44} radius={12} /></View>
+          <View style={{ width: 360 }}><DateNavPlaceholder /></View>
+        </View>
+        <View className="flex-row items-start gap-6">
+          <View className="min-w-0 flex-1 gap-2">
+            <FoodListPlaceholder />
+          </View>
+          <View style={{ width: 360 }}><SummaryPlaceholder /></View>
+        </View>
+      </View>
+    </Screen>
+  )
+}
+
+function DateNavPlaceholder() {
+  return (
+    <View className="flex-row items-center gap-2">
+      <Skeleton width={44} height={44} radius={12} />
+      <View className="flex-1"><Skeleton height={40} radius={12} /></View>
+      <Skeleton width={44} height={44} radius={12} />
+    </View>
+  )
+}
+
+function SummaryPlaceholder() {
+  return (
+    <Card className="gap-5">
+      <View className="flex-row items-center justify-between">
+        <View className="gap-2">
+          <Skeleton width={60} height={12} />
+          <Skeleton width={120} height={36} radius={8} />
+        </View>
+        <Skeleton width={80} height={36} radius={12} />
+      </View>
+      <Skeleton height={10} radius={999} />
+      <View className="flex-row justify-around">
+        {[0, 1, 2].map((i) => (
+          <View key={i} className="items-center gap-1.5">
+            <Skeleton width={72} height={72} radius={999} />
+            <Skeleton width={54} height={12} />
+          </View>
+        ))}
+      </View>
+    </Card>
+  )
+}
+
+function FoodListPlaceholder() {
+  return (
+    <>
+      <View className="flex-row items-center justify-between px-1">
+        <Skeleton width={110} height={14} />
+        <Skeleton width={54} height={12} />
+      </View>
+      <Skeleton height={44} radius={12} />
+      <Card className="mt-1 gap-3">
+        {[0, 1, 2].map((i) => (
+          <View key={i} className="flex-row items-center gap-3">
+            <Skeleton width={44} height={44} radius={12} />
+            <View className="flex-1 gap-1.5">
+              <Skeleton width={140} height={14} />
+              <Skeleton width={100} height={10} />
+            </View>
+            <Skeleton width={16} height={16} radius={4} />
+          </View>
+        ))}
+      </Card>
+    </>
   )
 }
