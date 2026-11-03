@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useLayoutEffect } from 'react'
 import { Platform } from 'react-native'
 import { palette, surfaces, useTranslation } from '@lyftr/shared'
 import { palettes } from '../theme/theme'
@@ -7,8 +7,12 @@ import { palettes } from '../theme/theme'
 // whether to repaint their chrome, and setAttribute on the existing element is not reliably
 // seen as a change (same reason as web/src/lib/lyftr.ts). Follows the stored theme, not
 // prefers-color-scheme, since the stored theme is what the app draws.
+// Layout effect so the colour scheme and --tx-muted land before first paint; useEffect on the
+// server, where useLayoutEffect only warns.
+const useBeforePaint = typeof document === 'undefined' ? useEffect : useLayoutEffect
+
 export function useDocumentChrome(mode: 'light' | 'dark') {
-  useEffect(() => {
+  useBeforePaint(() => {
     if (Platform.OS !== 'web') return
     document.head.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.remove())
     const meta = document.createElement('meta')
@@ -19,14 +23,6 @@ export function useDocumentChrome(mode: 'light' | 'dark') {
     // An inline custom property outranks global.css's :root and .dark:root blocks.
     document.documentElement.style.setProperty('--tx-muted', channels(palettes[mode].txMuted))
   }, [mode])
-
-  useEffect(() => {
-    if (Platform.OS !== 'web' || document.getElementById(WEB_CONTRAST_ID)) return
-    const style = document.createElement('style')
-    style.id = WEB_CONTRAST_ID
-    style.textContent = WEB_CONTRAST_CSS
-    document.head.appendChild(style)
-  }, [])
 
   // index.html ships lang="en"; a Spanish UI announced with English pronunciation rules is
   // garbled to a screen reader (WCAG 3.1.1), so <html lang> follows the app language.
@@ -52,6 +48,17 @@ const channels = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 const WEB_CONTRAST_ID = 'web-contrast'
 const WEB_CONTRAST_CSS = [
   `.bg-brand-500 { background-color: ${palette.brand[700]}; }`,
+  `.border-brand-500 { border-color: ${palette.brand[700]}; }`,
   `@media (hover: hover) and (pointer: fine) { .hover\\:bg-brand-600:hover { background-color: ${palette.brand[800]}; } }`,
+  // After the hover rule at equal specificity, so a press darkens past hover instead of losing to it.
+  `.active\:bg-brand-700:active { background-color: ${palette.brand[900]}; }`,
   ':is(input, textarea):placeholder-shown { color: rgb(var(--tx-primary)); }',
 ].join('\n')
+
+// Injected at import, not in an effect, so the stylesheet exists before the first paint.
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById(WEB_CONTRAST_ID)) {
+  const style = document.createElement('style')
+  style.id = WEB_CONTRAST_ID
+  style.textContent = WEB_CONTRAST_CSS
+  document.head.appendChild(style)
+}

@@ -103,6 +103,15 @@ test.describe('axe: colour contrast meets WCAG AA', () => {
         })
       }
 
+      // Known failing (owner question c): MACRO_TEXT literals on /nutrition/log and the muscle
+      // chips on /workouts/exercises sit below AA. Un-fixme when the owner picks the colours.
+      for (const path of ['/nutrition/log', '/workouts/exercises']) {
+        test.fixme(`${path}`, async ({ page }) => {
+          await page.goto(path)
+          expect(await violations(page, { only: ['color-contrast'] })).toEqual([])
+        })
+      }
+
       test.describe('signed out', () => {
         test.use({ storageState: { cookies: [], origins: [] } })
         test('/login', async ({ page }) => {
