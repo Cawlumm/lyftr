@@ -804,8 +804,9 @@ export default function Dashboard() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} colors={[accent]} />}
       >
         {wide ? (
-          // Desktop: three stat tiles, last workout beside nutrition, the three charts in one
-          // band, then the heatmap at full width, where its twelve weeks have room to read.
+          // Desktop: three stat tiles, last workout beside nutrition, then muscle balance (one
+          // third) beside volume over weight (the other two thirds), then the heatmap at full
+          // width, where its twelve weeks have room to read.
           <View className="gap-5 py-4">
             {header}
             {banner}

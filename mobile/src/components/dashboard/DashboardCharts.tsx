@@ -108,7 +108,7 @@ export function VolumeBarChart({ data, width, unit, height = 130 }: {
       </Svg>
       <ChartTooltip label={t('home.volume.title')} width={width} height={height} selected={sel} onSelect={setSel}
         points={vols.map((v, i) => ({ x: xCenter(i), y: padTop + plotH - Math.max((v / maxVol) * plotH, 1) }))}
-        describe={(i) => [`${formatNumber(vols[i], 0)} ${unit}`, data[i].name, data[i].date]} />
+        describe={(i) => [`${formatNumber(vols[i], { decimals: 0, grouped: true })} ${unit}`, data[i].name, data[i].date]} />
       {selPt && !WEB ? (
         <View pointerEvents="none"
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"

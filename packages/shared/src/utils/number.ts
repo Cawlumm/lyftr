@@ -167,11 +167,12 @@ export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): 
 // query params) stays canonical and never comes through here. It follows the app language, as
 // formatDate does, so one line of copy never mixes two notations.
 const formatters = new Map<string, Intl.NumberFormat>()
-export function formatNumber(n: number, maxDecimals = 1): string {
-  const key = `${i18n.language}|${maxDecimals}`
+export function formatNumber(n: number, opts: { decimals?: number; grouped?: boolean } = {}): string {
+  const { decimals = 1, grouped = false } = opts
+  const key = `${i18n.language}|${decimals}|${grouped}`
   let f = formatters.get(key)
   if (!f) {
-    f = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: maxDecimals })
+    f = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: decimals, useGrouping: grouped })
     formatters.set(key, f)
   }
   return f.format(n)

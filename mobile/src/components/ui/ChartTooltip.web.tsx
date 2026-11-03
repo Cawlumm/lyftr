@@ -88,6 +88,8 @@ export function ChartTooltip({ label, points, width, height, hitTest, describe, 
         onFocus={(e) => { if (selected == null && e.currentTarget.matches(':focus-visible')) show(n - 1) }}
         onBlur={() => show(null)}
         onKeyDown={onKeyDown}
+        // A chart inside a pressable card (the dashboard's "Log weight") is read, not pressed.
+        onClick={(e) => e.stopPropagation()}
       >
         <div ref={setAnchor} style={{ position: 'absolute', left: sel?.x ?? 0, top: sel?.y ?? 0 }} />
       </div>

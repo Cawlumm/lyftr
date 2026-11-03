@@ -163,18 +163,18 @@ describe('formatNumber', () => {
   it('draws en with a point and grouping', async () => {
     await i18n.changeLanguage('en')
     expect(formatNumber(180.5)).toBe('180.5')
-    expect(formatNumber(12160)).toBe('12,160')
+    expect(formatNumber(12160, { grouped: true })).toBe('12,160')
   })
 
   it('draws es with a comma decimal and a point for grouping', async () => {
     await i18n.changeLanguage('es')
     expect(formatNumber(180.5)).toBe('180,5')
-    expect(formatNumber(12160)).toBe('12.160')
+    expect(formatNumber(12160, { grouped: true })).toBe('12.160')
   })
 
   it('rounds to the decimals asked for', async () => {
     await i18n.changeLanguage('en')
     expect(formatNumber(80.26)).toBe('80.3')
-    expect(formatNumber(80.26, 0)).toBe('80')
+    expect(formatNumber(80.26, { decimals: 0 })).toBe('80')
   })
 })

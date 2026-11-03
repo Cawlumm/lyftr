@@ -1,4 +1,4 @@
-// Pure geometry and key logic for the web Tooltip and Menu, kept apart from the DOM so jest can
+// Pure geometry and key logic for the web ChartTooltip and Menu, kept apart from the DOM so jest can
 // run it.
 
 export type Side = 'top' | 'bottom'

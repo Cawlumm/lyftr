@@ -164,9 +164,9 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
         points={totals.map((v, i) => ({ x: xAt(i), y: yAt(v) }))}
         describe={(i) => [
           formatDay(data[i].date, 'monthDay'),
-          `${t('food.macro.protein')} ${formatNumber(Math.round(P[i]), 0)}g`,
-          `${t('food.macro.carbs')} ${formatNumber(Math.round(C[i]), 0)}g`,
-          `${t('food.macro.fat')} ${formatNumber(Math.round(F[i]), 0)}g`,
+          `${t('food.macro.protein')} ${formatNumber(Math.round(P[i]), { decimals: 0 })}g`,
+          `${t('food.macro.carbs')} ${formatNumber(Math.round(C[i]), { decimals: 0 })}g`,
+          `${t('food.macro.fat')} ${formatNumber(Math.round(F[i]), { decimals: 0 })}g`,
         ]} />
 
       {/* Web reads the day through ChartTooltip instead of the tap bubble. */}

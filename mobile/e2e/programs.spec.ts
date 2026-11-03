@@ -131,10 +131,12 @@ test.describe('Programs', () => {
     await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).first().click()
     await page.getByPlaceholder(/search exercises/i).fill('deadlift')
-    await page.getByText(/deadlift/i).first().click()
+    const row = page.getByRole('button', { name: /deadlift/i }).first()
+    await expect(row).toBeVisible()
+    await row.click()
 
-    // The weight column header carries the unit: "Weight (lb)".
-    await expect(page.getByText(/^Weight \((lb|kg)\)$/).first()).toBeVisible()
+    // A fresh account defaults to lb, and the weight column header carries the unit.
+    await expect(page.getByText('Weight (lb)', { exact: true }).first()).toBeVisible()
   })
 
   test('delete program shows confirm and cancels', async ({ page }) => {

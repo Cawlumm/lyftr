@@ -24,6 +24,12 @@ test.beforeAll(async ({ request, workerAuth }) => {
     })
     expect(res.ok()).toBeTruthy()
   }
+  for (const daysAgo of [0, 1]) {
+    const food = await request.post(`${API_BASE}/food`, {
+      headers, data: { name: `E2E Charts Oats ${daysAgo}`, meal: 'breakfast', calories: 600, protein: 40, carbs: 70, fat: 12, logged_at: new Date(Date.now() - daysAgo * DAY).toISOString() },
+    })
+    expect(food.ok()).toBeTruthy()
+  }
   const workouts = (await (await request.get(`${API_BASE}/workouts?limit=100`, { headers })).json()).data ?? []
   if (workouts.some((w: { name: string }) => w.name === WORKOUT)) return
   const exId = (await (await request.get(`${API_BASE}/exercises?limit=1`, { headers })).json()).data[0].id
@@ -173,5 +179,24 @@ for (const width of WIDTHS) {
     if (width === 390 || width === 1920) {
       await testInfo.attach(`weight-tooltip-${width}.png`, { body: await page.screenshot(), contentType: 'image/png' })
     }
+  })
+
+  test(`the nutrition macro history stays inside its card at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/nutrition')
+    await page.getByRole('button', { name: 'Trends', exact: true }).click()
+    const chart = page.getByRole('img', { name: 'Macro History' })
+    await expect(chart).toBeVisible()
+    await chart.focus()
+    await page.keyboard.press('End')
+    await expect(tip(page)).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    const [c, t] = [(await chart.boundingBox())!, (await tip(page).boundingBox())!]
+    expect(c.x + c.width).toBeLessThanOrEqual(width)
+    expect(t.x + t.width).toBeLessThanOrEqual(width)
+    expect(await chart.evaluate(el => {
+      const card = el.closest('[class*="rounded"]')!.getBoundingClientRect()
+      return el.getBoundingClientRect().right <= card.right + 1
+    })).toBe(true)
   })
 }
