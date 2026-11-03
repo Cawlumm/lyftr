@@ -7,12 +7,15 @@ import {
 import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramPicker } from '../../../src/components/workouts/ProgramPicker'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
+import { useMotion } from '../../../src/lib/useMotion'
 import { useTheme } from '../../../src/theme/useTheme'
 
 // Same shape as web's WorkoutFormData: weights/duration in DISPLAY units here;
@@ -54,6 +57,13 @@ export default function AddWorkout() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
   const { colors, brand, accent, isDark } = useTheme()
+  const { lg } = useBreakpoint()
+  // Web from lg: the scalar facts share one row and the actions size to their labels.
+  const wide = Platform.OS === 'web' && lg
+  // The browser does not drop smooth scrolling for reduced motion on its own; native keeps
+  // the animated scroll it always had.
+  const { reduced } = useMotion()
+  const smooth = !(Platform.OS === 'web' && reduced)
 
   const [showPicker, setShowPicker] = useState(false)
   const [showProgramPicker, setShowProgramPicker] = useState(false)
@@ -181,12 +191,12 @@ export default function AddWorkout() {
 
   // Web scrolls the window to top on error; here the ScrollView.
   useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [error, smooth])
 
   useEffect(() => {
-    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [save.failureKey])
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [save.failureKey, smooth])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'workouts.form.errors.nameRequired' }); return }
@@ -210,7 +220,7 @@ export default function AddWorkout() {
     : t('workouts.form.summary', counts)
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView
         ref={scrollRef}
         style={scrollBleed} showsVerticalScrollIndicator={false}
@@ -233,48 +243,53 @@ export default function AddWorkout() {
 
           {/* Form/request error — boxed alert (authui AuthError pattern) */}
           {error || save.error ? (
-            <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
+            <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
               <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
             </View>
           ) : null}
 
-          <View>
-            <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} hint={t('common.required')} />
-            <Field
-              value={formData.name}
-              onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
-              placeholder={t('workouts.form.namePlaceholder')}
-            />
-          </View>
-
-          {/* Date + duration share a row — related scalar facts, half-width each. The
-              duration stepper is a single overflow-hidden container, so it fits the
-              half column; DateInput opens its picker in a full-width Modal so the
-              half-width trigger doesn't crush the calendar. */}
-          <View className="flex-row gap-3">
-            <View className="flex-[2]">
-              <FieldHeader icon={CalendarDays} label={t('workouts.form.date')} />
-              <DateInput
-                value={formData.date}
-                onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
-                maximumDate={new Date()}
+          <View className={wide ? 'flex-row gap-4' : 'gap-6'}>
+            <View className={wide ? 'flex-1' : ''}>
+              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} hint={t('common.required')} />
+              <Field
+                // The header above is not tied to the input in the DOM, so web names it here.
+                accessibilityLabel={Platform.OS === 'web' ? t('workouts.form.name') : undefined}
+                value={formData.name}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+                placeholder={t('workouts.form.namePlaceholder')}
               />
             </View>
-            <View className="flex-1">
-              {/* "min" already rides the value, so the label stays just "Duration". */}
-              <FieldHeader icon={Clock} label={t('workouts.form.duration')} />
-              <DurationField
-                value={formData.duration}
-                onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
-                inputAccessoryViewID={KEYPAD_DONE_ID}
-              />
+
+            {/* Date + duration share a row — related scalar facts, half-width each. The
+                duration stepper is a single overflow-hidden container, so it fits the
+                half column; DateInput opens its picker in a full-width Modal so the
+                half-width trigger doesn't crush the calendar. */}
+            <View className="flex-row gap-3">
+              <View className={wide ? 'w-44' : 'flex-[2]'}>
+                <FieldHeader icon={CalendarDays} label={t('workouts.form.date')} />
+                <DateInput
+                  value={formData.date}
+                  onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
+                  maximumDate={new Date()}
+                />
+              </View>
+              <View className={wide ? 'w-36' : 'flex-1'}>
+                {/* "min" already rides the value, so the label stays just "Duration". */}
+                <FieldHeader icon={Clock} label={t('workouts.form.duration')} />
+                <DurationField
+                  value={formData.duration}
+                  onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
+                  inputAccessoryViewID={KEYPAD_DONE_ID}
+                />
+              </View>
             </View>
           </View>
 
           <View>
             <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
+              accessibilityLabel={Platform.OS === 'web' ? t('common.notes') : undefined}
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
               placeholder={t('workouts.form.notesPlaceholder')}
@@ -288,8 +303,8 @@ export default function AddWorkout() {
             {/* Label row + full-width button row: label group AND two buttons don't
                 fit one 390pt row (the Add button clipped off-screen), and equal-width
                 buttons make friendlier touch targets anyway. */}
-            <View className="mb-3">
-              <View className="mb-2.5 flex-row items-center gap-2">
+            <View className={wide ? 'mb-3 flex-row items-center justify-between' : 'mb-3'}>
+              <View className={`${wide ? '' : 'mb-2.5 '}flex-row items-center gap-2`}>
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>{t('workouts.form.exercises')}</Label>
                 <AppText variant="caption" color="muted">{t('common.required')}</AppText>
@@ -298,7 +313,7 @@ export default function AddWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowProgramPicker(true)}
-                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95"
+                  className={`${wide ? '' : 'flex-1 '}flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}
                 >
                   <BookOpen size={13} color={colors.txSecondary} />
                   <Text className="font-sans-semibold text-xs text-tx-secondary">{t('workouts.form.loadProgram')}</Text>
@@ -306,7 +321,7 @@ export default function AddWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowPicker(true)}
-                  className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
+                  className={`${wide ? '' : 'flex-1 '}flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}
                 >
                   <Plus size={13} color="#ffffff" />
                   <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
@@ -352,7 +367,7 @@ export default function AddWorkout() {
                   accessibilityRole="button"
                   accessibilityLabel={t('workouts.form.addExerciseLabel')}
                   onPress={() => setShowPicker(true)}
-                  className="h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60"
+                  className={`h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60 ${interactive('hover:border-brand-500/40 hover:bg-brand-500/5')}`}
                 >
                   <Plus size={14} color={accent} />
                   <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('common.addExercise')}</Text>
@@ -366,9 +381,9 @@ export default function AddWorkout() {
 
       {/* Sticky footer actions — Save stays reachable however long the form grows.
           -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
-      <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
-        <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title={t('workouts.form.saveWorkout')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
+      <View className={`-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3 ${wide ? 'justify-end' : ''}`}>
+        <Button title={t('common.cancel')} variant="secondary" className={wide ? 'min-w-32' : 'flex-1'} onPress={goBack} />
+        <Button title={t('workouts.form.saveWorkout')} className={wide ? 'min-w-40' : 'flex-1'} onPress={handleSubmit} loading={save.busy} />
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}

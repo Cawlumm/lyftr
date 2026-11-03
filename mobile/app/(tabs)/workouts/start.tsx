@@ -1,13 +1,25 @@
-import { useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
+import { useEffect, useState, type ReactNode } from 'react'
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from '../../../src/components/ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, ErrorState, IconButton, Screen, scrollBleed } from '../../../src/components/ui'
+import { AppText, ErrorState, IconButton, ResponsiveGrid, Screen, scrollBleed } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
+import { linkProps } from '../../../src/components/ui/link'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
+
+// These controls had no role, which native reads from the text alone; react-native-web needs
+// one for the DOM, so web gets it and native is unchanged.
+const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
+
+function ProgramRows({ wide, children }: { wide: boolean; children: ReactNode }) {
+  if (wide) return <ResponsiveGrid columns={{ base: 2, md: 2, lg: 2 }} gap={8}>{children}</ResponsiveGrid>
+  return <View className="gap-2">{children}</View>
+}
 
 // Port of web/pages/StartWorkout.tsx. Quick-start (blank), start-from-program, and a
 // resume/discard banner for an in-progress session. Navigates to /workouts/active,
@@ -18,6 +30,9 @@ export default function StartWorkout() {
   const startSession = useWorkoutSession((s) => s.startSession)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
   const { colors, accent } = useTheme()
+  const { lg } = useBreakpoint()
+  // Web from lg: the programs sit two to a row.
+  const wide = Platform.OS === 'web' && lg
 
   const [programs, setPrograms] = useState<Program[]>([])
   const [loading, setLoading] = useState(false)
@@ -49,7 +64,7 @@ export default function StartWorkout() {
   }
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
@@ -72,14 +87,16 @@ export default function StartWorkout() {
               <View className="flex-row gap-2">
                 <Pressable
                   onPress={() => router.push('/workouts/active')}
-                  className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 active:scale-95"
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-brand-500 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}
                 >
                   <Play size={16} color="#ffffff" />
                   <AppText variant="bodySemibold" color="white">{t('workouts.start.resume')}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => cancelSession()}
-                  className="flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-muted py-2.5 active:scale-95"
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl border border-surface-border bg-surface-muted py-2.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}
                 >
                   <Trash2 size={16} color={colors.txMuted} />
                   <AppText variant="bodySemibold" color="secondary">{t('workouts.start.discard')}</AppText>
@@ -91,7 +108,8 @@ export default function StartWorkout() {
           {/* Quick start */}
           <Pressable
             onPress={startQuick}
-            className="flex-row items-center gap-4 rounded-2xl border border-brand-500/20 bg-brand-500/10 p-5 active:scale-95"
+            accessibilityRole={WEB_BUTTON}
+            className={`flex-row items-center gap-4 rounded-2xl border border-brand-500/20 bg-brand-500/10 p-5 active:scale-95 ${interactive('hover:border-brand-500/40 hover:bg-brand-500/15')}`}
           >
             <View className="h-12 w-12 items-center justify-center rounded-xl bg-brand-500">
               <Zap size={24} color="#ffffff" />
@@ -135,12 +153,16 @@ export default function StartWorkout() {
               <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
                 <BookOpen size={32} color={colors.txMuted} />
                 <AppText variant="body" color="muted" className="mt-2">{t('workouts.start.noPrograms')}</AppText>
-                <Pressable onPress={() => router.navigate('/programs/new')} className="mt-3 active:opacity-60">
+                <Pressable
+                  // A page, so a real link on web; native keeps its plain pressable.
+                  {...(Platform.OS === 'web' ? linkProps('/programs/new', () => router.navigate('/programs/new')) : { onPress: () => router.navigate('/programs/new') })}
+                  className={`mt-3 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+                >
                   <AppText variant="caption" style={{ color: accent }}>{t('workouts.start.createFirst')}</AppText>
                 </Pressable>
               </View>
             ) : (
-              <View className="gap-2">
+              <ProgramRows wide={wide}>
                 {programs.map((p) => {
                   const dayCount = p.days?.length ?? 0
                   return (
@@ -149,7 +171,8 @@ export default function StartWorkout() {
                       // onEmpty: a program with zero workout days has nothing to load —
                       // open its detail page (add a day there) instead of a dead tap.
                       onPress={() => pickProgramDay(p, startFromProgram, setDayPickFor, () => router.push(`/programs/${p.id}`))}
-                      className="flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:bg-surface-muted"
+                      accessibilityRole={WEB_BUTTON}
+                      className={`flex-row items-center gap-3 rounded-2xl border border-surface-border bg-surface-raised p-4 active:bg-surface-muted ${interactive('hover:border-brand-500/40')}`}
                     >
                       <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
                         <BookOpen size={20} color={accent} />
@@ -164,7 +187,7 @@ export default function StartWorkout() {
                     </Pressable>
                   )
                 })}
-              </View>
+              </ProgramRows>
             )}
           </View>
         </View>

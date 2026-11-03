@@ -8,6 +8,8 @@ import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen,
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
+import { useMotion } from '../../../../src/lib/useMotion'
 import { useTheme } from '../../../../src/theme/useTheme'
 import type { DayDraft } from '../../../../src/components/programs/types'
 
@@ -36,6 +38,13 @@ export default function EditProgram() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
   const { brand, isDark } = useTheme()
+  const { lg } = useBreakpoint()
+  // Web from lg: the form actions size to their labels.
+  const wide = Platform.OS === 'web' && lg
+  // The browser does not drop smooth scrolling for reduced motion on its own; native keeps
+  // the animated scroll it always had.
+  const { reduced } = useMotion()
+  const smooth = !(Platform.OS === 'web' && reduced)
 
   const [initialLoading, setInitialLoading] = useState(true)
   // Only what the FORM can say before anything is sent. What the SERVER says lives
@@ -127,12 +136,12 @@ export default function EditProgram() {
   }, t('programs.form.updateFailed'))
 
   useEffect(() => {
-    if (error) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [error])
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [error, smooth])
 
   useEffect(() => {
-    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: true })
-  }, [save.failureKey])
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [save.failureKey, smooth])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) { setError({ key: 'programs.form.errors.nameRequired' }); return }
@@ -145,7 +154,7 @@ export default function EditProgram() {
 
   if (loadError) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <ErrorState
           size="page"
           title={t('programs.detail.loadFailed')}
@@ -163,7 +172,7 @@ export default function EditProgram() {
   const totalSets = formData.days.reduce((s, d) => s + d.exercises.reduce((s2, ex) => s2 + ex.sets.length, 0), 0)
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView
         ref={scrollRef}
         style={scrollBleed} showsVerticalScrollIndicator={false}
@@ -184,7 +193,7 @@ export default function EditProgram() {
           </View>
 
           {error || save.error ? (
-            <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
+            <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
               <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
             </View>
@@ -193,6 +202,8 @@ export default function EditProgram() {
           <View>
             <FieldHeader icon={BookOpen} label={t('programs.form.name')} />
             <Field
+              // The header above is not tied to the input in the DOM, so web names it here.
+              accessibilityLabel={Platform.OS === 'web' ? t('programs.form.name') : undefined}
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
             />
@@ -201,6 +212,7 @@ export default function EditProgram() {
           <View>
             <FieldHeader icon={FileText} label={t('common.notes')} />
             <Field
+              accessibilityLabel={Platform.OS === 'web' ? t('common.notes') : undefined}
               value={formData.notes}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
               placeholder={t('programs.form.notesPlaceholder')}
@@ -227,9 +239,9 @@ export default function EditProgram() {
         </View>
       </ScrollView>
 
-      <View className="-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3">
-        <Button title={t('common.cancel')} variant="secondary" className="flex-1" onPress={goBack} />
-        <Button title={t('common.saveChanges')} className="flex-1" onPress={handleSubmit} loading={save.busy} />
+      <View className={`-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3 ${wide ? 'justify-end' : ''}`}>
+        <Button title={t('common.cancel')} variant="secondary" className={wide ? 'min-w-32' : 'flex-1'} onPress={goBack} />
+        <Button title={t('common.saveChanges')} className={wide ? 'min-w-40' : 'flex-1'} onPress={handleSubmit} loading={save.busy} />
       </View>
 
       <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />

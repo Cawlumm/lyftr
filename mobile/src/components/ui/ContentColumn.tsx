@@ -1,10 +1,11 @@
 import { ReactNode } from 'react'
 import { Platform, StyleProp, View, ViewProps, ViewStyle } from 'react-native'
 
-export type ColumnWidth = 'narrow' | 'default' | 'wide' | 'full'
+export type ColumnWidth = 'narrow' | 'medium' | 'default' | 'wide' | 'full'
 
 const MAX_WIDTH: Record<ColumnWidth, string> = {
   narrow: 'max-w-xl',
+  medium: 'max-w-2xl',
   default: 'max-w-3xl',
   wide: 'max-w-6xl',
   full: '',

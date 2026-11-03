@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
@@ -10,8 +10,11 @@ import { useAsyncAction,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
+import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
 import { targetWeightLabel, restLabel } from '@lyftr/shared'
@@ -19,10 +22,14 @@ import { targetWeightLabel, restLabel } from '@lyftr/shared'
 // Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
 // so back returns to this program — pushing the workouts-tab copy would jump tabs and
 // strand the back stack. Both routes render the shared ExerciseDetailScreen.
-const exerciseHref = (exerciseId: number) => `/programs/exercise/${exerciseId}` as unknown as Href
+const exercisePath = (exerciseId: number) => `/programs/exercise/${exerciseId}`
 const startHref = '/workouts/start' as unknown as Href
 const activeHref = '/workouts/active' as unknown as Href
 
+
+// These controls had no role, which native reads from the text alone; react-native-web needs
+// one for the DOM, so web gets it and native is unchanged.
+const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3
@@ -64,6 +71,17 @@ function MuscleBadge({ muscle }: { muscle: string }) {
   )
 }
 
+// The program's days in order: a sideways scroller on a phone; on wide web a wrapped row, since
+// a pointer has no swipe to reach the days past the edge.
+function DayStrip({ wide, children }: { wide: boolean; children: ReactNode }) {
+  if (wide) return <View className="flex-row flex-wrap gap-2">{children}</View>
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+      {children}
+    </ScrollView>
+  )
+}
+
 export default function ProgramDetail() {
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -73,6 +91,8 @@ export default function ProgramDetail() {
   const restOn = settings.rest_enabled ?? true
   const { session, startSession } = useWorkoutSession()
   const { colors, brand, accent, isDark } = useTheme()
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
 
   const [program, setProgram] = useState<Program | null>(null)
   const [loading, setLoading] = useState(true)
@@ -191,7 +211,7 @@ export default function ProgramDetail() {
 
   if (error || !program) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <View className="flex-1 py-4">
           <ErrorState
             size="page"
@@ -245,12 +265,17 @@ export default function ProgramDetail() {
   const warningColor = isDark ? brand.warningSoft : brand.warning
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
+            <Pressable
+              onPress={goBack}
+              accessibilityRole={WEB_BUTTON}
+              hitSlop={8}
+              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+            >
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('programs.detail.back')}</AppText>
             </Pressable>
@@ -263,17 +288,16 @@ export default function ProgramDetail() {
                 onPress={handleStart}
                 disabled={!selectedDay || selectedDay.is_rest_day}
                 hitSlop={6}
-                className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''}`}
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''} ${interactive('hover:bg-brand-600', { disabled: !selectedDay || selectedDay.is_rest_day })}`}
               >
                 <Play size={14} color="#ffffff" strokeWidth={2.2} />
                 <AppText variant="label" color="white">{t('programs.detail.start')}</AppText>
               </Pressable>
               <Pressable
-                accessibilityRole="button"
+                {...linkProps(`/programs/${program.id}/edit`, () => router.push(`/programs/${program.id}/edit`))}
                 accessibilityLabel={t('programs.detail.editLabel')}
-                onPress={() => router.push(`/programs/${program.id}/edit`)}
                 hitSlop={6}
-                className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95 ${interactive('hover:bg-brand-500/20')}`}
               >
                 <Edit2 size={15} color={accent} strokeWidth={2.2} />
                 <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
@@ -284,7 +308,7 @@ export default function ProgramDetail() {
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
                 hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''} ${interactive('hover:bg-error-500/10', { disabled: remove.busy })}`}
               >
                 <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
               </Pressable>
@@ -329,16 +353,18 @@ export default function ProgramDetail() {
                     <Pressable
                       onPress={() => resolveSuggestions([sg.setId], [])}
                       disabled={resolving}
+                      accessibilityRole={WEB_BUTTON}
                       accessibilityLabel={t('programs.detail.suggestions.accept', { name: sg.exName, number: sg.setNumber })}
-                      className={`w-7 h-7 rounded-lg bg-success-500/15 items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                      className={`w-7 h-7 rounded-lg bg-success-500/15 items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-success-500/25', { disabled: resolving })}`}
                     >
                       <Check size={14} color={isDark ? brand.successSoft : brand.success} strokeWidth={3} />
                     </Pressable>
                     <Pressable
                       onPress={() => resolveSuggestions([], [sg.setId])}
                       disabled={resolving}
+                      accessibilityRole={WEB_BUTTON}
                       accessibilityLabel={t('programs.detail.suggestions.dismiss', { name: sg.exName, number: sg.setNumber })}
-                      className={`w-7 h-7 rounded-lg bg-surface-muted items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                      className={`w-7 h-7 rounded-lg bg-surface-muted items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-surface-border', { disabled: resolving })}`}
                     >
                       <X size={14} color={colors.txMuted} strokeWidth={3} />
                     </Pressable>
@@ -348,7 +374,8 @@ export default function ProgramDetail() {
               {suggestions.length > SUGGESTION_CAP && (
                 <Pressable
                   onPress={() => setShowAllSuggestions((v) => !v)}
-                  className="flex-row items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 active:opacity-60"
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-row items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}
                 >
                   <AppText variant="caption" style={{ color: warningColor, fontWeight: '600' }}>
                     {showAllSuggestions ? t('programs.detail.suggestions.showLess') : t('programs.detail.suggestions.showAll', { total: suggestions.length })}
@@ -366,14 +393,16 @@ export default function ProgramDetail() {
                 <Pressable
                   onPress={() => resolveSuggestions([], suggestedSetIds)}
                   disabled={resolving}
-                  className={`flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border items-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-surface-border', { disabled: resolving })}`}
                 >
                   <AppText variant="bodySemibold" color="secondary">{t('programs.detail.suggestions.dismissAll')}</AppText>
                 </Pressable>
                 <Pressable
                   onPress={() => resolveSuggestions(suggestedSetIds, [])}
                   disabled={resolving}
-                  className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''}`}
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:opacity-90', { disabled: resolving })}`}
                 >
                   <AppText variant="bodySemibold" style={{ color: brand.warningText }}>{t('programs.detail.suggestions.applyAll', { total: suggestions.length })}</AppText>
                 </Pressable>
@@ -432,12 +461,16 @@ export default function ProgramDetail() {
             <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-6">
               <CalendarDays size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
               <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noDays')}</AppText>
-              <Pressable onPress={() => router.push(`/programs/${program.id}/edit`)} className="mt-2 active:opacity-60">
+              <Pressable
+                onPress={() => router.push(`/programs/${program.id}/edit`)}
+                accessibilityRole={WEB_BUTTON}
+                className={`mt-2 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+              >
                 <AppText variant="caption" style={{ color: accent }}>{t('programs.detail.addDay')}</AppText>
               </Pressable>
             </View>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+            <DayStrip wide={wide}>
               {days.map((day, i) => {
                 const isSelected = i === selectedDayIdx
                 const isToday = i === program.current_day_index
@@ -445,7 +478,10 @@ export default function ProgramDetail() {
                   <Pressable
                     key={day.id ?? i}
                     onPress={() => setSelectedDayIdx(i)}
-                    className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 active:scale-95 ${
+                    accessibilityRole={WEB_BUTTON}
+                    // react-native-web drops accessibilityState, so the web DOM says which day is shown.
+                    {...(Platform.OS === 'web' ? { 'aria-pressed': isSelected } : {})}
+                    className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 active:scale-95 ${interactive(isSelected ? '' : 'hover:border-brand-500/40')} ${
                       isSelected
                         ? 'bg-brand-500 border-brand-500'
                         : day.is_rest_day
@@ -469,7 +505,7 @@ export default function ProgramDetail() {
                   </Pressable>
                 )
               })}
-            </ScrollView>
+            </DayStrip>
           )}
 
           {/* Selected day's exercises */}
@@ -507,9 +543,10 @@ export default function ProgramDetail() {
               return (
                 <Pressable
                   key={ex.id ?? ex.exercise_id}
-                  accessibilityRole="button"
-                  onPress={() => router.push(exerciseHref(ex.exercise_id))}
-                  className="bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99]"
+                  {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
+                  // On web the card is a link, named by what it opens rather than its text run together.
+                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
+                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
                 >
                   <View className="flex-row items-center gap-3 p-4">
                     <ExerciseImage url={ex.exercise?.image_url} />
