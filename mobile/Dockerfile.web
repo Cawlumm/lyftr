@@ -1,0 +1,46 @@
+# The Expo app's web export, served by nginx. Build context is the REPO ROOT (the app is an
+# npm workspace member and imports @lyftr/shared from packages/), same as web/Dockerfile.
+# This image sits next to the Vite one rather than replacing it: both are built until the
+# cutover, and web/ is untouched.
+
+# Stage 1: Build — host platform, to avoid QEMU slowness for npm/node
+FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
+
+WORKDIR /app
+
+# Manifests first (layer cache). web/package.json is copied but never installed: `npm ci`
+# validates the lockfile against every workspace it declares, so the file has to exist,
+# while `-w @lyftr/mobile` leaves web's own dependencies out.
+COPY package.json package-lock.json ./
+COPY web/package.json ./web/
+COPY mobile/package.json ./mobile/
+COPY packages/shared/package.json ./packages/shared/
+# postinstall runs patch-package over patches/*.patch (expo-localization), which the
+# export bundles, so the patch has to be there when the install finishes.
+COPY patches ./patches
+RUN npm ci -w @lyftr/mobile --include-workspace-root
+
+# packages/shared ships as TypeScript source (no build step) — Metro transpiles it.
+COPY packages/shared ./packages/shared
+COPY mobile/ ./mobile/
+# Same command the CI `web-export` job runs: output lands in mobile/dist.
+RUN EXPO_NO_TELEMETRY=1 CI=1 npm run export:web -w @lyftr/mobile
+
+# Stage 2: Runtime
+FROM nginx:alpine
+
+# Backend upstream for the /api proxy. Override at runtime (compose/`docker run -e`)
+# when the backend runs on a non-default port, e.g. BACKEND_ORIGIN=backend:3008.
+ENV BACKEND_ORIGIN=backend:3000
+# Only substitute our own var so nginx runtime vars ($host, $uri, ...) are left intact.
+ENV NGINX_ENVSUBST_FILTER=BACKEND_ORIGIN
+
+# nginx's entrypoint renders templates in /etc/nginx/templates/*.template through
+# envsubst into /etc/nginx/conf.d/ on start.
+COPY mobile/nginx.conf.template /etc/nginx/templates/default.conf.template
+
+COPY --from=builder /app/mobile/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]

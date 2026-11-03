@@ -31,7 +31,7 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
   return (
     <Sheet open={open} onClose={onClose} haptic="selection">
       <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-3 pt-1">
-        <AppText variant="title">{t('filters.title')}</AppText>
+        <AppText variant="title" headingLevel={2}>{t('filters.title')}</AppText>
         <View className="flex-row items-center gap-3">
           <Pressable
             accessibilityRole="button"

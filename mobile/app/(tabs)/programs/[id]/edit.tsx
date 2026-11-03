@@ -174,7 +174,7 @@ export default function EditProgram() {
       >
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={goBack} />
             <View>
               <AppText variant="title">{t('programs.form.editTitle')}</AppText>
               <AppText variant="caption" color="muted">

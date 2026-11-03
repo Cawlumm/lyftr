@@ -71,6 +71,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
           // (frame == line box + pad pushed from the top) — it rode too high in the box.
           style={multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' } : { fontSize: 16, height: 46 }}
           multiline={multiline}
+          accessibilityLabel={label}
           placeholderTextColor={colors.txMuted}
           onFocus={(e) => {
             focus.value = withTiming(1, { duration: 150 })

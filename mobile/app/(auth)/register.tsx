@@ -82,6 +82,7 @@ export default function Register() {
     <AuthScaffold heading={t('auth.register.heading')} subtitle={t('auth.register.subtitleNative')}>
       <ServerRow />
       <IconInput
+        id="email"
         label={t('auth.field.email')}
         icon="mail"
         value={email}
@@ -90,6 +91,7 @@ export default function Register() {
         placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
+        id="password"
         label={t('auth.field.password')}
         icon="lock"
         password
@@ -101,6 +103,7 @@ export default function Register() {
         <PasswordRule state={rules.length}>{lengthRuleLabel(password)}</PasswordRule>
       </View>
       <IconInput
+        id="password-confirm"
         label={t('auth.field.confirmPassword')}
         icon="lock"
         password

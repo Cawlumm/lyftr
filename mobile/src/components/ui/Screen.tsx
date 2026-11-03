@@ -1,5 +1,5 @@
 import { ReactNode } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 interface Props {
@@ -12,7 +12,12 @@ interface Props {
 export function Screen({ children, className = '' }: Props) {
   return (
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
-      <View className={`flex-1 px-5 ${className}`}>{children}</View>
+      <View
+        role={Platform.OS === 'web' ? 'main' : undefined}
+        className={`flex-1 px-5 ${className}`}
+      >
+        {children}
+      </View>
     </SafeAreaView>
   )
 }

@@ -141,6 +141,8 @@ export function AuthScaffold({
               </View>
 
               <Text
+                role="heading"
+                aria-level={1}
                 style={{
                   fontFamily: 'Outfit_800ExtraBold',
                   fontSize: 37,
@@ -168,6 +170,7 @@ export function AuthScaffold({
 
         {/* SHEET */}
         <View
+          role={Platform.OS === 'web' ? 'main' : undefined}
           style={{
             flex: 1,
             marginTop: -26,

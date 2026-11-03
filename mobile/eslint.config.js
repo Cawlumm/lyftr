@@ -36,6 +36,12 @@ module.exports = [
     },
   },
   {
-    ignores: ['dist/*', '.expo/*', 'node_modules/*', 'expo-env.d.ts'],
+    // Playwright fixtures hand their value to the test through a callback named `use`,
+    // which the hooks rules mistake for React's `use`.
+    files: ['e2e/**/*.ts'],
+    rules: { 'react-hooks/rules-of-hooks': 'off' },
+  },
+  {
+    ignores: ['dist/*', '.expo/*', 'playwright-report/*', 'test-results/*', 'node_modules/*', 'expo-env.d.ts'],
   },
 ]

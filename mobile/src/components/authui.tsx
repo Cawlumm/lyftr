@@ -77,6 +77,7 @@ export function IconInput({
           style={{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }}
           placeholderTextColor={colors.txMuted}
           secureTextEntry={hide}
+          accessibilityLabel={label}
           autoCapitalize="none"
           autoCorrect={false}
           onFocus={() => { focus.value = withTiming(1, { duration: 150 }) }}
@@ -110,6 +111,7 @@ export function AuthError({ message }: { message: string }) {
   const tint = isDark ? brand.errorSoft : brand.error
   return (
     <Animated.View
+      accessibilityRole="alert"
       style={{
         marginTop: 16,
         flexDirection: 'row',
@@ -148,6 +150,7 @@ export function GradientButton({
     <Pressable
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityRole="button"
       style={{
         marginTop: 26,
         borderRadius: 16,
@@ -268,6 +271,8 @@ export function ServerRow() {
     <View style={{ marginTop: 12 }}>
       <Pressable
         onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -295,6 +300,7 @@ export function ServerRow() {
             value={url}
             onChangeText={(text) => { setResult(null); setUrl(text) }}
             placeholder={t('settings.server.url.placeholder')}
+            accessibilityLabel={t('settings.server.url.label')}
             placeholderTextColor={colors.txMuted}
             autoCapitalize="none"
             autoCorrect={false}
@@ -330,6 +336,7 @@ export function ServerRow() {
           ) : null}
           <Pressable
             onPress={save}
+            accessibilityRole="button"
             style={{
               height: 44,
               borderRadius: 12,

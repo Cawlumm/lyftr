@@ -224,7 +224,7 @@ export default function AddWorkout() {
         <View className="gap-6 py-4">
           {/* Back + title */}
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={goBack} />
             <View>
               <AppText variant="title">{t('workouts.form.logTitle')}</AppText>
               <AppText variant="caption" color="muted">{summary}</AppText>

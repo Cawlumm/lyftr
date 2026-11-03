@@ -53,7 +53,7 @@ export default function StartWorkout() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
-            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
+            <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={goBack} />
             <AppText variant="title">{t('workouts.start.title')}</AppText>
           </View>
 

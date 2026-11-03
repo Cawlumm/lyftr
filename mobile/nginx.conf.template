@@ -1,0 +1,64 @@
+server {
+    listen 80;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types
+        text/plain
+        text/css
+        text/javascript
+        application/javascript
+        application/json
+        image/svg+xml;
+
+    # Proxy API requests to the backend service.
+    # BACKEND_ORIGIN is host:port of the backend (default backend:3000), set via
+    # env so deployments that run the backend on another port don't have to
+    # rebuild the image. Substituted at container start by nginx's envsubst entrypoint.
+    location /api/ {
+        proxy_pass http://${BACKEND_ORIGIN}/api/;
+        proxy_http_version 1.1;
+        # $http_host keeps the port: the backend's CORS check short-circuits only when the
+        # browser's Origin equals http://<Host>, and $host drops the port (Origin has :8081).
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+    }
+
+    # W3C Change Password URL. Password managers (Safari Keychain, Chrome Password
+    # Checkup, 1Password) open this path to take a user straight to the change-password
+    # form. Exact-match so it wins over the SPA fallback, which would otherwise answer
+    # with index.html and leave the router to bounce an unauthenticated visitor to
+    # /login. The Expo route it lands on is app/(tabs)/settings/password.
+    location = /.well-known/change-password {
+        # absolute_redirect off keeps the Location relative. With nginx's default (on) it
+        # would expand to an absolute URL built from $scheme — and this block listens on
+        # 80 behind a TLS terminator, so that scheme is http. A manager opening the https
+        # well-known URL would be bounced to cleartext and left to whatever the outer
+        # proxy does about it. Relative inherits the request's real scheme.
+        absolute_redirect off;
+        return 302 /settings/password;
+    }
+
+    # SPA fallback: the export is web.output "single" (one index.html, client-side
+    # routing), so index.html answers every deep link; there are no per-route files.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets aggressively
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+}

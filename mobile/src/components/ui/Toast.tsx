@@ -106,6 +106,7 @@ export function Toast({
         )}
         <Pressable
           onPress={onDismiss}
+          accessibilityRole="button"
           accessibilityLabel={t('common.dismiss')}
           hitSlop={8}
           className="p-1.5 -m-1.5 active:opacity-60"
