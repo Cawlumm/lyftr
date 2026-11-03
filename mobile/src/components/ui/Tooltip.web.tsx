@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import type { TooltipProps } from './Tooltip'
 import { AnchoredOverlay } from './AnchoredOverlay.web'
+import { swallowEscapeKeyup } from './overlay'
 import { AppText } from './Typography'
 
 const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -54,7 +55,8 @@ export function Tooltip({ content, side = 'top', children }: TooltipProps) {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') now(false) }
+    // Escape dismisses the tooltip alone; a dialog beneath takes the next one.
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { now(false); swallowEscapeKeyup() } }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [open])

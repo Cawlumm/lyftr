@@ -39,3 +39,25 @@ export function typeaheadIndex(labels: readonly string[], from: number, char: st
   }
   return -1
 }
+
+// react-native-web closes a Modal on Escape from a document-level *keyup* listener
+// (Modal/ModalContent.js), while a menu or tooltip dismisses on keydown. Left alone, the keyup
+// that follows the keydown that dismissed the overlay also reaches the Modal, so one Escape
+// closes both. This arms a capture-phase listener on window, which runs before the Modal's
+// bubble-phase one, that eats that one keyup. It disarms itself on the keyup, or on the next
+// other keydown should the keyup never arrive (focus left the window). APG keeps Escape for the
+// topmost widget: https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/ and /menu-button/.
+export function swallowEscapeKeyup() {
+  const off = () => {
+    window.removeEventListener('keyup', onUp, true)
+    window.removeEventListener('keydown', onDown, true)
+  }
+  const onDown = (e: KeyboardEvent) => { if (e.key !== 'Escape') off() }
+  const onUp = (e: KeyboardEvent) => {
+    if (e.key !== 'Escape') return
+    e.stopPropagation()
+    off()
+  }
+  window.addEventListener('keyup', onUp, true)
+  window.addEventListener('keydown', onDown, true)
+}

@@ -161,3 +161,48 @@ test.describe('Menu', () => {
     expect(violations).toEqual([])
   })
 })
+
+// Escape belongs to the topmost widget (APG dialog-modal and menu-button). react-native-web
+// closes a Modal from a document *keyup* listener while the menu and tooltip dismiss on keydown,
+// so without swallowEscapeKeyup the one keypress closed both.
+test.describe('inside a dialog', () => {
+  const dialog = (page: Page) => page.getByRole('dialog', { name: 'Notes' })
+
+  test.beforeEach(async ({ page }) => {
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    await expect(dialog(page)).toBeVisible()
+  })
+
+  test('Escape closes an open menu only; the next one closes the dialog', async ({ page }) => {
+    const inside = dialog(page).getByRole('button', { name: 'Options', exact: true })
+    await inside.focus()
+    await page.keyboard.press('ArrowDown')
+    const list = dialog(page).getByRole('menu', { name: 'Options' })
+    await expect(list).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(list).toBeHidden()
+    await expect(dialog(page)).toBeVisible()
+    await expect(inside).toBeFocused()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog(page)).toBeHidden()
+  })
+
+  test('Escape dismisses a tooltip only; the next one closes the dialog', async ({ page }) => {
+    const save = dialog(page).getByRole('button', { name: 'Save', exact: true })
+    // The dialog focuses Save on open, which is not :focus-visible; arriving by key is.
+    await page.keyboard.press('Shift+Tab')
+    await page.keyboard.press('Tab')
+    await expect(save).toBeFocused()
+    const tip = page.getByRole('tooltip', { name: 'This cannot be undone' })
+    await expect(tip).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(tip).toBeHidden()
+    await expect(dialog(page)).toBeVisible()
+
+    await page.keyboard.press('Escape')
+    await expect(dialog(page)).toBeHidden()
+  })
+})

@@ -124,11 +124,13 @@ export function Sheet({
         {dialog ? (
           // The width sits on a plain View: on the Animated.View carrying `entering` the class
           // did not apply (measured).
+          // The surface is capped to the viewport and scrolls: a short window (a phone in landscape)
+          // would otherwise clip a sheet that has no ScrollView of its own, past both edges.
           <View className={`w-full ${DIALOG_WIDTH[width]}`}>
             <Animated.View entering={reduced ? undefined : dialogEnter.duration(DURATION.base)}>
               <SheetSurface
                 style={{ paddingBottom: bottomInset }}
-                className="rounded-2xl border border-surface-border bg-surface-base pt-6"
+                className="max-h-[calc(100dvh-3rem)] overflow-y-auto rounded-2xl border border-surface-border bg-surface-base pt-6"
               >
                 {children}
               </SheetSurface>

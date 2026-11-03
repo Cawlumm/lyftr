@@ -6,7 +6,7 @@ import { AnchoredOverlay } from './AnchoredOverlay.web'
 import { Icon } from './Icon'
 import { interactive } from './interaction'
 import { MENU_TRIGGER_BOX, type MenuProps } from './Menu'
-import { typeaheadIndex } from './overlay'
+import { swallowEscapeKeyup, typeaheadIndex } from './overlay'
 import { AppText } from './Typography'
 
 // The APG menu button (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/) over a vertical
@@ -69,14 +69,15 @@ export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, dis
     else if (key === 'ArrowUp') focusItem(i - 1)
     else if (key === 'Home') focusItem(0)
     else if (key === 'End') focusItem(items.length - 1)
-    else if (key === 'Escape') close(true)
+    else if (key === 'Escape') { close(true); swallowEscapeKeyup() }
     else if ((key === 'Enter' || key === ' ') && i >= 0) run(i)
     else if (key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       const next = typeaheadIndex(items.map(it => it.label), i, key)
       if (next >= 0) focusItem(next)
     } else return
     e.preventDefault()
-    // The menu's Escape is its own: a sheet the menu sits in stays open.
+    // The menu's Escape is its own: a sheet the menu sits in stays open (keydown stops here,
+    // and swallowEscapeKeyup stops the keyup the Modal listens for).
     e.stopPropagation()
   }
 

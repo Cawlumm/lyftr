@@ -133,3 +133,29 @@ test.describe('reduced motion', () => {
     expect(await page.evaluate(() => document.getAnimations().filter(a => a.playState === 'running').length)).toBe(0)
   })
 })
+
+test.describe('a short window', () => {
+  test.use({ viewport: { width: 844, height: 390 } })
+
+  test('the dialog fits the viewport and its content stays reachable by scrolling', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lyftr:dev-stories', '1'))
+    await page.goto('/dev-overlays')
+    await page.getByRole('button', { name: 'Edit', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Notes' })
+    await expect(dialog).toBeVisible()
+
+    const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
+    const surface = await cancel.evaluateHandle(el => {
+      let n = el.parentElement
+      while (n && getComputedStyle(n).overflowY !== 'auto') n = n.parentElement
+      return n!
+    })
+    const box = (await surface.asElement()!.boundingBox())!
+    expect(box.y).toBeGreaterThanOrEqual(0)
+    expect(box.y + box.height).toBeLessThanOrEqual(390)
+    expect(await surface.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
+
+    await cancel.scrollIntoViewIfNeeded()
+    await expect(cancel).toBeInViewport()
+  })
+})
