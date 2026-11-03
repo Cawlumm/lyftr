@@ -1,15 +1,15 @@
 # Lyftr Mobile — Conventions
 
-Read this before touching `mobile/`. It is the native analog of the old web app's
+Read this before touching `apps/app/`. It is the native analog of the old web app's
 conventions: same design language, same tokens — expressed in React Native / Expo idioms.
-When in doubt, open `mobile/src/components/ui/` and follow the nearest existing primitive.
+When in doubt, open `apps/app/src/components/ui/` and follow the nearest existing primitive.
 
 ## 1. Reuse boundary — logic is shared, UI is per-platform
 
 - **Logic lives in `@lyftr/shared`** and is *imported, never duplicated*: types, the
   API client, Zustand stores, and pure utils (`displayWeight`, `normalizeServerUrl`,
   `testServerConnection`, ...). If you're about to write a type, a fetch, or a
-  unit-conversion in `mobile/`, stop — it belongs in `packages/shared`.
+  unit-conversion in `apps/app/`, stop — it belongs in `packages/shared`.
 - **UI is authored per-platform**, but keep component names and prop
   shapes consistent with the existing primitives (`PageHeader`, `SectionHeader`, `SegmentedControl`,
   `EmptyState`, `IconButton`, `StepperTile` + `NumberField`, ...), adapted to RN
@@ -96,8 +96,7 @@ Therefore:
   constraints), never narrate the what.
 - Strict TS, no `any`. Generic where it pays (`SegmentedControl<T extends string>`).
 - Naming: PascalCase components, camelCase utils, hooks in `src/hooks/` with a `use`
-  prefix. Hooks ported from web keep the web name and a "port of web/... keep in
-  sync" header (`useNumericText`).
+  prefix.
 - Icons: lucide, imported from `ui/icons` (one per-icon module each; the package barrel
   ships every icon and lint rejects it), typed as `LucideIcon`, passed as the component
   (`icon={Trash2}`). Render through `<Icon>`: `sm`/`md`/`lg` sizes, one stroke, hidden from

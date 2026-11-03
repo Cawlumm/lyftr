@@ -9,17 +9,17 @@
 # The seed snapshot is created manually on first deploy (see fly/SETUP.md).
 
 # ── Stage 1: Frontend ────────────────────────────────────────────────────────
-# mobile is an npm workspace member, so this installs from the root lockfile. `-w @lyftr/mobile`
-# limits it to the app's slice. Mirrors mobile/Dockerfile.web — keep them in step.
+# apps/app (@lyftr/mobile) is an npm workspace member, so this installs from the root lockfile. `-w @lyftr/mobile`
+# limits it to the app's slice. Mirrors apps/app/Dockerfile.web — keep them in step.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY mobile/package.json ./mobile/
+COPY apps/app/package.json ./apps/app/
 COPY packages/shared/package.json ./packages/shared/
 COPY patches ./patches
 RUN npm ci -w @lyftr/mobile --include-workspace-root
 COPY packages/shared ./packages/shared
-COPY mobile/ ./mobile/
+COPY apps/app/ ./apps/app/
 RUN EXPO_NO_TELEMETRY=1 CI=1 npm run export:web -w @lyftr/mobile
 
 # ── Stage 2: Backend ─────────────────────────────────────────────────────────
@@ -42,13 +42,13 @@ FROM nginx:alpine
 # wget: used in health checks if needed
 RUN apk add --no-cache ca-certificates wget
 
-COPY --from=backend /build/lyftr-api     /app/lyftr-api
-COPY --from=frontend /app/mobile/dist    /usr/share/nginx/html
+COPY --from=backend /build/lyftr-api /app/lyftr-api
+COPY --from=frontend /app/apps/app/dist /usr/share/nginx/html
 
 # Fly-specific nginx config: proxy_pass uses localhost:3000 (not :3000 service name)
 COPY fly/nginx.fly.conf /etc/nginx/conf.d/default.conf
-# The same 301 list mobile/Dockerfile.web ships, at the path both configs include.
-COPY mobile/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
+# The same 301 list apps/app/Dockerfile.web ships, at the path both configs include.
+COPY apps/app/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
 
 # sed strips Windows \r\n → \n so the #!/bin/sh shebang works on Linux
 COPY fly/entrypoint.sh /app/entrypoint.sh

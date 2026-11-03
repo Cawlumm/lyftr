@@ -2,7 +2,7 @@
 // (eslint-config-expo, SDK-54-matched v57). The `lint` script blocks on errors.
 const expoConfig = require('eslint-config-expo/flat')
 const i18next = require('eslint-plugin-i18next')
-const i18nLint = require('../packages/shared/i18n-lint.cjs')
+const i18nLint = require('../../packages/shared/i18n-lint.cjs')
 
 module.exports = [
   ...expoConfig,

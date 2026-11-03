@@ -1,7 +1,7 @@
 // The barbell marks, as geometry rather than as markup.
 //
 // The bent barbell existed twice before this — web/src/components/BarbellSVG.tsx and the
-// BarbellMark inside mobile/src/components/Logo.tsx — with the same path string and the
+// BarbellMark inside apps/app/src/components/Logo.tsx — with the same path string and the
 // same eight rects typed out independently. Adding a second mark would have made four
 // copies of numbers that must agree, which is the shape of every drift bug this repo has
 // already paid for once (three copies of the numeric strip, two of dateUtils).

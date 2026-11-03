@@ -1,7 +1,7 @@
 // Design tokens — the single definition of every colour the two apps draw with.
 //
 // Consumers:
-//   mobile/src/theme/theme.ts → imports `surfaces` and `palette` directly
+//   apps/app/src/theme/theme.ts → imports `surfaces` and `palette` directly
 //   the NativeWind config     → `palette` becomes Tailwind colours
 //
 // This file must stay dependency-free. The Tailwind config deep-imports it rather

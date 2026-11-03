@@ -50,7 +50,7 @@ server {
     }
 
     # The Vite app's old URLs, 301'd to where each now lives with the query string kept.
-    # Generated from LEGACY_ROUTES (mobile/src/lib/legacyRoutes.ts); it holds regex
+    # Generated from LEGACY_ROUTES (apps/app/src/lib/legacyRoutes.ts); it holds regex
     # locations, so it stays above the asset regex below, which nginx would otherwise try first.
     include /etc/nginx/snippets/legacy-redirects.conf;
 

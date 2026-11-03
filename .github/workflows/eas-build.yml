@@ -26,7 +26,7 @@
 # and never runs per-PR.
 #
 # ── One-time setup (required before the first run) ────────────────────────────────────
-#   1. `cd mobile && npx eas login` then `npx eas init`   (links an EAS project; writes
+#   1. `cd apps/app && npx eas login` then `npx eas init`   (links an EAS project; writes
 #      extra.eas.projectId + owner into app.json — commit that change).
 #   2. Create an Expo access token at https://expo.dev → Account Settings → Access Tokens
 #      (a dedicated "CI"/robot token is best practice), then add it in GitHub:
@@ -105,7 +105,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci
       - name: EAS build (queue, don't hold the runner)
-        working-directory: mobile
+        working-directory: apps/app
         run: |
           eas build \
             --platform ${{ github.event.inputs.platform }} \
@@ -189,7 +189,7 @@ jobs:
 
       # The tag is the version, for every platform — #77 unified the namespace, and this
       # is what comparable self-hosted projects do (Immich tags v3.1.0 and its mobile app
-      # reports 3.1.0). mobile/app.config.js reads it from LYFTR_VERSION, so the tag is the
+      # reports 3.1.0). apps/app/app.config.js reads it from LYFTR_VERSION, so the tag is the
       # only place a release version exists: nothing to bump, nothing to drift.
       #
       # A dry run has no tag (the ref is a branch, which can contain slashes and isn't a
@@ -230,7 +230,7 @@ jobs:
       # job holding contents:write and EXPO_TOKEN. Exploiting it needs push access, but the
       # safe form costs nothing. LYFTR_VERSION is what app.config.js reads.
       - name: Build the APK on this runner
-        working-directory: mobile
+        working-directory: apps/app
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }} # eas needs it for credentials, not just login
           APK_NAME: ${{ steps.ver.outputs.name }}

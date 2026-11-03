@@ -1,4 +1,4 @@
-# Applies to every build whose context is the repo root: mobile/Dockerfile.web (the
+# Applies to every build whose context is the repo root: apps/app/Dockerfile.web (the
 # docker-compose and CI frontend build) and fly/Dockerfile (via `flyctl deploy`).
 #
 # Why this file has to exist. BuildKit reads .dockerignore from the *context root*, and
@@ -26,12 +26,12 @@
 .idea
 
 # Test/build output
-mobile/test-results
-mobile/playwright-report
-mobile/e2e/.auth
-mobile/.expo
-mobile/android
-mobile/ios
+apps/app/test-results
+apps/app/playwright-report
+apps/app/e2e/.auth
+apps/app/.expo
+apps/app/android
+apps/app/ios
 
 # Local runtime state — the DB is a Fly volume in production
 data
