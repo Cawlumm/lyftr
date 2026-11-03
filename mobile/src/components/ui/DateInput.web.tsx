@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { View } from 'react-native'
 import { CalendarDays } from './icons'
 import { dateToDay, formatDay, useTranslation } from '@lyftr/shared'
@@ -12,6 +12,8 @@ interface Props {
   onChange: (next: string) => void
   /** Upper bound (e.g. new Date() = today). */
   maximumDate?: Date
+  /** Replaces the default field face (icon + formatted day); the input and its ring stay. */
+  children?: ReactNode
 }
 
 // The real input is transparent, so the ring is drawn on the visible box instead.
@@ -20,7 +22,7 @@ const RING = 'outline outline-2 outline-offset-2 outline-focus'
 // Web: a transparent native <input type=date> fills the visible box, so a click lands on
 // the browser's own picker and the keyboard works unchanged. The label under it follows
 // the app language, which the input's own text (the browser's locale) would not.
-export function DateInput({ label, value, onChange, maximumDate }: Props) {
+export function DateInput({ label, value, onChange, maximumDate, children }: Props) {
   const { t } = useTranslation()
   const { colors } = useTheme()
   // Browsers treat a date field as text entry, so :focus-visible matches after a mouse click
@@ -38,10 +40,16 @@ export function DateInput({ label, value, onChange, maximumDate }: Props) {
     <View className={label ? 'gap-1.5' : 'flex-1'}>
       {label ? <Label>{label}</Label> : null}
       <View
-        className={`${label ? 'h-12' : 'flex-1'} flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 ${ring ? RING : ''}`}
+        className={children
+          ? `rounded-xl ${ring ? RING : ''}`
+          : `${label ? 'h-12' : 'flex-1'} flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 ${ring ? RING : ''}`}
       >
-        <CalendarDays size={16} color={colors.txMuted} />
-        <AppText variant="body">{formatDay(value, 'monthDayYear')}</AppText>
+        {children ?? (
+          <>
+            <CalendarDays size={16} color={colors.txMuted} />
+            <AppText variant="body">{formatDay(value, 'monthDayYear')}</AppText>
+          </>
+        )}
         <input
           type="date"
           value={value}

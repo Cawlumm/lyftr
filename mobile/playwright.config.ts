@@ -26,7 +26,15 @@ export default defineConfig({
   },
   projects: [
     // storageState is supplied per-worker by e2e/fixtures.ts (logged-in specs).
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    {
+      name: 'chromium',
+      use: {
+        ...devices['Desktop Chrome'],
+        // Chromium-only flags (WebKit fails to launch with them): a synthetic camera for the
+        // scanner tests, granted without a prompt.
+        launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] },
+      },
+    },
     {
       // Runs ONLY @mobile-tagged tests: the flows where the phone viewport itself is under
       // test, plus a critical smoke. Chromium runs the full suite.

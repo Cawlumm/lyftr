@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
@@ -10,10 +10,10 @@ import {
   type FoodSearchResult, type UiMessage,
 } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField, Toast,
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, interactive, Label, NumberField, Toast,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
-import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
+import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScannerLoader'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
@@ -242,7 +242,8 @@ export default function LogFood() {
   const quickAddCals = /^\d+(\.\d+)?$/.test(query.trim()) ? Number(query.trim()) : null
 
   return (
-    <Screen>
+    // A form, not a dashboard: on web it keeps a readable column however wide the window.
+    <Screen maxWidth="narrow">
       {/* Header */}
       <View className="flex-row items-center gap-3 py-4">
         <Pressable onPress={goBack} className="h-10 w-10 items-center justify-center rounded-xl active:scale-95" accessibilityRole="button" accessibilityLabel={t('common.goBack')}>
@@ -305,6 +306,8 @@ export default function LogFood() {
               <View className="flex-1">
                 <SearchField
                   autoFocus
+                  // A browser's autofill list would cover the results; native is left as it was.
+                  autoComplete={Platform.OS === 'web' ? 'off' : undefined}
                   loading={tab === 'all' && searching}
                   placeholder={t('food.log.searchPlaceholder')}
                   value={query}
@@ -314,9 +317,10 @@ export default function LogFood() {
               <Pressable
                 onPress={() => { hSelect(); setPhase('scan') }}
                 disabled={lookingUp}
+                accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
                 accessibilityLabel={t('food.log.scanLabel')}
                 accessibilityState={{ disabled: lookingUp }}
-                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''}`}
+                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''} ${interactive('hover:bg-surface-border', { disabled: lookingUp })}`}
               >
                 <Scan size={20} color={colors.txSecondary} />
                 <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>{t('food.log.scan')}</AppText>
@@ -578,6 +582,8 @@ export default function LogFood() {
                       return (
                         <Pressable
                           key={m}
+                          accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+                          aria-pressed={Platform.OS === 'web' ? active : undefined}
                           onPress={() => { hSelect(); setMeal(m) }}
                           style={{ width: '48%' }}
                           className={`flex-row items-center gap-2.5 rounded-xl border px-3.5 py-3 ${active ? 'border-brand-500/40 bg-brand-500/10' : 'border-surface-border bg-surface-muted'}`}

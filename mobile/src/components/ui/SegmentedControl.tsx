@@ -1,4 +1,4 @@
-import { Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { interactive } from './interaction'
 
@@ -40,6 +40,9 @@ export function SegmentedControl<T extends string>({
             key={opt.value}
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
+            // react-native-web does not turn accessibilityState into DOM attributes, and
+            // aria-selected is not valid on a button, so the chosen segment is a pressed toggle.
+            {...(Platform.OS === 'web' ? { 'aria-pressed': active } : {})}
             onPress={() => {
               if (active) return
               // Segment switches are exactly what iOS uses selection haptics for;

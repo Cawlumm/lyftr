@@ -671,7 +671,10 @@
       "notesOptionalPlain": "Notas (opcional)"
     },
     "row": {
-      "options": "Opciones de {{weight}} {{unit}}"
+      "options": "Opciones de {{weight}} {{unit}}",
+      "link": "{{weight}} {{unit}}, {{date}}",
+      "editNamed": "Editar {{weight}} {{unit}}, {{date}}",
+      "deleteNamed": "Eliminar {{weight}} {{unit}}, {{date}}"
     },
     "notePlaceholder": "p. ej., por la mañana, después de entrenar",
     "logAnyway": "Registrar igual"

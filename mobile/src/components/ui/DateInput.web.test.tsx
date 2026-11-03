@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { Text } from 'react-native'
 import { i18n } from '@lyftr/shared'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { DateInput } from './DateInput.web'
@@ -71,5 +72,14 @@ describe('DateInput.web', () => {
     await render(<DateInput value="2026-06-15" onChange={() => {}} />)
     expect(screen.getByText(/15 jun 2026/)).toBeTruthy()
     expect(input().props['aria-label']).toBe('Elegir fecha')
+  })
+
+  it('draws a custom face in place of the default one and still emits (en)', async () => {
+    const onChange = jest.fn()
+    await render(<DateInput value="2026-06-15" onChange={onChange}><Text>Today</Text></DateInput>)
+    expect(screen.getByText('Today')).toBeTruthy()
+    expect(screen.queryByText(/Jun 15, 2026/)).toBeNull()
+    await fireEvent(input(), 'change', { target: { value: '2026-06-14' } })
+    expect(onChange).toHaveBeenCalledWith('2026-06-14')
   })
 })
