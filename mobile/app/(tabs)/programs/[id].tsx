@@ -4,12 +4,12 @@ import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-ro
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, displayWeight, sessionNameForDay,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
-import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -246,7 +246,7 @@ export default function ProgramDetail() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

@@ -2,14 +2,21 @@
  *  index.css. Surface/text tokens resolve from CSS variables (see global.css) so
  *  they flip between light + dark exactly like the web app; brand colors are
  *  theme-independent literals. */
+const breakpoints = require('./src/theme/breakpoints.json')
+
 module.exports = {
   // Class strategy: the .dark class is toggled by NativeWind's colorScheme,
   // driven from useThemeStore in app/_layout.tsx (mirrors web's `.dark` toggle).
   darkMode: 'class',
   content: ['./app/**/*.{js,ts,jsx,tsx}', './src/**/*.{js,ts,jsx,tsx}'],
   presets: [require('nativewind/preset')],
+  // hover: only under (hover: hover) and (pointer: fine), so a tap in a phone browser does
+  // not leave a hover colour stuck on. Native never matches that media query.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
+      // The same file useBreakpoint reads, so sm:/lg: classes and the hook cannot drift.
+      screens: Object.fromEntries(Object.entries(breakpoints).map(([k, v]) => [k, `${v}px`])),
       // Brand fonts (loaded in app/_layout.tsx via @expo-google-fonts). Each WEIGHT is
       // its own family name in Expo, so Tailwind's `font-bold` (fontWeight) does
       // nothing useful with them — weight is picked by choosing the family. These
@@ -38,6 +45,7 @@ module.exports = {
           muted: 'rgb(var(--tx-muted) / <alpha-value>)',
           inverse: 'rgb(var(--tx-inverse) / <alpha-value>)',
         },
+        focus: 'rgb(var(--focus-ring) / <alpha-value>)',
         // Brand — electric cyan (from web tailwind.config)
         brand: {
           50: '#e0f9ff',

@@ -1,6 +1,6 @@
 import { Pressable, ScrollView } from 'react-native'
 import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated'
-import { X } from 'lucide-react-native'
+import { X } from './icons'
 import { type FilterGroup, type FilterValues, activeFilters, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'

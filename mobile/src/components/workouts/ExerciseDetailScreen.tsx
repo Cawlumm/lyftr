@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
+import { ArrowLeft, Dumbbell, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -21,7 +21,7 @@ import {
   type ExerciseHistoryPoint,
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Screen, SegmentedControl } from '../ui'
+import { AppText, Button, ErrorState, Screen, scrollBleed, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -170,7 +170,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         {/* Hero image — full-bleed, with an overlaid back button (mirrors the gym
             exercise-info treatment). Falls back to a plain back row when there's no photo. */}
         {hasImage ? (

@@ -10,8 +10,10 @@ import {
   Platform,
 } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { DURATION } from '../theme/motion'
+import { useMotion } from '../lib/useMotion'
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from 'react-native-reanimated'
-import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from 'lucide-react-native'
+import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from './ui/icons'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
 import {
@@ -38,6 +40,7 @@ export function IconInput({
   ...rest
 }: TextInputProps & { label: string; icon: 'mail' | 'lock'; password?: boolean }) {
   const { colors, brand } = useTheme()
+  const { duration } = useMotion()
   const [hide, setHide] = useState(!!password)
   // Focus styling via Reanimated (UI thread) instead of React state. On the New
   // Architecture (Fabric), a React re-render fired from a TextInput's own onFocus
@@ -80,8 +83,8 @@ export function IconInput({
           accessibilityLabel={label}
           autoCapitalize="none"
           autoCorrect={false}
-          onFocus={() => { focus.value = withTiming(1, { duration: 150 }) }}
-          onBlur={() => { focus.value = withTiming(0, { duration: 150 }) }}
+          onFocus={() => { focus.value = withTiming(1, { duration: duration(DURATION.fast) }) }}
+          onBlur={() => { focus.value = withTiming(0, { duration: duration(DURATION.fast) }) }}
           {...rest}
         />
         {password ? (
@@ -99,15 +102,16 @@ export function IconInput({
 // light, where errorSoft doesn't have enough contrast. Fades/slides in on appearance.
 export function AuthError({ message }: { message: string }) {
   const { isDark, brand } = useTheme()
+  const { base } = useMotion()
   const anim = useRef(new Animated.Value(0)).current
   useEffect(() => {
     anim.setValue(0)
     Animated.timing(anim, {
       toValue: 1,
-      duration: 200,
+      duration: base,
       useNativeDriver: Platform.OS !== 'web',
     }).start()
-  }, [message, anim])
+  }, [message, anim, base])
   const tint = isDark ? brand.errorSoft : brand.error
   return (
     <Animated.View

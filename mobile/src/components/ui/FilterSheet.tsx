@@ -1,5 +1,5 @@
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { Check, X } from 'lucide-react-native'
+import { Check, X } from './icons'
 import * as Haptics from 'expo-haptics'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'

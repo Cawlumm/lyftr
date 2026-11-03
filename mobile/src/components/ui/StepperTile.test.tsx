@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { Text } from 'react-native'
-import { Scale } from 'lucide-react-native'
+import { Scale } from './icons'
 import { i18n } from '@lyftr/shared'
 import { StepperTile } from './StepperTile'
 

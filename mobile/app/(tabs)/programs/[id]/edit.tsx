@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
-import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../../src/components/ui/icons'
+import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
+import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
@@ -166,7 +166,7 @@ export default function EditProgram() {
     <Screen>
       <ScrollView
         ref={scrollRef}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"

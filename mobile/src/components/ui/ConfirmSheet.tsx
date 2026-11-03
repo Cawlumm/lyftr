@@ -1,5 +1,5 @@
 import { View } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'

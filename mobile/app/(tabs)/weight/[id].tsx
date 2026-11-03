@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
+import { ArrowLeft, Edit2, Scale, Trash2 } from '../../../src/components/ui/icons'
 import { useAsyncAction, uiMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, StepperTile, deleteConfirmProps,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -123,7 +123,7 @@ export default function WeightDetail() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

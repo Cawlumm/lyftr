@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
+import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from '../../../src/components/ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, ErrorState, IconButton, Screen } from '../../../src/components/ui'
+import { AppText, ErrorState, IconButton, Screen, scrollBleed } from '../../../src/components/ui'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -50,7 +50,7 @@ export default function StartWorkout() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
             <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={goBack} />

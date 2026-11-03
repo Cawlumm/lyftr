@@ -1,4 +1,4 @@
-import { Coffee, Cookie, Moon, Sun, type LucideIcon } from 'lucide-react-native'
+import { Coffee, Cookie, Moon, Sun, type LucideIcon } from '../ui/icons'
 import { i18n, uiMessage, type FoodLog, type UiMessage } from '@lyftr/shared'
 
 // Meal + macro presentation constants, ported 1:1 from web (Food.tsx / LogFood.tsx +

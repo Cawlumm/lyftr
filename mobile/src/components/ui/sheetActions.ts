@@ -1,4 +1,4 @@
-import { Edit2, Trash2 } from 'lucide-react-native'
+import { Edit2, Trash2 } from './icons'
 import { i18n } from '@lyftr/shared'
 import type { SheetAction } from './ActionSheet'
 import type { ConfirmSheetProps } from './ConfirmSheet'

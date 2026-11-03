@@ -1,9 +1,10 @@
 import { Pressable } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import type { LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
+import { Icon, type IconSize } from './Icon'
+import { interactive } from './interaction'
 
 type IconButtonVariant = 'brand' | 'danger' | 'ghost' | 'secondary' | 'solid'
-type IconButtonSize = 'sm' | 'md' | 'lg'
 
 interface Props {
   icon: LucideIcon
@@ -11,30 +12,30 @@ interface Props {
   label: string
   onPress?: () => void
   variant?: IconButtonVariant
-  size?: IconButtonSize
+  size?: IconSize
   disabled?: boolean
   className?: string
 }
 
-const CONTAINER: Record<IconButtonSize, { box: string; icon: number }> = {
-  sm: { box: 'w-8 h-8 rounded-lg', icon: 14 },
-  md: { box: 'w-10 h-10 rounded-xl', icon: 16 },
-  lg: { box: 'w-12 h-12 rounded-xl', icon: 20 },
+const BOX: Record<IconSize, string> = {
+  sm: 'w-8 h-8 rounded-lg',
+  md: 'w-10 h-10 rounded-xl',
+  lg: 'w-12 h-12 rounded-xl',
 }
 
-const VARIANT: Record<IconButtonVariant, string> = {
-  brand: 'bg-brand-500/10 border border-brand-500/20',
-  danger: '',
-  ghost: '',
-  secondary: 'bg-surface-muted border border-surface-border',
-  solid: 'bg-brand-500',
+const VARIANT: Record<IconButtonVariant, { bg: string; hover: string }> = {
+  brand: { bg: 'bg-brand-500/10 border border-brand-500/20', hover: 'hover:bg-brand-500/20' },
+  danger: { bg: '', hover: 'hover:bg-error-500/10' },
+  ghost: { bg: '', hover: 'hover:bg-surface-muted' },
+  secondary: { bg: 'bg-surface-muted border border-surface-border', hover: 'hover:bg-surface-border' },
+  solid: { bg: 'bg-brand-500', hover: 'hover:bg-brand-600' },
 }
 
 // Mirrors web ui/IconButton (same variants/sizes; onPress + accessibilityLabel
 // instead of onClick + aria-label). Container styling is className; the icon's
 // stroke is an SVG prop, so its color resolves from the theme.
 export function IconButton({
-  icon: Icon,
+  icon,
   label,
   onPress,
   variant = 'ghost',
@@ -43,7 +44,6 @@ export function IconButton({
   className = '',
 }: Props) {
   const { colors, brand, accent, isDark } = useTheme()
-  const c = CONTAINER[size]
   const iconColor: Record<IconButtonVariant, string> = {
     brand: accent,
     // errorSoft reads well on dark but washes out on light — same split as AuthError.
@@ -59,9 +59,9 @@ export function IconButton({
       onPress={onPress}
       disabled={disabled}
       hitSlop={size === 'sm' ? 6 : 0}
-      className={`items-center justify-center active:scale-95 ${c.box} ${VARIANT[variant]} ${disabled ? 'opacity-40' : ''} ${className}`}
+      className={`items-center justify-center active:scale-95 ${BOX[size]} ${VARIANT[variant].bg} ${disabled ? 'opacity-40' : ''} ${interactive(VARIANT[variant].hover, { disabled })} ${className}`}
     >
-      <Icon size={c.icon} color={iconColor[variant]} strokeWidth={2.2} />
+      <Icon icon={icon} size={size} color={iconColor[variant]} />
     </Pressable>
   )
 }

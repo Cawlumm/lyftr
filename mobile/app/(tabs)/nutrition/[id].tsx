@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from '../../../src/components/ui/icons'
 import { entryToResult, formatLoggedAmount, isNotFound, uiMessage, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import {
-  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,
+  AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
   MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
@@ -115,7 +115,7 @@ export default function NutritionDetail() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

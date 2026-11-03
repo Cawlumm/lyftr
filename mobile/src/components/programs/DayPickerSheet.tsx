@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native'
-import { Dumbbell } from 'lucide-react-native'
+import { Dumbbell } from '../ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { workoutDays, dayLabel, todaysDay, useTranslation } from '@lyftr/shared'
 import { AppText, ListRow, Sheet } from '../ui'

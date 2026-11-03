@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
-import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from 'lucide-react-native'
+import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/components/ui/icons'
 import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
-import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen } from '../../../src/components/ui'
+import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
@@ -191,7 +191,7 @@ export default function ActiveWorkout() {
 
       <ScrollView
         ref={scrollRef}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40, paddingTop: 12, gap: 12 }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets

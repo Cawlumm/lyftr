@@ -5,11 +5,11 @@ import * as Haptics from 'expo-haptics'
 import {
   Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { uiMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
-  NUMERIC_ACCESSORY_ID, PageHeader, Screen, SegmentedControl, Skeleton, StatFailure, StepperTile,
+  NUMERIC_ACCESSORY_ID, PageHeader, Screen, scrollBleed, SegmentedControl, Skeleton, StatFailure, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
 import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
@@ -310,7 +310,7 @@ export default function Weight() {
       <FlatList
         data={items}
         keyExtractor={(l) => String(l.id)}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

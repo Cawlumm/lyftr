@@ -7,7 +7,7 @@ import { router, usePathname } from 'expo-router'
 import {
   Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flag, Layers, Minimize2,
   Play, Plus, Repeat, Timer, Trash2, X,
-} from 'lucide-react-native'
+} from '../ui/icons'
 import {
   useAsyncAction, displayToLbs, displayWeight, weightShort, useTranslation, type Exercise,
 } from '@lyftr/shared'

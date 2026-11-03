@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import { View } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import type { LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 

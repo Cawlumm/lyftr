@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { AlertCircle, CheckCircle2, Info, TriangleAlert } from 'lucide-react-native'
+import { AlertCircle, CheckCircle2, Info, TriangleAlert } from './icons'
 import { semanticInk } from '../../theme/theme'
 import type { SemanticTone } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'

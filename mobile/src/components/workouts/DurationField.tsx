@@ -1,5 +1,5 @@
 import { Pressable, Text, TextInput, View } from 'react-native'
-import { Minus, Plus } from 'lucide-react-native'
+import { Minus, Plus } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 

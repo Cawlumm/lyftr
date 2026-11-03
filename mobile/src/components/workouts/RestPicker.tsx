@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Pressable, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { Clock, Minus, Pencil, Plus, TimerOff } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { Clock, Minus, Pencil, Plus, TimerOff } from '../ui/icons'
+import type { LucideIcon } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 

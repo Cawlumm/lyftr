@@ -1,7 +1,7 @@
 import { Platform, View } from 'react-native'
 import { Tabs } from 'expo-router'
 import { BottomTabBar } from 'expo-router/js-tabs'
-import { House, Dumbbell, BookOpen, Apple, Scale } from 'lucide-react-native'
+import { House, Dumbbell, BookOpen, Apple, Scale } from '../../src/components/ui/icons'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../src/theme/useTheme'
 

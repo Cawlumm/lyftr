@@ -1,6 +1,7 @@
 import { Pressable, Text, ActivityIndicator } from 'react-native'
 import { semanticInk, type SemanticTone } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { interactive } from './interaction'
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -13,13 +14,13 @@ interface Props {
   className?: string
 }
 
-const VARIANT: Record<ButtonVariant, { bg: string; text: string; tone?: SemanticTone }> = {
-  primary: { bg: 'bg-brand-500 active:bg-brand-700', text: 'text-white' },
-  secondary: { bg: 'bg-surface-muted border border-surface-border', text: 'text-tx-primary' },
-  ghost: { bg: '', text: 'text-tx-muted' },
+const VARIANT: Record<ButtonVariant, { bg: string; hover: string; text: string; tone?: SemanticTone }> = {
+  primary: { bg: 'bg-brand-500 active:bg-brand-700', hover: 'hover:bg-brand-600', text: 'text-white' },
+  secondary: { bg: 'bg-surface-muted border border-surface-border', hover: 'hover:bg-surface-border', text: 'text-tx-primary' },
+  ghost: { bg: '', hover: 'hover:bg-surface-muted', text: 'text-tx-muted' },
   // Label colour comes from the theme: text-error-400 on this tint measures 2.4:1 on a
   // light surface, and light is this app's default.
-  danger: { bg: 'bg-error-500/10 border border-error-500/20', text: '', tone: 'error' },
+  danger: { bg: 'bg-error-500/10 border border-error-500/20', hover: 'hover:bg-error-500/20', text: '', tone: 'error' },
 }
 
 export function Button({
@@ -49,7 +50,7 @@ export function Button({
       // is the two-button row on the change-password card, where at 390dp each half has
       // only ~23dp of slack around "Update password". px-4 clears that; px-5 would sit
       // on the edge of squeezing the label.
-      className={`h-12 px-4 rounded-lg flex-row items-center justify-center gap-2 active:scale-95 ${v.bg} ${isDisabled ? 'opacity-40' : ''} ${className}`}
+      className={`h-12 px-4 rounded-lg flex-row items-center justify-center gap-2 active:scale-95 ${v.bg} ${isDisabled ? 'opacity-40' : ''} ${interactive(v.hover, { disabled: isDisabled })} ${className}`}
     >
       {loading ? (
         // White only sits on the brand-filled primary; other variants keep the surface

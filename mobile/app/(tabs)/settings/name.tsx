@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft } from 'lucide-react-native'
+import { ArrowLeft } from '../../../src/components/ui/icons'
 import { useAsyncAction, useTranslation, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
 import {
   Alert,
@@ -11,7 +11,7 @@ import {
   Field,
   Muted,
   PageHeader,
-  Screen,
+  Screen, scrollBleed,
 } from '../../../src/components/ui'
 import { useAuthStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -53,7 +53,7 @@ export default function ChangeNameScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-5 py-4">
           <Pressable
             onPress={back}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft, MailCheck } from 'lucide-react-native'
+import { ArrowLeft, MailCheck } from '../../../src/components/ui/icons'
 import { useAsyncAction, useTranslation, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
 import {
   Alert,
@@ -11,7 +11,7 @@ import {
   Field,
   PageHeader,
   PasswordField,
-  Screen,
+  Screen, scrollBleed,
 } from '../../../src/components/ui'
 import { useAuthStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -62,7 +62,7 @@ export default function ChangeEmailScreen() {
   if (changedTo !== null) {
     return (
       <Screen>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false}>
           <View className="gap-5 py-4">
             {backLink}
             <Card className="items-center gap-3 p-6">
@@ -88,7 +88,7 @@ export default function ChangeEmailScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-5 py-4">
           {backLink}
           <PageHeader

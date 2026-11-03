@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
-import { BookOpen, Plus } from 'lucide-react-native'
+import { BookOpen, Plus } from '../../../src/components/ui/icons'
 import type { Program } from '@lyftr/shared'
 import { programExerciseCount, useTranslation } from '@lyftr/shared'
-import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, StatFailure } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, scrollBleed, SearchField, StatFailure } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -118,7 +118,7 @@ export default function Programs() {
       <FlatList
         data={queryAnswered ? programs : []}
         keyExtractor={(p) => String(p.id)}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

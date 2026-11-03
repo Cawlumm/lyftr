@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { View } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
 import { AppText } from './Typography'
 import { SheetButton } from './SheetButton'
