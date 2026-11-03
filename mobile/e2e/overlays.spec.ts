@@ -2,8 +2,9 @@ import { test, expect } from './fixtures'
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 
-// The web Tooltip and Menu, through the dev-only /dev-overlays route (app/dev-overlays.tsx) until
-// the user menu (C20) and chart tooltips (C22) give them real screens. Contracts:
+// The web Tooltip and Menu. The Menu is tested through the sidebar's user menu; the Tooltip, and
+// a menu inside a dialog, still go through the dev-only /dev-overlays route (app/dev-overlays.tsx)
+// until chart tooltips (C22) give them a real screen. Contracts:
 // tooltip https://www.w3.org/WAI/ARIA/apg/patterns/tooltip/ and WCAG 1.4.13
 // (https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html); menu button
 // https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/ with the menu keyboard model of
@@ -23,16 +24,16 @@ async function tabTo(page: Page, target: Locator) {
 
 const deleteButton = (page: Page) => page.getByRole('button', { name: 'Delete', exact: true })
 const trigger = (page: Page) => page.getByRole('button', { name: 'Options', exact: true })
-const menu = (page: Page) => page.getByRole('menu', { name: 'Options', exact: true })
-const item = (page: Page, name: string) => menu(page).getByRole('menuitem', { name })
 
-test.beforeEach(async ({ page }) => {
+async function openStory(page: Page) {
   await page.addInitScript(() => localStorage.setItem('lyftr:dev-stories', '1'))
   await page.goto('/dev-overlays')
   await expect(trigger(page)).toBeVisible()
-})
+}
 
 test.describe('Tooltip', () => {
+  test.beforeEach(async ({ page }) => openStory(page))
+
   test('keyboard focus shows it, it describes the trigger, Escape hides it and keeps focus', async ({ page }) => {
     const button = deleteButton(page)
     await expect(button).toHaveAccessibleDescription('This cannot be undone')
@@ -71,88 +72,107 @@ test.describe('Tooltip', () => {
   })
 })
 
+// The Menu through its first real home, the sidebar's user menu (src/components/shell/UserMenu.tsx):
+// Settings, the theme toggle, Sign out. It sits at the bottom-left of the window, so it also
+// proves the flip above its trigger.
 test.describe('Menu', () => {
+  const userMenu = (page: Page) => page.getByRole('button', { name: /, user menu$/ })
+  const list = (page: Page) => page.getByRole('menu', { name: /, user menu$/ })
+  const entry = (page: Page, name: string | RegExp) => list(page).getByRole('menuitem', { name })
+  const theme = /^(Dark|Light) mode$/
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto('/')
+    await expect(userMenu(page)).toBeVisible()
+    await expect(page.getByRole('main')).toBeVisible()
+  })
+
   test('Enter opens on the first item; arrows wrap, Home/End jump, letters jump', async ({ page }, testInfo) => {
-    const button = trigger(page)
+    const button = userMenu(page)
     await expect(button).toHaveAttribute('aria-haspopup', 'menu')
     await expect(button).toHaveAttribute('aria-expanded', 'false')
     await tabTo(page, button)
     await page.keyboard.press('Enter')
 
-    await expect(menu(page)).toBeVisible()
+    await expect(list(page)).toBeVisible()
     await expect(button).toHaveAttribute('aria-expanded', 'true')
-    await expect(button).toHaveAttribute('aria-controls', await menu(page).getAttribute('id') as string)
-    await expect(item(page, 'Edit')).toBeFocused()
+    await expect(button).toHaveAttribute('aria-controls', await list(page).getAttribute('id') as string)
+    await expect(entry(page, 'Settings')).toBeFocused()
     await testInfo.attach('menu-1280.png', { body: await page.screenshot(), contentType: 'image/png' })
 
     await page.keyboard.press('ArrowUp')
-    await expect(item(page, 'Save')).toBeFocused()
+    await expect(entry(page, 'Sign out')).toBeFocused()
     await page.keyboard.press('ArrowDown')
-    await expect(item(page, 'Edit')).toBeFocused()
+    await expect(entry(page, 'Settings')).toBeFocused()
     await page.keyboard.press('End')
-    await expect(item(page, 'Save')).toBeFocused()
+    await expect(entry(page, 'Sign out')).toBeFocused()
     await page.keyboard.press('Home')
-    await expect(item(page, 'Edit')).toBeFocused()
-    await page.keyboard.press('d')
-    await expect(item(page, 'Delete')).toBeFocused()
-    await page.keyboard.press('d')
-    await expect(item(page, 'Done')).toBeFocused()
+    await expect(entry(page, 'Settings')).toBeFocused()
+    await page.keyboard.press('s')
+    await expect(entry(page, 'Sign out')).toBeFocused()
+    await page.keyboard.press('s')
+    await expect(entry(page, 'Settings')).toBeFocused()
 
     await page.keyboard.press('Enter')
-    await expect(menu(page)).toBeHidden()
-    await expect(page.getByTestId('picked')).toHaveText('Done')
+    await expect(list(page)).toBeHidden()
+    await expect(page).toHaveURL(/\/settings$/)
     await expect(button).toBeFocused()
     await expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
   test('ArrowUp opens on the last item; Escape closes onto the button', async ({ page }) => {
-    await trigger(page).focus()
+    await userMenu(page).focus()
     await page.keyboard.press('ArrowUp')
-    await expect(item(page, 'Save')).toBeFocused()
+    await expect(entry(page, 'Sign out')).toBeFocused()
     await page.keyboard.press('Escape')
-    await expect(menu(page)).toBeHidden()
-    await expect(trigger(page)).toBeFocused()
+    await expect(list(page)).toBeHidden()
+    await expect(userMenu(page)).toBeFocused()
   })
 
   test('Tab closes it and moves on from the button', async ({ page }) => {
-    await trigger(page).focus()
+    await userMenu(page).focus()
     await page.keyboard.press('ArrowDown')
-    await expect(item(page, 'Edit')).toBeFocused()
+    await expect(entry(page, 'Settings')).toBeFocused()
     await page.keyboard.press('Tab')
-    await expect(menu(page)).toBeHidden()
-    // The next stop after the trigger is the second menu's button.
-    await expect(page.getByRole('button', { name: 'Notes options' })).toBeFocused()
+    await expect(list(page)).toBeHidden()
+    // The trigger is the sidebar's last stop, so the next one is in the page content.
+    expect(await page.evaluate(() => !!document.activeElement?.closest('[role=main]'))).toBe(true)
   })
 
   test('a click runs an item; a press outside closes without running one', async ({ page }) => {
-    await trigger(page).click()
-    await expect(item(page, 'Edit')).toBeFocused()
-    await page.mouse.click(640, 400)
-    await expect(menu(page)).toBeHidden()
-    await expect(page.getByTestId('picked')).toHaveText('')
+    await userMenu(page).click()
+    await expect(entry(page, 'Settings')).toBeFocused()
+    // Empty sidebar, between the nav and the footer.
+    await page.mouse.click(120, 500)
+    await expect(list(page)).toBeHidden()
+    expect(new URL(page.url()).pathname).toBe('/')
 
-    await trigger(page).click()
-    await item(page, 'Delete').click()
-    await expect(menu(page)).toBeHidden()
-    await expect(page.getByTestId('picked')).toHaveText('Delete')
+    const dark = () => page.evaluate(() => document.documentElement.classList.contains('dark'))
+    const before = await dark()
+    await userMenu(page).click()
+    await entry(page, theme).click()
+    await expect(list(page)).toBeHidden()
+    await expect.poll(dark).toBe(!before)
+    await userMenu(page).click()
+    await entry(page, theme).click()
+    await expect.poll(dark).toBe(before)
   })
 
-  test('near the bottom-right corner it flips above and stays on screen', async ({ page }) => {
-    const button = page.getByRole('button', { name: 'Notes options' })
+  test('at the bottom-left corner it flips above and stays on screen', async ({ page }) => {
+    const button = userMenu(page)
     await button.click()
-    const list = page.getByRole('menu', { name: 'Notes options' })
-    await expect(list).toBeVisible()
-    const m = (await list.boundingBox())!
+    await expect(list(page)).toBeVisible()
+    const m = (await list(page).boundingBox())!
     const b = (await button.boundingBox())!
     expect(m.y + m.height).toBeLessThanOrEqual(b.y)
-    expect(m.x + m.width).toBeLessThanOrEqual(1280)
+    expect(m.x).toBeGreaterThanOrEqual(0)
     expect(m.y).toBeGreaterThanOrEqual(0)
   })
 
   test('the open menu passes axe', async ({ page }) => {
-    await trigger(page).focus()
+    await userMenu(page).focus()
     await page.keyboard.press('Enter')
-    await expect(menu(page)).toBeVisible()
+    await expect(list(page)).toBeVisible()
     // Contrast is off for the same palette reason as a11y.spec.ts.
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
@@ -169,6 +189,7 @@ test.describe('inside a dialog', () => {
   const dialog = (page: Page) => page.getByRole('dialog', { name: 'Notes' })
 
   test.beforeEach(async ({ page }) => {
+    await openStory(page)
     await page.getByRole('button', { name: 'Edit', exact: true }).click()
     await expect(dialog(page)).toBeVisible()
   })

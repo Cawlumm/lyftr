@@ -4,16 +4,28 @@ import { BottomTabBar } from 'expo-router/js-tabs'
 import { House, Dumbbell, BookOpen, Apple, Scale } from '../../src/components/ui/icons'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../src/theme/useTheme'
+import { useBreakpoint } from '../../src/lib/useBreakpoint'
+import { Sidebar } from '../../src/components/shell/Sidebar'
 
 export default function TabsLayout() {
   const { t } = useTranslation()
   const { colors, brand } = useTheme()
+  const { lg } = useBreakpoint()
+  // Web at lg and up gets a sidebar; phones, tablets below lg and native keep the bottom tabs.
+  const sidebar = Platform.OS === 'web' && lg
   return (
     <Tabs
+      // A tab switch is a browser history entry on the web, as a link click is on any site, so
+      // Back and Forward walk between tabs. The default only pushes the first switch away from
+      // Home and replaces after that. Native keeps the default (Android's back button).
+      backBehavior={Platform.OS === 'web' ? 'fullHistory' : undefined}
       // The default bar renders a tablist; the web needs a navigation landmark around it.
-      tabBar={Platform.OS === 'web' ? (props) => <View role="navigation"><BottomTabBar {...props} /></View> : undefined}
+      tabBar={Platform.OS !== 'web' ? undefined : sidebar
+        ? (props) => <Sidebar {...props} />
+        : (props) => <View role="navigation" aria-label={t('nav.primary')}><BottomTabBar {...props} /></View>}
       screenOptions={{
         headerShown: false,
+        ...(sidebar ? { tabBarPosition: 'left' as const } : null),
         tabBarActiveTintColor: brand.cyan,
         tabBarInactiveTintColor: colors.txMuted,
         tabBarStyle: {

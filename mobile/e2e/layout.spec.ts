@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
 
 const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
@@ -26,7 +27,14 @@ for (const width of WIDTHS) {
   })
 }
 
-test('at 1280 the main column is centred at its max width', async ({ page }) => {
+// The content area is the window right of the sidebar (shell.spec.ts covers the sidebar itself).
+const contentLeft = async (page: Page) => {
+  const side = await page.locator('#app-sidebar').boundingBox()
+  if (!side) throw new Error('no sidebar')
+  return side.x + side.width
+}
+
+test('at 1280 the main column is centred in the content area at its max width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/')
   const main = page.getByRole('main')
@@ -36,7 +44,8 @@ test('at 1280 the main column is centred at its max width', async ({ page }) => 
   // Screen's default column is max-w-3xl (48rem = 768px on web).
   expect(box.width).toBeLessThanOrEqual(768)
   expect(box.width).toBeGreaterThan(600)
-  expect(Math.abs(box.x - (1280 - box.x - box.width))).toBeLessThanOrEqual(1)
+  const left = await contentLeft(page)
+  expect(Math.abs(box.x - left - (1280 - box.x - box.width))).toBeLessThanOrEqual(1)
 })
 
 test('at 390 the main column fills the viewport @mobile', async ({ page }) => {
@@ -58,7 +67,8 @@ test('at 1280 scrolling over the side gutter scrolls the content', async ({ page
   await expect(main).toBeVisible()
   const box = await main.boundingBox()
   if (!box) throw new Error('main has no box')
-  expect(box.x).toBeGreaterThan(100)
+  const left = await contentLeft(page)
+  expect(box.x - left).toBeGreaterThan(100)
 
   // The vertical scroller inside the column: the element whose scrollTop must move.
   const scrollTop = () => page.evaluate(() => {
@@ -72,7 +82,7 @@ test('at 1280 scrolling over the side gutter scrolls the content', async ({ page
   const before = await scrollTop()
   expect(before).toBeGreaterThanOrEqual(0)
 
-  await page.mouse.move(box.x / 2, 300)
+  await page.mouse.move((left + box.x) / 2, 300)
   await page.mouse.wheel(0, 400)
   await expect.poll(scrollTop).toBeGreaterThan(before)
 })

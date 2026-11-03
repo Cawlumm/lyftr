@@ -6,6 +6,11 @@ import TabsLayout from '../../app/(tabs)/_layout'
 // Settings has no tab of its own; it is opened from the avatar on Home. SDK 58 made a tab
 // declared with `href: null` hidden *and unreachable*, so the avatar silently went nowhere.
 // This renders the real (tabs) layout and navigates the way the avatar does.
+// The layout imports the sidebar, whose user menu reads the auth store.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+)
 jest.mock('../theme/useTheme', () => ({
   useTheme: () => ({
     colors: { raised: '#fff', border: '#ddd', txMuted: '#999' },
