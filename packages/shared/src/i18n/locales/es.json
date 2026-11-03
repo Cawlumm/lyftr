@@ -188,7 +188,13 @@
       "syncing": "Sincronizando…",
       "syncUnreachable": "La última sincronización no pudo conectar con el catálogo de ejercicios.",
       "syncFailed": "La última sincronización no terminó.",
-      "syncRetry": "Nuevo intento: {{when}}."
+      "syncRetry": "Nuevo intento: {{when}}.",
+      "footnote": "Afecta a todas las personas de este servidor.",
+      "confirmRemovals": {
+        "title": "¿Aceptar el catálogo más pequeño?",
+        "message": "El catálogo de ejercicios lista ahora menos de la mitad de los ejercicios que tiene este servidor, así que la sincronización se detuvo sin cambiar nada. Si es lo esperado, sincroniza de nuevo y oculta los ejercicios que ya no lista. Los entrenamientos y programas que los usan los conservan.",
+        "confirm": "Sincronizar y ocultar"
+      }
     },
     "danger": {
       "title": "Zona de peligro",

@@ -13,6 +13,7 @@ import {
   PasswordField,
   Screen, scrollBleed,
 } from '../../../src/components/ui'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
 import { useAuthStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -52,7 +53,8 @@ export default function ChangeEmailScreen() {
     <Pressable
       onPress={back}
       hitSlop={8}
-      className="flex-row items-center gap-1.5 self-start active:opacity-60"
+      accessibilityRole={WEB_BUTTON}
+      className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}
     >
       <ArrowLeft size={16} color={colors.txMuted} />
       <AppText variant="body" color="muted">{t('settings.account.backLink')}</AppText>
@@ -61,7 +63,7 @@ export default function ChangeEmailScreen() {
 
   if (changedTo !== null) {
     return (
-      <Screen>
+      <Screen maxWidth="narrow">
         <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false}>
           <View className="gap-5 py-4">
             {backLink}
@@ -87,7 +89,7 @@ export default function ChangeEmailScreen() {
   }
 
   return (
-    <Screen>
+    <Screen maxWidth="narrow">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-5 py-4">
           {backLink}

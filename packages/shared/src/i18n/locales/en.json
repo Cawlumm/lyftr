@@ -186,7 +186,13 @@
       "syncing": "Syncing…",
       "syncUnreachable": "Last sync couldn't reach the exercise catalog.",
       "syncFailed": "Last sync didn't finish.",
-      "syncRetry": "Trying again at {{when}}."
+      "syncRetry": "Trying again at {{when}}.",
+      "footnote": "Affects everyone on this server.",
+      "confirmRemovals": {
+        "title": "Accept the smaller catalog?",
+        "message": "The exercise catalog now lists under half of the exercises this server holds, so the sync stopped without changing anything. If that is expected, sync again and hide the exercises it no longer lists. Workouts and programs that use them keep them.",
+        "confirm": "Sync and hide"
+      }
     },
     "danger": {
       "title": "Danger Zone",

@@ -119,7 +119,7 @@ test('changes the password, then signs in with the new one', { tag: '@mobile' },
   // Via the Settings link rather than a direct goto: the row is the only entry point in
   // the UI, so this is what proves the page is reachable at all.
   await page.goto('/settings')
-  await page.getByRole('button', { name: /^password/i }).click()
+  await page.getByRole('link', { name: /^password/i }).click()
   await expect(page).toHaveURL(/\/settings\/password$/)
   await page.getByLabel('Current password', { exact: true }).fill(oldPassword)
   await page.getByLabel('New password', { exact: true }).fill(newPassword)
@@ -194,7 +194,7 @@ test('changes the account email and signs in with the new address', async ({ pag
   if (token) recordCreatedUser(token)
 
   await page.goto('/settings')
-  await page.getByRole('button', { name: /^email/i }).click()
+  await page.getByRole('link', { name: /^email/i }).click()
   await expect(page).toHaveURL(/\/settings\/email$/)
   await page.getByLabel('New email', { exact: true }).fill(moved)
   await page.getByLabel('Current password', { exact: true }).fill(password)

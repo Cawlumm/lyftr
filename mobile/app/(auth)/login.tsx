@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { AuthScaffold } from '../../src/components/AuthScaffold'
 import { IconInput, GradientButton, AuthDivider, AuthError, ServerRow, Footer } from '../../src/components/authui'
@@ -54,6 +54,8 @@ export default function Login() {
         value={email}
         onChangeText={onChange(setEmail)}
         keyboardType="email-address"
+        // Browser autofill tokens, as the Vite page had; native keeps its defaults.
+        autoComplete={Platform.OS === 'web' ? 'email' : undefined}
         placeholder={t('auth.field.emailPlaceholder')}
       />
       <IconInput
@@ -63,6 +65,7 @@ export default function Login() {
         password
         value={password}
         onChangeText={onChange(setPassword)}
+        autoComplete={Platform.OS === 'web' ? 'current-password' : undefined}
         placeholder="••••••••"
       />
       {shownError ? <AuthError message={uiMessage(shownError)} /> : null}

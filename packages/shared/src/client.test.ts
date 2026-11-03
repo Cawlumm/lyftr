@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { apiErrorMessage, createClient, uiMessage } from './client'
+import { apiErrorCode, apiErrorMessage, createClient, uiMessage } from './client'
 import { i18n } from './i18n'
 import en from './i18n/locales/en.json'
 import es from './i18n/locales/es.json'
@@ -183,6 +183,38 @@ describe('exerciseAPI.list is server-side and unbuffered', () => {
     }
     await expect(client.exerciseAPI.list()).rejects.toThrow()
     await expect(client.exerciseAPI.list()).resolves.toHaveLength(1)
+  })
+})
+
+describe('exerciseAPI.refreshCache confirm_removals', () => {
+  const seen = () => {
+    const params: any[] = []
+    const client = createClient(memStorage())
+    client.api.defaults.adapter = async (config: any) => {
+      params.push(config.params)
+      return { data: { data: { refreshed: 3 } }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    return { client, params }
+  }
+
+  it('sends no confirmation unless asked', async () => {
+    const { client, params } = seen()
+    await client.exerciseAPI.refreshCache()
+    expect(params[0]).toBeUndefined()
+  })
+
+  it('sends confirm_removals=true when the caller confirms', async () => {
+    const { client, params } = seen()
+    await expect(client.exerciseAPI.refreshCache({ confirmRemovals: true })).resolves.toEqual({ refreshed: 3 })
+    expect(params[0]).toEqual({ confirm_removals: 'true' })
+  })
+})
+
+describe('apiErrorCode', () => {
+  it('reads the code the server sent, and null when there is none', () => {
+    expect(apiErrorCode({ response: { status: 409, data: { code: 'EXERCISE_CATALOG_SHRANK' } } })).toBe('EXERCISE_CATALOG_SHRANK')
+    expect(apiErrorCode({ response: { status: 500, data: '<html>' } })).toBeNull()
+    expect(apiErrorCode(new Error('network'))).toBeNull()
   })
 })
 

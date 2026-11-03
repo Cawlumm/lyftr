@@ -4,6 +4,7 @@ import { ChevronRight } from './icons'
 import type { LucideIcon } from './icons'
 import { Icon as Glyph } from './Icon'
 import { interactive } from './interaction'
+import { linkProps } from './link'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
@@ -25,6 +26,8 @@ interface Props {
    *  native right-slot collapse that clips flex-1 controls). */
   below?: ReactNode
   onPress?: () => void
+  /** The page a drill-in row opens: a real link on web, the same button on native. */
+  href?: string
   /** Drill-in affordance. */
   chevron?: boolean
   /** Red label + red icon for delete/reset-style actions. */
@@ -52,6 +55,7 @@ export function SettingsRow({
   right,
   below,
   onPress,
+  href,
   chevron,
   destructive,
   divider,
@@ -61,6 +65,8 @@ export function SettingsRow({
   // errorSoft reads on dark, error on light — same split the IconButton/ConfirmSheet use.
   const iconColor = isDanger ? (isDark ? brand.errorSoft : brand.error) : tint === 'muted' ? colors.txMuted : accent
   const chip = isDanger ? CHIP.danger : CHIP[tint]
+  // A row with an href is a link on web; linkProps keeps it the same button on native.
+  const press = href && onPress ? linkProps(href, onPress) : { onPress }
 
   const line = (
     <View className="flex-row items-center py-3" style={{ minHeight: 52 }}>
@@ -91,7 +97,7 @@ export function SettingsRow({
   return (
     <View className={divider ? 'border-t border-surface-border' : ''}>
       {onPress ? (
-        <Pressable accessibilityRole="button" onPress={onPress} className={`active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}>
+        <Pressable accessibilityRole="button" {...press} className={`active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}>
           {line}
         </Pressable>
       ) : (

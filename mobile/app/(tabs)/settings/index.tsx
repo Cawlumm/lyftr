@@ -50,8 +50,10 @@ import {
   Toggle,
   type ToastVariant,
 } from '../../../src/components/ui'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
 import { client, useAuthStore, useDisplayName, useLanguageStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { LanguageSheet } from '../../../src/components/settings/LanguageSheet'
+import { ExerciseCacheAdmin } from '../../../src/components/settings/ExerciseCacheAdmin'
 import { useTheme } from '../../../src/theme/useTheme'
 
 const REST_PRESETS = [60, 90, 120, 180]
@@ -207,7 +209,7 @@ export default function SettingsScreen() {
   if (!loaded) return <Loading />
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-6 py-4">
           {/* Back — Settings is reached from the Home avatar (no longer a footer tab). */}
@@ -215,7 +217,8 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}
               hitSlop={8}
-              className="flex-row items-center gap-1.5 self-start active:opacity-60"
+              accessibilityRole={WEB_BUTTON}
+              className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}
             >
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('settings.back')}</AppText>
@@ -235,6 +238,7 @@ export default function SettingsScreen() {
               label={t('settings.account.name.label')}
               value={name}
               chevron
+              href="/settings/name"
               onPress={() => router.push('/settings/name')}
             />
             <SettingsRow
@@ -243,6 +247,7 @@ export default function SettingsScreen() {
               value={user?.email ?? '—'}
               divider
               chevron
+              href="/settings/email"
               onPress={() => router.push('/settings/email')}
             />
             <SettingsRow icon={CalendarDays} label={t('settings.account.memberSince.label')} value={memberSince(user?.created_at)} divider />
@@ -252,6 +257,7 @@ export default function SettingsScreen() {
               description={t('settings.account.password.description')}
               divider
               chevron
+              href="/settings/password"
               onPress={() => router.push('/settings/password')}
             />
           </SettingsGroup>
@@ -475,6 +481,8 @@ export default function SettingsScreen() {
               <Button title={t('settings.server.url.testAndSave')} variant="secondary" onPress={saveServer} loading={testing} className="mt-3" />
             </View>
           </SettingsGroup>
+
+          <ExerciseCacheAdmin />
 
           {/* Account actions */}
           <SettingsGroup title={t('settings.danger.actionsTitle')}>
