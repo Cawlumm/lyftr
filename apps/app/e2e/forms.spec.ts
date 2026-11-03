@@ -3,6 +3,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
 import { cleanupSeed } from './seedHelpers'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // The workout and program detail and form screens on wide web (C29). Each is a centred
 // max-w-2xl column. From lg the workout form puts name, date and duration on one row, the
@@ -12,7 +13,6 @@ import { cleanupSeed } from './seedHelpers'
 const WORKOUT = 'E2E Forms Workout'
 const PROGRAM = 'E2E Forms Program'
 const KEYBOARD_WORKOUT = 'E2E Forms Keyboard'
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
 const SIDEBAR = 240
 const MAX_W_2XL = 672
 
@@ -74,8 +74,6 @@ async function open(page: Page, path: string, width: number, height = 800) {
 const main = (page: Page) => page.getByRole('main').locator('visible=true')
 const field = (page: Page, placeholder: string) => page.getByPlaceholder(placeholder).locator('visible=true')
 const button = (page: Page, name: string) => page.getByRole('button', { name, exact: true }).locator('visible=true')
-const noHorizontalScroll = (page: Page) => page.evaluate(() =>
-  document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 const box = async (l: Locator) => (await l.boundingBox())!
 const isFocused = (l: Locator) => l.evaluate(el => el === document.activeElement)
 
@@ -95,14 +93,11 @@ const scrollTop = (page: Page) => field(page, 'e.g., Leg Day, Push Day').evaluat
   return -1
 })
 
-for (const width of WIDTHS) {
-  test(`detail and form screens do not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
+for (const widths of WIDTH_GROUPS) {
+  test(`detail and form screens do not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
     for (const [name, path] of screens()) {
-      await open(page, path, width)
-      expect(await noHorizontalScroll(page), `${name} at ${width}`).toBe(true)
-      if ([390, 1280, 1920].includes(width)) {
-        await testInfo.attach(`${name}-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
-      }
+      await open(page, path, widths[0])
+      await sweepWidths(page, testInfo, name, widths, { shoot: [390, 1280, 1920], height: 800 })
     }
   })
 }

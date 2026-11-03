@@ -1,29 +1,16 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from './fixtures'
-
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // The widths the layout primitives are accountable to: nothing may scroll sideways at any of
 // them, and from 768 up the main column is centred at its max width rather than stretched.
-for (const width of WIDTHS) {
-  test(`home does not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 })
+for (const widths of WIDTH_GROUPS) {
+  test(`home does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: widths[0], height: 900 })
     await page.goto('/')
     await expect(page.getByRole('main')).toBeVisible()
     await page.waitForLoadState('networkidle')
-
-    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-    }))
-    expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
-
-    if (width === 390 || width === 1280) {
-      await testInfo.attach(`home-${width}`, {
-        body: await page.screenshot(),
-        contentType: 'image/png',
-      })
-    }
+    await sweepWidths(page, testInfo, 'home', widths, { shoot: [390, 1280] })
   })
 }
 

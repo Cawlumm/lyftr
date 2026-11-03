@@ -3,6 +3,7 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
 import { blackhole } from './faults'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // The nutrition diary and log flow on wide web (C25). From lg the day's food is on the left
 // and its totals stick in a column on the right, with the Diary/Trends switch and the date
@@ -49,13 +50,10 @@ const noHorizontalScroll = (page: Page) => page.evaluate(() =>
   document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 
 for (const [screen, path] of [['diary', '/nutrition'], ['log', '/nutrition/log']] as const) {
-  for (const width of WIDTHS) {
-    test(`${screen} does not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
-      await open(page, path, width)
-      expect(await noHorizontalScroll(page)).toBe(true)
-      if ([390, 1280, 1920].includes(width)) {
-        await testInfo.attach(`${screen}-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
-      }
+  for (const widths of WIDTH_GROUPS) {
+    test(`${screen} does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+      await open(page, path, widths[0])
+      await sweepWidths(page, testInfo, screen, widths, { shoot: [390, 1280, 1920], height: 800 })
     })
   }
 }

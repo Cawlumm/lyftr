@@ -1,11 +1,11 @@
 import type { Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // Settings and the sign-in screens on wide web (C32). Settings is a centred max-w-2xl column of
 // grouped rows whose drill-ins are real links, with the web-only exercise-cache admin. Sign in
 // and register split at lg into a brand panel and the form; below lg they are the phone layout.
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
 const SIDEBAR = 240
 const SYNC = '**/api/v1/admin/sync-exercises**'
 
@@ -16,8 +16,6 @@ async function open(page: Page, path: string, width: number, height = 800) {
   await page.waitForLoadState('networkidle')
 }
 
-const noHorizontalScroll = (page: Page) => page.evaluate(() =>
-  document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 const box = async (l: ReturnType<Page['locator']>) => (await l.boundingBox())!
 const refreshButton = (page: Page) => page.getByRole('button', { name: /^Refresh(ing)? cached|^Refreshing/ })
 
@@ -30,14 +28,11 @@ async function axe(page: Page) {
 }
 
 test.describe('settings', () => {
-  for (const width of WIDTHS) {
-    test(`settings and change password do not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
+  for (const widths of WIDTH_GROUPS) {
+    test(`settings and change password do not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
       for (const path of ['/settings', '/settings/password']) {
-        await open(page, path, width)
-        expect(await noHorizontalScroll(page), `${path} at ${width}`).toBe(true)
-        if ([390, 1280, 1920].includes(width)) {
-          await testInfo.attach(`${path.slice(1).replace('/', '-')}-${width}`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
-        }
+        await open(page, path, widths[0])
+        await sweepWidths(page, testInfo, path.slice(1).replace('/', '-'), widths, { shoot: [390, 1280, 1920], height: 800 })
       }
     })
   }
@@ -157,14 +152,11 @@ test.describe('sign in and register', () => {
 
   const brand = (page: Page) => page.getByText('Track workouts', { exact: true }).locator('visible=true')
 
-  for (const width of WIDTHS) {
-    test(`sign in and register do not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
+  for (const widths of WIDTH_GROUPS) {
+    test(`sign in and register do not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
       for (const path of ['/login', '/register']) {
-        await open(page, path, width)
-        expect(await noHorizontalScroll(page), `${path} at ${width}`).toBe(true)
-        if ([390, 1280, 1920].includes(width)) {
-          await testInfo.attach(`${path.slice(1)}-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
-        }
+        await open(page, path, widths[0])
+        await sweepWidths(page, testInfo, path.slice(1), widths, { shoot: [390, 1280, 1920], height: 800 })
       }
     })
   }
