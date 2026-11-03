@@ -10,7 +10,7 @@ import { useAsyncAction,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
-import { interactive } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -27,9 +27,6 @@ const startHref = '/workouts/start' as unknown as Href
 const activeHref = '/workouts/active' as unknown as Href
 
 
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
 
 // Rows shown before the review banner collapses behind a "Show all" toggle (#40).
 const SUGGESTION_CAP = 3

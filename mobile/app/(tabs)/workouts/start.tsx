@@ -5,16 +5,13 @@ import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from '../
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, ErrorState, IconButton, ResponsiveGrid, Screen, scrollBleed } from '../../../src/components/ui'
-import { interactive } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs/DayPickerSheet'
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
 
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
 
 function ProgramRows({ wide, children }: { wide: boolean; children: ReactNode }) {
   if (wide) return <ResponsiveGrid columns={{ base: 2, md: 2, lg: 2 }} gap={8}>{children}</ResponsiveGrid>

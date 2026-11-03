@@ -4,6 +4,7 @@ import { useIsFocused } from 'expo-router'
 import { useTranslation } from '@lyftr/shared'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useMotion } from '../../lib/useMotion'
+import { KeepAwakeNotice } from './KeepAwakeNotice'
 
 // On web the gym overlay is a modal dialog over the whole app, as the Vite page was: RN Modal
 // gives it role=dialog, aria-modal, a Tab trap, focus handed back on close, and Escape, which
@@ -38,6 +39,7 @@ export function GymFrame({ onClose, children }: { onClose: () => void; children:
             : 'flex-1 bg-surface-base'}
         >
           {children}
+          <KeepAwakeNotice inOverlay />
         </View>
       </View>
     </Modal>

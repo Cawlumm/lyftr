@@ -12,3 +12,10 @@ export function interactive(hover: string, { disabled = false, inset = false } =
   const offset = inset ? 'focus-visible:-outline-offset-2' : 'focus-visible:outline-offset-2'
   return `cursor-pointer ${RING} ${offset} ${hover}`
 }
+
+// These controls had no role, which native reads from the text alone; react-native-web needs
+// one for the DOM, so web gets it and native is unchanged.
+export const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
+
+// The aria-current of the step being worked; RN's types have no aria-current.
+export const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object

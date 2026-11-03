@@ -16,7 +16,7 @@ import { ExercisePicker } from './ExercisePicker'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
 import { GymFrame } from './GymFrame'
-import { interactive } from '../ui/interaction'
+import { WEB_BUTTON, currentStep, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
@@ -25,11 +25,6 @@ import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numeric
 import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 
 const web = Platform.OS === 'web'
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = web ? ('button' as const) : undefined
-// The aria-current of the exercise being worked; RN's types have no aria-current.
-const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object
 
 // react-native-web never fires onEndEditing, so on web the note saves on blur (Enter blurs a
 // single-line field). Escape puts back what was saved, as the Vite page did, and is kept from

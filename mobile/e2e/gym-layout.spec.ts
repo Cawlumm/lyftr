@@ -233,3 +233,14 @@ test.describe('reduced motion', () => {
     }
   })
 })
+
+test('the keep-awake warning shows inside the dialog and one dismissal clears it', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'wakeLock', { value: undefined, configurable: true }))
+  await seed(page)
+  await openGym(page, 390)
+  const warning = page.getByText(/The screen may turn off during your workout/)
+  await expect(dialog(page).getByText(/The screen may turn off during your workout/)).toBeVisible()
+  await expect(warning).toHaveCount(1)
+  await dialog(page).getByRole('button', { name: /dismiss|close/i }).click()
+  await expect(warning).toHaveCount(0)
+})

@@ -4,7 +4,7 @@ import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
-import { interactive } from '../ui/interaction'
+import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
@@ -12,9 +12,6 @@ import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
 
 const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
@@ -110,7 +107,7 @@ function ActiveExerciseCardBase({
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         <ExerciseImage url={ex.exercise.image_url} />
-        <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id)))}>
+        <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>

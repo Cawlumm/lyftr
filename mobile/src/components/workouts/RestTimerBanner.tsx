@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Platform, Pressable, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import Animated, {
   Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated'
@@ -12,11 +12,8 @@ import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { AMBIENT, EASING } from '../../theme/motion'
 import { useMotion } from '../../lib/useMotion'
-import { interactive } from '../ui/interaction'
+import { WEB_BUTTON, interactive } from '../ui/interaction'
 
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
 
 // Port of web/components/RestTimerBanner.tsx, styled as a full-width bottom sheet
 // (matches the ConfirmSheet/ActionSheet visual language: rounded-top, grabber,

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Keyboard, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/components/ui/icons'
 import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
-import { interactive } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
@@ -14,11 +14,6 @@ import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/ly
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 
-// These controls had no role, which native reads from the text alone; react-native-web needs
-// one for the DOM, so web gets it and native is unchanged.
-const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
-// The aria-current of the exercise being worked; RN's types have no aria-current.
-const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object
 
 export default function ActiveWorkout() {
   const { t } = useTranslation()
