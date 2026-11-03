@@ -32,15 +32,16 @@ function routePatterns(dir = appDir, prefix = ''): RegExp[] {
 
 const resolves = (url: string) => routePatterns().some((re) => re.test(url))
 
-const webApp = fs.readFileSync(path.resolve(__dirname, '../../../web/src/App.tsx'), 'utf8')
-const webPaths = [...webApp.matchAll(/<Route path="([^"*]+)"/g)].map((m) => m[1])
+// Every route the Vite app declared, frozen when web/ was deleted so the old URLs stay covered.
+const webPaths = [
+  '/login', '/register', '/', '/workouts', '/workouts/new', '/workouts/:id', '/workouts/:id/edit',
+  '/programs', '/programs/new', '/programs/:id', '/programs/:id/edit', '/workout/start',
+  '/workout/active', '/workout/active/add-exercise', '/workout/active/exercise/:exerciseId',
+  '/exercises', '/exercises/:exerciseId', '/food', '/food/log', '/weight', '/weight/:id',
+  '/settings', '/settings/password', '/settings/email',
+]
 
 describe('legacy route manifest', () => {
-  it('reads the web paths it is meant to cover', () => {
-    expect(webPaths).toContain('/food/log')
-    expect(webPaths.length).toBeGreaterThan(20)
-  })
-
   it.each(LEGACY_ROUTES.map((r) => [r.from, r.to]))('%s lands on a real screen (%s)', (_from, to) => {
     expect(resolves(to.replace(/:\w+/g, '7'))).toBe(true)
   })

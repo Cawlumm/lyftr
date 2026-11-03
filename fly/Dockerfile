@@ -10,12 +10,10 @@
 
 # ── Stage 1: Frontend ────────────────────────────────────────────────────────
 # mobile is an npm workspace member, so this installs from the root lockfile. `-w @lyftr/mobile`
-# limits it to the app's slice; web/package.json is copied only because `npm ci` validates
-# the lockfile against every declared workspace. Mirrors mobile/Dockerfile.web — keep them in step.
+# limits it to the app's slice. Mirrors mobile/Dockerfile.web — keep them in step.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY web/package.json ./web/
 COPY mobile/package.json ./mobile/
 COPY packages/shared/package.json ./packages/shared/
 COPY patches ./patches

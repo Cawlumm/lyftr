@@ -1,8 +1,8 @@
 # Lyftr Mobile — Conventions
 
-Read this before touching `mobile/`. It is the native analog of the web app's
-conventions: same design language, same tokens, same component names — expressed in
-React Native / Expo idioms. When in doubt, open `web/src/components/ui/` and mirror it.
+Read this before touching `mobile/`. It is the native analog of the old web app's
+conventions: same design language, same tokens — expressed in React Native / Expo idioms.
+When in doubt, open `mobile/src/components/ui/` and follow the nearest existing primitive.
 
 ## 1. Reuse boundary — logic is shared, UI is per-platform
 
@@ -10,8 +10,8 @@ React Native / Expo idioms. When in doubt, open `web/src/components/ui/` and mir
   API client, Zustand stores, and pure utils (`displayWeight`, `normalizeServerUrl`,
   `testServerConnection`, ...). If you're about to write a type, a fetch, or a
   unit-conversion in `mobile/`, stop — it belongs in `packages/shared`.
-- **UI is authored per-platform**, but mirror the web's component names and prop
-  shapes wherever an analog exists (`PageHeader`, `SectionHeader`, `SegmentedControl`,
+- **UI is authored per-platform**, but keep component names and prop
+  shapes consistent with the existing primitives (`PageHeader`, `SectionHeader`, `SegmentedControl`,
   `EmptyState`, `IconButton`, `StepperTile` + `NumberField`, ...), adapted to RN
   idioms: `onPress` not `onClick`, `TextInputProps` not input attributes,
   `accessibilityLabel` not `aria-label`. The two apps must stay legible to each other.
@@ -131,15 +131,15 @@ Hard-won on Fabric — violating these produces bugs that are expensive to redis
 **State conventions:** empty lists render `EmptyState` (never a bare string); form /
 request errors render a boxed alert (`authui`'s `AuthError` pattern: soft error bg,
 error border, `AlertCircle`) or `Field`'s `error` prop inline; transient success /
-progression feedback uses Toast (to-build, mirror web's: icon chip + title +
+progression feedback uses Toast (to-build: icon chip + title +
 description, auto-dismiss ~4s, docked above the tab bar); loading uses the control's
 own `loading` prop (`Button`) or a pull-to-refresh `RefreshControl` — not full-screen
 spinners for partial data. **Full-screen initial load** (a screen's first data fetch)
 renders `<Loading />` — the ported barbell rig — via `if (initialLoading) return
-<Loading />`, matching web; a small inline `ActivityIndicator` (brand color) is still
+<Loading />`; a small inline `ActivityIndicator` (brand color) is still
 right for in-place spots like pagination footers and picker lists. **Confirmations (destructive or otherwise) use
 `ConfirmSheet`, not `Alert.alert`** — a `[pending, setPending]` state drives
-`open`/`busy`; it mirrors web's portal bottom sheet and stays on-theme (the OS Alert
+`open`/`busy`; it is a portal bottom sheet and stays on-theme (the OS Alert
 was an interim stand-in).
 
 ## 7. Web → mobile component map

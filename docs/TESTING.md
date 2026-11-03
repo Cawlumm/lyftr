@@ -18,14 +18,14 @@ coverage so the suite stays quick and reliable as the app grows.
 ### 1. Unit — pure logic, no I/O
 A single function/module in isolation; no database, no network, no browser.
 
-- **Frontend (Vitest):** `web/src/**/*.test.ts(x)`, jsdom environment.
+- **Frontend (jest):** `mobile/src/**/*.test.ts(x)` and `packages/shared/src/**/*.test.ts`.
   Examples: `normalizeServerUrl`, `isPositiveNumber`, `dateUtils`, `formatVersion`,
   Zustand store reducers, hook behavior (`useServerInfo`).
 - **Backend (`go test`):** pure functions with no DB/gin dependency.
   Targets: `utils/jwt` (token generate/validate, expiry, wrong-secret, type
   enforcement), `utils/password` (bcrypt round-trip), and any calculation logic
   extracted out of handlers.
-- **Run:** `cd web && npm run test:unit` · `cd backend && go test ./utils/...`
+- **Run:** `npm run test -w @lyftr/mobile` · `npm run shared:test` · `cd backend && go test ./utils/...`
 - **Speed:** milliseconds. Write lots of these.
 
 ### 2. Integration — API handler + router + real SQLite
@@ -43,7 +43,7 @@ response shape, and DB persistence.
   layer.
 
 ### 3. E2E — real browser, real user journeys
-Playwright (`web/e2e/*.spec.ts`). For multi-step things a user actually does in
+Playwright (`mobile/e2e/*.spec.ts`, against the Expo web export). For multi-step things a user actually does in
 the UI: register/login, log a workout, gym mode, the barcode scanner, the
 Settings server editor.
 
@@ -63,7 +63,17 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => { ... })
 test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
 ```
 
-- **Run:** `cd web && npm run test:e2e`
+- **Run:** needs the nginx stack, not the Expo dev server. The target is the frontend image
+  (`mobile/Dockerfile.web`, the Expo web export behind nginx, proxying `/api` to the backend),
+  which compose publishes on `PORT`. Playwright's default is `http://localhost:8081`
+  (`mobile/e2e/config.ts`: `APP_PORT` / `BASE_URL` / `API_URL` override). CI sets
+  `JWT_SECRET`, `PORT=8081` and `CORS_ORIGIN=http://localhost,http://localhost:8081` in `.env`, then:
+  ```bash
+  PORT=8081 docker compose up -d --wait   # repo root; needs .env with JWT_SECRET
+  cd mobile && npm run test:e2e
+  ```
+  `npx expo start` also listens on 8081 but is **not** the e2e target; stop it first or the
+  stack cannot bind the port.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 
 ## Where does a new test go?
@@ -84,10 +94,10 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 - **Move-then-verify, never delete-and-hope.** Don't remove a higher-layer test
   until equivalent lower-layer coverage exists *and is green*. (E.g. the
   `auth.spec` scheme/invalid-URL E2E cases are only safe to drop because
-  `stores/server.test.ts` now covers `normalizeServerUrl` directly.)
+  `packages/shared/src/utils/serverUrl.test.ts` now covers `normalizeServerUrl` directly.)
 - **Every test pins a distinct case or path.** No filler, no testing the framework,
   no re-running the same assertion "through another door."
-- **Determinism.** Pin `TZ` for any local↔UTC date logic (see `vitest.config.ts`).
+- **Determinism.** Pin `TZ` for any local↔UTC date logic (see `packages/shared/jest.config.js`).
   Don't share mutable state across tests that may run in parallel — each test owns
   its own data.
 - **No hard waits in E2E.** Never `page.waitForTimeout(...)` — it's slow when the
@@ -142,16 +152,15 @@ client log to the console and fail row 2 for reasons that never reach production
 
 | Layer | Command | Where |
 |---|---|---|
-| Frontend unit | `npm run test:unit` (`--coverage` for a report) | `web/` |
+| Frontend unit | `npm run test -w @lyftr/mobile` · `npm run shared:test` | repo root |
 | Backend unit + integration | `go test ./...` | `backend/` |
-| E2E (dev server) | `npm run test:e2e` | `web/` |
-| E2E (docker stack) | `npm run test:e2e:docker` | `web/` |
+| E2E (Expo web export) | `npm run test:e2e` | `mobile/` |
 
 CI runs all of these on every PR (see `.github/workflows/ci.yml`).
 
 ## Current state & roadmap
 
-- ✅ **Frontend unit** layer established (Vitest).
+- ✅ **Frontend unit** layer established (jest).
 - 🔜 **Backend unit** layer — pure-logic gaps to fill: `utils/jwt`, `utils/password`,
   and calculations currently inline in `GetDailyStats` / `GetWeightStats` (extract →
   unit-test the math).

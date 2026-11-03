@@ -94,7 +94,7 @@ test('server settings Save stays enabled when the field equals the current serve
 
 // NOTE: the scheme-less-host rejection case was removed — normalizeServerUrl's
 // validation (scheme-less, whitespace, unparseable, path-stripping) is covered
-// exhaustively in web/src/stores/server.test.ts. The "rejects an invalid URL"
+// exhaustively in packages/shared/src/utils/serverUrl.test.ts. The "rejects an invalid URL"
 // test above is kept as the single E2E proof that the panel surfaces a
 // validation error to the user.
 
@@ -251,8 +251,8 @@ test('a wrong current password on change email shows an error without signing th
 })
 
 // The W3C Change Password URL. Password managers open it to send a user to the form, and
-// expect a redirect — served by nginx in production and by a vite middleware in dev, so
-// this runs against either stack. Asserted without following, because a 200 here would
+// expect a redirect — served by nginx, so this runs
+// against the docker stack. Asserted without following, because a 200 here would
 // mean the SPA fallback swallowed it and the manager would land on whatever React Router
 // decides, not on the form.
 //
