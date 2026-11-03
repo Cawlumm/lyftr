@@ -9,7 +9,7 @@
 # The seed snapshot is created manually on first deploy (see fly/SETUP.md).
 
 # ── Stage 1: Frontend ────────────────────────────────────────────────────────
-# mobile is an npm workspace member, so this installs from the root lockfile. `-w @lyftr/mobile`
+# apps/app (@lyftr/mobile) is an npm workspace member, so this installs from the root lockfile. `-w @lyftr/mobile`
 # limits it to the app's slice. Mirrors apps/app/Dockerfile.web — keep them in step.
 FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
 WORKDIR /app
@@ -42,8 +42,8 @@ FROM nginx:alpine
 # wget: used in health checks if needed
 RUN apk add --no-cache ca-certificates wget
 
-COPY --from=backend /build/lyftr-api     /app/lyftr-api
-COPY --from=frontend /app/apps/app/dist    /usr/share/nginx/html
+COPY --from=backend /build/lyftr-api /app/lyftr-api
+COPY --from=frontend /app/apps/app/dist /usr/share/nginx/html
 
 # Fly-specific nginx config: proxy_pass uses localhost:3000 (not :3000 service name)
 COPY fly/nginx.fly.conf /etc/nginx/conf.d/default.conf

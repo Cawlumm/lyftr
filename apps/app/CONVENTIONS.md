@@ -96,8 +96,7 @@ Therefore:
   constraints), never narrate the what.
 - Strict TS, no `any`. Generic where it pays (`SegmentedControl<T extends string>`).
 - Naming: PascalCase components, camelCase utils, hooks in `src/hooks/` with a `use`
-  prefix. Hooks ported from web keep the web name and a "port of web/... keep in
-  sync" header (`useNumericText`).
+  prefix.
 - Icons: lucide, imported from `ui/icons` (one per-icon module each; the package barrel
   ships every icon and lint rejects it), typed as `LucideIcon`, passed as the component
   (`icon={Trash2}`). Render through `<Icon>`: `sm`/`md`/`lg` sizes, one stroke, hidden from

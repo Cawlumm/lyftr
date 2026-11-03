@@ -1,5 +1,4 @@
-// The i18n guard's rule data, plain so web/eslint.config.mjs (ESM) and
-// apps/app/eslint.config.js (CJS) import the one copy and cannot drift apart.
+// The i18n guard's rule data, plain so every ESLint config imports the one copy and cannot drift apart.
 //
 // eslint-plugin-i18next replaces a default list wholesale when an option is given,
 // so every list below restates the defaults it still wants.

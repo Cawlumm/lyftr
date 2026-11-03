@@ -27,7 +27,7 @@ services:
 
   frontend:
     image: cwlumm/lyftr-frontend:latest
-    # The Expo app's web export. Repo root, not ./mobile — the build installs the npm workspace
+    # The Expo app's web export. Repo root, not ./apps/app — the build installs the npm workspace
     # so it can reach packages/shared. Service name stays `frontend` so the CI bake cache
     # flags match.
     build:

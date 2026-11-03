@@ -1,5 +1,5 @@
-/** NativeWind (Tailwind for RN). Tokens ported from web/tailwind.config.ts +
- *  index.css. Surface/text tokens resolve from CSS variables (see global.css) so
+/** NativeWind (Tailwind for RN). Tokens (ported from the retired web app) +
+ *  global.css. Surface/text tokens resolve from CSS variables (see global.css) so
  *  they flip between light + dark exactly like the web app; brand colors are
  *  theme-independent literals. */
 const breakpoints = require('./src/theme/breakpoints.json')

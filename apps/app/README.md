@@ -79,7 +79,7 @@ followed by a NativeWind `TypeError` reading a file map that was never built.
 What Expo picks on its own is narrower and correct:
 
 ```
-watchFolders: [ node_modules, packages/shared, mobile, web ]
+watchFolders: [ node_modules, packages/shared ]
 ```
 
 So `@lyftr/shared` still transpiles from source (verified: a dev bundle contains

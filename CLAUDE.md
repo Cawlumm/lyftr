@@ -300,12 +300,34 @@ to prevent. An invalid value is a startup failure, never a fallback to open.
 
 ---
 
+## Web (react-native-web)
+
+The web is the Expo app's `--platform web` export, not a separate app. Platform splits are
+`.web.tsx` / `.native.tsx` files beside the shared one. Dev: `cd apps/app && npx expo start --web`
+(:8081) calls the backend on :3000 directly; the backend allows all origins while
+`ENV=development`, so no proxy is needed. Production and e2e use the nginx stack, which proxies `/api`.
+
+Single points of truth, each named once:
+- `apps/app/src/theme/breakpoints.json` — read by `tailwind.config.js` and `useBreakpoint`.
+- `apps/app/src/theme/motion.ts` + `useMotion` — durations, easing, reduced motion.
+- `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — the per-icon registry; no lucide barrel imports.
+- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`.
+- `apps/app/src/components/ui/link.ts` — `linkProps`: a real `<a>` on web.
+- `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`
+  (regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`).
+- Web quality checklist: `docs/TESTING.md`.
+
+**Later:** splitting the shared core (i18n core/react, an exports map, injected TZ) is deferred
+until a CLI/MCP client exists.
+
+---
+
 ## Dev Setup
 
 ```bash
-cd backend && go run .                # :3000 — `.`, not main.go: package main spans several files
+cd backend && go run .                  # :3000 — `.`, not main.go: package main spans several files
 cd apps/app && npx expo start --web     # :8081, the app in a browser; point it at :3000
-docker compose up -d                  # prod, needs .env with JWT_SECRET
+docker compose up -d                    # prod, needs .env with JWT_SECRET
 ```
 
 ### Mobile builds — MANDATORY
@@ -418,6 +440,10 @@ ignored.
 
   A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
   there. This dodge is local-only.
+- **CI jobs for the app:** `e2e-app` runs Playwright against the compose stack (nginx +
+  Expo web export + backend); `perf.spec.ts` holds LCP/CLS tripwires and `polish.spec.ts`
+  walks every route at four widths in both themes. `web-export` builds the export and
+  enforces the bundle budget in `apps/app/perf-budget.json`.
 - **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
   the mobile filter includes). The suite drives the Expo web export, so a native-only
   change still runs it; the jest suite and type-check are what stand behind native code.
