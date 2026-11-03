@@ -17,7 +17,7 @@ npm-debug.*
 *.log
 # Every .env variant, not just *.local. @expo/env loads .env.production and
 # .env.development too, and EXPO_PUBLIC_ values are inlined into the shipped bundle — so a
-# committed mobile/.env.production would bake a developer's LAN address into a store build.
+# committed apps/app/.env.production would bake a developer's LAN address into a store build.
 .env*
 !.env.example
 

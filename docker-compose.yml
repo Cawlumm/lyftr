@@ -32,7 +32,7 @@ services:
     # flags match.
     build:
       context: .
-      dockerfile: mobile/Dockerfile.web
+      dockerfile: apps/app/Dockerfile.web
     restart: unless-stopped
     environment:
       # host:port the frontend nginx proxies /api to. Must match the backend's PORT.

@@ -3,7 +3,7 @@ import { LEGACY_ROUTES } from '../src/lib/legacyRoutes'
 
 // nginx's half of the cut-over (C35): every old Vite URL is a 301 straight to its new path,
 // with the query string intact, before any JS loads. The rules are generated from
-// LEGACY_ROUTES (mobile/nginx.legacy-redirects.conf); this drives each one through the
+// LEGACY_ROUTES (apps/app/nginx.legacy-redirects.conf); this drives each one through the
 // image, so a rule nginx rejects or orders behind another location fails here. Not
 // followed: a 200 would mean the SPA fallback answered and only the client redirected.
 const SAMPLE_PARAM = '42'

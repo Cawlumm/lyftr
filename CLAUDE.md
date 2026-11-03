@@ -42,7 +42,7 @@ backend/
   seed/users.go         — demo user seeding (see also seed/demo_data.go)
   utils/response.go     — utils.OK / utils.BadRequest helpers
 
-mobile/
+apps/app/
   app/                  — Expo Router: one file per screen/route (native and web)
   src/                  — components, hooks, theme, lib/lyftr.ts (client + stores)
   e2e/                  — Playwright specs against the web export
@@ -63,12 +63,12 @@ packages/shared/src/
 - New migrations go in `db/migrations.go` — append only, never modify existing
 
 **Frontend**
-- API calls go through the shared client (`packages/shared/src/client.ts`, bound in `mobile/src/lib/lyftr.ts`) — never inline `axios`/`fetch`
+- API calls go through the shared client (`packages/shared/src/client.ts`, bound in `apps/app/src/lib/lyftr.ts`) — never inline `axios`/`fetch`
 - Always null-guard arrays before `.reduce`/`.forEach`: `(w.exercises ?? []).forEach(...)`
 - Duration stored as **seconds** in DB — display as `Math.round(duration / 60)` min
 - Light/dark theme via `localStorage.setItem('theme', 'light|dark')` + `document.documentElement.classList`
 - Mobile-first: 90% of users on mobile, desktop is secondary
-- New pages: create a route file in `mobile/app/` (it serves native and web)
+- New pages: create a route file in `apps/app/app/` (it serves native and web)
 
 ---
 
@@ -180,9 +180,9 @@ true of one file. Do not document it here before it lands.
   and plural parity across locales).
 - `i18n/index.ts` also owns the language picker's entries, order, current-choice label
   (`LANGUAGE_ORDER`, `languageChoiceLabel`).
-  The OS per-app language list is `supportedLocales` in `mobile/app.json`, held to the registry
+  The OS per-app language list is `supportedLocales` in `apps/app/app.json`, held to the registry
   by a mobile test, and only changes with an EAS build.
-- Hermes has no `Intl.PluralRules`; `mobile/src/lib/polyfills.ts` imports the polyfill.
+- Hermes has no `Intl.PluralRules`; `apps/app/src/lib/polyfills.ts` imports the polyfill.
 - **The guard is lint.** `eslint-plugin-i18next` (`no-literal-string`) plus three
   `no-restricted-syntax` selectors fail mobile lint, as errors, on a hard-coded string
   in JSX text or a string prop, and on copy passed to `apiErrorMessage`, `useAsyncAction`,
@@ -304,7 +304,7 @@ to prevent. An invalid value is a startup failure, never a fallback to open.
 
 ```bash
 cd backend && go run .                # :3000 — `.`, not main.go: package main spans several files
-cd mobile && npx expo start --web     # :8081, the app in a browser; point it at :3000
+cd apps/app && npx expo start --web     # :8081, the app in a browser; point it at :3000
 docker compose up -d                  # prod, needs .env with JWT_SECRET
 ```
 
@@ -314,14 +314,14 @@ docker compose up -d                  # prod, needs .env with JWT_SECRET
 Gradle, no `eas build --local`. Build through the **EAS CLI** (cloud) or a CI runner:
 
 ```bash
-cd mobile && eas build --platform android --profile preview
+cd apps/app && eas build --platform android --profile preview
 ```
 
 A first local build is 10–25 min of toolchain download before it compiles anything, and
-`prebuild` writes an untracked `mobile/android/` and rewrites the `android`/`ios` scripts in
-`mobile/package.json`.
+`prebuild` writes an untracked `apps/app/android/` and rewrites the `android`/`ios` scripts in
+`apps/app/package.json`.
 
-`mobile/eas.json` currently defines **`preview` and `production` only**. There is no
+`apps/app/eas.json` currently defines **`preview` and `production` only**. There is no
 `development` profile, so nothing here produces a `developmentClient` build; adding one is
 what you want if you need native modules on device, and it is a one-time cost.
 
@@ -332,7 +332,7 @@ Emulator notes: the backend is reachable at `http://10.0.2.2:3000` (the emulator
 loopback is itself), or over an `adb reverse` tunnel if one is set up — check
 `adb reverse --list` before assuming which.
 
-Maestro flows are **not** in the repo: `mobile/.maestro/` is gitignored, so a fresh
+Maestro flows are **not** in the repo: `apps/app/.maestro/` is gitignored, so a fresh
 checkout has none and yours are yours alone.
 
 ---
@@ -418,7 +418,7 @@ ignored.
 
   A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
   there. This dodge is local-only.
-- **e2e is path-filtered** to `backend/**` or `mobile/**` (and `packages/shared/**`, which
+- **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
   the mobile filter includes). The suite drives the Expo web export, so a native-only
   change still runs it; the jest suite and type-check are what stand behind native code.
 - **Markdown-only *pushes* run nothing** (`paths-ignore` on the `push` trigger).

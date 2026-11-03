@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Manifests first (layer cache).
 COPY package.json package-lock.json ./
-COPY mobile/package.json ./mobile/
+COPY apps/app/package.json ./apps/app/
 COPY packages/shared/package.json ./packages/shared/
 # postinstall runs patch-package over patches/*.patch (expo-localization), which the
 # export bundles, so the patch has to be there when the install finishes.
@@ -18,8 +18,8 @@ RUN npm ci -w @lyftr/mobile --include-workspace-root
 
 # packages/shared ships as TypeScript source (no build step) — Metro transpiles it.
 COPY packages/shared ./packages/shared
-COPY mobile/ ./mobile/
-# Same command the CI `web-export` job runs: output lands in mobile/dist.
+COPY apps/app/ ./apps/app/
+# Same command the CI `web-export` job runs: output lands in apps/app/dist.
 RUN EXPO_NO_TELEMETRY=1 CI=1 npm run export:web -w @lyftr/mobile
 
 # Stage 2: Runtime
@@ -33,12 +33,12 @@ ENV NGINX_ENVSUBST_FILTER=BACKEND_ORIGIN
 
 # nginx's entrypoint renders templates in /etc/nginx/templates/*.template through
 # envsubst into /etc/nginx/conf.d/ on start.
-COPY mobile/nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY apps/app/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Not in templates/ or conf.d/: conf.d is included at http level, and this file holds
 # location blocks, which only the server block can include.
-COPY mobile/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
+COPY apps/app/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
 
-COPY --from=builder /app/mobile/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/app/dist /usr/share/nginx/html
 
 EXPOSE 80
 

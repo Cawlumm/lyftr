@@ -66,9 +66,9 @@ CLAUDE.local.md
 .claude/
 
 # Playwright artifacts
-mobile/e2e/.auth/
-mobile/test-results/
-mobile/playwright-report/
+apps/app/e2e/.auth/
+apps/app/test-results/
+apps/app/playwright-report/
 .playwright-mcp/
 
 # Local Fable/Sonnet porting specs (working artifacts, not committed)
@@ -79,7 +79,7 @@ mobile/playwright-report/
 /releases/
 
 # Ad-hoc screenshots dropped at the repo root during local testing. Scoped to the
-# root only — mobile/assets and README screenshots stay tracked.
+# root only — apps/app/assets and README screenshots stay tracked.
 /*.png
 
 # Design-system export (fonts, ui_kits, raw asset dumps) — local working material.
@@ -93,7 +93,7 @@ mobile/playwright-report/
 # a running backend — so a committed flow is a file that rots without anyone noticing.
 # The rule exists because the convention alone did not hold: without it the same mistake
 # landed twice, and the second time it reached main.
-mobile/.maestro/
+apps/app/.maestro/
 
 # tsc --incremental caches. Regenerated on every build; never useful in a diff.
 *.tsbuildinfo

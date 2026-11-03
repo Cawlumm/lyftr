@@ -63,7 +63,7 @@ jobs:
               - 'docker-compose.yml'
               - '.github/workflows/ci.yml'
             mobile:
-              - 'mobile/**'
+              - 'apps/app/**'
               - 'packages/shared/**'
               - 'package.json'
               - 'package-lock.json'
@@ -159,20 +159,20 @@ jobs:
 
       - name: Check the export
         run: |
-          test -f mobile/dist/index.html || { echo "mobile/dist/index.html missing"; exit 1; }
-          grep -q '<script' mobile/dist/index.html || { echo "index.html has no <script> tag"; exit 1; }
+          test -f apps/app/dist/index.html || { echo "apps/app/dist/index.html missing"; exit 1; }
+          grep -q '<script' apps/app/dist/index.html || { echo "index.html has no <script> tag"; exit 1; }
           for pat in 'name="description"' 'name="theme-color"' 'name="color-scheme"' 'rel="manifest"' 'rel="apple-touch-icon"' 'rel="icon"' 'noindex'; do
-            grep -q "$pat" mobile/dist/index.html || { echo "index.html is missing $pat"; exit 1; }
+            grep -q "$pat" apps/app/dist/index.html || { echo "index.html is missing $pat"; exit 1; }
           done
-          test -f mobile/dist/manifest.json || { echo "mobile/dist/manifest.json missing"; exit 1; }
+          test -f apps/app/dist/manifest.json || { echo "apps/app/dist/manifest.json missing"; exit 1; }
           # polyfills.web.ts leaves the Hermes-only intl-pluralrules out; browsers ship Intl.PluralRules.
           # Match that package's own error strings, not 'PluralRules', which i18next contains legitimately.
-          if grep -rlE --include='*.js' 'Not a valid plural type|select\(\) called on incompatible' mobile/dist; then
+          if grep -rlE --include='*.js' 'Not a valid plural type|select\(\) called on incompatible' apps/app/dist; then
             echo "intl-pluralrules shipped to web"; exit 1
           fi
-          # Pins the zustand CJS override in mobile/metro.config.js: its ESM build uses
+          # Pins the zustand CJS override in apps/app/metro.config.js: its ESM build uses
           # import.meta, which throws when the bundle runs as a classic script.
-          if grep -rl --include='*.js' 'import\.meta' mobile/dist; then
+          if grep -rl --include='*.js' 'import\.meta' apps/app/dist; then
             echo "import.meta found in the exported bundle"; exit 1
           fi
 
@@ -181,7 +181,7 @@ jobs:
           {
             echo "### Web export size"
             echo
-            echo "Entry: \`$(grep -o '[^"]*_expo/static/js/web/entry-[^"]*\.js' mobile/dist/index.html | head -n1)\`"
+            echo "Entry: \`$(grep -o '[^"]*_expo/static/js/web/entry-[^"]*\.js' apps/app/dist/index.html | head -n1)\`"
             echo
             echo "| File | Raw (bytes) | Gzip (bytes) |"
             echo "|---|---:|---:|"
@@ -189,24 +189,24 @@ jobs:
             while IFS= read -r f; do
               raw=$(wc -c < "$f"); gz=$(gzip -c "$f" | wc -c)
               raw_total=$((raw_total + raw)); gz_total=$((gz_total + gz))
-              echo "| \`${f#mobile/dist/}\` | $raw | $gz |"
-            done < <(find mobile/dist -type f \( -name '*.js' -o -name '*.css' \) | sort)
+              echo "| \`${f#apps/app/dist/}\` | $raw | $gz |"
+            done < <(find apps/app/dist -type f \( -name '*.js' -o -name '*.css' \) | sort)
             echo "| **Total** | **$raw_total** | **$gz_total** |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
         with:
           name: web-export
-          path: mobile/dist/
+          path: apps/app/dist/
           retention-days: 7
 
       # Last, so a failing budget still leaves the size table and the artifact above.
-      # Budgets live in mobile/perf-budget.json; the script fails the job when exceeded.
+      # Budgets live in apps/app/perf-budget.json; the script fails the job when exceeded.
       - name: Enforce bundle budget
-        run: node mobile/scripts/bundle-budget.mjs
+        run: node apps/app/scripts/bundle-budget.mjs
 
   # The e2e gate: the Expo app's web export, served by the `frontend` image
-  # (mobile/Dockerfile.web) and driven by the Playwright harness in mobile/e2e.
+  # (apps/app/Dockerfile.web) and driven by the Playwright harness in apps/app/e2e.
   e2e-app:
     name: Playwright E2E (Expo app)
     needs: changes
@@ -226,7 +226,7 @@ jobs:
       - name: Create .env
         run: |
           echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
-          # Published on 8081, the harness's default (mobile/e2e/config.ts).
+          # Published on 8081, the harness's default (apps/app/e2e/config.ts).
           echo "PORT=8081" >> .env
           echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
 
@@ -263,13 +263,13 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd mobile && npx playwright install chromium webkit
+        run: cd apps/app && npx playwright install chromium webkit
 
       - name: Install Playwright system dependencies
-        run: cd mobile && npx playwright install-deps chromium webkit
+        run: cd apps/app && npx playwright install-deps chromium webkit
 
       - name: Run E2E tests
-        run: cd mobile && npm run test:e2e
+        run: cd apps/app && npm run test:e2e
 
       - name: Show container logs
         if: failure()
@@ -280,8 +280,8 @@ jobs:
         with:
           name: playwright-report-app
           path: |
-            mobile/playwright-report/
-            mobile/test-results/
+            apps/app/playwright-report/
+            apps/app/test-results/
           retention-days: 7
 
   version-smoke:
@@ -423,7 +423,7 @@ jobs:
         with:
           context: .
           # The Expo export.
-          file: ./mobile/Dockerfile.web
+          file: ./apps/app/Dockerfile.web
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           # push=false on PRs/feature branches — builds only (validates Dockerfile)
           # push=true on main merge or version tag — publishes to Docker Hub

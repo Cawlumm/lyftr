@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Static analysis for the Go backend, the TypeScript in mobile/shared, and the
+# Static analysis for the Go backend, the TypeScript in apps/app and packages/shared, and the
 # workflow files themselves. Free on public repositories, including the Actions minutes.
 #
 # What this does and does not buy: CodeQL finds the pattern-shaped classes — injection,

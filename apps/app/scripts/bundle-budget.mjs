@@ -1,4 +1,4 @@
-// Fails when the exported web bundle outgrows mobile/perf-budget.json. The one place
+// Fails when the exported web bundle outgrows apps/app/perf-budget.json. The one place
 // the budget is read; CI runs this and nothing else compares sizes.
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'

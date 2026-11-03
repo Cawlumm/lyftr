@@ -1,4 +1,4 @@
-// The frontend image (mobile/Dockerfile.web) on APP_PORT, 8081 by default: CI publishes the
+// The frontend image (apps/app/Dockerfile.web) on APP_PORT, 8081 by default: CI publishes the
 // compose stack there (PORT=8081). BASE_URL overrides for anything else (a local
 // `npx serve`, a deployed preview).
 const appPort = process.env.APP_PORT ?? '8081'

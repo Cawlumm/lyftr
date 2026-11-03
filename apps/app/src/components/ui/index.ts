@@ -1,4 +1,4 @@
-// The Lyftr mobile primitive library — read mobile/CONVENTIONS.md before adding to
+// The Lyftr mobile primitive library — read apps/app/CONVENTIONS.md before adding to
 // it. This barrel resolves the same '../../src/components/ui' path the screens
 // already import, so it fully replaces the old single-file ui.tsx.
 

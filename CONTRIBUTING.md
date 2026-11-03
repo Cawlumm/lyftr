@@ -47,7 +47,7 @@ python3 scripts/seed_food.py
 
 ```bash
 npm install            # repo root: one install covers mobile and packages/shared
-cd mobile
+cd apps/app
 npx expo start --web
 # App at http://localhost:8081, talking to the backend on :3000
 ```
@@ -60,7 +60,7 @@ Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real 
 
 ```
 Internet → nginx/Caddy (real TLS cert)
-              ├── /       → mobile/dist/  (expo export --platform web)
+              ├── /       → apps/app/dist/  (expo export --platform web)
               └── /api    → localhost:3000
 ```
 
@@ -120,7 +120,7 @@ are listed in `locales/README.md`.
 3. List it in `locales/README.md` (`catalog.test.ts` fails if the table and the registry
    disagree).
 4. Add the code to both `supportedLocales` lists of the `expo-localization` plugin in
-   `mobile/app.json`, so the language appears in the iOS/Android per-app language settings.
+   `apps/app/app.json`, so the language appears in the iOS/Android per-app language settings.
    Mobile's `supportedLocales.test.ts` fails until you do; it reaches phones only with the
    next EAS build.
 5. Run `npm run shared:test` and `npm run test -w @lyftr/mobile -- --ci --maxWorkers=4`. `catalog.test.ts` fails by key name on a missing or extra key,
@@ -211,13 +211,13 @@ npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 # Frontend E2E: drives the Expo web export served by the nginx compose stack on :8081
 # (not `expo start`, which also uses 8081 -- stop it first). See docs/TESTING.md.
 PORT=8081 docker compose up -d --wait   # needs .env with JWT_SECRET
-cd mobile && npm run test:e2e
+cd apps/app && npm run test:e2e
 ```
 
 **Unit (jest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
 isolated components — anything that runs without a real backend or cross-page
 navigation; reserve E2E for full user journeys against the running stack. Unit
-files are `*.test.ts(x)`; E2E specs are `mobile/e2e/**/*.spec.ts`. Keep the two
+files are `*.test.ts(x)`; E2E specs are `apps/app/e2e/**/*.spec.ts`. Keep the two
 suffixes/locations distinct so the runners never pick up each other's files.
 
 For the full layer model (unit / integration / e2e), where a new test belongs, and

@@ -4,10 +4,10 @@ import { LEGACY_ROUTES } from './legacyRoutes'
 
 // nginx answers the web app's old URLs with a 301 before the bundle loads, so a bookmark or
 // a search hit lands on the new path in one hop. The list nginx reads is checked in rather
-// than generated in the image, so fly/Dockerfile and mobile/Dockerfile.web include the same
+// than generated in the image, so fly/Dockerfile and apps/app/Dockerfile.web include the same
 // file and a reviewer sees every rule; this test is what keeps it equal to LEGACY_ROUTES.
 // After editing legacyRoutes.ts, regenerate with:
-//   UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects   (from mobile/)
+//   UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects   (from apps/app/)
 const confPath = path.resolve(__dirname, '../../nginx.legacy-redirects.conf')
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -32,8 +32,8 @@ function rule(from: string, to: string): string {
 
 function render(): string {
   return [
-    '# GENERATED from mobile/src/lib/legacyRoutes.ts by src/lib/legacyRedirects.test.ts. Do not edit:',
-    '# change LEGACY_ROUTES, then run UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects in mobile/.',
+    '# GENERATED from apps/app/src/lib/legacyRoutes.ts by src/lib/legacyRedirects.test.ts. Do not edit:',
+    '# change LEGACY_ROUTES, then run UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects in apps/app/.',
     '# Included in the server block before any other regex location, which nginx tries in order.',
     ...LEGACY_ROUTES.map((r) => rule(r.from, r.to)),
     '',

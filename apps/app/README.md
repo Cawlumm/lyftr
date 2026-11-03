@@ -1,7 +1,7 @@
 # Lyftr Mobile (React Native + Expo)
 
 Universal (iOS + iPad + Android) app for Lyftr. Shares its logic — types, API client,
-Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). UI is native
+Zustand stores — with the web app via [`@lyftr/shared`](../../packages/shared). UI is native
 (SwiftUI/Kotlin-backed RN primitives), styled with NativeWind.
 
 ## Stack
@@ -16,7 +16,7 @@ Zustand stores — with the web app via [`@lyftr/shared`](../packages/shared). U
 
 ```bash
 npm install                                    # repo root, npm workspaces
-cd mobile
+cd apps/app
 npx expo install --fix                         # align native modules to the SDK
 npm start                                      # Metro; press `a` for a booted emulator
 ```
@@ -68,7 +68,7 @@ change and before blaming the app for a build failure.
 
 ### Metro and the monorepo — deliberately not configured
 
-`mobile/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since
+`apps/app/metro.config.js` sets no `watchFolders` and no `resolver.nodeModulesPaths`. Since
 SDK 52 `expo/metro-config` detects the monorepo and sets both, and [the docs say to delete
 the manual versions](https://docs.expo.dev/guides/monorepos/) rather than keep them in
 step. Ours were the pre-52 recipe and they were actively harmful: they pointed

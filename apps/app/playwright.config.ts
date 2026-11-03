@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 import { BASE_URL } from './e2e/config'
 
 // The e2e gate since the cut-over (C35): web/playwright.config.ts's projects and worker
-// discipline, pointed at the frontend image built from mobile/Dockerfile.web.
+// discipline, pointed at the frontend image built from apps/app/Dockerfile.web.
 export default defineConfig({
   testDir: './e2e',
   // Waits for the API and the exercise seed by registering its own probe account, so the

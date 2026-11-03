@@ -18,7 +18,7 @@ coverage so the suite stays quick and reliable as the app grows.
 ### 1. Unit — pure logic, no I/O
 A single function/module in isolation; no database, no network, no browser.
 
-- **Frontend (jest):** `mobile/src/**/*.test.ts(x)` and `packages/shared/src/**/*.test.ts`.
+- **Frontend (jest):** `apps/app/src/**/*.test.ts(x)` and `packages/shared/src/**/*.test.ts`.
   Examples: `normalizeServerUrl`, `isPositiveNumber`, `dateUtils`, `formatVersion`,
   Zustand store reducers, hook behavior (`useServerInfo`).
 - **Backend (`go test`):** pure functions with no DB/gin dependency.
@@ -43,7 +43,7 @@ response shape, and DB persistence.
   layer.
 
 ### 3. E2E — real browser, real user journeys
-Playwright (`mobile/e2e/*.spec.ts`, against the Expo web export). For multi-step things a user actually does in
+Playwright (`apps/app/e2e/*.spec.ts`, against the Expo web export). For multi-step things a user actually does in
 the UI: register/login, log a workout, gym mode, the barcode scanner, the
 Settings server editor.
 
@@ -64,13 +64,13 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
 ```
 
 - **Run:** needs the nginx stack, not the Expo dev server. The target is the frontend image
-  (`mobile/Dockerfile.web`, the Expo web export behind nginx, proxying `/api` to the backend),
+  (`apps/app/Dockerfile.web`, the Expo web export behind nginx, proxying `/api` to the backend),
   which compose publishes on `PORT`. Playwright's default is `http://localhost:8081`
-  (`mobile/e2e/config.ts`: `APP_PORT` / `BASE_URL` / `API_URL` override). CI sets
+  (`apps/app/e2e/config.ts`: `APP_PORT` / `BASE_URL` / `API_URL` override). CI sets
   `JWT_SECRET`, `PORT=8081` and `CORS_ORIGIN=http://localhost,http://localhost:8081` in `.env`, then:
   ```bash
   PORT=8081 docker compose up -d --wait   # repo root; needs .env with JWT_SECRET
-  cd mobile && npm run test:e2e
+  cd apps/app && npm run test:e2e
   ```
   `npx expo start` also listens on 8081 but is **not** the e2e target; stop it first or the
   stack cannot bind the port.
@@ -121,7 +121,7 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 ## Web polish checklist (Expo web)
 
 What a web screen is held to before it ships, walked per route at **390, 768, 1280 and
-1920** in **light and dark**. `mobile/e2e/polish.spec.ts` automates the first four rows on
+1920** in **light and dark**. `apps/app/e2e/polish.spec.ts` automates the first four rows on
 every route and attaches a screenshot per width and theme to the report. Rows 5-13 are only
 partly pinned by the specs named in the last column (not route by route), so the rest is a
 person with a keyboard; a route not driven by hand is recorded as not walked. Fill it in per route in the PR description, not in the repo.
@@ -154,7 +154,7 @@ client log to the console and fail row 2 for reasons that never reach production
 |---|---|---|
 | Frontend unit | `npm run test -w @lyftr/mobile` · `npm run shared:test` | repo root |
 | Backend unit + integration | `go test ./...` | `backend/` |
-| E2E (Expo web export) | `npm run test:e2e` | `mobile/` |
+| E2E (Expo web export) | `npm run test:e2e` | `apps/app/` |
 
 CI runs all of these on every PR (see `.github/workflows/ci.yml`).
 
