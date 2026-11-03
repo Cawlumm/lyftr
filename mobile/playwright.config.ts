@@ -1,9 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 import { BASE_URL } from './e2e/config'
 
-// The Expo app's counterpart of web/playwright.config.ts: same projects, same worker
-// discipline, pointed at the image built from mobile/Dockerfile.web. The web suite keeps
-// gating until the cutover; specs move here one chunk at a time.
+// The e2e gate since the cut-over (C35): web/playwright.config.ts's projects and worker
+// discipline, pointed at the frontend image built from mobile/Dockerfile.web.
 export default defineConfig({
   testDir: './e2e',
   // Waits for the API and the exercise seed by registering its own probe account, so the

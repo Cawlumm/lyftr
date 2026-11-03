@@ -1,5 +1,5 @@
-// The Expo web image (mobile/Dockerfile.web) publishes on APP_PORT, 8081 by default so it
-// can run beside the Vite image on 80. BASE_URL overrides for anything else (a local
+// The frontend image (mobile/Dockerfile.web) on APP_PORT, 8081 by default: CI publishes the
+// compose stack there (PORT=8081). BASE_URL overrides for anything else (a local
 // `npx serve`, a deployed preview).
 const appPort = process.env.APP_PORT ?? '8081'
 

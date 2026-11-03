@@ -1,7 +1,7 @@
 # The Expo app's web export, served by nginx. Build context is the REPO ROOT (the app is an
 # npm workspace member and imports @lyftr/shared from packages/), same as web/Dockerfile.
-# This image sits next to the Vite one rather than replacing it: both are built until the
-# cutover, and web/ is untouched.
+# Since the cut-over (C35) this is the published frontend image, cwlumm/lyftr-frontend.
+# web/Dockerfile still builds the Vite app, so reverting the cut-over is one revert.
 
 # Stage 1: Build — host platform, to avoid QEMU slowness for npm/node
 FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
@@ -38,6 +38,9 @@ ENV NGINX_ENVSUBST_FILTER=BACKEND_ORIGIN
 # nginx's entrypoint renders templates in /etc/nginx/templates/*.template through
 # envsubst into /etc/nginx/conf.d/ on start.
 COPY mobile/nginx.conf.template /etc/nginx/templates/default.conf.template
+# Not in templates/ or conf.d/: conf.d is included at http level, and this file holds
+# location blocks, which only the server block can include.
+COPY mobile/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
 
 COPY --from=builder /app/mobile/dist /usr/share/nginx/html
 
