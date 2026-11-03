@@ -131,6 +131,10 @@ test.describe('settings', () => {
     const dialog = page.getByRole('dialog', { name: 'Accept the smaller catalog?' })
     await dialog.getByRole('button', { name: 'Sync and hide' }).click()
     await expect(dialog.getByText('Server error. Please try again shortly.')).toBeVisible()
+    // RN Modal on web ignores Escape until its fade-in ends (see Sheet.tsx), and with the 500
+    // fulfilled locally the error can land inside the fade on a loaded runner.
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) =>
+      a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming().endTime)).length)).toBe(0)
     await page.keyboard.press('Escape')
     await expect(dialog).toHaveCount(0)
   })
