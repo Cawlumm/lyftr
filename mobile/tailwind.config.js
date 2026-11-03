@@ -2,6 +2,8 @@
  *  index.css. Surface/text tokens resolve from CSS variables (see global.css) so
  *  they flip between light + dark exactly like the web app; brand colors are
  *  theme-independent literals. */
+const breakpoints = require('./src/theme/breakpoints.json')
+
 module.exports = {
   // Class strategy: the .dark class is toggled by NativeWind's colorScheme,
   // driven from useThemeStore in app/_layout.tsx (mirrors web's `.dark` toggle).
@@ -10,6 +12,8 @@ module.exports = {
   presets: [require('nativewind/preset')],
   theme: {
     extend: {
+      // The same file useBreakpoint reads, so sm:/lg: classes and the hook cannot drift.
+      screens: Object.fromEntries(Object.entries(breakpoints).map(([k, v]) => [k, `${v}px`])),
       // Brand fonts (loaded in app/_layout.tsx via @expo-google-fonts). Each WEIGHT is
       // its own family name in Expo, so Tailwind's `font-bold` (fontWeight) does
       // nothing useful with them — weight is picked by choosing the family. These
