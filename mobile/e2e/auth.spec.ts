@@ -94,7 +94,7 @@ test('server settings Save stays enabled when the field equals the current serve
 
 // NOTE: the scheme-less-host rejection case was removed — normalizeServerUrl's
 // validation (scheme-less, whitespace, unparseable, path-stripping) is covered
-// exhaustively in web/src/stores/server.test.ts. The "rejects an invalid URL"
+// exhaustively in packages/shared/src/utils/serverUrl.test.ts. The "rejects an invalid URL"
 // test above is kept as the single E2E proof that the panel surfaces a
 // validation error to the user.
 

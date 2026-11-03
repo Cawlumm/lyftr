@@ -2,7 +2,7 @@
 // CreateProgramDayReq/CreateProgramExerciseReq (backend/models/models.go) but keep
 // weights in the user's display unit until submit (displayToLbs at save time), same
 // convention as the pre-existing flat ProgramFormData. Port of
-// web/src/components/programs/types.ts — keep in sync.
+// web/src/components/programs/types.ts.
 export interface DaySetDraft {
   set_number: number
   reps: number

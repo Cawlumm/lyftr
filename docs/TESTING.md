@@ -63,7 +63,17 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => { ... })
 test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
 ```
 
-- **Run:** `cd mobile && npm run test:e2e`
+- **Run:** needs the nginx stack, not the Expo dev server. The target is the frontend image
+  (`mobile/Dockerfile.web`, the Expo web export behind nginx, proxying `/api` to the backend),
+  which compose publishes on `PORT`. Playwright's default is `http://localhost:8081`
+  (`mobile/e2e/config.ts`: `APP_PORT` / `BASE_URL` / `API_URL` override). CI sets
+  `JWT_SECRET`, `PORT=8081` and `CORS_ORIGIN=http://localhost,http://localhost:8081` in `.env`, then:
+  ```bash
+  PORT=8081 docker compose up -d --wait   # repo root; needs .env with JWT_SECRET
+  cd mobile && npm run test:e2e
+  ```
+  `npx expo start` also listens on 8081 but is **not** the e2e target; stop it first or the
+  stack cannot bind the port.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 
 ## Where does a new test go?
@@ -84,7 +94,7 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 - **Move-then-verify, never delete-and-hope.** Don't remove a higher-layer test
   until equivalent lower-layer coverage exists *and is green*. (E.g. the
   `auth.spec` scheme/invalid-URL E2E cases are only safe to drop because
-  `stores/server.test.ts` now covers `normalizeServerUrl` directly.)
+  `packages/shared/src/utils/serverUrl.test.ts` now covers `normalizeServerUrl` directly.)
 - **Every test pins a distinct case or path.** No filler, no testing the framework,
   no re-running the same assertion "through another door."
 - **Determinism.** Pin `TZ` for any local↔UTC date logic (see `packages/shared/jest.config.js`).

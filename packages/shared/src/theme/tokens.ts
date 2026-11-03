@@ -1,14 +1,12 @@
 // Design tokens — the single definition of every colour the two apps draw with.
 //
-// Three consumers, three delivery mechanisms:
-//   web/tailwind.config.ts   → `palette` becomes Tailwind colours; `cssVars()` is
-//                              emitted as :root / .dark custom properties via addBase
-//   web/src/index.css        → declares NO token values; it only consumes the vars
-//   mobile/src/theme/theme.ts→ imports `surfaces` and `palette` directly
+// Consumers:
+//   mobile/src/theme/theme.ts → imports `surfaces` and `palette` directly
+//   the NativeWind config     → `palette` becomes Tailwind colours
 //
-// This file must stay dependency-free. web/tailwind.config.ts deep-imports it rather
-// than going through the package index, so that loading the Tailwind config doesn't
-// drag axios, zustand and the API client into PostCSS.
+// This file must stay dependency-free. The Tailwind config deep-imports it rather
+// than going through the package index, so that loading the config doesn't
+// drag axios, zustand and the API client into the build tooling.
 
 export type SurfaceTokens = {
   base: string

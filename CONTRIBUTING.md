@@ -208,7 +208,9 @@ cd backend && go test ./controllers/ -timeout 30s
 npm run shared:test
 npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 
-# Frontend E2E (drives the Expo web export; see docs/TESTING.md for the stack it needs)
+# Frontend E2E: drives the Expo web export served by the nginx compose stack on :8081
+# (not `expo start`, which also uses 8081 -- stop it first). See docs/TESTING.md.
+PORT=8081 docker compose up -d --wait   # needs .env with JWT_SECRET
 cd mobile && npm run test:e2e
 ```
 
