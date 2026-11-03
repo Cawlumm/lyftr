@@ -53,8 +53,8 @@ test('at 390 the main column fills the viewport @mobile', async ({ page }) => {
   await page.goto('/')
   const main = page.getByRole('main')
   await expect(main).toBeVisible()
-  const box = await main.boundingBox()
-  expect(box?.width).toBe(390)
+  // Poll: on WebKit the box can still be settling right after the element becomes visible.
+  await expect.poll(async () => (await main.boundingBox())?.width).toBe(390)
 })
 
 // Wheel and trackpad scrolling start at the element under the pointer, so the scroller must
