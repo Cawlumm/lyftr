@@ -83,3 +83,26 @@ test.describe('Exercise Detail', () => {
     await expect(page.getByText('Muscles Worked')).toBeVisible()
   })
 })
+
+// The wide browser keeps its query and filters in the URL (q, muscle, equipment) with history
+// replace, so a reload or Back restores them. lists.spec.ts covers the query and muscle round
+// trip and the history behaviour; this pins the equipment param and that all three compose.
+test.describe('Exercise browser URL filters', () => {
+  test('q, muscle and equipment all survive a reload and clear independently', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 })
+    await page.goto('/workouts/exercises?q=press&muscle=chest&equipment=barbell')
+    const search = page.getByPlaceholder('Search exercises…').locator('visible=true')
+    await expect(search).toHaveValue('press')
+    await expect(page.getByRole('button', { name: 'Remove filter: Chest' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Remove filter: Barbell' })).toBeVisible()
+
+    await page.reload()
+    await expect(search).toHaveValue('press')
+    await expect(page.getByRole('button', { name: 'Remove filter: Barbell' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Remove filter: Barbell' }).click()
+    await expect(page).not.toHaveURL(/equipment=/)
+    await expect(page).toHaveURL(/muscle=chest/)
+    await expect(page).toHaveURL(/q=press/)
+  })
+})
