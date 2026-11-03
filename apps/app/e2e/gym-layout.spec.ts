@@ -224,6 +224,7 @@ test.describe('reduced motion', () => {
     await page.getByRole('button', { name: 'Shorten rest by 15 seconds' }).click()
     const chip = page.getByTestId('rest-done-pulse')
     await expect(chip).toBeVisible()
+    expect((await chip.boundingBox())?.width).toBe(48)
     for (let i = 0; i < 5; i++) {
       expect(await chip.evaluate(el => getComputedStyle(el).transform)).toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/)
       await page.waitForTimeout(80)

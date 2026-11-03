@@ -117,7 +117,8 @@ export function RestTimerBanner() {
         <View className="h-1.5 bg-success-500" />
       ) : (
         <View className="h-1.5 bg-surface-muted">
-          <Animated.View className="h-full rounded-r-full" style={[drainStyle, { backgroundColor: drainColor }]} />
+          {/* Layout in style, not className: on web className never reaches a Reanimated View. */}
+          <Animated.View style={[{ height: '100%', borderTopRightRadius: 9999, borderBottomRightRadius: 9999 }, drainStyle, { backgroundColor: drainColor }]} />
         </View>
       )}
       {/* The sheet surface reaches the physical bottom edge; only its content is inset
@@ -130,7 +131,7 @@ export function RestTimerBanner() {
           // `flex-1`; as a lone column child, flex-1 collapses its height on native into
           // a thin sliver. It gets its own full-width class with a real py instead.)
           <View className="mt-3 items-center gap-3">
-            <Animated.View testID="rest-done-pulse" style={pulseStyle} className="h-12 w-12 items-center justify-center rounded-full bg-success-500/15">
+            <Animated.View testID="rest-done-pulse" style={[{ height: 48, width: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: 'rgba(34, 197, 94, 0.15)' }, pulseStyle]}>
               <Check size={26} color={brand.success} />
             </Animated.View>
             <Pressable onPress={() => clearRest()} accessibilityRole={WEB_BUTTON} className={`w-full items-center justify-center rounded-2xl bg-brand-500 py-4 active:scale-95 ${interactive('hover:bg-brand-600')}`}>
