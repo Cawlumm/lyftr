@@ -79,7 +79,7 @@ Open `http://localhost` and create your account.
 
 ## Tech stack
 
-Go · Gin · SQLite, React · TypeScript · Tailwind · Vite (web), React Native · Expo (mobile),
+Go · Gin · SQLite, React Native · Expo (one app for mobile and web) · TypeScript · NativeWind,
 Astro · Starlight (docs), Docker · nginx.
 
 ## Translations

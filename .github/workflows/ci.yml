@@ -1,6 +1,6 @@
 name: CI
 
-# Backend (Go) + web (Vite) + mobile (Expo) + shared package tests, the integrated
+# Backend (Go) + mobile (Expo, native and web export) + shared package tests, the integrated
 # Playwright e2e, image builds, and the Fly deploy — one workflow, gated by a shared
 # `changes` job so it never skips itself the way a top-level `paths:` trigger filter
 # would (that's the mobile-ci.yml pattern this replaced — see git history — and it has
@@ -10,7 +10,7 @@ name: CI
 # run via `paths-ignore`, since nothing here depends on them.
 #
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
-# the web/mobile unit jobs, a web-only change skips the Go + version-smoke + mobile jobs,
+# the mobile jobs, a mobile-only change skips the Go + version-smoke jobs,
 # and so on. The image-build and deploy jobs stay eligible regardless — they're guarded
 # with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
 # cascade into skipping the build/deploy gate. On main/tags every test job runs
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   # Which domains changed? Gates the fast unit-test jobs below so a backend-only PR doesn't
-  # run the web/mobile suites (and vice-versa). ci.yml is in both filters so workflow edits run all.
+  # run the mobile suites (and vice-versa). ci.yml is in both filters so workflow edits run all.
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
@@ -47,7 +47,6 @@ jobs:
       pull-requests: read   # dorny/paths-filter reads the PR file list via the API
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
-      web: ${{ steps.filter.outputs.web }}
       mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - uses: actions/checkout@v4
@@ -62,16 +61,6 @@ jobs:
               - 'fly.toml'
               - 'fly/**'
               - 'docker-compose.yml'
-              - '.github/workflows/ci.yml'
-            web:
-              - 'web/**'
-              # Web imports @lyftr/shared, so a shared-only edit must run web's unit
-              # suite, lint and e2e. Without this a change to shared could break the web
-              # app with fully green CI — this filter is what replaced the byte-comparison
-              # fork guard that used to protect the duplicated dateUtils.
-              - 'packages/shared/**'
-              - 'package.json'
-              - 'package-lock.json'
               - '.github/workflows/ci.yml'
             mobile:
               - 'mobile/**'
@@ -106,35 +95,6 @@ jobs:
       # is 15s.
       - run: cd backend && go test ./... -timeout 30s
 
-  unit:
-    name: Web unit tests
-    needs: changes
-    if: >-
-      needs.changes.outputs.web == 'true' ||
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      # Root workspace install — web resolves @lyftr/shared through it.
-      - run: npm ci
-      - run: cd web && npm run coverage   # runs the unit suite + prints a coverage report (not gated)
-      # After the tests, deliberately: lint is a hard gate, and the warning budget has
-      # no slack, so putting it first would let a single new `any` abort the job before
-      # any test ran — turning a style nit into "no test signal at all".
-      - run: cd web && npm run lint       # gates on errors; the `any`/deps backlog is warnings (see eslint.config.mjs)
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: web-coverage
-          path: web/coverage/
-          retention-days: 7
-
   mobile:
     name: Mobile + shared checks
     needs: changes
@@ -159,7 +119,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      # One workspace install covers mobile + packages/shared (and web, unused here).
+      # One workspace install covers mobile + packages/shared.
       - run: npm ci
 
       # --- packages/shared (jest + tsc) ---
@@ -245,76 +205,6 @@ jobs:
       - name: Enforce bundle budget
         run: node mobile/scripts/bundle-budget.mjs
 
-  # The Vite app's suite. Disabled at the cut-over (C35): the frontend image is the Expo
-  # export now, so this would drive web/e2e against the wrong app. Kept, with web/e2e, so
-  # reverting the cut-over restores the gate along with the image; `e2e-app` gates instead.
-  # Jobs that need it treat a skipped dependency as passed (`!failure() && !cancelled()`).
-  e2e:
-    name: Playwright E2E
-    needs: changes
-    if: false
-    # Not ubuntu-latest: that moved to 26.04, which has no ICU 74, and Playwright's WebKit
-    # build links against it, so every `mobile` project test died at browser launch.
-    # Unpin once the Playwright we run ships WebKit for 26.04.
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Create .env
-        run: |
-          echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
-          echo "PORT=80" >> .env
-
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Build images with layer cache
-        run: |
-          docker buildx bake \
-            --set "backend.cache-from=type=gha,scope=lyftr-backend" \
-            --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max" \
-            --set "frontend.cache-from=type=gha,scope=lyftr-frontend" \
-            --set "frontend.cache-to=type=gha,scope=lyftr-frontend,mode=max" \
-            --load
-
-      - name: Start stack
-        run: docker compose up -d --wait
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - run: npm ci
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd web && npx playwright install chromium webkit
-
-      - name: Install Playwright system dependencies
-        run: cd web && npx playwright install-deps chromium webkit
-
-      # Readiness (API up + exercise seed finished) is the suite's own globalSetup now,
-      # which registers a throwaway account rather than logging in as a seeded one. So
-      # this job runs against the production default: no DEMO_MODE, no demo account.
-
-      - name: Run E2E tests
-        run: cd web && npm run test:e2e:docker
-
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report
-          path: web/playwright-report/
-          retention-days: 7
-
   # The e2e gate: the Expo app's web export, served by the `frontend` image
   # (mobile/Dockerfile.web) and driven by the Playwright harness in mobile/e2e.
   e2e-app:
@@ -325,7 +215,9 @@ jobs:
       needs.changes.outputs.mobile == 'true' ||
       github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/')
-    # ubuntu-24.04 for the same WebKit/ICU reason as `e2e`.
+    # Not ubuntu-latest: that moved to 26.04, which has no ICU 74, and Playwright's WebKit
+    # build links against it, so every `mobile` project test died at browser launch.
+    # Unpin once the Playwright we run ships WebKit for 26.04.
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -467,7 +359,7 @@ jobs:
 
   build-backend:
     name: Build & push backend image
-    needs: [test, unit, e2e, e2e-app, version-smoke]
+    needs: [test, e2e-app, version-smoke]
     # Still verify the image builds even if a test dependency was *skipped* by filtering;
     # only a genuine failure/cancel of a dependency should stop it.
     if: ${{ !failure() && !cancelled() }}
@@ -508,7 +400,7 @@ jobs:
 
   build-frontend:
     name: Build & push frontend image
-    needs: [test, unit, e2e, e2e-app, mobile, web-export]
+    needs: [test, e2e-app, mobile, web-export]
     if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
     runs-on: ubuntu-latest
     steps:
@@ -530,7 +422,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          # The Expo export since the cut-over (C35); web/Dockerfile is kept for rollback.
+          # The Expo export.
           file: ./mobile/Dockerfile.web
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           # push=false on PRs/feature branches — builds only (validates Dockerfile)
@@ -542,7 +434,7 @@ jobs:
 
   deploy-demo:
     name: Deploy to Fly.io
-    needs: [test, unit, e2e, e2e-app, version-smoke, mobile, web-export]
+    needs: [test, e2e-app, version-smoke, mobile, web-export]
     # main pushes run every test job (their `if` includes main), so this only deploys on a
     # clean run; the failure/cancel guard keeps a filtered skip from ever cascading here.
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}

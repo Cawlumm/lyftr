@@ -66,9 +66,6 @@ CLAUDE.local.md
 .claude/
 
 # Playwright artifacts
-web/e2e/.auth/
-web/test-results/
-web/playwright-report/
 mobile/e2e/.auth/
 mobile/test-results/
 mobile/playwright-report/
@@ -82,7 +79,7 @@ mobile/playwright-report/
 /releases/
 
 # Ad-hoc screenshots dropped at the repo root during local testing. Scoped to the
-# root only — mobile/assets, web/public and README screenshots stay tracked.
+# root only — mobile/assets and README screenshots stay tracked.
 /*.png
 
 # Design-system export (fonts, ui_kits, raw asset dumps) — local working material.

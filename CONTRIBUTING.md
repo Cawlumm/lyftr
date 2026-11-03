@@ -46,29 +46,21 @@ python3 scripts/seed_food.py
 ### Frontend
 
 ```bash
-cd web
-npm install
-npm run dev
-# App at https://localhost:5173
+npm install            # repo root: one install covers mobile and packages/shared
+cd mobile
+npx expo start --web
+# App at http://localhost:8081, talking to the backend on :3000
 ```
 
-The dev server uses a self-signed HTTPS certificate (via `@vitejs/plugin-basic-ssl`). Your browser will show a security warning on first visit — accept it to proceed. HTTPS is required so the barcode scanner can access the device camera on mobile.
-
-**Testing on a mobile device**
-
-1. Run `npm run dev` — Vite binds to all network interfaces (`host: true`)
-2. Find your machine's LAN IP: `ipconfig` (Windows) / `ifconfig` (macOS/Linux)
-3. Open `https://<your-lan-ip>:5173` on the phone
-4. Accept the self-signed cert warning once
-5. Barcode scanner and camera will work
+The same app runs natively: `npx expo start` and open it in Expo Go. Native builds go through EAS, never locally (see CLAUDE.md).
 
 ### Production
 
-Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real TLS certificate — no Vite or self-signed certs involved. The `basicSsl` plugin is dev-only and has no effect on `vite build` output.
+Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real TLS certificate.
 
 ```
 Internet → nginx/Caddy (real TLS cert)
-              ├── /       → dist/  (vite build output)
+              ├── /       → mobile/dist/  (expo export --platform web)
               └── /api    → localhost:3000
 ```
 
@@ -206,23 +198,24 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). E
 
 - **Backend:** `gofmt` before committing. Errors wrapped with context. No unnecessary abstractions.
 - **Frontend:** Follow existing patterns. No new npm dependencies without discussion.
-- **Tests:** Go controller tests, Vitest unit tests, and Playwright E2E must pass before any PR.
+- **Tests:** Go controller tests, mobile jest tests, and Playwright E2E must pass before any PR.
 
 ```bash
 # Backend
 cd backend && go test ./controllers/ -timeout 30s
 
 # Frontend unit tests (fast, no servers needed)
-cd web && npm run test:unit          # add --coverage for a report
+npm run shared:test
+npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 
-# Frontend E2E (requires backend on :3000 and frontend on :5173)
-cd web && npm run test:e2e
+# Frontend E2E (drives the Expo web export; see docs/TESTING.md for the stack it needs)
+cd mobile && npm run test:e2e
 ```
 
-**Unit (Vitest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
+**Unit (jest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
 isolated components — anything that runs without a real backend or cross-page
 navigation; reserve E2E for full user journeys against the running stack. Unit
-files are `src/**/*.test.ts(x)`; E2E specs are `e2e/**/*.spec.ts`. Keep the two
+files are `*.test.ts(x)`; E2E specs are `mobile/e2e/**/*.spec.ts`. Keep the two
 suffixes/locations distinct so the runners never pick up each other's files.
 
 For the full layer model (unit / integration / e2e), where a new test belongs, and

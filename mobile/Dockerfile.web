@@ -1,18 +1,14 @@
 # The Expo app's web export, served by nginx. Build context is the REPO ROOT (the app is an
-# npm workspace member and imports @lyftr/shared from packages/), same as web/Dockerfile.
-# Since the cut-over (C35) this is the published frontend image, cwlumm/lyftr-frontend.
-# web/Dockerfile still builds the Vite app, so reverting the cut-over is one revert.
+# npm workspace member and imports @lyftr/shared from packages/). It is the
+# published frontend image, cwlumm/lyftr-frontend.
 
 # Stage 1: Build — host platform, to avoid QEMU slowness for npm/node
 FROM --platform=$BUILDPLATFORM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Manifests first (layer cache). web/package.json is copied but never installed: `npm ci`
-# validates the lockfile against every workspace it declares, so the file has to exist,
-# while `-w @lyftr/mobile` leaves web's own dependencies out.
+# Manifests first (layer cache).
 COPY package.json package-lock.json ./
-COPY web/package.json ./web/
 COPY mobile/package.json ./mobile/
 COPY packages/shared/package.json ./packages/shared/
 # postinstall runs patch-package over patches/*.patch (expo-localization), which the
