@@ -217,7 +217,10 @@ jobs:
             echo "import.meta found in the exported bundle"; exit 1
           fi
 
-      # Reported, not gated.
+      # Budgets live in mobile/perf-budget.json; the script fails the job when exceeded.
+      - name: Enforce bundle budget
+        run: node mobile/scripts/bundle-budget.mjs
+
       - name: Report bundle size
         run: |
           {
