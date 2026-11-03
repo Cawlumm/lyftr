@@ -108,6 +108,35 @@ E2E. E2E is reserved for "the user opens the page, does X, and sees Y."
 - **WHY-comments.** Explain non-obvious test setup in the same explanatory style as
   the rest of the codebase.
 
+## Web polish checklist (Expo web)
+
+What a web screen is held to before it ships, walked per route at **390, 768, 1280 and
+1920** in **light and dark**. `mobile/e2e/polish.spec.ts` automates the first four rows on
+every route and attaches a screenshot per width and theme to the report; the rest is a
+person with a keyboard. Fill it in per route in the PR description, not in the repo.
+
+| # | Check | Pass when | Automated |
+|---|---|---|---|
+| 1 | Layout | No horizontal scroll; no text cut off at the window edge; columns centred at max width from 768 | polish.spec |
+| 2 | Console | Zero `console.error` and zero uncaught errors on load and resize | polish.spec |
+| 3 | Headings | Exactly one visible `h1`; sections are `h2` | polish.spec |
+| 4 | Contrast | Text >= 4.5:1, UI parts and focus ring >= 3:1, both themes | a11y.spec (axe), interaction.test |
+| 5 | Hover / active / disabled | Every pressable has a hover state (pointer devices only), press feedback, and a visibly disabled state that does not respond | |
+| 6 | Focus | `focus-visible` ring on every control, never on click; Tab order follows reading order | |
+| 7 | Keyboard | Enter/Space activate buttons, Escape closes dialogs and menus and returns focus, arrows move within menus and segmented controls | |
+| 8 | Cursor | `pointer` on everything clickable, text cursor in fields, `not-allowed` or default when disabled | |
+| 9 | Links | Navigation is a real `<a href>` (middle-click, open in new tab); Back and Forward walk the history | |
+| 10 | Title | `document.title` names the screen | |
+| 11 | Scroll | Restored on Back; locked behind an open dialog or sheet | |
+| 12 | Tooltips | Icon-only controls have an accessible name; chart tooltips follow pointer and keyboard | |
+| 13 | Inputs | Right `type`/`inputmode`, `autocomplete`, `enterkeyhint`; a visible or accessible label | |
+| 14 | Motion | Short and purposeful; none under `prefers-reduced-motion: reduce` | motion.spec |
+| 15 | Icons | One set (lucide, per-icon imports through `<Icon>` or `ui/icons`); decorative ones `aria-hidden` | |
+
+Run the walk against a local export (`npm run export:web -w @lyftr/mobile`, then any static
+server with an `/api` proxy) rather than `expo start`: the dev server's overlay and HMR
+client log to the console and fail row 2 for reasons that never reach production.
+
 ## Running everything
 
 | Layer | Command | Where |

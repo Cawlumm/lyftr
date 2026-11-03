@@ -4,7 +4,6 @@ import { ChevronRight, Timer } from '../ui/icons'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { useBreakpoint } from '../../lib/useBreakpoint'
-import { SIDEBAR_WIDTH } from '../shell/Sidebar'
 import { fmtClock, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 
 // Port of web Layout's ActiveSessionBar — the minimized session pill. Floats above the
@@ -22,6 +21,9 @@ export function SessionPill() {
   // Beside the web sidebar there is no bottom bar to clear, and the pill centres on the content.
   const { lg } = useBreakpoint()
   const beside = Platform.OS === 'web' && lg
+  // The sidebar publishes its width as --shell-inset (Sidebar.tsx); reading it keeps this in step
+  // with ContentColumn's centring rather than a second copy of the number. Not a DimensionValue.
+  const inset = beside ? ('var(--shell-inset, 0px)' as unknown as number) : 0
 
   if (!session) return null
   // Hidden only on the active screen itself (the gym overlay or the list active UI lives
@@ -41,7 +43,7 @@ export function SessionPill() {
   }
 
   return (
-    <View pointerEvents="box-none" style={{ position: 'absolute', left: beside ? SIDEBAR_WIDTH : 0, right: 0, bottom: beside ? 24 : 90, zIndex: 40 }} className="items-center">
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: inset, right: 0, bottom: beside ? 24 : 90, zIndex: 40 }} className="items-center">
       <Pressable
         onPress={handlePress}
         className="flex-row items-center gap-2.5 rounded-full bg-brand-500 px-4 py-2.5 shadow-lg active:scale-95"

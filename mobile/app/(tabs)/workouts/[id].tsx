@@ -183,7 +183,7 @@ export default function WorkoutDetail() {
             <View className="flex-row items-start gap-3">
               <ExerciseImage url={exs[0]?.exercise?.image_url} size="hero" />
               <View className="flex-1">
-                <AppText variant="heading">{workout.name}</AppText>
+                <AppText variant="heading" headingLevel={1}>{workout.name}</AppText>
                 <AppText variant="body" color="muted" className="mt-0.5">
                   {formatDay(workoutDay(workout), 'weekdayDate')}
                 </AppText>

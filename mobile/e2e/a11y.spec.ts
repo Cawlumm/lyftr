@@ -40,15 +40,15 @@ test.describe('Icon-only controls have accessible names', () => {
   })
 })
 
-// WCAG 2.x A/AA and 2.2 AA, minus colour contrast: text-tx-muted and the auth labels measure
-// below 4.5:1 today, which is a palette change tracked by the test.fixme below rather than
-// something to switch off silently. Everything else must be clean.
+// WCAG 2.x A/AA and 2.2 AA. The structural scans leave colour contrast to its own block at the
+// bottom, so a palette regression and a missing name never hide behind each other.
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
-async function violations(page: import('@playwright/test').Page, rules: { disable?: string[] } = {}) {
+async function violations(page: import('@playwright/test').Page, rules: { disable?: string[]; only?: string[] } = {}) {
   await page.waitForLoadState('networkidle')
   let axe = new AxeBuilder({ page }).withTags(WCAG)
   if (rules.disable) axe = axe.disableRules(rules.disable)
+  if (rules.only) axe = axe.withRules(rules.only)
   const { violations } = await axe.analyze()
   return violations.map(v => `${v.id} (${v.impact}): ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)
 }
@@ -73,9 +73,43 @@ test.describe('axe: no structural violations', () => {
   }
 })
 
-// The same scan with contrast on fails across the app (muted text on every screen), which
-// wants a design/token pass, not a spec edit.
-test.fixme('axe: colour contrast meets WCAG AA', async ({ page }) => {
-  await page.goto('/')
-  expect(await violations(page, {})).toEqual([])
+// WCAG 3.1.1: a screen reader picks its pronunciation from <html lang>, which index.html ships
+// as "en". A Spanish UI must say so, or every label is read with English rules.
+test.describe('the page language follows the app language', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test('es', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lyftr_language', 'es'))
+    await page.goto('/login')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'es')
+  })
+})
+
+// Colour contrast in both themes, on every top-level screen and the login screen. The web lifts
+// muted text, solid brand fills and a few literal inks to AA (useDocumentChrome, theme.ts);
+// native keeps the shared palette.
+test.describe('axe: colour contrast meets WCAG AA', () => {
+  for (const theme of ['light', 'dark'] as const) {
+    test.describe(theme, () => {
+      test.beforeEach(async ({ page }) => {
+        // Mid-fade text has partial opacity, which axe measures as low contrast.
+        await page.emulateMedia({ reducedMotion: 'reduce' })
+        await page.addInitScript((t) => localStorage.setItem('theme', t), theme)
+      })
+
+      for (const path of ['/', '/workouts', '/programs', '/nutrition', '/weight', '/settings']) {
+        test(`${path}`, async ({ page }) => {
+          await page.goto(path)
+          expect(await violations(page, { only: ['color-contrast'] })).toEqual([])
+        })
+      }
+
+      test.describe('signed out', () => {
+        test.use({ storageState: { cookies: [], origins: [] } })
+        test('/login', async ({ page }) => {
+          await page.goto('/login')
+          expect(await violations(page, { only: ['color-contrast'] })).toEqual([])
+        })
+      })
+    })
+  }
 })
