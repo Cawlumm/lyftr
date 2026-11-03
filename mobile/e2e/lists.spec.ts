@@ -73,16 +73,15 @@ for (const [screen, path] of Object.entries(SCREENS)) {
 
 test('at 1280 workouts and programs are two-column grids of links', async ({ page }) => {
   await open(page, '/workouts', 1280)
+  await expect.poll(async () => Math.abs((await boxOf(page, `${W} 1`)).y - (await boxOf(page, `${W} 2`)).y)).toBeLessThanOrEqual(1)
   const [a, b, c] = [await boxOf(page, `${W} 1`), await boxOf(page, `${W} 2`), await boxOf(page, `${W} 3`)]
-  expect(Math.abs(a.y - b.y)).toBeLessThanOrEqual(1)
   expect(b.x).toBeGreaterThan(a.x + a.width - 1)
   expect(c.y).toBeGreaterThan(a.y + a.height)
   expect(Math.abs(c.x - a.x)).toBeLessThanOrEqual(1)
   await expect(page.getByRole('link', { name: `${W} 1`, exact: true })).toHaveAttribute('href', `/workouts/${workoutIds[0]}`)
 
   await open(page, '/programs', 1280)
-  const [p1, p2] = [await boxOf(page, `${P} 1`), await boxOf(page, `${P} 2`)]
-  expect(Math.abs(p1.y - p2.y)).toBeLessThanOrEqual(1)
+  await expect.poll(async () => Math.abs((await boxOf(page, `${P} 1`)).y - (await boxOf(page, `${P} 2`)).y)).toBeLessThanOrEqual(1)
   expect(await page.getByRole('link', { name: `${P} 1`, exact: true }).getAttribute('href')).toMatch(/^\/programs\/\d+$/)
 })
 

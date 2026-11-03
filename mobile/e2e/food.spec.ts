@@ -17,10 +17,6 @@ const today = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(_now.ge
 // Local noon -> UTC ISO, the same anchor the app uses for a picked day.
 const todayNoon = new Date(_now.getFullYear(), _now.getMonth(), _now.getDate(), 12, 0, 0, 0).toISOString()
 
-// File-level because launchOptions cannot be set in a describe. The flags only matter once
-// something asks for a camera; every other test in the file never does.
-test.use({ launchOptions: { args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] } })
-
 type Row = { id: number; name: string }
 
 let authToken: string
@@ -372,7 +368,7 @@ test.describe('Food', () => {
 
   // --- Barcode scanner ----------------------------------------------------------------
 
-  // The Chromium fake camera (flags at the top of the file) plus a granted permission, so the
+  // The Chromium fake camera (launch flags in playwright.config.ts, chromium project only) plus a granted permission, so the
   // scanner shows its live view (reticle and hint) instead of the permission-denied panel.
   test.describe('scanner with a fake camera', () => {
     test.use({ permissions: ['camera'] })
@@ -382,7 +378,7 @@ test.describe('Food', () => {
       await page.goto('/nutrition/log')
       await page.getByRole('button', { name: /scan/i }).click()
       await expect(page.getByRole('button', { name: 'Close scanner' })).toBeVisible()
-      // The fake-device flags are Chromium's; WebKit (the mobile project) has no camera to
+      // The fake-device flags are Chromium's, set on that project only; WebKit (the mobile project) has no camera to
       // grant, so it shows the permission panel instead of the live view.
       if (browserName === 'chromium') await expect(page.getByText('Point at a barcode')).toBeVisible()
     })
