@@ -11,7 +11,7 @@ import {
   Field,
   Muted,
   PageHeader,
-  Screen,
+  Screen, scrollBleed,
 } from '../../../src/components/ui'
 import { useAuthStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -53,7 +53,7 @@ export default function ChangeNameScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-5 py-4">
           <Pressable
             onPress={back}

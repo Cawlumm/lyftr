@@ -11,7 +11,7 @@ import {
   PageHeader,
   PasswordField,
   PasswordRule,
-  Screen,
+  Screen, scrollBleed,
 } from '../../../src/components/ui'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -72,7 +72,7 @@ export default function ChangePasswordScreen() {
   if (done) {
     return (
       <Screen>
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false}>
           <View className="gap-5 py-4">
             {backLink}
             <Card className="items-center gap-3 p-6">
@@ -95,7 +95,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-5 py-4">
           {backLink}
           <PageHeader

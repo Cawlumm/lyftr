@@ -4,7 +4,7 @@ import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, ChevronRight, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from '../../../src/components/ui/icons'
 import { format } from 'date-fns'
 import { weightShort, workoutDay, useTranslation, type Workout } from '@lyftr/shared'
-import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, SearchField, Toast } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, StatFailure, Label, PageHeader, Screen, scrollBleed, SearchField, Toast } from '../../../src/components/ui'
 import { WorkoutCard } from '../../../src/components/workouts/WorkoutCard'
 import { WorkoutsSkeleton } from '../../../src/components/workouts/WorkoutsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -198,7 +198,7 @@ export default function Workouts() {
       <FlatList
         data={queryAnswered ? workouts : []}
         keyExtractor={(w) => String(w.id)}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

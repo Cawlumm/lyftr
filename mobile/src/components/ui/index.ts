@@ -8,7 +8,7 @@ export type { AppTextProps, TextVariant, TextColor } from './Typography'
 
 // Layout / surfaces
 export { Screen } from './Screen'
-export { ContentColumn } from './ContentColumn'
+export { ContentColumn, scrollBleed } from './ContentColumn'
 export type { ColumnWidth } from './ContentColumn'
 export { ResponsiveGrid } from './ResponsiveGrid'
 export { Card } from './Card'

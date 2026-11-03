@@ -49,6 +49,8 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
   const dragY = useRef(new RNAnimated.Value(0)).current
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  const durationRef = useRef(duration)
+  durationRef.current = duration
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -56,7 +58,7 @@ export function Sheet({ open, onClose, children, bottomInset = 20, haptic = 'non
       onPanResponderMove: (_, g) => dragY.setValue(Math.max(0, g.dy)),
       onPanResponderRelease: (_, g) => {
         if (g.dy > DISMISS_DISTANCE || g.vy > DISMISS_VELOCITY) {
-          RNAnimated.timing(dragY, { toValue: 600, duration: DURATION.fast, useNativeDriver: nativeDriver() }).start(() => {
+          RNAnimated.timing(dragY, { toValue: 600, duration: durationRef.current(DURATION.fast), useNativeDriver: nativeDriver() }).start(() => {
             onCloseRef.current()
             // A sheet whose parent declines to close (a confirm that is mid-request) must come
             // back rather than sit invisible behind its scrim. A no-op when it did close.

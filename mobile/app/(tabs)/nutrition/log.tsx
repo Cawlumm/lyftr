@@ -11,7 +11,7 @@ import {
 } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, Label, NumberField, Toast,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, SearchField, SegmentedControl,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl,
 } from '../../../src/components/ui'
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScanner'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
@@ -294,7 +294,7 @@ export default function LogFood() {
       {/* ── Search phase ── */}
       {phase === 'search' ? (
         <ScrollView
-          showsVerticalScrollIndicator={false}
+          style={scrollBleed} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingBottom: 32 }}
           refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
@@ -454,7 +454,7 @@ export default function LogFood() {
       {/* ── Detail phase ── */}
       {phase === 'detail' && selected ? (
         <>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+          <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
             <View className="gap-4">
               {save.error ? (
                 <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">

@@ -69,3 +69,20 @@ test.describe('on a touch screen', () => {
     expect(await style(save, 'backgroundColor')).toBe(before)
   })
 })
+
+// The date input is transparent (opacity 0) so the browser's own picker sits under the visible
+// box; the ring has to be drawn on that box. WCAG 2.4.7 Focus Visible.
+test('the date input draws its ring on the visible box for keyboard focus only', async ({ page }) => {
+  await page.goto('/workouts/new')
+  const input = page.locator('input[type=date]').first()
+  await expect(input).toBeAttached()
+  const box = input.locator('xpath=..')
+
+  await tabTo(page, input)
+  expect(await outline(box)).toEqual({ style: 'solid', width: '2px', color: RING })
+
+  await page.mouse.click(0, 0)
+  await input.click({ position: { x: 4, y: 4 } })
+  expect(await input.evaluate(el => el === document.activeElement)).toBe(true)
+  expect((await outline(box)).style).toBe('none')
+})

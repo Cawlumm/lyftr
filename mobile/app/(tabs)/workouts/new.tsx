@@ -6,7 +6,7 @@ import {
 } from '../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen } from '../../../src/components/ui'
+import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -213,7 +213,7 @@ export default function AddWorkout() {
     <Screen>
       <ScrollView
         ref={scrollRef}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"

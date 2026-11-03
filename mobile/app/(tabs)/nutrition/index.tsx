@@ -8,7 +8,7 @@ import {
 } from '../../../src/components/ui/icons'
 import { isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate, formatDate, relativeDayLabel, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import {
-  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,
+  AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, scrollBleed, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,
 } from '../../../src/components/ui'
 import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
 import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
@@ -289,7 +289,7 @@ export default function Nutrition() {
         // before it, and rendering them under this date is the same lie as the totals.
         data={isDiary && !dayPending ? visibleEntries : []}
         keyExtractor={(e) => String(e.id)}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 32 }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

@@ -4,7 +4,7 @@ import { router } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, Field, IconButton, Label, Screen } from '../../../src/components/ui'
+import { AppText, Button, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
 import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramDaysEditor } from '../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -104,7 +104,7 @@ export default function AddProgram() {
     <Screen>
       <ScrollView
         ref={scrollRef}
-        showsVerticalScrollIndicator={false}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 24 }}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"

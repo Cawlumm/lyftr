@@ -42,7 +42,7 @@ import {
   Muted,
   NumberField,
   PageHeader,
-  Screen,
+  Screen, scrollBleed,
   SegmentedControl,
   SettingsGroup,
   SettingsRow,
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View className="gap-6 py-4">
           {/* Back — Settings is reached from the Home avatar (no longer a footer tab). */}
           <View className="gap-3">

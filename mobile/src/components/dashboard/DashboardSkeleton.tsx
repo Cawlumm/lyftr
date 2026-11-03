@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native'
-import { Card, Screen, Skeleton } from '../ui'
+import { Card, Screen, scrollBleed, Skeleton } from '../ui'
 
 // A card section-header placeholder: brand-dot + title line, optional right control.
 function CardHeaderSkel({ right }: { right?: boolean }) {
@@ -21,7 +21,7 @@ function CardHeaderSkel({ right }: { right?: boolean }) {
 export function DashboardSkeleton() {
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="gap-4 py-4">
           {/* Header: date + greeting, Start button */}
           <View className="flex-row items-start justify-between gap-3">

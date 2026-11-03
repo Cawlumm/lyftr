@@ -9,7 +9,7 @@ interface Props {
   maxWidth?: ColumnWidth
 }
 
-// Screen wrapper — base surface + top safe-area padding. On web the column is centred at
+// Screen wrapper â€” base surface + top safe-area padding. On web the column is centred at
 // maxWidth. Only the top edge is insetted here: the bottom is owned by the tab bar (tabs)
 // or the keyboard (forms).
 export function Screen({ children, className = '', maxWidth }: Props) {
