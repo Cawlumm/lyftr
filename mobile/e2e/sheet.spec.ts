@@ -138,14 +138,14 @@ test.describe('a short window', () => {
   test.use({ viewport: { width: 844, height: 390 } })
 
   test('the dialog fits the viewport and its content stays reachable by scrolling', async ({ page }) => {
-    await page.addInitScript(() => localStorage.setItem('lyftr:dev-stories', '1'))
-    await page.goto('/dev-overlays')
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    const dialog = page.getByRole('dialog', { name: 'Notes' })
+    // The exercise filters: two groups of chips, taller than a phone held sideways.
+    await page.goto('/workouts/exercises')
+    await page.getByRole('button', { name: 'Filters', exact: true }).click()
+    const dialog = page.getByRole('dialog', { name: 'Filters' })
     await expect(dialog).toBeVisible()
 
-    const cancel = dialog.getByRole('button', { name: 'Cancel', exact: true })
-    const surface = await cancel.evaluateHandle(el => {
+    const last = dialog.getByRole('button', { name: 'Bands', exact: true })
+    const surface = await last.evaluateHandle(el => {
       let n = el.parentElement
       while (n && getComputedStyle(n).overflowY !== 'auto') n = n.parentElement
       return n!
@@ -155,7 +155,8 @@ test.describe('a short window', () => {
     expect(box.y + box.height).toBeLessThanOrEqual(390)
     expect(await surface.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true)
 
-    await cancel.scrollIntoViewIfNeeded()
-    await expect(cancel).toBeInViewport()
+    await last.scrollIntoViewIfNeeded()
+    await expect(last).toBeInViewport()
+    await expect(dialog.getByRole('button', { name: 'Done', exact: true })).toBeInViewport()
   })
 })

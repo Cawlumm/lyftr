@@ -2,13 +2,11 @@ import { test, expect } from './fixtures'
 import { AxeBuilder } from '@axe-core/playwright'
 import type { Locator, Page } from '@playwright/test'
 
-// The web Tooltip and Menu. The Menu is tested through the sidebar's user menu; the Tooltip, and
-// a menu inside a dialog, still go through the dev-only /dev-overlays route (app/dev-overlays.tsx)
-// until chart tooltips (C22) give them a real screen. Contracts:
-// tooltip https://www.w3.org/WAI/ARIA/apg/patterns/tooltip/ and WCAG 1.4.13
-// (https://www.w3.org/WAI/WCAG22/Understanding/content-on-hover-or-focus.html); menu button
+// The web Menu, through its real home, the sidebar's user menu. The menu button contract is
 // https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/ with the menu keyboard model of
-// https://www.w3.org/WAI/ARIA/apg/patterns/menubar/.
+// https://www.w3.org/WAI/ARIA/apg/patterns/menubar/. The floating tooltip is tested on the
+// charts that use it (charts.spec.ts). No real screen puts a menu or tooltip inside a sheet
+// yet, so the one-Escape-per-layer rule is a unit test of swallowEscapeKeyup (overlay.test.ts).
 
 test.use({ viewport: { width: 1280, height: 800 } })
 
@@ -21,56 +19,6 @@ async function tabTo(page: Page, target: Locator) {
   }
   throw new Error('Tab never reached the target')
 }
-
-const deleteButton = (page: Page) => page.getByRole('button', { name: 'Delete', exact: true })
-const trigger = (page: Page) => page.getByRole('button', { name: 'Options', exact: true })
-
-async function openStory(page: Page) {
-  await page.addInitScript(() => localStorage.setItem('lyftr:dev-stories', '1'))
-  await page.goto('/dev-overlays')
-  await expect(trigger(page)).toBeVisible()
-}
-
-test.describe('Tooltip', () => {
-  test.beforeEach(async ({ page }) => openStory(page))
-
-  test('keyboard focus shows it, it describes the trigger, Escape hides it and keeps focus', async ({ page }) => {
-    const button = deleteButton(page)
-    await expect(button).toHaveAccessibleDescription('This cannot be undone')
-    await tabTo(page, button)
-    const tip = page.getByRole('tooltip', { name: 'This cannot be undone' })
-    await expect(tip).toBeVisible()
-
-    await page.keyboard.press('Escape')
-    await expect(tip).toBeHidden()
-    expect(await isFocused(button)).toBe(true)
-
-    await page.keyboard.press('Tab')
-    await page.keyboard.press('Shift+Tab')
-    await expect(tip).toBeVisible()
-    await page.keyboard.press('Tab')
-    await expect(tip).toBeHidden()
-  })
-
-  test('hover shows it and the pointer can move onto it without it closing', async ({ page }) => {
-    const tip = page.getByRole('tooltip', { name: 'This cannot be undone' })
-    await deleteButton(page).hover()
-    await expect(tip).toBeVisible()
-    const box = (await tip.boundingBox())!
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
-    await page.waitForTimeout(400)
-    await expect(tip).toBeVisible()
-    await page.mouse.move(640, 600)
-    await expect(tip).toBeHidden()
-  })
-
-  test('a trigger that was not focusable becomes a Tab stop', async ({ page }) => {
-    const icon = page.getByRole('img', { name: 'Notes' })
-    await tabTo(page, icon)
-    await expect(page.getByRole('tooltip', { name: /Rest timer is off/ })).toBeVisible()
-    await expect(icon).toHaveAccessibleDescription(/Rest timer is off/)
-  })
-})
 
 // The Menu through its first real home, the sidebar's user menu (src/components/shell/UserMenu.tsx):
 // Settings, the theme toggle, Sign out. It sits at the bottom-left of the window, so it also
@@ -179,51 +127,5 @@ test.describe('Menu', () => {
       .disableRules(['color-contrast'])
       .analyze()
     expect(violations).toEqual([])
-  })
-})
-
-// Escape belongs to the topmost widget (APG dialog-modal and menu-button). react-native-web
-// closes a Modal from a document *keyup* listener while the menu and tooltip dismiss on keydown,
-// so without swallowEscapeKeyup the one keypress closed both.
-test.describe('inside a dialog', () => {
-  const dialog = (page: Page) => page.getByRole('dialog', { name: 'Notes' })
-
-  test.beforeEach(async ({ page }) => {
-    await openStory(page)
-    await page.getByRole('button', { name: 'Edit', exact: true }).click()
-    await expect(dialog(page)).toBeVisible()
-  })
-
-  test('Escape closes an open menu only; the next one closes the dialog', async ({ page }) => {
-    const inside = dialog(page).getByRole('button', { name: 'Options', exact: true })
-    await inside.focus()
-    await page.keyboard.press('ArrowDown')
-    const list = dialog(page).getByRole('menu', { name: 'Options' })
-    await expect(list).toBeVisible()
-
-    await page.keyboard.press('Escape')
-    await expect(list).toBeHidden()
-    await expect(dialog(page)).toBeVisible()
-    await expect(inside).toBeFocused()
-
-    await page.keyboard.press('Escape')
-    await expect(dialog(page)).toBeHidden()
-  })
-
-  test('Escape dismisses a tooltip only; the next one closes the dialog', async ({ page }) => {
-    const save = dialog(page).getByRole('button', { name: 'Save', exact: true })
-    // The dialog focuses Save on open, which is not :focus-visible; arriving by key is.
-    await page.keyboard.press('Shift+Tab')
-    await page.keyboard.press('Tab')
-    await expect(save).toBeFocused()
-    const tip = page.getByRole('tooltip', { name: 'This cannot be undone' })
-    await expect(tip).toBeVisible()
-
-    await page.keyboard.press('Escape')
-    await expect(tip).toBeHidden()
-    await expect(dialog(page)).toBeVisible()
-
-    await page.keyboard.press('Escape')
-    await expect(dialog(page)).toBeHidden()
   })
 })

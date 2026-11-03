@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, G, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
-import { formatDay, useTranslation } from '@lyftr/shared'
-import { AppText } from '../ui'
+import { formatDay, formatNumber, useTranslation } from '@lyftr/shared'
+import { AppText, ChartTooltip } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { MACRO_COLORS } from './nutritionMeta'
 
@@ -160,8 +160,17 @@ export function MacroHistoryChart({ data, width, height = 200 }: {
           ) : null
         )}
       </Svg>
+      <ChartTooltip label={t('food.history.title')} width={width} height={height} selected={sel} onSelect={setSel}
+        points={totals.map((v, i) => ({ x: xAt(i), y: yAt(v) }))}
+        describe={(i) => [
+          formatDay(data[i].date, 'monthDay'),
+          `${t('food.macro.protein')} ${formatNumber(Math.round(P[i]), 0)}g`,
+          `${t('food.macro.carbs')} ${formatNumber(Math.round(C[i]), 0)}g`,
+          `${t('food.macro.fat')} ${formatNumber(Math.round(F[i]), 0)}g`,
+        ]} />
 
-      {selPt ? (
+      {/* Web reads the day through ChartTooltip instead of the tap bubble. */}
+      {selPt && Platform.OS !== 'web' ? (
         <View
           pointerEvents="none"
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2.5 py-1.5"

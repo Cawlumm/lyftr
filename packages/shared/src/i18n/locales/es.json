@@ -219,6 +219,9 @@
     "remove": "Quitar filtro: {{label}}"
   },
   "common": {
+    "chart": {
+      "keyHint": "Usa las flechas para leer cada valor"
+    },
     "duration": {
       "seconds": "{{value}} s",
       "minutes": "{{value}} min"

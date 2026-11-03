@@ -217,6 +217,9 @@
     "remove": "Remove filter: {{label}}"
   },
   "common": {
+    "chart": {
+      "keyHint": "Use the arrow keys to read each value"
+    },
     "duration": {
       "seconds": "{{value}}s",
       "minutes": "{{value}}m"

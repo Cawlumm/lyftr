@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Circle, Line, Path, Rect, Text as SvgText } from 'react-native-svg'
-import { useTranslation } from '@lyftr/shared'
-import { AppText } from '../ui'
+import { formatNumber, useTranslation } from '@lyftr/shared'
+import { AppText, ChartTooltip } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { muscleLabel } from '../../utils/exerciseUtils'
 
@@ -15,6 +15,8 @@ import { muscleLabel } from '../../utils/exerciseUtils'
 // palette (passed in via colorFor).
 
 const INDIGO = '#6366f1'
+// Web reads values through ChartTooltip (hover, arrow keys) instead of the tap bubble.
+const WEB = Platform.OS === 'web'
 
 // Monotone cubic (Fritsch–Carlson) — matches recharts type="monotone" (same curve the
 // weight sparkline draws on web).
@@ -57,6 +59,7 @@ export function VolumeBarChart({ data, width, unit, height = 130 }: {
   data: VolumePoint[]; width: number; unit: string; height?: number
 }) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
   const [sel, setSel] = useState<number | null>(null)
   if (!data.length || width <= 0) return null
 
@@ -103,7 +106,10 @@ export function VolumeBarChart({ data, width, unit, height = 130 }: {
           ) : null
         )}
       </Svg>
-      {selPt ? (
+      <ChartTooltip label={t('home.volume.title')} width={width} height={height} selected={sel} onSelect={setSel}
+        points={vols.map((v, i) => ({ x: xCenter(i), y: padTop + plotH - Math.max((v / maxVol) * plotH, 1) }))}
+        describe={(i) => [`${formatNumber(vols[i], 0)} ${unit}`, data[i].name, data[i].date]} />
+      {selPt && !WEB ? (
         <View pointerEvents="none"
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(xCenter(sel!) - 55, 0, Math.max(0, width - 110)), top: 0, maxWidth: 130 }}>
@@ -124,6 +130,7 @@ export function WeightSparkline({ data, width, unit, height = 48 }: {
   data: SparkPoint[]; width: number; unit: string; height?: number
 }) {
   const { colors } = useTheme()
+  const { t } = useTranslation()
   const [sel, setSel] = useState<number | null>(null)
   if (data.length < 2 || width <= 0) return null
 
@@ -147,7 +154,9 @@ export function WeightSparkline({ data, width, unit, height = 48 }: {
             onPress={() => tap(() => setSel((c) => (c === i ? null : i)))} />
         ))}
       </Svg>
-      {sp && sel != null ? (
+      <ChartTooltip label={t('home.weight.title')} width={width} height={height} selected={sel} onSelect={setSel}
+        points={pts} describe={(i) => [`${formatNumber(ws[i])} ${unit}`, data[i].date]} />
+      {sp && sel != null && !WEB ? (
         <View pointerEvents="none"
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"
           style={{ left: clamp(sp.x - 45, 0, Math.max(0, width - 90)), top: -6 }}>
@@ -197,6 +206,13 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
   })
 
   const selSlice = sel != null ? slices[sel] : null
+  const hit = (x: number, y: number) => {
+    const r = Math.hypot(x - cx, y - cy)
+    if (r < rInner || r > rOuter) return null
+    const deg = ((Math.atan2(y - cy, x - cx) * 180) / Math.PI + 90 + 360) % 360
+    const i = slices.findIndex((s) => deg >= s.s0 && deg < s.s1)
+    return i < 0 ? null : i
+  }
 
   return (
     <View style={{ width: size, height: size }}>
@@ -216,6 +232,10 @@ export function MuscleDonut({ data, total, colorFor, size = 160 }: {
           )
         })}
       </Svg>
+      {/* The hole already shows the selection, so on web the layer only reads it out. */}
+      <ChartTooltip label={t('home.muscle.title')} width={size} height={size} selected={sel} onSelect={setSel}
+        tooltip={false} hitTest={hit} points={slices.map((s) => polar(cx, cy, rOuter, (s.s0 + s.s1) / 2))}
+        describe={(i) => [muscleLabel(data[i].name), t('home.muscle.tooltip', { count: data[i].value, percent: Math.round((data[i].value / total) * 100) })]} />
       {/* Tap-to-read: the selected slice's stats fill the donut hole (web showed a hover
           tooltip; the legend already lists every value, so the hole is the natural read-out). */}
       {selSlice ? (
