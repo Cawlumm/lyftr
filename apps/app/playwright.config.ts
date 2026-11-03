@@ -20,7 +20,7 @@ export default defineConfig({
   // CI: a public repo's ubuntu-24.04 runner has 4 vCPUs and 16 GB. Three Chromium workers
   // leave a core for the compose stack (backend + nginx) the tests are driving. Locally one,
   // because the machine is shared: pass --workers=2 to opt in.
-  workers: process.env.CI ? 3 : 1,
+  workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: BASE_URL,
