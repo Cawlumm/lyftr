@@ -27,7 +27,7 @@ const NON_COPY_PROPS = [
   // keyboard, scrolling, camera and live-region behaviour
   'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior',
   'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',
-  'themeVariant', 'align', 'side', 'tint',
+  'themeVariant', 'align', 'side', 'tint', 'maxWidth',
   'keyboardType', 'autoCapitalize', 'autoComplete', 'autoCorrect', 'textContentType',
   'inputMode', 'enterKeyHint', 'returnKeyType',
   // colours and geometry

@@ -1368,7 +1368,9 @@
       "sessions": "sessions",
       "cals": "Cals",
       "caloriesFailed": "Couldn't load today's calories",
-      "proteinFailed": "Couldn't load today's protein"
+      "proteinFailed": "Couldn't load today's protein",
+      "calories": "Calories",
+      "protein": "Protein"
     },
     "thisWeek": {
       "title": "This Week",
