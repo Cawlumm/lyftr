@@ -582,6 +582,8 @@ export default function LogFood() {
                       return (
                         <Pressable
                           key={m}
+                          accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+                          aria-pressed={Platform.OS === 'web' ? active : undefined}
                           onPress={() => { hSelect(); setMeal(m) }}
                           style={{ width: '48%' }}
                           className={`flex-row items-center gap-2.5 rounded-xl border px-3.5 py-3 ${active ? 'border-brand-500/40 bg-brand-500/10' : 'border-surface-border bg-surface-muted'}`}
