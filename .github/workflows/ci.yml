@@ -508,7 +508,7 @@ jobs:
 
   build-frontend:
     name: Build & push frontend image
-    needs: [test, unit, e2e, e2e-app]
+    needs: [test, unit, e2e, e2e-app, mobile, web-export]
     if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
     runs-on: ubuntu-latest
     steps:
@@ -542,7 +542,7 @@ jobs:
 
   deploy-demo:
     name: Deploy to Fly.io
-    needs: [test, unit, e2e, e2e-app, version-smoke]
+    needs: [test, unit, e2e, e2e-app, version-smoke, mobile, web-export]
     # main pushes run every test job (their `if` includes main), so this only deploys on a
     # clean run; the failure/cancel guard keeps a filtered skip from ever cascading here.
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}

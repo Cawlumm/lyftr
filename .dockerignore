@@ -1,5 +1,5 @@
-# Applies to every build whose context is the repo root: web/Dockerfile (via
-# docker-compose and the CI frontend job) and fly/Dockerfile (via `flyctl deploy`).
+# Applies to every build whose context is the repo root: mobile/Dockerfile.web (the
+# docker-compose and CI frontend build; web/Dockerfile is kept for rollback) and fly/Dockerfile (via `flyctl deploy`).
 #
 # Why this file has to exist. BuildKit reads .dockerignore from the *context root*, so
 # web/.dockerignore stopped applying the moment web's build context moved up here — and

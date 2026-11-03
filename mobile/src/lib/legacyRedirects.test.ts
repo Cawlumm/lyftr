@@ -12,6 +12,9 @@ const confPath = path.resolve(__dirname, '../../nginx.legacy-redirects.conf')
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
+// Captures are digits only: nginx hands a regex location the percent-decoded URI, so a
+// permissive group would carry CR/LF into the Location header (response splitting). Every
+// path param here is a numeric exercise id; a non-numeric one falls through to the SPA.
 // absolute_redirect off keeps Location relative, for the reason given on the
 // .well-known/change-password block in nginx.conf.template: nginx listens on 80 behind TLS.
 function rule(from: string, to: string): string {
@@ -21,7 +24,7 @@ function rule(from: string, to: string): string {
   }
   const pattern = from
     .split(/(:\w+)/)
-    .map((part) => (part.startsWith(':') ? '([^/]+)' : escapeRegex(part)))
+    .map((part) => (part.startsWith(':') ? '([0-9]+)' : escapeRegex(part)))
     .join('')
   const target = to.replace(/:(\w+)/g, (_, name: string) => `$${params.indexOf(name) + 1}`)
   return `location ~ ^${pattern}$ { absolute_redirect off; return 301 ${target}$is_args$args; }`

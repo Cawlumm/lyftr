@@ -27,6 +27,17 @@ test('a legacy URL without a query gets no stray "?"', async ({ request }) => {
   expect(res.headers()['location']).toBe('/nutrition/log')
 })
 
+test('a CRLF in a captured id cannot inject a header', async ({ request }) => {
+  const res = await request.get('/exercises/1%0d%0aX-Injected:%201', { maxRedirects: 0 })
+  expect(res.headers()['x-injected']).toBeUndefined()
+  expect(res.status()).not.toBe(301)
+})
+
+test('a non-numeric id is not redirected by nginx', async ({ request }) => {
+  const res = await request.get('/exercises/abc', { maxRedirects: 0 })
+  expect(res.status()).not.toBe(301)
+})
+
 test('the new paths are served, not redirected', async ({ request }) => {
   for (const { to } of LEGACY_ROUTES) {
     const res = await request.get(sample(to), { maxRedirects: 0 })
