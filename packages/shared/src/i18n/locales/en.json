@@ -1231,6 +1231,8 @@
     "completed": "Completed",
     "removeSet": "Remove this set",
     "removeExercise": "Remove this exercise",
+    "previousSet": "Previous set",
+    "nextSet": "Next set",
     "nav": {
       "info": "Info",
       "finishWorkout": "Finish Workout",

@@ -1246,6 +1246,8 @@
     "completed": "Completada",
     "removeSet": "Quitar esta serie",
     "removeExercise": "Quitar este ejercicio",
+    "previousSet": "Serie anterior",
+    "nextSet": "Serie siguiente",
     "nav": {
       "info": "Info",
       "finishWorkout": "Terminar",

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { Keyboard, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/components/ui/icons'
 import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
@@ -12,6 +13,12 @@ import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
+
+// These controls had no role, which native reads from the text alone; react-native-web needs
+// one for the DOM, so web gets it and native is unchanged.
+const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined
+// The aria-current of the exercise being worked; RN's types have no aria-current.
+const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object
 
 export default function ActiveWorkout() {
   const { t } = useTranslation()
@@ -114,14 +121,14 @@ export default function ActiveWorkout() {
 
   if (!session) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <View className="flex-1 items-center justify-center gap-3 py-20">
           <View className="h-12 w-12 items-center justify-center rounded-xl border border-surface-border bg-surface-muted">
             <Dumbbell size={24} color={colors.txMuted} />
           </View>
           <AppText variant="bodySemibold">{t('workouts.active.noWorkout.title')}</AppText>
           <AppText variant="caption" color="muted">{t('workouts.active.noWorkout.hintTab')}</AppText>
-          <Pressable onPress={goHome} className="mt-2 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95">
+          <Pressable onPress={goHome} accessibilityRole={WEB_BUTTON} className={`mt-2 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}>
             <AppText variant="bodySemibold" color="white">{t('workouts.active.noWorkout.goWorkouts')}</AppText>
           </Pressable>
         </View>
@@ -134,7 +141,7 @@ export default function ActiveWorkout() {
   const allComplete = totalSets > 0 && completedSets === totalSets
 
   return (
-    <Screen>
+    <Screen maxWidth="medium">
       {/* Sticky-ish header */}
       <View className="-mx-5 border-b border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <View className="flex-row items-center justify-between gap-3 pb-2.5">
@@ -150,7 +157,8 @@ export default function ActiveWorkout() {
           </View>
           <Pressable
             onPress={() => setConfirmFinish(true)}
-            className={`flex-row items-center gap-2 rounded-xl px-5 py-2.5 active:scale-95 ${allComplete ? 'bg-brand-500' : 'border border-brand-500/30 bg-brand-500/10'}`}
+            accessibilityRole={WEB_BUTTON}
+            className={`flex-row items-center gap-2 rounded-xl px-5 py-2.5 active:scale-95 ${allComplete ? 'bg-brand-500' : 'border border-brand-500/30 bg-brand-500/10'} ${interactive(allComplete ? 'hover:bg-brand-600' : 'hover:bg-brand-500/20')}`}
           >
             <Flag size={16} color={allComplete ? '#ffffff' : accent} />
             <Text className={`font-sans-bold text-sm ${allComplete ? 'text-white' : ''}`} style={allComplete ? undefined : { color: accent }}>{t('workouts.active.finish')}</Text>
@@ -170,9 +178,11 @@ export default function ActiveWorkout() {
                 <Pressable
                   key={i}
                   onPress={() => jumpToExercise(i)}
+                  accessibilityRole={WEB_BUTTON}
+                  {...currentStep(active)}
                   className={`flex-row items-center gap-1.5 rounded-full border px-2.5 py-1 ${
                     done ? 'border-brand-500/30 bg-brand-500/15' : active ? 'border-brand-500/40 bg-brand-500/10' : 'border-surface-border bg-surface-muted'
-                  }`}
+                  } ${interactive('hover:border-brand-500/40')}`}
                 >
                   {done ? (
                     <CheckCircle2 size={12} color={accent} />
@@ -227,11 +237,11 @@ export default function ActiveWorkout() {
 
         {/* Footer */}
         <View className="mt-2 gap-2">
-          <Pressable onPress={() => setShowPicker(true)} className="flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3.5 active:scale-95">
+          <Pressable onPress={() => setShowPicker(true)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}>
             <Plus size={16} color={colors.txSecondary} />
             <Text className="font-sans-semibold text-sm text-tx-secondary">{t('workouts.active.addExercise')}</Text>
           </Pressable>
-          <Pressable onPress={() => setConfirmCancel(true)} className="items-center py-2.5 active:opacity-60">
+          <Pressable onPress={() => setConfirmCancel(true)} accessibilityRole={WEB_BUTTON} className={`items-center py-2.5 active:opacity-60 ${interactive('rounded-lg hover:bg-surface-muted')}`}>
             <Text className="font-sans text-xs text-tx-muted">{t('workouts.active.cancelWorkout')}</Text>
           </Pressable>
         </View>
