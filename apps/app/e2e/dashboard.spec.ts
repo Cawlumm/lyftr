@@ -3,13 +3,13 @@ import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
 import { blackhole } from './faults'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // The dashboard's wide layout (C21): at lg and up on web it is three stat tiles, last workout
 // beside nutrition, muscle balance beside volume and weight, then the heatmap at full width.
 // Below lg it is the phone's single column, unchanged. The account is seeded with one of
 // everything so every card has content and every link exists.
 const WORKOUT = 'E2E Dashboard Pull'
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
 
 test.beforeAll(async ({ request, workerAuth }) => {
   const headers = { Authorization: `Bearer ${workerAuth.token}` }
@@ -55,15 +55,11 @@ const box = async (page: Page, text: string) => {
   return b
 }
 
-for (const width of WIDTHS) {
-  test(`dashboard does not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
-    await openDashboard(page, width)
-    const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-    }))
-    expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
-    if ([390, 768, 1280, 1920].includes(width)) {
+for (const widths of WIDTH_GROUPS) {
+  test(`dashboard does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+    await openDashboard(page, widths[0])
+    await sweepWidths(page, testInfo, 'dashboard', widths)
+    for (const width of widths.filter((w) => [390, 768, 1280, 1920].includes(w))) {
       // Tall enough to hold the whole screen: the page scrolls inside main, not the document.
       await page.setViewportSize({ width, height: width < 1024 ? 3200 : 1700 })
       await page.waitForTimeout(300)

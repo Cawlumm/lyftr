@@ -10,12 +10,18 @@ export default defineConfig({
   globalSetup: './e2e/globalSetup.ts',
   // Deletes every e2e account created during the run (recorded in userRegistry).
   globalTeardown: './e2e/globalTeardown.ts',
+  // Parallel by file, not by test: a file's tests run in order in one worker and share its
+  // beforeAll seed, so tests within a file may build on each other. Files share nothing but
+  // the read-only exercise catalogue: each worker registers its own account (e2e/fixtures.ts)
+  // and the backend serialises writes through one SQLite connection.
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  // One worker: the backend is a single SQLite writer that drops writes under concurrent
-  // load. Each worker still registers its own isolated user (see e2e/fixtures.ts).
-  workers: 1,
+  // CI: a public repo's ubuntu-24.04 runner has 4 vCPUs and 16 GB, one worker per core.
+  // Measured on that runner: 3 workers ran the suite in 6.3 min, 4 in 4.5 min, both with no
+  // retries, so the compose stack keeps up. Locally one, because the machine is shared:
+  // pass --workers=2 to opt in.
+  workers: process.env.CI ? 4 : 1,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: BASE_URL,

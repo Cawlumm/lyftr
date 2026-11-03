@@ -16,8 +16,9 @@ export type WorkerAuth = { token: string; email: string }
 // accumulated across tests AND across runs, which is why each spec carried
 // fragile "wipe ALL E2E-prefixed entries" pre-cleanup. A brand-new account per
 // run starts empty, so that pre-cleanup is unnecessary and runs are hermetic.
-// (Currently workers:1 — one fresh user per run. The fixture is worker-scoped so
-// it already supports workers>1 once the DB layer can take the write concurrency.)
+// Worker-scoped, so files that land on different workers (CI runs four) never
+// see each other's rows; files on the same worker do, so no test may assume its
+// file's seed is the account's only data.
 export const test = base.extend<object, { workerAuth: WorkerAuth }>({
   workerAuth: [async ({ browser }, use, workerInfo) => {
     const idx = workerInfo.parallelIndex

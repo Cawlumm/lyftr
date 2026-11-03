@@ -168,7 +168,9 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
       ) : (
         // Fade the stale rows while a new query or filter revalidates (they swap in place when
         // the fresh page lands); the search field and filters above stay interactive.
-        <Animated.View className="flex-1" style={fade}>
+        // flex in style, not className: on web the className never reached Reanimated's View, so
+        // the list grew to its content, never scrolled, and paged in the whole catalogue.
+        <Animated.View style={[{ flex: 1 }, fade]}>
           <FlatList
             key={grid.key}
             numColumns={grid.numColumns}
@@ -224,7 +226,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
                 <ErrorState title={t('exercises.picker.loadMoreFailed')} message={listError} onRetry={retryList} />
               ) : hasMore && shown.length > 0 ? (
                 <View className="flex-row items-center justify-center gap-2 py-4">
-                  <ActivityIndicator color={accent} />
+                  <ActivityIndicator color={accent} accessibilityLabel={Platform.OS === 'web' ? t('common.loadingMore') : undefined} />
                   <AppText variant="caption" color="muted">{t('common.loadingMore')}</AppText>
                 </View>
               ) : undefined

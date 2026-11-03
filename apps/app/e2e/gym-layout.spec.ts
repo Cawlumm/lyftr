@@ -2,12 +2,12 @@ import type { Locator, Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // Gym mode on web (C30). The overlay is a modal dialog named "Workout" over the whole app:
 // focus stays inside it, Escape minimizes it, and from lg it is a centred panel instead of a
 // phone screen across a desktop. Browser Back leaves it exactly as Minimize does: the session
 // lives in the store, and the session pill resumes it. Native keeps the in-screen overlay.
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
 const MAX_W_2XL = 672
 const SESSION = 'E2E Gym Layout'
 
@@ -45,8 +45,6 @@ function seed(page: Page, { rest = false } = {}) {
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Workout' })
 const button = (scope: Page | Locator, name: string) => scope.getByRole('button', { name, exact: true })
 const pill = (page: Page) => page.getByText(SESSION, { exact: true }).locator('visible=true')
-const noHorizontalScroll = (page: Page) => page.evaluate(() =>
-  document.documentElement.scrollWidth <= document.documentElement.clientWidth)
 const box = async (l: Locator) => (await l.boundingBox())!
 const isFocused = (l: Locator) => l.evaluate(el => el === document.activeElement)
 const storedSession = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session') ?? 'null'))
@@ -77,16 +75,15 @@ async function toSets(page: Page) {
   await expect(button(dialog(page), 'Complete Set')).toBeVisible()
 }
 
-for (const width of WIDTHS) {
-  test(`gym mode does not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
+for (const widths of WIDTH_GROUPS) {
+  test(`gym mode does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+    const shoot = [390, 768, 1280, 1920]
     await seed(page)
-    await openGym(page, width)
-    expect(await noHorizontalScroll(page)).toBe(true)
-    const shoot = [390, 768, 1280, 1920].includes(width)
-    if (shoot) await testInfo.attach(`overview-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
+    await openGym(page, widths[0])
+    await sweepWidths(page, testInfo, 'overview', widths, { shoot, height: 800 })
+    await page.setViewportSize({ width: widths[0], height: 800 })
     await toSets(page)
-    expect(await noHorizontalScroll(page)).toBe(true)
-    if (shoot) await testInfo.attach(`sets-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
+    await sweepWidths(page, testInfo, 'sets', widths, { shoot, height: 800 })
   })
 }
 

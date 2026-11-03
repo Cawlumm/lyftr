@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // The list screens' wide layouts (C23). From lg on web the workouts and programs lists are a
 // two-column card grid and the exercise browser a grid of up to three; below lg they are the
@@ -10,7 +11,6 @@ import { API_BASE } from './config'
 // keeps its search and filters in the URL.
 const W = 'E2E Lists Workout'
 const P = 'E2E Lists Program'
-const WIDTHS = [320, 390, 768, 1024, 1280, 1920]
 const SCREENS = { workouts: '/workouts', programs: '/programs', exercises: '/workouts/exercises' } as const
 
 let workoutIds: number[] = []
@@ -56,32 +56,35 @@ const boxOf = async (page: Page, name: string) => {
 }
 
 for (const [screen, path] of Object.entries(SCREENS)) {
-  for (const width of WIDTHS) {
-    test(`${screen} does not scroll horizontally at ${width}px`, async ({ page }, testInfo) => {
-      await open(page, path, width)
-      const { scrollWidth, clientWidth } = await page.evaluate(() => ({
-        scrollWidth: document.documentElement.scrollWidth,
-        clientWidth: document.documentElement.clientWidth,
-      }))
-      expect(scrollWidth).toBeLessThanOrEqual(clientWidth)
-      if ([390, 768, 1280, 1920].includes(width)) {
-        await testInfo.attach(`${screen}-${width}`, { body: await page.screenshot(), contentType: 'image/png' })
-      }
+  for (const widths of WIDTH_GROUPS) {
+    test(`${screen} does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+      await open(page, path, widths[0])
+      await sweepWidths(page, testInfo, screen, widths, { shoot: [390, 768, 1280, 1920] })
     })
   }
 }
 
+// The first cards in list order, whatever their names: this worker's account also holds rows
+// other spec files seeded, so which seeded card lands in which column depends on what ran first.
+const cards = (page: Page, base: string) => page.locator(`a[href^="/${base}/"]`).locator('visible=true')
+  .evaluateAll((els, b) => els
+    .filter((el) => /^\d+$/.test((el.getAttribute('href') ?? '').slice(b.length + 2)))
+    .slice(0, 3)
+    .map((el) => { const r = el.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height } }), base)
+
 test('at 1280 workouts and programs are two-column grids of links', async ({ page }) => {
   await open(page, '/workouts', 1280)
-  await expect.poll(async () => Math.abs((await boxOf(page, `${W} 1`)).y - (await boxOf(page, `${W} 2`)).y)).toBeLessThanOrEqual(1)
-  const [a, b, c] = [await boxOf(page, `${W} 1`), await boxOf(page, `${W} 2`), await boxOf(page, `${W} 3`)]
+  await expect(page.getByRole('link', { name: `${W} 3`, exact: true })).toBeVisible()
+  await expect.poll(async () => { const [a, b] = await cards(page, 'workouts'); return Math.abs(a.y - b.y) }).toBeLessThanOrEqual(1)
+  const [a, b, c] = await cards(page, 'workouts')
   expect(b.x).toBeGreaterThan(a.x + a.width - 1)
   expect(c.y).toBeGreaterThan(a.y + a.height)
   expect(Math.abs(c.x - a.x)).toBeLessThanOrEqual(1)
   await expect(page.getByRole('link', { name: `${W} 1`, exact: true })).toHaveAttribute('href', `/workouts/${workoutIds[0]}`)
 
   await open(page, '/programs', 1280)
-  await expect.poll(async () => Math.abs((await boxOf(page, `${P} 1`)).y - (await boxOf(page, `${P} 2`)).y)).toBeLessThanOrEqual(1)
+  await expect(page.getByRole('link', { name: `${P} 2`, exact: true })).toBeVisible()
+  await expect.poll(async () => { const [a, b] = await cards(page, 'programs'); return Math.abs(a.y - b.y) }).toBeLessThanOrEqual(1)
   expect(await page.getByRole('link', { name: `${P} 1`, exact: true }).getAttribute('href')).toMatch(/^\/programs\/\d+$/)
 })
 
