@@ -141,7 +141,7 @@ export default function ActiveWorkout() {
       <View className="-mx-5 border-b border-surface-border bg-surface-base px-5 pb-2 pt-3">
         <View className="flex-row items-center justify-between gap-3 pb-2.5">
           <View className="min-w-0 flex-1">
-            <AppText variant="heading" numberOfLines={1}>{session.name}</AppText>
+            <AppText variant="heading" headingLevel={1} numberOfLines={1}>{session.name}</AppText>
             <View className="mt-0.5 flex-row items-center gap-3">
               <View className="flex-row items-center gap-1">
                 <Timer size={14} color={accent} />

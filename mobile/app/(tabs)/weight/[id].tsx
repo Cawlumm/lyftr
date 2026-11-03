@@ -168,7 +168,7 @@ export default function WeightDetail() {
                 <Scale size={28} color={accent} />
               </View>
               <View className="min-w-0 flex-1">
-                <Label className="mb-1">{t('weight.detail.entryLabel')}</Label>
+                <Label className="mb-1" headingLevel={Platform.OS === 'web' ? 1 : undefined}>{t('weight.detail.entryLabel')}</Label>
                 {editing ? (
                   <AppText variant="bodySemibold" color="brand">{t('weight.detail.editing')}</AppText>
                 ) : (

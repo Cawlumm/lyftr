@@ -2,14 +2,14 @@ import { Platform, View } from 'react-native'
 import { Tabs } from 'expo-router'
 import { BottomTabBar } from 'expo-router/js-tabs'
 import { House, Dumbbell, BookOpen, Apple, Scale } from '../../src/components/ui/icons'
-import { useTranslation } from '@lyftr/shared'
+import { palette, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../src/theme/useTheme'
 import { useBreakpoint } from '../../src/lib/useBreakpoint'
 import { Sidebar } from '../../src/components/shell/Sidebar'
 
 export default function TabsLayout() {
   const { t } = useTranslation()
-  const { colors, brand } = useTheme()
+  const { colors, brand, isDark } = useTheme()
   const { lg } = useBreakpoint()
   // Web at lg and up gets a sidebar; phones, tablets below lg and native keep the bottom tabs.
   const sidebar = Platform.OS === 'web' && lg
@@ -26,7 +26,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         ...(sidebar ? { tabBarPosition: 'left' as const } : null),
-        tabBarActiveTintColor: brand.cyan,
+        // brand-500 measures 2.4:1 on the light bar; web holds its 10px labels to AA.
+        tabBarActiveTintColor: Platform.OS === 'web' && !isDark ? palette.brand[700] : brand.cyan,
         tabBarInactiveTintColor: colors.txMuted,
         tabBarStyle: {
           backgroundColor: colors.raised,

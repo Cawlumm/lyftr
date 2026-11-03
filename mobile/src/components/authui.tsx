@@ -30,7 +30,7 @@ const FONT = {
   body: 'PlusJakartaSans_600SemiBold',
   btn: 'PlusJakartaSans_800ExtraBold',
 }
-const LABEL_COLOR = '#94a3b8' // legible on both light + dark surfaces
+const LABEL_COLOR = '#94a3b8' // legible on both light + dark surfaces (native; web uses txMuted, which is AA there)
 
 // Dark/light labelled input with a leading icon (+ optional password eye).
 export function IconInput({
@@ -54,7 +54,7 @@ export function IconInput({
   const Icon = icon === 'mail' ? Mail : Lock
   return (
     <View style={{ marginTop: 19 }}>
-      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.4, color: LABEL_COLOR, marginBottom: 8 }}>
+      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.4, color: Platform.OS === 'web' ? colors.txMuted : LABEL_COLOR, marginBottom: 8 }}>
         {label.toUpperCase()}
       </Text>
       <Reanimated.View

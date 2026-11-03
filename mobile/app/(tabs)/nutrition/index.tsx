@@ -17,6 +17,7 @@ import { DayPill } from '../../../src/components/nutrition/DayPill'
 import { MACRO_COLORS, MEALS, mealMessage, type Meal } from '../../../src/components/nutrition/nutritionMeta'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { semanticInk } from '../../../src/theme/theme'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 
 const HISTORY_PERIODS = ['7d', '30d', '90d'] as const
@@ -58,7 +59,7 @@ const mealForNow = (): Meal => {
 
 export default function Nutrition() {
   const { t } = useTranslation()
-  const { colors, brand, accent } = useTheme()
+  const { colors, brand, accent, isDark } = useTheme()
   const { width: windowWidth } = useWindowDimensions()
   // Web from lg: the day's food on the left, its totals in a sticky column on the right.
   // Below lg, and on every native device, the phone's single column.
@@ -264,6 +265,10 @@ export default function Nutrition() {
   const calTarget = settings.calorie_target || 2000
   const remaining = calTarget - totalCals
   const isOver = remaining < 0
+  // The soft amber/emerald read on dark but measure under 2:1 on the light pill; web uses the
+  // AA ink there. Native keeps the literals.
+  const lightWeb = Platform.OS === 'web' && !isDark
+  const kcalInk = isOver ? (lightWeb ? semanticInk.light.warning : '#fbbf24') : (lightWeb ? semanticInk.light.success : '#34d399')
   const calPct = Math.min(100, (totalCals / calTarget) * 100) || 0
 
   // One flat list, ordered by meal (breakfast → snacks) so same-meal items group.
@@ -401,8 +406,8 @@ export default function Nutrition() {
             borderColor: isOver ? 'rgba(245,158,11,0.20)' : 'rgba(16,185,129,0.20)',
           }}
         >
-          <Flame size={16} color={isOver ? '#fbbf24' : '#34d399'} />
-          <AppText variant="bodySemibold" style={{ fontSize: 13, color: isOver ? '#fbbf24' : '#34d399' }}>
+          <Flame size={16} color={kcalInk} />
+          <AppText variant="bodySemibold" style={{ fontSize: 13, color: kcalInk }}>
             {isOver ? t('food.diary.over', { amount: Math.round(Math.abs(remaining)) }) : t('food.diary.left', { amount: Math.round(remaining) })}
           </AppText>
         </View>

@@ -1,3 +1,4 @@
+import { Platform } from 'react-native'
 import { accents, semanticInk, palette, surfaces, type SurfaceTokens } from '@lyftr/shared'
 
 // Light + dark palettes and brand tokens, imported from @lyftr/shared so the two apps
@@ -6,7 +7,18 @@ import { accents, semanticInk, palette, surfaces, type SurfaceTokens } from '@ly
 
 export type ThemeColors = SurfaceTokens
 
-export const palettes: Record<'light' | 'dark', ThemeColors> = surfaces
+// Web lifts muted text to WCAG AA (4.5:1) on every surface it sits on, light and dark. The
+// shared slate-400/600 measure 2.1 to 2.6:1 there; native keeps them, so phones do not change.
+// useDocumentChrome feeds the same values to the --tx-muted CSS variable on web.
+const WEB_MUTED = { light: '#5f6b7f', dark: '#8391a7' } as const
+
+export const palettes: Record<'light' | 'dark', ThemeColors> =
+  Platform.OS === 'web'
+    ? {
+        light: { ...surfaces.light, txMuted: WEB_MUTED.light },
+        dark: { ...surfaces.dark, txMuted: WEB_MUTED.dark },
+      }
+    : surfaces
 
 // Brand tokens (same in both themes). `cyanEdge` is the darker cyan used for accents
 // on light surfaces (matches the web login's link color).

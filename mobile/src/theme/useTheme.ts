@@ -1,4 +1,6 @@
 import { useThemeStore } from '../lib/lyftr'
+import { Platform } from 'react-native'
+import { palette } from '@lyftr/shared'
 import { palettes, brand } from './theme'
 
 // One hook for all theming: current mode, the resolved color palette (for inline styles
@@ -14,7 +16,8 @@ export function useTheme() {
     isDark,
     colors: palettes[mode],
     brand,
-    accent: isDark ? brand.cyanLight : brand.cyanEdge,
+    // cyanEdge is 3.5:1 on the light surfaces; web holds accent text to AA with brand-700.
+    accent: isDark ? brand.cyanLight : Platform.OS === 'web' ? palette.brand[700] : brand.cyanEdge,
     toggle,
     setMode,
   }
