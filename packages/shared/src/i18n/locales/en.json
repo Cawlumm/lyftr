@@ -217,6 +217,9 @@
     "remove": "Remove filter: {{label}}"
   },
   "common": {
+    "chart": {
+      "keyHint": "Use the arrow keys to read each value"
+    },
     "duration": {
       "seconds": "{{value}}s",
       "minutes": "{{value}}m"
@@ -707,6 +710,7 @@
       "editProgram": "Edit Program",
       "deleteProgram": "Delete Program",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "startNamed": "Start {{name}}"
     },
     "detail": {
@@ -1006,6 +1010,7 @@
       "editWorkout": "Edit Workout",
       "deleteWorkout": "Delete Workout",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "totalVolume": "{{amount}} {{unit}} total volume"
     },
     "detail": {
@@ -1368,7 +1373,9 @@
       "sessions": "sessions",
       "cals": "Cals",
       "caloriesFailed": "Couldn't load today's calories",
-      "proteinFailed": "Couldn't load today's protein"
+      "proteinFailed": "Couldn't load today's protein",
+      "calories": "Calories",
+      "protein": "Protein"
     },
     "thisWeek": {
       "title": "This Week",

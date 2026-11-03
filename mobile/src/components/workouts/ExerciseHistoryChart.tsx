@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Svg, { Path, Circle, Line, Text as SvgText, Defs, LinearGradient, Stop } from 'react-native-svg'
-import { useTranslation } from '@lyftr/shared'
-import { AppText } from '../ui'
+import { formatNumber, useTranslation } from '@lyftr/shared'
+import { AppText, ChartTooltip } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 
 // Weight-progression chart for ExerciseDetail. Ported from web's recharts LineChart
@@ -194,8 +194,12 @@ export function ExerciseHistoryChart({
           ) : null
         )}
       </Svg>
-      {/* Tap-to-read bubble: mirrors web tooltip content "{weight} {unit} · Max weight". */}
-      {sel && selected != null ? (
+      <ChartTooltip label={t('exercises.detail.weightProgression')} width={width} height={height}
+        selected={selected} onSelect={setSelected} points={pts}
+        describe={(i) => [`${formatNumber(data[i].weight)} ${unit}${note ? ` · ${note}` : ''}`, data[i].sub ?? data[i].date]} />
+      {/* Tap-to-read bubble: mirrors web tooltip content "{weight} {unit} · Max weight". Web
+          reads it through ChartTooltip instead. */}
+      {sel && selected != null && Platform.OS !== 'web' ? (
         <View
           pointerEvents="none"
           className="absolute rounded-lg border border-surface-border bg-surface-raised px-2 py-1"

@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import { Pressable, View } from 'react-native'
+import { Platform, Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
-import { BookOpen, ChevronRight, Dumbbell, Layers, Moon, MoreVertical, Play, Sun } from '../ui/icons'
+import { BookOpen, ChevronRight, Dumbbell, Edit2, Layers, Moon, MoreVertical, Play, Sun, Trash2 } from '../ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
   sessionNameForDay, todaysDay, formatDate, useTranslation
 } from '@lyftr/shared'
-import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { ActionSheet, AppText, Card, CardActions, ConfirmSheet, IconButton, LinkCard, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { client, useWorkoutSession } from '../../lib/lyftr'
 import { ExerciseImage } from '../workouts/ExerciseImage'
@@ -73,60 +73,111 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
     onDeleted(program.id)
   }, t('programs.deleteFailed'))
 
+  const body = (
+    <>
+      <ExerciseImage url={thumbnailUrl} fallbackIcon={BookOpen} />
+      <View className="flex-1">
+        <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
+        <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
+          {formatDate(new Date(program.created_at), 'monthDayYear')}
+        </AppText>
+        {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
+            Dumbbell = exercises, Layers = sets. */}
+        <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
+          <View className="flex-row items-center gap-1">
+            <Dumbbell size={12} color={colors.txMuted} />
+            <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.exercises', { count: exCount })}</AppText>
+          </View>
+          <AppText variant="caption" color="muted">·</AppText>
+          <View className="flex-row items-center gap-1">
+            <Layers size={12} color={colors.txMuted} />
+            <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.sets', { count: totalSets })}</AppText>
+          </View>
+          {dayCount > 1 && today ? (
+            <>
+              <AppText variant="caption" color="muted">·</AppText>
+              {today.is_rest_day ? (
+                <View className="flex-row items-center gap-1">
+                  <Moon size={12} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.card.restToday')}</AppText>
+                </View>
+              ) : (
+                <View className="flex-row items-center gap-1">
+                  {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
+                      earlier on this same row; reusing it here would mean two different
+                      things next to each other. Sun/Moon reads as a natural due/rest pair. */}
+                  <Sun size={12} color={accent} />
+                  <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
+                    {t('programs.card.today', { day: dayLabel(today, today.order_index) })}
+                  </AppText>
+                </View>
+              )}
+            </>
+          ) : null}
+        </View>
+      </View>
+    </>
+  )
+  // Start is the card's primary action → a filled Play button on the row
+  // (Hevy/Strong pattern: 1-tap start from the list), kept out of the ⋮ menu.
+  const startButton = (
+    <IconButton
+      icon={Play}
+      label={t('programs.card.startNamed', { name: program.name })}
+      variant="solid"
+      size="sm"
+      onPress={handleStart}
+      disabled={remove.busy}
+    />
+  )
+  const confirmSheet = (
+    <ConfirmSheet
+      {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
+      open={confirming}
+      busy={remove.busy}
+      error={remove.error}
+      onConfirm={() => { void remove.run() }}
+      onCancel={() => { setConfirming(false); remove.reset() }}
+    />
+  )
+  const dayPicker = (
+    <DayPickerSheet program={dayPickFor} onSelect={(_p, day) => beginSession(day)} onClose={() => setDayPickFor(null)} />
+  )
+
+  if (Platform.OS === 'web') {
+    return (
+      <View>
+        <LinkCard
+          href={`/programs/${program.id}`}
+          onPress={onPress}
+          label={program.name}
+          actions={
+            <>
+              {startButton}
+              <CardActions
+                label={t('programs.card.optionsNamed', { name: program.name })}
+                disabled={remove.busy}
+                items={[
+                  { label: t('common.edit'), namedLabel: t('programs.card.editNamed', { name: program.name }), icon: Edit2, onSelect: () => router.push(`/programs/${program.id}/edit`) },
+                  { label: t('common.delete'), namedLabel: t('programs.card.deleteNamed', { name: program.name }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
+                ]}
+              />
+            </>
+          }
+        >
+          {body}
+        </LinkCard>
+        {confirmSheet}
+        {dayPicker}
+      </View>
+    )
+  }
+
   return (
     <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
       <Card className="flex-row items-center gap-3 rounded-2xl">
-        <ExerciseImage url={thumbnailUrl} fallbackIcon={BookOpen} />
-        <View className="flex-1">
-          <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
-          <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
-            {formatDate(new Date(program.created_at), 'monthDayYear')}
-          </AppText>
-          {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
-              Dumbbell = exercises, Layers = sets. */}
-          <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
-            <View className="flex-row items-center gap-1">
-              <Dumbbell size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.exercises', { count: exCount })}</AppText>
-            </View>
-            <AppText variant="caption" color="muted">·</AppText>
-            <View className="flex-row items-center gap-1">
-              <Layers size={12} color={colors.txMuted} />
-              <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.sets', { count: totalSets })}</AppText>
-            </View>
-            {dayCount > 1 && today ? (
-              <>
-                <AppText variant="caption" color="muted">·</AppText>
-                {today.is_rest_day ? (
-                  <View className="flex-row items-center gap-1">
-                    <Moon size={12} color={colors.txMuted} />
-                    <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.card.restToday')}</AppText>
-                  </View>
-                ) : (
-                  <View className="flex-row items-center gap-1">
-                    {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
-                        earlier on this same row; reusing it here would mean two different
-                        things next to each other. Sun/Moon reads as a natural due/rest pair. */}
-                    <Sun size={12} color={accent} />
-                    <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
-                      {t('programs.card.today', { day: dayLabel(today, today.order_index) })}
-                    </AppText>
-                  </View>
-                )}
-              </>
-            ) : null}
-          </View>
-        </View>
-        {/* Start is the card's primary action → a filled Play button on the row
-            (Hevy/Strong pattern: 1-tap start from the list), kept out of the ⋮ menu. */}
-        <IconButton
-          icon={Play}
-          label={t('programs.card.startNamed', { name: program.name })}
-          variant="solid"
-          size="sm"
-          onPress={handleStart}
-          disabled={remove.busy}
-        />
+        {body}
+        {startButton}
         <IconButton
           icon={MoreVertical}
           label={t('programs.card.optionsNamed', { name: program.name })}
@@ -162,16 +213,9 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         ]}
       />
 
-      <ConfirmSheet
-        {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
-        open={confirming}
-        busy={remove.busy}
-        error={remove.error}
-        onConfirm={() => { void remove.run() }}
-        onCancel={() => { setConfirming(false); remove.reset() }}
-      />
+      {confirmSheet}
 
-      <DayPickerSheet program={dayPickFor} onSelect={(_p, day) => beginSession(day)} onClose={() => setDayPickFor(null)} />
+      {dayPicker}
     </Pressable>
   )
 }

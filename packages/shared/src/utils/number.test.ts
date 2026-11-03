@@ -1,4 +1,5 @@
-import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue, sanitizeNumericInput } from './number'
+import { i18n } from '../i18n'
+import { BODYWEIGHT_STEP, PLATE_STEP, REP_STEP, clampStep, clampValue, formatNumber, sanitizeNumericInput } from './number'
 
 // The stepping math behind every +/- button in the app. It used to be covered only
 // through WeightInput's buttons; those moved to StepperTile (#91), so it's tested
@@ -151,5 +152,29 @@ describe('sanitizeNumericInput', () => {
   it('leaves an empty field empty', () => {
     expect(dec('')).toBe('')
     expect(dec(',')).toBe('.')
+  })
+})
+
+// Display is the reverse trip: canonical in, the app language's notation out. Each case names
+// its language, since en is the one where a separator bug never shows.
+describe('formatNumber', () => {
+  afterEach(async () => { await i18n.changeLanguage('en') })
+
+  it('draws en with a point and grouping', async () => {
+    await i18n.changeLanguage('en')
+    expect(formatNumber(180.5)).toBe('180.5')
+    expect(formatNumber(12160, { grouped: true })).toBe('12,160')
+  })
+
+  it('draws es with a comma decimal and a point for grouping', async () => {
+    await i18n.changeLanguage('es')
+    expect(formatNumber(180.5)).toBe('180,5')
+    expect(formatNumber(12160, { grouped: true })).toBe('12.160')
+  })
+
+  it('rounds to the decimals asked for', async () => {
+    await i18n.changeLanguage('en')
+    expect(formatNumber(80.26)).toBe('80.3')
+    expect(formatNumber(80.26, { decimals: 0 })).toBe('80')
   })
 })

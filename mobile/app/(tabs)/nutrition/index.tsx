@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native'
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, useWindowDimensions, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import { format, subDays, addDays } from 'date-fns'
@@ -80,6 +80,15 @@ export default function Nutrition() {
 
   // Diary (per-day summary + log) vs Trends (multi-day macro chart).
   const [view, setView] = useState<NutritionView>('diary')
+  const chartBoxRef = useRef<HTMLElement | null>(null)
+  // react-native-web's onLayout never reported this box, so on web it is observed directly.
+  useEffect(() => {
+    const box = chartBoxRef.current
+    if (Platform.OS !== 'web' || !box) return
+    const ro = new ResizeObserver(([e]) => setChartWidth(Math.floor(e.contentRect.width)))
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [view])
 
   // Bottom food list: search query + how many rows are revealed (grows on scroll).
   const [foodQuery, setFoodQuery] = useState('')
@@ -263,10 +272,12 @@ export default function Nutrition() {
     histDays ? String(Math.round(historyPoints.reduce((s, d) => s + (d[key] || 0), 0) / histDays)) : '—'
   const isDiary = view === 'diary'
   const viewOptions = VIEW_VALUES.map((v) => ({ value: v, label: t(`food.view.${v}`) }))
-  // Chart width: prefer the measured value, but seed a computed fallback (window − Screen
-  // px-5 − Card p-4 = 72) so the chart renders immediately on first switch to Trends
-  // instead of waiting for an onLayout that doesn't reliably fire on the view-swap.
-  const chartW = chartWidth || Math.max(0, windowWidth - 72)
+  // Chart width: prefer the measured value. On native, seed a computed fallback (window − Screen
+  // px-5 − Card p-4 = 72) so the chart renders immediately on first switch to Trends instead of
+  // waiting for an onLayout that doesn't reliably fire on the view-swap. On web the content
+  // column is narrower than the window, so the fallback would overflow the card: wait for the
+  // measurement.
+  const chartW = chartWidth || (Platform.OS === 'web' ? 0 : Math.max(0, windowWidth - 72))
 
   const isToday = selectedDate === todayStr()
   const selectedDateObj = dayToLocalDate(selectedDate)
@@ -462,7 +473,7 @@ export default function Nutrition() {
                   right={<View style={{ width: 150 }}><SegmentedControl size="sm" options={HISTORY_OPTIONS} value={historyPeriod} onChange={setHistoryPeriod} /></View>}
                   className="mb-4"
                 />
-                <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+                <View ref={(el) => { chartBoxRef.current = el as unknown as HTMLElement | null }} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
                   {historyLoading ? (
                     <View className="h-48 items-center justify-center">
                       <AppText variant="caption" color="muted">{t('food.history.loading')}</AppText>
@@ -474,7 +485,7 @@ export default function Nutrition() {
                       <CalendarDays size={32} color={colors.txMuted} style={{ opacity: 0.4 }} />
                       <AppText variant="caption" color="muted">{t('food.history.empty')}</AppText>
                     </View>
-                  ) : (
+                  ) : chartW === 0 ? null : (
                     <MacroHistoryChart data={historyPoints} width={chartW} height={220} />
                   )}
                 </View>

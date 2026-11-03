@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Image, Pressable, ScrollView, Text, View } from 'react-native'
+import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -21,10 +21,11 @@ import {
   type ExerciseHistoryPoint,
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Screen, scrollBleed, SegmentedControl } from '../ui'
+import { AppText, Button, ErrorState, Screen, interactive, scrollBleed, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
+import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useTheme } from '../../theme/useTheme'
 import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 
@@ -91,6 +92,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const settings = useSettingsStore((s) => s.settings)
   const { colors, brand, accent } = useTheme()
   const wUnit = weightShort(settings.weight_unit)
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
 
   // Deep links can land here with no history — fall back to the originating tab's root.
   const goBack = () => (router.canGoBack() ? router.back() : router.replace(backFallback))
@@ -168,6 +171,149 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   const hasImage = !!exercise.image_url && !imgFailed
 
+  const backButton = (
+    <Pressable
+      onPress={goBack}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={t('common.back')}
+      className={`-ml-2 h-9 w-9 items-center justify-center rounded-lg active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}
+    >
+      <ArrowLeft size={20} color={colors.txMuted} />
+    </Pressable>
+  )
+  // Title + identity badges (muscle group + equipment + category, grouped).
+  const titleBlock = (
+    <View>
+      <AppText variant="title">{exercise.name}</AppText>
+      <View className="mt-2 flex-row flex-wrap items-center gap-2">
+        <MuscleBadge muscle={exercise.muscle_group} bordered />
+        {equipLabel && exercise.equipment !== 'other' ? (
+          <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
+            <AppText variant="caption" color="secondary">{equipLabel}</AppText>
+          </View>
+        ) : null}
+        {exercise.category ? (
+          <View className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1">
+            <AppText variant="caption" className="capitalize" style={{ color: accent }}>{categoryLabel(exercise.category)}</AppText>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  )
+  const musclesCard = (
+    <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
+      <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.musclesWorked')}</AppText>
+      <MuscleDiagram exercise={exercise} />
+    </View>
+  )
+  const secondaryBlock = exercise.secondary_muscles?.length > 0 ? (
+    <View>
+      <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
+      <View className="flex-row flex-wrap gap-1.5">
+        {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} />)}
+      </View>
+    </View>
+  ) : null
+  // Personal record — gold "achievement" treatment: tinted card + trophy chip, a hero weight,
+  // and a divided Est. 1RM footer.
+  const prCard = pr && pr.weight > 0 ? (
+    <View className="rounded-2xl border border-warning-500/25 bg-warning-500/[0.06] p-4">
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center gap-2">
+          <View className="h-7 w-7 items-center justify-center rounded-full bg-warning-500/15">
+            <Trophy size={15} color={brand.warningSoft} />
+          </View>
+          <AppText variant="label" color="muted" className="uppercase">{t('exercises.detail.personalBest')}</AppText>
+        </View>
+        <AppText variant="caption" color="muted">{formatDate(new Date(pr.date), 'monthDayYear')}</AppText>
+      </View>
+
+      <View className="mt-3 flex-row items-end gap-2">
+        <Text className="font-display text-3xl text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
+          {displayWeight(pr.weight, wUnit)}
+        </Text>
+        <AppText variant="body" color="muted" className="mb-1">{t('exercises.detail.bestSet', { unit: wUnit, count: pr.reps })}</AppText>
+      </View>
+
+      <View className="mt-3 flex-row items-center justify-between border-t border-warning-500/15 pt-3">
+        <AppText variant="caption" color="muted">{t('exercises.detail.estimated1rm')}</AppText>
+        <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>
+          {displayWeight(pr.estimated_1rm, wUnit)} {wUnit}
+        </AppText>
+      </View>
+    </View>
+  ) : null
+  const historyCard = history.length >= 2 ? (
+    <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
+      {/* Label + period selector STACKED: the 4-option control + label don't fit
+          on one row at real device widths (overflowed/clipped the card). */}
+      <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.weightProgression')}</AppText>
+      <SegmentedControl size="sm" className="mb-3" options={periodOptions} value={historyPeriod} onChange={setHistoryPeriod} />
+      <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+        {chartData.length < 2 ? (
+          <View className="h-[110px] items-center justify-center">
+            <AppText variant="body" color="muted">{t('exercises.detail.noPeriodData')}</AppText>
+          </View>
+        ) : (
+          <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} />
+        )}
+      </View>
+    </View>
+  ) : null
+  const instructionsCard = descLines.length > 0 ? (
+    <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
+      <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
+      <View className="gap-2.5">
+        {descLines.map((line, i) => {
+          const m = line.match(/^(\d+\.)\s*(.*)/)
+          return (
+            <AppText key={i} variant="body" color="secondary">
+              {m ? <AppText variant="bodySemibold" color="primary">{m[1]} </AppText> : null}
+              {m ? m[2] : line}
+            </AppText>
+          )
+        })}
+      </View>
+    </View>
+  ) : null
+
+  // Wide web: the reference (photo, muscles) on the left and the lifter's own numbers and the
+  // how-to on the right, under one title row, instead of a phone column stretched to the window.
+  if (wide) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
+          <View className="mx-auto w-full max-w-6xl gap-6 px-5 py-6">
+            <View className="flex-row items-start gap-3">
+              <View className="pt-1">{backButton}</View>
+              <View className="flex-1">{titleBlock}</View>
+            </View>
+            <View className="flex-row items-start gap-6">
+              <View className="gap-5" style={{ flexGrow: 5, flexShrink: 1, flexBasis: 0 }}>
+                {hasImage ? (
+                  <Image
+                    source={{ uri: exercise.image_url }}
+                    onError={() => setImgFailed(true)}
+                    resizeMode="cover"
+                    className="h-72 w-full rounded-2xl bg-surface-muted"
+                  />
+                ) : null}
+                {musclesCard}
+                {secondaryBlock}
+              </View>
+              <View className="gap-5" style={{ flexGrow: 7, flexShrink: 1, flexBasis: 0 }}>
+                {prCard}
+                {historyCard}
+                {instructionsCard}
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    )
+  }
+
   return (
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -201,118 +347,19 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
         <View className="gap-5 px-5 py-4">
           {/* Back row only when there's no hero image to host the button. */}
-          {!hasImage ? (
-            <Pressable
-              onPress={goBack}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.back')}
-              className="-ml-2 h-9 w-9 items-center justify-center rounded-lg active:bg-surface-muted"
-            >
-              <ArrowLeft size={20} color={colors.txMuted} />
-            </Pressable>
-          ) : null}
+          {!hasImage ? backButton : null}
 
-          {/* Title + identity badges (muscle group + equipment + category, grouped). */}
-          <View>
-            <AppText variant="title">{exercise.name}</AppText>
-            <View className="mt-2 flex-row flex-wrap items-center gap-2">
-              <MuscleBadge muscle={exercise.muscle_group} bordered />
-              {equipLabel && exercise.equipment !== 'other' ? (
-                <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
-                  <AppText variant="caption" color="secondary">{equipLabel}</AppText>
-                </View>
-              ) : null}
-              {exercise.category ? (
-                <View className="rounded-full border border-brand-500/20 bg-brand-500/10 px-3 py-1">
-                  <AppText variant="caption" className="capitalize" style={{ color: accent }}>{categoryLabel(exercise.category)}</AppText>
-                </View>
-              ) : null}
-            </View>
-          </View>
+          {titleBlock}
 
-          {/* Muscles worked */}
-          <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-            <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.musclesWorked')}</AppText>
-            <MuscleDiagram exercise={exercise} />
-          </View>
+          {musclesCard}
 
-          {/* Secondary muscles */}
-          {exercise.secondary_muscles?.length > 0 ? (
-            <View>
-              <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
-              <View className="flex-row flex-wrap gap-1.5">
-                {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} />)}
-              </View>
-            </View>
-          ) : null}
+          {secondaryBlock}
 
-          {/* Personal record — gold "achievement" treatment: tinted card + trophy chip,
-              a hero weight, and a divided Est. 1RM footer. */}
-          {pr && pr.weight > 0 ? (
-            <View className="rounded-2xl border border-warning-500/25 bg-warning-500/[0.06] p-4">
-              <View className="flex-row items-center justify-between">
-                <View className="flex-row items-center gap-2">
-                  <View className="h-7 w-7 items-center justify-center rounded-full bg-warning-500/15">
-                    <Trophy size={15} color={brand.warningSoft} />
-                  </View>
-                  <AppText variant="label" color="muted" className="uppercase">{t('exercises.detail.personalBest')}</AppText>
-                </View>
-                <AppText variant="caption" color="muted">{formatDate(new Date(pr.date), 'monthDayYear')}</AppText>
-              </View>
+          {prCard}
 
-              <View className="mt-3 flex-row items-end gap-2">
-                <Text className="font-display text-3xl text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
-                  {displayWeight(pr.weight, wUnit)}
-                </Text>
-                <AppText variant="body" color="muted" className="mb-1">{t('exercises.detail.bestSet', { unit: wUnit, count: pr.reps })}</AppText>
-              </View>
+          {historyCard}
 
-              <View className="mt-3 flex-row items-center justify-between border-t border-warning-500/15 pt-3">
-                <AppText variant="caption" color="muted">{t('exercises.detail.estimated1rm')}</AppText>
-                <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>
-                  {displayWeight(pr.estimated_1rm, wUnit)} {wUnit}
-                </AppText>
-              </View>
-            </View>
-          ) : null}
-
-          {/* History chart */}
-          {history.length >= 2 ? (
-            <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-              {/* Label + period selector STACKED: the 4-option control + label don't fit
-                  on one row at real device widths (overflowed/clipped the card). */}
-              <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.weightProgression')}</AppText>
-              <SegmentedControl size="sm" className="mb-3" options={periodOptions} value={historyPeriod} onChange={setHistoryPeriod} />
-              <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
-                {chartData.length < 2 ? (
-                  <View className="h-[110px] items-center justify-center">
-                    <AppText variant="body" color="muted">{t('exercises.detail.noPeriodData')}</AppText>
-                  </View>
-                ) : (
-                  <ExerciseHistoryChart data={chartData} width={chartWidth} unit={wUnit} />
-                )}
-              </View>
-            </View>
-          ) : null}
-
-          {/* Instructions */}
-          {descLines.length > 0 ? (
-            <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-              <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
-              <View className="gap-2.5">
-                {descLines.map((line, i) => {
-                  const m = line.match(/^(\d+\.)\s*(.*)/)
-                  return (
-                    <AppText key={i} variant="body" color="secondary">
-                      {m ? <AppText variant="bodySemibold" color="primary">{m[1]} </AppText> : null}
-                      {m ? m[2] : line}
-                    </AppText>
-                  )
-                })}
-              </View>
-            </View>
-          ) : null}
+          {instructionsCard}
         </View>
       </ScrollView>
     </SafeAreaView>

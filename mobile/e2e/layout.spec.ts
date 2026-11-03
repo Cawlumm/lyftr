@@ -34,9 +34,10 @@ const contentLeft = async (page: Page) => {
   return side.x + side.width
 }
 
+// Settings keeps the default column; the dashboard opts into 'wide' (dashboard.spec.ts).
 test('at 1280 the main column is centred in the content area at its max width', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 })
-  await page.goto('/')
+  await page.goto('/settings')
   const main = page.getByRole('main')
   await expect(main).toBeVisible()
   const box = await main.boundingBox()

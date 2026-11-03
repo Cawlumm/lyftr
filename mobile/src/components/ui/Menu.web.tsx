@@ -5,8 +5,8 @@ import { useTheme } from '../../theme/useTheme'
 import { AnchoredOverlay } from './AnchoredOverlay.web'
 import { Icon } from './Icon'
 import { interactive } from './interaction'
-import { MENU_TRIGGER_BOX, type MenuProps } from './Menu'
-import { swallowEscapeKeyup, typeaheadIndex } from './overlay'
+import type { MenuProps } from './Menu'
+import { MENU_TRIGGER_BOX, swallowEscapeKeyup, typeaheadIndex } from './overlay'
 import { AppText } from './Typography'
 
 // The APG menu button (https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/) over a vertical

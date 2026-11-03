@@ -1,3 +1,5 @@
+import { i18n } from '../i18n'
+
 // Increments for the +/- stepper buttons, in *display* units — the caller has
 // already converted lbs↔kg, so 2.5 means "2.5 of whatever the user is reading".
 // They only drive the buttons: every field still accepts any typed value at 0.1
@@ -158,4 +160,20 @@ export function sanitizeNumericInput(raw: string, mode: 'numeric' | 'decimal'): 
     }
   }
   return out
+}
+
+// A number for a person to read, in the app language's notation: 12.5 in English, 12,5 in
+// Spanish. The display half of the rule above. Anything a machine reads (SVG path data, keys,
+// query params) stays canonical and never comes through here. It follows the app language, as
+// formatDate does, so one line of copy never mixes two notations.
+const formatters = new Map<string, Intl.NumberFormat>()
+export function formatNumber(n: number, opts: { decimals?: number; grouped?: boolean } = {}): string {
+  const { decimals = 1, grouped = false } = opts
+  const key = `${i18n.language}|${decimals}|${grouped}`
+  let f = formatters.get(key)
+  if (!f) {
+    f = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: decimals, useGrouping: grouped })
+    formatters.set(key, f)
+  }
+  return f.format(n)
 }

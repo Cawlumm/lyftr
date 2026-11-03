@@ -4,7 +4,7 @@ import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from '../../../src/components/ui/icons'
 import type { Program } from '@lyftr/shared'
 import { programExerciseCount, useTranslation } from '@lyftr/shared'
-import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, scrollBleed, SearchField, StatFailure } from '../../../src/components/ui'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, scrollBleed, SearchField, StatFailure, useCardGrid } from '../../../src/components/ui'
 import { ProgramCard } from '../../../src/components/programs/ProgramCard'
 import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
@@ -14,6 +14,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 export default function Programs() {
   const { t } = useTranslation()
   const { accent } = useTheme()
+  const grid = useCardGrid({ lg: 2 })
 
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -114,8 +115,11 @@ export default function Programs() {
   ]
 
   return (
-    <Screen>
+    <Screen maxWidth={grid.wide ? 'wide' : undefined}>
       <FlatList
+        key={grid.key}
+        numColumns={grid.numColumns}
+        columnWrapperStyle={grid.columnWrapperStyle}
         data={queryAnswered ? programs : []}
         keyExtractor={(p) => String(p.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
@@ -161,16 +165,18 @@ export default function Programs() {
               ))}
             </View>
 
-            <SearchField
-              value={search}
-              onChangeText={setSearch}
-              loading={refreshing}
-              placeholder={t('programs.list.searchPlaceholder')}
-            />
+            <View className={grid.wide ? 'max-w-md' : ''}>
+              <SearchField
+                value={search}
+                onChangeText={setSearch}
+                loading={refreshing}
+                placeholder={t('programs.list.searchPlaceholder')}
+              />
+            </View>
           </View>
         }
         renderItem={({ item }) => (
-          <View style={{ opacity: dim ? 0.5 : 1 }}>
+          <View style={[{ opacity: dim ? 0.5 : 1 }, grid.cellStyle]}>
             <ProgramCard
               program={item}
               onPress={() => router.push(`/programs/${item.id}`)}

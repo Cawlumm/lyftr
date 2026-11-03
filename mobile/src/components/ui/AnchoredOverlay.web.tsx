@@ -10,7 +10,7 @@ interface Props extends HTMLAttributes<HTMLDivElement> {
   gap?: number
 }
 
-// The floating half of Tooltip and Menu: portalled so no overflow:hidden card clips it,
+// The floating half of ChartTooltip and Menu: portalled so no overflow:hidden card clips it,
 // position:fixed against the anchor, flipped and slid to stay on screen.
 export const AnchoredOverlay = forwardRef<HTMLDivElement, Props>(function AnchoredOverlay(
   { anchor, open, side, align, gap, style, children, ...rest },

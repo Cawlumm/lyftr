@@ -3,8 +3,12 @@ import { exerciseFilterGroups, parseFilters } from '@lyftr/shared'
 import type { Exercise } from '@lyftr/shared'
 
 const mockPush = jest.fn()
+const mockSetParams = jest.fn()
 jest.mock('expo-router', () => ({
-  router: { push: (...a: unknown[]) => mockPush(...a), navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true },
+  router: {
+    push: (...a: unknown[]) => mockPush(...a), setParams: (...a: unknown[]) => mockSetParams(...a),
+    navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true,
+  },
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -25,7 +29,7 @@ const bench: Exercise = {
 
 const renderBrowser = async () => await render(<ExerciseBrowser />)
 
-afterEach(() => { jest.restoreAllMocks(); mockPush.mockReset() })
+afterEach(() => { jest.restoreAllMocks(); mockPush.mockReset(); mockSetParams.mockReset() })
 
 describe('ExerciseBrowser (mobile)', () => {
   it('asks for an unfiltered first page and opens a row on the exercise page', async () => {
@@ -87,6 +91,18 @@ describe('ExerciseBrowser (mobile)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: chest' }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ equipment: 'barbell', page: 1 }))
     expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
+  })
+
+  // The URL write is web's: native has no address bar, and setParams there would re-render the
+  // route on every keystroke for nothing.
+  it('leaves the route params alone on native', async () => {
+    jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+    await renderBrowser()
+    await screen.findByText('Bench Press')
+    await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'curl')
+    await fireEvent.press(screen.getByRole('button', { name: 'Filters' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    expect(mockSetParams).not.toHaveBeenCalled()
   })
 
   // An empty filter result must not read as an empty library: that answer offers "Try again"

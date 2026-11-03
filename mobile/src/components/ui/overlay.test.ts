@@ -1,4 +1,4 @@
-import { EDGE, placeOverlay, typeaheadIndex } from './overlay'
+import { EDGE, placeOverlay, swallowEscapeKeyup, typeaheadIndex } from './overlay'
 
 const viewport = { width: 1000, height: 800 }
 const box = { width: 200, height: 100 }
@@ -41,5 +41,47 @@ describe('typeaheadIndex', () => {
 
   it('stays put when nothing matches', () => {
     expect(typeaheadIndex(labels, 0, 'x')).toBe(-1)
+  })
+})
+
+// The e2e for this ran in a dev-only dialog until C22 removed it; no real screen puts a menu or
+// tooltip inside a sheet yet. jest-expo has no DOM, so window's listeners are a plain registry
+// (Node's EventTarget does not match a capture listener on removal).
+describe('swallowEscapeKeyup', () => {
+  type Listener = (e: KeyboardEvent) => void
+  const listeners = new Set<{ type: string; fn: Listener }>()
+  const saved = { add: window.addEventListener, remove: window.removeEventListener }
+  const key = (type: string, k: string) => {
+    const stopPropagation = jest.fn()
+    for (const l of [...listeners]) if (l.type === type) l.fn({ key: k, stopPropagation } as unknown as KeyboardEvent)
+    return stopPropagation.mock.calls.length > 0
+  }
+
+  beforeEach(() => {
+    listeners.clear()
+    window.addEventListener = ((type: string, fn: Listener) => { listeners.add({ type, fn }) }) as typeof window.addEventListener
+    window.removeEventListener = ((type: string, fn: Listener) => {
+      for (const l of listeners) if (l.type === type && l.fn === fn) listeners.delete(l)
+    }) as typeof window.removeEventListener
+  })
+  afterEach(() => {
+    window.addEventListener = saved.add
+    window.removeEventListener = saved.remove
+  })
+
+  it('stops the one Escape keyup that follows the dismissing keydown', () => {
+    swallowEscapeKeyup()
+    expect(key('keyup', 'Escape')).toBe(true)
+    // The next Escape belongs to the dialog beneath.
+    expect(key('keyup', 'Escape')).toBe(false)
+    expect(listeners.size).toBe(0)
+  })
+
+  it('lets other keys through and disarms on another keydown', () => {
+    swallowEscapeKeyup()
+    expect(key('keyup', 'a')).toBe(false)
+    key('keydown', 'Tab')
+    expect(key('keyup', 'Escape')).toBe(false)
+    expect(listeners.size).toBe(0)
   })
 })
