@@ -49,16 +49,38 @@ server {
         return 302 /settings/password;
     }
 
+    # The Vite app's old URLs, 301'd to where each now lives with the query string kept.
+    # Generated from LEGACY_ROUTES (mobile/src/lib/legacyRoutes.ts); it holds regex
+    # locations, so it stays above the asset regex below, which nginx would otherwise try first.
+    include /etc/nginx/snippets/legacy-redirects.conf;
+
     # SPA fallback: the export is web.output "single" (one index.html, client-side
     # routing), so index.html answers every deep link; there are no per-route files.
     location / {
         try_files $uri $uri/ /index.html;
     }
 
-    # Cache static assets aggressively
+    # Every route ends here, via the fallback above or the index directive. It names the
+    # current bundle's hashed files, so it must be revalidated or a deploy goes unseen.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+    }
+
+    # Metro writes the bundle (_expo/static) and every bundled asset (assets/, fonts
+    # included) under a content-hashed name, so a changed file is a new URL. ^~ keeps the
+    # regex below from taking these, and a missing chunk is a 404, never index.html.
+    location ^~ /_expo/static/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+    location ^~ /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
+    }
+
+    # Unhashed files from public/ (icons, favicon) keep their names across deploys, so they
+    # are left to ETag revalidation. A missing one is a 404 rather than the SPA's HTML.
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 }

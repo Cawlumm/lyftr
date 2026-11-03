@@ -78,7 +78,6 @@ jobs:
               - 'packages/shared/**'
               - 'package.json'
               - 'package-lock.json'
-              - 'docker-compose.app-web.yml'
               - 'patches/**'
               - '.dockerignore'
               - '.github/workflows/ci.yml'
@@ -246,15 +245,14 @@ jobs:
       - name: Enforce bundle budget
         run: node mobile/scripts/bundle-budget.mjs
 
+  # The Vite app's suite. Disabled at the cut-over (C35): the frontend image is the Expo
+  # export now, so this would drive web/e2e against the wrong app. Kept, with web/e2e, so
+  # reverting the cut-over restores the gate along with the image; `e2e-app` gates instead.
+  # Jobs that need it treat a skipped dependency as passed (`!failure() && !cancelled()`).
   e2e:
     name: Playwright E2E
     needs: changes
-    # Integration test spans both images, so run it if either domain changed.
-    if: >-
-      needs.changes.outputs.backend == 'true' ||
-      needs.changes.outputs.web == 'true' ||
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/')
+    if: false
     # Not ubuntu-latest: that moved to 26.04, which has no ICU 74, and Playwright's WebKit
     # build links against it, so every `mobile` project test died at browser launch.
     # Unpin once the Playwright we run ships WebKit for 26.04.
@@ -317,9 +315,8 @@ jobs:
           path: web/playwright-report/
           retention-days: 7
 
-  # The Expo app's web export, served by mobile/Dockerfile.web and driven by the Playwright
-  # harness in mobile/e2e. It sits beside `e2e` (which still gates, against the Vite image)
-  # and only grows: specs are ported here chunk by chunk until the cutover.
+  # The e2e gate: the Expo app's web export, served by the `frontend` image
+  # (mobile/Dockerfile.web) and driven by the Playwright harness in mobile/e2e.
   e2e-app:
     name: Playwright E2E (Expo app)
     needs: changes
@@ -337,25 +334,25 @@ jobs:
       - name: Create .env
         run: |
           echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
-          echo "APP_PORT=8081" >> .env
+          # Published on 8081, the harness's default (mobile/e2e/config.ts).
+          echo "PORT=8081" >> .env
           echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
 
       - uses: docker/setup-buildx-action@v3
 
-      # Same bake cache scope for the backend as `e2e`, so whichever job runs first warms
-      # the other. Only the two services this job starts are built.
+      # Same cache scopes as build-backend/build-frontend, so whichever runs first warms
+      # the others.
       - name: Build images with layer cache
         run: |
           docker buildx bake \
-            -f docker-compose.yml -f docker-compose.app-web.yml \
             --set "backend.cache-from=type=gha,scope=lyftr-backend" \
             --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max" \
-            --set "app-web.cache-from=type=gha,scope=lyftr-app-web" \
-            --set "app-web.cache-to=type=gha,scope=lyftr-app-web,mode=max" \
-            --load backend app-web
+            --set "frontend.cache-from=type=gha,scope=lyftr-frontend" \
+            --set "frontend.cache-to=type=gha,scope=lyftr-frontend,mode=max" \
+            --load
 
       - name: Start stack
-        run: docker compose -f docker-compose.yml -f docker-compose.app-web.yml up -d --wait backend app-web
+        run: docker compose up -d --wait
 
       - uses: actions/setup-node@v4
         with:
@@ -384,7 +381,7 @@ jobs:
 
       - name: Show container logs
         if: failure()
-        run: docker compose -f docker-compose.yml -f docker-compose.app-web.yml logs --no-color --tail=200
+        run: docker compose logs --no-color --tail=200
 
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -533,7 +530,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./web/Dockerfile
+          # The Expo export since the cut-over (C35); web/Dockerfile is kept for rollback.
+          file: ./mobile/Dockerfile.web
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           # push=false on PRs/feature branches — builds only (validates Dockerfile)
           # push=true on main merge or version tag — publishes to Docker Hub
