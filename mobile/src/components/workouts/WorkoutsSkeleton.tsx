@@ -1,6 +1,6 @@
 import { router } from 'expo-router'
 import { useTranslation } from '@lyftr/shared'
-import { Plus } from 'lucide-react-native'
+import { Plus } from '../ui/icons'
 import { IconButton, ListScreenSkeleton } from '../ui'
 
 // Initial-load skeleton for the Workouts list — a thin wrapper over the shared

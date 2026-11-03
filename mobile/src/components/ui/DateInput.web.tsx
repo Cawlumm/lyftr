@@ -1,5 +1,5 @@
 import { View } from 'react-native'
-import { CalendarDays } from 'lucide-react-native'
+import { CalendarDays } from './icons'
 import { dateToDay, formatDay, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText, Label } from './Typography'

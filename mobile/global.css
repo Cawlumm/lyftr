@@ -19,6 +19,10 @@
     --tx-secondary: 71 85 105;
     --tx-muted:     148 163 184;
     --tx-inverse:   255 255 255;
+
+    /* Keyboard focus ring (web only). brand-700: 4.0:1 or better against every light
+       surface, above WCAG 1.4.11's 3:1. */
+    --focus-ring:   0 122 150;
   }
 
   .dark:root {
@@ -32,5 +36,8 @@
     --tx-secondary: 148 163 184;
     --tx-muted:     71 85 105;
     --tx-inverse:   15 23 42;
+
+    /* brand-400: 7.1:1 or better against every dark surface. */
+    --focus-ring:   14 206 247;
   }
 }

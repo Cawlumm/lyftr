@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
+import { interactive } from './interaction'
 
 interface Option<T extends string> {
   value: T
@@ -48,7 +49,7 @@ export function SegmentedControl<T extends string>({
             }}
             className={`flex-1 items-center justify-center ${s.item} ${
               active ? 'bg-surface-raised border border-surface-border' : ''
-            }`}
+            } ${interactive(active ? '' : 'hover:bg-surface-raised/60')}`}
           >
             <Text
               className={`font-sans-semibold ${s.text} ${active ? 'text-tx-primary' : 'text-tx-muted'}`}

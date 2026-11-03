@@ -3,7 +3,7 @@ import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import {
   ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, deleteConfirmProps } from '../../../src/components/ui'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'

@@ -98,8 +98,12 @@ Therefore:
 - Naming: PascalCase components, camelCase utils, hooks in `src/hooks/` with a `use`
   prefix. Hooks ported from web keep the web name and a "port of web/... keep in
   sync" header (`useNumericText`).
-- Icons: `lucide-react-native`, typed as `LucideIcon`, passed as the component
-  (`icon={Trash2}`), sized via `size` prop.
+- Icons: lucide, imported from `ui/icons` (one per-icon module each; the package barrel
+  ships every icon and lint rejects it), typed as `LucideIcon`, passed as the component
+  (`icon={Trash2}`). Render through `<Icon>`: `sm`/`md`/`lg` sizes, one stroke, hidden from
+  screen readers unless given a `label`.
+- Pressable primitives take their web hover, focus-visible ring and cursor from
+  `interactive()` in `ui/interaction.ts`; it returns nothing on native.
 
 ## 6. Native-feel checklist
 

@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics'
 import {
   Activity, ArrowDown, ArrowUp, Calendar, Minus, Scale, Sunrise,
   TrendingDown, TrendingUp, X,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { uiMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,

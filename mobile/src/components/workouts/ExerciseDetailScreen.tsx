@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { ArrowLeft, Dumbbell, Trophy } from 'lucide-react-native'
+import { ArrowLeft, Dumbbell, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,

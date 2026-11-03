@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Image, View } from 'react-native'
-import { Utensils } from 'lucide-react-native'
+import { Utensils } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 
 // Product photos, on the two terms OpenFoodFacts actually offers them. Web's copy of

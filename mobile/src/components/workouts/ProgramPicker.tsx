@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
-import { BookOpen, ChevronRight, Dumbbell, Moon, X } from 'lucide-react-native'
+import { BookOpen, ChevronRight, Dumbbell, Moon, X } from '../ui/icons'
 import type { Program, ProgramDay, UiMessage } from '@lyftr/shared'
 import { workoutDays, dayLabel, todaysDay, uiMessage, useTranslation } from '@lyftr/shared'
 import { AppText, EmptyState, ErrorState, Field, IconButton } from '../ui'

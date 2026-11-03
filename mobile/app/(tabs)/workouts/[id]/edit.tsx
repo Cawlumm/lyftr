@@ -3,8 +3,8 @@ import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } 
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
-} from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+} from '../../../../src/components/ui/icons'
+import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen } from '../../../../src/components/ui'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'

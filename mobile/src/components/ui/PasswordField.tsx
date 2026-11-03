@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
-import { Check, Eye, EyeOff, X } from 'lucide-react-native'
+import { Check, Eye, EyeOff, X } from './icons'
 import { useTranslation, type RuleState } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { Field } from './Field'

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from 'lucide-react-native'
+import { AlertCircle, ArrowLeft, Edit2, Flame, Trash2 } from '../../../src/components/ui/icons'
 import { entryToResult, formatLoggedAmount, isNotFound, uiMessage, useAsyncAction, useFavorites, entryDay, type FoodLog, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, Toast, deleteConfirmProps,

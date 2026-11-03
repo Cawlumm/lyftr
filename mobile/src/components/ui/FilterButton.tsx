@@ -1,5 +1,5 @@
 import { Pressable, View } from 'react-native'
-import { SlidersHorizontal } from 'lucide-react-native'
+import { SlidersHorizontal } from './icons'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'

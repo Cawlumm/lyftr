@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
 import { render, screen } from '@testing-library/react-native'
-import { ArrowLeft } from 'lucide-react-native'
+import { ArrowLeft } from './icons'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },

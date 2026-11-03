@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from 'lucide-react-native'
+import { ArrowLeft, BookOpen, ChevronRight, Play, Timer, Trash2, Zap } from '../../../src/components/ui/icons'
 import type { Program, ProgramDay } from '@lyftr/shared'
 import { activeSessionExercisesForDay, sessionNameForDay, defaultWorkoutName, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, ErrorState, IconButton, Screen } from '../../../src/components/ui'

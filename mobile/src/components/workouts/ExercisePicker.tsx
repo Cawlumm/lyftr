@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, Dumbbell, Search } from 'lucide-react-native'
+import { ArrowLeft, Dumbbell, Search } from '../ui/icons'
 import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
 import { client } from '../../lib/lyftr'

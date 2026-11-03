@@ -1,7 +1,9 @@
 import { ReactNode } from 'react'
 import { Pressable, View } from 'react-native'
-import { ChevronRight } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { ChevronRight } from './icons'
+import type { LucideIcon } from './icons'
+import { Icon as Glyph } from './Icon'
+import { interactive } from './interaction'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 
@@ -64,7 +66,7 @@ export function SettingsRow({
     <View className="flex-row items-center py-3" style={{ minHeight: 52 }}>
       {Icon ? (
         <View className={`mr-3 h-7 w-7 items-center justify-center rounded-lg ${chip}`}>
-          <Icon size={16} color={iconColor} strokeWidth={2.2} />
+          <Glyph icon={Icon} size="md" color={iconColor} />
         </View>
       ) : null}
       <View className="flex-1 pr-3">
@@ -82,14 +84,14 @@ export function SettingsRow({
           {value}
         </AppText>
       ) : null}
-      {chevron ? <ChevronRight size={18} color={colors.txMuted} style={{ marginLeft: 4 }} /> : null}
+      {chevron ? <Glyph icon={ChevronRight} size={18} color={colors.txMuted} strokeWidth={2} style={{ marginLeft: 4 }} /> : null}
     </View>
   )
 
   return (
     <View className={divider ? 'border-t border-surface-border' : ''}>
       {onPress ? (
-        <Pressable accessibilityRole="button" onPress={onPress} className="active:opacity-60">
+        <Pressable accessibilityRole="button" onPress={onPress} className={`active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}>
           {line}
         </Pressable>
       ) : (

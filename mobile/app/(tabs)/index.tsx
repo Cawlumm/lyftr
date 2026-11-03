@@ -8,7 +8,7 @@ import {
 } from 'date-fns'
 import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Play, Plus, Scale, Timer, TrendingUp,
-} from 'lucide-react-native'
+} from '../../src/components/ui/icons'
 import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Card, ErrorState, IconButton, Label, Screen, SectionHeader, SegmentedControl } from '../../src/components/ui'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'

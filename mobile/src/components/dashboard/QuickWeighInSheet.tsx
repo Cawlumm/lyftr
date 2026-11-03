@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { Scale, X } from 'lucide-react-native'
+import { Scale, X } from '../ui/icons'
 import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, useTranslation } from '@lyftr/shared'
 import {
   Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,

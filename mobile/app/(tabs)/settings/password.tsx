@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft, ShieldCheck } from 'lucide-react-native'
+import { ArrowLeft, ShieldCheck } from '../../../src/components/ui/icons'
 import { useAsyncAction, useTranslation, differentRuleLabel, lengthRuleLabel, matchRuleLabel, newPasswordRules } from '@lyftr/shared'
 import {
   Alert,

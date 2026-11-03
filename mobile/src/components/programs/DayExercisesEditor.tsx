@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
-import { Dumbbell, Plus } from 'lucide-react-native'
+import { Dumbbell, Plus } from '../ui/icons'
 import { useTranslation, type Exercise } from '@lyftr/shared'
 import { EmptyState } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'

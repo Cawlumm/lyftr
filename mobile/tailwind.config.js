@@ -10,6 +10,9 @@ module.exports = {
   darkMode: 'class',
   content: ['./app/**/*.{js,ts,jsx,tsx}', './src/**/*.{js,ts,jsx,tsx}'],
   presets: [require('nativewind/preset')],
+  // hover: only under (hover: hover) and (pointer: fine), so a tap in a phone browser does
+  // not leave a hover colour stuck on. Native never matches that media query.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       // The same file useBreakpoint reads, so sm:/lg: classes and the hook cannot drift.
@@ -42,6 +45,7 @@ module.exports = {
           muted: 'rgb(var(--tx-muted) / <alpha-value>)',
           inverse: 'rgb(var(--tx-inverse) / <alpha-value>)',
         },
+        focus: 'rgb(var(--focus-ring) / <alpha-value>)',
         // Brand — electric cyan (from web tailwind.config)
         brand: {
           50: '#e0f9ff',

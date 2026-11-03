@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, View } from 'react-native'
-import { ChevronRight, Star } from 'lucide-react-native'
+import { ChevronRight, Star } from '../ui/icons'
 import { useTranslation, type FoodSearchResult } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'

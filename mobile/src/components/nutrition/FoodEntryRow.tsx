@@ -2,7 +2,7 @@ import { formatLoggedAmount, useAsyncAction, useTranslation } from '@lyftr/share
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { ChevronRight, Flame, MoreVertical } from 'lucide-react-native'
+import { ChevronRight, Flame, MoreVertical } from '../ui/icons'
 import type { FoodLog } from '@lyftr/shared'
 import { ActionSheet, AppText, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'

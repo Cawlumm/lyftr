@@ -1,6 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { router, usePathname } from 'expo-router'
-import { ChevronRight, Timer } from 'lucide-react-native'
+import { ChevronRight, Timer } from '../ui/icons'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { fmtClock, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'

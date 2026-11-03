@@ -1,6 +1,7 @@
 import { ReactNode } from 'react'
 import { Pressable, View } from 'react-native'
 import { AppText } from './Typography'
+import { interactive } from './interaction'
 
 interface Props {
   /** Strings get the standard row typography; pass a node for custom content. */
@@ -40,7 +41,7 @@ export function ListRow({ primary, secondary, right, onPress, selected, classNam
   )
   const rowClass = `flex-row items-center justify-between py-3 border-b border-surface-border ${className}`
   return onPress ? (
-    <Pressable accessibilityRole="button" accessibilityState={selected === undefined ? undefined : { selected }} onPress={onPress} className={`${rowClass} active:bg-surface-muted`}>
+    <Pressable accessibilityRole="button" accessibilityState={selected === undefined ? undefined : { selected }} onPress={onPress} className={`${rowClass} active:bg-surface-muted ${interactive('hover:bg-surface-muted', { inset: true })}`}>
       {body}
     </Pressable>
   ) : (

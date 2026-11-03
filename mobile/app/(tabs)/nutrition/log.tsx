@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
 import {
   AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import {
   useAsyncAction, useTranslation, uiMessage, dayToInstant, entryDay, todayStr,
   type FoodSearchResult, type UiMessage,

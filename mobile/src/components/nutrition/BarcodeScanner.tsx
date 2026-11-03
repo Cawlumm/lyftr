@@ -4,7 +4,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Haptics from 'expo-haptics'
 import { useTranslation } from '@lyftr/shared'
-import { AlertCircle, X } from 'lucide-react-native'
+import { AlertCircle, X } from '../ui/icons'
 import { AppText, Button } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 

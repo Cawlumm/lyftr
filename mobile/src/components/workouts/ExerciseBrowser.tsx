@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, ChevronRight, Dumbbell, SearchX } from 'lucide-react-native'
+import { ArrowLeft, ChevronRight, Dumbbell, SearchX } from '../ui/icons'
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import {
   EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS,

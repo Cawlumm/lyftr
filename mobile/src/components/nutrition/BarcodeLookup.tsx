@@ -9,7 +9,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated'
-import { Barcode } from 'lucide-react-native'
+import { Barcode } from '../ui/icons'
 import { eanModules, formatBarcode, useTranslation } from '@lyftr/shared'
 import { AppText, Card } from '../ui'
 import { useTheme } from '../../theme/useTheme'

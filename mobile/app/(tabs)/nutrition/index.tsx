@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics'
 import { format, subDays, addDays } from 'date-fns'
 import {
   CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate, formatDate, relativeDayLabel, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import {
   AppText, Card, DateInput, ErrorState, IconButton, Label, PageHeader, Screen, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,

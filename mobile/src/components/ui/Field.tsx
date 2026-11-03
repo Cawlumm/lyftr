@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { TextInput, TextInputProps, View } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import type { LucideIcon } from './icons'
 import Reanimated, {
   useSharedValue,
   useAnimatedStyle,

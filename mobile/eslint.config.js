@@ -36,6 +36,16 @@ module.exports = [
     },
   },
   {
+    // The barrel puts every lucide icon in the bundle; src/components/ui/icons.ts says why.
+    files: ['app/**/*.{ts,tsx}', 'src/**/*.{ts,tsx}'],
+    ignores: ['src/components/ui/icons.ts'],
+    rules: {
+      'no-restricted-imports': ['error', {
+        paths: [{ name: 'lucide-react-native', message: 'Import icons from src/components/ui/icons (add new ones there).' }],
+      }],
+    },
+  },
+  {
     // Playwright fixtures hand their value to the test through a callback named `use`,
     // which the hooks rules mistake for React's `use`.
     files: ['e2e/**/*.ts'],

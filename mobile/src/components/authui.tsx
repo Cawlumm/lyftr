@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient'
 import { DURATION } from '../theme/motion'
 import { useMotion } from '../lib/useMotion'
 import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from 'react-native-reanimated'
-import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from 'lucide-react-native'
+import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from './ui/icons'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
 import {

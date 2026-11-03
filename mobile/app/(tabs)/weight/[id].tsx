@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import * as Haptics from 'expo-haptics'
-import { ArrowLeft, Edit2, Scale, Trash2 } from 'lucide-react-native'
+import { ArrowLeft, Edit2, Scale, Trash2 } from '../../../src/components/ui/icons'
 import { useAsyncAction, uiMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Image, View } from 'react-native'
-import { Dumbbell } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
+import { Dumbbell } from '../ui/icons'
+import type { LucideIcon } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 
 type Size = 'row' | 'hero'

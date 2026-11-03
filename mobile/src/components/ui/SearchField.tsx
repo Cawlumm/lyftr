@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, type TextInputProps } from 'react-native'
-import { Search, X } from 'lucide-react-native'
+import { Search, X } from './icons'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { Field } from './Field'

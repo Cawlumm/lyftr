@@ -19,7 +19,7 @@ import {
   Timer,
   Trash2,
   User,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { useAsyncAction,
   useTranslation,
   languageChoiceLabel,

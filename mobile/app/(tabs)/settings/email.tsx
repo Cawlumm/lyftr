@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
-import { ArrowLeft, MailCheck } from 'lucide-react-native'
+import { ArrowLeft, MailCheck } from '../../../src/components/ui/icons'
 import { useAsyncAction, useTranslation, emailChanged, onlyLetterCaseChanged } from '@lyftr/shared'
 import {
   Alert,

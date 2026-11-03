@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { router } from 'expo-router'
-import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from 'lucide-react-native'
+import { ChevronRight, Clock, Dumbbell, MoreVertical, TrendingUp } from '../ui/icons'
 import { useAsyncAction, displayVolume, type Workout, workoutDay, formatDay, useTranslation } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, ConfirmSheet, IconButton, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'

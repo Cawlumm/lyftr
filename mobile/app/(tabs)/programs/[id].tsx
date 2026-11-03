@@ -4,7 +4,7 @@ import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-ro
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
   Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
-} from 'lucide-react-native'
+} from '../../../src/components/ui/icons'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, displayWeight, sessionNameForDay,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage

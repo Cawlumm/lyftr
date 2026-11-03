@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ScrollView, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check } from '../ui/icons'
 import {
   useTranslation,
   SUPPORTED_LANGUAGES,

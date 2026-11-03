@@ -4,7 +4,7 @@ import Animated, {
   Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Check, Pause, Play, SkipForward } from 'lucide-react-native'
+import { Check, Pause, Play, SkipForward } from '../ui/icons'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'

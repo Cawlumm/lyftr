@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Pressable, View } from 'react-native'
-import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from 'lucide-react-native'
+import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from '../ui/icons'
 import { useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Field, IconButton, SegmentedControl } from '../ui'
 import { useTheme } from '../../theme/useTheme'
