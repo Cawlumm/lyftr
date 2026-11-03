@@ -22,6 +22,7 @@ export { default as ChevronDown } from 'lucide-react-native/dist/esm/icons/chevr
 export { default as ChevronLeft } from 'lucide-react-native/dist/esm/icons/chevron-left'
 export { default as ChevronRight } from 'lucide-react-native/dist/esm/icons/chevron-right'
 export { default as ChevronUp } from 'lucide-react-native/dist/esm/icons/chevron-up'
+export { default as ChevronsUpDown } from 'lucide-react-native/dist/esm/icons/chevrons-up-down'
 export { default as Clock } from 'lucide-react-native/dist/esm/icons/clock'
 export { default as Coffee } from 'lucide-react-native/dist/esm/icons/coffee'
 export { default as Cookie } from 'lucide-react-native/dist/esm/icons/cookie'

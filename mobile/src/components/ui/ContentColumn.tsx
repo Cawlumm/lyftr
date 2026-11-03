@@ -32,8 +32,13 @@ export function ContentColumn({ children, maxWidth = 'default', className = '', 
 // column leaves dead gutters either side of it. This widens the scroller to the whole row
 // (margin out, padding back in) while its content box stays exactly the column. 50% is the
 // column's own width and 50vw half the window, so the box grows by exactly the margin it takes
-// back as padding (nothing moves at phone widths). Native gets no style. calc() is not a DimensionValue, hence the cast.
+// back as padding (nothing moves at phone widths). --shell-inset is the web sidebar's width (set
+// by Sidebar while it is mounted), which the content area is narrower than the window by.
+// Native gets no style. calc() is not a DimensionValue, hence the cast.
 export const scrollBleed: StyleProp<ViewStyle> =
   Platform.OS === 'web'
-    ? ({ marginHorizontal: 'calc(50% - 50vw)', paddingHorizontal: 'calc(50vw - 50%)' } as unknown as ViewStyle)
+    ? ({
+        marginHorizontal: 'calc(50% - 50vw + var(--shell-inset, 0px) / 2)',
+        paddingHorizontal: 'calc(50vw - var(--shell-inset, 0px) / 2 - 50%)',
+      } as unknown as ViewStyle)
     : undefined

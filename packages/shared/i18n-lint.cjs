@@ -23,7 +23,7 @@ const NON_COPY_PROPS = [
   // enums and tokens the component switches on
   'variant', 'size', 'tone', 'icon', 'kind', 'mode', 'layout', 'edges', 'behavior',
   'haptic', 'descriptionTone', 'descriptionId', 'animationType', 'presentation',
-  'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole',
+  'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole', 'backBehavior',
   // keyboard, scrolling, camera and live-region behaviour
   'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior',
   'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',

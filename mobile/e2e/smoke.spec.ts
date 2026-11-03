@@ -3,9 +3,9 @@ import { test, expect } from './fixtures'
 // The harness's own proof of life: the image serves the export, /api reaches the backend
 // through the nginx proxy, registration lands on Home, and nothing logs an error doing it.
 //
-// The tab bar is wrapped in a <nav> on web (the default bar inside renders role="tablist").
-// Tagged @mobile so the iPhone 14 project runs it too.
-test('home loads after register with a tab bar and no console errors @mobile', async ({ page }) => {
+// The nav landmark is the sidebar on a desktop window and the bottom tab bar on a phone
+// (shell.spec.ts covers both). Tagged @mobile so the iPhone 14 project runs it too.
+test('home loads after register with the nav and no console errors @mobile', async ({ page }) => {
   const errors: string[] = []
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
   page.on('pageerror', e => errors.push(String(e)))
@@ -15,8 +15,7 @@ test('home loads after register with a tab bar and no console errors @mobile', a
 
   await expect(page.getByRole('navigation')).toBeVisible()
   await expect(page.getByRole('main')).toBeVisible()
-  await expect(page.getByRole('tablist')).toBeVisible()
-  await expect(page.getByText('Workouts', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('navigation').getByText('Workouts', { exact: true })).toBeVisible()
 
   // Settle past the first data fetches before judging the console.
   await page.waitForLoadState('networkidle')
