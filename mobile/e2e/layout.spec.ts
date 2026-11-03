@@ -42,7 +42,9 @@ test('at 1280 the main column is centred at its max width', async ({ page }) => 
 test('at 390 the main column fills the viewport @mobile', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  const box = await page.getByRole('main').boundingBox()
+  const main = page.getByRole('main')
+  await expect(main).toBeVisible()
+  const box = await main.boundingBox()
   expect(box?.width).toBe(390)
 })
 
