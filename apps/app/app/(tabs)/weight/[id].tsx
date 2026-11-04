@@ -21,6 +21,7 @@ export default function WeightDetail() {
   const { t } = useTranslation()
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>()
   const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
   const { colors, accent } = useTheme()
@@ -45,10 +46,12 @@ export default function WeightDetail() {
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/weight'))
 
   useEffect(() => {
-    client.weightAPI.get(Number(id))
-      .then((data) => {
+    // A cold load (a bookmark, a reload) is the first screen to run, so nothing has read the
+    // unit yet; the edit box is filled once, so it waits for it rather than filling in lbs.
+    Promise.all([client.weightAPI.get(Number(id)), fetchSettings()])
+      .then(([data]) => {
         setLog(data)
-        setEditWeight(String(displayWeight(data.weight, unit)))
+        setEditWeight(String(displayWeight(data.weight, useSettingsStore.getState().settings.weight_unit)))
         setEditDate(entryDay(data))
         setEditNotes(data.notes ?? '')
         // Deep-link from the list kebab's Edit action opens straight into edit mode.

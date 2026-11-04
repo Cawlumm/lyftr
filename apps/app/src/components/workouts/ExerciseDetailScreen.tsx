@@ -92,6 +92,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>()
   const session = useWorkoutSession((s) => s.session)
   const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  // A bookmarked or redirected link opens here first, before any screen has read the unit.
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
   const { colors, brand, accent } = useTheme()
   const wUnit = weightShort(settings.weight_unit)
   const { lg } = useBreakpoint()
