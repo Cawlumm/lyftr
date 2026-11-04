@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AccessibilityInfo, Animated, Easing, PanResponder, Platform, Pressable, ScrollView, Text, View, useWindowDimensions,
   type GestureResponderEvent, type PressableInstance, type ScrollViewInstance, type ViewInstance,
@@ -216,7 +216,7 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
   const onLift = (from: number, pointerY: number) => {
     if (live.current) return
     live.current = { from, to: from, dy: 0, pointerY, scroll0: scrollY.current }
-    frameRef.current?.measureInWindow((_x, y, _w, h) => { frame.current.top = y; frame.current.viewH = h })
+    measureFrame()
     setDrag({ from, to: from })
     if (!latest.current.motion.reduced) animateTo(lift, 1)
     haptic(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium))
@@ -270,6 +270,9 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
     stopAutoScroll()
     setDrag(null)
     setAnnouncement('')
+    // The list remounts at the top on the next open, and a remount reports no scroll.
+    scrollY.current = 0
+    frame.current = { top: 0, bottom: 0, viewH: 0, contentH: 0 }
     pos.current.forEach((v) => v.setValue(0))
     lift.setValue(0)
   }, [open, lift])
@@ -301,7 +304,8 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const scale = lift.interpolate({ inputRange: [0, 1], outputRange: [1, LIFT_SCALE] })
+  const scale = useMemo(() => lift.interpolate({ inputRange: [0, 1], outputRange: [1, LIFT_SCALE] }), [lift])
+  const measureFrame = () => frameRef.current?.measureInWindow((_x, y, _w, h) => { frame.current.top = y; frame.current.viewH = h })
 
   return (
     <Sheet open={open} onClose={onClose} labelledBy={titleId} width="sm">
@@ -310,7 +314,7 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
         <AppText variant="caption" color="muted" className="mb-4 mt-1 text-center">{t('workouts.reorder.hint')}</AppText>
         <View
           ref={frameRef}
-          onLayout={(e) => { frame.current.viewH = e.nativeEvent.layout.height }}
+          onLayout={(e) => { frame.current.viewH = e.nativeEvent.layout.height; measureFrame() }}
         >
           <ScrollView
             ref={scrollRef}
@@ -322,7 +326,9 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
             // react-native-web ends a gesture whose ancestor blurs. The row's own touchmove
             // listener holds the page still instead.
             scrollEnabled={Platform.OS === 'web' || !drag}
-            onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y }}
+            // Native: while a row is held the autoscroll owns the offset; a scroll event from its
+            // own scrollTo can arrive a frame late and would put it back a step.
+            onScroll={(e) => { if (Platform.OS === 'web' || !live.current) scrollY.current = e.nativeEvent.contentOffset.y }}
             scrollEventThrottle={16}
             onContentSizeChange={(_w, h) => { frame.current.contentH = h }}
             // iOS: a bouncing list can start its own pan on a flick and cancel a drag.
