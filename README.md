@@ -76,6 +76,10 @@ The [docs](https://lyftr-app.pages.dev) cover the rest:
 [the Android app](https://lyftr-app.pages.dev/mobile/) and
 [troubleshooting](https://lyftr-app.pages.dev/troubleshooting/).
 
+## One-Click Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Lyftr/)
+
 ## Try it
 
 - **Live demo**: [lyftr-demo.fly.dev](https://lyftr-demo.fly.dev). One tap signs you in, or use
