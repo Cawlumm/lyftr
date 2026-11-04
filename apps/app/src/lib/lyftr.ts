@@ -1,6 +1,7 @@
 // App-wide singletons: one API client + the Zustand stores, all bound to the mobile
 // SecureStore/AsyncStorage adapter. Import these hooks anywhere in the app.
 import * as Localization from 'expo-localization'
+import { Platform } from 'react-native'
 import {
   createClient,
   createUseRestTimer,
@@ -42,8 +43,9 @@ export const useServerStore = createServerStore(storage)
 const detectTimezone = () => Localization.getCalendars()[0]?.timeZone ?? null
 
 export const useSettingsStore = createSettingsStore(client, storage, detectTimezone)
-// Light-first on mobile (per product); mirrors the web's theme logic + 'theme' key.
-export const useThemeStore = createThemeStore(storage, 'light')
+// Light-first on mobile, dark-first on web (per product; the old web app defaulted to dark, and
+// index.html paints that dark surface before JS runs). The stored 'theme' key wins on both.
+export const useThemeStore = createThemeStore(storage, Platform.OS === 'web' ? 'dark' : 'light')
 // Raw device tags only; shared resolveLanguage() decides which supported language they mean.
 const detectLanguages = () => Localization.getLocales().map((l) => l.languageTag)
 export const useLanguageStore = createLanguageStore(storage, detectLanguages)
