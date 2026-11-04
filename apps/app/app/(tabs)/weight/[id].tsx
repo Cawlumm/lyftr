@@ -10,12 +10,14 @@ import { Alert,
 } from '../../../src/components/ui'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Web centres the entry in a narrower column than the screen default: a single entry at
 // the list's width is a stretched phone card. Native keeps the full width.
 const COLUMN = Platform.OS === 'web' ? 'mx-auto w-full max-w-2xl ' : ''
 
 export default function WeightDetail() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id, edit } = useLocalSearchParams<{ id: string; edit?: string }>()
   const settings = useSettingsStore((s) => s.settings)
@@ -111,7 +113,7 @@ export default function WeightDetail() {
 
   if (error || !log) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <View className={`${COLUMN}flex-1 py-4`}>
           <ErrorState
             size="page"
@@ -126,8 +128,8 @@ export default function WeightDetail() {
   }
 
   return (
-    <Screen>
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+    <Screen maxWidth="medium">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className={`${COLUMN}gap-5 py-4`}>
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

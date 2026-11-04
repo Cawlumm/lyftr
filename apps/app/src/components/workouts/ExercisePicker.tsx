@@ -4,6 +4,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Dumbbell, Search } from '../ui/icons'
 import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
@@ -115,12 +116,13 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             onChangeText/behavior as before; only the chrome changed. */}
         <View className="border-b border-surface-border px-4 py-3">
           <View
-            className="flex-row items-center gap-2.5 rounded-xl border border-surface-border px-3.5"
+            className={`flex-row items-center gap-2.5 rounded-xl border border-surface-border px-3.5 ${FIELD_FOCUS_RING}`}
             style={{ minHeight: 48, backgroundColor: colors.overlay }}
           >
             <Search size={18} color={colors.txMuted} strokeWidth={2.2} />
             <TextInput
               className="flex-1 font-sans text-base text-tx-primary"
+              style={NO_INPUT_OUTLINE}
               value={query}
               onChangeText={setQuery}
               placeholder={t('exercises.picker.search')}

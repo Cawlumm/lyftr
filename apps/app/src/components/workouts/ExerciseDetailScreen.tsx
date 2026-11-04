@@ -28,6 +28,7 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useTheme } from '../../theme/useTheme'
 import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { useSessionPillInset } from './SessionPill'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
 // muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
@@ -57,7 +58,7 @@ function MuscleBadge({ muscle, bordered }: { muscle: string; bordered?: boolean 
       }`}
     >
       {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
         {muscleLabel(muscle)}
       </AppText>
     </View>
@@ -86,6 +87,7 @@ function LoadingPulse() {
 }
 
 export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>()
   const session = useWorkoutSession((s) => s.session)
@@ -283,7 +285,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   if (wide) {
     return (
       <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 48 + pillInset }}>
           <View className="mx-auto w-full max-w-6xl gap-6 px-5 py-6">
             <View className="flex-row items-start gap-3">
               <View className="pt-1">{backButton}</View>
@@ -316,7 +318,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   return (
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         {/* Hero image — full-bleed, with an overlaid back button (mirrors the gym
             exercise-info treatment). Falls back to a plain back row when there's no photo. */}
         {hasImage ? (

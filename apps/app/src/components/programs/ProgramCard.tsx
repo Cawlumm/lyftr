@@ -82,39 +82,37 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
           {formatDate(new Date(program.created_at), 'monthDayYear')}
         </AppText>
         {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
-            Dumbbell = exercises, Layers = sets. */}
-        <View className="mt-0.5 flex-row items-center gap-x-2 flex-wrap">
+            Dumbbell = exercises, Layers = sets. The icons separate them, so no "·": the
+            row wraps on a phone-width card and left the dot dangling at a line end. */}
+        <View className="mt-0.5 flex-row items-center gap-x-3 flex-wrap">
           <View className="flex-row items-center gap-1">
             <Dumbbell size={12} color={colors.txMuted} />
             <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.exercises', { count: exCount })}</AppText>
           </View>
-          <AppText variant="caption" color="muted">·</AppText>
           <View className="flex-row items-center gap-1">
             <Layers size={12} color={colors.txMuted} />
             <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.sets', { count: totalSets })}</AppText>
           </View>
-          {dayCount > 1 && today ? (
-            <>
-              <AppText variant="caption" color="muted">·</AppText>
-              {today.is_rest_day ? (
-                <View className="flex-row items-center gap-1">
-                  <Moon size={12} color={colors.txMuted} />
-                  <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.card.restToday')}</AppText>
-                </View>
-              ) : (
-                <View className="flex-row items-center gap-1">
-                  {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
-                      earlier on this same row; reusing it here would mean two different
-                      things next to each other. Sun/Moon reads as a natural due/rest pair. */}
-                  <Sun size={12} color={accent} />
-                  <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
-                    {t('programs.card.today', { day: dayLabel(today, today.order_index) })}
-                  </AppText>
-                </View>
-              )}
-            </>
-          ) : null}
         </View>
+        {/* Its own line, so it never wraps mid-row on a narrow card. */}
+        {dayCount > 1 && today ? (
+          today.is_rest_day ? (
+            <View className="mt-0.5 flex-row items-center gap-1">
+              <Moon size={12} color={colors.txMuted} />
+              <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.card.restToday')}</AppText>
+            </View>
+          ) : (
+            <View className="mt-0.5 flex-row items-center gap-1">
+              {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
+                  just above; reusing it here would mean two different things next to
+                  each other. Sun/Moon reads as a natural due/rest pair. */}
+              <Sun size={12} color={accent} />
+              <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
+                {t('programs.card.today', { day: dayLabel(today, today.order_index) })}
+              </AppText>
+            </View>
+          )
+        ) : null}
       </View>
     </>
   )

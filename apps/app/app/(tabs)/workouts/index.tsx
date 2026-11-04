@@ -11,12 +11,14 @@ import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Cross-tab jump (workouts → programs), same rule as programs/[id]'s handleStart:
 // router.navigate, not push, or it corrupts the native tab/back stack.
 const programHref = (id: number) => `/programs/${id}` as unknown as Href
 
 export default function Workouts() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -181,7 +183,8 @@ export default function Workouts() {
       // Newest-first paging means we have seen the whole month only once a loaded row
       // predates it; until then the count is a lower bound and says so, like Total.
       value: monthCountKnown ? String(thisMonth) : `${thisMonth}+`,
-      unit: t('workouts.stats.sessions'),
+      // A lower bound ("1+") reads as plural.
+      unit: t('workouts.stats.sessions', { count: monthCountKnown ? thisMonth : Math.max(thisMonth, 2) }),
     },
     {
       label: t('workouts.stats.avgTime'),
@@ -242,7 +245,7 @@ export default function Workouts() {
         data={queryAnswered ? workouts : []}
         keyExtractor={(w) => String(w.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         // IntersectionObserver-sentinel replacement: fetch the next page as the user

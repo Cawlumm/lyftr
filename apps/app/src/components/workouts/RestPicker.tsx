@@ -5,6 +5,7 @@ import { Clock, Minus, Pencil, Plus, TimerOff } from '../ui/icons'
 import type { LucideIcon } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { FIELD_FOCUS_RING, interactive, NO_INPUT_OUTLINE } from '../ui/interaction'
 
 interface Props {
   value: number
@@ -50,7 +51,7 @@ export function RestPicker({ value, onChange }: Props) {
   const seg = (active: boolean, last = false) =>
     `flex-1 items-center justify-center gap-1 py-2 ${last ? '' : 'border-r border-surface-border'} ${
       active ? 'bg-brand-500' : 'bg-surface-muted'
-    }`
+    } ${interactive(active ? '' : 'hover:bg-surface-border', { inset: true })}`
   const segText = (active: boolean) =>
     `font-sans-semibold text-[11px] ${active ? 'text-white' : 'text-tx-secondary'}`
 
@@ -96,7 +97,7 @@ export function RestPicker({ value, onChange }: Props) {
           >
             <Minus size={16} color={colors.txSecondary} />
           </Pressable>
-          <View className="h-11 w-28 flex-row items-center rounded-lg border border-surface-border bg-surface-overlay px-3">
+          <View className={`h-11 w-28 flex-row items-center rounded-lg border border-surface-border bg-surface-overlay px-3 ${FIELD_FOCUS_RING}`}>
             <TextInput
               value={String(value)}
               onChangeText={(raw) => onChange(clamp(Number(sanitizeNumericInput(raw, 'numeric')) || 0))}
@@ -106,7 +107,7 @@ export function RestPicker({ value, onChange }: Props) {
               accessibilityLabel={t('workouts.rest.secondsLabel')}
               placeholderTextColor={colors.txMuted}
               className="flex-1 py-0 text-center font-sans-semibold text-base text-tx-primary"
-              style={{ fontVariant: ['tabular-nums'] }}
+              style={[{ fontVariant: ['tabular-nums'] }, NO_INPUT_OUTLINE]}
             />
             <Text className="font-sans text-xs text-tx-muted">{t('workouts.rest.secondsUnit')}</Text>
           </View>

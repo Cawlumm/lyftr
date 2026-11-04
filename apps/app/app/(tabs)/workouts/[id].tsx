@@ -12,6 +12,7 @@ import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
 const exercisePath = (exerciseId: number) => `/workouts/exercise/${exerciseId}`
@@ -44,7 +45,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
   return (
     <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
       {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
         {muscleLabel(muscle)}
       </AppText>
     </View>
@@ -52,6 +53,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
 }
 
 export default function WorkoutDetail() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
@@ -128,7 +130,7 @@ export default function WorkoutDetail() {
 
   return (
     <Screen maxWidth="medium">
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions (web's top row) */}
           <View className="flex-row items-center justify-between">

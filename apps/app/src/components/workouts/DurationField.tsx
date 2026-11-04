@@ -1,4 +1,4 @@
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Platform, Pressable, Text, TextInput, View, type TextStyle } from 'react-native'
 import { Minus, Plus } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
@@ -58,7 +58,12 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
             // includeFontPadding bound the input's line box — without them iOS gives a
             // bare TextInput extra intrinsic height, which (via items-baseline) makes the
             // whole control render taller than the 48pt box and out-of-line with DateInput.
-            style={{ fontFamily: 'PlusJakartaSans_700Bold', fontVariant: ['tabular-nums'], minWidth: 14, maxWidth: 40, lineHeight: 20, includeFontPadding: false }}
+            // A web <input> does not size to its text: it took maxWidth, which pushed "min"
+            // into the + segment on a narrow field. One ch per digit is its width.
+            style={[
+              { fontFamily: 'PlusJakartaSans_700Bold', fontVariant: ['tabular-nums'], minWidth: 14, maxWidth: 40, lineHeight: 20, includeFontPadding: false },
+              Platform.OS === 'web' ? ({ width: `${Math.max(String(value || '').length, 1)}ch` } as unknown as TextStyle) : null,
+            ]}
           />
           <Text
             className="ml-0.5 text-xs text-tx-muted"

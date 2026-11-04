@@ -4,12 +4,19 @@ import { ChevronRight, Timer } from '../ui/icons'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
 import { useBreakpoint } from '../../lib/useBreakpoint'
+import { interactive } from '../ui/interaction'
 import { fmtClock, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 
 // Port of web Layout's ActiveSessionBar — the minimized session pill. Floats above the
 // tab bar on every screen except: the gym overlay (gym layout, open) and the active
 // screen itself (list layout). Tapping opens the gym overlay (gym) or the active
 // screen (list). Carries the rest-countdown chip so "rest over" clears while minimized.
+// Room a scroller leaves under its last row while the pill floats over the bottom of it, so
+// that row can still scroll clear. The one screen without the pill (active) does not ask.
+export function useSessionPillInset(): number {
+  return useWorkoutSession((s) => s.session) ? 64 : 0
+}
+
 export function SessionPill() {
   const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
@@ -45,8 +52,9 @@ export function SessionPill() {
   return (
     <View pointerEvents="box-none" style={{ position: 'absolute', left: inset, right: 0, bottom: beside ? 24 : 90, zIndex: 40 }} className="items-center">
       <Pressable
+        accessibilityRole="button"
         onPress={handlePress}
-        className="flex-row items-center gap-2.5 rounded-full bg-brand-500 px-4 py-2.5 shadow-lg active:scale-95"
+        className={`flex-row items-center gap-2.5 rounded-full bg-brand-500 px-4 py-2.5 shadow-lg active:scale-95 ${interactive('hover:bg-brand-600')}`}
       >
         <View className="h-6 w-6 items-center justify-center rounded-full bg-white/20">
           <Timer size={12} color="#ffffff" />

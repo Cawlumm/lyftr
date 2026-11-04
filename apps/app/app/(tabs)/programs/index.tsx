@@ -10,8 +10,10 @@ import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkele
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 export default function Programs() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { accent } = useTheme()
   const grid = useCardGrid({ lg: 2 })
@@ -99,10 +101,12 @@ export default function Programs() {
   // Nothing loaded and the read failed: "0+ programs" is true of every account there
   // has ever been. Reached with a search on screen; otherwise the page error owns this.
   const countsUnknown = listError != null && (programs.length === 0 || !queryAnswered)
+  // `programs` is what has loaded, not how many exist: while pages remain it is a lower
+  // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
+  const totalIsBound = hasMore || listError != null
   const stats = [
-    // `programs` is what has loaded, not how many exist: while pages remain it is a lower
-    // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
-    { label: t('programs.stats.total'), failed: t('programs.stats.totalFailed'), value: hasMore || listError != null ? `${programs.length}+` : String(programs.length), unit: t('programs.stats.totalUnit') },
+    // A lower bound ("1+") reads as plural.
+    { label: t('programs.stats.total'), failed: t('programs.stats.totalFailed'), value: totalIsBound ? `${programs.length}+` : String(programs.length), unit: t('programs.stats.totalUnit', { count: totalIsBound ? Math.max(programs.length, 2) : programs.length }) },
     {
       label: t('programs.stats.avgExercises'),
       failed: t('programs.stats.avgExercisesFailed'),
@@ -123,7 +127,7 @@ export default function Programs() {
         data={queryAnswered ? programs : []}
         keyExtractor={(p) => String(p.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onEndReached={loadMore}

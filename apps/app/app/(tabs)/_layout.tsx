@@ -7,6 +7,9 @@ import { useTheme } from '../../src/theme/useTheme'
 import { useBreakpoint } from '../../src/lib/useBreakpoint'
 import { Sidebar } from '../../src/components/shell/Sidebar'
 
+// The sidebar's labels are AppText; the bottom bar's are React Navigation's own Text.
+const WEB_TAB_LABEL = { fontFamily: 'PlusJakartaSans_600SemiBold' }
+
 export default function TabsLayout() {
   const { t } = useTranslation()
   const { colors, brand, isDark } = useTheme()
@@ -32,7 +35,11 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: colors.raised,
           borderTopColor: colors.border,
+          // The default 49 leaves the web label a 10px box for a 13px line, which clips it.
+          ...(Platform.OS === 'web' ? { height: 56 } : null),
         },
+        // Else the web label falls back to the browser's system-ui.
+        ...(Platform.OS === 'web' ? { tabBarLabelStyle: WEB_TAB_LABEL } : null),
       }}
     >
       <Tabs.Screen

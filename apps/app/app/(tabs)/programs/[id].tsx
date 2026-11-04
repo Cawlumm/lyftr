@@ -18,6 +18,7 @@ import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
 import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
 import { targetWeightLabel, restLabel } from '@lyftr/shared'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
 // so back returns to this program — pushing the workouts-tab copy would jump tabs and
@@ -63,7 +64,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
   const tint = muscleColor(muscle)
   return (
     <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
@@ -80,6 +81,7 @@ function DayStrip({ wide, children }: { wide: boolean; children: ReactNode }) {
 }
 
 export default function ProgramDetail() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
@@ -263,7 +265,7 @@ export default function ProgramDetail() {
 
   return (
     <Screen maxWidth="medium">
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

@@ -23,6 +23,7 @@ import {
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, storedServingSize, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 type Phase = 'search' | 'detail' | 'scan'
 type SearchTab = 'recent' | 'myfoods' | 'all'
@@ -31,6 +32,7 @@ const hSelect = () => Haptics.selectionAsync().catch(() => {})
 
 // Port of web/pages/LogFood.tsx — the search / detail / scan food-logging flow.
 export default function LogFood() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { colors, brand, accent, isDark } = useTheme()
   const params = useLocalSearchParams<{ meal?: string; date?: string; edit?: string }>()
@@ -297,7 +299,7 @@ export default function LogFood() {
         <ScrollView
           style={scrollBleed} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 32 + pillInset }}
           refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
         >
           <View className="gap-4">

@@ -5,6 +5,7 @@ import type { LucideIcon } from './icons'
 import * as Haptics from 'expo-haptics'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { interactive } from './interaction'
 import { Label } from './Typography'
 
 interface Props {
@@ -48,7 +49,8 @@ export function StepperTile({
       accessibilityLabel={t(delta < 0 ? 'common.stepper.decrease' : 'common.stepper.increase', { name })}
       disabled={disabled}
       onPress={() => tap(delta)}
-      className={`flex-1 py-2.5 items-center justify-center active:bg-surface-muted ${disabled ? 'opacity-30' : ''} ${side}`}
+      // Inset ring: the tile clips anything drawn outside its rounded edge.
+      className={`flex-1 py-2.5 items-center justify-center active:bg-surface-muted ${disabled ? 'opacity-30' : ''} ${interactive('hover:bg-surface-muted', { disabled, inset: true })} ${side}`}
     >
       <StepIcon size={20} color={colors.txSecondary} strokeWidth={2.2} />
     </Pressable>
@@ -64,8 +66,8 @@ export function StepperTile({
         {children}
       </View>
       <View className="flex-row border-t border-surface-border">
-        {stepBtn(-step, Minus, 'border-r border-surface-border')}
-        {stepBtn(step, Plus, '')}
+        {stepBtn(-step, Minus, 'border-r border-surface-border rounded-bl-xl')}
+        {stepBtn(step, Plus, 'rounded-br-xl')}
       </View>
     </View>
   )
