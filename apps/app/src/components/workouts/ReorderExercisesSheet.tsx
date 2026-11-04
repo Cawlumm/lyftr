@@ -31,8 +31,8 @@ interface Props {
 
 type Drag = { from: number; to: number }
 
-// Reorder as its own compact list, the way Strong ("Reorder exercises") and Hevy (a
-// long-press collapses the cards) do it: dragging a whole exercise card, set table and
+// Reorder as its own step reached from the exercise, the way StrengthLog ("Reorder
+// exercises") and Hevy (drag and drop from the exercise menu) do it: dragging a whole exercise card, set table and
 // all, past other tall cards is the hard version of the same task. Each row has a drag
 // handle and up/down buttons — the buttons are the single-pointer and keyboard path that
 // WCAG 2.5.7 asks a drag to have. Every move applies at once; Done just closes.
