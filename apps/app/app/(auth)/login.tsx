@@ -67,6 +67,7 @@ export default function Login() {
         onChangeText={onChange(setPassword)}
         autoComplete={Platform.OS === 'web' ? 'current-password' : undefined}
         placeholder="••••••••"
+        onSubmitEditing={submit}
       />
       {shownError ? <AuthError message={uiMessage(shownError)} /> : null}
       <GradientButton title={t('auth.login.submit')} onPress={submit} loading={loading} />

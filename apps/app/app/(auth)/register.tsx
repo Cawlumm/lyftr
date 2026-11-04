@@ -114,6 +114,7 @@ export default function Register() {
         onChangeText={onChange(setPasswordConfirm)}
         autoComplete={Platform.OS === 'web' ? 'new-password' : undefined}
         placeholder="••••••••"
+        onSubmitEditing={submit}
       />
       <View className="gap-1.5 mt-2">
         <PasswordRule state={rules.match}>{matchRuleLabel(rules.match)}</PasswordRule>

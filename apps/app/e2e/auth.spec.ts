@@ -54,6 +54,15 @@ test('wrong password shows an error and stays on the login page (no reload)', as
   await expect(page).toHaveURL(/\/login$/)
 })
 
+test('Enter in the password field submits the sign-in form', async ({ page }) => {
+  // The old web app was a <form>, so Enter signed in; keyboard users and password managers rely on it.
+  await page.goto('/login')
+  await emailField(page).fill('nobody@lyftr.local')
+  await passwordField(page).fill('definitely-the-wrong-password')
+  await passwordField(page).press('Enter')
+  await expect(page.getByRole('alert')).toBeVisible()
+})
+
 test('server settings rejects an invalid URL without persisting it', async ({ page }) => {
   await page.goto('/login')
   await page.getByRole('button', { name: /server settings/i }).click()
