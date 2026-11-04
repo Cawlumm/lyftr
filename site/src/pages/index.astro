@@ -232,7 +232,68 @@ const check = 'M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011
                 <span class="h-2.5 w-2.5 rounded-full bg-surface-border"></span>
                 <span class="ml-3 h-3.5 w-48 rounded bg-surface-overlay"></span>
               </div>
-              <Image src={heroDesktop} alt="The Lyftr dashboard in a desktop browser, dark theme: up next, this week, calories, protein, last workout and today's nutrition" class="block w-full" widths={[640, 960, 1440]} sizes="(max-width: 1024px) 100vw, 900px" loading="eager" />
+              <!-- A 14-second loop recorded by scripts/capture-video.mjs. It plays only when motion
+                   is allowed (the script below), so reduced-motion visitors get the poster and
+                   download nothing else; the button pauses it, since it loops for longer than
+                   five seconds (WCAG 2.2.2). If neither source plays, the screenshot it replaced
+                   comes back from the template. -->
+              <div class="relative">
+                <video
+                  id="hero-tour"
+                  class="block aspect-[16/10] h-auto w-full bg-surface-base"
+                  width="1440"
+                  height="900"
+                  muted
+                  loop
+                  playsinline
+                  preload="none"
+                  poster={`${base}media/tour-desktop-dark.jpg`}
+                  aria-label="A short tour of Lyftr in a desktop browser: the dashboard and its charts, a push/pull/legs program, logging a set in Gym Mode with the rest timer, the nutrition diary, and the bodyweight trend"
+                >
+                  <source src={`${base}media/tour-desktop-dark.webm`} type="video/webm" />
+                  <source src={`${base}media/tour-desktop-dark.mp4`} type="video/mp4" />
+                </video>
+                <template id="hero-tour-fallback">
+                  <Image src={heroDesktop} alt="The Lyftr dashboard in a desktop browser, dark theme: up next, this week, calories, protein, last workout and today's nutrition" class="block w-full" widths={[640, 960, 1440]} sizes="(max-width: 1024px) 100vw, 900px" loading="eager" />
+                </template>
+                <button
+                  id="hero-tour-toggle"
+                  type="button"
+                  hidden
+                  aria-label="Play the tour"
+                  class="absolute bottom-3 right-3 rounded-full border border-surface-border bg-surface-base/80 p-2 text-tx-secondary backdrop-blur transition hover:text-tx-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400"
+                >
+                  <svg data-icon="pause" hidden class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 4h3v12H6zM11 4h3v12h-3z" /></svg>
+                  <svg data-icon="play" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6 4l10 6-10 6z" /></svg>
+                </button>
+              </div>
+              <script is:inline>
+                (() => {
+                  const video = document.getElementById('hero-tour');
+                  const toggle = document.getElementById('hero-tour-toggle');
+                  const sources = video.querySelectorAll('source');
+                  sources[sources.length - 1].addEventListener('error', () => {
+                    video.parentElement.replaceWith(document.getElementById('hero-tour-fallback').content.cloneNode(true));
+                  });
+                  const show = (playing) => {
+                    toggle.setAttribute('aria-label', playing ? 'Pause the tour' : 'Play the tour');
+                    toggle.querySelector('[data-icon=pause]').hidden = !playing;
+                    toggle.querySelector('[data-icon=play]').hidden = playing;
+                  };
+                  const play = () => {
+                    video.preload = 'auto';
+                    video.play().then(() => show(true), () => show(false));
+                  };
+                  toggle.hidden = false;
+                  toggle.addEventListener('click', () => {
+                    if (video.paused) play();
+                    else { video.pause(); show(false); }
+                  });
+                  const still = matchMedia('(prefers-reduced-motion: reduce)');
+                  if (!still.matches) play();
+                  still.addEventListener('change', (e) => { if (e.matches) { video.pause(); show(false); } });
+                })();
+              </script>
             </div>
             <div class="absolute bottom-0 left-0 hidden w-[24%] max-w-[230px] rounded-[1.9rem] border border-[#2a4370] bg-[#0b1222] p-1.5 shadow-[0_30px_70px_rgba(0,0,0,0.6)] sm:block">
               <Image src={heroPhone} alt="The same dashboard on a phone" class="block w-full rounded-[1.5rem]" widths={[240, 460]} sizes="230px" loading="eager" />

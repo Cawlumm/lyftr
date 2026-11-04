@@ -17,13 +17,15 @@
 //
 // Desktop is 1440x900 at 1x, mobile 390x844 at 2x (the README shows them at ~150px and
 // the site resizes them). Everything is light theme except the `-dark` pair. Output is
-// re-encoded losslessly at maximum compression.
+// re-encoded losslessly at maximum compression. The short looping videos come from
+// capture-video.mjs, which shares this script's helpers (capture-lib.mjs).
 import { chromium } from '@playwright/test'
 import { createRequire } from 'node:module'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
+import { VIEWPORTS, connect, createApi, newSignedInPage, topUp } from './capture-lib.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sharp = createRequire(resolve(root, 'site/package.json'))('sharp')
@@ -42,60 +44,11 @@ const BASE = args.base.replace(/\/$/, '')
 const only = args.only ? new Set(args.only.split(',')) : null
 mkdirSync(args.out, { recursive: true })
 
-const VIEWPORTS = {
-  desktop: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
-  mobile: { viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true },
-}
-
 // ── API helpers (ids for detail routes, and the optional top-up) ──────────────
-async function api(path, { token, method = 'GET', body } = {}) {
-  const res = await fetch(`${BASE}/api/v1/${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...(token && { Authorization: `Bearer ${token}` }) },
-    body: body && JSON.stringify(body),
-  })
-  if (!res.ok) throw new Error(`${method} ${path}: ${res.status} ${await res.text()}`)
-  return (await res.json()).data
-}
-
-const token = (await api('auth/login', { method: 'POST', body: { email: args.email, password: args.password } })).token
-const [program] = await api('programs', { token })
-if (!program) throw new Error('No program on this account: is the backend running with DEMO_MODE=true?')
-
-const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-if (args['top-up']) {
-  const now = new Date()
-  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7))
-  const recent = await api('workouts?limit=20', { token })
-  const logged = new Set(recent.map((w) => isoDay(new Date(w.started_at))))
-  const days = program.days.filter((d) => !d.is_rest_day)
-  let i = 0
-  for (let d = new Date(monday); isoDay(d) < isoDay(now); d.setDate(d.getDate() + 1)) {
-    if (logged.has(isoDay(d))) continue
-    const day = days[i++ % days.length]
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 18, 0)
-    await api('workouts', {
-      token,
-      method: 'POST',
-      body: {
-        name: day.name,
-        duration: 60 * 60 + i * 240,
-        started_at: start.toISOString(),
-        tz_offset_minutes: -start.getTimezoneOffset(),
-        program_id: program.id,
-        program_day_id: day.id,
-        exercises: day.exercises.map((e, order) => ({
-          exercise_id: e.exercise_id,
-          order_index: order,
-          rest_seconds: e.rest_seconds,
-          sets: e.sets.map((s) => ({ set_number: s.set_number, reps: s.target_reps, weight: s.target_weight, program_set_id: s.id })),
-        })),
-      },
-    })
-    console.log(`top-up: logged ${day.name} on ${isoDay(d)}`)
-  }
-}
+const api = createApi(BASE)
+const account = await connect(api, args)
+const { token, program } = account
+if (args['top-up']) await topUp(api, account)
 
 const [latest] = await api('workouts?limit=1', { token })
 const benchLike = program.days.flatMap((d) => d.exercises).find((e) => /bench press/i.test(e.exercise?.name ?? ''))
@@ -164,20 +117,14 @@ for (const scene of scenes) {
   for (const [form, opts] of Object.entries(VIEWPORTS)) {
     if (scene.forms && !scene.forms.includes(form)) continue
     const file = `${scene.name}${scene.suffix ?? ''}-${form}.png`
-    const ctx = await browser.newContext({ ...opts, locale: 'en-US', reducedMotion: 'reduce' })
-    await ctx.addInitScript(([theme, layout]) => {
-      localStorage.setItem('theme', theme)
-      localStorage.setItem('lyftr_workout_layout', layout)
-    }, [scene.theme ?? 'light', scene.layout ?? 'list'])
-    const page = await ctx.newPage()
-    const problems = []
-    page.on('pageerror', (e) => problems.push(String(e)))
+    let ctx
     try {
-      await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' })
-      await page.getByPlaceholder('you@example.com').fill(args.email)
-      await page.getByPlaceholder('••••••••').fill(args.password)
-      await page.getByRole('button', { name: 'Sign in', exact: true }).click()
-      await page.waitForURL((u) => !u.pathname.startsWith('/login'))
+      const signedIn = await newSignedInPage(browser, {
+        base: BASE, form, theme: scene.theme, layout: scene.layout, email: args.email, password: args.password,
+        contextOptions: { reducedMotion: 'reduce' },
+      })
+      ctx = signedIn.ctx
+      const { page, problems } = signedIn
       if (scene.run) await scene.run(page)
       else await page.goto(BASE + scene.path, { waitUntil: 'networkidle' })
       await page.waitForLoadState('networkidle')
@@ -193,7 +140,7 @@ for (const scene of scenes) {
       failed++
       console.error(`FAIL ${file}: ${String(e.message ?? e).split('\n')[0]}`)
     }
-    await ctx.close()
+    await ctx?.close()
   }
 }
 await browser.close()
