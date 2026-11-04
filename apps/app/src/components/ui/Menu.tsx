@@ -10,6 +10,8 @@ export interface MenuItem {
   label: string
   icon?: LucideIcon
   destructive?: boolean
+  /** Starts a new group: the web dropdown draws a divider above it. */
+  separated?: boolean
   onSelect: () => void
 }
 

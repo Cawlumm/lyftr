@@ -96,16 +96,34 @@ export function ReorderButton({ onPress, size = 'form', className = '' }: {
 // Reorder as its own step, opened from one button beside "Add exercise", the way StrengthLog
 // ("Reorder exercises") and Hevy (drag and drop from the exercise menu) do it: dragging a
 // whole exercise card, set table and all, past other tall cards is the hard version of the
-// same task. A row lifts from anywhere on it (a short hold on touch, so the list still
-// scrolls), and the list scrolls itself near its edges. The up/down buttons are the
-// single-pointer and keyboard path WCAG 2.5.7 asks a drag to have. Every move applies at
-// once; Done just closes.
+// same task. Every move applies at once; Done just closes.
 export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }: Props) {
+  const { t } = useTranslation()
+  const titleId = useId()
+  return (
+    <Sheet open={open} onClose={onClose} labelledBy={titleId} width="sm">
+      <View className="px-6">
+        <AppText nativeID={titleId} variant="heading" className="text-center">{t('workouts.reorder.title')}</AppText>
+        <AppText variant="caption" color="muted" className="mb-4 mt-1 text-center">{t('workouts.reorder.hint')}</AppText>
+        <ReorderList names={names} rowKeys={rowKeys} onMove={onMove} />
+        <View className="mt-3">
+          <SheetButton label={t('common.done')} variant="primary" onPress={onClose} />
+        </View>
+      </View>
+    </Sheet>
+  )
+}
+
+// The rows themselves, shared by this sheet and Gym Mode's exercises sheet. A row lifts from
+// anywhere on it (a short hold on touch, so the list still scrolls), and the list scrolls
+// itself near its edges. The up/down buttons are the single-pointer and keyboard path WCAG
+// 2.5.7 asks a drag to have. Mounted only while its sheet shows, so every open starts from
+// rest at the top of the list.
+export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'rowKeys' | 'onMove'>) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const motion = useMotion()
   const { height } = useWindowDimensions()
-  const titleId = useId()
   const [drag, setDrag] = useState<Drag | null>(null)
   const [announcement, setAnnouncement] = useState('')
   // Web: the button pressed travels with its row, and the browser drops focus when React
@@ -264,25 +282,12 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
      
   }, [settle])
 
-  useEffect(() => {
-    if (open) return
-    live.current = null
-    stopAutoScroll()
-    setDrag(null)
-    setAnnouncement('')
-    // The list remounts at the top on the next open, and a remount reports no scroll.
-    scrollY.current = 0
-    frame.current = { top: 0, bottom: 0, viewH: 0, contentH: 0 }
-    pos.current.forEach((v) => v.setValue(0))
-    lift.setValue(0)
-  }, [open, lift])
-
   useEffect(() => stopAutoScroll, [])
 
   // Web: Escape drops the held row back where it was, and only that. The Modal closes on the
   // Escape keyup at the document, so the keyup that belongs to this cancel is stopped first.
   useEffect(() => {
-    if (Platform.OS !== 'web' || !open) return
+    if (Platform.OS !== 'web') return
     const down = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !live.current) return
       e.preventDefault()
@@ -302,87 +307,80 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
       window.removeEventListener('keyup', up, true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [])
 
   const scale = useMemo(() => lift.interpolate({ inputRange: [0, 1], outputRange: [1, LIFT_SCALE] }), [lift])
   const measureFrame = () => frameRef.current?.measureInWindow((_x, y, _w, h) => { frame.current.top = y; frame.current.viewH = h })
 
   return (
-    <Sheet open={open} onClose={onClose} labelledBy={titleId} width="sm">
-      <View className="px-6">
-        <AppText nativeID={titleId} variant="heading" className="text-center">{t('workouts.reorder.title')}</AppText>
-        <AppText variant="caption" color="muted" className="mb-4 mt-1 text-center">{t('workouts.reorder.hint')}</AppText>
-        <View
-          ref={frameRef}
-          onLayout={(e) => { frame.current.viewH = e.nativeEvent.layout.height; measureFrame() }}
+    <>
+      <View
+        ref={frameRef}
+        onLayout={(e) => { frame.current.viewH = e.nativeEvent.layout.height; measureFrame() }}
+      >
+        <ScrollView
+          ref={scrollRef}
+          testID="reorder-list"
+          style={{ maxHeight: Math.max(STRIDE * 3, height * 0.55) }}
+          // Native: frozen while a row is held, so the list cannot take the finger over; it
+          // moves only by autoscroll then. Web keeps it scrollable: switching overflow off
+          // makes the browser blur the list if it had focus (Chrome focuses scrollers), and
+          // react-native-web ends a gesture whose ancestor blurs. The row's own touchmove
+          // listener holds the page still instead.
+          scrollEnabled={Platform.OS === 'web' || !drag}
+          // Native: while a row is held the autoscroll owns the offset; a scroll event from its
+          // own scrollTo can arrive a frame late and would put it back a step.
+          onScroll={(e) => { if (Platform.OS === 'web' || !live.current) scrollY.current = e.nativeEvent.contentOffset.y }}
+          scrollEventThrottle={16}
+          onContentSizeChange={(_w, h) => { frame.current.contentH = h }}
+          // iOS: a bouncing list can start its own pan on a flick and cancel a drag.
+          bounces={false}
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            ref={scrollRef}
-            testID="reorder-list"
-            style={{ maxHeight: Math.max(STRIDE * 3, height * 0.55) }}
-            // Native: frozen while a row is held, so the list cannot take the finger over; it
-            // moves only by autoscroll then. Web keeps it scrollable: switching overflow off
-            // makes the browser blur the list if it had focus (Chrome focuses scrollers), and
-            // react-native-web ends a gesture whose ancestor blurs. The row's own touchmove
-            // listener holds the page still instead.
-            scrollEnabled={Platform.OS === 'web' || !drag}
-            // Native: while a row is held the autoscroll owns the offset; a scroll event from its
-            // own scrollTo can arrive a frame late and would put it back a step.
-            onScroll={(e) => { if (Platform.OS === 'web' || !live.current) scrollY.current = e.nativeEvent.contentOffset.y }}
-            scrollEventThrottle={16}
-            onContentSizeChange={(_w, h) => { frame.current.contentH = h }}
-            // iOS: a bouncing list can start its own pan on a flick and cancel a drag.
-            bounces={false}
-            showsVerticalScrollIndicator={false}
-          >
-            {drag ? (
-              // Where the held row will land: the gap the other rows open for it.
-              <View
-                pointerEvents="none"
-                className="absolute left-0 right-0 rounded-xl border border-dashed"
-                style={{ top: drag.to * STRIDE, height: ROW_H, borderColor: accent }}
-              />
-            ) : null}
-            {names.map((name, i) => {
-              const key = rowKeys[i]
-              const dragging = drag?.from === i
-              return (
-                <Animated.View
-                  key={key}
-                  testID={`reorder-row-${i}`}
-                  style={[
-                    { height: ROW_H, marginBottom: GAP, zIndex: dragging ? 2 : 1, borderRadius: 12 },
-                    dragging ? LIFTED_SHADOW : null,
-                    { transform: [{ translateY: posFor(key) }, { scale: dragging ? scale : 1 }] },
-                  ]}
-                >
-                  <ReorderRow
-                    index={i}
-                    name={name}
-                    count={count}
-                    dragging={dragging}
-                    gripColor={colors.txMuted}
-                    onLift={onLift}
-                    onDragMove={onDragMove}
-                    onDrop={() => finish(true)}
-                    onCancel={() => finish(false)}
-                    onMoveBy={moveBy}
-                    upRef={(r) => { buttons.current.set(`${key}|up`, r) }}
-                    downRef={(r) => { buttons.current.set(`${key}|down`, r) }}
-                  />
-                </Animated.View>
-              )
-            })}
-          </ScrollView>
-        </View>
-        <View accessibilityLiveRegion="polite" style={SR_ONLY}>
-          <AppText variant="caption">{announcement}</AppText>
-        </View>
-        <View className="mt-3">
-          <SheetButton label={t('common.done')} variant="primary" onPress={onClose} />
-        </View>
+          {drag ? (
+            // Where the held row will land: the gap the other rows open for it.
+            <View
+              pointerEvents="none"
+              className="absolute left-0 right-0 rounded-xl border border-dashed"
+              style={{ top: drag.to * STRIDE, height: ROW_H, borderColor: accent }}
+            />
+          ) : null}
+          {names.map((name, i) => {
+            const key = rowKeys[i]
+            const dragging = drag?.from === i
+            return (
+              <Animated.View
+                key={key}
+                testID={`reorder-row-${i}`}
+                style={[
+                  { height: ROW_H, marginBottom: GAP, zIndex: dragging ? 2 : 1, borderRadius: 12 },
+                  dragging ? LIFTED_SHADOW : null,
+                  { transform: [{ translateY: posFor(key) }, { scale: dragging ? scale : 1 }] },
+                ]}
+              >
+                <ReorderRow
+                  index={i}
+                  name={name}
+                  count={count}
+                  dragging={dragging}
+                  gripColor={colors.txMuted}
+                  onLift={onLift}
+                  onDragMove={onDragMove}
+                  onDrop={() => finish(true)}
+                  onCancel={() => finish(false)}
+                  onMoveBy={moveBy}
+                  upRef={(r) => { buttons.current.set(`${key}|up`, r) }}
+                  downRef={(r) => { buttons.current.set(`${key}|down`, r) }}
+                />
+              </Animated.View>
+            )
+          })}
+        </ScrollView>
       </View>
-    </Sheet>
+      <View accessibilityLiveRegion="polite" style={SR_ONLY}>
+        <AppText variant="caption">{announcement}</AppText>
+      </View>
+    </>
   )
 }
 

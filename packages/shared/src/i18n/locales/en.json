@@ -1208,14 +1208,22 @@
   },
   "gym": {
     "workout": "Workout",
-    "goToExercise": "Go to exercise {{number}}",
-    "minimizeWorkout": "Minimize workout",
     "minimize": "Minimize",
     "discardWorkout": "Discard workout",
     "discard": {
       "title": "Discard workout?",
       "message": "This ends the workout without saving — all progress is lost.",
       "confirm": "Discard"
+    },
+    "menu": {
+      "more": "More options"
+    },
+    "exercises": {
+      "title": "Exercises",
+      "chip": "Exercises, {{current}} of {{total}}, {{name}}",
+      "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
+      "rowCurrent": "{{number}}. {{name}}, current exercise, {{sets}}",
+      "rowDone": "{{number}}. {{name}}, done, {{sets}}"
     },
     "labels": {
       "sets": "Sets",
@@ -1319,7 +1327,10 @@
       "noMatchBody": "Try another search or reset the filters."
     },
     "picker": {
-      "catalogEmpty": { "title": "The exercise library is still loading", "body": "Try again in a moment." },
+      "catalogEmpty": {
+        "title": "The exercise library is still loading",
+        "body": "Try again in a moment."
+      },
       "title": "Add Exercise",
       "loaded_one": "{{count}} loaded",
       "loaded_other": "{{count}} loaded",

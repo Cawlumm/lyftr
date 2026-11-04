@@ -99,7 +99,7 @@ const noLiteralString = {
       // translation and formatting entry points
       'i18n\\.t', 'translate', 'format', 'formatDay', 'formatDate', 'languageChoiceLabel',
       // setters and updaters whose string argument names a state or a field
-      'setPhase', 'setGymState', 'setTab', 'updateSet', 'onUpdateSet',
+      'setPhase', 'setGymState', 'setExercisesSheet', 'setTab', 'updateSet', 'onUpdateSet',
       'sanitizeNumericInput',
       // navigation, class names and logging are not copy
       'router\\..*', 'navigate', 'cn', 'clsx', 'console\\..*',

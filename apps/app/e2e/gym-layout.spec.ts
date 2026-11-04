@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
 import { API_BASE } from './config'
-import { WIDTH_GROUPS, sweepWidths } from './widths'
+import { WIDTH_GROUPS, noHorizontalScroll, sweepWidths } from './widths'
 
 // Gym mode on web (C30). The overlay is a modal dialog named "Workout" over the whole app:
 // focus stays inside it, Escape minimizes it, and from lg it is a centred panel instead of a
@@ -20,26 +20,30 @@ test.beforeAll(async ({ request, workerAuth }) => {
 
 const set = (n: number) => ({ set_number: n, target_reps: 5, target_weight: 100, actual_reps: 0, actual_weight: 0, completed: false })
 
+const NAMES = ['Bench Press', 'Barbell Row', 'Overhead Press']
+
 // The same keys the app persists to (AsyncStorage on web is localStorage). An init script runs
-// on every full load, so a test navigates inside the app after its one goto.
-function seed(page: Page, { rest = false, count = 1 } = {}) {
+// on every full load, so a test navigates inside the app after its one goto, unless it seeds
+// with `once`, which leaves what the app stored for a reload to read back.
+function seed(page: Page, { rest = false, count = 1, names = [] as string[], once = false } = {}) {
   const session = {
     name: SESSION,
     started_at: new Date().toISOString(),
-    exercises: Array.from({ length: count }, () => ({
+    exercises: Array.from({ length: names.length || count }, (_, i) => ({
       exercise_id: exerciseId,
-      exercise: { id: exerciseId, name: 'Bench Press', muscle_group: 'chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+      exercise: { id: exerciseId, name: names[i] ?? 'Bench Press', muscle_group: 'chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
       notes: '',
       rest_seconds: 15,
       sets: [set(1), set(2)],
     })),
   }
-  return page.addInitScript(({ s, rest }) => {
+  return page.addInitScript(({ s, rest, once }) => {
+    if (once && localStorage.getItem('lyftr_active_session')) return
     localStorage.setItem('lyftr_active_session', JSON.stringify(s))
     localStorage.setItem('lyftr_gym_ui', JSON.stringify({ phase: 'overview', exIdx: 0, setIdx: 0 }))
     localStorage.setItem('lyftr_workout_layout', 'gym')
     localStorage.setItem('lyftr_rest_enabled', String(rest))
-  }, { s: session, rest })
+  }, { s: session, rest, once })
 }
 
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Workout' })
@@ -48,6 +52,28 @@ const pill = (page: Page) => page.getByText(SESSION, { exact: true }).locator('v
 const box = async (l: Locator) => (await l.boundingBox())!
 const isFocused = (l: Locator) => l.evaluate(el => el === document.activeElement)
 const storedSession = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session') ?? 'null'))
+const SHEET_DIALOG = '[role="dialog"][aria-labelledby]'
+const chip = (page: Page) => dialog(page).getByTestId('gym-progress-chip')
+const exercisesSheet = (page: Page) => page.getByRole('dialog', { name: 'Exercises' })
+const storedNames = async (page: Page) => (await storedSession(page)).exercises.map((e: { exercise: { name: string } }) => e.exercise.name)
+
+// The top bar's four controls sit in one row, in order, none over another, all inside the
+// panel, each a 44px target.
+async function barFits(page: Page, labels: { back: string; finish: string; more: string }) {
+  const panel = await box(page.getByTestId('gym-panel'))
+  const row = [
+    await box(button(dialog(page), labels.back)),
+    await box(chip(page)),
+    await box(button(dialog(page), labels.finish)),
+    await box(button(dialog(page), labels.more)),
+  ]
+  for (let i = 0; i < row.length; i++) {
+    expect(row[i].height, `control ${i} height`).toBeGreaterThanOrEqual(44)
+    expect(row[i].x).toBeGreaterThanOrEqual(panel.x)
+    expect(row[i].x + row[i].width).toBeLessThanOrEqual(panel.x + panel.width)
+    if (i > 0) expect(row[i].x, `control ${i} overlaps the one before`).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width)
+  }
+}
 
 async function tabTo(page: Page, target: Locator) {
   for (let i = 0; i < 40; i++) {
@@ -119,12 +145,195 @@ test('at 390 gym mode fills the screen @mobile', async ({ page }) => {
   expect(panel.height).toBe(844)
 })
 
-test('Reorder stays reachable from the exercise screen once the workout has started', async ({ page }) => {
+for (const width of [390, 1280]) {
+  test(`the progress chip says where you are at ${width}, and the bar fits`, async ({ page }) => {
+    await seed(page, { names: NAMES })
+    await openGym(page, width, width === 390 ? 844 : 800)
+    await toSets(page)
+    await expect(chip(page)).toHaveAccessibleName('Exercises, 1 of 3, Bench Press')
+    await expect(chip(page)).toContainText('1/3')
+    await expect(chip(page)).toContainText('Bench Press')
+    await barFits(page, { back: 'Back', finish: 'Finish', more: 'More options' })
+  })
+}
+
+test('at 320 the chip drops the name before anything else gives way @mobile', async ({ page }) => {
+  await seed(page, { names: NAMES })
+  await openGym(page, 320, 700)
+  await toSets(page)
+  await expect(chip(page)).toContainText('1/3')
+  await expect(chip(page)).not.toContainText('Bench Press')
+  await expect(chip(page)).toHaveAccessibleName('Exercises, 1 of 3, Bench Press')
+  await barFits(page, { back: 'Back', finish: 'Finish', more: 'More options' })
+})
+
+test('the chip opens the exercises sheet, which jumps to the exercise picked', async ({ page }) => {
+  await seed(page, { names: NAMES })
+  await openGym(page, 390, 844)
+  await toSets(page)
+  await chip(page).click()
+  const sheet = exercisesSheet(page)
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByRole('button', { name: '1. Bench Press, current exercise, 0/2 sets done' })).toHaveAttribute('aria-current', 'step')
+  await expect(sheet.getByRole('button', { name: '3. Overhead Press, 0/2 sets done' })).toBeVisible()
+  const { violations } = await new AxeBuilder({ page })
+    // The sheet alone: the gym dialog under it keeps aria-modal while a second RN-web Modal is
+    // stacked on it, which axe flags whatever the sheet (the discard confirmation too).
+    .include(SHEET_DIALOG)
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .disableRules(['color-contrast'])
+    .analyze()
+  expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)).toEqual([])
+
+  await sheet.getByRole('button', { name: /^3\. Overhead Press/ }).click()
+  await expect(sheet).toBeHidden()
+  await expect(button(dialog(page), 'Begin Exercise')).toBeVisible()
+  await expect(chip(page)).toHaveAccessibleName('Exercises, 3 of 3, Overhead Press')
+})
+
+test('Reorder is reachable from the exercise screen, and the order survives a reload', async ({ page }) => {
+  await seed(page, { names: NAMES, once: true })
+  await openGym(page, 390, 844)
+  await toSets(page)
+  await chip(page).click()
+  await exercisesSheet(page).getByRole('button', { name: 'Reorder exercises' }).click()
+  // The same sheet, now the reorder list: named for it, with the drag rows and arrows.
+  const sheet = page.getByRole('dialog', { name: 'Reorder exercises' })
+  await expect(sheet).toBeVisible()
+  await expect(sheet.getByTestId('reorder-body-0')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Move Bench Press down' }).click()
+  await expect(sheet.locator('[aria-live="polite"]')).toHaveText('Bench Press moved to position 2 of 3')
+  // Done goes back to the list, which follows the exercise being worked to its new place.
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await expect(exercisesSheet(page).getByRole('button', { name: '2. Bench Press, current exercise, 0/2 sets done' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(exercisesSheet(page)).toBeHidden()
+  await expect(button(dialog(page), 'Complete Set')).toBeVisible()
+  await expect(chip(page)).toHaveAccessibleName('Exercises, 2 of 3, Bench Press')
+  expect(await storedNames(page)).toEqual(['Barbell Row', 'Bench Press', 'Overhead Press'])
+
+  await page.reload()
+  await expect(dialog(page)).toBeVisible()
+  await expect(chip(page)).toHaveAccessibleName('Exercises, 2 of 3, Bench Press')
+  await chip(page).click()
+  await exercisesSheet(page).getByRole('button', { name: 'Reorder exercises' }).click()
+  const names = await page.getByRole('dialog', { name: 'Reorder exercises' }).getByRole('button', { name: /^Move .* up$/ })
+    .evaluateAll(els => els.map(e => (e.getAttribute('aria-label') ?? '').replace(/^Move (.*) up$/, '$1')))
+  expect(names).toEqual(['Barbell Row', 'Bench Press', 'Overhead Press'])
+})
+
+test('the overview reorder button opens the same sheet on its reorder list; Done closes it', async ({ page }) => {
+  await seed(page, { names: NAMES })
+  await openGym(page, 390, 844)
+  await button(dialog(page), 'Reorder exercises').click()
+  const sheet = page.getByRole('dialog', { name: 'Reorder exercises' })
+  await expect(sheet.getByTestId('reorder-body-2')).toBeVisible()
+  await sheet.getByRole('button', { name: 'Done' }).click()
+  await expect(sheet).toBeHidden()
+  await expect(exercisesSheet(page)).toBeHidden()
+  await expect(button(dialog(page), 'Start Workout')).toBeVisible()
+})
+
+test('the overflow menu minimizes, and discards only once confirmed', async ({ page }) => {
+  await seed(page)
+  await openGym(page, 390, 844)
+  await toSets(page)
+  const more = button(dialog(page), 'More options')
+  await more.click()
+  await expect(page.getByRole('menuitem')).toHaveText(['Minimize', 'Discard workout'])
+  await expect(page.getByRole('menu').getByRole('separator')).toHaveCount(1)
+  await page.getByRole('menuitem', { name: 'Discard workout' }).click()
+  const confirm = page.getByRole('dialog').filter({ hasText: 'Discard workout?' })
+  await expect(confirm).toBeVisible()
+  await confirm.getByRole('button', { name: 'Keep Going' }).click()
+  await expect(confirm).toBeHidden()
+  expect((await storedSession(page))?.name).toBe(SESSION)
+
+  await more.click()
+  await page.getByRole('menuitem', { name: 'Minimize' }).click()
+  await expect(dialog(page)).toBeHidden()
+  await pill(page).click()
+  await expect(button(dialog(page), 'Complete Set')).toBeVisible()
+
+  await more.click()
+  await page.getByRole('menuitem', { name: 'Discard workout' }).click()
+  await confirm.getByRole('button', { name: 'Discard', exact: true }).click()
+  await expect(dialog(page)).toBeHidden()
+  expect(await storedSession(page)).toBeNull()
+})
+
+test('keyboard: Tab to the chip, Enter opens the sheet, Escape closes it back onto the chip', async ({ page }) => {
+  await seed(page, { names: NAMES })
+  await openGym(page, 1280)
+  await toSets(page)
+  await tabTo(page, chip(page))
+  await page.keyboard.press('Enter')
+  await expect(exercisesSheet(page)).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(exercisesSheet(page)).toBeHidden()
+  await expect(dialog(page)).toBeVisible()
+  await expect(chip(page)).toBeFocused()
+
+  // The menu: Enter opens it on its first item, Escape closes it onto its button, and gym mode
+  // stays open under both.
+  const more = button(dialog(page), 'More options')
+  await tabTo(page, more)
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('menuitem', { name: 'Minimize' })).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await expect(page.getByRole('menuitem', { name: 'Discard workout' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('menu')).toBeHidden()
+  await expect(more).toBeFocused()
+  await expect(dialog(page)).toBeVisible()
+})
+
+test('the progress line fills with completed sets and is hidden from assistive tech', async ({ page }) => {
   await seed(page, { count: 2 })
   await openGym(page, 390, 844)
   await toSets(page)
-  await button(dialog(page), 'Reorder exercises').click()
-  await expect(page.getByRole('dialog', { name: 'Reorder exercises' })).toBeVisible()
+  await expect(dialog(page).getByTestId('gym-progress-line')).toHaveAttribute('aria-hidden', 'true')
+  const fill = dialog(page).getByTestId('gym-progress-fill')
+  const scale = () => fill.evaluate(el => new DOMMatrix(getComputedStyle(el).transform).a)
+  expect(await scale()).toBeCloseTo(0, 2)
+  await button(dialog(page), 'Complete Set').click()
+  await expect.poll(scale).toBeCloseTo(0.25, 2)
+})
+
+test('in Spanish at 360 the top bar fits and nothing scrolls sideways @mobile', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('lyftr_language', 'es'))
+  await seed(page, { names: NAMES })
+  await page.setViewportSize({ width: 360, height: 780 })
+  await page.goto('/workouts/active')
+  const gym = page.getByRole('dialog', { name: 'Entrenamiento' })
+  await button(gym, 'Empezar entrenamiento').click()
+  await button(gym, 'Empezar ejercicio').click()
+  await expect(button(gym, 'Completar serie')).toBeVisible()
+  await expect(gym.getByTestId('gym-progress-chip')).toHaveAccessibleName('Ejercicios, 1 de 3, Bench Press')
+  expect(await noHorizontalScroll(page)).toBe(true)
+  const panel = await box(page.getByTestId('gym-panel'))
+  const row = [
+    await box(button(gym, 'Atrás')),
+    await box(gym.getByTestId('gym-progress-chip')),
+    await box(button(gym, 'Terminar')),
+    await box(button(gym, 'Más opciones')),
+  ]
+  for (let i = 0; i < row.length; i++) {
+    expect(row[i].height).toBeGreaterThanOrEqual(44)
+    expect(row[i].x + row[i].width).toBeLessThanOrEqual(panel.x + panel.width)
+    if (i > 0) expect(row[i].x).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width)
+  }
+  await gym.getByTestId('gym-progress-chip').click()
+  await expect(page.getByRole('dialog', { name: 'Ejercicios' })).toBeVisible()
+  expect(await noHorizontalScroll(page)).toBe(true)
+  const { violations } = await new AxeBuilder({ page })
+    // The sheet alone: the gym dialog under it keeps aria-modal while a second RN-web Modal is
+    // stacked on it, which axe flags whatever the sheet (the discard confirmation too).
+    .include(SHEET_DIALOG)
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+    .disableRules(['color-contrast'])
+    .analyze()
+  expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)).toEqual([])
 })
 
 test('Escape minimizes to the session pill, which reopens the same phase', async ({ page }) => {
@@ -142,7 +351,8 @@ test('Escape minimizes to the session pill, which reopens the same phase', async
 test('Escape in the discard confirmation closes only the confirmation', async ({ page }) => {
   await seed(page)
   await openGym(page, 1280)
-  await page.getByRole('button', { name: 'Discard workout' }).click()
+  await button(dialog(page), 'More options').click()
+  await page.getByRole('menuitem', { name: 'Discard workout' }).click()
   const confirm = page.getByRole('dialog').filter({ hasText: 'Discard workout?' })
   await expect(confirm).toBeVisible()
   await page.keyboard.press('Escape')

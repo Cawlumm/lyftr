@@ -272,6 +272,12 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
   const button = (page: Page, name: string | RegExp) => dialog(page).getByRole('button', { name })
   const pill = (page: Page, name: string) => page.getByText(name, { exact: true }).locator('visible=true')
 
+  // Minimize and Discard live in the top bar's overflow menu.
+  async function exitMenu(page: Page, item: 'Minimize' | 'Discard workout') {
+    await button(page, 'More options').click()
+    await page.getByRole('menuitem', { name: item }).click()
+  }
+
   async function openGym(page: Page) {
     await page.goto('/workouts/active')
     await expect(dialog(page)).toBeVisible({ timeout: 5000 })
@@ -337,7 +343,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await seedGym(page, 'E2E Cancel Test', [ex('Bench Press', 'Chest', [set(1)])])
     await openGym(page)
 
-    await button(page, 'Discard workout').click()
+    await exitMenu(page, 'Discard workout')
     const confirm = page.getByRole('dialog').filter({ hasText: 'Discard workout?' })
     await expect(confirm).toBeVisible({ timeout: 3000 })
     await confirm.getByRole('button', { name: /keep going/i }).click()
@@ -362,7 +368,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await seedGym(page, 'E2E Minimize Test', [ex('Deadlift', 'Back', [set(1, 3, 150)])])
     await openGym(page)
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     await expect(dialog(page)).toHaveCount(0)
     await expect(pill(page, 'E2E Minimize Test')).toBeVisible()
 
@@ -476,7 +482,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await button(page, 'Next Exercise').click()
     await expect(dialog(page).getByText('Exercise Two').first()).toBeVisible()
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     await expect(pill(page, 'E2E Restore Test')).toBeVisible()
 
     // The phase is persisted in the gym store, so the pill resumes where the lifter was.
@@ -498,7 +504,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await button(page, 'Begin Exercise').click()
     await expect(button(page, 'Complete Set')).toBeVisible()
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     // Minimizing replaces /workouts/active with /workouts; reloading before that lands would
     // reload the overlay's own URL.
     await expect(dialog(page)).toHaveCount(0)

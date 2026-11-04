@@ -1225,14 +1225,22 @@
   },
   "gym": {
     "workout": "Entrenamiento",
-    "goToExercise": "Ir al ejercicio {{number}}",
-    "minimizeWorkout": "Minimizar entrenamiento",
     "minimize": "Minimizar",
     "discardWorkout": "Descartar entrenamiento",
     "discard": {
       "title": "¿Descartar el entrenamiento?",
       "message": "Esto termina el entrenamiento sin guardarlo: se pierde todo el progreso.",
       "confirm": "Descartar"
+    },
+    "menu": {
+      "more": "Más opciones"
+    },
+    "exercises": {
+      "title": "Ejercicios",
+      "chip": "Ejercicios, {{current}} de {{total}}, {{name}}",
+      "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
+      "rowCurrent": "{{number}}. {{name}}, ejercicio actual, {{sets}}",
+      "rowDone": "{{number}}. {{name}}, hecho, {{sets}}"
     },
     "labels": {
       "sets": "Series",
@@ -1336,7 +1344,10 @@
       "noMatchBody": "Prueba otra búsqueda o restablece los filtros."
     },
     "picker": {
-      "catalogEmpty": { "title": "La biblioteca de ejercicios todavía se está cargando", "body": "Inténtalo de nuevo en un momento." },
+      "catalogEmpty": {
+        "title": "La biblioteca de ejercicios todavía se está cargando",
+        "body": "Inténtalo de nuevo en un momento."
+      },
       "title": "Agregar ejercicio",
       "loaded_one": "{{count}} cargado",
       "loaded_other": "{{count}} cargados",

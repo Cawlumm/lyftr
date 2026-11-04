@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { i18n, type ActiveSession } from '@lyftr/shared'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { GymModeWorkout } from './GymModeWorkout'
+import { SHEET_ANIM_MS } from '../ui/Sheet'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
@@ -62,4 +63,49 @@ it.each([false, true])('can complete the next set during rest (paused: %s)', asy
   expect(useWorkoutSession.getState().restEndsAt).toBeNull()
   expect(useWorkoutSession.getState().session!.exercises[0].sets[1].completed).toBe(false)
   await view.unmount()
+})
+
+describe('top bar', () => {
+  const second = () => ({
+    ...session().exercises[0], exercise_id: 2,
+    exercise: { ...session().exercises[0].exercise, id: 2, name: 'Squat' },
+  })
+  beforeEach(() => {
+    useWorkoutSession.getState().clearRest()
+    const s = session()
+    useWorkoutSession.setState({ session: { ...s, exercises: [...s.exercises, second()] }, gymPhase: 'exercise', gymExIdx: 0, gymSetIdx: 1 })
+  })
+
+  it('opens the exercises sheet from the progress chip and jumps to the exercise picked', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press' }))
+    await fireEvent.press(screen.getByLabelText('2. Squat, 1/3 sets done'))
+    const state = useWorkoutSession.getState()
+    expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise-info', 1, 0])
+    expect(screen.queryByLabelText(/^1\. Bench Press/)).toBeNull()
+    await view.unmount()
+  })
+
+  it('reorders from the exercise screen, and the screen stays on the same exercise', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Reorder exercises' }))
+    await fireEvent.press(screen.getByLabelText('Move Bench Press down'))
+    const state = useWorkoutSession.getState()
+    expect(state.session!.exercises.map((e) => e.exercise.name)).toEqual(['Squat', 'Bench Press'])
+    expect(state.gymExIdx).toBe(1)
+    await view.unmount()
+  })
+
+  it('keeps Minimize and Discard in the overflow menu; Discard still asks first', async () => {
+    const view = await render(<GymModeWorkout />)
+    expect(screen.queryByRole('button', { name: 'Discard workout' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    expect(screen.getByText('Minimize')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Discard workout'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(screen.getByText('Discard workout?')).toBeTruthy()
+    expect(useWorkoutSession.getState().session).not.toBeNull()
+    await view.unmount()
+  })
 })
