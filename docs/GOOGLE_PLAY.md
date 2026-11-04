@@ -70,6 +70,8 @@ user's own server or user-initiated.
   `https://lyftr-app.pages.dev/privacy/#delete-your-account-and-data` (needs the privacy
   page to be live on the production site first).
 - **Privacy policy URL:** `https://lyftr-app.pages.dev/privacy/`.
+- Keep "no analytics" out of the listing: the ML Kit rows above are declared with purpose
+  Analytics, and a listing that says otherwise reads as misleading next to them.
 
 ## Other App content forms
 
@@ -147,7 +149,7 @@ running for the whole review and closed test.
 >
 > YOUR DATA, YOUR SERVER
 > • Everything is stored on the server you connect to, not with us
-> • No ads, no analytics, no tracking, no subscription
+> • No ads, no tracking, no subscription
 > • Delete your account and everything in it from Settings at any time
 > • Same account in the browser: your server also serves the web app
 >
