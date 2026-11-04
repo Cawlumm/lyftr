@@ -1,6 +1,7 @@
 import { Platform, Pressable, Text, TextInput, View, type TextStyle } from 'react-native'
 import { Minus, Plus } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
+import { NO_INPUT_OUTLINE } from '../ui/interaction'
 import { useTheme } from '../../theme/useTheme'
 
 // A thumb-friendly duration input: one unified stepper — −/+ as integrated end
@@ -40,7 +41,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
           of "min" drifting relative to the number. Height is left to h-12 (stretched from
           the row) — an inline `height` here doesn't merge cleanly with NativeWind on native
           and let the box grow past 48 on iOS. */}
-      <View className="h-12 flex-1 items-center justify-center">
+      <View className={`h-12 flex-1 items-center justify-center ${Platform.OS === 'web' ? 'rounded-lg focus-within:outline focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-focus' : ''}`}>
         <View className="flex-row items-baseline">
           <TextInput
             value={value ? String(value) : ''}
@@ -63,6 +64,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
             style={[
               { fontFamily: 'PlusJakartaSans_700Bold', fontVariant: ['tabular-nums'], minWidth: 14, maxWidth: 40, lineHeight: 20, includeFontPadding: false },
               Platform.OS === 'web' ? ({ width: `${Math.max(String(value || '').length, 1)}ch` } as unknown as TextStyle) : null,
+              NO_INPUT_OUTLINE,
             ]}
           />
           <Text
