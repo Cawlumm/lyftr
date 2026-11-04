@@ -24,6 +24,8 @@ const outline = (l: Locator) =>
 const style = (l: Locator, prop: 'backgroundColor' | 'cursor') => l.evaluate((el, p) => getComputedStyle(el)[p], prop)
 
 test.beforeEach(async ({ page }) => {
+  // The ring colour asserted here is the light theme's; web now defaults to dark.
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'))
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.goto('/settings')
   await expect(page.getByRole('button', { name: 'Save targets' })).toBeVisible()
