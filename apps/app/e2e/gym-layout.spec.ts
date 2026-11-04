@@ -22,17 +22,17 @@ const set = (n: number) => ({ set_number: n, target_reps: 5, target_weight: 100,
 
 // The same keys the app persists to (AsyncStorage on web is localStorage). An init script runs
 // on every full load, so a test navigates inside the app after its one goto.
-function seed(page: Page, { rest = false } = {}) {
+function seed(page: Page, { rest = false, count = 1 } = {}) {
   const session = {
     name: SESSION,
     started_at: new Date().toISOString(),
-    exercises: [{
+    exercises: Array.from({ length: count }, () => ({
       exercise_id: exerciseId,
       exercise: { id: exerciseId, name: 'Bench Press', muscle_group: 'chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
       notes: '',
       rest_seconds: 15,
       sets: [set(1), set(2)],
-    }],
+    })),
   }
   return page.addInitScript(({ s, rest }) => {
     localStorage.setItem('lyftr_active_session', JSON.stringify(s))
@@ -117,6 +117,14 @@ test('at 390 gym mode fills the screen @mobile', async ({ page }) => {
   expect(panel.x).toBe(0)
   expect(panel.width).toBe(390)
   expect(panel.height).toBe(844)
+})
+
+test('Reorder stays reachable from the exercise screen once the workout has started', async ({ page }) => {
+  await seed(page, { count: 2 })
+  await openGym(page, 390, 844)
+  await toSets(page)
+  await button(dialog(page), 'Reorder exercises').click()
+  await expect(page.getByRole('dialog', { name: 'Reorder exercises' })).toBeVisible()
 })
 
 test('Escape minimizes to the session pill, which reopens the same phase', async ({ page }) => {

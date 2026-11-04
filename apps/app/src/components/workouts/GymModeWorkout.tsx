@@ -244,6 +244,11 @@ export function GymModeWorkout() {
         <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{activeIdx + 1}/{session.exercises.length}</AppText>
       </View>
       <View className="flex-shrink-0 flex-row items-center gap-1">
+        {session.exercises.length > 1 ? (
+          <Pressable onPress={() => setShowReorder(true)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.reorder.title')} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
+            <ArrowUpDown size={16} color={colors.txMuted} />
+          </Pressable>
+        ) : null}
         <Pressable onPress={() => setConfirmFinish(true)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 ${allDone ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allDone ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
           <Flag size={14} color={allDone ? '#ffffff' : colors.txMuted} />
           <Text className={`font-sans-semibold text-xs ${allDone ? 'text-white' : 'text-tx-muted'}`}>{t('workouts.active.finish')}</Text>
