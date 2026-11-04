@@ -3,12 +3,17 @@ import { Image } from 'astro:assets';
 import '../styles/tailwind.css';
 
 import banner from '../assets/banner.png';
-import shotWorkouts from '../assets/workouts-mobile.png';
+import heroDesktop from '../assets/dashboard-dark-desktop.png';
+import heroPhone from '../assets/dashboard-dark-mobile.png';
+import shotProgram from '../assets/program-detail-desktop.png';
 import shotActive from '../assets/active-workout-mobile.png';
-import shotGym from '../assets/gym-mode-overview-mobile.png';
-import shotPrograms from '../assets/programs-mobile.png';
-import shotSettings from '../assets/settings-mobile.png';
 import shotGymDesktop from '../assets/gym-mode-overview-desktop.png';
+import shotGymPhone from '../assets/gym-mode-exercise-mobile.png';
+import shotExercise from '../assets/exercise-detail-desktop.png';
+import shotCharts from '../assets/dashboard-charts-desktop.png';
+import shotFood from '../assets/food-desktop.png';
+import shotFoodTrends from '../assets/food-trends-mobile.png';
+import shotWeight from '../assets/weight-mobile.png';
 
 // Normalize to always end in '/', so `${base}getting-started/` joins correctly. Astro's
 // BASE_URL can come back without a trailing slash (e.g. '/lyftr'), which would mangle links.
@@ -23,7 +28,7 @@ const APK = 'https://github.com/Cawlumm/lyftr/releases';
 
 const title = 'Lyftr — Self-Hosted Workout Tracker & Hevy / Strong Alternative (Open Source)';
 const description =
-  'Lyftr is a free, self-hosted, open-source workout & nutrition tracker — a no-subscription alternative to Hevy and Strong. Own your data. Deploy in one Docker command on a Raspberry Pi, NAS, or VPS.';
+  'Lyftr is a free, self-hosted, open-source workout & nutrition tracker — a no-subscription alternative to Hevy and Strong. One app for the browser and Android, your data in one SQLite file. Deploy with Docker on a Raspberry Pi, NAS, or VPS.';
 
 const canonical = new URL(base, Astro.site).href;
 const ogImage = new URL(banner.src, Astro.site).href;
@@ -36,25 +41,62 @@ const proof = [
   { label: 'MIT · Free · No subscription' },
 ];
 
+// The tour: each row pairs a desktop frame with a phone frame of the same feature, since
+// "one app on every screen" is the claim the screenshots have to carry.
+const tour = [
+  {
+    kicker: 'Plan',
+    t: 'Train from a program, not a blank page',
+    d: 'Build reusable programs with target sets, reps and weight per day. Lyftr knows which day is next, starts it in one tap, and logs every set against the plan, with a rest timer between them.',
+    desktop: shotProgram,
+    desktopAlt: 'A push/pull/legs program on desktop, showing each day and its target sets',
+    phone: shotActive,
+    phoneAlt: 'Logging sets during a workout on a phone',
+  },
+  {
+    kicker: 'Lift',
+    t: 'Gym Mode: one exercise, big buttons',
+    d: 'Switch the active workout to Gym Mode and Lyftr shows one exercise at a time with large steppers and a single Complete Set button. Full screen on a phone, a focused dialog on a desktop.',
+    desktop: shotGymDesktop,
+    desktopAlt: 'Gym Mode workout overview as a dialog on desktop',
+    phone: shotGymPhone,
+    phoneAlt: 'Gym Mode on a phone: set targets, reps and weight steppers, Complete Set',
+  },
+  {
+    kicker: 'Progress',
+    t: 'See what the work adds up to',
+    d: 'Each exercise page shows its photo, instructions, the muscles it works, your personal best and a weight-progression chart. The dashboard tracks volume, muscle balance, bodyweight and a 12-week consistency heatmap.',
+    desktop: shotExercise,
+    desktopAlt: 'Exercise detail on desktop: photo, muscle diagram, personal best and progression chart',
+    phone: shotWeight,
+    phoneAlt: 'Bodyweight log and trend on a phone',
+  },
+  {
+    kicker: 'Eat',
+    t: 'Nutrition beside your training',
+    d: 'Log meals against your own calorie and macro targets. Search foods or scan a barcode (via Open Food Facts), and watch your macros over 7, 30 or 90 days.',
+    desktop: shotFood,
+    desktopAlt: 'Nutrition diary on desktop with calories and macro rings',
+    phone: shotFoodTrends,
+    phoneAlt: 'Macro history chart on a phone',
+  },
+];
+
 const features = [
-  { t: '800+ exercise library', d: 'Downloaded on first startup from open-exercise-db and refreshed daily — no API key, no setup.' },
-  { t: 'Program builder', d: 'Reusable workout templates you can start with one tap.' },
-  { t: 'Guided active workout', d: 'Set-by-set flow so you always know what’s next.' },
-  { t: 'Gym Mode + rest timer', d: 'Full-screen, one exercise at a time, with a built-in rest timer.' },
-  { t: 'PRs & progression charts', d: 'Personal records, progression graphs, and a muscle diagram per exercise.' },
-  { t: 'Dashboard', d: 'Volume trends, a consistency heatmap, and muscle-group balance.' },
-  { t: 'Weight tracking', d: 'Log bodyweight and watch the trend graph — lbs or kg.' },
-  { t: 'Nutrition tracking', d: 'Calories, macros, barcode scan, and food search.' },
+  { t: '800+ exercises', d: 'Photos, instructions and muscles, downloaded from open-exercise-db and refreshed daily. No API key.' },
+  { t: 'Desktop and phone', d: 'A sidebar layout on a desktop, a tab bar on a phone, and an Android app. Same features everywhere.' },
+  { t: 'Light and dark', d: 'Both themes, switchable in Settings.' },
+  { t: 'English and Spanish', d: 'The app and the exercise library. More languages welcome.' },
+  { t: 'lbs or kg', d: 'Pick a unit once; every weight converts.' },
+  { t: 'Your registration rules', d: 'Keep sign-up open, limit it to the first account, or close it.' },
 ];
 
 // Why self-host — the value props (no competitor comparison).
 const values = [
-  { t: 'Self-hosted', d: 'Your data never leaves your server — no cloud account required.' },
+  { t: 'Self-hosted', d: 'Your logs never leave your server. No cloud account required.' },
   { t: 'Open source (MIT)', d: 'No black box. Read it, fork it, audit it, extend it.' },
-  { t: 'Free forever', d: 'No subscription and no paywalled features. All of it, always.' },
-  { t: 'Own your data', d: 'Everything lives in one SQLite file you fully control.' },
-  { t: 'Mobile-first', d: 'A native Android app plus a fast, responsive web UI.' },
-  { t: 'One-command deploy', d: 'Up and running with Docker in a couple of minutes.' },
+  { t: 'Free', d: 'No subscription and no paywalled features.' },
+  { t: 'Own your data', d: 'Everything lives in one SQLite file you fully control. Backing up is copying it.' },
 ];
 
 const runsOn = ['Raspberry Pi 4', 'Hetzner / DigitalOcean / Oracle', 'Synology NAS', 'Proxmox LXC', 'Mac · Linux · Windows'];
@@ -93,6 +135,8 @@ const jsonLd = {
     },
   ],
 };
+
+const check = 'M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z';
 ---
 
 <!doctype html>
@@ -133,10 +177,12 @@ const jsonLd = {
     <header class="sticky top-0 z-30 border-b border-surface-border/70 bg-surface-base/80 backdrop-blur-xl">
       <nav class="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
         <a href={base} class="flex items-center gap-2 font-display text-lg font-extrabold tracking-tight">
-          <span class="inline-block h-5 w-5 rounded bg-gradient-brand shadow-glow-sm"></span>
+          <img src={`${base}favicon.svg`} alt="" width="22" height="22" class="h-[22px] w-[22px]" />
           Lyftr
         </a>
         <div class="flex items-center gap-2 text-sm">
+          <a href="#tour" class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary md:inline-block">Tour</a>
+          <a href="#quick-start" class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary md:inline-block">Install</a>
           <a href={`${base}getting-started/`} class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary sm:inline-block">Docs</a>
           <a href={REPO} class="hidden rounded-lg px-3 py-2 text-tx-secondary hover:text-tx-primary sm:inline-block">GitHub</a>
           <a href={DEMO} class="rounded-lg bg-brand-500 px-4 py-2 font-semibold text-white shadow-sm transition hover:bg-brand-600">Live demo</a>
@@ -148,29 +194,27 @@ const jsonLd = {
       <!-- Hero -->
       <section class="relative overflow-hidden">
         <div class="pointer-events-none absolute -top-40 left-1/2 h-96 w-[46rem] -translate-x-1/2 rounded-full bg-brand-500/20 blur-[120px]"></div>
-        <div class="mx-auto grid max-w-6xl items-center gap-12 px-5 py-16 sm:py-24 lg:grid-cols-2">
-          <div>
+        <div class="mx-auto max-w-6xl px-5 pb-10 pt-14 sm:pt-20">
+          <div class="mx-auto max-w-3xl text-center">
             <span class="inline-flex items-center gap-2 rounded-full border border-surface-border bg-surface-raised px-3 py-1 text-xs font-medium text-brand-300">
               <span class="h-1.5 w-1.5 rounded-full bg-brand-400"></span> Open source · MIT · Self-hosted
             </span>
             <h1 class="mt-5 font-display text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
               The self-hosted workout tracker you <span class="bg-gradient-brand bg-clip-text text-transparent">actually own</span>.
             </h1>
-            <p class="mt-5 max-w-xl text-lg text-tx-secondary">
-              Self-hosted, mobile-first workout &amp; nutrition tracking — a free, no-subscription
-              alternative to Hevy and Strong. Your data stays on your server.
+            <p class="mx-auto mt-5 max-w-2xl text-lg text-tx-secondary">
+              Workouts, programs, nutrition and bodyweight in one app — in any browser, desktop or
+              phone, and on Android. A free, no-subscription alternative to Hevy and Strong that
+              keeps your data on your server.
             </p>
-            <div class="mt-8 flex flex-wrap gap-3">
+            <div class="mt-8 flex flex-wrap justify-center gap-3">
               <a href={DEMO} class="rounded-xl bg-brand-500 px-6 py-3.5 font-semibold text-white shadow-glow-sm transition hover:bg-brand-600">
                 Try the live demo →
               </a>
               <a href="#quick-start" class="rounded-xl border border-surface-border bg-surface-raised px-6 py-3.5 font-semibold text-tx-primary transition hover:border-tx-muted">
-                Deploy in one command
+                Self-host it
               </a>
             </div>
-            {/* The demo's login screen now offers one-tap sign-in, so the credentials are a
-                fallback rather than an instruction. Keeping them stated means this line is
-                true both before and after the demo redeploys with that button. */}
             <p class="mt-4 text-sm text-tx-muted">
               One tap to sign in — no account needed. Or use
               <code class="font-mono text-tx-secondary">demo@lyftr.local</code> /
@@ -178,16 +222,21 @@ const jsonLd = {
             </p>
           </div>
 
-          <div class="relative">
-            <div class="absolute inset-0 -z-10 rounded-3xl bg-gradient-brand opacity-20 blur-2xl"></div>
-            <Image
-              src={banner}
-              alt="Lyftr running on phone and desktop — dashboard, gym mode, and workout logging"
-              class="w-full rounded-2xl border border-surface-border shadow-glow"
-              widths={[480, 800, 1200]}
-              sizes="(max-width: 1024px) 100vw, 560px"
-              loading="eager"
-            />
+          <!-- Desktop + phone, the same dashboard. -->
+          <div class="relative mx-auto mt-14 max-w-5xl pb-6 sm:pb-10">
+            <div class="absolute inset-x-10 top-10 bottom-0 -z-10 rounded-[2rem] bg-gradient-brand opacity-20 blur-3xl"></div>
+            <div class="ml-auto w-full overflow-hidden rounded-xl border border-surface-border bg-surface-raised shadow-glow sm:w-[88%]">
+              <div class="flex items-center gap-1.5 border-b border-surface-border px-3 py-2" aria-hidden="true">
+                <span class="h-2.5 w-2.5 rounded-full bg-surface-border"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-surface-border"></span>
+                <span class="h-2.5 w-2.5 rounded-full bg-surface-border"></span>
+                <span class="ml-3 h-3.5 w-48 rounded bg-surface-overlay"></span>
+              </div>
+              <Image src={heroDesktop} alt="The Lyftr dashboard in a desktop browser, dark theme: up next, this week, calories, protein, last workout and today's nutrition" class="block w-full" widths={[640, 960, 1440]} sizes="(max-width: 1024px) 100vw, 900px" loading="eager" />
+            </div>
+            <div class="absolute bottom-0 left-0 hidden w-[24%] max-w-[230px] rounded-[1.9rem] border border-[#2a4370] bg-[#0b1222] p-1.5 shadow-[0_30px_70px_rgba(0,0,0,0.6)] sm:block">
+              <Image src={heroPhone} alt="The same dashboard on a phone" class="block w-full rounded-[1.5rem]" widths={[240, 460]} sizes="230px" loading="eager" />
+            </div>
           </div>
         </div>
       </section>
@@ -197,55 +246,83 @@ const jsonLd = {
         <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5 py-5 text-sm font-medium text-tx-secondary">
           {proof.map((p) => (
             <span class="flex items-center gap-2">
-              <svg class="h-4 w-4 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
+              <svg class="h-4 w-4 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d={check} clip-rule="evenodd"/></svg>
               {p.href ? <a href={p.href} class="transition hover:text-brand-300">{p.label}</a> : p.label}
             </span>
           ))}
         </div>
       </section>
 
-      <!-- Why self-host -->
-      <section class="mx-auto max-w-6xl px-5 py-20">
-        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Why self-host Lyftr?</h2>
-        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">A modern workout tracker that's yours — open, free, and running on your own server.</p>
-        <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {values.map((v) => (
-            <div class="rounded-xl border border-surface-border bg-surface-raised p-5">
-              <div class="flex items-center gap-2">
-                <svg class="h-5 w-5 shrink-0 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 011.4-1.4l3.3 3.3 6.8-6.8a1 1 0 011.4 0z" clip-rule="evenodd"/></svg>
-                <h3 class="font-display text-base font-bold text-tx-primary">{v.t}</h3>
+      <!-- Tour -->
+      <section id="tour" class="mx-auto max-w-6xl scroll-mt-20 px-5 py-20">
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">One app, every screen</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">
+          The web app your server hosts and the Android app are the same code, so what you see on
+          the desktop is what you get at the gym.
+        </p>
+
+        <div class="mt-16 space-y-20 lg:space-y-28">
+          {tour.map((row, i) => (
+            <article class="grid items-center gap-10 lg:grid-cols-12">
+              <div class={`lg:col-span-4 ${i % 2 ? 'lg:order-2' : ''}`}>
+                <p class="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-brand-400">
+                  {String(i + 1).padStart(2, '0')} · {row.kicker}
+                </p>
+                <h3 class="mt-3 font-display text-2xl font-bold tracking-tight sm:text-3xl">{row.t}</h3>
+                <p class="mt-4 text-tx-secondary">{row.d}</p>
               </div>
-              <p class="mt-1.5 text-sm text-tx-secondary">{v.d}</p>
-            </div>
+              <div class={`relative lg:col-span-8 ${i % 2 ? 'lg:order-1' : ''}`}>
+                <div class={`w-[86%] overflow-hidden rounded-xl border border-surface-border shadow-card-md ${i % 2 ? 'ml-auto' : ''}`}>
+                  <Image src={row.desktop} alt={row.desktopAlt} class="block w-full" widths={[480, 760, 1140]} sizes="(max-width: 1024px) 86vw, 640px" loading="lazy" />
+                </div>
+                <div class={`absolute -bottom-6 w-[27%] max-w-[200px] rounded-[1.6rem] border border-[#2a4370] bg-[#0b1222] p-1 shadow-[0_24px_60px_rgba(0,0,0,0.55)] ${i % 2 ? 'left-0' : 'right-0'}`}>
+                  <Image src={row.phone} alt={row.phoneAlt} class="block w-full rounded-[1.35rem]" widths={[200, 400]} sizes="200px" loading="lazy" />
+                </div>
+              </div>
+            </article>
           ))}
         </div>
+
+        <div class="mt-24 overflow-hidden rounded-xl border border-surface-border shadow-glow-sm">
+          <Image src={shotCharts} alt="Dashboard charts on desktop: muscle balance, volume trend, bodyweight and a 12-week consistency heatmap" class="block w-full" widths={[640, 1000, 1440]} sizes="(max-width: 1152px) 100vw, 1104px" loading="lazy" />
+        </div>
+        <p class="mt-3 text-center text-sm text-tx-muted">The dashboard on desktop: muscle balance, volume trend, bodyweight and twelve weeks of consistency.</p>
       </section>
 
-      <!-- Features -->
+      <!-- Features + why self-host -->
       <section class="border-t border-surface-border bg-surface-raised/30">
-        <div class="mx-auto max-w-6xl px-5 py-20">
-          <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Everything you track, in one place</h2>
-          <div class="mt-12 grid gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
-            <div class="grid gap-4 sm:grid-cols-2">
+        <div class="mx-auto grid max-w-6xl gap-14 px-5 py-20 lg:grid-cols-2">
+          <div>
+            <h2 class="font-display text-3xl font-bold tracking-tight">Also in the box</h2>
+            <dl class="mt-8 grid gap-x-6 gap-y-6 sm:grid-cols-2">
               {features.map((f) => (
-                <div class="rounded-xl border border-surface-border bg-surface-raised p-5">
-                  <h3 class="font-display text-base font-bold text-tx-primary">{f.t}</h3>
-                  <p class="mt-1.5 text-sm text-tx-secondary">{f.d}</p>
+                <div>
+                  <dt class="font-display text-base font-bold text-tx-primary">{f.t}</dt>
+                  <dd class="mt-1 text-sm text-tx-secondary">{f.d}</dd>
                 </div>
               ))}
-            </div>
-            <div class="flex items-end justify-center gap-3">
-              <Image src={shotWorkouts} alt="Workouts screen" class="w-1/3 max-w-[180px] rounded-2xl border border-surface-border shadow-card-md" widths={[160, 320]} sizes="180px" loading="lazy" />
-              <Image src={shotGym} alt="Gym Mode screen" class="w-1/3 max-w-[190px] -translate-y-4 rounded-2xl border border-surface-border shadow-glow-sm" widths={[160, 320]} sizes="190px" loading="lazy" />
-              <Image src={shotActive} alt="Active workout screen" class="w-1/3 max-w-[180px] rounded-2xl border border-surface-border shadow-card-md" widths={[160, 320]} sizes="180px" loading="lazy" />
-            </div>
+            </dl>
+          </div>
+          <div>
+            <h2 class="font-display text-3xl font-bold tracking-tight">Why self-host it?</h2>
+            <ul class="mt-8 space-y-5">
+              {values.map((v) => (
+                <li class="flex gap-3">
+                  <svg class="mt-0.5 h-5 w-5 shrink-0 text-brand-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d={check} clip-rule="evenodd"/></svg>
+                  <div>
+                    <h3 class="font-display text-base font-bold text-tx-primary">{v.t}</h3>
+                    <p class="mt-1 text-sm text-tx-secondary">{v.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
 
       <!-- Quick start -->
-      <section id="quick-start" class="mx-auto max-w-4xl px-5 py-20">
-        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Self-host in one command</h2>
+      <section id="quick-start" class="mx-auto max-w-4xl scroll-mt-20 px-5 py-20">
+        <h2 class="text-center font-display text-3xl font-bold tracking-tight sm:text-4xl">Self-host in a few commands</h2>
         <p class="mx-auto mt-3 max-w-2xl text-center text-tx-secondary">No clone. No build. No Go install. Just Docker.</p>
         <div class="mt-8 overflow-hidden rounded-2xl border border-surface-border bg-[#050a14]">
           <div class="flex items-center gap-2 border-b border-surface-border px-4 py-3">
@@ -257,8 +334,8 @@ const jsonLd = {
           <pre class="overflow-x-auto p-5 font-mono text-sm leading-relaxed text-tx-secondary"><code>curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/docker-compose.yml
 curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 
-<span class="text-tx-muted"># set a strong JWT_SECRET (32+ chars) in .env, then:</span>
-docker compose up -d</code></pre>
+<span class="text-tx-muted"># set JWT_SECRET in .env to a long random string (openssl rand -hex 32), then:</span>
+docker compose pull &amp;&amp; docker compose up -d</code></pre>
         </div>
         <p class="mt-4 text-center text-sm text-tx-muted">
           Then open <code class="font-mono text-tx-secondary">http://localhost</code> and create your account.
@@ -275,11 +352,7 @@ docker compose up -d</code></pre>
               <span class="rounded-full border border-surface-border bg-surface-raised px-4 py-2 text-sm text-tx-secondary">{r}</span>
             ))}
           </div>
-          <p class="mt-6 text-center text-sm text-tx-muted">Single SQLite file · minimal RAM · no external services.</p>
-
-          <div class="mt-10 flex flex-col items-center gap-4">
-            <Image src={shotGymDesktop} alt="Lyftr Gym Mode on desktop" class="w-full max-w-3xl rounded-2xl border border-surface-border shadow-glow-sm" widths={[700, 1200]} sizes="(max-width: 768px) 100vw, 768px" loading="lazy" />
-          </div>
+          <p class="mt-6 text-center text-sm text-tx-muted">Images for amd64, arm64 and armv7 · a single SQLite file · no external database.</p>
         </div>
       </section>
 

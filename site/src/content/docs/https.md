@@ -97,14 +97,19 @@ documented quick-start would be unusable on a phone. But understand what you're 
 
 Nothing is encrypted. Every request carries your login token in the clear, so **anyone else
 on that network can read it and stay signed in as you** — on a home LAN that includes guests
-and any compromised device. Captured tokens stay valid until they expire and cannot be
-revoked; the only way to invalidate them is to change `JWT_SECRET`, which signs out every
-user on the instance.
+and any compromised device. A captured token stays valid until you change your password or
+email (which signs out every other device, see [Configuration](../configuration/#changing-your-password)),
+or until `JWT_SECRET` changes, which signs out every user on the instance.
 
 **Barcode scanning stops working in the web app.** Browsers only allow camera access on a
 secure page, so on plain HTTP the scanner can't open. This is a browser rule, not a Lyftr
 setting — no configuration turns it back on. The Android app is unaffected: it uses the
 phone's camera directly.
+
+**The screen can sleep mid-workout in the web app.** Keeping the screen on during a session
+uses the browser's [Screen Wake Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Wake_Lock_API),
+which, like the camera, is only offered to a secure page. Over plain HTTP the workout screen
+says so and carries on. The Android app keeps the screen on either way.
 
 Use it to get running, then move to HTTPS. If you own a domain, the DNS-01 route above gets
 you a real certificate on a LAN-only hostname with no ports open — that is the fix, not a

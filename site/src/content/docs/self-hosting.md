@@ -14,8 +14,8 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/Cawlumm/lyftr/main/
 curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 ```
 
-Edit `.env` and set a strong `JWT_SECRET` (32+ characters), then pull the prebuilt images and
-start:
+Edit `.env` and set `JWT_SECRET` to a long random string (32+ characters; `openssl rand -hex 32`
+makes one), then pull the prebuilt images and start:
 
 ```bash
 docker compose pull
@@ -46,17 +46,30 @@ setup — and refreshes it every 24 hours. It needs outbound HTTPS to do that. S
 [Exercise Library](../exercise-library/).
 :::
 
+## What you are running
+
+The compose file starts two containers:
+
+| Service | Image | What it does |
+|---------|-------|--------------|
+| `backend` | `cwlumm/lyftr-backend` | The Go API. Keeps everything in `./data/lyftr.db`, a single SQLite file. Reachable only on the Docker network. |
+| `frontend` | `cwlumm/lyftr-frontend` | nginx serving the Lyftr web app and proxying `/api` to the backend. The only published port (`PORT`, default 80). |
+
+The web app is the same app as the Android one, exported for the browser: a sidebar layout on a
+desktop, a tab bar on a phone. Everything you log is in `./data` next to your compose file — see
+[Backups & Updates](../backups/).
+
 ## Where it runs
 
-Tested and working on:
+The images are published for `amd64`, `arm64` and `armv7`, so it runs on:
 
 - **Raspberry Pi 4** (2 GB RAM, arm64 image)
-- **Any x86 VPS** — Hetzner CAX11, DigitalOcean Droplet, Oracle Free Tier
+- **A VPS** — Hetzner (the Arm CAX line included), DigitalOcean Droplet, Oracle Free Tier
 - **Synology NAS** via Docker (Container Manager)
 - **Proxmox LXC** with Docker installed
 - **Local machine** — Mac, Linux, Windows (WSL2)
 
-Single SQLite file, minimal RAM, no external services required.
+Single SQLite file, minimal RAM, no external database.
 
 ## Next steps
 

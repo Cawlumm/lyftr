@@ -6,6 +6,12 @@ description: Install the Lyftr Android app, point it at your self-hosted server,
 Lyftr has a native mobile app so you can log workouts at the gym, straight from your phone —
 talking to **your** server.
 
+It is the same app your instance serves to browsers: one codebase builds the Android app and
+the web app, so the screens, features and translations match. The difference is what the
+phone allows a native app: it scans barcodes with the camera and keeps the screen on during
+a workout whether or not your server has HTTPS, where a browser only allows either on an
+`https://` page.
+
 ## Android
 
 1. Download the latest signed APK from the
@@ -42,8 +48,8 @@ update to the latest build.
 
 :::caution[What plain HTTP costs you]
 Nothing is encrypted. Every request carries your login token in the clear, so **anyone
-else on that network can read it and stay signed in as you**, and a captured token can't
-be revoked. The app shows an amber **Not encrypted** marker while this is in effect.
+else on that network can read it and stay signed in as you** until you change your password.
+The app shows an amber **Not encrypted** marker while this is in effect.
 
 Full detail and the fix: [HTTPS & Reverse Proxy](../https/). Treat plain HTTP as a
 temporary state, not a setup.

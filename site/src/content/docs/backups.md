@@ -56,8 +56,10 @@ docker compose up -d
 Your data volume is preserved across updates.
 
 :::tip[Pin a stable version]
-Tracking `main` gets you the newest features but also the newest rough edges. For a stable
-self-host target, pin a released tag in your compose file instead of `latest`.
+`latest` is built from `main`: the newest features, and the newest rough edges. For a stable
+target, pin both images to the same released tag in your compose file — `cwlumm/lyftr-backend:<tag>`
+and `cwlumm/lyftr-frontend:<tag>`, with `<tag>` taken from the
+[Releases](https://github.com/Cawlumm/lyftr/releases) page (e.g. `v0.1.0-beta.8`).
 :::
 
 :::note
