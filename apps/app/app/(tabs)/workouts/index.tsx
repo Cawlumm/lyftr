@@ -291,7 +291,7 @@ export default function Workouts() {
             {/* Reusable SearchField: leading search icon + a trailing slot that is a
                 spinner while a new query fetches (previous results stay on screen and
                 swap in place — no flash-to-zero) or a clear (×) button once there's text. */}
-            <View className={grid.wide ? 'max-w-md' : ''}>
+            <View>
               <SearchField
                 value={search}
                 onChangeText={setSearch}

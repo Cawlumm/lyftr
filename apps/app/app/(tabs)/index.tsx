@@ -355,8 +355,9 @@ export default function Dashboard() {
             <Play size={15} color="#fff" />
             <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
           </Pressable>
-          {/* Avatar → Settings. Settings moved off the footer; this is its entry point. */}
-          <Pressable
+          {/* Avatar → Settings. Settings moved off the footer; this is its entry point.
+              The wide web shell's sidebar user menu already holds it. */}
+          {wide ? null : <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('nav.settings')}
             onPress={() => { hSelect(); router.navigate('/settings') }}
@@ -371,7 +372,7 @@ export default function Dashboard() {
             >
               <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
             </LinearGradient>
-          </Pressable>
+          </Pressable>}
         </View>
       </View>
       {/* Outside the header row: that row's left column is ~190px once Start and the

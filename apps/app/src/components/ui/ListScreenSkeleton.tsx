@@ -32,7 +32,7 @@ export function ListScreenSkeleton({ title, subtitle, action, statCount = 3, sea
       <View className="gap-5 py-4">
         <PageHeader title={title} subtitle={subtitle} action={action} />
         {statCount > 0 ? <SkeletonStatRow count={statCount} /> : null}
-        {search ? <View className={wide ? 'max-w-md' : ''}><Skeleton height={48} radius={8} /></View> : null}
+        {search ? <Skeleton height={48} radius={8} /> : null}
       </View>
       <SkeletonList count={rows} />
     </Screen>

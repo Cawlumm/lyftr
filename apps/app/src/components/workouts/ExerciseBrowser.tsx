@@ -142,7 +142,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
       </View>
 
       <View className="flex-row items-center gap-2 px-4 pb-3">
-        <View className={grid.wide ? 'max-w-md flex-1' : 'flex-1'}>
+        <View className="flex-1">
           <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
         </View>
         <FilterButton active={count} onPress={() => setSheetOpen(true)} />

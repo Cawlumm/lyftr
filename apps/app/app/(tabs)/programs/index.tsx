@@ -165,7 +165,7 @@ export default function Programs() {
               ))}
             </View>
 
-            <View className={grid.wide ? 'max-w-md' : ''}>
+            <View>
               <SearchField
                 value={search}
                 onChangeText={setSearch}

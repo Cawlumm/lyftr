@@ -56,7 +56,7 @@ export function SessionPill() {
           <Text className="text-[11px] text-white/70">{t('workouts.active.setProgress', { done: completedSets, total: totalSets })} · {formatElapsed(elapsed)}</Text>
         </View>
         {resting ? (
-          <View className="flex-row items-center gap-1.5 rounded-full bg-white/15 py-1 pl-2.5 pr-1">
+          <View className="flex-row items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1">
             <Text className="text-[10px] font-sans-semibold uppercase text-white/70">{done ? t('workouts.rest.label.over') : paused ? t('workouts.rest.label.paused') : t('nav.session.rest')}</Text>
             {!done ? <Text className="font-sans-bold text-xs text-white" style={{ fontVariant: ['tabular-nums'] }}>{fmtClock(left)}</Text> : null}
           </View>
