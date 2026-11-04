@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from '../ui/icons'
 import { useTranslation, type Exercise } from '@lyftr/shared'
-import { AppText, Field, IconButton, SegmentedControl } from '../ui'
+import { AppText, Field, IconButton, SegmentedControl, interactive } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { DayExercisesEditor } from './DayExercisesEditor'
 import type { DayDraft } from './types'
@@ -109,7 +109,7 @@ export function ProgramDaysEditor({
               <Pressable
                 accessibilityRole="button"
                 onPress={() => setExpanded(isOpen ? null : idx)}
-                className="flex-row items-center justify-between border-t border-surface-border/60 px-3 py-2.5 active:bg-surface-muted/40"
+                className={`flex-row items-center justify-between border-t border-surface-border/60 px-3 py-2.5 active:bg-surface-muted/40 ${interactive('hover:bg-surface-muted/40', { inset: true })}`}
               >
                 <AppText variant="caption" color="muted">
                   {t('common.count.exercises', { count: day.exercises.length })}

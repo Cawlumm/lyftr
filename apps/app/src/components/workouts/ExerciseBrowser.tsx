@@ -19,6 +19,7 @@ import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
+import { useSessionPillInset } from './SessionPill'
 
 const exercisePath = (id: number) => `/workouts/exercise/${id}`
 const exerciseHref = (id: number) => exercisePath(id) as unknown as Href
@@ -75,6 +76,7 @@ function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: bool
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
 // the muscle and equipment filters the API already takes, behind a filter button.
 export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initialQuery?: string; initialFilters?: FilterValues } = {}) {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { accent } = useTheme()
   const grid = useCardGrid({ lg: 2, xl: 3 })
@@ -180,7 +182,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
             keyExtractor={(e) => String(e.id)}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
-            contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 + pillInset }}
             ItemSeparatorComponent={() => <View className={grid.wide ? 'h-3' : 'ml-[56px] h-px bg-surface-border/60'} />}
             renderItem={({ item }) => grid.wide
               ? <View style={grid.cellStyle}><BrowseRow exercise={item} card /></View>

@@ -692,6 +692,7 @@
     "list": {
       "searchPlaceholder": "Search programs…",
       "empty": {
+        "titleNone": "No programs yet",
         "title": "No programs found",
         "startHint": "Create a program to get started"
       },
@@ -700,7 +701,8 @@
     },
     "stats": {
       "total": "Total",
-      "totalUnit": "programs",
+      "totalUnit_one": "program",
+      "totalUnit_other": "programs",
       "totalFailed": "Couldn't load total",
       "avgExercises": "Avg Exercises",
       "avgExercisesFailed": "Couldn't load avg exercises",
@@ -979,7 +981,8 @@
       "total": "Total",
       "logged": "logged",
       "thisMonth": "This Month",
-      "sessions": "sessions",
+      "sessions_one": "session",
+      "sessions_other": "sessions",
       "avgTime": "Avg Time",
       "min": "min",
       "totalFailed": "Couldn't load total",
@@ -993,6 +996,7 @@
       "browseExercises": "Browse exercises",
       "searchPlaceholder": "Search workouts…",
       "empty": {
+        "titleNone": "No workouts yet",
         "title": "No workouts found",
         "startHint": "Log a workout to get started"
       },

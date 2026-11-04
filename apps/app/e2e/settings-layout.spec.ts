@@ -64,12 +64,20 @@ test.describe('settings', () => {
     await expect(page).toHaveURL(/\/settings$/)
   })
 
-  test('keyboard: Tab walks the back link, then the account links in order, and Enter follows one', async ({ page }) => {
+  test('the back link is a phone affordance: beside the sidebar Settings opens from any page', async ({ page }) => {
+    await open(page, '/settings', 390)
+    await expect(page.getByRole('button', { name: 'Home' })).toBeVisible()
     await open(page, '/settings', 1280)
-    const back = page.getByRole('button', { name: 'Home' })
-    await back.focus()
-    await expect(back).toBeFocused()
-    for (const name of [/^Name/, /^Email/, /^Password/]) {
+    await expect(page.getByRole('heading', { level: 1, name: 'Settings' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Home' })).toHaveCount(0)
+  })
+
+  test('keyboard: Tab walks the account links in order, and Enter follows one', async ({ page }) => {
+    await open(page, '/settings', 1280)
+    const first = page.getByRole('link', { name: /^Name/ })
+    await first.focus()
+    await expect(first).toBeFocused()
+    for (const name of [/^Email/, /^Password/]) {
       await page.keyboard.press('Tab')
       await expect(page.getByRole('link', { name })).toBeFocused()
     }

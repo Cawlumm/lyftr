@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, FlatList, Modal, Pressable, View } from 'react-native'
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, View } from 'react-native'
 import { BookOpen, ChevronRight, Dumbbell, Moon, X } from '../ui/icons'
 import type { Program, ProgramDay, UiMessage } from '@lyftr/shared'
 import { workoutDays, dayLabel, todaysDay, uiMessage, useTranslation } from '@lyftr/shared'
@@ -52,7 +52,7 @@ export function ProgramPicker({ onSelect, onClose }: Props) {
     <Modal visible transparent animationType="fade" onRequestClose={dayPickFor ? () => setDayPickFor(null) : onClose}>
       <View className="flex-1 items-center justify-center bg-black/60 px-4">
         {/* maxHeight is layout math NativeWind percentages don't cover reliably — inline. */}
-        <View className="w-full rounded-2xl border border-surface-border bg-surface-base" style={{ maxHeight: '80%' }}>
+        <View className={`w-full rounded-2xl border border-surface-border bg-surface-base ${Platform.OS === 'web' ? 'max-w-lg' : ''}`} style={{ maxHeight: '80%' }}>
           <View className="flex-row items-center justify-between border-b border-surface-border px-4 py-3">
             <View className="flex-1 pr-2">
               <AppText variant="heading" numberOfLines={1}>{title}</AppText>

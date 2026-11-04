@@ -97,7 +97,7 @@ export function SettingsRow({
   return (
     <View className={divider ? 'border-t border-surface-border' : ''}>
       {onPress ? (
-        <Pressable accessibilityRole="button" {...press} className={`active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}>
+        <Pressable accessibilityRole="button" {...press} className={`rounded-lg active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}>
           {line}
         </Pressable>
       ) : (

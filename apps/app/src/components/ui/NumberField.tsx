@@ -55,7 +55,7 @@ export function NumberField({
         setText(v)
       }}
       // tabular-nums keeps the value from jittering as digits change (web parity).
-      className={`w-full py-1 text-center font-display-heavy text-3xl text-tx-primary ${disabled ? 'opacity-40' : ''}`}
+      className={`w-full rounded-lg py-1 text-center font-display-heavy text-3xl text-tx-primary ${disabled ? 'opacity-40' : ''}`}
       style={{ fontVariant: ['tabular-nums'] }}
     />
   )

@@ -19,6 +19,7 @@ import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { semanticInk } from '../../../src/theme/theme'
 import { useTheme } from '../../../src/theme/useTheme'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 const PERIODS = ['7d', '30d', '90d', 'All'] as const
 type Period = typeof PERIODS[number]
@@ -30,6 +31,7 @@ const SIDE_COLUMN = 360
 const STICKY = { position: 'sticky', top: 16 } as unknown as ViewStyle
 
 export default function Weight() {
+  const pillInset = useSessionPillInset()
   const { t, i18n } = useTranslation()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -585,7 +587,7 @@ export default function Weight() {
       <Screen maxWidth="wide">
         <ScrollView
           style={scrollBleed} showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: 32 + pillInset }}
           onScroll={onScroll}
           scrollEventThrottle={100}
           onContentSizeChange={(_, h) => setContent({ height: h, rows: items.length })}
@@ -638,7 +640,7 @@ export default function Weight() {
         data={items}
         keyExtractor={(l) => String(l.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onEndReached={loadMore}

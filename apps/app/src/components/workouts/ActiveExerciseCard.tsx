@@ -13,7 +13,7 @@ import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
 
-const CELL = 'h-11 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
+const CELL = 'h-11 w-full rounded-lg border border-surface-border/60 bg-surface-overlay px-2 text-center font-sans text-base text-tx-primary'
 
 
 // Both cells of a set row. A component rather than two inline TextInputs because each
@@ -111,7 +111,7 @@ function ActiveExerciseCardBase({
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-              <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
+              <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
             </View>
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>

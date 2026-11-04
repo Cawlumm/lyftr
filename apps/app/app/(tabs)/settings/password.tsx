@@ -142,17 +142,16 @@ export default function ChangePasswordScreen() {
 
             <View className="flex-row gap-2">
               <Button
-                title={t('settings.account.password.submit')}
-                onPress={submit}
-                loading={save.busy}
-                disabled={!rules.ready}
-                className="flex-1"
-              />
-              <Button
                 title={t('common.cancel')}
                 variant="secondary"
                 onPress={back}
                 disabled={save.busy}
+              />
+              <Button
+                title={t('settings.account.password.submit')}
+                onPress={submit}
+                loading={save.busy}
+                disabled={!rules.ready}
                 className="flex-1"
               />
             </View>

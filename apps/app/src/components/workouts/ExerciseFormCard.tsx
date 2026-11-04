@@ -37,7 +37,7 @@ interface Props {
 
 // Compact spreadsheet cell: static border, no focus glow — never re-renders on focus
 // (Fabric-safe by construction, same rationale as the screens' old COMPACT_INPUT).
-const CELL = 'h-9 flex-1 rounded-lg border border-surface-border/60 bg-surface-overlay px-2 py-0 text-center font-sans text-sm text-tx-primary'
+const CELL = 'h-9 w-full rounded-lg border border-surface-border/60 bg-surface-overlay px-2 py-0 text-center font-sans text-sm text-tx-primary'
 
 // Set-table column widths — header and rows must agree or the columns shear.
 // COL_DELETE fits the 32pt IconButton so its hitSlop isn't clipped by the parent
@@ -128,7 +128,7 @@ function ExerciseFormCardBase({
         </View>
         <View className="flex-1">
           <AppText variant="bodySemibold" numberOfLines={1}>{exercise?.name}</AppText>
-          <AppText variant="caption" color="muted" numberOfLines={1}>
+          <AppText variant="caption" color="muted" numberOfLines={1} className="capitalize">
             {muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}
           </AppText>
         </View>
