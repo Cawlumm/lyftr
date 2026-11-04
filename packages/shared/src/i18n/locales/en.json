@@ -1209,6 +1209,7 @@
   "gym": {
     "workout": "Workout",
     "minimize": "Minimize",
+    "elapsed": "Workout time {{time}}",
     "discardWorkout": "Discard workout",
     "discard": {
       "title": "Discard workout?",
@@ -1216,11 +1217,15 @@
       "confirm": "Discard"
     },
     "menu": {
-      "more": "More options"
+      "more": "More options",
+      "addExercise": "Add exercise",
+      "allExercises": "All exercises",
+      "overview": "Workout overview",
+      "subtitle": "{{name}} · {{sets}}"
     },
     "exercises": {
       "title": "Exercises",
-      "chip": "Exercises, {{current}} of {{total}}, {{name}}",
+      "switcher": "Exercises, {{current}} of {{total}}, {{name}}",
       "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
       "rowCurrent": "{{number}}. {{name}}, current exercise, {{sets}}",
       "rowDone": "{{number}}. {{name}}, done, {{sets}}"

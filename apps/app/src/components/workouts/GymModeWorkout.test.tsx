@@ -76,19 +76,30 @@ describe('top bar', () => {
     useWorkoutSession.setState({ session: { ...s, exercises: [...s.exercises, second()] }, gymPhase: 'exercise', gymExIdx: 0, gymSetIdx: 1 })
   })
 
-  it('opens the exercises sheet from the progress chip and jumps to the exercise picked', async () => {
+  it('opens the exercises sheet from the exercise heading and jumps to the exercise picked', async () => {
     const view = await render(<GymModeWorkout />)
-    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press, chest, 1/3 sets done' }))
     await fireEvent.press(screen.getByLabelText('2. Squat, 1/3 sets done'))
     const state = useWorkoutSession.getState()
     expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise-info', 1, 0])
     expect(screen.queryByLabelText(/^1\. Bench Press/)).toBeNull()
+    // The info phase's title is the same switcher, so the way back is the sheet.
+    expect(screen.getByRole('button', { name: 'Exercises, 2 of 2, Squat, chest, Barbell, strength' })).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('names the exercise once, with its position under it', async () => {
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getAllByText('Bench Press')).toHaveLength(1)
+    expect(screen.getByText('1/2')).toBeTruthy()
+    expect(screen.getByText('1/3 sets done')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull()
     await view.unmount()
   })
 
   it('reorders from the exercise screen, and the screen stays on the same exercise', async () => {
     const view = await render(<GymModeWorkout />)
-    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press, chest, 1/3 sets done' }))
     await fireEvent.press(screen.getByRole('button', { name: 'Reorder exercises' }))
     await fireEvent.press(screen.getByLabelText('Move Bench Press down'))
     const state = useWorkoutSession.getState()
@@ -97,15 +108,68 @@ describe('top bar', () => {
     await view.unmount()
   })
 
-  it('keeps Minimize and Discard in the overflow menu; Discard still asks first', async () => {
+  it('minimizes from the ⌄ button, not from the menu', async () => {
+    useWorkoutSession.setState({ gymOpen: true })
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    expect(screen.queryByText('Minimize')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Minimize' }))
+    expect(useWorkoutSession.getState().gymOpen).toBe(false)
+    await view.unmount()
+  })
+
+  it('lists the workout actions in the menu; Discard is last and still asks first', async () => {
     const view = await render(<GymModeWorkout />)
     expect(screen.queryByRole('button', { name: 'Discard workout' })).toBeNull()
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
-    expect(screen.getByText('Minimize')).toBeTruthy()
+    const labels = ['Add exercise', 'Reorder exercises', 'All exercises', 'Workout overview', 'Discard workout']
+    for (const l of labels) expect(screen.getByText(l)).toBeTruthy()
+    expect(screen.getByText('Workout · 2/6 sets')).toBeTruthy()
     await fireEvent.press(screen.getByText('Discard workout'))
     await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
     expect(screen.getByText('Discard workout?')).toBeTruthy()
     expect(useWorkoutSession.getState().session).not.toBeNull()
+    await view.unmount()
+  })
+
+  it.each([
+    ['Reorder exercises', 'Move Bench Press down'],
+    ['All exercises', '2. Squat, 1/3 sets done'],
+  ])('the menu item %s opens the exercises sheet on its view', async (item, inSheet) => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    await fireEvent.press(screen.getByText(item))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(screen.getByLabelText(inSheet)).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('reaches the overview from the menu', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    await fireEvent.press(screen.getByText('Workout overview'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(useWorkoutSession.getState().gymPhase).toBe('overview')
+    expect(screen.getByText('Start Workout')).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('draws one progress segment per exercise', async () => {
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByTestId('gym-progress-seg-0', { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.getByTestId('gym-progress-seg-1', { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.queryByTestId('gym-progress-seg-2', { includeHiddenElements: true })).toBeNull()
+    await view.unmount()
+  })
+
+  it('ticks the elapsed clock from the session start', async () => {
+    const s = useWorkoutSession.getState().session!
+    useWorkoutSession.setState({ session: { ...s, started_at: new Date(Date.now() - 90_000).toISOString() } })
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByLabelText('Workout time 01:30')).toBeTruthy()
+    expect(screen.getByText('2/6 sets')).toBeTruthy()
+    await act(async () => { jest.advanceTimersByTime(1_000) })
+    expect(screen.getByText('01:31')).toBeTruthy()
     await view.unmount()
   })
 })

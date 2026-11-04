@@ -1,51 +1,33 @@
-import { useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Platform, Pressable, Text, View } from 'react-native'
-import { useTranslation } from '@lyftr/shared'
-import { ChevronDown } from '../ui/icons'
-import { interactive } from '../ui/interaction'
+import { useEffect, useRef } from 'react'
+import { Animated, Easing, Platform, Text, View } from 'react-native'
+import { formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { useMotion } from '../../lib/useMotion'
 import { useTheme } from '../../theme/useTheme'
 
-// Below this much room the chip shows only the position: a name cut to two letters says less
-// than none, and the bar's other controls keep their size either way.
-export const CHIP_NAME_MIN_WIDTH = 120
-
-/** Where you are in the workout, and the way to the exercises sheet. It takes whatever width
- *  the top bar leaves between Back and Finish, and shows the exercise's name only when that
- *  room is enough to read some of it. */
-export function ProgressChip({ current, total, name, onPress }: {
-  /** 1-based position of the exercise being worked. */
-  current: number
-  total: number
-  name: string
-  onPress: () => void
-}) {
+/** The workout's running time over its set count. Its own component so the once-a-second tick
+ *  re-renders these two lines, not the whole gym screen. */
+export function ElapsedClock({ startedAt, done, total }: { startedAt: string; done: number; total: number }) {
   const { t } = useTranslation()
-  const { colors } = useTheme()
-  const [room, setRoom] = useState(0)
-  const showName = room >= CHIP_NAME_MIN_WIDTH
+  const time = formatElapsed(useElapsedSeconds(startedAt))
   return (
-    <View testID="gym-progress-slot" className="min-w-0 flex-1 flex-row" onLayout={(e) => setRoom(e.nativeEvent.layout.width)}>
-      <Pressable
-        testID="gym-progress-chip"
-        onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={t('gym.exercises.chip', { current, total, name })}
-        className={`h-11 min-w-0 max-w-full flex-row items-center gap-1 rounded-xl border border-surface-border bg-surface-muted pl-3 pr-2 active:scale-95 ${interactive('hover:bg-surface-border')}`}
+    <View testID="gym-clock" className="min-w-0 flex-1 justify-center">
+      {/* A timer is not a live region, so the label changing each second is not announced. */}
+      <Text
+        accessibilityRole="timer"
+        accessibilityLabel={t('gym.elapsed', { time })}
+        className="font-display text-xl leading-[22px] text-tx-primary"
+        style={{ fontVariant: ['tabular-nums'] }}
       >
-        <Text className="font-sans-semibold text-xs text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>{`${current}/${total}`}</Text>
-        {showName ? (
-          <Text numberOfLines={1} className="min-w-0 flex-shrink font-sans-semibold text-xs text-tx-secondary">{`· ${name}`}</Text>
-        ) : null}
-        <ChevronDown size={14} color={colors.txMuted} />
-      </Pressable>
+        {time}
+      </Text>
+      <Text numberOfLines={1} className="font-sans text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
+        {t('workouts.active.setProgress', { done, total })}
+      </Text>
     </View>
   )
 }
 
-/** A thin bar under the top bar: completed sets over all sets. Decorative; the chip and the
- *  exercises sheet say the same in words. Grows by transform, so nothing re-lays out. */
-export function ProgressLine({ value }: { value: number }) {
+function Segment({ index, value, current }: { index: number; value: number; current: boolean }) {
   const { accent } = useTheme()
   const { base } = useMotion()
   const clamped = Math.max(0, Math.min(1, value))
@@ -58,16 +40,35 @@ export function ProgressLine({ value }: { value: number }) {
   }, [clamped, base, scale])
   return (
     <View
+      testID={`gym-progress-seg-${index}`}
+      className={`h-1 flex-1 overflow-hidden rounded-sm ${current ? 'bg-brand-500/30' : 'bg-surface-border'}`}
+    >
+      {/* Grows by transform, so nothing re-lays out. */}
+      <Animated.View
+        testID={`gym-progress-fill-${index}`}
+        style={{ height: '100%', width: '100%', backgroundColor: accent, transformOrigin: 'left', transform: [{ scaleX: scale }] }}
+      />
+    </View>
+  )
+}
+
+/** One segment per exercise, each filled by its share of completed sets; the one being worked
+ *  has a tinted track. Decorative: the clock's "4/15 sets" and the heading's "2/5" say it in words. */
+export function ProgressSegments({ values, keys, current }: {
+  values: number[]
+  /** One stable key per exercise (occurrenceKeys), so a segment moves with its exercise. */
+  keys: string[]
+  current: number
+}) {
+  return (
+    <View
       testID="gym-progress-line"
       aria-hidden
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      className="h-[3px] w-full overflow-hidden bg-surface-border"
+      className="flex-row gap-[3px] px-3 pb-0.5"
     >
-      <Animated.View
-        testID="gym-progress-fill"
-        style={{ height: '100%', width: '100%', backgroundColor: accent, transformOrigin: 'left', transform: [{ scaleX: scale }] }}
-      />
+      {values.map((v, i) => <Segment key={keys[i] ?? i} index={i} value={v} current={i === current} />)}
     </View>
   )
 }

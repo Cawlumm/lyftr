@@ -272,8 +272,9 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
   const button = (page: Page, name: string | RegExp) => dialog(page).getByRole('button', { name })
   const pill = (page: Page, name: string) => page.getByText(name, { exact: true }).locator('visible=true')
 
-  // Minimize and Discard live in the top bar's overflow menu.
+  // Minimize is the chevron at the top left; Discard lives in the workout menu.
   async function exitMenu(page: Page, item: 'Minimize' | 'Discard workout') {
+    if (item === 'Minimize') return button(page, 'Minimize').click()
     await button(page, 'More options').click()
     await page.getByRole('menuitem', { name: item }).click()
   }
@@ -458,8 +459,9 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(skip).toHaveCount(1)
     await expectBelow('Begin Exercise')
 
-    // Exercise info -> overview, by the header's first control.
-    await dialog(page).getByRole('button').first().click()
+    // Exercise info -> overview, from the workout menu (Back is gone from the exercise screens).
+    await button(page, 'More options').click()
+    await page.getByRole('menuitem', { name: 'Workout overview' }).click()
     await expect(button(page, 'Start Workout')).toBeVisible()
     await expect(skip).toHaveCount(1)
     await expectBelow('Start Workout')

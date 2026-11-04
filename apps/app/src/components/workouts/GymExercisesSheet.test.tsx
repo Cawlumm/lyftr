@@ -3,7 +3,6 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { moveItem, occurrenceKeys } from '@lyftr/shared'
 import { GymExercisesSheet, rowStatus, type ExerciseProgress, type ExercisesSheetMode } from './GymExercisesSheet'
-import { CHIP_NAME_MIN_WIDTH, ProgressChip } from './GymProgress'
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
 jest.mock('react-native-safe-area-context', () => ({
@@ -104,26 +103,5 @@ describe('GymExercisesSheet', () => {
     await render(<Harness onClose={onClose} />)
     await fireEvent.press(screen.getByText('Close'))
     expect(onClose).toHaveBeenCalled()
-  })
-})
-
-describe('ProgressChip', () => {
-  const layout = (width: number) => ({ nativeEvent: { layout: { x: 0, y: 0, width, height: 44 } } })
-
-  it('names the position and the exercise for a screen reader', async () => {
-    await render(<ProgressChip current={2} total={5} name="Bench Press" onPress={jest.fn()} />)
-    expect(screen.getByRole('button', { name: 'Exercises, 2 of 5, Bench Press' })).toBeTruthy()
-  })
-
-  it('shows the name only when there is room to read some of it', async () => {
-    await render(<ProgressChip current={2} total={5} name="Bench Press" onPress={jest.fn()} />)
-    const slot = screen.getByTestId('gym-progress-slot')
-    expect(screen.getByText('2/5')).toBeTruthy()
-    expect(screen.queryByText('· Bench Press')).toBeNull()
-    await fireEvent(slot, 'layout', layout(CHIP_NAME_MIN_WIDTH))
-    expect(screen.getByText('· Bench Press')).toBeTruthy()
-    await fireEvent(slot, 'layout', layout(CHIP_NAME_MIN_WIDTH - 1))
-    expect(screen.queryByText('· Bench Press')).toBeNull()
-    expect(screen.getByText('2/5')).toBeTruthy()
   })
 })

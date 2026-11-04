@@ -1226,6 +1226,7 @@
   "gym": {
     "workout": "Entrenamiento",
     "minimize": "Minimizar",
+    "elapsed": "Tiempo de entrenamiento {{time}}",
     "discardWorkout": "Descartar entrenamiento",
     "discard": {
       "title": "¿Descartar el entrenamiento?",
@@ -1233,11 +1234,15 @@
       "confirm": "Descartar"
     },
     "menu": {
-      "more": "Más opciones"
+      "more": "Más opciones",
+      "addExercise": "Agregar ejercicio",
+      "allExercises": "Todos los ejercicios",
+      "overview": "Resumen del entrenamiento",
+      "subtitle": "{{name}} · {{sets}}"
     },
     "exercises": {
       "title": "Ejercicios",
-      "chip": "Ejercicios, {{current}} de {{total}}, {{name}}",
+      "switcher": "Ejercicios, {{current}} de {{total}}, {{name}}",
       "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
       "rowCurrent": "{{number}}. {{name}}, ejercicio actual, {{sets}}",
       "rowDone": "{{number}}. {{name}}, hecho, {{sets}}"
