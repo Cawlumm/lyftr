@@ -400,8 +400,11 @@ jobs:
     name: Build & push backend image
     needs: [test, e2e-app, version-smoke]
     # Still verify the image builds even if a test dependency was *skipped* by filtering;
-    # only a genuine failure/cancel of a dependency should stop it.
-    if: ${{ !failure() && !cancelled() }}
+    # only a genuine failure/cancel of a dependency should stop it. On other branches only in
+    # the pull_request run: the push run for the same commit would build the same images.
+    if: >-
+      !failure() && !cancelled() &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -440,7 +443,10 @@ jobs:
   build-frontend:
     name: Build & push frontend image
     needs: [test, e2e-app, mobile, web-export]
-    if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
+    # Tolerate skipped (filtered) test deps; stop on real failure. Same event rule as build-backend.
+    if: >-
+      !failure() && !cancelled() &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
