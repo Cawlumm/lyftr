@@ -8,7 +8,7 @@ Bug reports, feature requests, and pull requests are welcome. Open an issue befo
 
 ### Prerequisites
 
-- [Go 1.22+](https://go.dev/dl/)
+- [Go 1.26+](https://go.dev/dl/)
 - [Node.js 20+](https://nodejs.org/)
 
 ### Backend
@@ -46,7 +46,7 @@ python3 scripts/seed_food.py
 ### Frontend
 
 ```bash
-npm install            # repo root: one install covers mobile and packages/shared
+npm install            # repo root: one install covers apps/app and packages/shared
 cd apps/app
 npx expo start --web
 # App at http://localhost:8081, talking to the backend on :3000
@@ -85,7 +85,7 @@ Lowercase, hyphen-separated, specific enough to be self-explanatory.
 
 ```bash
 # Start from an up-to-date main
-git checkout main && git pull --rebase
+git checkout main && git pull
 git checkout -b feature/your-feature
 
 # Work, commit, push
@@ -94,11 +94,11 @@ git push -u origin feature/your-feature
 # Open a PR against main
 ```
 
-Rebase against main before opening a PR if the branch has been open a while:
+Bring the branch up to date with main by merging (never rebase a pushed branch) if it has been open a while:
 
 ```bash
 git fetch origin
-git rebase origin/main
+git merge origin/main
 ```
 
 ---
@@ -109,7 +109,7 @@ Today you add or fix a language with a pull request. A web tool for translating 
 Weblate) is planned.
 
 UI strings live in one catalog per language in `packages/shared/src/i18n/locales`, shared
-by web and mobile. `en.json` is the source and the fallback. The languages the app ships
+by every build of the app (web, iOS, Android). `en.json` is the source and the fallback. The languages the app ships
 are listed in `locales/README.md`.
 
 **Adding a language**
@@ -130,7 +130,7 @@ are listed in `locales/README.md`.
 - Semantic dotted keys by screen, section, item and role (`settings.account.name.label`).
   Never the English sentence as the key.
 - One key per context. Do not reuse a key because the English happens to match; the other
-  language may not. Web and mobile share a key only when the role and the English are both
+  language may not. Screens share a key only when the role and the English are both
   identical.
 - One catalog file per language; the area is the top-level key (`settings`, `food`, ...).
 - Never build a sentence by concatenation. Use `{{placeholders}}` and keep them verbatim in
@@ -145,7 +145,7 @@ are listed in `locales/README.md`.
   and never follows a language switch. Store the key (or a `UiMessage`) and call `t()` where
   it renders.
 
-**When lint flags a string.** Web and mobile lint fail, as errors, on a literal in JSX text or
+**When lint flags a string.** The app's lint fails, as errors, on a literal in JSX text or
 a string prop (`eslint-plugin-i18next`), and on copy handed to `apiErrorMessage`,
 `useAsyncAction`, `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title`
 default. Decide, in this order:

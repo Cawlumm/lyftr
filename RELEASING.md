@@ -1,6 +1,6 @@
 # Releasing
 
-Backend, web, and mobile ship under one tag now — there's no separate mobile
+Backend and the app (web, iOS, Android) ship under one tag now — there's no separate mobile
 release train. Releases are cut manually (low cadence, doesn't need automation).
 
 ## Tag scheme
