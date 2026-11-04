@@ -692,6 +692,7 @@
     "list": {
       "searchPlaceholder": "Search programs…",
       "empty": {
+        "titleNone": "No programs yet",
         "title": "No programs found",
         "startHint": "Create a program to get started"
       },
@@ -995,6 +996,7 @@
       "browseExercises": "Browse exercises",
       "searchPlaceholder": "Search workouts…",
       "empty": {
+        "titleNone": "No workouts yet",
         "title": "No workouts found",
         "startHint": "Log a workout to get started"
       },

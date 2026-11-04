@@ -324,7 +324,7 @@ export default function Workouts() {
           ) : (
             <EmptyState
               icon={Dumbbell}
-              title={t('workouts.list.empty.title')}
+              title={t(search ? 'workouts.list.empty.title' : 'workouts.list.empty.titleNone')}
               subtitle={search ? t('common.tryDifferentSearch') : t('workouts.list.empty.startHint')}
             />
           )

@@ -700,6 +700,7 @@
     "list": {
       "searchPlaceholder": "Buscar programas…",
       "empty": {
+        "titleNone": "Aún no hay programas",
         "title": "No se encontraron programas",
         "startHint": "Crea un programa para empezar"
       },
@@ -1008,6 +1009,7 @@
       "browseExercises": "Explorar ejercicios",
       "searchPlaceholder": "Buscar entrenamientos…",
       "empty": {
+        "titleNone": "Aún no hay entrenamientos",
         "title": "No se encontraron entrenamientos",
         "startHint": "Registra un entrenamiento para empezar"
       },

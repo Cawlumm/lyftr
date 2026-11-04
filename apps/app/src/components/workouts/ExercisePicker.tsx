@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, FlatList, Modal, Pressable, TextInput, View } from 'react-native'
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, Dumbbell, Search } from '../ui/icons'
 import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
@@ -8,6 +8,7 @@ import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
+import { useBreakpoint } from '../../lib/useBreakpoint'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 
@@ -85,9 +86,15 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   })
 
   const available = exercises.filter((e) => !selectedIds.includes(e.id))
+  // From lg on web a centred panel over the dimmed app, like gym mode (GymFrame.web), rather
+  // than a phone screen stretched across the desktop and over the sidebar.
+  const { lg } = useBreakpoint()
+  const panel = Platform.OS === 'web' && lg
 
   return (
-    <Modal visible animationType="slide" onRequestClose={onClose}>
+    <Modal visible transparent={panel} animationType={panel ? 'fade' : 'slide'} onRequestClose={onClose}>
+      <View className={panel ? 'flex-1 items-center justify-center bg-black/60 p-6' : 'flex-1'}>
+      <View className={panel ? 'h-full max-h-[56rem] w-full max-w-2xl overflow-hidden rounded-2xl border border-surface-border bg-surface-base shadow-2xl' : 'flex-1'}>
       {/* A Modal renders in its own native view hierarchy outside the app's
           SafeAreaProvider, so SafeAreaView's top inset resolves to 0 there and the
           header rides up under the status bar/notch. Nest a provider inside the modal
@@ -198,6 +205,8 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
         )}
       </SafeAreaView>
       </SafeAreaProvider>
+      </View>
+      </View>
     </Modal>
   )
 }
