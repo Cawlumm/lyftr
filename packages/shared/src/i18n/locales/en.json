@@ -1174,7 +1174,8 @@
     },
     "reorder": {
       "title": "Reorder exercises",
-      "hint": "Drag a handle, or use the arrows.",
+      "button": "Reorder",
+      "hint": "Hold and drag a row, or use the arrows.",
       "moveUp": "Move {{name}} up",
       "moveDown": "Move {{name}} down",
       "moved": "{{name}} moved to position {{position}} of {{count}}"

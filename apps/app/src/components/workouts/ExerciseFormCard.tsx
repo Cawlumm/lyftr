@@ -1,6 +1,6 @@
 import { memo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native'
-import { ArrowUpDown, FileText, Plus, Timer, Trash2, X } from '../ui/icons'
+import { FileText, Plus, Timer, Trash2, X } from '../ui/icons'
 import type { Exercise } from '@lyftr/shared'
 import { AppText, IconButton, Label } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
@@ -31,8 +31,6 @@ interface Props {
   onRemoveSet: (index: number, setIdx: number) => void
   onUpdateSet: (index: number, setIdx: number, field: 'reps' | 'weight', value: string) => void
   onRestChange: (index: number, secs: number) => void
-  /** Opens the reorder sheet; omitted while there is nothing to reorder (one exercise). */
-  onReorder?: () => void
   /** iOS: ties the numeric cells to the screen's keyboard "Done" accessory bar. */
   inputAccessoryViewID?: string
 }
@@ -95,7 +93,7 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
 // presentational — all state stays in the owning screen.
 function ExerciseFormCardBase({
   index, exercise, notes, sets, restSeconds, unit,
-  onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange, onReorder,
+  onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange,
   inputAccessoryViewID,
 }: Props) {
   const { t } = useTranslation()
@@ -134,9 +132,6 @@ function ExerciseFormCardBase({
             {muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}
           </AppText>
         </View>
-        {onReorder ? (
-          <IconButton icon={ArrowUpDown} label={t('workouts.reorder.title')} variant="ghost" size="sm" onPress={onReorder} />
-        ) : null}
         <IconButton
           icon={Trash2}
           label={t('workouts.form.removeNamed', { name: exercise?.name ?? t('workouts.form.exerciseFallback') })}

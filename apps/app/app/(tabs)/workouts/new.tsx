@@ -11,7 +11,7 @@ import { interactive } from '../../../src/components/ui/interaction'
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
-import { ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
+import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
 import { ProgramPicker } from '../../../src/components/workouts/ProgramPicker'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -213,6 +213,7 @@ export default function AddWorkout() {
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
   const rowKeys = occurrenceKeys(selectedIds)
+  const canReorder = formData.exercises.length > 1
   const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const totalWeight = formData.exercises.reduce(
     (sum, ex) => sum + ex.sets.reduce((s, set) => s + (set.weight || 0), 0),
@@ -315,8 +316,11 @@ export default function AddWorkout() {
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>{t('workouts.form.exercises')}</Label>
                 <AppText variant="caption" color="muted">{t('common.required')}</AppText>
+                {/* Phone: the button row is full; the label row has the room. */}
+                {!wide && canReorder ? <ReorderButton onPress={openReorder} size="compact" className="ml-auto" /> : null}
               </View>
               <View className="flex-row items-center gap-2">
+                {wide && canReorder ? <ReorderButton onPress={openReorder} /> : null}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowProgramPicker(true)}
@@ -363,7 +367,6 @@ export default function AddWorkout() {
                   onRemoveSet={removeSet}
                   onUpdateSet={updateSet}
                   onRestChange={setExRest}
-                  onReorder={formData.exercises.length > 1 ? openReorder : undefined}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
                 />
               ))}

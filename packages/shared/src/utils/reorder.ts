@@ -33,3 +33,20 @@ export function occurrenceKeys(ids: readonly number[]): string[] {
     return `${id}:${n}`
   })
 }
+
+/** How fast to scroll a list while a row is dragged near one of its edges, in px per second:
+ *  negative toward the top, positive toward the bottom, 0 outside the edge bands. Speed grows
+ *  linearly with how deep the pointer is in a band and is `max` at (or past) the edge itself,
+ *  so a finger held above or below the list keeps it moving. The bands shrink on a short list
+ *  so they never meet in the middle. */
+export function autoScrollSpeed(
+  pointerY: number, top: number, bottom: number, edge = 56, max = 900,
+): number {
+  const band = Math.min(edge, (bottom - top) / 3)
+  if (!(band > 0)) return 0
+  const intoTop = top + band - pointerY
+  if (intoTop > 0) return -max * Math.min(1, intoTop / band)
+  const intoBottom = pointerY - (bottom - band)
+  if (intoBottom > 0) return max * Math.min(1, intoBottom / band)
+  return 0
+}

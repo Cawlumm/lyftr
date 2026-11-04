@@ -1191,7 +1191,8 @@
     },
     "reorder": {
       "title": "Reordenar ejercicios",
-      "hint": "Arrastra un asa o usa las flechas.",
+      "button": "Reordenar",
+      "hint": "Mantén pulsada una fila y arrástrala, o usa las flechas.",
       "moveUp": "Subir {{name}}",
       "moveDown": "Bajar {{name}}",
       "moved": "{{name}} movido a la posición {{position}} de {{count}}"

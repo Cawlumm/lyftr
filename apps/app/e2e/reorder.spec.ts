@@ -4,8 +4,9 @@ import { API_BASE as API } from './config'
 import { cleanupSeed } from './seedHelpers'
 
 // #166: reorder the exercises of a saved workout and of a running session, by button, by
-// keyboard and by dragging the handle, and check the order is what gets saved.
+// keyboard and by dragging a row (mouse and touch), and check the order is what gets saved.
 const WORKOUT_NAME = 'E2E Reorder Workout'
+const LONG_NAME = 'E2E Reorder Long'
 const SESSION_KEY = 'lyftr_active_session'
 const LAYOUT_KEY = 'lyftr_workout_layout'
 
@@ -25,16 +26,65 @@ async function sheetOrder(sheet: Locator): Promise<string[]> {
   return labels.map((l) => l.replace(/^Move (.*) up$/, '$1'))
 }
 
+async function rowName(sheet: Locator, i: number): Promise<string> {
+  return (await sheetOrder(sheet))[i]
+}
+
+// A finger on the screen. Chromium gets real touches through CDP, so the browser's own
+// scrolling takes part exactly as on a phone. WebKit has no such channel and will not
+// construct a Touch from script, so it gets touch-typed events carrying the touch lists
+// react-native-web reads: the same responder code runs, but the browser cannot scroll.
+async function touchDrag(page: Page, x: number, y: number, dy: number, holdMs: number) {
+  const steps = 10
+  if (page.context().browser()?.browserType().name() === 'chromium') {
+    const cdp = await page.context().newCDPSession(page)
+    const at = (yy: number) => [{ x, y: yy, id: 1 }]
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: at(y) })
+    await page.waitForTimeout(holdMs)
+    for (let i = 1; i <= steps; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: at(y + (dy * i) / steps) })
+      await page.waitForTimeout(16)
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    await cdp.detach()
+    return
+  }
+  const fire = (type: string, yy: number) => page.evaluate(({ type, x, yy }) => {
+    const w = window as unknown as { __touchTarget?: Element }
+    if (type === 'touchstart') w.__touchTarget = document.elementFromPoint(x, yy)!
+    const target = w.__touchTarget!
+    const touch = { identifier: 1, target, clientX: x, clientY: yy, pageX: x, pageY: yy, force: 1 }
+    const live = type === 'touchend' ? [] : [touch]
+    const e = new Event(type, { bubbles: true, cancelable: true })
+    Object.defineProperties(e, { touches: { value: live }, targetTouches: { value: live }, changedTouches: { value: [touch] } })
+    target.dispatchEvent(e)
+  }, { type, x, yy })
+  await fire('touchstart', y)
+  await page.waitForTimeout(holdMs)
+  for (let i = 1; i <= steps; i++) {
+    await fire('touchmove', y + (dy * i) / steps)
+    await page.waitForTimeout(16)
+  }
+  await fire('touchend', y + dy)
+}
+
+// One way in per screen: a single button beside "Add exercise", none on the cards.
 async function openSheet(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Reorder exercises' }).first().click()
+  const entry = page.getByRole('button', { name: 'Reorder exercises' })
+  await expect(entry).toHaveCount(1)
+  await entry.click()
   const sheet = page.getByRole('dialog', { name: 'Reorder exercises' })
   await expect(sheet).toBeVisible()
   return sheet
 }
 
-// Drags a row's handle by whole rows with the mouse (52px row + 6px gap).
-async function dragRow(page: Page, sheet: Locator, from: number, rows: number) {
-  const box = (await sheet.getByTestId(`reorder-handle-${from}`).boundingBox())!
+// Drags a row by whole rows with the mouse (52px row + 6px gap), by its grip or, since the
+// whole row drags, by the exercise name in the middle of it.
+async function dragRow(page: Page, sheet: Locator, from: number, rows: number, by: 'grip' | 'body' = 'grip') {
+  const target = by === 'grip'
+    ? sheet.getByTestId(`reorder-handle-${from}`)
+    : sheet.getByTestId(`reorder-body-${from}`).getByText(await rowName(sheet, from), { exact: true })
+  const box = (await target.boundingBox())!
   const x = box.x + box.width / 2
   const y = box.y + box.height / 2
   await page.mouse.move(x, y)
@@ -94,8 +144,13 @@ test.describe('Reorder exercises (#166)', () => {
     await expect(sheet.getByRole('button', { name: `Move ${c} down` })).toBeFocused()
     await expect(cUp).toBeDisabled()
 
-    // Drag: the last row's handle, two rows up.
+    // Drag: the last row's grip, two rows up.
     await dragRow(page, sheet, 2, -2)
+    expect(await sheetOrder(sheet)).toEqual([a, c, b])
+    // And by the body of the row, nowhere near the grip: down one, then back.
+    await dragRow(page, sheet, 0, 1, 'body')
+    expect(await sheetOrder(sheet)).toEqual([c, a, b])
+    await dragRow(page, sheet, 1, -1, 'body')
     expect(await sheetOrder(sheet)).toEqual([a, c, b])
 
     await sheet.getByRole('button', { name: 'Done' }).click()
@@ -178,5 +233,92 @@ test.describe('Reorder exercises (#166)', () => {
     await expect.poll(async () => (await title.boundingBox())?.y ?? -1).toBeGreaterThan(150)
     await expect.poll(async () => (await title.boundingBox())?.y ?? 9999).toBeLessThan(400)
     await page.evaluate((k) => localStorage.removeItem(k), SESSION_KEY)
+  })
+})
+
+
+// A long workout: more rows than the sheet shows, so reaching the end takes the autoscroll,
+// and a swipe on the list has to stay a scroll rather than lift a row.
+test.describe('Reorder a long workout (#166)', () => {
+  const ourLong = (w: { name: string }) => w.name === LONG_NAME
+  let longId: number
+  let names: string[]
+
+  test.beforeAll(async ({ request, workerAuth }) => {
+    token = workerAuth.token
+    const headers = { Authorization: `Bearer ${token}` }
+    await cleanupSeed(request, token, `${API}/workouts?limit=100`, `${API}/workouts`, ourLong)
+    const list: Ex[] = (await (await request.get(`${API}/exercises?limit=14`, { headers })).json()).data
+      .map((e: Ex) => ({ id: e.id, name: e.name }))
+    expect(list).toHaveLength(14)
+    names = list.map((e) => e.name)
+    const r = await request.post(`${API}/workouts`, {
+      headers,
+      data: {
+        name: LONG_NAME,
+        duration: 1800,
+        started_at: new Date().toISOString(),
+        exercises: list.map((e) => ({ exercise_id: e.id, rest_seconds: 90, sets: [{ set_number: 1, reps: 5, weight: 100 }] })),
+      },
+    })
+    longId = (await r.json()).data.id
+  })
+
+  test.afterAll(async ({ request }) => {
+    await cleanupSeed(request, token, `${API}/workouts?limit=100`, `${API}/workouts`, ourLong)
+  })
+
+  test('scrolls the list while a row is held at its edge, so it can go to the end', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`/workouts/${longId}/edit`)
+    const sheet = await openSheet(page)
+    const list = sheet.getByTestId('reorder-list')
+    const scrollTop = () => list.evaluate((el) => el.scrollTop)
+    const listBox = (await list.boundingBox())!
+    const row = (await sheet.getByTestId('reorder-body-0').getByText(names[0], { exact: true }).boundingBox())!
+    // The last row starts out of sight.
+    await expect(sheet.getByTestId('reorder-row-13')).not.toBeInViewport()
+    expect(await scrollTop()).toBe(0)
+
+    const x = row.x + row.width / 2
+    const y0 = row.y + row.height / 2
+    const edge = listBox.y + listBox.height - 4
+    await page.mouse.move(x, y0)
+    await page.mouse.down()
+    for (let i = 1; i <= 10; i++) await page.mouse.move(x, y0 + ((edge - y0) * i) / 10)
+    // Held still at the bottom edge, the list keeps scrolling to its end on its own.
+    await expect.poll(scrollTop).toBeGreaterThan(100)
+    // (scrollHeight would count the held row's own transform, so measure by the rows.)
+    await expect.poll(scrollTop).toBeGreaterThanOrEqual(14 * 58 - Math.round(listBox.height) - 1)
+    await expect(sheet.getByTestId('reorder-row-13')).toBeInViewport()
+    await page.mouse.up()
+    expect(await sheetOrder(sheet)).toEqual([...names.slice(1), names[0]])
+  })
+
+  test('on touch, a swipe scrolls the list and a long press drags a row @mobile', async ({ page, browserName }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto(`/workouts/${longId}/edit`)
+    const sheet = await openSheet(page)
+    const list = sheet.getByTestId('reorder-list')
+    const body = async (i: number) => (await sheet.getByTestId(`reorder-body-${i}`).getByText(names[i], { exact: true }).boundingBox())!
+
+    // A swipe that starts on a row, with no hold: nothing lifts, and with real touches the
+    // list scrolls under it.
+    const b2 = await body(2)
+    await touchDrag(page, b2.x + b2.width / 2, b2.y + b2.height / 2, -150, 0)
+    expect(await sheetOrder(sheet)).toEqual(names)
+    if (browserName === 'chromium') await expect.poll(() => list.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+    await list.evaluate((el) => { el.scrollTop = 0 })
+
+    // A short hold lifts the row, and the drag moves it without scrolling the list.
+    const b1 = await body(1)
+    await touchDrag(page, b1.x + b1.width / 2, b1.y + b1.height / 2, 2 * 58, 400)
+    const moved = [names[0], names[2], names[3], names[1], ...names.slice(4)]
+    await expect.poll(() => sheetOrder(sheet)).toEqual(moved)
+    expect(await list.evaluate((el) => el.scrollTop)).toBe(0)
+
+    // The arrows still take a press after a drag.
+    await sheet.getByRole('button', { name: `Move ${names[1]} up` }).click()
+    expect(await sheetOrder(sheet)).toEqual([names[0], names[2], names[1], names[3], ...names.slice(4)])
   })
 })

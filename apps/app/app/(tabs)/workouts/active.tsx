@@ -9,7 +9,7 @@ import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
-import { ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
+import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
@@ -249,17 +249,19 @@ export default function ActiveWorkout() {
               onCompleteSet={handleCompleteSet}
               onJumpToExercise={jumpToExercise}
               onRequestFinish={requestFinish}
-              onReorder={session.exercises.length > 1 ? openReorder : undefined}
             />
           ))
         )}
 
         {/* Footer */}
         <View className="mt-2 gap-2">
-          <Pressable onPress={() => setShowPicker(true)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}>
-            <Plus size={16} color={colors.txSecondary} />
-            <Text className="font-sans-semibold text-sm text-tx-secondary">{t('workouts.active.addExercise')}</Text>
-          </Pressable>
+          <View className="flex-row gap-2">
+            <Pressable onPress={() => setShowPicker(true)} accessibilityRole={WEB_BUTTON} className={`flex-1 flex-row items-center justify-center gap-2 rounded-2xl border border-surface-border bg-surface-muted py-3.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}>
+              <Plus size={16} color={colors.txSecondary} />
+              <Text className="font-sans-semibold text-sm text-tx-secondary">{t('workouts.active.addExercise')}</Text>
+            </Pressable>
+            {session.exercises.length > 1 ? <ReorderButton onPress={openReorder} size="footer" /> : null}
+          </View>
           <Pressable onPress={() => setConfirmCancel(true)} accessibilityRole={WEB_BUTTON} className={`items-center py-2.5 active:opacity-60 ${interactive('rounded-lg hover:bg-surface-muted')}`}>
             <Text className="font-sans text-xs text-tx-muted">{t('workouts.active.cancelWorkout')}</Text>
           </Pressable>

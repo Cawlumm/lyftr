@@ -11,7 +11,7 @@ import { interactive } from '../../../../src/components/ui/interaction'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
-import { ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
+import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
@@ -342,19 +342,24 @@ export default function EditWorkout() {
 
           {/* No summary strip — the header caption already carries exercises · sets · total. */}
           <View>
-            <View className="mb-3 flex-row items-center justify-between">
+            {/* Wraps where the label and both buttons do not fit one row (a phone in Spanish):
+                the buttons drop to their own row, still on the right. */}
+            <View className="mb-3 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
               <View className="flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>{t('workouts.form.exercises')}</Label>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowPicker(true)}
-                className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
-              >
-                <Plus size={13} color="#ffffff" />
-                <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
-              </Pressable>
+              <View className="ml-auto flex-row items-center gap-2">
+                {formData.exercises.length > 1 ? <ReorderButton onPress={openReorder} size="compact" /> : null}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setShowPicker(true)}
+                  className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+                >
+                  <Plus size={13} color="#ffffff" />
+                  <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                </Pressable>
+              </View>
             </View>
 
             {formData.exercises.length === 0 && (
@@ -384,7 +389,6 @@ export default function EditWorkout() {
                   onRemoveSet={removeSet}
                   onUpdateSet={updateSet}
                   onRestChange={setExRest}
-                  onReorder={formData.exercises.length > 1 ? openReorder : undefined}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
                 />
               ))}

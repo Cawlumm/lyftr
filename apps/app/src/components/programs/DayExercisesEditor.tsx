@@ -3,9 +3,10 @@ import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
 import { moveItem, occurrenceKeys, useTranslation, type Exercise } from '@lyftr/shared'
 import { EmptyState } from '../ui'
+import { interactive } from '../ui/interaction'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
-import { ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
+import { ReorderButton, ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
 import type { DayExerciseDraft } from './types'
@@ -83,14 +84,17 @@ export function DayExercisesEditor({
 
   return (
     <View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setShowPicker(true)}
-        className="mb-3 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95"
-      >
-        <Plus size={13} color="#ffffff" />
-        <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
-      </Pressable>
+      <View className="mb-3 flex-row items-center gap-2">
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setShowPicker(true)}
+          className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+        >
+          <Plus size={13} color="#ffffff" />
+          <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+        </Pressable>
+        {exercises.length > 1 ? <ReorderButton onPress={openReorder} /> : null}
+      </View>
 
       {exercises.length === 0 ? (
         <View className="rounded-2xl border border-dashed border-surface-border">
@@ -113,7 +117,6 @@ export function DayExercisesEditor({
               onRemoveSet={removeSet}
               onUpdateSet={updateSet}
               onRestChange={setExRest}
-              onReorder={exercises.length > 1 ? openReorder : undefined}
               inputAccessoryViewID={inputAccessoryViewID}
             />
           ))}

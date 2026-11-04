@@ -1,4 +1,4 @@
-import { moveItem, occurrenceKeys, remapIndex } from './reorder'
+import { autoScrollSpeed, moveItem, occurrenceKeys, remapIndex } from './reorder'
 
 describe('moveItem', () => {
   const list = ['a', 'b', 'c', 'd']
@@ -62,5 +62,36 @@ describe('occurrenceKeys', () => {
     const before = occurrenceKeys(ids)
     const after = occurrenceKeys(moveItem(ids, 0, 2))
     expect(after).toEqual([before[1], before[2], before[0]])
+  })
+})
+
+describe('autoScrollSpeed', () => {
+  // A list from y=100 to y=500: 56px bands at each edge, 900px/s at the edge itself.
+  const speed = (y: number) => autoScrollSpeed(y, 100, 500)
+
+  it('does not scroll in the middle of the list', () => {
+    expect(speed(300)).toBe(0)
+    expect(speed(156)).toBe(0) // the inner edge of the top band
+    expect(speed(444)).toBe(0) // the inner edge of the bottom band
+  })
+
+  it('scrolls up near the top and down near the bottom, faster the closer it gets', () => {
+    expect(speed(128)).toBeCloseTo(-450)
+    expect(speed(472)).toBeCloseTo(450)
+    expect(Math.abs(speed(110))).toBeGreaterThan(Math.abs(speed(140)))
+    expect(speed(100)).toBe(-900)
+    expect(speed(500)).toBe(900)
+  })
+
+  it('holds full speed past the edge instead of running away', () => {
+    expect(speed(20)).toBe(-900)
+    expect(speed(900)).toBe(900)
+  })
+
+  it('narrows the bands on a short list so they never overlap', () => {
+    // 90px tall: 30px bands, and the middle 30px is still still.
+    expect(autoScrollSpeed(145, 100, 190)).toBe(0)
+    expect(autoScrollSpeed(115, 100, 190)).toBeCloseTo(-450)
+    expect(autoScrollSpeed(100, 100, 100)).toBe(0)
   })
 })
