@@ -11,7 +11,8 @@ name: CI
 #
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
 # the mobile jobs, a mobile-only change skips the Go + version-smoke jobs,
-# and so on. The image-build and deploy jobs stay eligible regardless — they're guarded
+# and so on. The image-build and deploy jobs stay eligible regardless (on branches other
+# than main the image builds run in the pull_request run only) — they're guarded
 # with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
 # cascade into skipping the build/deploy gate. On main/tags every test job runs
 # unconditionally, so filtering never weakens deploys.
@@ -245,15 +246,23 @@ jobs:
       - uses: crazy-max/ghaction-github-runtime@v3
 
       # Own scopes: build-backend/build-frontend write multi-arch caches, and builds sharing a
-      # scope overwrite each other.
+      # scope overwrite each other. Both shards read; only shard 1 writes, once.
       - name: Build images with layer cache
+        env:
+          WRITE: ${{ matrix.shard == 1 }}
         run: |
+          to=()
+          if [ "$WRITE" = true ]; then
+            to=(--set "backend.cache-to=type=gha,scope=lyftr-e2e-backend,mode=max"
+                --set "frontend.cache-to=type=gha,scope=lyftr-e2e-frontend,mode=max")
+          fi
           docker buildx bake \
             --set "backend.cache-from=type=gha,scope=lyftr-e2e-backend" \
-            --set "backend.cache-to=type=gha,scope=lyftr-e2e-backend,mode=max" \
             --set "frontend.cache-from=type=gha,scope=lyftr-e2e-frontend" \
-            --set "frontend.cache-to=type=gha,scope=lyftr-e2e-frontend,mode=max" \
+            "${to[@]}" \
             --load
+          # The runtime token was for the cache only; npm ci's install scripts don't get it.
+          echo "ACTIONS_RUNTIME_TOKEN=" >> "$GITHUB_ENV"
 
       # The compose healthcheck polls every 30s, so `--wait` always took 31s. CI-only override.
       - name: Start stack
@@ -275,7 +284,7 @@ jobs:
       # timeout before a test started. A pull is bounded and retried instead.
       # https://playwright.dev/docs/docker
       - name: Pull the Playwright image
-        timeout-minutes: 8
+        timeout-minutes: 9   # above retry.sh's worst case (3 x 160s + 10s), so its own error shows
         run: |
           v=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
           img="mcr.microsoft.com/playwright:v${v}-noble"

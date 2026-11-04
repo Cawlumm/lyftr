@@ -77,7 +77,7 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 - **Workers:** CI runs four (`playwright.config.ts`: the public-repo `ubuntu-24.04` runner
   has 4 vCPUs and 16 GB; four ran the suite in 4.5 min against 6.3 for three) on each of two
-  shards (`--shard=1/2`, `2/2`: whole files per shard, each with its own runner and compose
+  shards (`--shard=1/2`, `2/2`: whole files per project per shard, each with its own runner and compose
   stack, browsers from the `mcr.microsoft.com/playwright` image); locally one,
   because the machine is shared. `--workers=2` opts in. Files run in parallel, tests within a file
   in order (`fullyParallel: false`), so a file's tests may share its `beforeAll` seed.
