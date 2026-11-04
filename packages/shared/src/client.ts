@@ -89,6 +89,13 @@ const codedMessage = (body: any): string | null => {
 // the way out of a 404 is the escape hatch, not the retry. Anything else — a timeout, a
 // 5xx, a dropped connection — may well succeed on a second attempt.
 export const isNotFound = (err: any): boolean => err?.response?.status === 404
+// The server's stable `code` for a failure, for a screen whose next step depends on which
+// refusal it was (a sync refused for a shrunken catalog offers to confirm). Null when there
+// was no answer or the answer carried no code.
+export const apiErrorCode = (err: any): string | null => {
+  const code = err?.response?.data?.code
+  return typeof code === 'string' ? code : null
+}
 export const apiErrorMessage = (err: any, fallback: string, detail: MessageDetail = 'brief'): string => {
   if (err?.response) {
     const coded = codedMessage(err.response.data)
@@ -456,7 +463,12 @@ export function createClient(
     // language. On a cold server that runs past the
     // global 20s — the button is an explicit admin action the user waits on, so it gets
     // its own bound. A timeout here would report failure for work that goes on to finish.
-    refreshCache: () => api.post<{ data: { refreshed: number } }>('/admin/sync-exercises', undefined, { timeout: SYNC_TIMEOUT }).then(unwrap),
+    // confirmRemovals accepts one pass in which the catalog lists under half of what is held,
+    // after the server refused it with EXERCISE_CATALOG_SHRANK.
+    refreshCache: (opts?: { confirmRemovals?: boolean }) => api.post<{ data: { refreshed: number } }>('/admin/sync-exercises', undefined, {
+      timeout: SYNC_TIMEOUT,
+      params: opts?.confirmRemovals ? { confirm_removals: 'true' } : undefined,
+    }).then(unwrap),
   }
 
   const programAPI = {

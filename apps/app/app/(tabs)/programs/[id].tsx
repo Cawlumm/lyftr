@@ -1,0 +1,593 @@
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
+import {
+  AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
+  Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
+} from '../../../src/components/ui/icons'
+import { useAsyncAction,
+  activeSessionExercisesForDay, allExercises, dayLabel, displayWeight, sessionNameForDay,
+  weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
+} from '@lyftr/shared'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
+import { linkProps } from '../../../src/components/ui/link'
+import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
+import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
+import { useTheme } from '../../../src/theme/useTheme'
+import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
+import { targetWeightLabel, restLabel } from '@lyftr/shared'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+
+// Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
+// so back returns to this program — pushing the workouts-tab copy would jump tabs and
+// strand the back stack. Both routes render the shared ExerciseDetailScreen.
+const exercisePath = (exerciseId: number) => `/programs/exercise/${exerciseId}`
+const startHref = '/workouts/start' as unknown as Href
+const activeHref = '/workouts/active' as unknown as Href
+
+
+
+// Rows shown before the review banner collapses behind a "Show all" toggle (#40).
+const SUGGESTION_CAP = 3
+
+function SetChip({ set, isBest, hasSuggestion, unit }: { set: ProgramSet; isBest: boolean; hasSuggestion: boolean; unit: string }) {
+  const { t } = useTranslation()
+  return (
+    <View
+      className={`px-2.5 py-1.5 rounded-lg border ${
+        hasSuggestion ? 'bg-warning-500/10 border-warning-500/40'
+          : isBest ? 'bg-brand-500/15 border-brand-500/25' : 'bg-surface-raised border-transparent'
+      }`}
+    >
+      <AppText variant="caption" color={hasSuggestion ? 'secondary' : isBest ? 'brand' : 'secondary'} style={{ fontVariant: ['tabular-nums'] }}>
+        {set.target_reps > 0 ? set.target_reps : '—'} ×{' '}
+        {set.target_weight > 0 ? `${displayWeight(set.target_weight, unit)} ${unit}` : t('weight.bodyweightShort')}
+      </AppText>
+    </View>
+  )
+}
+
+// One pending auto-progression suggestion (#40), flattened for the review banner.
+interface Suggestion {
+  setId: number
+  exName: string
+  setNumber: number
+  isPR: boolean
+  oldLabel: string
+  newLabel: string
+}
+
+function MuscleBadge({ muscle }: { muscle: string }) {
+  const { colors } = useTheme()
+  const tint = muscleColor(muscle)
+  return (
+    <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+    </View>
+  )
+}
+
+// The program's days in order: a sideways scroller on a phone; on wide web a wrapped row, since
+// a pointer has no swipe to reach the days past the edge.
+function DayStrip({ wide, children }: { wide: boolean; children: ReactNode }) {
+  if (wide) return <View className="flex-row flex-wrap gap-2">{children}</View>
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+      {children}
+    </ScrollView>
+  )
+}
+
+export default function ProgramDetail() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  const wUnit = weightShort(settings.weight_unit)
+  const restOn = settings.rest_enabled ?? true
+  const { session, startSession } = useWorkoutSession()
+  const { colors, brand, accent, isDark } = useTheme()
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
+
+  const [program, setProgram] = useState<Program | null>(null)
+  const [loading, setLoading] = useState(true)
+  // UiMessages, not their sentences, so the banners follow a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
+  const [confirming, setConfirming] = useState(false)
+  const [resolving, setResolving] = useState(false)
+  // Separate from `error`, which replaces the whole screen: a failed resolve must leave the
+  // program on screen so the same buttons are still under the thumb to retry.
+  const [resolveError, setResolveError] = useState<UiMessage | null>(null)
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false)
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  // Bumped by both the focus refetch and resolveSuggestions. "Last dispatched wins"
+  // isn't enough on its own — the GET and the PATCH are independent HTTP requests, so
+  // a focus refetch dispatched AFTER an Accept/Dismiss tap can still have its response
+  // computed from a server-side read that lands before the PATCH commits, and land
+  // either before or after the PATCH's own response. So resolveSuggestions applies its
+  // result unconditionally (only one can ever be in flight — the `resolving` guard
+  // below blocks a second tap) and bumps the seq again AFTER doing so, invalidating
+  // any refetch that was dispatched at any point up to that moment, however its
+  // response happens to be ordered.
+  const requestSeq = useRef(0)
+
+  // Accept (apply → target) or dismiss staged auto-progression suggestions (#40),
+  // then refresh from the returned program.
+  const resolveSuggestions = async (accept: number[], dismiss: number[]) => {
+    if (!program || resolving) return
+    setResolving(true)
+    setResolveError(null)
+    ++requestSeq.current
+    try {
+      const updated = await client.programAPI.resolveSuggestions(program.id, { accept, dismiss })
+      setProgram(updated)
+    } catch (err) {
+      setResolveError({ key: 'programs.detail.suggestions.saveFailed', cause: err })
+    } finally {
+      // Invalidate any focus refetch still in flight from before this point — its
+      // response can't be trusted to reflect this write, whichever order it lands in.
+      // Must run on failure too, not just success, or a refetch dispatched during a
+      // failed PATCH can still pass the seq check and apply stale data.
+      ++requestSeq.current
+      setResolving(false)
+    }
+  }
+
+  // Refetch on every focus (not just mount) — otherwise a routine reopened from the tab
+  // bar shows whatever it looked like when the screen was first pushed, missing targets
+  // approved elsewhere or auto-progression suggestions staged by a workout finished since
+  // (#40). `loading` only gates the very first render — later refetches update silently
+  // so revisiting the screen doesn't flash the full-screen spinner over existing content.
+  // A refetch failure only surfaces the full-screen error when nothing has loaded yet —
+  // once a program is showing, a transient refocus failure leaves it in place instead of
+  // wiping the screen (matches the dashboard's focus-refetch, which doesn't setError at all).
+  const loadedRef = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false
+      const load = async () => {
+        const seq = ++requestSeq.current
+        try {
+          const data = await client.programAPI.get(Number(id))
+          if (!cancelled && requestSeq.current === seq) {
+            setProgram(data)
+            setError(null)
+            // Only seed the day selection from the server's "due today" on the FIRST
+            // load — later focus refetches must not yank the user off a day they
+            // deliberately picked to look at.
+            if (!loadedRef.current) setSelectedDayIdx(data.current_day_index || 0)
+            loadedRef.current = true
+          }
+        } catch (err) {
+          if (!cancelled && !loadedRef.current) setError({ key: 'errors.unknown', cause: err })
+        } finally {
+          if (!cancelled) setLoading(false)
+        }
+      }
+      load()
+      return () => { cancelled = true }
+    // retryKey is not read in the body — it IS the trigger. Changing it gives the
+    // callback a new identity, which is what makes useFocusEffect run the load again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, retryKey])
+  )
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/programs'))
+
+  const days = program?.days ?? []
+  const selectedDay = days[selectedDayIdx]
+
+  const handleStart = () => {
+    if (!program || !selectedDay || selectedDay.is_rest_day) return
+    // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
+    // native tab/back stack (the "can't get off the workout from a program" bug).
+    if (session) { router.navigate(startHref); return }
+    startSession(sessionNameForDay(program, selectedDay), activeSessionExercisesForDay(selectedDay), program.id, selectedDay.id)
+    router.navigate(activeHref)
+  }
+
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!program) return
+    await client.programAPI.delete(program.id)
+    goBack() // list refetches on focus
+  }, t('programs.deleteFailed'))
+
+  if (loading) return <Loading />
+
+  if (error || !program) {
+    return (
+      <Screen maxWidth="medium">
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title={t('programs.detail.loadFailed')}
+            message={error ? uiMessage(error) : t('programs.detail.gone')}
+            onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title={t('programs.detail.backToPrograms')} variant="secondary" onPress={goBack} />}
+          />
+        </View>
+      </Screen>
+    )
+  }
+
+  const allExs = allExercises(program)
+  const totalSets = allExs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+
+  // Pending auto-progression suggestions (#40). A suggestion exists when suggested_reps
+  // is set. Show the FULL reps×weight on both sides when both changed (a heavier set can
+  // also drop the rep target — the user must see that before approving), else the single
+  // changed dimension.
+  const suggestions: Suggestion[] = allExs.flatMap((ex) =>
+    (ex.sets ?? [])
+      .filter((s) => s.id != null && s.suggested_reps != null)
+      .map((s) => {
+        const sw = s.suggested_weight as number
+        const sr = s.suggested_reps as number
+        const weightChanged = s.suggested_weight != null && Math.abs(sw - s.target_weight) > 1e-6
+        const repsChanged = sr !== s.target_reps
+        let oldLabel: string, newLabel: string
+        if (weightChanged && repsChanged) {
+          oldLabel = `${s.target_reps} × ${targetWeightLabel(s.target_weight, wUnit)}`
+          newLabel = `${sr} × ${targetWeightLabel(sw, wUnit)}`
+        } else if (weightChanged) {
+          oldLabel = targetWeightLabel(s.target_weight, wUnit)
+          newLabel = targetWeightLabel(sw, wUnit)
+        } else {
+          oldLabel = `${s.target_reps}`
+          newLabel = t('common.count.reps', { count: sr })
+        }
+        return {
+          setId: s.id as number,
+          exName: ex.exercise?.name ?? t('programs.detail.suggestions.exerciseFallback'),
+          setNumber: s.set_number,
+          isPR: !!s.suggested_is_pr,
+          oldLabel,
+          newLabel,
+        }
+      })
+  )
+  const suggestedSetIds = suggestions.map((s) => s.setId)
+  const warningColor = isDark ? brand.warningSoft : brand.warning
+
+  return (
+    <Screen maxWidth="medium">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
+        <View className="gap-5 py-4">
+          {/* Back nav + actions */}
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={goBack}
+              accessibilityRole={WEB_BUTTON}
+              hitSlop={8}
+              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+            >
+              <ArrowLeft size={16} color={colors.txMuted} />
+              <AppText variant="body" color="muted">{t('programs.detail.back')}</AppText>
+            </Pressable>
+            <View className="flex-row items-center gap-2">
+              {/* Start is the primary action → filled brand pill; Edit brand outline;
+                  Delete a quiet ghost glyph that only reddens at the confirm step. */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('programs.detail.startLabel')}
+                onPress={handleStart}
+                disabled={!selectedDay || selectedDay.is_rest_day}
+                hitSlop={6}
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''} ${interactive('hover:bg-brand-600', { disabled: !selectedDay || selectedDay.is_rest_day })}`}
+              >
+                <Play size={14} color="#ffffff" strokeWidth={2.2} />
+                <AppText variant="label" color="white">{t('programs.detail.start')}</AppText>
+              </Pressable>
+              <Pressable
+                {...linkProps(`/programs/${program.id}/edit`, () => router.push(`/programs/${program.id}/edit`))}
+                accessibilityLabel={t('programs.detail.editLabel')}
+                hitSlop={6}
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95 ${interactive('hover:bg-brand-500/20')}`}
+              >
+                <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('programs.detail.deleteLabel')}
+                onPress={() => setConfirming(true)}
+                disabled={remove.busy}
+                hitSlop={6}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''} ${interactive('hover:bg-error-500/10', { disabled: remove.busy })}`}
+              >
+                <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+              </Pressable>
+            </View>
+          </View>
+
+          <ConfirmSheet
+            {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
+            open={confirming}
+            busy={remove.busy}
+            error={remove.error}
+            onConfirm={() => { void remove.run() }}
+            onCancel={() => { setConfirming(false); remove.reset() }}
+          />
+
+          {/* Auto-progression review banner (#40) — approve the targets you beat last workout */}
+          {suggestions.length > 0 && (
+            <View className="bg-surface-raised border border-warning-500/30 rounded-2xl overflow-hidden">
+              <View className="flex-row items-center gap-2 px-4 py-3">
+                {suggestions.some((s) => s.isPR)
+                  ? <Award size={16} color={warningColor} />
+                  : <TrendingUp size={16} color={warningColor} />}
+                <AppText variant="bodySemibold" className="flex-1">{t('programs.detail.suggestions.title')}</AppText>
+                <View className="bg-warning-500/15 rounded-full px-2 py-0.5">
+                  <AppText variant="caption" style={{ color: warningColor, fontWeight: 'bold' }}>{suggestions.length}</AppText>
+                </View>
+              </View>
+              {(showAllSuggestions ? suggestions : suggestions.slice(0, SUGGESTION_CAP)).map((sg) => (
+                <View key={sg.setId} className="flex-row items-center gap-3 px-4 py-2.5 border-t border-surface-border/60">
+                  <View className="flex-1 flex-row items-center gap-1.5 min-w-0">
+                    {sg.isPR ? <Award size={14} color={warningColor} /> : null}
+                    <AppText variant="caption" color="secondary" numberOfLines={1} className="flex-1">
+                      <AppText variant="caption" color="primary" style={{ fontWeight: '600' }}>{sg.exName}</AppText> · {t('programs.detail.suggestions.set', { number: sg.setNumber })}
+                    </AppText>
+                  </View>
+                  <View className="flex-row items-center flex-shrink-0">
+                    <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'], textDecorationLine: 'line-through' }}>{sg.oldLabel}</AppText>
+                    <AppText variant="caption" style={{ color: warningColor, marginHorizontal: 6 }}>→</AppText>
+                    <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{sg.newLabel}</AppText>
+                  </View>
+                  <View className="flex-row gap-1.5 flex-shrink-0">
+                    <Pressable
+                      onPress={() => resolveSuggestions([sg.setId], [])}
+                      disabled={resolving}
+                      accessibilityRole={WEB_BUTTON}
+                      accessibilityLabel={t('programs.detail.suggestions.accept', { name: sg.exName, number: sg.setNumber })}
+                      className={`w-7 h-7 rounded-lg bg-success-500/15 items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-success-500/25', { disabled: resolving })}`}
+                    >
+                      <Check size={14} color={isDark ? brand.successSoft : brand.success} strokeWidth={3} />
+                    </Pressable>
+                    <Pressable
+                      onPress={() => resolveSuggestions([], [sg.setId])}
+                      disabled={resolving}
+                      accessibilityRole={WEB_BUTTON}
+                      accessibilityLabel={t('programs.detail.suggestions.dismiss', { name: sg.exName, number: sg.setNumber })}
+                      className={`w-7 h-7 rounded-lg bg-surface-muted items-center justify-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-surface-border', { disabled: resolving })}`}
+                    >
+                      <X size={14} color={colors.txMuted} strokeWidth={3} />
+                    </Pressable>
+                  </View>
+                </View>
+              ))}
+              {suggestions.length > SUGGESTION_CAP && (
+                <Pressable
+                  onPress={() => setShowAllSuggestions((v) => !v)}
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-row items-center justify-center gap-1.5 py-2 border-t border-surface-border/60 active:opacity-60 ${interactive('hover:bg-surface-muted', { inset: true })}`}
+                >
+                  <AppText variant="caption" style={{ color: warningColor, fontWeight: '600' }}>
+                    {showAllSuggestions ? t('programs.detail.suggestions.showLess') : t('programs.detail.suggestions.showAll', { total: suggestions.length })}
+                  </AppText>
+                  {showAllSuggestions ? <ChevronUp size={14} color={warningColor} /> : <ChevronDown size={14} color={warningColor} />}
+                </Pressable>
+              )}
+              {resolveError && (
+                <View className="flex-row items-start gap-2 px-4 py-2.5 border-t border-surface-border/60">
+                  <AlertCircle size={16} color={brand.error} />
+                  <AppText variant="caption" color="error" className="flex-1">{uiMessage(resolveError)}</AppText>
+                </View>
+              )}
+              <View className="flex-row gap-2 px-4 py-3 border-t border-surface-border/60">
+                <Pressable
+                  onPress={() => resolveSuggestions([], suggestedSetIds)}
+                  disabled={resolving}
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 py-2 rounded-lg bg-surface-muted border border-surface-border items-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:bg-surface-border', { disabled: resolving })}`}
+                >
+                  <AppText variant="bodySemibold" color="secondary">{t('programs.detail.suggestions.dismissAll')}</AppText>
+                </Pressable>
+                <Pressable
+                  onPress={() => resolveSuggestions(suggestedSetIds, [])}
+                  disabled={resolving}
+                  accessibilityRole={WEB_BUTTON}
+                  className={`flex-1 py-2 rounded-lg bg-warning-500 items-center active:scale-95 ${resolving ? 'opacity-50' : ''} ${interactive('hover:opacity-90', { disabled: resolving })}`}
+                >
+                  <AppText variant="bodySemibold" style={{ color: brand.warningText }}>{t('programs.detail.suggestions.applyAll', { total: suggestions.length })}</AppText>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          {/* Header card */}
+          <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
+            <View className="flex-row items-start gap-3">
+              <ExerciseImage url={allExs[0]?.exercise?.image_url} size="hero" fallbackIcon={BookOpen} />
+              <View className="flex-1">
+                <AppText variant="heading" headingLevel={1}>{program.name}</AppText>
+                <AppText variant="body" color="muted" className="mt-0.5">
+                  {t('programs.createdOn', { date: formatDate(new Date(program.created_at), 'longDate') })}
+                </AppText>
+              </View>
+            </View>
+
+            {/* Stats strip: Cycle / Exercises / Total Sets */}
+            <View className="flex-row mt-4 pt-4 border-t border-surface-border">
+              <View className="flex-1 items-center">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <CalendarDays size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.cycle')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{days.length || '—'}</AppText>
+              </View>
+              <View className="flex-1 items-center border-l border-surface-border">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <Dumbbell size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.exercises')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{allExs.length}</AppText>
+              </View>
+              <View className="flex-1 items-center border-l border-surface-border">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <Layers size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('programs.detail.stats.totalSets')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{totalSets}</AppText>
+              </View>
+            </View>
+
+            {program.notes ? (
+              <View className="mt-3 pt-3 border-t border-surface-border">
+                <AppText variant="body" color="muted">{program.notes}</AppText>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Day strip — the program's repeating cycle, in order. Selecting a day
+              shows its exercises below; it does NOT change which day is "due"
+              (that's server-computed from logged workouts). */}
+          {days.length === 0 ? (
+            <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-6">
+              <CalendarDays size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
+              <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noDays')}</AppText>
+              <Pressable
+                onPress={() => router.push(`/programs/${program.id}/edit`)}
+                accessibilityRole={WEB_BUTTON}
+                className={`mt-2 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+              >
+                <AppText variant="caption" style={{ color: accent }}>{t('programs.detail.addDay')}</AppText>
+              </Pressable>
+            </View>
+          ) : (
+            <DayStrip wide={wide}>
+              {days.map((day, i) => {
+                const isSelected = i === selectedDayIdx
+                const isToday = i === program.current_day_index
+                return (
+                  <Pressable
+                    key={day.id ?? i}
+                    onPress={() => setSelectedDayIdx(i)}
+                    accessibilityRole={WEB_BUTTON}
+                    // react-native-web drops accessibilityState, so the web DOM says which day is shown.
+                    {...(Platform.OS === 'web' ? { 'aria-pressed': isSelected } : {})}
+                    className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 active:scale-95 ${interactive(isSelected ? '' : 'hover:border-brand-500/40')} ${
+                      isSelected
+                        ? 'bg-brand-500 border-brand-500'
+                        : day.is_rest_day
+                          ? 'bg-surface-muted/40 border-surface-border'
+                          : 'bg-surface-raised border-surface-border'
+                    }`}
+                  >
+                    {day.is_rest_day
+                      ? <Moon size={14} color={isSelected ? '#ffffff' : colors.txMuted} />
+                      : <Dumbbell size={14} color={isSelected ? '#ffffff' : accent} />}
+                    <AppText variant="label" style={{ color: isSelected ? '#ffffff' : (day.is_rest_day ? colors.txMuted : colors.txSecondary) }} numberOfLines={1}>
+                      {dayLabel(day, day.order_index)}
+                    </AppText>
+                    {/* Textual chip, not a bare dot — a color-only marker isn't
+                        distinguishable by shape/text (a11y) and reads as decoration. */}
+                    {isToday ? (
+                      <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
+                        <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('common.todayChip')}</AppText>
+                      </View>
+                    ) : null}
+                  </Pressable>
+                )
+              })}
+            </DayStrip>
+          )}
+
+          {/* Selected day's exercises */}
+          {selectedDay?.is_rest_day ? (
+            <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-10">
+              <Moon size={28} color={colors.txMuted} style={{ opacity: 0.6 }} />
+              <AppText variant="bodySemibold" className="mt-2">{t('programs.day.rest')}</AppText>
+              <AppText variant="caption" color="muted" className="mt-1 text-center px-6">
+                {t('programs.detail.restDayHint')}
+              </AppText>
+            </View>
+          ) : selectedDay ? (
+            <>
+              {!restOn && (
+                <View className="flex-row items-center gap-1.5 px-1">
+                  <TimerOff size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('common.rest.timerOff')}</AppText>
+                </View>
+              )}
+              <View className="gap-3">
+                {(selectedDay.exercises ?? []).length === 0 ? (
+                  <View className="items-center rounded-2xl border border-surface-border bg-surface-raised py-8">
+                    <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
+                    <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noExercises')}</AppText>
+                  </View>
+                ) : (selectedDay.exercises ?? []).map((ex) => {
+              const sets = ex.sets ?? []
+              const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
+              const maxTarget = displayWeight(maxTargetLbs, wUnit)
+              const setsSummary = [
+                t('common.count.sets', { count: sets.length }),
+                ...(maxTarget > 0 ? [t('programs.detail.target', { weight: maxTarget, unit: wUnit })] : []),
+              ].join(' · ')
+
+              return (
+                <Pressable
+                  key={ex.id ?? ex.exercise_id}
+                  {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
+                  // On web the card is a link, named by what it opens rather than its text run together.
+                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
+                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                >
+                  <View className="flex-row items-center gap-3 p-4">
+                    <ExerciseImage url={ex.exercise?.image_url} />
+                    <View className="flex-1">
+                      <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
+                      <View className="flex-row items-center gap-2 mt-0.5">
+                        {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
+                        <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
+                          {setsSummary}
+                        </AppText>
+                      </View>
+                    </View>
+                    <ChevronRight size={16} color={colors.txMuted} />
+                  </View>
+
+                  {sets.length > 0 && (
+                    <View className="flex-row items-center gap-2 px-4 pb-4 pt-3 border-t border-surface-border/50">
+                      <View className="flex-1 flex-row flex-wrap gap-1.5">
+                        {sets.map((set, i) => (
+                          <SetChip key={i} set={set} isBest={set.target_weight === maxTargetLbs && maxTargetLbs > 0} hasSuggestion={set.suggested_reps != null} unit={wUnit} />
+                        ))}
+                      </View>
+                      {restOn && (
+                        ex.rest_seconds === 0 ? (
+                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
+                        ) : (
+                          <View className="flex-row items-center gap-1">
+                            <Pause size={13} color={colors.txMuted} />
+                            <AppText variant="caption" color="muted">{restLabel(ex.rest_seconds ?? 90)}</AppText>
+                          </View>
+                        )
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              )
+                })}
+              </View>
+            </>
+          ) : null}
+        </View>
+      </ScrollView>
+    </Screen>
+  )
+}

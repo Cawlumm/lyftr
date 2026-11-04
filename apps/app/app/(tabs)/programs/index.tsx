@@ -1,0 +1,219 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
+import { router, useFocusEffect } from 'expo-router'
+import { BookOpen, Plus } from '../../../src/components/ui/icons'
+import type { Program } from '@lyftr/shared'
+import { programExerciseCount, useTranslation } from '@lyftr/shared'
+import { AppText, Card, EmptyState, ErrorState, IconButton, Label, PageHeader, Screen, scrollBleed, SearchField, StatFailure, useCardGrid } from '../../../src/components/ui'
+import { ProgramCard } from '../../../src/components/programs/ProgramCard'
+import { ProgramsSkeleton } from '../../../src/components/programs/ProgramsSkeleton'
+import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
+import { client } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+
+export default function Programs() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  const { accent } = useTheme()
+  const grid = useCardGrid({ lg: 2 })
+
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search — 250ms sits in the research-backed 200–300ms sweet spot (matches
+  // the Workouts list).
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 250)
+    return () => clearTimeout(t)
+  }, [search])
+
+  const fetcher = useCallback(
+    (offset: number, limit: number) =>
+      client.programAPI.list({ offset, limit, q: debouncedSearch || undefined }),
+    [debouncedSearch]
+  )
+  const {
+    items: programs, loadMore, hasMore, loading, initialLoading, refreshing, reload,
+    error: listError, retry: retryList,
+  } = useServerInfiniteList<Program>({ fetcher, deps: [debouncedSearch] })
+
+  // The stack keeps this screen mounted under the detail/form screens; refetch on
+  // re-focus so an edit/delete/create there reflects here. Skip the first focus (the
+  // hook's deps-effect already fetched).
+  const focusedOnce = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!focusedOnce.current) {
+        focusedOnce.current = true
+        return
+      }
+      reload()
+    }, [reload])
+  )
+
+  // Which query the rows on screen answer. Keeping the previous results while a new
+  // search runs is right — until that search fails, at which point the field says one
+  // thing and the rows below it another. Then they are not stale, they are a different
+  // query's answer, and the error takes their place.
+  const [answeredQuery, setAnsweredQuery] = useState('')
+  // Keyed on the hook's own loading flag, which is already true by the time this runs
+  // for a new query — `refreshing` is not, so this marked a query answered before its
+  // request had left, and a failure then kept the previous query's rows on screen.
+  useEffect(() => {
+    if (!loading && listError == null) setAnsweredQuery(debouncedSearch)
+  }, [loading, listError, debouncedSearch])
+  const queryAnswered = listError == null || answeredQuery === debouncedSearch
+
+  const [pulling, setPulling] = useState(false)
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await reload()
+    setPulling(false)
+  }, [reload])
+
+  // First load shows a content-shaped skeleton (header + stats + search + card rows as
+  // placeholders) so the layout is there before the data fills in — same pattern as
+  // the Workouts list.
+  if (initialLoading) return <ProgramsSkeleton />
+
+  // Nothing arrived, so there is no screen to draw around the failure: tiles would read 0
+  // and the create button would sit beside a list we cannot show. One error for the page,
+  // under the same title. A later page failing under rows that did arrive is the footer's.
+  // Not while a search is running: taking the whole screen takes the field the query
+  // was typed into, and retry could then only re-run the request that just failed.
+  if (listError && programs.length === 0 && !debouncedSearch) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-5 py-4">
+          <PageHeader title={t('programs.title')} subtitle={t('programs.subtitle')} />
+          <ErrorState size="page" title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
+        </View>
+      </Screen>
+    )
+  }
+
+  // Stale-while-revalidate: dim the loaded content while a search re-fetches (the
+  // previous results stay on screen until the fresh page lands). Pagination (loadMore)
+  // is excluded so appending a page doesn't dim the whole list.
+  const dim = refreshing
+
+  // Nothing loaded and the read failed: "0+ programs" is true of every account there
+  // has ever been. Reached with a search on screen; otherwise the page error owns this.
+  const countsUnknown = listError != null && (programs.length === 0 || !queryAnswered)
+  // `programs` is what has loaded, not how many exist: while pages remain it is a lower
+  // bound. A failed page is also "pages remain" — the hook drops hasMore on error.
+  const totalIsBound = hasMore || listError != null
+  const stats = [
+    // A lower bound ("1+") reads as plural.
+    { label: t('programs.stats.total'), failed: t('programs.stats.totalFailed'), value: totalIsBound ? `${programs.length}+` : String(programs.length), unit: t('programs.stats.totalUnit', { count: totalIsBound ? Math.max(programs.length, 2) : programs.length }) },
+    {
+      label: t('programs.stats.avgExercises'),
+      failed: t('programs.stats.avgExercisesFailed'),
+      value:
+        programs.length > 0
+          ? String(Math.round(programs.reduce((s, p) => s + programExerciseCount(p), 0) / programs.length))
+          : '—',
+      unit: t('programs.stats.perProgram'),
+    },
+  ]
+
+  return (
+    <Screen maxWidth={grid.wide ? 'wide' : undefined}>
+      <FlatList
+        key={grid.key}
+        numColumns={grid.numColumns}
+        columnWrapperStyle={grid.columnWrapperStyle}
+        data={queryAnswered ? programs : []}
+        keyExtractor={(p) => String(p.id)}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />
+        }
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        ListHeaderComponent={
+          <View className="gap-5 py-4">
+            <PageHeader
+              title={t('programs.title')}
+              subtitle={t('programs.subtitle')}
+              action={
+                <IconButton
+                  icon={Plus}
+                  label={t('programs.newProgram')}
+                  variant="solid"
+                  size="md"
+                  onPress={() => router.push('/programs/new')}
+                />
+              }
+            />
+
+            {/* Summary — web's 2-card grid, grayed out during a full (re)load. */}
+            <View className="flex-row gap-3" style={{ opacity: dim ? 0.5 : 1 }}>
+              {stats.map((s) => (
+                <Card key={s.label} className="flex-1 rounded-2xl">
+                  <Label className="mb-2" numberOfLines={1}>{s.label}</Label>
+                  {countsUnknown ? (
+                    <StatFailure label={s.failed} />
+                  ) : (
+                  <View className="flex-row items-end gap-1">
+                    <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{s.value}</AppText>
+                    <AppText variant="caption" color="muted" className="mb-0.5" numberOfLines={1}>{s.unit}</AppText>
+                  </View>
+                  )}
+                </Card>
+              ))}
+            </View>
+
+            <View>
+              <SearchField
+                value={search}
+                onChangeText={setSearch}
+                loading={refreshing}
+                placeholder={t('programs.list.searchPlaceholder')}
+              />
+            </View>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={[{ opacity: dim ? 0.5 : 1 }, grid.cellStyle]}>
+            <ProgramCard
+              program={item}
+              onPress={() => router.push(`/programs/${item.id}`)}
+              onDeleted={() => reload()}
+            />
+          </View>
+        )}
+        ListEmptyComponent={
+          loading ? undefined : listError ? (
+            // Reached only with a search on screen; "No programs found" would blame the
+            // query for a request that never landed.
+            <ErrorState title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
+          ) : (
+            <EmptyState
+              icon={BookOpen}
+              title={t(debouncedSearch ? 'programs.list.empty.title' : 'programs.list.empty.titleNone')}
+              subtitle={debouncedSearch ? t('common.tryDifferentSearch') : t('programs.list.empty.startHint')}
+            />
+          )
+        }
+        ListFooterComponent={
+          // Pagination-only spinner: `!dim` keeps it from firing during a full
+          // (re)load — there the content is already grayed, so a footer spinner
+          // would read as an unwanted "loading" in the middle.
+          listError && programs.length > 0 ? (
+            <ErrorState title={t('programs.list.loadFailed')} message={listError} onRetry={retryList} retrying={loading} />
+          ) : hasMore && loading && !dim && programs.length > 0 ? (
+            <View className="items-center py-3">
+              <ActivityIndicator size="small" color={accent} />
+            </View>
+          ) : undefined
+        }
+      />
+    </Screen>
+  )
+}

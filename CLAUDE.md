@@ -20,7 +20,7 @@ place the rule is enforced; adding a second is how the rule stops holding.
 | Layer | Tech |
 |-------|------|
 | Backend | Go 1.26, Gin, SQLite (`_foreign_keys=on`) |
-| Frontend | React 18, TypeScript, Tailwind CSS, Vite, Recharts |
+| Frontend | Expo / React Native (one app for iOS, Android and the web export), TypeScript, NativeWind |
 | Auth | JWT + refresh tokens (middleware/auth.go) |
 | Deployment | Docker Compose, nginx reverse proxy |
 
@@ -42,11 +42,12 @@ backend/
   seed/users.go         — demo user seeding (see also seed/demo_data.go)
   utils/response.go     — utils.OK / utils.BadRequest helpers
 
-web/src/
-  pages/                — one file per page/route
-  services/api.ts       — all API calls (axios), typed
-  (types come from @lyftr/shared, re-exported via services/api.ts)
-  App.tsx               — React Router routes
+apps/app/
+  app/                  — Expo Router: one file per screen/route (native and web)
+  src/                  — components, hooks, theme, lib/lyftr.ts (client + stores)
+  e2e/                  — Playwright specs against the web export
+packages/shared/src/
+  client.ts             — the one axios client; types, stores, utils (dateUtils, weight, number)
 ```
 
 ---
@@ -57,17 +58,17 @@ web/src/
 - All handlers use `utils.OK(c, data)` and `utils.BadRequest(c, msg)`
 - Routes: public under `/api/v1/auth/`, protected under `/api/v1/` (JWT required)
 - Admin routes: `protected.GET/POST("admin/...")` — requires auth, no separate role check yet
-- Weight stored in **lbs** internally (backend stores raw numbers; the unit is a frontend convention). Frontend converts via `lbsToDisplay`/`displayToLbs` in `web/src/stores/settings.ts` based on `user_settings.weight_unit` — never store display values directly
+- Weight stored in **lbs** internally (backend stores raw numbers; the unit is a frontend convention). Frontend converts via `lbsToDisplay`/`displayToLbs` in `packages/shared/src/utils/weight.ts` based on `user_settings.weight_unit` — never store display values directly
 - `exercise_id` FK references `exercises(id)` — **no ON DELETE CASCADE** — never wipe exercises table while workout/program data exists
 - New migrations go in `db/migrations.go` — append only, never modify existing
 
 **Frontend**
-- API calls go through `web/src/services/api.ts` — add new endpoints there, not inline
+- API calls go through the shared client (`packages/shared/src/client.ts`, bound in `apps/app/src/lib/lyftr.ts`) — never inline `axios`/`fetch`
 - Always null-guard arrays before `.reduce`/`.forEach`: `(w.exercises ?? []).forEach(...)`
 - Duration stored as **seconds** in DB — display as `Math.round(duration / 60)` min
 - Light/dark theme via `localStorage.setItem('theme', 'light|dark')` + `document.documentElement.classList`
 - Mobile-first: 90% of users on mobile, desktop is secondary
-- New pages: create in `web/src/pages/`, add route in `App.tsx`, add API methods in `api.ts`
+- New pages: create a route file in `apps/app/app/` (it serves native and web)
 
 ---
 
@@ -99,15 +100,14 @@ It answers only questions about *now*, which no stored row can answer:
 - **Backend**: `backend/controllers/timezone.go`. `resolveDay` (writes),
   `resolveQueryDay` (reads), `daysAgoDay` (windows), `tzOffsetMinutes` (workouts).
   Every handler goes through one of these. No inline `time.Now().In(loc)` elsewhere.
-- **Client**: `packages/shared/src/utils/dateUtils.ts` — **one copy, imported by both
-  apps** from `@lyftr/shared`. `entryDay(e)` for diary rows, `workoutDay(w)` for
+- **Client**: `packages/shared/src/utils/dateUtils.ts` — **one copy, imported
+  from `@lyftr/shared`**. `entryDay(e)` for diary rows, `workoutDay(w)` for
   workouts — never `new Date(x).getDate()` or `.toISOString().slice(0,10)` in a page.
   Writes go through `withLoggedOn` / `utcOffsetMinutes` in the API layer, so no screen
   can forget to send the day.
-- There is no longer a web-side fork to keep in step (and no `dateUtils.fork.test.ts`).
-  What protects the shared copy now is CI: the `web` paths filter in `ci.yml` includes
-  `packages/shared/**`, so editing a shared util runs web's unit suite, build and e2e
-  as well as mobile's.
+- There is no fork to keep in step (and no `dateUtils.fork.test.ts`). What protects the
+  shared copy is CI: the `mobile` paths filter in `ci.yml` includes `packages/shared/**`,
+  so editing a shared util runs mobile's jest suite, the web export and the e2e gate.
 
 ### Gotchas
 
@@ -139,7 +139,7 @@ input through"*, so `keyboardType` constrains what is **drawn**, never what arri
 
 ### Single points of truth — do not add a fourth way to write a number
 
-In `packages/shared/src/utils/number.ts`, imported by both apps:
+In `packages/shared/src/utils/number.ts`, imported from `@lyftr/shared`:
 
 - **`sanitizeNumericInput(raw, mode)`** — typed text → canonical. Every numeric
   `TextInput` on mobile goes through it; there is no second copy.
@@ -180,15 +180,15 @@ true of one file. Do not document it here before it lands.
   and plural parity across locales).
 - `i18n/index.ts` also owns the language picker's entries, order, current-choice label
   (`LANGUAGE_ORDER`, `languageChoiceLabel`).
-  The OS per-app language list is `supportedLocales` in `mobile/app.json`, held to the registry
+  The OS per-app language list is `supportedLocales` in `apps/app/app.json`, held to the registry
   by a mobile test, and only changes with an EAS build.
-- Hermes has no `Intl.PluralRules`; `mobile/src/lib/polyfills.ts` imports the polyfill.
+- Hermes has no `Intl.PluralRules`; `apps/app/src/lib/polyfills.ts` imports the polyfill.
 - **The guard is lint.** `eslint-plugin-i18next` (`no-literal-string`) plus three
-  `no-restricted-syntax` selectors fail web and mobile lint, as errors, on a hard-coded string
+  `no-restricted-syntax` selectors fail mobile lint, as errors, on a hard-coded string
   in JSX text or a string prop, and on copy passed to `apiErrorMessage`, `useAsyncAction`,
   `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title` default. The rule
-  data is `packages/shared/i18n-lint.cjs`, imported by both ESLint configs: a prop or word
-  that is not copy is allowlisted there, once, never in one app. A hit is copy to migrate, not
+  data is `packages/shared/i18n-lint.cjs`, imported by the ESLint config: a prop or word
+  that is not copy is allowlisted there, once. A hit is copy to migrate, not
   something to silence (CONTRIBUTING.md, "Translations").
 - Numbers and dates are never formatted through i18next (see Numbers & Locale).
 - Details and key-naming rules: CONTRIBUTING.md, "Translations".
@@ -222,7 +222,7 @@ answering 502 must not evict anyone.
 - **`packages/shared/src/client.ts`** — one axios instance, `REQUEST_TIMEOUT` on every
   call *including the refresh*, `sessionWasRevoked` for the table above, and `refreshOnce`
   so a burst of 401s shares one round-trip rather than racing to rotate the same token.
-  Both apps import it, so a fix here is a fix on web and mobile at once.
+  Native and web share it, so a fix here is a fix on both at once.
 - **`apiErrorMessage(err, fallback)`** — the only way to turn an error into words. Never
   read `err.response.data.error` at a call site: the failures that matter most have no
   response at all, and the raw read falls through to a generic string. It routes those to
@@ -300,12 +300,34 @@ to prevent. An invalid value is a startup failure, never a fallback to open.
 
 ---
 
+## Web (react-native-web)
+
+The web is the Expo app's `--platform web` export, not a separate app. Platform splits are
+`.web.tsx` / `.native.tsx` files beside the shared one. Dev: `cd apps/app && npx expo start --web`
+(:8081) calls the backend on :3000 directly; the backend allows all origins while
+`ENV=development`, so no proxy is needed. Production and e2e use the nginx stack, which proxies `/api`.
+
+Single points of truth, each named once:
+- `apps/app/src/theme/breakpoints.json` — read by `tailwind.config.js` and `useBreakpoint`.
+- `apps/app/src/theme/motion.ts` + `useMotion` — durations, easing, reduced motion.
+- `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — the per-icon registry; no lucide barrel imports.
+- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`.
+- `apps/app/src/components/ui/link.ts` — `linkProps`: a real `<a>` on web.
+- `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`
+  (regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`).
+- Web quality checklist: `docs/TESTING.md`.
+
+**Later:** splitting the shared core (i18n core/react, an exports map, injected TZ) is deferred
+until a CLI/MCP client exists.
+
+---
+
 ## Dev Setup
 
 ```bash
-cd backend && go run .                # :3000 — `.`, not main.go: package main spans several files
-cd web && npm install && npm run dev  # :5173, proxies /api → :3000
-docker compose up -d                  # prod, needs .env with JWT_SECRET
+cd backend && go run .                  # :3000 — `.`, not main.go: package main spans several files
+cd apps/app && npx expo start --web     # :8081, the app in a browser; point it at :3000
+docker compose up -d                    # prod, needs .env with JWT_SECRET
 ```
 
 ### Mobile builds — MANDATORY
@@ -314,14 +336,14 @@ docker compose up -d                  # prod, needs .env with JWT_SECRET
 Gradle, no `eas build --local`. Build through the **EAS CLI** (cloud) or a CI runner:
 
 ```bash
-cd mobile && eas build --platform android --profile preview
+cd apps/app && eas build --platform android --profile preview
 ```
 
 A first local build is 10–25 min of toolchain download before it compiles anything, and
-`prebuild` writes an untracked `mobile/android/` and rewrites the `android`/`ios` scripts in
-`mobile/package.json`.
+`prebuild` writes an untracked `apps/app/android/` and rewrites the `android`/`ios` scripts in
+`apps/app/package.json`.
 
-`mobile/eas.json` currently defines **`preview` and `production` only**. There is no
+`apps/app/eas.json` currently defines **`preview` and `production` only**. There is no
 `development` profile, so nothing here produces a `developmentClient` build; adding one is
 what you want if you need native modules on device, and it is a one-time cost.
 
@@ -332,7 +354,7 @@ Emulator notes: the backend is reachable at `http://10.0.2.2:3000` (the emulator
 loopback is itself), or over an `adb reverse` tunnel if one is set up — check
 `adb reverse --list` before assuming which.
 
-Maestro flows are **not** in the repo: `mobile/.maestro/` is gitignored, so a fresh
+Maestro flows are **not** in the repo: `apps/app/.maestro/` is gitignored, so a fresh
 checkout has none and yours are yours alone.
 
 ---
@@ -388,7 +410,7 @@ Before a commit or push, run what is fast and what CI will not run for you:
 cd backend && go test ./... -timeout 180s   # ./... — see the gap below
 cd backend && go vet ./...                  # CI does not run this
 # formatting: use the normalised loop below, NOT bare `gofmt -l .`
-cd web && npm run test:unit && npm run lint
+npm run lint -w @lyftr/mobile
 npm run shared:test && npm run type-check -w @lyftr/mobile
 npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 ```
@@ -418,9 +440,13 @@ ignored.
 
   A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
   there. This dodge is local-only.
-- **e2e is path-filtered** to `backend/**` or `web/**` (and `packages/shared/**`, which
-  the web filter includes). A mobile-only change correctly runs no Playwright — mobile is
-  not in that suite, so its guards and jest suite are the only thing standing there.
+- **CI jobs for the app:** `e2e-app` runs Playwright against the compose stack (nginx +
+  Expo web export + backend); `perf.spec.ts` holds LCP/CLS tripwires and `polish.spec.ts`
+  walks every route at four widths in both themes. `web-export` builds the export and
+  enforces the bundle budget in `apps/app/perf-budget.json`.
+- **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
+  the mobile filter includes). The suite drives the Expo web export, so a native-only
+  change still runs it; the jest suite and type-check are what stand behind native code.
 - **Markdown-only *pushes* run nothing** (`paths-ignore` on the `push` trigger).
   Pull requests always run, deliberately: `main` requires these checks, and a workflow
   skipped at the trigger leaves them Pending forever rather than skipped, so a docs-only PR

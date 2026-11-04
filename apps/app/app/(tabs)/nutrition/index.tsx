@@ -1,0 +1,641 @@
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { ActivityIndicator, FlatList, Platform, Pressable, RefreshControl, ScrollView, useWindowDimensions, View, type ViewStyle } from 'react-native'
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router'
+import * as Haptics from 'expo-haptics'
+import { format, subDays, addDays } from 'date-fns'
+import {
+  CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Flame, Plus, Utensils,
+} from '../../../src/components/ui/icons'
+import { isDailyStats, todayStr, type DailyStats, type FoodLog, dayToLocalDate, formatDate, relativeDayLabel, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import {
+  AppText, Card, ErrorState, IconButton, interactive, Label, PageHeader, Screen, scrollBleed, SearchField, SectionHeader, SegmentedControl, Skeleton, SkeletonList, StatFailure, Toast,
+} from '../../../src/components/ui'
+import { MacroRing, MacroHistoryChart, type MacroHistoryPoint } from '../../../src/components/nutrition/NutritionCharts'
+import { FoodEntryRow } from '../../../src/components/nutrition/FoodEntryRow'
+import { NutritionSkeleton } from '../../../src/components/nutrition/NutritionSkeleton'
+import { DayPill } from '../../../src/components/nutrition/DayPill'
+import { MACRO_COLORS, MEALS, mealMessage, type Meal } from '../../../src/components/nutrition/nutritionMeta'
+import { client, useSettingsStore } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
+import { semanticInk } from '../../../src/theme/theme'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+
+const HISTORY_PERIODS = ['7d', '30d', '90d'] as const
+type HistoryPeriod = typeof HISTORY_PERIODS[number]
+const HISTORY_OPTIONS = HISTORY_PERIODS.map((p) => ({ value: p, label: p }))
+
+// The day's food renders as a paginated, searchable list at the bottom (same growing-
+// list feel as Weight/Programs). A day is bounded (all logs arrive in one /food?date=
+// call), so paging + search are client-side over the loaded set rather than server round
+// trips — reveal a page at a time on scroll, filter by name in memory.
+const FOOD_PAGE = 12
+
+// Wide web: the totals column, and the toolbar's date navigator above it at the same width.
+// 'sticky' is not in RN's position type, but react-native-web passes it to the DOM.
+const SIDE_COLUMN = 360
+const STICKY_SIDE = { width: SIDE_COLUMN, position: 'sticky', top: 16 } as unknown as ViewStyle
+// A browser's autofill list over a food search is noise; native autofill is left as it was.
+const webOff = Platform.OS === 'web' ? 'off' : undefined
+
+// Top-level split: "Diary" is the per-day summary + food log; "Trends" is the multi-day
+// macro history. Keeps the per-day view a food-log-first surface (summary → list) while
+// the analytical chart lives one tap away instead of pushing the list down the page.
+const VIEW_VALUES = ['diary', 'trends'] as const
+type NutritionView = typeof VIEW_VALUES[number]
+
+// Port of web/pages/Food.tsx — the daily Nutrition dashboard, mobile-polished: date
+// navigator + haptics, calorie hero + macro rings, four meal cards with entries whose
+// delete routes through the native ConfirmSheet (not web's inline row), the macro-
+// history chart, and a success Toast on arrival back from a log. Calorie/macro targets
+// come from the settings store (the mobile equivalent of web's userAPI.getSettings).
+const hSelect = () => Haptics.selectionAsync().catch(() => {})
+
+// With per-meal add gone, the single Log Food button seeds the meal from the time of day
+// (still changeable in the log flow's meal picker).
+const mealForNow = (): Meal => {
+  const h = new Date().getHours()
+  return h < 11 ? 'breakfast' : h < 15 ? 'lunch' : h < 21 ? 'dinner' : 'snacks'
+}
+
+export default function Nutrition() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  const { colors, brand, accent, isDark } = useTheme()
+  const { width: windowWidth } = useWindowDimensions()
+  // Web from lg: the day's food on the left, its totals in a sticky column on the right.
+  // Below lg, and on every native device, the phone's single column.
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
+  const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  // One-shot courier from the log flow: ?logged=<meal slug> | 'Updated' → success toast.
+  const params = useLocalSearchParams<{ logged?: string }>()
+  const [toast, setToast] = useState<UiMessage | null>(null)
+
+  const [selectedDate, setSelectedDate] = useState(todayStr())
+  const [logs, setLogs] = useState<FoodLog[]>([])
+  const [stats, setStats] = useState<DailyStats | null>(null)
+  const [error, setError] = useState<UiMessage | null>(null)
+  // The totals and the history are caught so either can fail without blanking the diary.
+  // Caught is not the same as silent: each keeps what the server said, and the card it
+  // belongs to says so instead of rendering 0 kcal.
+  const [statsError, setStatsError] = useState<UiMessage | null>(null)
+  const [historyError, setHistoryError] = useState<UiMessage | null>(null)
+
+  const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('30d')
+  const [historyData, setHistoryData] = useState<MacroHistoryPoint[]>([])
+  // The window historyData answers — see the weight trend: a failed switch must not
+  // leave 7d's averages under a 90d heading.
+  const [historyDataPeriod, setHistoryDataPeriod] = useState<HistoryPeriod | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [chartWidth, setChartWidth] = useState(0)
+
+  const [pulling, setPulling] = useState(false)
+  const hasLoadedRef = useRef(false)
+
+  // Diary (per-day summary + log) vs Trends (multi-day macro chart).
+  const [view, setView] = useState<NutritionView>('diary')
+  const chartBoxRef = useRef<HTMLElement | null>(null)
+  // react-native-web's onLayout never reported this box, so on web it is observed directly.
+  useEffect(() => {
+    const box = chartBoxRef.current
+    if (Platform.OS !== 'web' || !box) return
+    const ro = new ResizeObserver(([e]) => setChartWidth(Math.floor(e.contentRect.width)))
+    ro.observe(box)
+    return () => ro.disconnect()
+  }, [view, wide])
+
+  // Bottom food list: search query + how many rows are revealed (grows on scroll).
+  const [foodQuery, setFoodQuery] = useState('')
+  const [visibleCount, setVisibleCount] = useState(FOOD_PAGE)
+  // Reset paging to the first page when the day changes or the query changes.
+  useEffect(() => { setVisibleCount(FOOD_PAGE) }, [selectedDate, foodQuery])
+
+  // Which day the logs and totals on screen answer, and whether the day now selected
+  // is still on the wire. Paging days is the same kind of window switch as the trend's
+  // period: yesterday's meals under today's date is not stale data, it is the wrong day.
+  const [loadedDate, setLoadedDate] = useState<string | null>(null)
+  const dayRequest = useRef(0)
+  // The day on screen right now, readable from a callback that was created for an
+  // earlier one (a delete's refetch outliving the day it was fired for).
+  const selectedDateRef = useRef(selectedDate)
+  selectedDateRef.current = selectedDate
+
+  const loadDay = useCallback(async (date: string) => {
+    // Last request wins. Without this, paging back three days on a slow connection let
+    // whichever response landed last own the screen, regardless of the day showing.
+    const id = ++dayRequest.current
+    setError(null)
+    try {
+      const defaultStats: DailyStats = {
+        date, total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
+      }
+      let statsMessage: UiMessage | null = null
+      const [logData, statsData] = await Promise.all([
+        // Same rule as the totals beside it: a reply we cannot read is a failure, not a
+        // day with no food in it.
+        client.foodAPI.list(date).then((d) => {
+          if (!Array.isArray(d)) throw new Error('unreadable')
+          return d
+        }),
+        client.foodAPI.stats(date)
+          // A readable 200 is the only kind that counts as data; unchecked, a wrong shape
+          // rendered as 0 kcal, which is what "hasn't eaten yet" looks like.
+          .then((st) => (isDailyStats(st) ? st : Promise.reject(new Error('unreadable'))))
+          .catch((err) => {
+            statsMessage = { key: 'errors.unknown', cause: err }
+            return defaultStats
+          }),
+      ])
+      if (id !== dayRequest.current) return
+      setLogs(logData)
+      setStats(statsData)
+      setStatsError(statsMessage)
+      setLoadedDate(date)
+    } catch (err: any) {
+      if (id !== dayRequest.current) return
+      setError({ key: 'errors.unknown', cause: err })
+    } finally {
+      if (id === dayRequest.current) hasLoadedRef.current = true
+    }
+  }, [])
+
+  useEffect(() => { loadDay(selectedDate) }, [selectedDate, loadDay])
+  useEffect(() => { fetchSettings() }, [fetchSettings])
+
+  // Only the latest request may write: 90d is a slower query than 7d, so a stale wide
+  // answer could otherwise overwrite the narrow one the user just asked for.
+  const historyRequest = useRef(0)
+  const loadHistory = useCallback(() => {
+    const id = ++historyRequest.current
+    setHistoryLoading(true)
+    const days = historyPeriod === '7d' ? 7 : historyPeriod === '30d' ? 30 : 90
+    return client.foodAPI
+      .history(days)
+      .then((data) => {
+        if (id !== historyRequest.current) return
+        setHistoryData((data as MacroHistoryPoint[]) || [])
+        setHistoryDataPeriod(historyPeriod)
+        setHistoryError(null)
+      })
+      .catch((err) => { if (id === historyRequest.current) setHistoryError({ key: 'errors.unknown', cause: err }) })
+      .finally(() => { if (id === historyRequest.current) setHistoryLoading(false) })
+  }, [historyPeriod])
+  useEffect(() => { loadHistory() }, [loadHistory])
+
+  // Re-entry (e.g. back from the log flow) refetches the day — web relied on the router
+  // location.key changing; here focus does the same. Skip the first focus (effects above
+  // already ran on mount).
+  const focusedOnce = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!focusedOnce.current) { focusedOnce.current = true; return }
+      loadDay(selectedDate)
+      loadHistory()
+    }, [loadDay, selectedDate, loadHistory])
+  )
+
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await Promise.all([loadDay(selectedDate), loadHistory(), fetchSettings()])
+    setPulling(false)
+  }, [loadDay, selectedDate, loadHistory, fetchSettings])
+
+  // Show the arrival toast once, then strip the param so it doesn't re-fire on re-render.
+  useEffect(() => {
+    if (params.logged) {
+      setToast(params.logged === 'Updated' ? { key: 'food.diary.entryUpdated' } : { key: 'food.diary.addedTo', params: { meal: params.logged } })
+      router.setParams({ logged: undefined })
+    }
+  }, [params.logged])
+
+  const goDay = (date: string) => { hSelect(); setSelectedDate(date) }
+  const openLog = (meal: Meal) => { hSelect(); router.push(`/nutrition/log?meal=${meal}&date=${selectedDate}`) }
+
+  // Kebab-delete drops the row and refreshes the day's totals (rings + calorie hero).
+  const onEntryDeleted = useCallback((entryId: number) => {
+    const day = selectedDate
+    setLogs((prev) => prev.filter((l) => l.id !== entryId))
+    // The row is gone from the list either way, so totals that fail to refresh here are
+    // not stale, they are wrong — they still count the entry the reader just deleted.
+    client.foodAPI.stats(selectedDate)
+      .then((st) => {
+        // The reader may have paged to another day while this was in flight; these
+        // totals are not that day's to set, or to declare healthy.
+        if (day !== selectedDateRef.current) return
+        if (!isDailyStats(st)) throw new Error('unreadable')
+        setStats(st)
+        setStatsError(null)
+      })
+      .catch((err) => {
+        if (day !== selectedDateRef.current) return
+        setStatsError({ key: 'errors.unknown', cause: err })
+      })
+  }, [selectedDate])
+
+  if (!hasLoadedRef.current) return <NutritionSkeleton />
+
+  const toastView = toast ? (
+    <Toast variant="success" icon={CheckCircle2} title={mealMessage(toast)} onDismiss={() => setToast(null)} />
+  ) : null
+
+  // Rings at 0 kcal and four empty meal sections say "you have eaten nothing today",
+  // which is a different sentence from "we could not ask" — and only one of them is
+  // true. Title stays; the Log Food action does not, since the save it leads to cannot
+  // reach the server either and would outrank the retry.
+  if (error) {
+    return (
+      <Screen>
+        <View className="flex-1 gap-4 pt-4">
+          <PageHeader title={t('food.page.title')} subtitle={t('food.page.subtitle')} />
+          <ErrorState
+            size="page"
+            title={t('food.diary.loadFailed')}
+            message={uiMessage(error)}
+            onRetry={() => { void loadDay(selectedDate) }}
+          />
+        </View>
+        {toastView}
+      </Screen>
+    )
+  }
+
+  // The selected day has not been answered yet: not empty, not zero, pending.
+  const dayPending = loadedDate !== selectedDate
+  const totalCals = stats?.total_calories ?? 0
+  const calTarget = settings.calorie_target || 2000
+  const remaining = calTarget - totalCals
+  const isOver = remaining < 0
+  // The soft amber/emerald read on dark but measure under 2:1 on the light pill; web uses the
+  // AA ink there. Native keeps the literals.
+  const lightWeb = Platform.OS === 'web' && !isDark
+  const kcalInk = isOver ? (lightWeb ? semanticInk.light.warning : '#fbbf24') : (lightWeb ? semanticInk.light.success : '#34d399')
+  const calPct = Math.min(100, (totalCals / calTarget) * 100) || 0
+
+  // One flat list, ordered by meal (breakfast → snacks) so same-meal items group.
+  const dayEntries = MEALS.flatMap((m) => logs.filter((l) => l.meal === m))
+
+  // Name search (client-side over the loaded day) + page reveal.
+  const q = foodQuery.trim().toLowerCase()
+  const filteredEntries = q ? dayEntries.filter((e) => e.name.toLowerCase().includes(q)) : dayEntries
+  const visibleEntries = filteredEntries.slice(0, visibleCount)
+  const hasMoreFood = visibleCount < filteredEntries.length
+  const loadMoreFood = () => { if (hasMoreFood) setVisibleCount((c) => c + FOOD_PAGE) }
+
+  // Trends: average daily macros over the loaded history window — only the days that
+  // answer the window now on screen.
+  const historyPoints = historyDataPeriod === historyPeriod ? historyData : []
+  const histDays = historyPoints.length
+  // The average of nothing is not 0 g: with no days loaded the tiles read "—".
+  const avgMacro = (key: 'protein' | 'carbs' | 'fat') =>
+    histDays ? String(Math.round(historyPoints.reduce((s, d) => s + (d[key] || 0), 0) / histDays)) : '—'
+  const isDiary = view === 'diary'
+  const viewOptions = VIEW_VALUES.map((v) => ({ value: v, label: t(`food.view.${v}`) }))
+  // Chart width: prefer the measured value. On native, seed a computed fallback (window − Screen
+  // px-5 − Card p-4 = 72) so the chart renders immediately on first switch to Trends instead of
+  // waiting for an onLayout that doesn't reliably fire on the view-swap. On web the content
+  // column is narrower than the window, so the fallback would overflow the card: wait for the
+  // measurement.
+  const chartW = chartWidth || (Platform.OS === 'web' ? 0 : Math.max(0, windowWidth - 72))
+
+  const isToday = selectedDate === todayStr()
+  const selectedDateObj = dayToLocalDate(selectedDate)
+  const prevDate = format(subDays(selectedDateObj, 1), 'yyyy-MM-dd')
+  const nextDate = format(addDays(selectedDateObj, 1), 'yyyy-MM-dd')
+  const canGoNext = selectedDate < todayStr()
+  const dayLabel = relativeDayLabel(selectedDate)
+
+  // Below lg the whole screen is a single FlatList so the food rows virtualize (only on-screen
+  // rows mount, and their thumbnails load lazily) instead of every entry — plus its
+  // remote image — mounting at once. All the static chrome (calorie hero, rings, macro
+  // history) rides in the header so the searchable/paginated food list sits at the
+  // bottom; the visible rows are the list `data`.
+  const lastEntryIdx = visibleEntries.length - 1
+
+  // The rows share one rounded card. With a real list we can't wrap them in a
+  // single <Card>, so we rebuild that frame per row: continuous left/right borders,
+  // rounded + bordered top on the first row and bottom on the last. overflow-hidden
+  // clips each row's active-press tint to those rounded corners.
+  const renderEntry = (item: FoodLog, index: number, lastIdx: number) => (
+    <View
+      className={`overflow-hidden border-l border-r border-surface-border bg-surface-raised ${index === 0 ? 'rounded-t-xl border-t' : ''} ${index === lastIdx ? 'rounded-b-xl border-b' : ''}`}
+    >
+      <FoodEntryRow
+        entry={item}
+        first={index === 0}
+        onPress={() => { hSelect(); router.push(`/nutrition/${item.id}`) }}
+        onEdit={() => router.push(`/nutrition/log?edit=${item.id}`)}
+        onDeleted={onEntryDeleted}
+      />
+    </View>
+  )
+
+  const header = (
+    <PageHeader
+      title={t('food.page.title')}
+      subtitle={t('food.page.subtitle')}
+      action={<IconButton icon={Plus} variant="solid" size="md" label={t('food.diary.logFood')} onPress={() => openLog(mealForNow())} />}
+    />
+  )
+
+  // Diary (per-day log) vs Trends (multi-day chart)
+  const viewSwitch = <SegmentedControl options={viewOptions} value={view} onChange={setView} />
+
+  const webButton = Platform.OS === 'web' ? 'button' : undefined
+  const dateNav = (
+    <View className="flex-row items-center gap-2">
+      <Pressable
+        accessibilityRole={webButton}
+        accessibilityLabel={t('food.diary.previousDay')}
+        onPress={() => goDay(prevDate)}
+        className={`items-center justify-center rounded-xl p-3 active:scale-95 ${interactive('hover:bg-surface-muted')}`}
+      >
+        <ChevronLeft size={20} color={colors.txMuted} />
+      </Pressable>
+      <View className="flex-1">
+        <DayPill
+          dayLabel={dayLabel}
+          yearLabel={!isToday ? formatDate(selectedDateObj, 'year') : undefined}
+          value={selectedDate}
+          onChange={goDay}
+        />
+      </View>
+      <Pressable
+        accessibilityRole={webButton}
+        accessibilityLabel={t('food.diary.nextDay')}
+        disabled={!canGoNext}
+        onPress={() => goDay(nextDate)}
+        className={`items-center justify-center rounded-xl p-3 active:scale-95 ${canGoNext ? '' : 'opacity-30'} ${interactive('hover:bg-surface-muted', { disabled: !canGoNext })}`}
+      >
+        <ChevronRight size={20} color={colors.txMuted} />
+      </Pressable>
+    </View>
+  )
+
+  // Macro summary card — the totals are its entire content, so a failed read is stated
+  // here rather than as rings at 0, and a day still on the wire is a skeleton rather than
+  // the previous day's numbers.
+  const summary = dayPending ? (
+    <Card className="gap-4">
+      <Skeleton width={140} height={34} />
+      <Skeleton width="100%" height={10} radius={999} />
+      <View className="flex-row justify-between">
+        <Skeleton width={72} height={72} radius={36} />
+        <Skeleton width={72} height={72} radius={36} />
+        <Skeleton width={72} height={72} radius={36} />
+      </View>
+    </Card>
+  ) : statsError ? (
+    <Card>
+      <ErrorState title={t('food.diary.totalsFailed')} message={uiMessage(statsError)} onRetry={() => { void loadDay(selectedDate) }} />
+    </Card>
+  ) : (
+    <Card className="gap-5">
+      {/* Calorie hero */}
+      <View className="flex-row items-center justify-between">
+        <View>
+          <AppText variant="caption" color="muted" className="mb-1 uppercase" style={{ letterSpacing: 0.5 }}>{t('food.diary.calories')}</AppText>
+          <View className="flex-row items-baseline gap-1.5">
+            <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(totalCals)}</AppText>
+            <AppText variant="body" color="muted">/ {calTarget}</AppText>
+          </View>
+        </View>
+        <View
+          className="flex-row items-center gap-1.5 rounded-xl border px-3 py-2"
+          style={{
+            backgroundColor: isOver ? 'rgba(245,158,11,0.10)' : 'rgba(16,185,129,0.10)',
+            borderColor: isOver ? 'rgba(245,158,11,0.20)' : 'rgba(16,185,129,0.20)',
+          }}
+        >
+          <Flame size={16} color={kcalInk} />
+          <AppText variant="bodySemibold" style={{ fontSize: 13, color: kcalInk }}>
+            {isOver ? t('food.diary.over', { amount: Math.round(Math.abs(remaining)) }) : t('food.diary.left', { amount: Math.round(remaining) })}
+          </AppText>
+        </View>
+      </View>
+
+      {/* Segmented progress bar — fully explicit inline sizing (fixed heights on
+          BOTH track and fill, no percentage heights) so native can't expand it. */}
+      <View className="gap-1">
+        <View style={{ height: 10, overflow: 'hidden', borderRadius: 999, backgroundColor: colors.muted }}>
+          <View style={{ height: 10, width: `${calPct}%`, borderRadius: 999, backgroundColor: isOver ? MACRO_COLORS.carbs : brand.cyan }} />
+        </View>
+        <View className="flex-row justify-between">
+          <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>0</AppText>
+          <AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{t('food.diary.goal', { amount: calTarget })}</AppText>
+        </View>
+      </View>
+
+      {/* Macro rings — three equal flex-1 columns so they sit centered across the
+          full card width. (justify-around packed them left because each ring's
+          "Protein / 65g" label is wider than the 72px ring, making the flex items
+          uneven.) */}
+      <View className="flex-row">
+        <View className="flex-1 items-center">
+          <MacroRing value={stats?.total_protein ?? 0} target={settings.protein_target} color={MACRO_COLORS.protein} label={t('food.macro.protein')} />
+        </View>
+        <View className="flex-1 items-center">
+          <MacroRing value={stats?.total_carbs ?? 0} target={settings.carb_target} color={MACRO_COLORS.carbs} label={t('food.macro.carbs')} />
+        </View>
+        <View className="flex-1 items-center">
+          <MacroRing value={stats?.total_fat ?? 0} target={settings.fat_target} color={MACRO_COLORS.fat} label={t('food.macro.fat')} />
+        </View>
+      </View>
+    </Card>
+  )
+
+  // Daily-average macros over the selected history window
+  const averages = (
+    <View className="gap-2">
+      <Label className="px-1">{t('food.trends.dailyAverage', { period: historyPeriod })}</Label>
+      <View className="flex-row gap-3">
+        {([
+          { label: t('food.macro.protein'), key: 'protein', color: MACRO_COLORS.protein },
+          { label: t('food.macro.carbs'), key: 'carbs', color: MACRO_COLORS.carbs },
+          { label: t('food.macro.fat'), key: 'fat', color: MACRO_COLORS.fat },
+        ] as const).map(({ label, key, color }) => (
+          <Card key={key} className="flex-1" style={{ paddingHorizontal: 12 }}>
+            <View className="mb-2 flex-row items-center gap-1.5">
+              <View style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: color }} />
+              <Label numberOfLines={1}>{label}</Label>
+            </View>
+            {histDays === 0 && historyError ? (
+              <StatFailure label={t('food.trends.averageFailed', { macro: label.toLowerCase() })} />
+            ) : (
+              <View className="flex-row items-end gap-1">
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{avgMacro(key)}</AppText>
+                {histDays ? <AppText variant="caption" color="muted" className="mb-0.5">g</AppText> : null}
+              </View>
+            )}
+          </Card>
+        ))}
+      </View>
+    </View>
+  )
+
+  // Macro history
+  const historyCard = (
+    <Card>
+      <SectionHeader
+        title={t('food.history.title')}
+        right={<View style={{ width: 150 }}><SegmentedControl size="sm" options={HISTORY_OPTIONS} value={historyPeriod} onChange={setHistoryPeriod} /></View>}
+        className="mb-4"
+      />
+      <View ref={(el) => { chartBoxRef.current = el as unknown as HTMLElement | null }} onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+        {historyLoading ? (
+          <View className="h-48 items-center justify-center">
+            <AppText variant="caption" color="muted">{t('food.history.loading')}</AppText>
+          </View>
+        ) : historyPoints.length === 0 && historyError ? (
+          <ErrorState title={t('food.history.loadFailed')} message={uiMessage(historyError)} onRetry={() => { void loadHistory() }} />
+        ) : historyPoints.length === 0 ? (
+          <View className="h-48 items-center justify-center gap-2">
+            <CalendarDays size={32} color={colors.txMuted} style={{ opacity: 0.4 }} />
+            <AppText variant="caption" color="muted">{t('food.history.empty')}</AppText>
+          </View>
+        ) : chartW === 0 ? null : (
+          <MacroHistoryChart data={historyPoints} width={chartW} height={wide ? 300 : 220} />
+        )}
+      </View>
+      {/* Legend */}
+      <View className="mt-4 flex-row justify-center gap-4">
+        {[
+          { color: MACRO_COLORS.protein, label: t('food.macro.protein') },
+          { color: MACRO_COLORS.carbs, label: t('food.macro.carbs') },
+          { color: MACRO_COLORS.fat, label: t('food.macro.fat') },
+        ].map((m) => (
+          <View key={m.label} className="flex-row items-center gap-1.5">
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: m.color }} />
+            <AppText variant="caption" color="muted">{m.label}</AppText>
+          </View>
+        ))}
+      </View>
+    </Card>
+  )
+
+  // Food log — searchable + paged (Diary only). Each row carries its meal as a chip;
+  // ordered by meal so same-meal items sit together.
+  const listHeading = (spacing: string) => (
+    <View className={`${spacing} gap-3 pb-3`}>
+      <View className="flex-row items-center justify-between px-1">
+        <Label>{isToday ? t('food.diary.titleToday') : t('food.diary.title')}</Label>
+        {dayEntries.length > 0 && !dayPending ? (
+          <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>
+            {q ? t('food.diary.filteredCount', { shown: filteredEntries.length, total: dayEntries.length }) : t('food.diary.items', { count: dayEntries.length })}
+          </AppText>
+        ) : null}
+      </View>
+      {dayEntries.length > 0 && !dayPending ? (
+        <SearchField value={foodQuery} onChangeText={setFoodQuery} placeholder={t('food.diary.searchPlaceholder')} autoComplete={webOff} />
+      ) : null}
+    </View>
+  )
+
+  const listEmpty = dayPending ? (
+    <SkeletonList count={3} />
+  ) : q ? (
+    <View className="items-center px-4 py-8">
+      <Utensils size={28} color={colors.txMuted} style={{ opacity: 0.4 }} />
+      <AppText variant="body" color="muted" className="mt-2">{t('food.diary.noMatches', { query: foodQuery.trim() })}</AppText>
+    </View>
+  ) : (
+    <Card className="overflow-hidden p-0">
+      <Pressable
+        accessibilityRole={webButton}
+        onPress={() => openLog(mealForNow())}
+        className={`items-center px-4 py-10 active:opacity-70 ${interactive('hover:bg-surface-muted', { inset: true })}`}
+      >
+        <Utensils size={32} color={colors.txMuted} style={{ opacity: 0.4 }} />
+        <AppText variant="body" color="muted" className="mt-2">{t('food.diary.empty.title')}</AppText>
+        <AppText variant="caption" color="muted" className="mt-1">{t('food.diary.empty.hint')}</AppText>
+      </Pressable>
+    </Card>
+  )
+
+  if (wide) {
+    // One page scroll, not a list: a day is bounded, so every match renders and the
+    // totals column can stick beside it (position: sticky needs a plain scroll parent).
+    const lastMatchIdx = filteredEntries.length - 1
+    return (
+      <Screen maxWidth="wide">
+        <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
+          <View className="gap-6 pt-4">
+            {header}
+            <View className="flex-row items-center justify-between gap-6">
+              <View style={{ width: 288 }}>{viewSwitch}</View>
+              {isDiary ? <View style={{ width: SIDE_COLUMN }}>{dateNav}</View> : null}
+            </View>
+            {isDiary ? (
+              <View className="flex-row items-start gap-6">
+                <View className="min-w-0 flex-1">
+                  {listHeading('')}
+                  {dayPending || filteredEntries.length === 0
+                    ? listEmpty
+                    : filteredEntries.map((item, index) => <Fragment key={item.id}>{renderEntry(item, index, lastMatchIdx)}</Fragment>)}
+                </View>
+                <View style={STICKY_SIDE}>{summary}</View>
+              </View>
+            ) : (
+              <View className="flex-row items-start gap-6">
+                <View className="min-w-0 flex-1">{historyCard}</View>
+                <View style={{ width: SIDE_COLUMN }}>{averages}</View>
+              </View>
+            )}
+          </View>
+        </ScrollView>
+        {toastView}
+      </Screen>
+    )
+  }
+
+  return (
+    <Screen>
+      <FlatList
+        // A day still on the wire owns none of these rows: they belong to the day
+        // before it, and rendering them under this date is the same lie as the totals.
+        data={isDiary && !dayPending ? visibleEntries : []}
+        keyExtractor={(e) => String(e.id)}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onEndReached={loadMoreFood}
+        onEndReachedThreshold={0.5}
+        refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
+        renderItem={({ item, index }) => renderEntry(item, index, lastEntryIdx)}
+        ListHeaderComponent={
+          <View className="pt-4">
+            <View className="gap-4">
+              {header}
+              {viewSwitch}
+              {isDiary ? (
+                <>
+                  {dateNav}
+                  {summary}
+                </>
+              ) : (
+                <>
+                  {averages}
+                  {historyCard}
+                </>
+              )}
+            </View>
+            {isDiary ? listHeading('mt-8') : null}
+          </View>
+        }
+        ListEmptyComponent={!isDiary ? undefined : listEmpty}
+        ListFooterComponent={
+          isDiary && hasMoreFood ? (
+            <View className="items-center py-3">
+              <ActivityIndicator size="small" color={accent} accessibilityLabel={Platform.OS === 'web' ? t('common.loading') : undefined} />
+            </View>
+          ) : undefined
+        }
+      />
+
+      {/* Success toast on arrival back from the log flow. */}
+      {toastView}
+    </Screen>
+  )
+}

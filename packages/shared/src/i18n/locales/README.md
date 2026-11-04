@@ -1,6 +1,6 @@
 # Locale catalogs
 
-One JSON catalog per language, shared by web and mobile. `en.json` is the source and the
+One JSON catalog per language, shared by every platform of the app. `en.json` is the source and the
 fallback; every other file must carry exactly its keys (enforced by `../catalog.test.ts`).
 The languages the app ships are listed here.
 

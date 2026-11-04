@@ -8,7 +8,7 @@ Bug reports, feature requests, and pull requests are welcome. Open an issue befo
 
 ### Prerequisites
 
-- [Go 1.22+](https://go.dev/dl/)
+- [Go 1.26+](https://go.dev/dl/)
 - [Node.js 20+](https://nodejs.org/)
 
 ### Backend
@@ -46,29 +46,21 @@ python3 scripts/seed_food.py
 ### Frontend
 
 ```bash
-cd web
-npm install
-npm run dev
-# App at https://localhost:5173
+npm install            # repo root: one install covers apps/app and packages/shared
+cd apps/app
+npx expo start --web
+# App at http://localhost:8081, talking to the backend on :3000
 ```
 
-The dev server uses a self-signed HTTPS certificate (via `@vitejs/plugin-basic-ssl`). Your browser will show a security warning on first visit — accept it to proceed. HTTPS is required so the barcode scanner can access the device camera on mobile.
-
-**Testing on a mobile device**
-
-1. Run `npm run dev` — Vite binds to all network interfaces (`host: true`)
-2. Find your machine's LAN IP: `ipconfig` (Windows) / `ifconfig` (macOS/Linux)
-3. Open `https://<your-lan-ip>:5173` on the phone
-4. Accept the self-signed cert warning once
-5. Barcode scanner and camera will work
+The same app runs natively: `npx expo start` and open it in Expo Go. Native builds go through EAS, never locally (see CLAUDE.md).
 
 ### Production
 
-Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real TLS certificate — no Vite or self-signed certs involved. The `basicSsl` plugin is dev-only and has no effect on `vite build` output.
+Production HTTPS is handled by a reverse proxy (nginx, Caddy, etc.) with a real TLS certificate.
 
 ```
 Internet → nginx/Caddy (real TLS cert)
-              ├── /       → dist/  (vite build output)
+              ├── /       → apps/app/dist/  (expo export --platform web)
               └── /api    → localhost:3000
 ```
 
@@ -93,7 +85,7 @@ Lowercase, hyphen-separated, specific enough to be self-explanatory.
 
 ```bash
 # Start from an up-to-date main
-git checkout main && git pull --rebase
+git checkout main && git pull
 git checkout -b feature/your-feature
 
 # Work, commit, push
@@ -102,11 +94,11 @@ git push -u origin feature/your-feature
 # Open a PR against main
 ```
 
-Rebase against main before opening a PR if the branch has been open a while:
+Bring the branch up to date with main by merging (never rebase a pushed branch) if it has been open a while:
 
 ```bash
 git fetch origin
-git rebase origin/main
+git merge origin/main
 ```
 
 ---
@@ -117,7 +109,7 @@ Today you add or fix a language with a pull request. A web tool for translating 
 Weblate) is planned.
 
 UI strings live in one catalog per language in `packages/shared/src/i18n/locales`, shared
-by web and mobile. `en.json` is the source and the fallback. The languages the app ships
+by every build of the app (web, iOS, Android). `en.json` is the source and the fallback. The languages the app ships
 are listed in `locales/README.md`.
 
 **Adding a language**
@@ -128,7 +120,7 @@ are listed in `locales/README.md`.
 3. List it in `locales/README.md` (`catalog.test.ts` fails if the table and the registry
    disagree).
 4. Add the code to both `supportedLocales` lists of the `expo-localization` plugin in
-   `mobile/app.json`, so the language appears in the iOS/Android per-app language settings.
+   `apps/app/app.json`, so the language appears in the iOS/Android per-app language settings.
    Mobile's `supportedLocales.test.ts` fails until you do; it reaches phones only with the
    next EAS build.
 5. Run `npm run shared:test` and `npm run test -w @lyftr/mobile -- --ci --maxWorkers=4`. `catalog.test.ts` fails by key name on a missing or extra key,
@@ -138,7 +130,7 @@ are listed in `locales/README.md`.
 - Semantic dotted keys by screen, section, item and role (`settings.account.name.label`).
   Never the English sentence as the key.
 - One key per context. Do not reuse a key because the English happens to match; the other
-  language may not. Web and mobile share a key only when the role and the English are both
+  language may not. Screens share a key only when the role and the English are both
   identical.
 - One catalog file per language; the area is the top-level key (`settings`, `food`, ...).
 - Never build a sentence by concatenation. Use `{{placeholders}}` and keep them verbatim in
@@ -153,7 +145,7 @@ are listed in `locales/README.md`.
   and never follows a language switch. Store the key (or a `UiMessage`) and call `t()` where
   it renders.
 
-**When lint flags a string.** Web and mobile lint fail, as errors, on a literal in JSX text or
+**When lint flags a string.** The app's lint fails, as errors, on a literal in JSX text or
 a string prop (`eslint-plugin-i18next`), and on copy handed to `apiErrorMessage`,
 `useAsyncAction`, `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title`
 default. Decide, in this order:
@@ -206,23 +198,26 @@ Use the [feature request template](.github/ISSUE_TEMPLATE/feature_request.md). E
 
 - **Backend:** `gofmt` before committing. Errors wrapped with context. No unnecessary abstractions.
 - **Frontend:** Follow existing patterns. No new npm dependencies without discussion.
-- **Tests:** Go controller tests, Vitest unit tests, and Playwright E2E must pass before any PR.
+- **Tests:** Go controller tests, mobile jest tests, and Playwright E2E must pass before any PR.
 
 ```bash
 # Backend
 cd backend && go test ./controllers/ -timeout 30s
 
 # Frontend unit tests (fast, no servers needed)
-cd web && npm run test:unit          # add --coverage for a report
+npm run shared:test
+npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 
-# Frontend E2E (requires backend on :3000 and frontend on :5173)
-cd web && npm run test:e2e
+# Frontend E2E: drives the Expo web export served by the nginx compose stack on :8081
+# (not `expo start`, which also uses 8081 -- stop it first). See docs/TESTING.md.
+PORT=8081 docker compose up -d --wait   # needs .env with JWT_SECRET
+cd apps/app && npm run test:e2e
 ```
 
-**Unit (Vitest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
+**Unit (jest) vs E2E (Playwright):** unit-test pure logic, stores, hooks, and
 isolated components — anything that runs without a real backend or cross-page
 navigation; reserve E2E for full user journeys against the running stack. Unit
-files are `src/**/*.test.ts(x)`; E2E specs are `e2e/**/*.spec.ts`. Keep the two
+files are `*.test.ts(x)`; E2E specs are `apps/app/e2e/**/*.spec.ts`. Keep the two
 suffixes/locations distinct so the runners never pick up each other's files.
 
 For the full layer model (unit / integration / e2e), where a new test belongs, and

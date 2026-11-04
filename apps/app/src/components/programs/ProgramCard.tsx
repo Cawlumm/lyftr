@@ -1,0 +1,219 @@
+import { useState } from 'react'
+import { Platform, Pressable, View } from 'react-native'
+import { router, type Href } from 'expo-router'
+import { BookOpen, ChevronRight, Dumbbell, Edit2, Layers, Moon, MoreVertical, Play, Sun, Trash2 } from '../ui/icons'
+import type { Program, ProgramDay } from '@lyftr/shared'
+import { useAsyncAction,
+  activeSessionExercisesForDay, allExercises, dayLabel, isDayStartable, programExerciseCount, programSetCount,
+  sessionNameForDay, todaysDay, formatDate, useTranslation
+} from '@lyftr/shared'
+import { ActionSheet, AppText, Card, CardActions, ConfirmSheet, IconButton, LinkCard, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { useTheme } from '../../theme/useTheme'
+import { client, useWorkoutSession } from '../../lib/lyftr'
+import { ExerciseImage } from '../workouts/ExerciseImage'
+import { DayPickerSheet, pickProgramDay } from './DayPickerSheet'
+
+interface Props {
+  program: Program
+  onPress: () => void
+  /** Called after a successful server delete — the screen reloads the list (web parity). */
+  onDeleted: (id: number) => void
+}
+
+// Active-session routes live in the workouts stack (start / active); cast to Href the
+// same way the other cross-stack links do.
+const startHref = '/workouts/start' as unknown as Href
+const activeHref = '/workouts/active' as unknown as Href
+
+// Program equivalent of WorkoutCard: thumbnail, name/date/meta, a filled Play button
+// (the primary Start action), a kebab (⋮) ActionSheet (Edit / Delete — same as
+// WorkoutCard), and a chevron. Delete routes through the shared ConfirmSheet.
+export function ProgramCard({ program, onPress, onDeleted }: Props) {
+  const { t } = useTranslation()
+  const { colors, accent } = useTheme()
+  const { session, startSession } = useWorkoutSession()
+  const [confirming, setConfirming] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
+
+  const exCount = programExerciseCount(program)
+  const totalSets = programSetCount(program)
+  const dayCount = program.days?.length ?? 0
+  const today = todaysDay(program)
+  const thumbnailUrl = allExercises(program)[0]?.exercise?.image_url
+
+  const beginSession = (day: ProgramDay) => {
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
+    setDayPickFor(null)
+    router.navigate(activeHref)
+  }
+
+  // 1:1 with web: an existing session takes priority (resume/discard on the start
+  // screen); otherwise seed a session from today's due day (or ask which day, for a
+  // multi-workout-day program) and open it.
+  const handleStart = () => {
+    // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
+    // native tab/back stack (the "can't get off the workout from a program" bug).
+    if (session) { router.navigate(startHref); return }
+    if (isDayStartable(today)) {
+      beginSession(today)
+      return
+    }
+    // Today's slot is a rest day (or unknown) — let them pick a day explicitly
+    // instead of silently starting nothing. A program with zero workout days has
+    // nothing to pick either, so fall back to the program detail page (web parity).
+    pickProgramDay(program, (_p, day) => beginSession(day), setDayPickFor, () => router.push(`/programs/${program.id}`))
+  }
+
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.programAPI.delete(program.id)
+    onDeleted(program.id)
+  }, t('programs.deleteFailed'))
+
+  const body = (
+    <>
+      <ExerciseImage url={thumbnailUrl} fallbackIcon={BookOpen} />
+      <View className="flex-1">
+        <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
+        <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
+          {formatDate(new Date(program.created_at), 'monthDayYear')}
+        </AppText>
+        {/* Metric chips with leading icons — shared taxonomy with WorkoutCard:
+            Dumbbell = exercises, Layers = sets. The icons separate them, so no "·": the
+            row wraps on a phone-width card and left the dot dangling at a line end. */}
+        <View className="mt-0.5 flex-row items-center gap-x-3 flex-wrap">
+          <View className="flex-row items-center gap-1">
+            <Dumbbell size={12} color={colors.txMuted} />
+            <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.exercises', { count: exCount })}</AppText>
+          </View>
+          <View className="flex-row items-center gap-1">
+            <Layers size={12} color={colors.txMuted} />
+            <AppText variant="caption" color="muted" numberOfLines={1}>{t('common.count.sets', { count: totalSets })}</AppText>
+          </View>
+        </View>
+        {/* Its own line, so it never wraps mid-row on a narrow card. */}
+        {dayCount > 1 && today ? (
+          today.is_rest_day ? (
+            <View className="mt-0.5 flex-row items-center gap-1">
+              <Moon size={12} color={colors.txMuted} />
+              <AppText variant="caption" color="muted" numberOfLines={1}>{t('programs.card.restToday')}</AppText>
+            </View>
+          ) : (
+            <View className="mt-0.5 flex-row items-center gap-1">
+              {/* Sun, not Dumbbell — Dumbbell is already the "exercises" count icon
+                  just above; reusing it here would mean two different things next to
+                  each other. Sun/Moon reads as a natural due/rest pair. */}
+              <Sun size={12} color={accent} />
+              <AppText variant="caption" numberOfLines={1} style={{ color: accent }}>
+                {t('programs.card.today', { day: dayLabel(today, today.order_index) })}
+              </AppText>
+            </View>
+          )
+        ) : null}
+      </View>
+    </>
+  )
+  // Start is the card's primary action → a filled Play button on the row
+  // (Hevy/Strong pattern: 1-tap start from the list), kept out of the ⋮ menu.
+  const startButton = (
+    <IconButton
+      icon={Play}
+      label={t('programs.card.startNamed', { name: program.name })}
+      variant="solid"
+      size="sm"
+      onPress={handleStart}
+      disabled={remove.busy}
+    />
+  )
+  const confirmSheet = (
+    <ConfirmSheet
+      {...deleteConfirmProps({ title: t('programs.deleteConfirmTitle'), name: program.name })}
+      open={confirming}
+      busy={remove.busy}
+      error={remove.error}
+      onConfirm={() => { void remove.run() }}
+      onCancel={() => { setConfirming(false); remove.reset() }}
+    />
+  )
+  const dayPicker = (
+    <DayPickerSheet program={dayPickFor} onSelect={(_p, day) => beginSession(day)} onClose={() => setDayPickFor(null)} />
+  )
+
+  if (Platform.OS === 'web') {
+    return (
+      <View>
+        <LinkCard
+          href={`/programs/${program.id}`}
+          onPress={onPress}
+          label={program.name}
+          actions={
+            <>
+              {startButton}
+              <CardActions
+                label={t('programs.card.optionsNamed', { name: program.name })}
+                disabled={remove.busy}
+                items={[
+                  { label: t('common.edit'), namedLabel: t('programs.card.editNamed', { name: program.name }), icon: Edit2, onSelect: () => router.push(`/programs/${program.id}/edit`) },
+                  { label: t('common.delete'), namedLabel: t('programs.card.deleteNamed', { name: program.name }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
+                ]}
+              />
+            </>
+          }
+        >
+          {body}
+        </LinkCard>
+        {confirmSheet}
+        {dayPicker}
+      </View>
+    )
+  }
+
+  return (
+    <Pressable accessibilityRole="button" onPress={onPress} className="active:scale-[0.99]">
+      <Card className="flex-row items-center gap-3 rounded-2xl">
+        {body}
+        {startButton}
+        <IconButton
+          icon={MoreVertical}
+          label={t('programs.card.optionsNamed', { name: program.name })}
+          variant="ghost"
+          size="sm"
+          onPress={() => setMenuOpen(true)}
+          disabled={remove.busy}
+        />
+        <ChevronRight size={16} color={colors.txMuted} />
+      </Card>
+
+      <ActionSheet
+        open={menuOpen}
+        layout="row"
+        onClose={() => setMenuOpen(false)}
+        header={
+          <View className="flex-row items-center gap-3">
+            <ExerciseImage url={thumbnailUrl} size="hero" fallbackIcon={BookOpen} />
+            <View className="flex-1">
+              <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
+                {t('programs.card.summary', {
+                  exercises: t('common.count.exercises', { count: exCount }),
+                  sets: t('common.count.sets', { count: totalSets }),
+                })}
+              </AppText>
+            </View>
+          </View>
+        }
+        actions={[
+          editAction(() => router.push(`/programs/${program.id}/edit`)),
+          deleteAction(() => setConfirming(true)),
+        ]}
+      />
+
+      {confirmSheet}
+
+      {dayPicker}
+    </Pressable>
+  )
+}

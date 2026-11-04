@@ -1,0 +1,418 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { router, useLocalSearchParams } from 'expo-router'
+import {
+  AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
+} from '../../../../src/components/ui/icons'
+import type { LucideIcon } from '../../../../src/components/ui/icons'
+import { useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { interactive } from '../../../../src/components/ui/interaction'
+import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
+import { DurationField } from '../../../../src/components/workouts/DurationField'
+import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
+import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
+import { client, useSettingsStore } from '../../../../src/lib/lyftr'
+import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
+import { useMotion } from '../../../../src/lib/useMotion'
+import { useTheme } from '../../../../src/theme/useTheme'
+
+// Edit-form shape. Mobile is a superset of web's edit form: it lets you correct the
+// workout's `date` (local YYYY-MM-DD) and per-exercise `rest_seconds` too. Weights/
+// duration in DISPLAY units; converted on submit.
+interface WorkoutFormData {
+  name: string
+  notes: string
+  date: string
+  duration: number
+  exercises: {
+    exercise_id: number
+    notes: string
+    rest_seconds: number
+    sets: { set_number: number; reps: number; weight: number }[]
+  }[]
+}
+
+// One accessory bar per screen — unique ID so a stacked log screen's bar can't clash.
+const KEYPAD_DONE_ID = 'workout-edit-keypad-done'
+
+// started_at (full ISO timestamp) ⇄ the DateInput's local calendar date. Editing the
+// date should only move the *day* — the original time-of-day is preserved so a
+// workout logged at 6pm doesn't jump to midnight just because the date was touched.
+
+function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
+  // Muted (not accent) field icons — matches new.tsx: with every header cyan the
+  // form reads busy; the accent stays reserved for the Exercises section + CTA.
+  const { colors } = useTheme()
+  return (
+    <View className="mb-2 flex-row items-center gap-2">
+      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
+      <Label>{label}</Label>
+      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
+    </View>
+  )
+}
+
+export default function EditWorkout() {
+  const { t } = useTranslation()
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  const wUnit = weightShort(settings.weight_unit)
+  const { brand, accent, isDark } = useTheme()
+  const { lg } = useBreakpoint()
+  // Web from lg: the scalar facts share one row and the actions size to their labels.
+  const wide = Platform.OS === 'web' && lg
+  // The browser does not drop smooth scrolling for reduced motion on its own; native keeps
+  // the animated scroll it always had.
+  const { reduced } = useMotion()
+  const smooth = !(Platform.OS === 'web' && reduced)
+
+  const [showPicker, setShowPicker] = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
+  // Only what the FORM can say before anything is sent. What the SERVER says lives
+  // on `save` below; both render in the same alert. Both messages here are a UiMessage
+  // rather than a sentence, so they follow a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
+  // Separate from `error`, which is this form's own validation. A load that never
+  // arrived is not a missing field — there is nothing to edit.
+  const [loadError, setLoadError] = useState<UiMessage | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
+  const [pickerExercises, setPickerExercises] = useState<Record<number, Exercise>>({})
+  const [formData, setFormData] = useState<WorkoutFormData>({ name: '', notes: '', date: '', duration: 0, exercises: [] })
+  const [originalStartedAt, setOriginalStartedAt] = useState('')
+  const scrollRef = useRef<ScrollViewInstance>(null)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+
+  useEffect(() => {
+    const workoutId = Number(id)
+    if (!workoutId) {
+      router.replace('/workouts')
+      return
+    }
+    client.workoutAPI.get(workoutId)
+      .then((workout) => {
+        const map: Record<number, Exercise> = {}
+        ;(workout.exercises || []).forEach((ex) => { map[ex.exercise_id] = ex.exercise })
+        setPickerExercises(map)
+        // Keep the original timestamp so an untouched date round-trips exactly; the
+        // date field only overrides the day-of when the user changes it.
+        const startedAt = workout.started_at || new Date().toISOString()
+        setOriginalStartedAt(startedAt)
+        setFormData({
+          name: workout.name,
+          notes: workout.notes || '',
+          // The day the workout was recorded at, from its own offset — not the day
+          // the device would put that instant on now. Prefilling the latter and
+          // saving it would move the workout for anyone viewing from another zone.
+          date: workoutDay(workout),
+          duration: Math.round(workout.duration / 60),
+          exercises: (workout.exercises || []).map((ex) => ({
+            exercise_id: ex.exercise_id,
+            notes: ex.notes || '',
+            rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
+            // Web parity: unrounded lbsToDisplay prefill (kg users see long decimals).
+            sets: (ex.sets || []).map((s) => ({
+              set_number: s.set_number,
+              reps: s.reps,
+              weight: lbsToDisplay(s.weight, settings.weight_unit),
+            })),
+          })),
+        })
+      })
+      .catch((err) => setLoadError({ key: 'errors.unknown', cause: err }))
+      .finally(() => setInitialLoading(false))
+    // Web effect deps: [id] only — settings are fetched before a user can navigate here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, retryKey])
+
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
+
+  const addExercise = (exercise: Exercise) => {
+    setPickerExercises((prev) => ({ ...prev, [exercise.id]: exercise }))
+    setFormData((prev) => ({
+      ...prev,
+      exercises: [
+        ...prev.exercises,
+        {
+          exercise_id: exercise.id,
+          notes: '',
+          rest_seconds: settings.rest_seconds_default ?? 90,
+          sets: [{ set_number: 1, reps: 0, weight: 0 }],
+        },
+      ],
+    }))
+    setShowPicker(false)
+    setError(null)
+  }
+
+  // Stable + immutable so the memoized ExerciseFormCard only re-renders the edited card,
+  // not all N of them, on each keystroke/tap. See the matching note in new.tsx.
+  const removeExercise = useCallback((index: number) =>
+    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
+
+  const addSet = useCallback((exIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: [...ex.sets, { set_number: ex.sets.length + 1, reps: 0, weight: 0 }] }),
+    }))
+  }, [])
+
+  const removeSet = useCallback((exIdx: number, setIdx: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : { ...ex, sets: ex.sets.filter((_, j) => j !== setIdx) }),
+    }))
+  }, [])
+
+  const updateSet = useCallback((exIdx: number, setIdx: number, field: 'reps' | 'weight', value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) =>
+        i !== exIdx ? ex : {
+          ...ex,
+          sets: ex.sets.map((s, j) => (j !== setIdx ? s : { ...s, [field]: Number(value) || 0 })),
+        }),
+    }))
+  }, [])
+
+  const setExRest = useCallback((exIdx: number, secs: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })),
+    }))
+  }, [])
+
+  const updateExNotes = useCallback((exIdx: number, text: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      exercises: prev.exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, notes: text })),
+    }))
+  }, [])
+
+  const save = useAsyncAction(async () => {
+    const payload = {
+    ...formData,
+    duration: formData.duration * 60,
+    // Move only the day; keep the logged time-of-day from the original timestamp.
+    started_at: formData.date
+    ? dayToInstant(formData.date, originalStartedAt || undefined)
+    : originalStartedAt || new Date().toISOString(),
+    exercises: formData.exercises.map((ex) => ({
+    ...ex,
+    sets: ex.sets.map((s) => ({ ...s, weight: displayToLbs(s.weight, settings.weight_unit) })),
+    })),
+    }
+    await client.workoutAPI.update(Number(id), payload)
+    // Web navigates to /workouts. Pop past the (stale) detail screen back to the
+    // list — the detail refetches on next visit; the list reloads on focus.
+    router.dismissTo('/workouts')
+  }, t('workouts.form.updateFailed'))
+
+  useEffect(() => {
+    if (error) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [error, smooth])
+
+  useEffect(() => {
+    if (save.failureKey) scrollRef.current?.scrollTo({ y: 0, animated: smooth })
+  }, [save.failureKey, smooth])
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) { setError({ key: 'workouts.form.errors.nameRequired' }); return }
+    if (formData.exercises.length === 0) { setError({ key: 'workouts.form.errors.noExercises' }); return }
+    setError(null)
+    void save.run()
+  }
+
+  if (loadError) {
+    return (
+      <Screen maxWidth="medium">
+        <ErrorState
+          size="page"
+          title={t('workouts.detail.loadFailed')}
+          message={uiMessage(loadError)}
+          onRetry={() => { setLoadError(null); setRetryKey((k) => k + 1) }}
+          secondary={<Button title={t('workouts.detail.backToWorkouts')} variant="secondary" onPress={goBack} />}
+        />
+      </Screen>
+    )
+  }
+
+  if (initialLoading) return <Loading />
+
+
+  const selectedIds = formData.exercises.map((e) => e.exercise_id)
+  const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
+  const totalWeight = formData.exercises.reduce(
+    (sum, ex) => sum + ex.sets.reduce((s, set) => s + (set.weight || 0), 0),
+    0
+  )
+  const counts = {
+    exercises: t('common.count.exercises', { count: formData.exercises.length }),
+    sets: t('common.count.sets', { count: totalSets }),
+  }
+  const summary = totalWeight > 0
+    ? t('workouts.form.summaryWithWeight', { ...counts, weight: Math.round(totalWeight), unit: wUnit })
+    : t('workouts.form.summary', counts)
+
+  return (
+    <Screen maxWidth="medium">
+      <ScrollView
+        ref={scrollRef}
+        style={scrollBleed} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        // Drag-to-dismiss the keyboard: 'interactive' (finger-tracked) is iOS-only;
+        // Android falls back to dismiss-on-drag-start.
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <View className="gap-6 py-4">
+          <View className="flex-row items-center gap-3">
+            <IconButton icon={ArrowLeft} label={t('common.back')} variant="ghost" size="md" onPress={goBack} />
+            <View>
+              <AppText variant="title">{t('workouts.form.editTitle')}</AppText>
+              <AppText variant="caption" color="muted">{summary}</AppText>
+            </View>
+          </View>
+
+          {error || save.error ? (
+            <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
+              <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
+              <AppText variant="body" color="error" className="flex-1">{error ? uiMessage(error) : save.error}</AppText>
+            </View>
+          ) : null}
+
+          <View className={wide ? 'flex-row gap-4' : 'gap-6'}>
+            <View className={wide ? 'flex-1' : ''}>
+              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} />
+              <Field
+                // The header above is not tied to the input in the DOM, so web names it here.
+                accessibilityLabel={Platform.OS === 'web' ? t('workouts.form.name') : undefined}
+                value={formData.name}
+                onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
+              />
+            </View>
+
+            {/* Date + duration share a row (matches the Log form). Editing the date only
+                shifts the day; the original time-of-day is preserved on submit. */}
+            <View className="flex-row gap-3">
+              <View className={wide ? 'w-44' : 'flex-[2]'}>
+                <FieldHeader icon={CalendarDays} label={t('workouts.form.date')} />
+                <DateInput
+                  value={formData.date}
+                  onChange={(d) => setFormData((prev) => ({ ...prev, date: d }))}
+                  maximumDate={new Date()}
+                />
+              </View>
+              <View className={wide ? 'w-36' : 'flex-1'}>
+                {/* "min" already rides the value, so the label stays just "Duration". */}
+                <FieldHeader icon={Clock} label={t('workouts.form.duration')} />
+                <DurationField
+                  value={formData.duration}
+                  onChange={(m) => setFormData((prev) => ({ ...prev, duration: m }))}
+                  inputAccessoryViewID={KEYPAD_DONE_ID}
+                />
+              </View>
+            </View>
+          </View>
+
+          <View>
+            <FieldHeader icon={FileText} label={t('common.notes')} />
+            <Field
+              accessibilityLabel={Platform.OS === 'web' ? t('common.notes') : undefined}
+              value={formData.notes}
+              onChangeText={(text) => setFormData((prev) => ({ ...prev, notes: text }))}
+              multiline
+            />
+          </View>
+
+          {/* No summary strip — the header caption already carries exercises · sets · total. */}
+          <View>
+            <View className="mb-3 flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Zap size={14} color={accent} strokeWidth={2.2} />
+                <Label>{t('workouts.form.exercises')}</Label>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowPicker(true)}
+                className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+              >
+                <Plus size={13} color="#ffffff" />
+                <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+              </Pressable>
+            </View>
+
+            {formData.exercises.length === 0 && (
+              <View className="rounded-2xl border border-dashed border-surface-border">
+                <EmptyState
+                  compact
+                  icon={Dumbbell}
+                  title={t('workouts.form.empty.editTitle')}
+                  subtitle={t('workouts.form.empty.editHint')}
+                />
+              </View>
+            )}
+
+            <View className="gap-4">
+              {formData.exercises.map((workoutEx, exIdx) => (
+                <ExerciseFormCard
+                  key={exIdx}
+                  index={exIdx}
+                  exercise={pickerExercises[workoutEx.exercise_id]}
+                  notes={workoutEx.notes}
+                  sets={workoutEx.sets}
+                  restSeconds={workoutEx.rest_seconds ?? 90}
+                  unit={wUnit}
+                  onRemove={removeExercise}
+                  onNotesChange={updateExNotes}
+                  onAddSet={addSet}
+                  onRemoveSet={removeSet}
+                  onUpdateSet={updateSet}
+                  onRestChange={setExRest}
+                  inputAccessoryViewID={KEYPAD_DONE_ID}
+                />
+              ))}
+              {/* Thumb-zone duplicate of Add Exercise: the header button scrolls away
+                  as cards stack up, so the "next exercise" tap lands where the thumb
+                  already is (right after the last card) — no scroll-to-top round trip. */}
+              {formData.exercises.length > 0 && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('workouts.form.addExerciseLabel')}
+                  onPress={() => setShowPicker(true)}
+                  className={`h-11 flex-row items-center justify-center gap-1.5 rounded-2xl border border-dashed border-surface-border active:opacity-60 ${interactive('hover:border-brand-500/40 hover:bg-brand-500/5')}`}
+                >
+                  <Plus size={14} color={accent} />
+                  <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('common.addExercise')}</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+
+        </View>
+      </ScrollView>
+
+      {/* Sticky footer actions — Save stays reachable however long the form grows.
+          -mx-5 lets the divider span edge-to-edge past Screen's px-5. */}
+      <View className={`-mx-5 flex-row gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3 ${wide ? 'justify-end' : ''}`}>
+        <Button title={t('common.cancel')} variant="secondary" className={wide ? 'min-w-32' : 'flex-1'} onPress={goBack} />
+        <Button title={t('common.saveChanges')} className={wide ? 'min-w-40' : 'flex-1'} onPress={handleSubmit} loading={save.busy} />
+      </View>
+
+      {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}
+      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+
+      {showPicker && (
+        <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />
+      )}
+    </Screen>
+  )
+}

@@ -21,8 +21,13 @@ on a $5 VPS or a Raspberry Pi.
 
 ## Where is my data stored?
 
-In a single SQLite file on your server. Nothing is sent to any third party. Backing up is copying
-that one file.
+In a single SQLite file on your server. Backing up is copying that one file.
+
+Your logs never leave it. The server does talk to two outside services, and only for public data:
+it downloads the exercise catalog from open-exercise-db, and when you search for a food or scan a
+barcode it sends that search or barcode to [Open Food Facts](https://world.openfoodfacts.org).
+Your browser or phone loads exercise photos from open-exercise-db and food photos from Open
+Food Facts directly.
 
 ## Do I need an API key or account for the exercise library?
 
@@ -37,12 +42,15 @@ pull request: see [Translations](https://github.com/Cawlumm/lyftr#translations).
 
 ## Which platforms are supported?
 
-Android (side-load APK) and web today; iOS is planned via TestFlight / the App Store. The server
-runs on Raspberry Pi, x86 VPS, Synology NAS, Proxmox, and local Mac/Linux/Windows.
+The web app, in any current browser on a desktop or a phone, and Android (side-load APK). Both
+are the same app, so features match. iOS is planned via TestFlight / the App Store. The server
+images are built for amd64, arm64 and armv7, so it runs on a Raspberry Pi, a VPS, a Synology NAS,
+Proxmox, and local Mac/Linux/Windows.
 
 ## Can I import my data from Strong or Hevy?
 
-CSV import is on the roadmap (planned), alongside a PWA build.
+Not yet. Importing Strong's CSV export, and a full export and import of your own data, are
+planned. Until then your data is the SQLite file itself, which you can open with any SQLite tool.
 
 ## How do I get help?
 

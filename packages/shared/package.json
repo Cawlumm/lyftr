@@ -2,7 +2,7 @@
   "name": "@lyftr/shared",
   "version": "0.0.0",
   "private": true,
-  "//": "Platform-agnostic core shared by web + mobile: types, API client, Zustand store logic, pure utils. NO UI, NO platform APIs — storage is injected via StorageAdapter. Consumed as TS source (Metro/Vite/tsc transpile); not pre-built.",
+  "//": "Platform-agnostic core shared by the Expo app (native + web): types, API client, Zustand store logic, pure utils. NO UI, NO platform APIs — storage is injected via StorageAdapter. Consumed as TS source (Metro/Vite/tsc transpile); not pre-built.",
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {

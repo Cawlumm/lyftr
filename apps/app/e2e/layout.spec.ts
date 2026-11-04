@@ -1,0 +1,76 @@
+import type { Page } from '@playwright/test'
+import { test, expect } from './fixtures'
+import { WIDTH_GROUPS, sweepWidths } from './widths'
+
+// The widths the layout primitives are accountable to: nothing may scroll sideways at any of
+// them, and from 768 up the main column is centred at its max width rather than stretched.
+for (const widths of WIDTH_GROUPS) {
+  test(`home does not scroll horizontally at ${widths.join('/')}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: widths[0], height: 900 })
+    await page.goto('/')
+    await expect(page.getByRole('main')).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await sweepWidths(page, testInfo, 'home', widths, { shoot: [390, 1280] })
+  })
+}
+
+// The content area is the window right of the sidebar (shell.spec.ts covers the sidebar itself).
+const contentLeft = async (page: Page) => {
+  const side = await page.locator('#app-sidebar').boundingBox()
+  if (!side) throw new Error('no sidebar')
+  return side.x + side.width
+}
+
+// Settings opts into the 'medium' column; the dashboard into 'wide' (dashboard.spec.ts).
+test('at 1280 the main column is centred in the content area at its max width', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/settings')
+  const main = page.getByRole('main')
+  await expect(main).toBeVisible()
+  const box = await main.boundingBox()
+  if (!box) throw new Error('main has no box')
+  // Settings' column is max-w-2xl (42rem = 672px on web).
+  expect(box.width).toBeLessThanOrEqual(672)
+  expect(box.width).toBeGreaterThan(600)
+  const left = await contentLeft(page)
+  expect(Math.abs(box.x - left - (1280 - box.x - box.width))).toBeLessThanOrEqual(1)
+})
+
+test('at 390 the main column fills the viewport @mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  const main = page.getByRole('main')
+  await expect(main).toBeVisible()
+  // Poll: on WebKit the box can still be settling right after the element becomes visible.
+  await expect.poll(async () => (await main.boundingBox())?.width).toBe(390)
+})
+
+// Wheel and trackpad scrolling start at the element under the pointer, so the scroller must
+// reach the window edges: a pointer in the empty gutter beside the centred column has to scroll
+// the page, not nothing.
+test('at 1280 scrolling over the side gutter scrolls the content', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 600 })
+  await page.goto('/settings')
+  const main = page.getByRole('main')
+  await expect(main).toBeVisible()
+  const box = await main.boundingBox()
+  if (!box) throw new Error('main has no box')
+  const left = await contentLeft(page)
+  expect(box.x - left).toBeGreaterThan(100)
+
+  // The vertical scroller inside the column: the element whose scrollTop must move.
+  const scrollTop = () => page.evaluate(() => {
+    const m = document.querySelector('[role=main]')
+    if (!m) return -1
+    for (const el of m.querySelectorAll<HTMLElement>('*')) {
+      if (el.scrollHeight > el.clientHeight + 50 && getComputedStyle(el).overflowY !== 'visible') return el.scrollTop
+    }
+    return -1
+  })
+  const before = await scrollTop()
+  expect(before).toBeGreaterThanOrEqual(0)
+
+  await page.mouse.move((left + box.x) / 2, 300)
+  await page.mouse.wheel(0, 400)
+  await expect.poll(scrollTop).toBeGreaterThan(before)
+})

@@ -1,0 +1,893 @@
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { router, useFocusEffect } from 'expo-router'
+import { LinearGradient } from 'expo-linear-gradient'
+import * as Haptics from 'expo-haptics'
+import {
+  eachDayOfInterval, endOfWeek, format, isSameDay, startOfWeek, subWeeks,
+} from 'date-fns'
+import {
+  Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp, Utensils,
+} from '../../src/components/ui/icons'
+import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure } from '../../src/components/ui'
+import type { LucideIcon } from '../../src/components/ui/icons'
+import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
+import {
+  MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
+} from '../../src/components/dashboard/DashboardCharts'
+import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
+import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
+import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
+import { muscleColor, muscleLabel } from '../../src/utils/exerciseUtils'
+import { useTheme } from '../../src/theme/useTheme'
+import { useBreakpoint } from '../../src/lib/useBreakpoint'
+import { ONE_THIRD, TWO_THIRDS } from '../../src/components/dashboard/layout'
+import { useSessionPillInset } from '../../src/components/workouts/SessionPill'
+
+// Native tap feedback (matches the rest of the app): selection tick for navigations /
+// sheet-opens, a firmer impact for the primary Start action.
+const hSelect = () => Haptics.selectionAsync().catch(() => {})
+const hImpact = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
+
+const DEFAULT_FOOD: DailyStats = {
+  date: '', total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0, total_fiber: 0, workout_count: 0,
+}
+
+// The seven weekday rows of the heatmap; every other one carries a letter.
+const WEEKDAY_ROWS = [0, 1, 2, 3, 4, 5, 6] as const
+
+const VOL_OPTIONS = [
+  { value: '7' as const, label: '7' }, { value: '14' as const, label: '14' }, { value: '30' as const, label: '30' },
+]
+
+function ProgressBar({ pct, color, opacity = 1, className = '' }: { pct: number; color: string; opacity?: number; className?: string }) {
+  const p = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0
+  return (
+    <View className={`h-1.5 overflow-hidden rounded-full bg-surface-muted ${className}`}>
+      <View style={{ width: `${p}%`, height: '100%', borderRadius: 999, backgroundColor: color, opacity }} />
+    </View>
+  )
+}
+
+function MuscleBadge({ muscle }: { muscle: string }) {
+  // Re-renders on a language switch: the badge names the muscle from the catalog.
+  useTranslation()
+  const { colors } = useTheme()
+  const tint = muscleColor(muscle)
+  return (
+    <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+    </View>
+  )
+}
+
+// Section "See all"/"View" link — a right-aligned brand row with a chevron + haptic.
+function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
+  const { accent } = useTheme()
+  return (
+    <Pressable onPress={() => { hSelect(); onPress() }} hitSlop={8} className="flex-row items-center gap-0.5 active:opacity-60">
+      <AppText variant="caption" color="brand">{label}</AppText>
+      <ArrowRight size={12} color={accent} />
+    </Pressable>
+  )
+}
+
+// Wide web only: the phone's This Week card is the first of three tiles, and today's
+// calories and protein are the other two.
+function StatTile({ label, icon: TileIcon, value, target, pct, color, failed }: {
+  label: string; icon: LucideIcon; value: number; target: ReactNode; pct: number; color: string; failed: string | null
+}) {
+  const { accent } = useTheme()
+  return (
+    <Card className="flex-1 justify-between gap-4">
+      <View className="flex-row items-start justify-between">
+        <View className="min-w-0 flex-1">
+          <Label>{label}</Label>
+          {failed ? (
+            <View className="mt-2"><StatFailure label={failed} /></View>
+          ) : (
+            <View className="mt-1 flex-row items-end gap-1.5">
+              <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{value}</AppText>
+              <AppText variant="caption" color="muted" className="mb-2">{target}</AppText>
+            </View>
+          )}
+        </View>
+        <View className="h-9 w-9 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+          <TileIcon size={18} color={accent} />
+        </View>
+      </View>
+      {failed ? null : (
+        <View className="flex-row items-center gap-3">
+          <ProgressBar pct={pct} color={color} className="flex-1" />
+          <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(pct)}%</AppText>
+        </View>
+      )}
+    </Card>
+  )
+}
+
+export default function Dashboard() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  // Re-read on every load rather than once at mount: this tab stays mounted for the
+  // life of the process, so an app left open overnight kept yesterday's header, week
+  // boundary and "today" dot while load() fetched the real today's food.
+  const [now, setNow] = useState(() => new Date())
+  const session = useWorkoutSession((s) => s.session)
+  const startSession = useWorkoutSession((s) => s.startSession)
+  const user = useAuthStore((s) => s.user)
+  const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  const unit = settings.weight_unit
+  const wUnit = weightShort(unit)
+  const { colors, accent, brand, isDark } = useTheme()
+
+  // Consistency heatmap cell fill — explicit hex (not NativeWind opacity classes, which
+  // wash out on the light theme + don't render reliably on native): empty is a visible
+  // gray (border, not the near-white `muted`), and workout days are solid cyan that gets
+  // MORE prominent with count on both themes (darker on light, brighter on dark).
+  const heatFill = (count: number, future: boolean) => {
+    if (future) return colors.muted
+    if (count === 0) return colors.border
+    if (count === 1) return isDark ? brand.cyanEdge : brand.cyan
+    return isDark ? brand.cyanLight : brand.cyanEdge
+  }
+
+  const [workouts, setWorkouts] = useState<Workout[]>([])
+  const [programs, setPrograms] = useState<Program[]>([])
+  const [food, setFood] = useState<DailyStats>(DEFAULT_FOOD)
+  const [weightLogs, setWeightLogs] = useState<WeightLog[]>([])
+  const [weightStats, setWeightStats] = useState<WeightStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  // Failures are kept as a UiMessage (a key and the failure that caused it), not as a sentence,
+  // so a banner already on screen follows a language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
+  // The secondary reads are caught so one dead endpoint cannot blank a working dashboard.
+  // What they must not do is then say nothing: a failed /food/stats rendered today as
+  // 0 kcal, which is what "hasn't eaten yet" looks like. Name -> what the server said,
+  // so the card that never loaded can say why.
+  const [missing, setMissing] = useState<Record<string, UiMessage>>({})
+  const foodMissing = "today's food" in missing
+  const weightMissing = 'your weight' in missing
+  const programsMissing = 'your programs' in missing
+
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [volumePeriod, setVolumePeriod] = useState<'7' | '14' | '30'>('7')
+  const [chartWidth, setChartWidth] = useState(0)
+  const [sparkWidth, setSparkWidth] = useState(0)
+  const [sparkHeight, setSparkHeight] = useState(0)
+  const [heatSel, setHeatSel] = useState<{ day: Date; count: number } | null>(null)
+
+  const load = useCallback(async () => {
+    setNow(new Date())
+    // A 200 that is not a list is not an empty list. Unchecked, a half-deployed backend
+    // or a proxy in front of the wrong service rendered "No workouts logged yet" and
+    // "Log your first weight" — the empty-account screen, from a reply we could not read.
+    const rows = <T,>(v: T[] | null | undefined): T[] => {
+      if (!Array.isArray(v)) throw new Error('unreadable')
+      return v
+    }
+    const absent: Record<string, UiMessage> = {}
+    const note = (what: string, err: unknown) => {
+      absent[what] = { key: 'errors.unknown', cause: err }
+    }
+    const [ws, ps, fs, wl, wst] = await Promise.all([
+      // Uncaught on purpose, mirroring web: this is the primary request, and it is
+      // what lets a total outage reject load() and reach the ErrorState below. With
+      // all five caught, load() could never fail, so the error screen was
+      // unreachable and an outage rendered every tile at 0, silently.
+      client.workoutAPI.list({ limit: 84 }).then(rows),
+      client.programAPI.list({ limit: 100 }).then(rows).catch((err) => { note('your programs', err); return [] as Program[] }), // backend's max — Up Next must see every program
+      client.foodAPI.stats(format(new Date(), 'yyyy-MM-dd'))  // the real today, as load() re-reads it
+        // A 200 carrying the wrong shape never reaches the catch; unchecked, the missing
+        // field goes through Math.round and the card reads "NaN".
+        .then((fs) => (isDailyStats(fs) ? fs : Promise.reject(new Error('unreadable'))))
+        .catch((err) => { note("today's food", err); return DEFAULT_FOOD }),
+      client.weightAPI.list({ limit: 14 }).then(rows).catch((err) => { note('your weight', err); return [] as WeightLog[] }),
+      client.weightAPI.stats().catch((err) => { note('your weight', err); return null }),
+    ])
+    setWorkouts(ws)
+    setPrograms(ps)
+    setFood(fs || DEFAULT_FOOD)
+    setWeightLogs(wl)
+    setWeightStats(wst)
+    setMissing(absent)
+  }, [])
+
+  useEffect(() => {
+    fetchSettings()
+    load()
+      .catch((err) => setError({ key: 'errors.unknown', cause: err }))
+      .finally(() => setLoading(false))
+  }, [fetchSettings, load])
+
+  // Keep-mounted tab → refetch on re-focus (skip the first, the mount effect fetched).
+  const focusedOnce = useRef(false)
+  useFocusEffect(
+    useCallback(() => {
+      if (!focusedOnce.current) { focusedOnce.current = true; return }
+      // A failed refocus refetch keeps the stale-but-real data already on screen;
+      // replacing a populated dashboard with an error over a background refresh
+      // would be the louder wrong. The catch exists because load() can reject now.
+      load().catch(() => {})
+    }, [load])
+  )
+
+  const [refreshing, setRefreshing] = useState(false)
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    // Same shape as the refocus refetch: pull-to-refresh over live data keeps the
+    // data on a failure; the spinner stopping with nothing changed is the signal.
+    await load().catch(() => {})
+    setRefreshing(false)
+  }, [load])
+
+  // Above the early returns — see web's Dashboard: a hook must run every render.
+  const username = useDisplayName()
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
+
+  if (loading) return <DashboardSkeleton />
+
+  if (error) {
+    // Every tile here is another request's answer, so a failed load has no honest
+    // partial view — the cards would all read 0, which says "you did nothing this
+    // week" rather than "we could not ask".
+    return (
+      <Screen>
+        <ErrorState
+          size="page"
+          title={t('home.loadFailed')}
+          message={uiMessage(error)}
+          onRetry={() => {
+            setError(null)
+            setLoading(true)
+            load().catch((err) => setError({ key: 'errors.unknown', cause: err })).finally(() => setLoading(false))
+          }}
+        />
+      </Screen>
+    )
+  }
+
+  // ── Derived data (unchanged from the 1:1 port) ─────────────────────────────
+  const weekStart = startOfWeek(now, { weekStartsOn: 1 })
+  // Compared as days, not instants: the dot strip below buckets by workoutDay, so a
+  // count taken from the raw timestamp can disagree with the dots it sits above for a
+  // workout logged near the week boundary in another zone.
+  const weekStartDay = format(weekStart, 'yyyy-MM-dd')
+  const weekWorkouts = workouts.filter((w) => workoutDay(w) >= weekStartDay)
+  const lastWorkout = workouts[0] ?? null
+
+  // "Up next": the first (most recently created) program whose due day is a
+  // startable workout day. Surfaces today's routine workout without opening the
+  // Programs tab — a routine that never shows on the dashboard never gets started.
+  const upNext = nextStartableDay(programs)
+
+  const startUpNext = () => {
+    if (!upNext) return
+    hImpact()
+    const { program, day } = upNext
+    startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
+    router.navigate('/workouts/active')
+  }
+
+  const chartData = workouts.slice(0, Number(volumePeriod)).reverse().map((w) => ({
+    date: formatDay(workoutDay(w), 'numericMonthDay'),
+    volume: displayVolume(calcVolume(w), unit),
+    name: w.name,
+  }))
+
+  const weekDays = eachDayOfInterval({ start: weekStart, end: endOfWeek(now, { weekStartsOn: 1 }) })
+
+  const heatmapStart = startOfWeek(subWeeks(now, 11), { weekStartsOn: 1 })
+  const heatmapEnd = endOfWeek(now, { weekStartsOn: 1 })
+  const heatmapDays = eachDayOfInterval({ start: heatmapStart, end: heatmapEnd })
+  const workoutDayMap = new Map<string, number>()
+  workouts.forEach((w) => {
+    // See web Dashboard: bucket by the workout's recorded day, not the device's.
+    const k = workoutDay(w)
+    workoutDayMap.set(k, (workoutDayMap.get(k) || 0) + 1)
+  })
+  const heatmapWeeks: Date[][] = []
+  for (let i = 0; i < heatmapDays.length; i += 7) heatmapWeeks.push(heatmapDays.slice(i, i + 7))
+  const monthLabels: (string | null)[] = heatmapWeeks.map((week, i) => {
+    const m = formatDate(week[0], 'monthShort')
+    if (i === 0) return m
+    return m !== formatDate(heatmapWeeks[i - 1][0], 'monthShort') ? m : null
+  })
+
+  const muscleMap = new Map<string, number>()
+  workouts.forEach((w) => {
+    (w.exercises ?? []).forEach((ex) => {
+      const mg = ex.exercise?.muscle_group || 'other'
+      muscleMap.set(mg, (muscleMap.get(mg) || 0) + (ex.sets ?? []).length)
+    })
+  })
+  const muscleData = Array.from(muscleMap.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name, value]) => ({ name, value }))
+  const totalMuscSets = muscleData.reduce((s, d) => s + d.value, 0)
+
+  const sparklineWorkouts = workouts.slice(0, 10).reverse()
+  const muscleSparklines = new Map<string, number[]>()
+  muscleData.forEach(({ name }) => {
+    muscleSparklines.set(name, sparklineWorkouts.map((w) =>
+      (w.exercises ?? [])
+        .filter((ex) => ex.exercise?.muscle_group === name)
+        .reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+    ))
+  })
+  const topMuscle = muscleData[0]?.name ?? null
+
+  const calPct = Math.min(100, (food.total_calories / settings.calorie_target) * 100) || 0
+  const protPct = Math.min(100, (food.total_protein / settings.protein_target) * 100) || 0
+  const carbsPct = Math.min(100, (food.total_carbs / settings.carb_target) * 100) || 0
+  const fatPct = Math.min(100, (food.total_fat / settings.fat_target) * 100) || 0
+
+  const sparkData = [...weightLogs].reverse().map((l) => ({
+    date: formatDay(entryDay(l), 'numericMonthDay'),
+    weight: displayWeight(l.weight, unit),
+  }))
+
+  const avatarInitial = nameInitial(username)
+
+  // Wide web only: cards that share a row stretch to the row's height, so `cell` makes each
+  // one fill its slot. On a phone it is '' and every card renders exactly as before.
+  const cell = wide ? 'flex-1' : ''
+  const heatCell = wide ? 20 : 12
+  const heatGap = wide ? 4 : 2
+
+  const header = (
+    <>
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text className="font-sans-medium text-[11px] uppercase text-tx-muted" style={{ letterSpacing: 1 }}>
+            {formatDate(now, 'weekdayMonthDayLong')}
+          </Text>
+          {/* No numberOfLines: a name is never clipped — see web's Dashboard. */}
+          <AppText variant="title" className="mt-0.5">{greeting(now, username)}</AppText>
+        </View>
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => { hImpact(); router.navigate('/workouts/start') }}
+            className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95"
+          >
+            <Play size={15} color="#fff" />
+            <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
+          </Pressable>
+          {/* Avatar → Settings. Settings moved off the footer; this is its entry point.
+              The wide web shell's sidebar user menu already holds it. */}
+          {wide ? null : <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('nav.settings')}
+            onPress={() => { hSelect(); router.navigate('/settings') }}
+            hitSlop={6}
+            className="active:scale-95"
+          >
+            <LinearGradient
+              colors={['#0891b2', '#00b8d9']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
+            </LinearGradient>
+          </Pressable>}
+        </View>
+      </View>
+      {/* Outside the header row: that row's left column is ~190px once Start and the
+          avatar take theirs, which wraps a sentence into four lines. */}
+      <AppText variant="caption" color="muted" className="-mt-3">{lifterQuip(user?.id ?? '')}</AppText>
+    </>
+  )
+
+  // ── Active-session banner ──
+  const banner = session ? (
+    <Pressable
+      onPress={() => { hSelect(); router.navigate('/workouts/active') }}
+      className="flex-row items-center justify-between rounded-2xl border border-warning-500/30 bg-warning-500/10 p-3.5 active:scale-[0.99]"
+    >
+      <View className="flex-row items-center gap-3">
+        <View className="h-9 w-9 items-center justify-center rounded-xl border border-warning-500/30 bg-warning-500/20">
+          <Timer size={18} color={brand.warningSoft} />
+        </View>
+        <View>
+          <AppText variant="bodySemibold" color="warning">{t('home.activeSession.title')}</AppText>
+          <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{t('home.activeSession.tapToResume', { name: session.name })}</Text>
+        </View>
+      </View>
+      <ArrowRight size={18} color={brand.warningSoft} />
+    </Pressable>
+  ) : null
+
+  /* ── Up next — today's due day on the current routine. Hidden while a
+      session is live: the banner above already owns that slot. Thumbnail is
+      the due day's own first exercise (ProgramCard/WorkoutCard convention),
+      not a generic program glyph — makes the card feel like "this is what
+      you're about to do," not a bookmark. Start is a compact icon button
+      (ProgramCard's Play IconButton), not a labeled pill — the header above
+      already has a text "Start"/"Resume" button, and two buttons both saying
+      "Start" stacked this close reads as noise, not choice. ── */
+  const upNextCard = !session && upNext ? (
+    <Card className="flex-row items-center gap-3">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('home.upNext.viewRoutine', { name: upNext.program.name })}
+        onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
+        className="min-w-0 flex-1 flex-row items-center gap-3 rounded-lg active:opacity-70"
+      >
+        <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
+        <View className="min-w-0 flex-1">
+          <Label>{t('home.upNext.label', { name: upNext.program.name })}</Label>
+          <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
+            {dayLabel(upNext.day, upNext.day.order_index)}
+          </Text>
+          <AppText variant="caption" color="muted" className="mt-0.5">
+            {t('common.count.exercises', { count: (upNext.day.exercises ?? []).length })}
+          </AppText>
+        </View>
+        <ChevronRight size={16} color={colors.txMuted} />
+      </Pressable>
+      <IconButton
+        icon={Play}
+        label={t('home.upNext.start', { name: dayLabel(upNext.day, upNext.day.order_index) })}
+        variant="solid"
+        size="sm"
+        onPress={startUpNext}
+      />
+    </Card>
+  ) : !session && programsMissing ? (
+    // Programs failed, so there is no "up next" to work out — and with nothing
+    // here the screen reads as an account with no routine, which is a claim we
+    // cannot make from a request that never answered.
+    <Card>
+      <ErrorState title={t('programs.list.loadFailed')} message={uiMessage(missing['your programs'])} onRetry={onRefresh} />
+    </Card>
+  ) : null
+
+  // ── This Week (sessions + current-week dots) ──
+  const thisWeekCard = (
+    <Card className={cell}>
+      <View className="flex-row items-start justify-between">
+        <View>
+          <Label>{t('home.thisWeek.title')}</Label>
+          <View className="mt-1 flex-row items-end gap-1.5">
+            <AppText variant="display" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{weekWorkouts.length}</AppText>
+            <AppText variant="caption" color="muted" className="mb-2">{t('home.thisWeek.unit', { count: weekWorkouts.length })}</AppText>
+          </View>
+        </View>
+        <View className="h-9 w-9 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+          <Dumbbell size={18} color={accent} />
+        </View>
+      </View>
+      <View className="mt-4 flex-row items-center justify-between px-0.5">
+        {weekDays.map((day, i) => {
+          const hasWorkout = workouts.some((w) => workoutDay(w) === format(day, 'yyyy-MM-dd'))
+          const isToday = isSameDay(day, now)
+          const isFuture = day > now
+          return (
+            <View key={i} className="items-center gap-1.5">
+              <AppText variant="label" color={isToday ? 'brand' : 'muted'} className="text-[10px]">{formatDate(day, 'weekdayNarrow')}</AppText>
+              <View className={`h-3.5 w-3.5 rounded-full ${
+                hasWorkout ? 'bg-brand-500' : isToday ? 'border-2 border-brand-500/60' : isFuture ? 'bg-surface-border/20' : 'bg-surface-border/60'
+              }`} />
+            </View>
+          )
+        })}
+      </View>
+    </Card>
+  )
+
+  // ── Volume Trend ──
+  const volumeCard = (
+    <Card>
+      <SectionHeader
+        icon={TrendingUp}
+        title={t('home.volume.title')}
+        right={<View style={{ width: 132 }}><SegmentedControl size="sm" options={VOL_OPTIONS} value={volumePeriod} onChange={setVolumePeriod} /></View>}
+        className="mb-3"
+      />
+      {chartData.length === 0 ? (
+        <View className="items-center justify-center gap-2 py-10">
+          <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.4 }} />
+          <AppText variant="caption" color="muted">{t('home.volume.empty')}</AppText>
+        </View>
+      ) : (
+        <View onLayout={(e) => setChartWidth(e.nativeEvent.layout.width)}>
+          <VolumeBarChart data={chartData} width={chartWidth} unit={wUnit} height={wide ? 200 : 150} />
+        </View>
+      )}
+    </Card>
+  )
+
+  // ── Consistency heatmap ──
+  const heatmapCard = (
+    <Card>
+      <SectionHeader
+        icon={Activity}
+        title={t('home.consistency.title')}
+        right={<AppText variant="caption" color="muted">{t('home.consistency.range')}</AppText>}
+        className="mb-3"
+      />
+      {workouts.length === 0 ? (
+        <View className="items-center justify-center gap-2 py-6">
+          <AppText variant="caption" color="muted">{t('home.consistency.empty')}</AppText>
+        </View>
+      ) : (
+        <>
+          <View className="flex-row" style={{ gap: heatGap, marginBottom: 2 }}>
+            <View style={{ width: 14 }} />
+            {heatmapWeeks.map((_, i) => (
+              <View key={i} className="flex-1">
+                <Text className={`${wide ? 'text-[11px]' : 'text-[9px]'} text-tx-muted`} numberOfLines={1}>{monthLabels[i] ?? ''}</Text>
+              </View>
+            ))}
+          </View>
+          <View className="flex-row" style={{ gap: heatGap }}>
+            <View style={{ width: 14, gap: heatGap }}>
+              {WEEKDAY_ROWS.map((di) => (
+                <View key={di} className={wide ? 'justify-center' : 'h-3 justify-center'} style={wide ? { height: heatCell } : undefined}>
+                  <Text className={`${wide ? 'text-[11px]' : 'text-[9px]'} text-tx-muted/60`}>{di % 2 === 0 ? formatDate(heatmapWeeks[0][di], 'weekdayNarrow') : ''}</Text>
+                </View>
+              ))}
+            </View>
+            {heatmapWeeks.map((week, wi) => (
+              <View key={wi} className="flex-1" style={{ gap: heatGap }}>
+                {week.map((day, di) => {
+                  const k = format(day, 'yyyy-MM-dd')
+                  const count = workoutDayMap.get(k) || 0
+                  const future = day > now
+                  const isSel = heatSel != null && isSameDay(heatSel.day, day)
+                  return (
+                    <Pressable
+                      key={di}
+                      onPress={() => { hSelect(); setHeatSel((c) => (c && isSameDay(c.day, day) ? null : { day, count })) }}
+                      style={{
+                        height: heatCell,
+                        borderRadius: wide ? 4 : 2,
+                        backgroundColor: heatFill(count, future),
+                        borderWidth: isSel ? 1.5 : 0,
+                        borderColor: brand.cyanLight,
+                      }}
+                    />
+                  )
+                })}
+              </View>
+            ))}
+          </View>
+          {heatSel ? (
+            <AppText variant="caption" color="muted" className="mt-1.5">
+              {heatSel.count > 0 ? t('home.heatmap.workouts', { date: formatDate(heatSel.day, 'monthDay'), count: heatSel.count }) : t('home.heatmap.restDay', { date: formatDate(heatSel.day, 'monthDay') })}
+            </AppText>
+          ) : null}
+          <View className="mt-2 flex-row items-center justify-end gap-1.5">
+            <Text className="text-[9px] text-tx-muted">{t('home.heatmap.less')}</Text>
+            {[colors.border, isDark ? brand.cyanEdge : brand.cyan, isDark ? brand.cyanLight : brand.cyanEdge].map((c, i) => (
+              <View key={i} style={{ width: 12, height: 12, borderRadius: 3, backgroundColor: c }} />
+            ))}
+            <Text className="text-[9px] text-tx-muted">{t('home.heatmap.more')}</Text>
+          </View>
+        </>
+      )}
+    </Card>
+  )
+
+  // ── Last workout ──
+  const lastWorkoutCard = lastWorkout ? (() => {
+    const exs = lastWorkout.exercises ?? []
+    const totalSets = exs.reduce((s, ex) => s + (ex.sets ?? []).length, 0)
+    const totalVolume = displayVolume(calcVolume(lastWorkout), unit)
+    const mins = Math.round(lastWorkout.duration / 60)
+    return (
+      <Pressable onPress={() => { hSelect(); router.navigate(`/workouts/${lastWorkout.id}`) }} className={`rounded-xl active:scale-[0.99] ${cell}`}>
+        <Card className={cell}>
+          <View className="mb-3 flex-row items-start justify-between gap-2">
+            <View className="min-w-0 flex-1">
+              <Label className="mb-1">{t('home.lastWorkout.title')}</Label>
+              <Text className="font-sans-semibold text-base text-tx-primary" numberOfLines={1}>{lastWorkout.name}</Text>
+              <AppText variant="caption" color="muted" className="mt-0.5">
+                {[
+                  formatDay(workoutDay(lastWorkout), 'monthDay'),
+                  mins > 0 && t('home.lastWorkout.minutes', { mins }),
+                  totalSets > 0 && t('common.count.sets', { count: totalSets }),
+                  totalVolume > 0 && `${totalVolume.toLocaleString()} ${wUnit}`,
+                ].filter(Boolean).join(' · ')}
+              </AppText>
+            </View>
+            <LinkRow label={t('home.lastWorkout.all')} onPress={() => router.navigate('/workouts')} />
+          </View>
+          <View className="gap-2.5">
+            {exs.slice(0, 4).map((ex, i) => {
+              const sets = ex.sets ?? []
+              const best = sets.length > 0 ? sets.reduce((b, s) => (s.weight > b.weight ? s : b), sets[0]) : null
+              return (
+                <View key={ex.id ?? i} className="flex-row items-center gap-2.5">
+                  <ExerciseImage url={ex.exercise.image_url} size="row" />
+                  <View className="min-w-0 flex-1 gap-1">
+                    <Text className="text-sm text-tx-secondary" numberOfLines={1}>{ex.exercise.name}</Text>
+                    <MuscleBadge muscle={ex.exercise.muscle_group} />
+                  </View>
+                  {best ? (
+                    <Text className="text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
+                      {sets.length}×{best.weight > 0 ? ` ${displayWeight(best.weight, unit)}${wUnit}` : ` ${t('weight.bodyweightShort')}`}
+                    </Text>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+          {exs.length > 4 ? (
+            <AppText variant="caption" color="muted" className="pt-2 text-center">{t('home.lastWorkout.moreExercises', { count: exs.length - 4 })}</AppText>
+          ) : null}
+        </Card>
+      </Pressable>
+    )
+  })() : (
+    <Card className={`items-center justify-center gap-2 ${cell}`} style={{ minHeight: 148 }}>
+      <Dumbbell size={30} color={colors.txMuted} style={{ opacity: 0.4 }} />
+      <AppText variant="body" color="muted">{t('home.lastWorkout.empty')}</AppText>
+      {/* Suppressed when the Up Next card is already showing above — that
+          card is its own "start something" CTA, and stacking a second
+          "start your first workout" link right under it is the exact
+          redundant-buttons clutter this card exists to avoid. */}
+      {!upNext ? (
+        <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
+          <AppText variant="caption" color="brand">{t('home.lastWorkout.startFirst')}</AppText>
+        </Pressable>
+      ) : null}
+    </Card>
+  )
+
+  // ── Muscle Balance ──
+  const muscleCard = (
+    <Card className={cell}>
+      <SectionHeader
+        icon={Dumbbell}
+        title={t('home.muscle.title')}
+        right={<AppText variant="caption" color="muted">{t('home.muscle.workouts', { count: workouts.length })}</AppText>}
+        className="mb-1"
+      />
+      {topMuscle ? (
+        <AppText variant="caption" color="muted" className="mb-3 italic">{muscleRoast(topMuscle)}</AppText>
+      ) : (
+        <AppText variant="caption" color="muted" className="mb-3">{t('home.muscle.empty')}</AppText>
+      )}
+      {muscleData.length === 0 ? (
+        <View className="items-center justify-center gap-2 py-6">
+          <Dumbbell size={26} color={colors.txMuted} style={{ opacity: 0.3 }} />
+          <AppText variant="caption" color="muted">{t('home.muscle.noData')}</AppText>
+        </View>
+      ) : (
+        <View className="items-center gap-4">
+          <MuscleDonut data={muscleData} total={totalMuscSets} colorFor={muscleHex} size={168} />
+          <View className="w-full gap-2.5">
+            {muscleData.map((d) => {
+              const pct = Math.round((d.value / totalMuscSets) * 100)
+              const isTop = d.name === topMuscle
+              const values = muscleSparklines.get(d.name) ?? []
+              const color = muscleHex(d.name)
+              return (
+                <View key={d.name}>
+                  <View className="mb-0.5 flex-row items-center gap-2">
+                    <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+                    <Text className={`flex-1 text-xs capitalize ${isTop ? 'font-sans-semibold text-tx-primary' : 'text-tx-secondary'}`} numberOfLines={1}>
+                      {muscleLabel(d.name)}{isTop ? <Text className="text-[9px] uppercase text-tx-muted">{` ${t('home.muscle.top')}`}</Text> : null}
+                    </Text>
+                    <MuscleSparkline values={values} color={color} isTop={isTop} />
+                    <Text className="w-16 text-right text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>{d.value} · {pct}%</Text>
+                  </View>
+                  <ProgressBar pct={pct} color={color} opacity={isTop ? 1 : 0.6} />
+                </View>
+              )
+            })}
+          </View>
+        </View>
+      )}
+    </Card>
+  )
+
+  // ── Today's Nutrition (also covers the Cals/Protein once in the KPI strip) ──
+  const nutritionCard = (
+    <Card className={cell}>
+      {/* Web links "Log →" to /food; hidden on mobile until a Food page exists. */}
+      <AppText variant="subheading" className="mb-3">{t('home.nutrition.title')}</AppText>
+      {foodMissing ? (
+        <ErrorState title={t('home.nutrition.loadFailed')} message={uiMessage(missing["today's food"])} onRetry={onRefresh} />
+      ) : (
+      <>
+      <View className="mb-3 flex-row items-baseline gap-1.5">
+        <Text className="font-display-heavy text-tx-primary" style={{ fontSize: 34, lineHeight: 38, fontVariant: ['tabular-nums'] }}>{Math.round(food.total_calories)}</Text>
+        <AppText variant="caption" color="muted">/ {settings.calorie_target} kcal</AppText>
+        <View className="flex-1" />
+        <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(calPct)}%</AppText>
+      </View>
+      <ProgressBar pct={calPct} color="#00b8d9" className="mb-4" />
+      <View className="gap-3">
+        {[
+          { id: 'protein', label: t('food.macro.protein'), val: food.total_protein, target: settings.protein_target, pct: protPct, color: '#3b82f6' },
+          { id: 'carbs', label: t('home.macro.carbs'), val: food.total_carbs, target: settings.carb_target, pct: carbsPct, color: '#f59e0b' },
+          { id: 'fat', label: t('food.macro.fat'), val: food.total_fat, target: settings.fat_target, pct: fatPct, color: '#8b5cf6' },
+        ].map((m) => (
+          <View key={m.id}>
+            <View className="mb-1 flex-row items-center justify-between">
+              <AppText variant="caption" color="muted">{m.label}</AppText>
+              <Text className="text-xs font-sans-semibold text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
+                {Math.round(m.val)}g<Text className="font-sans font-normal text-tx-muted"> / {m.target}g</Text>
+              </Text>
+            </View>
+            <ProgressBar pct={m.pct} color={m.color} />
+          </View>
+        ))}
+      </View>
+      </>
+      )}
+    </Card>
+  )
+
+  // ── Weight quick-log ──
+  const weightCard = (
+    <Card className={cell}>
+      <SectionHeader
+        icon={Scale}
+        title={t('home.weight.title')}
+        right={<LinkRow label={t('home.weight.view')} onPress={() => router.navigate('/weight')} />}
+        className="mb-2"
+      />
+      {weightLogs.length === 0 && weightMissing ? (
+        // Not the "log your first weight" prompt: this reader may have years of them.
+        <ErrorState title={t('home.weight.loadFailed')} message={uiMessage(missing['your weight'])} onRetry={onRefresh} />
+      ) : weightLogs.length === 0 ? (
+        <Pressable
+          onPress={() => { hSelect(); setSheetOpen(true) }}
+          className="flex-row items-center gap-3 rounded-2xl border border-dashed border-brand-500/30 bg-brand-500/5 p-3.5 active:scale-[0.99]"
+        >
+          <View className="h-10 w-10 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+            <Plus size={18} color={accent} />
+          </View>
+          <View>
+            <Text className="text-sm font-sans-semibold text-tx-primary">{t('home.weight.logFirst')}</Text>
+            <AppText variant="caption" color="muted">{t('home.weight.logFirstHint')}</AppText>
+          </View>
+        </Pressable>
+      ) : (
+        <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className={`rounded-lg active:scale-[0.99] ${cell}`} accessibilityLabel={t('home.weight.logAria')}>
+          <View className="mb-2 flex-row items-center justify-between">
+            <View className="flex-row items-baseline gap-1.5">
+              <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
+              <AppText variant="caption" color="muted">{wUnit}</AppText>
+            </View>
+            <View className="flex-row items-center gap-2">
+              {(() => {
+                // No stats is not "no change": say nothing rather than a trend we
+                // never got — and a null or absent delta is no stats at all, not 0.
+                const delta = weightStats?.change_7d
+                if (typeof delta !== 'number' || !Number.isFinite(delta)) return null
+                if (delta === 0) return <AppText variant="caption" color="muted">{t('home.weight.noChange7d')}</AppText>
+                return (
+                  <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
+                    {t(delta < 0 ? 'home.weight.trendDown' : 'home.weight.trendUp', { amount: Math.abs(displayWeight(delta, unit)), unit: wUnit })}
+                  </Text>
+                )
+              })()}
+              <View className="h-9 w-9 items-center justify-center rounded-xl bg-brand-500">
+                <Plus size={16} color="#fff" />
+              </View>
+            </View>
+          </View>
+          {/* Wide: the card shares a column with the volume chart beside the muscle card, so the
+              sparkline takes the height left over, drawn absolutely so its own height never
+              feeds back into the row's, and capped so it stays a trend line, not a wall. */}
+          {weightLogs.length >= 2 ? (wide ? (
+            <View
+              className="flex-1"
+              style={{ minHeight: 48 }}
+              onLayout={(e) => { setSparkWidth(e.nativeEvent.layout.width); setSparkHeight(e.nativeEvent.layout.height) }}
+            >
+              <View style={StyleSheet.absoluteFill}>
+                <WeightSparkline data={sparkData} width={sparkWidth} unit={wUnit} height={Math.min(160, Math.max(48, sparkHeight))} />
+              </View>
+            </View>
+          ) : (
+            <View onLayout={(e) => setSparkWidth(e.nativeEvent.layout.width)}>
+              <WeightSparkline data={sparkData} width={sparkWidth} unit={wUnit} height={48} />
+            </View>
+          )) : null}
+        </Pressable>
+      )}
+    </Card>
+  )
+
+  return (
+    <Screen maxWidth="wide">
+      <ScrollView
+        style={scrollBleed} showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 + pillInset }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} colors={[accent]} />}
+      >
+        {wide ? (
+          // Desktop: three stat tiles, last workout beside nutrition, then muscle balance (one
+          // third) beside volume over weight (the other two thirds), then the heatmap at full
+          // width, where its twelve weeks have room to read.
+          <View className="gap-5 py-4">
+            {header}
+            {banner}
+            {upNextCard}
+            <View className="flex-row gap-5">
+              {thisWeekCard}
+              <StatTile
+                label={t('home.kpi.calories')}
+                icon={Flame}
+                value={Math.round(food.total_calories)}
+                target={<>/ {settings.calorie_target} kcal</>}
+                pct={calPct}
+                color="#00b8d9"
+                failed={foodMissing ? t('home.kpi.caloriesFailed') : null}
+              />
+              <StatTile
+                label={t('home.kpi.protein')}
+                icon={Utensils}
+                value={Math.round(food.total_protein)}
+                target={<>/ {settings.protein_target}g</>}
+                pct={protPct}
+                color="#3b82f6"
+                failed={foodMissing ? t('home.kpi.proteinFailed') : null}
+              />
+            </View>
+            <View className="flex-row gap-5">
+              {lastWorkoutCard}
+              {nutritionCard}
+            </View>
+            {/* Muscle balance is the tallest card by far; beside it, volume and weight stack
+                in the other two thirds rather than stretching two charts to its height. */}
+            <View className="flex-row gap-5">
+              <View style={ONE_THIRD}>{muscleCard}</View>
+              <View className="gap-5" style={TWO_THIRDS}>
+                {volumeCard}
+                {weightCard}
+              </View>
+            </View>
+            {heatmapCard}
+          </View>
+        ) : (
+          <View className="gap-5 py-4">
+            {header}
+            {banner}
+            {upNextCard}
+            {thisWeekCard}
+            {volumeCard}
+            {heatmapCard}
+            {lastWorkoutCard}
+            {muscleCard}
+            {nutritionCard}
+            {weightCard}
+          </View>
+        )}
+      </ScrollView>
+
+      <QuickWeighInSheet
+        open={sheetOpen}
+        lastValue={weightLogs[0] ? displayWeight(weightLogs[0].weight, unit) : null}
+        lastLog={weightLogs[0] ?? null}
+        onClose={() => setSheetOpen(false)}
+        onSuccess={(log) => {
+          // Same order the server returns (logged_on DESC, logged_at DESC), so the
+          // optimistic row sits where the next refetch will put it. Sorting by the
+          // instant alone can place a cross-zone entry above or below its own label.
+          setWeightLogs((prev) =>
+            [log, ...prev].sort(
+              (a, b) =>
+                entryDay(b).localeCompare(entryDay(a)) ||
+                new Date(b.logged_at).getTime() - new Date(a.logged_at).getTime()
+            )
+          )
+          // Dropping the stats rather than keeping them: the entry just logged is in
+          // them, so a failed refetch leaves a 7d trend that is wrong, not merely old.
+          // The delta hides itself when they are absent.
+          client.weightAPI.stats().then(setWeightStats).catch(() => setWeightStats(null))
+        }}
+      />
+    </Screen>
+  )
+}

@@ -1,0 +1,65 @@
+import { test as base, expect } from '@playwright/test'
+import path from 'path'
+import { recordCreatedUser } from './userRegistry'
+
+// Duplicate ids: expo-router keeps earlier stack screens mounted but hidden (display:none),
+// so while register is open the DOM holds two #email and two #password (login's and
+// register's), and likewise #current-password when settings/email and settings/password
+// are both on the stack. Duplicate ids are invalid HTML, but the ids stay for parity with
+// the Vite app's specs and password managers fill the visible field. The convention is
+// therefore: any locator on a shared id adds .locator('visible=true'), never a
+// per-screen id and never first().
+export type WorkerAuth = { token: string; email: string }
+
+// One fresh, isolated account per worker — the foundation for test isolation.
+// Previously every data spec seeded into the single shared demo user, so state
+// accumulated across tests AND across runs, which is why each spec carried
+// fragile "wipe ALL E2E-prefixed entries" pre-cleanup. A brand-new account per
+// run starts empty, so that pre-cleanup is unnecessary and runs are hermetic.
+// Worker-scoped, so files that land on different workers (CI runs four) never
+// see each other's rows; files on the same worker do, so no test may assume its
+// file's seed is the account's only data.
+export const test = base.extend<object, { workerAuth: WorkerAuth }>({
+  workerAuth: [async ({ browser }, use, workerInfo) => {
+    const idx = workerInfo.parallelIndex
+    const email = `e2e-w${idx}-${Date.now()}@lyftr.local`
+    const password = 'password123'
+    const storageStatePath = path.join(__dirname, `.auth/worker-${idx}.json`)
+
+    // Register via the real UI so the browser session + tokens are captured exactly as the
+    // app writes them (AsyncStorage on web is localStorage, same keys as the Vite app).
+    // This manual context needs baseURL set explicitly: the config `use` options only apply
+    // to test-created contexts. Read the project's RESOLVED baseURL, don't hardcode.
+    const baseURL = workerInfo.project.use.baseURL as string
+    const context = await browser.newContext({ baseURL, storageState: undefined })
+    const page = await context.newPage()
+    await page.goto('/register')
+    // Same ids as the Vite app's register form. Only the visible match: the stack keeps
+    // the login screen mounted under register with display:none, and it has #email and
+    // #password too.
+    await page.locator('#email').locator('visible=true').fill(email)
+    await page.locator('#password').locator('visible=true').fill(password)
+    await page.locator('#password-confirm').locator('visible=true').fill(password)
+    await page.getByRole('button', { name: 'Create account', exact: true }).click()
+    await page.waitForURL(u => new URL(u).pathname === '/')
+    await context.storageState({ path: storageStatePath })
+    const token = await page.evaluate(() => localStorage.getItem('access_token'))
+    await context.close()
+
+    if (!token) throw new Error(`worker ${idx}: failed to obtain access_token after register`)
+
+    // Record for globalTeardown to delete at the end (cascades all its data).
+    // Centralized cleanup with retry — robust to transient failures and crashes.
+    recordCreatedUser(token)
+
+    await use({ token, email })
+  }, { scope: 'worker' }],
+
+  // Logged-in specs get this worker's freshly-registered storage state.
+  storageState: async ({ workerAuth }, use, workerInfo) => {
+    void workerAuth // ensure the worker account is registered first
+    await use(path.join(__dirname, `.auth/worker-${workerInfo.parallelIndex}.json`))
+  },
+})
+
+export { expect }

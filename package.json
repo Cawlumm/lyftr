@@ -2,11 +2,10 @@
   "name": "lyftr-monorepo",
   "private": true,
   "version": "0.0.0",
-  "//": "npm workspaces root — one install and one lockfile for web, mobile and packages/*. `overrides` below is root-only and cannot be scoped per workspace, which is why every member has to agree on the React version.",
+  "//": "npm workspaces root — one install and one lockfile for mobile and packages/*. `overrides` below is root-only and cannot be scoped per workspace, which is why every member has to agree on the React version.",
   "workspaces": [
     "packages/*",
-    "mobile",
-    "web"
+    "apps/app"
   ],
   "//overrides": "Force a single React across the workspace — React Native's Fabric renderer crashes if the app and @lyftr/shared resolve different React copies (even different 19.x minors). react-test-renderer is pinned to the same version because @testing-library/react-native renders through it and npm's `react` override does NOT cascade to react-test-renderer — a mismatched minor throws the 'multiple copies of React' hook error under jest.",
   "overrides": {
@@ -19,7 +18,7 @@
     "shared:type-check": "npm run type-check -w @lyftr/shared",
     "shared:test": "npm run test -w @lyftr/shared"
   },
-  "//devDependencies": "expo-router is declared here only so npm hoists it to the root node_modules. The Expo CLI keeps its own @expo/router-server under root node_modules/@expo/cli and resolves expo-router as a peer by walking up from there; with expo-router left in mobile/node_modules `expo start` dies with 'Cannot find module expo-router/internal/testing' while typedRoutes is on. Keep it in step with mobile/package.json.",
+  "//devDependencies": "expo-router is declared here only so npm hoists it to the root node_modules. The Expo CLI keeps its own @expo/router-server under root node_modules/@expo/cli and resolves expo-router as a peer by walking up from there; with expo-router left in apps/app/node_modules `expo start` dies with 'Cannot find module expo-router/internal/testing' while typedRoutes is on. Keep it in step with apps/app/package.json.",
   "devDependencies": {
     "expo-router": "58.0.28",
     "patch-package": "8.0.1"

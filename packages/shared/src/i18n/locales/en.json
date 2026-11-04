@@ -186,7 +186,13 @@
       "syncing": "Syncing…",
       "syncUnreachable": "Last sync couldn't reach the exercise catalog.",
       "syncFailed": "Last sync didn't finish.",
-      "syncRetry": "Trying again at {{when}}."
+      "syncRetry": "Trying again at {{when}}.",
+      "footnote": "Affects everyone on this server.",
+      "confirmRemovals": {
+        "title": "Accept the smaller catalog?",
+        "message": "The exercise catalog now lists under half of the exercises this server holds, so the sync updated what it found but hid nothing. If that is expected, sync again and hide the exercises it no longer lists. Workouts and programs that use them keep them.",
+        "confirm": "Sync and hide"
+      }
     },
     "danger": {
       "title": "Danger Zone",
@@ -217,6 +223,9 @@
     "remove": "Remove filter: {{label}}"
   },
   "common": {
+    "chart": {
+      "keyHint": "Use the arrow keys to read each value"
+    },
     "duration": {
       "seconds": "{{value}}s",
       "minutes": "{{value}}m"
@@ -660,7 +669,10 @@
       "notesOptionalPlain": "Notes (optional)"
     },
     "row": {
-      "options": "{{weight}} {{unit}} options"
+      "options": "{{weight}} {{unit}} options",
+      "link": "{{weight}} {{unit}}, {{date}}",
+      "editNamed": "Edit {{weight}} {{unit}}, {{date}}",
+      "deleteNamed": "Delete {{weight}} {{unit}}, {{date}}"
     },
     "notePlaceholder": "e.g., morning, post-workout",
     "logAnyway": "Log Anyway"
@@ -680,6 +692,7 @@
     "list": {
       "searchPlaceholder": "Search programs…",
       "empty": {
+        "titleNone": "No programs yet",
         "title": "No programs found",
         "startHint": "Create a program to get started"
       },
@@ -688,7 +701,8 @@
     },
     "stats": {
       "total": "Total",
-      "totalUnit": "programs",
+      "totalUnit_one": "program",
+      "totalUnit_other": "programs",
       "totalFailed": "Couldn't load total",
       "avgExercises": "Avg Exercises",
       "avgExercisesFailed": "Couldn't load avg exercises",
@@ -707,6 +721,7 @@
       "editProgram": "Edit Program",
       "deleteProgram": "Delete Program",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "startNamed": "Start {{name}}"
     },
     "detail": {
@@ -960,12 +975,14 @@
     }
   },
   "workouts": {
+    "keepAwakeUnavailable": "The screen may turn off during your workout. Open Lyftr over HTTPS to keep it awake.",
     "defaultName": "Workout — {{date}}",
     "stats": {
       "total": "Total",
       "logged": "logged",
       "thisMonth": "This Month",
-      "sessions": "sessions",
+      "sessions_one": "session",
+      "sessions_other": "sessions",
       "avgTime": "Avg Time",
       "min": "min",
       "totalFailed": "Couldn't load total",
@@ -979,6 +996,7 @@
       "browseExercises": "Browse exercises",
       "searchPlaceholder": "Search workouts…",
       "empty": {
+        "titleNone": "No workouts yet",
         "title": "No workouts found",
         "startHint": "Log a workout to get started"
       },
@@ -1005,6 +1023,7 @@
       "editWorkout": "Edit Workout",
       "deleteWorkout": "Delete Workout",
       "editNamed": "Edit {{name}}",
+      "deleteNamed": "Delete {{name}}",
       "totalVolume": "{{amount}} {{unit}} total volume"
     },
     "detail": {
@@ -1222,6 +1241,8 @@
     "completed": "Completed",
     "removeSet": "Remove this set",
     "removeExercise": "Remove this exercise",
+    "previousSet": "Previous set",
+    "nextSet": "Next set",
     "nav": {
       "info": "Info",
       "finishWorkout": "Finish Workout",
@@ -1367,7 +1388,9 @@
       "sessions": "sessions",
       "cals": "Cals",
       "caloriesFailed": "Couldn't load today's calories",
-      "proteinFailed": "Couldn't load today's protein"
+      "proteinFailed": "Couldn't load today's protein",
+      "calories": "Calories",
+      "protein": "Protein"
     },
     "thisWeek": {
       "title": "This Week",
@@ -1478,6 +1501,9 @@
     "food": "Food",
     "nutrition": "Nutrition",
     "weight": "Weight",
+    "primary": "Primary",
+    "skipToContent": "Skip to content",
+    "userMenuNamed": "{{name}}, user menu",
     "userMenu": "User menu",
     "settings": "Settings",
     "lightMode": "Light mode",
@@ -1488,6 +1514,7 @@
     }
   },
   "app": {
-    "documentTitle": "Lyftr — Workout & Nutrition Tracker"
+    "documentTitle": "Lyftr — Workout & Nutrition Tracker",
+    "pageTitle": "{{page}} · Lyftr"
   }
 }

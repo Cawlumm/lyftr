@@ -188,7 +188,13 @@
       "syncing": "Sincronizando…",
       "syncUnreachable": "La última sincronización no pudo conectar con el catálogo de ejercicios.",
       "syncFailed": "La última sincronización no terminó.",
-      "syncRetry": "Nuevo intento: {{when}}."
+      "syncRetry": "Nuevo intento: {{when}}.",
+      "footnote": "Afecta a todas las personas de este servidor.",
+      "confirmRemovals": {
+        "title": "¿Aceptar el catálogo más pequeño?",
+        "message": "El catálogo de ejercicios lista ahora menos de la mitad de los ejercicios que tiene este servidor, así que la sincronización actualizó lo que encontró pero no ocultó nada. Si es lo esperado, sincroniza de nuevo y oculta los ejercicios que ya no lista. Los entrenamientos y programas que los usan los conservan.",
+        "confirm": "Sincronizar y ocultar"
+      }
     },
     "danger": {
       "title": "Zona de peligro",
@@ -219,6 +225,9 @@
     "remove": "Quitar filtro: {{label}}"
   },
   "common": {
+    "chart": {
+      "keyHint": "Usa las flechas para leer cada valor"
+    },
     "duration": {
       "seconds": "{{value}} s",
       "minutes": "{{value}} min"
@@ -668,7 +677,10 @@
       "notesOptionalPlain": "Notas (opcional)"
     },
     "row": {
-      "options": "Opciones de {{weight}} {{unit}}"
+      "options": "Opciones de {{weight}} {{unit}}",
+      "link": "{{weight}} {{unit}}, {{date}}",
+      "editNamed": "Editar {{weight}} {{unit}}, {{date}}",
+      "deleteNamed": "Eliminar {{weight}} {{unit}}, {{date}}"
     },
     "notePlaceholder": "p. ej., por la mañana, después de entrenar",
     "logAnyway": "Registrar igual"
@@ -688,6 +700,7 @@
     "list": {
       "searchPlaceholder": "Buscar programas…",
       "empty": {
+        "titleNone": "Aún no hay programas",
         "title": "No se encontraron programas",
         "startHint": "Crea un programa para empezar"
       },
@@ -696,7 +709,9 @@
     },
     "stats": {
       "total": "Total",
-      "totalUnit": "programas",
+      "totalUnit_one": "programa",
+      "totalUnit_many": "programas",
+      "totalUnit_other": "programas",
       "totalFailed": "No se pudo cargar el total",
       "avgExercises": "Ejercicios",
       "avgExercisesFailed": "No se pudo cargar el promedio de ejercicios",
@@ -715,6 +730,7 @@
       "editProgram": "Editar programa",
       "deleteProgram": "Eliminar programa",
       "editNamed": "Editar {{name}}",
+      "deleteNamed": "Eliminar {{name}}",
       "startNamed": "Empezar {{name}}"
     },
     "detail": {
@@ -971,12 +987,15 @@
     }
   },
   "workouts": {
+    "keepAwakeUnavailable": "La pantalla puede apagarse durante tu entrenamiento. Abre Lyftr por HTTPS para mantenerla encendida.",
     "defaultName": "Entrenamiento — {{date}}",
     "stats": {
       "total": "Total",
       "logged": "registrados",
       "thisMonth": "Este mes",
-      "sessions": "sesiones",
+      "sessions_one": "sesión",
+      "sessions_many": "sesiones",
+      "sessions_other": "sesiones",
       "avgTime": "Promedio",
       "min": "min",
       "totalFailed": "No se pudo cargar el total",
@@ -990,6 +1009,7 @@
       "browseExercises": "Explorar ejercicios",
       "searchPlaceholder": "Buscar entrenamientos…",
       "empty": {
+        "titleNone": "Aún no hay entrenamientos",
         "title": "No se encontraron entrenamientos",
         "startHint": "Registra un entrenamiento para empezar"
       },
@@ -1017,6 +1037,7 @@
       "editWorkout": "Editar entrenamiento",
       "deleteWorkout": "Eliminar entrenamiento",
       "editNamed": "Editar {{name}}",
+      "deleteNamed": "Eliminar {{name}}",
       "totalVolume": "Volumen total: {{amount}} {{unit}}"
     },
     "detail": {
@@ -1237,6 +1258,8 @@
     "completed": "Completada",
     "removeSet": "Quitar esta serie",
     "removeExercise": "Quitar este ejercicio",
+    "previousSet": "Serie anterior",
+    "nextSet": "Serie siguiente",
     "nav": {
       "info": "Info",
       "finishWorkout": "Terminar",
@@ -1386,7 +1409,9 @@
       "sessions": "sesiones",
       "cals": "Cal",
       "caloriesFailed": "No se pudieron cargar las calorías de hoy",
-      "proteinFailed": "No se pudo cargar la proteína de hoy"
+      "proteinFailed": "No se pudo cargar la proteína de hoy",
+      "calories": "Calorías",
+      "protein": "Proteína"
     },
     "thisWeek": {
       "title": "Esta semana",
@@ -1501,6 +1526,9 @@
     "food": "Comida",
     "nutrition": "Nutrición",
     "weight": "Peso",
+    "primary": "Principal",
+    "skipToContent": "Saltar al contenido",
+    "userMenuNamed": "{{name}}, menú de usuario",
     "userMenu": "Menú de usuario",
     "settings": "Ajustes",
     "lightMode": "Modo claro",
@@ -1511,6 +1539,7 @@
     }
   },
   "app": {
-    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición"
+    "documentTitle": "Lyftr — Registro de entrenamiento y nutrición",
+    "pageTitle": "{{page}} · Lyftr"
   }
 }

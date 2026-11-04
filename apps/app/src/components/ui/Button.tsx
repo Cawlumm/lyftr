@@ -1,0 +1,59 @@
+import { Pressable, Text, ActivityIndicator } from 'react-native'
+import { semanticInk, type SemanticTone } from '@lyftr/shared'
+import { useTheme } from '../../theme/useTheme'
+import { interactive } from './interaction'
+
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
+
+interface Props {
+  title: string
+  onPress?: () => void
+  variant?: ButtonVariant
+  loading?: boolean
+  disabled?: boolean
+  className?: string
+}
+
+const VARIANT: Record<ButtonVariant, { bg: string; hover: string; text: string; tone?: SemanticTone }> = {
+  primary: { bg: 'bg-brand-500 active:bg-brand-700', hover: 'hover:bg-brand-600', text: 'text-white' },
+  secondary: { bg: 'bg-surface-muted border border-surface-border', hover: 'hover:bg-surface-border', text: 'text-tx-primary' },
+  ghost: { bg: '', hover: 'hover:bg-surface-muted', text: 'text-tx-muted' },
+  // Label colour comes from the theme: text-error-400 on this tint measures 2.4:1 on a
+  // light surface, and light is this app's default.
+  danger: { bg: 'bg-error-500/10 border border-error-500/20', hover: 'hover:bg-error-500/20', text: '', tone: 'error' },
+}
+
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  loading = false,
+  disabled = false,
+  className = '',
+}: Props) {
+  const { accent, isDark } = useTheme()
+  const v = VARIANT[variant]
+  const toneColor = v.tone ? semanticInk[isDark ? 'dark' : 'light'][v.tone] : undefined
+  const isDisabled = disabled || loading
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={isDisabled}
+      accessibilityRole="button"
+      // active:scale-95 is the standard press feedback for every tappable (see
+      // CONVENTIONS.md "native feel") — it reads as native where hover states can't.
+      // px-4 matters only when the button sizes to its own label. Nearly every caller
+      // passes flex-1 or fills a column, so the padding is invisible there — but a
+      // centred button with none had its text touching both edges.
+      className={`h-12 px-4 rounded-lg flex-row items-center justify-center gap-2 active:scale-95 ${v.bg} ${isDisabled ? 'opacity-40' : ''} ${interactive(v.hover, { disabled: isDisabled })} ${className}`}
+    >
+      {loading ? (
+        // White only sits on the brand-filled primary; other variants keep the surface
+        // background, where a white spinner would vanish on the light theme.
+        <ActivityIndicator color={variant === 'primary' ? '#fff' : accent} />
+      ) : (
+        <Text className={`font-sans-bold text-sm ${v.text}`} style={toneColor ? { color: toneColor } : undefined}>{title}</Text>
+      )}
+    </Pressable>
+  )
+}

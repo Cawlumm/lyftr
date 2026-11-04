@@ -58,6 +58,13 @@ Both need a current build, which also names the specific cause in the error mess
 of guessing. If you get a generic message mentioning CORS, update the app first.
 :::
 
+## The screen turns off during a workout in the browser
+
+The web app keeps the screen on with the browser's Screen Wake Lock, which only exists on an
+`https://` page. Over plain HTTP the workout screen shows **The screen may turn off during your
+workout** and carries on without it. Serve Lyftr over [HTTPS](../https/); the Android app is
+unaffected.
+
 ## Barcode scanner won't open in the web app
 
 It says **Camera needs HTTPS** because your instance is served over plain `http://`. No

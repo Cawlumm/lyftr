@@ -1,0 +1,116 @@
+import { useState } from 'react'
+import { Pressable, ScrollView, View } from 'react-native'
+import { router } from 'expo-router'
+import { ArrowLeft } from '../../../src/components/ui/icons'
+import { useAsyncAction, useTranslation, displayName, MAX_DISPLAY_NAME_LEN } from '@lyftr/shared'
+import {
+  Alert,
+  AppText,
+  Button,
+  Card,
+  Field,
+  Muted,
+  PageHeader,
+  Screen, scrollBleed,
+} from '../../../src/components/ui'
+import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
+import { useAuthStore, useSettingsStore } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
+
+// Its own screen, laid out like password.tsx — back link, header, form on a card, Save
+// beside Cancel. Account rows are icon + label + value, so an editor belongs here rather
+// than as a form wedged into that group.
+export default function ChangeNameScreen() {
+  const { t } = useTranslation()
+  const { colors } = useTheme()
+  const user = useAuthStore((s) => s.user)
+  const settings = useSettingsStore((s) => s.settings)
+  const updateSettings = useSettingsStore((s) => s.update)
+
+  const [name, setName] = useState(settings.display_name ?? '')
+
+  const back = () => (router.canGoBack() ? router.back() : router.navigate('/settings'))
+
+  // Trimmed before sending so the field agrees with what comes back — the server trims
+  // too, and a field left holding "  Carter  " would show a value the record does not have.
+  //
+  // Returns to Settings with no confirmation, and that is the rule rather than an
+  // exception: a save is confirmed in proportion to its CONSEQUENCE, not to the shape of
+  // the screen it happened on.
+  //
+  //   password.tsx  stays and shows a card — changing it signs you out everywhere, which
+  //                 is a consequence worth spelling out in words
+  //   targets       stays and toasts — it saves in place, so nothing on screen changes
+  //                 to show that anything happened
+  //   here          pops back to a row already showing the new value, and a name has no
+  //                 consequence to warn anyone about
+  //
+  // So a new settings editor should ask what its save COSTS the person, not which of
+  // these three screens it most resembles.
+  const save = useAsyncAction(async () => {
+    await updateSettings({ display_name: name.trim() })
+    back()
+  }, t('settings.account.name.saveFailedRetry'))
+
+  return (
+    <Screen maxWidth="narrow">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View className="gap-5 py-4">
+          <Pressable
+            onPress={back}
+            hitSlop={8}
+            accessibilityRole={WEB_BUTTON}
+            className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}
+          >
+            <ArrowLeft size={16} color={colors.txMuted} />
+            <AppText variant="body" color="muted">{t('settings.account.backLink')}</AppText>
+          </Pressable>
+
+          <PageHeader
+            title={t('settings.account.name.title')}
+            subtitle={t('settings.account.name.subtitle')}
+          />
+
+          <Card className="gap-4">
+            {/* No visible label — the header says "Name" one line above — but it still
+                needs an accessible one, or a screen reader announces only the email
+                placeholder, as if that were the current value. */}
+            <Field
+              accessibilityLabel={t('settings.account.name.label')}
+              placeholder={displayName('', user?.email)}
+              value={name}
+              onChangeText={setName}
+              maxLength={MAX_DISPLAY_NAME_LEN}
+              autoCapitalize="words"
+              autoCorrect={false}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => { if (!save.busy) void save.run() }}
+            />
+            <Muted className="text-xs">
+              {t('settings.account.name.emptyHint')}
+            </Muted>
+
+            {save.error ? <Alert variant="error">{save.error}</Alert> : null}
+
+            <View className="flex-row gap-2">
+              <Button
+                title={t('common.cancel')}
+                variant="secondary"
+                onPress={back}
+                disabled={save.busy}
+              />
+              <Button
+                title={t('common.save')}
+                onPress={() => void save.run()}
+                loading={save.busy}
+                disabled={name.trim() === (settings.display_name ?? '')}
+                className="flex-1"
+              />
+            </View>
+          </Card>
+        </View>
+      </ScrollView>
+    </Screen>
+  )
+}

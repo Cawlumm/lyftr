@@ -1,0 +1,643 @@
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Platform, Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { router, useLocalSearchParams } from 'expo-router'
+import * as Haptics from 'expo-haptics'
+import {
+  AlertCircle, ArrowLeft, ChevronRight, Minus, Plus, Scan, Star, Utensils, Zap,
+} from '../../../src/components/ui/icons'
+import {
+  useAsyncAction, useTranslation, uiMessage, dayToInstant, entryDay, todayStr,
+  type FoodSearchResult, type UiMessage,
+} from '@lyftr/shared'
+import {
+  Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, interactive, Label, NumberField, Toast,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl,
+} from '../../../src/components/ui'
+import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScannerLoader'
+import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
+import { FoodHero } from '../../../src/components/nutrition/FoodImage'
+import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
+import {
+  MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
+} from '../../../src/components/nutrition/nutritionMeta'
+import { client } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
+import { entryToResult, foodResultKey, isNotFound, savedToResult, scaleServing, storedServingSize, scaledFigures, useFavorites, useFoodAmount } from '@lyftr/shared'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+
+type Phase = 'search' | 'detail' | 'scan'
+type SearchTab = 'recent' | 'myfoods' | 'all'
+
+const hSelect = () => Haptics.selectionAsync().catch(() => {})
+
+// Port of web/pages/LogFood.tsx — the search / detail / scan food-logging flow.
+export default function LogFood() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  const { colors, brand, accent, isDark } = useTheme()
+  const params = useLocalSearchParams<{ meal?: string; date?: string; edit?: string }>()
+  const editId = params.edit ? Number(params.edit) : null
+  const initMeal = (params.meal ?? 'breakfast') as Meal
+  const initDate = params.date ?? todayStr()
+
+  const [phase, setPhase] = useState<Phase>('search')
+  const [tab, setTab] = useState<SearchTab>('recent')
+  const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([])
+  const [recentItems, setRecentItems] = useState<FoodSearchResult[]>([])
+  const favorites = useFavorites(client.savedFoodsAPI)
+  const { savedFoods, setSavedFoods, favoriteOf, isToggling } = favorites
+  // Bumped by every star/unstar; a list load drops its result if a toggle landed meanwhile.
+  const listEpoch = favorites.epoch
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<UiMessage | null>(null)
+  const [rateLimited, setRateLimited] = useState(false)
+  // A barcode lookup goes through Open Food Facts and routinely takes seconds (the
+  // server allows it 5). The scanner closes the moment it reads a code, so without
+  // this the screen sat unchanged and people rescanned, thinking it had failed (#164).
+  // null: no lookup. error null: in flight. error set: failed, in the server's words.
+  const [lookup, setLookup] = useState<{ code: string; error: UiMessage | null } | null>(null)
+  const lookingUp = lookup !== null && lookup.error === null
+
+  const [selected, setSelected] = useState<FoodSearchResult | null>(null)
+  // The amount field — grams, millilitres or servings, depending on the food. Shared
+  // with web, because what it computes is how much food the person recorded (#171).
+  const amount = useFoodAmount(selected)
+  const { basis, servings, servingsLabel, overLimit, limitHint, openOnEntry } = amount
+  // Which search row is being re-read in full, and what to say if that failed. The
+  // search index answers with per-100g figures and no serving at all, so a hit has to
+  // be read again through the product endpoint before it can be trusted (#171).
+  const [upgrading, setUpgrading] = useState<string | null>(null)
+  const [staleServing, setStaleServing] = useState<UiMessage | null>(null)
+  const [meal, setMeal] = useState<Meal>(initMeal)
+  const [date, setDate] = useState(initDate)
+  const [pulling, setPulling] = useState(false)
+
+  // Starring lives in useFavorites, shared with the diary entry screen so the rules can't
+  // drift (#138). The haptic is the only part that belongs to this screen.
+  const toggleFavorite = async (item: FoodSearchResult) => {
+    const done = await favorites.toggle(item)
+    if (done === 'added') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    else if (done === 'removed') Haptics.selectionAsync().catch(() => {})
+  }
+
+  const [editError, setEditError] = useState<UiMessage | null>(null)
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Edit mode: load the entry, reduce to per-serving, jump to detail.
+  useEffect(() => {
+    if (!editId) return
+    client.foodAPI.get(editId).then((entry) => {
+      const result = entryToResult(entry)
+      setSelected(result)
+      openOnEntry(result, entry.servings)
+      setMeal(entry.meal)
+      setDate(entryDay(entry))
+      setPhase('detail')
+    }).catch((err) => setEditError({ key: 'food.log.editLoadFailed', cause: err }))
+  }, [editId, openOnEntry])
+
+  // Recent (today, deduped ≤10) + favourites.
+  const loadLists = useCallback(async () => {
+    const epoch = listEpoch.current
+    const apply = <T,>(set: (v: T) => void) => (v: T) => {
+      if (listEpoch.current === epoch) set(v)
+    }
+    await Promise.all([
+      client.foodAPI.list(todayStr()).then((logs) => {
+        const seen = new Set<string>()
+        const items: FoodSearchResult[] = []
+        for (const log of logs || []) {
+          const key = log.name.toLowerCase()
+          if (!seen.has(key)) {
+            seen.add(key)
+            items.push(entryToResult(log))
+            if (items.length >= 10) break
+          }
+        }
+        apply(setRecentItems)(items)
+      }).catch(() => {}),
+      client.savedFoodsAPI.list().then(apply(setSavedFoods)).catch(() => {}),
+    ])
+  }, [listEpoch, setSavedFoods])
+
+  useEffect(() => { loadLists() }, [loadLists])
+
+  // Pull-to-refresh, matching the five list screens that already have it. Worth having
+  // here because both lists go stale from elsewhere: logging on another device changes
+  // Recent, and favouriting on web changes Favorites.
+  const onPullRefresh = useCallback(async () => {
+    setPulling(true)
+    await loadLists()
+    setPulling(false)
+  }, [loadLists])
+
+  // Debounced remote search (only on the Search tab).
+  useEffect(() => {
+    if (tab !== 'all') return
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (!query.trim()) { setSearchResults([]); return }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      setSearchError(null)
+      setRateLimited(false)
+      try {
+        setSearchResults((await client.foodAPI.search(query.trim())) ?? [])
+      } catch (err: any) {
+        if (err?.response?.status === 429) setRateLimited(true)
+        else setSearchError({ key: 'food.log.searchUnavailable' })
+        setSearchResults([])
+      } finally {
+        setSearching(false)
+      }
+    }, 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [query, tab])
+
+  const selectResult = (result: FoodSearchResult, note: UiMessage | null = null) => {
+    hSelect()
+    setSelected(result)
+    amount.openOn(result)
+    setStaleServing(note)
+    setPhase('detail')
+  }
+
+  // A search hit is not enough to log against. OpenFoodFacts' search index carries
+  // per-100g figures and no serving at all, so the same olive oil reads 800 kcal per
+  // 100 g from a search and 120 kcal per tablespoon from a scan (#171). Read the
+  // product in full before opening the detail, the way every other OFF client does.
+  const selectSearchResult = async (result: FoodSearchResult) => {
+    if (result.source !== 'off' || !result.barcode) { selectResult(result); return }
+    setUpgrading(result.barcode)
+    try {
+      selectResult(await client.foodAPI.barcode(result.barcode))
+    } catch (err) {
+      // The search row is still real data, so log against it rather than dead-ending —
+      // but say which figures these are, because they are the ones that read wrong.
+      selectResult(result, { key: 'food.log.rereadFailed', cause: err })
+    } finally {
+      setUpgrading(null)
+    }
+  }
+
+  const enterManually = () => {
+    setLookup(null)
+    selectResult({ name: '', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'manual' })
+  }
+
+  const lookUpBarcode = async (code: string) => {
+    setPhase('search')
+    setLookup({ code, error: null })
+    try {
+      selectResult(await client.foodAPI.barcode(code))
+      setLookup(null)
+    } catch (err) {
+      // Only a 404 means the product isn't in the database. A timeout or an
+      // unreachable upstream is not an answer, and saying "not found" for it sent
+      // people to type in a product that does exist.
+      if (isNotFound(err)) enterManually()
+      else setLookup({ code, error: { key: 'food.log.lookupFailedHint', cause: err } })
+    }
+  }
+
+  const stepAmount = (dir: 1 | -1) => {
+    hSelect()
+    amount.step(dir)
+  }
+
+  const save = useAsyncAction(async (item: FoodSearchResult) => {
+        const payload = {
+          ...scaleServing(item, servings),
+          meal,
+          logged_at: dayToInstant(date),
+        }
+        if (editId) {
+          await client.foodAPI.update(editId, payload)
+        } else {
+          await client.foodAPI.log(payload)
+        }
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+        // Courier the confirmation to the dashboard toast: which meal (new) or 'Updated'.
+        router.replace(`/nutrition?logged=${editId ? 'Updated' : meal}`)
+  }, t('common.saveFailed'))
+
+  const handleLog = async () => {
+    if (!selected || save.busy) return
+    void save.run(selected)
+  }
+
+  const goBack = () => {
+    if (phase === 'detail' && !editId) { setPhase('search'); return }
+    if (router.canGoBack()) router.back()
+    else router.replace('/nutrition')
+  }
+
+  if (phase === 'scan') {
+    return <BarcodeScanner onResult={lookUpBarcode} onClose={() => setPhase('search')} />
+  }
+
+  const figures = selected ? scaledFigures(selected, servings) : null
+  const pro = figures?.protein ?? 0
+  const carb = figures?.carbs ?? 0
+  const fat_ = figures?.fat ?? 0
+  const quickAddCals = /^\d+(\.\d+)?$/.test(query.trim()) ? Number(query.trim()) : null
+
+  return (
+    // A form, not a dashboard: on web it keeps a readable column however wide the window.
+    <Screen maxWidth="narrow">
+      {/* Header */}
+      <View className="flex-row items-center gap-3 py-4">
+        <Pressable onPress={goBack} className="h-10 w-10 items-center justify-center rounded-xl active:scale-95" accessibilityRole="button" accessibilityLabel={t('common.goBack')}>
+          <ArrowLeft size={20} color={colors.txMuted} />
+        </Pressable>
+        <View className="min-w-0 flex-1">
+          {phase === 'detail' && selected ? (
+            <>
+              <View className="flex-row items-center gap-1.5">
+                <AppText variant="caption" color="muted">{editId ? t('food.log.editTitle') : t('food.log.title')}</AppText>
+                <ChevronRight size={12} color={colors.txMuted} />
+                <AppText variant="caption" color="secondary">{t('food.log.details')}</AppText>
+              </View>
+              <AppText variant="title" numberOfLines={1}>{selected.name || t('food.log.newEntry')}</AppText>
+              {selected.brand ? <AppText variant="caption" color="muted">{selected.brand}</AppText> : null}
+            </>
+          ) : (
+            <AppText variant="title">{t('food.log.title')}</AppText>
+          )}
+        </View>
+        {/* Favouriting is decoupled from logging, so the star lives beside the food
+            rather than inside the form — you can star something without logging it,
+            and unstar it the same way. Hidden in edit mode, where `selected` is a
+            logged entry being amended rather than a food being picked. */}
+        {phase === 'detail' && selected && !editId && selected.name ? (
+          <FavoriteStar
+            size="md"
+            favorited={favoriteOf(selected) !== undefined}
+            busy={isToggling(selected)}
+            name={selected.name}
+            onPress={() => toggleFavorite(selected)}
+          />
+        ) : null}
+      </View>
+
+      {/* Outside both phases on purpose: the star is on the rows *and* in the header
+          above, so a failure has to be visible whichever one the user pressed. Sitting
+          inside the search phase meant a failed star on the detail screen said nothing
+          at all and simply snapped back to unfilled. */}
+      {/* An entry we were asked to edit but could not load. This used to replace the
+          route with /nutrition, so a dropped connection silently threw away the edit
+          the user opened. */}
+      {editError ? (
+        <View className="pb-3">
+          <Alert variant="error">{uiMessage(editError)}</Alert>
+        </View>
+      ) : null}
+
+      {/* ── Search phase ── */}
+      {phase === 'search' ? (
+        <ScrollView
+          style={scrollBleed} showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: 32 + pillInset }}
+          refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
+        >
+          <View className="gap-4">
+            {/* Search + scan */}
+            <View className="flex-row items-center gap-2">
+              <View className="flex-1">
+                <SearchField
+                  autoFocus
+                  // A browser's autofill list would cover the results; native is left as it was.
+                  autoComplete={Platform.OS === 'web' ? 'off' : undefined}
+                  loading={tab === 'all' && searching}
+                  placeholder={t('food.log.searchPlaceholder')}
+                  value={query}
+                  onChangeText={(text) => { setQuery(text); if (text.trim()) setTab('all'); if (lookup?.error) setLookup(null) }}
+                />
+              </View>
+              <Pressable
+                onPress={() => { hSelect(); setPhase('scan') }}
+                disabled={lookingUp}
+                accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+                accessibilityLabel={t('food.log.scanLabel')}
+                accessibilityState={{ disabled: lookingUp }}
+                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''} ${interactive('hover:bg-surface-border', { disabled: lookingUp })}`}
+              >
+                <Scan size={20} color={colors.txSecondary} />
+                <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>{t('food.log.scan')}</AppText>
+              </Pressable>
+            </View>
+
+            {/* Tabs */}
+            <SegmentedControl
+              options={[
+                { value: 'recent', label: t('food.log.tab.recent') },
+                { value: 'myfoods', label: t('food.log.tab.favorites') },
+                { value: 'all', label: t('food.log.tab.search') },
+              ] as const}
+              value={tab}
+              onChange={(v) => { setTab(v); if (lookup?.error) setLookup(null) }}
+            />
+
+            {/* Above the tab content, not inside one branch: the star is on every tab, so
+                a failure starring a search result has to be visible on the search tab. */}
+            {rateLimited ? (
+              <View className="flex-row items-center gap-2 rounded-xl border border-warning-500/20 bg-warning-500/10 px-3.5 py-3">
+                <AlertCircle size={16} color={isDark ? brand.warningSoft : brand.warning} />
+                <AppText variant="caption" style={{ color: isDark ? brand.warningSoft : brand.warning }}>{t('food.log.rateLimited')}</AppText>
+              </View>
+            ) : null}
+            {searchError ? (
+              <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-3.5 py-3">
+                <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
+                <AppText variant="caption" color="error">{uiMessage(searchError)}</AppText>
+              </View>
+            ) : null}
+
+            {/* Results */}
+            {lookup && lookup.error === null ? (
+              <BarcodeLookup code={lookup.code} />
+            ) : lookup?.error ? (
+              // In place of the results rather than a banner above them: the lookup is
+              // what failed, and both ways forward keep the code already scanned.
+              <Card>
+                <ErrorState
+                  title={t('food.log.lookupFailed')}
+                  message={uiMessage(lookup.error)}
+                  onRetry={() => lookUpBarcode(lookup.code)}
+                  secondary={<Button title={t('food.log.enterManually')} variant="secondary" onPress={enterManually} />}
+                />
+              </Card>
+            ) : (
+            <Card className="overflow-hidden p-0">
+              {tab === 'all' && quickAddCals !== null ? (
+                <Pressable
+                  onPress={() => selectResult({ name: `${quickAddCals} kcal`, calories: quickAddCals, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
+                  className="w-full flex-row items-center gap-3 border-b border-surface-border px-4 py-3.5 active:bg-surface-muted"
+                >
+                  <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+                    <Zap size={20} color={accent} />
+                  </View>
+                  <View className="min-w-0 flex-1">
+                    <AppText variant="bodySemibold">{t('food.log.quickAdd', { kcal: quickAddCals })}</AppText>
+                    <AppText variant="caption" color="muted" className="mt-0.5">{t('food.log.noMacroBreakdown')}</AppText>
+                  </View>
+                  <ChevronRight size={16} color={colors.txMuted} />
+                </Pressable>
+              ) : null}
+
+              {tab === 'recent' ? (
+                recentItems.length === 0 ? (
+                  <EmptyBlock icon={Utensils} title={t('food.log.recent.empty.title')} subtitle={t('food.log.recent.empty.hint')} />
+                ) : (
+                  recentItems.map((item, i) => (
+                    <FoodResultRow
+                      key={foodResultKey(item, i)}
+                      item={item}
+                      onPress={() => selectResult(item)}
+                          favorited={favoriteOf(item) !== undefined}
+                          onToggleFavorite={() => toggleFavorite(item)}
+                          togglingFavorite={isToggling(item)}
+                    />
+                  ))
+                )
+              ) : null}
+
+              {tab === 'myfoods' ? (
+                savedFoods.length === 0 ? (
+                  <EmptyBlock icon={Star} title={t('food.favorites.empty.title')} subtitle={t('food.favorites.empty.hint')} />
+                ) : (
+                  <>
+                    {savedFoods.map((sf) => (
+                      <FoodResultRow
+                        key={sf.id}
+                        item={savedToResult(sf)}
+                        onPress={() => selectResult(savedToResult(sf))}
+                        favorited
+                        onToggleFavorite={() => toggleFavorite(savedToResult(sf))}
+                        togglingFavorite={isToggling(savedToResult(sf))}
+                      />
+                    ))}
+                  </>
+                )
+              ) : null}
+
+              {tab === 'all' && !query.trim() ? (
+                <EmptyBlock icon={Utensils} title={t('food.log.search.emptyTitle')} subtitle={t('food.log.search.emptyHint')} />
+              ) : null}
+              {tab === 'all' && query.trim() && searching ? (
+                <View className="px-4 py-14"><AppText variant="body" color="muted" className="text-center">{t('food.log.search.searching')}</AppText></View>
+              ) : null}
+              {tab === 'all' && query.trim() && !searching && searchResults.length === 0 && !searchError && !rateLimited ? (
+                <View className="items-center gap-3 px-4 py-14">
+                  <AppText variant="body" color="muted">{t('food.log.search.noResults', { query })}</AppText>
+                  <Pressable
+                    onPress={() => selectResult({ name: query.trim(), calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, serving_size: storedServingSize(), source: 'off' })}
+                    className="rounded-lg border border-surface-border bg-surface-overlay px-3 py-2 active:opacity-70"
+                  >
+                    <AppText variant="caption" color="secondary">{t('food.log.search.manualEntryWide', { query: query.trim() })}</AppText>
+                  </Pressable>
+                </View>
+              ) : null}
+              {tab === 'all' && !searching ? searchResults.map((item, i) => (
+                <FoodResultRow
+                  key={foodResultKey(item, i)}
+                  item={item}
+                  loading={upgrading !== null && upgrading === item.barcode}
+                  onPress={() => void selectSearchResult(item)}
+                  favorited={favoriteOf(item) !== undefined}
+                  onToggleFavorite={() => toggleFavorite(item)}
+                  togglingFavorite={isToggling(item)}
+                />
+              )) : null}
+            </Card>
+            )}
+          </View>
+        </ScrollView>
+      ) : null}
+
+      {/* ── Detail phase ── */}
+      {phase === 'detail' && selected ? (
+        <>
+          <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: 120 }}>
+            <View className="gap-4">
+              {save.error ? (
+                <View className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 px-4 py-3">
+                  <AlertCircle size={18} color={isDark ? brand.errorSoft : brand.error} />
+                  <AppText variant="body" color="error" className="flex-1">{save.error}</AppText>
+                </View>
+              ) : null}
+
+              {/* The product couldn't be re-read, so these are the search index's
+                  figures: per 100 g, whatever the pack's own serving is. Say so rather
+                  than let them read as a serving — that is the whole of #171. */}
+              {staleServing ? (
+                <Alert variant="warning">
+                  {t('food.log.staleServing', { note: uiMessage(staleServing), serving: selected.serving_size })}
+                </Alert>
+              ) : null}
+
+              {/* Food hero + macros */}
+              <Card className="overflow-hidden p-0">
+                <FoodHero src={selected.image_url} />
+                <View className="p-5">
+                  {/* Calorie hero */}
+                  <View className="mb-5 flex-row items-end justify-between">
+                    <View>
+                      <View className="flex-row items-baseline gap-1.5">
+                        <AppText variant="display" style={{ fontSize: 44, lineHeight: 46, fontVariant: ['tabular-nums'] }}>{figures?.calories ?? '—'}</AppText>
+                        <AppText variant="body" color="muted">kcal</AppText>
+                      </View>
+                      {selected.serving_size ? (
+                        <AppText variant="caption" color="muted" className="mt-1">{t('food.log.per', { serving: `${servingsLabel === 1 || !figures ? '' : `${servingsLabel} × `}${selected.serving_size}` })}</AppText>
+                      ) : null}
+                    </View>
+                    {pro + carb + fat_ > 0 ? (
+                      <View className="w-24 flex-col items-end gap-1">
+                        {([
+                          { key: 'protein', value: pro, color: MACRO_COLORS.protein },
+                          { key: 'carbs', value: carb, color: MACRO_COLORS.carbs },
+                          { key: 'fat', value: fat_, color: MACRO_COLORS.fat },
+                        ] as const).map((m) => {
+                          const total = pro + carb + fat_
+                          const pct = total > 0 ? Math.round((m.value / total) * 100) : 0
+                          return (
+                            <View key={m.key} className="w-full flex-row items-center gap-1.5">
+                              <AppText variant="caption" color="muted" style={{ fontSize: 10, width: 10, textAlign: 'right' }}>{t(`food.macro.${m.key}Initial`)}</AppText>
+                              <View className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-muted">
+                                {/* inline height:'100%' — the h-full class expands on native (see index.tsx) */}
+                                <View style={{ width: `${pct}%`, height: '100%', borderRadius: 999, backgroundColor: m.color }} />
+                              </View>
+                              <AppText variant="caption" style={{ fontSize: 10, width: 24, textAlign: 'right', color: m.color, fontVariant: ['tabular-nums'] }}>{pct}%</AppText>
+                            </View>
+                          )
+                        })}
+                      </View>
+                    ) : null}
+                  </View>
+
+                  {/* Macro grid */}
+                  <View className="flex-row gap-2">
+                    {([
+                      { key: 'protein', value: figures ? `${pro}g` : '—', color: MACRO_TEXT.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+                      { key: 'carbs', value: figures ? `${carb}g` : '—', color: MACRO_TEXT.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+                      { key: 'fat', value: figures ? `${fat_}g` : '—', color: MACRO_TEXT.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+                      { key: 'fiber', value: figures ? `${figures.fiber}g` : '—', color: colors.txSecondary, bg: colors.muted, border: colors.border },
+                    ] as const).map((m) => (
+                      <View key={m.key} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>
+                        <AppText variant="bodySemibold" style={{ color: m.color, fontVariant: ['tabular-nums'] }}>{m.value}</AppText>
+                        <AppText variant="caption" color="muted" style={{ fontSize: 10 }} className="mt-0.5">{t(`food.macro.${m.key}`)}</AppText>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </Card>
+
+              {/* Amount */}
+              <Card className="gap-3">
+                <View className="flex-row items-baseline gap-2">
+                  <Label>{basis ? t('food.entry.amount') : t('food.log.servings')}</Label>
+                  {selected.serving_size && !basis
+                    ? <AppText variant="caption" color="muted">{t('food.log.servingEach', { serving: selected.serving_size })}</AppText>
+                    : null}
+                </View>
+                <View className="flex-row items-center gap-3">
+                  <IconButton icon={Minus} variant="secondary" size="lg" label={basis ? t('food.log.decreaseAmount') : t('food.log.decreaseServings')} onPress={() => stepAmount(-1)} />
+                  <View className="flex-1 flex-row items-center justify-center">
+                    <View className="flex-1">
+                      <NumberField
+                        inputMode="decimal"
+                        value={amount.text}
+                        onChange={amount.setText}
+                        accessibilityLabel={basis ? t('food.log.amountIn', { unit: basis.unit }) : t('food.log.servings')}
+                        inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                      />
+                    </View>
+                    {basis ? <AppText variant="caption" color="muted" className="ml-1">{basis.unit}</AppText> : null}
+                  </View>
+                  <IconButton icon={Plus} variant="secondary" size="lg" label={basis ? t('food.log.increaseAmount') : t('food.log.increaseServings')} onPress={() => stepAmount(1)} />
+                </View>
+                {/* The readout doubles as the reason the Log button is disabled. Deleting
+                    the 0.5-serving floor made an empty or nonsense amount reachable for the
+                    first time, and a dead button with no words beside it says what, not why.
+                    Shown without a basis too, where the field counts servings. */}
+                {basis || servings <= 0 || limitHint ? (
+                  <AppText variant="caption" color={limitHint ? 'warning' : 'muted'} className="text-center">
+                    {servings <= 0
+                      ? (basis ? t('food.log.enterAmountIn', { unit: basis.unit }) : t('food.log.enterAmount'))
+                      : limitHint
+                        ? limitHint
+                        : t('food.log.servingsOf', { count: servingsLabel, serving: selected.serving_size })}
+                  </AppText>
+                ) : null}
+              </Card>
+
+              {/* Meal + when */}
+              <Card className="gap-5">
+                <View className="gap-3">
+                  <Label>{t('food.entry.meal')}</Label>
+                  <View className="flex-row flex-wrap gap-2">
+                    {MEALS.map((m) => {
+                      const MealIcon = MEAL_ICONS[m]
+                      const active = meal === m
+                      return (
+                        <Pressable
+                          key={m}
+                          accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+                          aria-pressed={Platform.OS === 'web' ? active : undefined}
+                          onPress={() => { hSelect(); setMeal(m) }}
+                          style={{ width: '48%' }}
+                          className={`flex-row items-center gap-2.5 rounded-xl border px-3.5 py-3 ${active ? 'border-brand-500/40 bg-brand-500/10' : 'border-surface-border bg-surface-muted'}`}
+                        >
+                          <MealIcon size={16} color={active ? MEAL_COLORS[m] : colors.txMuted} />
+                          <AppText variant="bodySemibold" style={{ fontSize: 13 }} color={active ? 'primary' : 'secondary'}>{mealLabel(m)}</AppText>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                </View>
+
+                <View className="h-px bg-surface-border" />
+
+                <DateInput label={t('food.log.when')} value={date} onChange={setDate} maximumDate={new Date()} />
+              </Card>
+
+            </View>
+          </ScrollView>
+
+          {/* Sticky log button */}
+          <View className="border-t border-surface-border bg-surface-base pb-6 pt-3">
+            <Button
+              title={save.busy ? t('common.saving') : editId ? t('food.log.saveChanges') : t('food.log.submit')}
+              onPress={handleLog}
+              loading={save.busy}
+              // An empty or zero amount would log a row of zeroes.
+              disabled={save.busy || servings <= 0 || overLimit}
+            />
+          </View>
+          <NumericKeyboardAccessory />
+        </>
+      ) : null}
+
+      {favorites.error ? (
+        // Detail has a sticky Log Food button in the toast's default band; ride above it.
+        <Toast
+          variant="error" icon={AlertCircle} title={favorites.error} onDismiss={() => favorites.setError(null)}
+          className={phase === 'detail' ? 'bottom-28' : ''}
+        />
+      ) : null}
+    </Screen>
+  )
+}
+
+function EmptyBlock({ icon: Icon, title, subtitle }: { icon: typeof Utensils; title: string; subtitle: string }) {
+  const { colors } = useTheme()
+  return (
+    <View className="items-center px-4 py-14">
+      <Icon size={32} color={colors.txMuted} style={{ opacity: 0.3, marginBottom: 8 }} />
+      <AppText variant="body" color="muted">{title}</AppText>
+      <AppText variant="caption" color="muted" className="mt-1" style={{ opacity: 0.6 }}>{subtitle}</AppText>
+    </View>
+  )
+}

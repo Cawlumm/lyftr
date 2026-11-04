@@ -1,6 +1,6 @@
 # Releasing
 
-Backend, web, and mobile ship under one tag now — there's no separate mobile
+Backend and the app (web, iOS, Android) ship under one tag now — there's no separate mobile
 release train. Releases are cut manually (low cadence, doesn't need automation).
 
 ## Tag scheme
@@ -31,10 +31,10 @@ Pushing the tag triggers two workflows:
 ## Mobile version numbers
 
 The tag is the version, on every platform. **There is nothing to bump** — the release
-job passes the tag to the build as `LYFTR_VERSION`, and `mobile/app.config.js` reads
+job passes the tag to the build as `LYFTR_VERSION`, and `apps/app/app.config.js` reads
 it, so the tag is the only place a release version exists.
 
-`expo.version` in `mobile/app.json` is a dev placeholder (`0.0.0-dev`) used when
+`expo.version` in `apps/app/app.json` is a dev placeholder (`0.0.0-dev`) used when
 `LYFTR_VERSION` isn't set — local `expo start`, dev builds, dry runs. Leave it alone;
 it is never what ships.
 
@@ -52,7 +52,7 @@ runs share the counter, so release numbers will have gaps.
 To inspect or correct it:
 
 ```bash
-cd mobile
+cd apps/app
 npx eas-cli build:version:get -p android
 npx eas-cli build:version:set -p android   # only to repair drift
 ```

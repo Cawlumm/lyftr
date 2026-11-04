@@ -1,6 +1,6 @@
 name: CI
 
-# Backend (Go) + web (Vite) + mobile (Expo) + shared package tests, the integrated
+# Backend (Go) + mobile (Expo, native and web export) + shared package tests, the integrated
 # Playwright e2e, image builds, and the Fly deploy — one workflow, gated by a shared
 # `changes` job so it never skips itself the way a top-level `paths:` trigger filter
 # would (that's the mobile-ci.yml pattern this replaced — see git history — and it has
@@ -10,7 +10,7 @@ name: CI
 # run via `paths-ignore`, since nothing here depends on them.
 #
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
-# the web/mobile unit jobs, a web-only change skips the Go + version-smoke + mobile jobs,
+# the mobile jobs, a mobile-only change skips the Go + version-smoke jobs,
 # and so on. The image-build and deploy jobs stay eligible regardless — they're guarded
 # with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
 # cascade into skipping the build/deploy gate. On main/tags every test job runs
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   # Which domains changed? Gates the fast unit-test jobs below so a backend-only PR doesn't
-  # run the web/mobile suites (and vice-versa). ci.yml is in both filters so workflow edits run all.
+  # run the mobile suites (and vice-versa). ci.yml is in both filters so workflow edits run all.
   changes:
     name: Detect changed areas
     runs-on: ubuntu-latest
@@ -47,7 +47,6 @@ jobs:
       pull-requests: read   # dorny/paths-filter reads the PR file list via the API
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
-      web: ${{ steps.filter.outputs.web }}
       mobile: ${{ steps.filter.outputs.mobile }}
     steps:
       - uses: actions/checkout@v4
@@ -63,21 +62,13 @@ jobs:
               - 'fly/**'
               - 'docker-compose.yml'
               - '.github/workflows/ci.yml'
-            web:
-              - 'web/**'
-              # Web imports @lyftr/shared, so a shared-only edit must run web's unit
-              # suite, lint and e2e. Without this a change to shared could break the web
-              # app with fully green CI — this filter is what replaced the byte-comparison
-              # fork guard that used to protect the duplicated dateUtils.
-              - 'packages/shared/**'
-              - 'package.json'
-              - 'package-lock.json'
-              - '.github/workflows/ci.yml'
             mobile:
-              - 'mobile/**'
+              - 'apps/app/**'
               - 'packages/shared/**'
               - 'package.json'
               - 'package-lock.json'
+              - 'patches/**'
+              - '.dockerignore'
               - '.github/workflows/ci.yml'
 
   test:
@@ -104,35 +95,6 @@ jobs:
       # is 15s.
       - run: cd backend && go test ./... -timeout 30s
 
-  unit:
-    name: Web unit tests
-    needs: changes
-    if: >-
-      needs.changes.outputs.web == 'true' ||
-      github.ref == 'refs/heads/main' ||
-      startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-      # Root workspace install — web resolves @lyftr/shared through it.
-      - run: npm ci
-      - run: cd web && npm run coverage   # runs the unit suite + prints a coverage report (not gated)
-      # After the tests, deliberately: lint is a hard gate, and the warning budget has
-      # no slack, so putting it first would let a single new `any` abort the job before
-      # any test ran — turning a style nit into "no test signal at all".
-      - run: cd web && npm run lint       # gates on errors; the `any`/deps backlog is warnings (see eslint.config.mjs)
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: web-coverage
-          path: web/coverage/
-          retention-days: 7
-
   mobile:
     name: Mobile + shared checks
     needs: changes
@@ -157,7 +119,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      # One workspace install covers mobile + packages/shared (and web, unused here).
+      # One workspace install covers mobile + packages/shared.
       - run: npm ci
 
       # --- packages/shared (jest + tsc) ---
@@ -169,29 +131,109 @@ jobs:
       - run: npm run lint -w @lyftr/mobile
       - run: npm run test -w @lyftr/mobile -- --ci
 
-  e2e:
-    name: Playwright E2E
+  web-export:
+    name: Web export
     needs: changes
-    # Integration test spans both images, so run it if either domain changed.
+    if: >-
+      needs.changes.outputs.mobile == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: ci-web-export-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Export web bundle
+        run: npm run export:web -w @lyftr/mobile
+
+      - name: Check the export
+        run: |
+          test -f apps/app/dist/index.html || { echo "apps/app/dist/index.html missing"; exit 1; }
+          grep -q '<script' apps/app/dist/index.html || { echo "index.html has no <script> tag"; exit 1; }
+          for pat in 'name="description"' 'name="theme-color"' 'name="color-scheme"' 'rel="manifest"' 'rel="apple-touch-icon"' 'rel="icon"' 'noindex'; do
+            grep -q "$pat" apps/app/dist/index.html || { echo "index.html is missing $pat"; exit 1; }
+          done
+          test -f apps/app/dist/manifest.json || { echo "apps/app/dist/manifest.json missing"; exit 1; }
+          # polyfills.web.ts leaves the Hermes-only intl-pluralrules out; browsers ship Intl.PluralRules.
+          # Match that package's own error strings, not 'PluralRules', which i18next contains legitimately.
+          if grep -rlE --include='*.js' 'Not a valid plural type|select\(\) called on incompatible' apps/app/dist; then
+            echo "intl-pluralrules shipped to web"; exit 1
+          fi
+          # Pins the zustand CJS override in apps/app/metro.config.js: its ESM build uses
+          # import.meta, which throws when the bundle runs as a classic script.
+          if grep -rl --include='*.js' 'import\.meta' apps/app/dist; then
+            echo "import.meta found in the exported bundle"; exit 1
+          fi
+
+      - name: Report bundle size
+        run: |
+          {
+            echo "### Web export size"
+            echo
+            echo "Entry: \`$(grep -o '[^"]*_expo/static/js/web/entry-[^"]*\.js' apps/app/dist/index.html | head -n1)\`"
+            echo
+            echo "| File | Raw (bytes) | Gzip (bytes) |"
+            echo "|---|---:|---:|"
+            raw_total=0; gz_total=0
+            while IFS= read -r f; do
+              raw=$(wc -c < "$f"); gz=$(gzip -c "$f" | wc -c)
+              raw_total=$((raw_total + raw)); gz_total=$((gz_total + gz))
+              echo "| \`${f#apps/app/dist/}\` | $raw | $gz |"
+            done < <(find apps/app/dist -type f \( -name '*.js' -o -name '*.css' \) | sort)
+            echo "| **Total** | **$raw_total** | **$gz_total** |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-export
+          path: apps/app/dist/
+          retention-days: 7
+
+      # Last, so a failing budget still leaves the size table and the artifact above.
+      # Budgets live in apps/app/perf-budget.json; the script fails the job when exceeded.
+      - name: Enforce bundle budget
+        run: node apps/app/scripts/bundle-budget.mjs
+
+  # The e2e gate: the Expo app's web export, served by the `frontend` image
+  # (apps/app/Dockerfile.web) and driven by the Playwright harness in apps/app/e2e.
+  e2e-app:
+    name: Playwright E2E (Expo app)
+    needs: changes
     if: >-
       needs.changes.outputs.backend == 'true' ||
-      needs.changes.outputs.web == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
       github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/')
     # Not ubuntu-latest: that moved to 26.04, which has no ICU 74, and Playwright's WebKit
     # build links against it, so every `mobile` project test died at browser launch.
     # Unpin once the Playwright we run ships WebKit for 26.04.
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - name: Create .env
         run: |
           echo "JWT_SECRET=ci-test-secret-$(openssl rand -hex 16)" >> .env
-          echo "PORT=80" >> .env
+          # Published on 8081, the harness's default (apps/app/e2e/config.ts).
+          echo "PORT=8081" >> .env
+          echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
 
       - uses: docker/setup-buildx-action@v3
 
+      # Same cache scopes as build-backend/build-frontend, so whichever runs first warms
+      # the others.
       - name: Build images with layer cache
         run: |
           docker buildx bake \
@@ -221,23 +263,25 @@ jobs:
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd web && npx playwright install chromium webkit
+        run: cd apps/app && npx playwright install chromium webkit
 
       - name: Install Playwright system dependencies
-        run: cd web && npx playwright install-deps chromium webkit
-
-      # Readiness (API up + exercise seed finished) is the suite's own globalSetup now,
-      # which registers a throwaway account rather than logging in as a seeded one. So
-      # this job runs against the production default: no DEMO_MODE, no demo account.
+        run: cd apps/app && npx playwright install-deps chromium webkit
 
       - name: Run E2E tests
-        run: cd web && npm run test:e2e:docker
+        run: cd apps/app && npm run test:e2e
+
+      - name: Show container logs
+        if: failure()
+        run: docker compose logs --no-color --tail=200
 
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
-          path: web/playwright-report/
+          name: playwright-report-app
+          path: |
+            apps/app/playwright-report/
+            apps/app/test-results/
           retention-days: 7
 
   version-smoke:
@@ -315,7 +359,7 @@ jobs:
 
   build-backend:
     name: Build & push backend image
-    needs: [test, unit, e2e, version-smoke]
+    needs: [test, e2e-app, version-smoke]
     # Still verify the image builds even if a test dependency was *skipped* by filtering;
     # only a genuine failure/cancel of a dependency should stop it.
     if: ${{ !failure() && !cancelled() }}
@@ -356,7 +400,7 @@ jobs:
 
   build-frontend:
     name: Build & push frontend image
-    needs: [test, unit, e2e]
+    needs: [test, e2e-app, mobile, web-export]
     if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
     runs-on: ubuntu-latest
     steps:
@@ -378,7 +422,8 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./web/Dockerfile
+          # The Expo export.
+          file: ./apps/app/Dockerfile.web
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           # push=false on PRs/feature branches — builds only (validates Dockerfile)
           # push=true on main merge or version tag — publishes to Docker Hub
@@ -389,7 +434,7 @@ jobs:
 
   deploy-demo:
     name: Deploy to Fly.io
-    needs: [test, unit, e2e, version-smoke]
+    needs: [test, e2e-app, version-smoke, mobile, web-export]
     # main pushes run every test job (their `if` includes main), so this only deploys on a
     # clean run; the failure/cancel guard keeps a filtered skip from ever cascading here.
     if: ${{ !failure() && !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}

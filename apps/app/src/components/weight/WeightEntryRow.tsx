@@ -1,0 +1,152 @@
+import { useState } from 'react'
+import { Platform, Pressable, Text, View } from 'react-native'
+import { router } from 'expo-router'
+import * as Haptics from 'expo-haptics'
+import { ChevronRight, Edit2, MoreVertical, Scale, Trash2, TrendingDown, TrendingUp } from '../ui/icons'
+import { useAsyncAction, displayWeight, entryDay, weightShort, type WeightLog, formatDay, useTranslation } from '@lyftr/shared'
+import { ActionSheet, AppText, Card, CardActions, ConfirmSheet, IconButton, LinkCard, deleteAction, deleteConfirmProps, editAction } from '../ui'
+import { useTheme } from '../../theme/useTheme'
+import { client } from '../../lib/lyftr'
+
+interface Props {
+  item: WeightLog
+  /** The next (older) entry, for the day-over-day delta chip. */
+  next?: WeightLog
+  unit: 'lbs' | 'kg'
+  /** Called after a successful server delete — the screen reloads list + stats + chart. */
+  onDeleted: (id: number) => void
+}
+
+// A weight history row, mirroring WorkoutCard / ProgramCard: the row taps through to the
+// detail (which also has Edit/Delete top-right), AND a kebab (⋮) opens a native ActionSheet
+// (Edit / Delete). Edit deep-links the detail straight into its inline edit form (?edit=1);
+// Delete routes through the shared ConfirmSheet.
+export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
+  const { t } = useTranslation()
+  const { colors, accent, brand } = useTheme()
+  const wUnit = weightShort(unit)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+
+  const deltaLbs = next ? item.weight - next.weight : 0
+  const displayW = displayWeight(item.weight, unit)
+  const displayDelta = displayWeight(Math.abs(deltaLbs), unit)
+  const dateLabel = formatDay(entryDay(item), 'monthDayYear')
+
+  // The catch here just put the card back - "a failed delete quietly restores the
+  // card" - which is indistinguishable from a tap that never registered. The
+  // confirm stays up now and says why it did not work.
+  const remove = useAsyncAction(async () => {
+    await client.weightAPI.delete(item.id)
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {})
+    onDeleted(item.id)
+  }, t('weight.deleteFailed'))
+
+  const body = (
+    <>
+      <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+        <Scale size={20} color={accent} />
+      </View>
+      <View className="min-w-0 flex-1">
+        <Text className="font-sans-semibold text-sm text-tx-primary" style={{ fontVariant: ['tabular-nums'] }}>
+          {Math.round(displayW)} {wUnit}
+        </Text>
+        <AppText variant="caption" color="muted" className="mt-0.5">{dateLabel}</AppText>
+        {deltaLbs !== 0 || item.notes ? (
+          <View className="mt-0.5 flex-row items-center gap-x-2 overflow-hidden">
+            {deltaLbs !== 0 ? (
+              <View className="flex-row items-center gap-0.5">
+                {deltaLbs < 0 ? <TrendingDown size={12} color={brand.successSoft} /> : <TrendingUp size={12} color={brand.errorSoft} />}
+                <Text className="font-sans-medium text-xs" style={{ color: deltaLbs < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
+                  {Math.round(displayDelta)}
+                </Text>
+              </View>
+            ) : null}
+            {deltaLbs !== 0 && item.notes ? <AppText variant="caption" color="muted">·</AppText> : null}
+            {item.notes ? <AppText variant="caption" color="muted" numberOfLines={1} className="flex-1">{item.notes}</AppText> : null}
+          </View>
+        ) : null}
+      </View>
+    </>
+  )
+
+  const confirmSheet = (
+    <ConfirmSheet
+      {...deleteConfirmProps({ title: t('weight.deleteTitle'), subject: t('weight.deleteSubject', { date: dateLabel, weight: Math.round(displayW), unit: wUnit }) })}
+      open={confirming}
+      busy={remove.busy}
+      error={remove.error}
+      onConfirm={() => { void remove.run() }}
+      onCancel={() => { setConfirming(false); remove.reset() }}
+    />
+  )
+
+  // Web: a real link to the entry, with Edit and Delete beside it (a menu below sm), as the
+  // workout cards do.
+  if (Platform.OS === 'web') {
+    return (
+      <View className="mb-2">
+        <LinkCard
+          href={`/weight/${item.id}`}
+          onPress={() => router.push(`/weight/${item.id}`)}
+          label={t('weight.row.link', { weight: Math.round(displayW), unit: wUnit, date: dateLabel })}
+          actions={
+            <CardActions
+              label={t('weight.row.options', { weight: Math.round(displayW), unit: wUnit })}
+              disabled={remove.busy}
+              items={[
+                { label: t('common.edit'), namedLabel: t('weight.row.editNamed', { weight: Math.round(displayW), unit: wUnit, date: dateLabel }), icon: Edit2, onSelect: () => router.push(`/weight/${item.id}?edit=1`) },
+                { label: t('common.delete'), namedLabel: t('weight.row.deleteNamed', { weight: Math.round(displayW), unit: wUnit, date: dateLabel }), icon: Trash2, destructive: true, onSelect: () => setConfirming(true) },
+              ]}
+            />
+          }
+        >
+          {body}
+        </LinkCard>
+        {confirmSheet}
+      </View>
+    )
+  }
+
+  return (
+    <Pressable onPress={() => router.push(`/weight/${item.id}`)} className="mb-2 active:scale-[0.99]">
+      <Card className="flex-row items-center gap-3 rounded-2xl">
+        {body}
+        <IconButton
+          icon={MoreVertical}
+          label={t('weight.row.options', { weight: Math.round(displayW), unit: wUnit })}
+          variant="ghost"
+          size="sm"
+          onPress={() => setMenuOpen(true)}
+          disabled={remove.busy}
+        />
+        <ChevronRight size={16} color={colors.txMuted} />
+      </Card>
+
+      <ActionSheet
+        open={menuOpen}
+        layout="row"
+        onClose={() => setMenuOpen(false)}
+        header={
+          <View className="flex-row items-center gap-3">
+            <View className="h-11 w-11 items-center justify-center rounded-xl border border-brand-500/20 bg-brand-500/10">
+              <Scale size={20} color={accent} />
+            </View>
+            <View className="flex-1">
+              <AppText variant="subheading" style={{ fontVariant: ['tabular-nums'] }}>{Math.round(displayW)} {wUnit}</AppText>
+              <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
+                {dateLabel}{item.notes ? ` · ${item.notes}` : ''}
+              </AppText>
+            </View>
+          </View>
+        }
+        actions={[
+          editAction(() => router.push(`/weight/${item.id}?edit=1`)),
+          deleteAction(() => setConfirming(true)),
+        ]}
+      />
+
+      {confirmSheet}
+    </Pressable>
+  )
+}

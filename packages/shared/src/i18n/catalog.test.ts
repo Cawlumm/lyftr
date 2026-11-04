@@ -9,7 +9,7 @@ import {
 
 // The CI guard for the catalogs. Runs on Node's full ICU under an en-US jest, so
 // Intl.PluralRules here knows every locale; the Hermes path is pinned separately by
-// mobile/src/lib/pluralRules.test.ts.
+// apps/app/src/lib/pluralRules.test.ts.
 
 const catalogs: Record<string, unknown> = { en, es }
 

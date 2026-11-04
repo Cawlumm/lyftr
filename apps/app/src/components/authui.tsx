@@ -1,0 +1,375 @@
+import { ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  View,
+  Text,
+  TextInput,
+  TextInputProps,
+  Pressable,
+  ActivityIndicator,
+  Animated,
+  Platform,
+} from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
+import { DURATION } from '../theme/motion'
+import { useMotion } from '../lib/useMotion'
+import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateColor } from 'react-native-reanimated'
+import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from './ui/icons'
+import { useServerStore } from '../lib/lyftr'
+import { useTheme } from '../theme/useTheme'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from './ui/interaction'
+import {
+  testServerConnection,
+  normalizeServerUrl,
+  isInsecureServerUrl,
+  useTranslation,
+  uiMessage,
+  type UiMessage,
+} from '@lyftr/shared'
+
+const FONT = {
+  label: 'PlusJakartaSans_800ExtraBold',
+  body: 'PlusJakartaSans_600SemiBold',
+  btn: 'PlusJakartaSans_800ExtraBold',
+}
+const LABEL_COLOR = '#94a3b8' // legible on both light + dark surfaces (native; web uses txMuted, which is AA there)
+
+// Dark/light labelled input with a leading icon (+ optional password eye).
+export function IconInput({
+  label,
+  icon,
+  password,
+  ...rest
+}: TextInputProps & { label: string; icon: 'mail' | 'lock'; password?: boolean }) {
+  const { colors, brand } = useTheme()
+  const { duration } = useMotion()
+  const [hide, setHide] = useState(!!password)
+  // Focus styling via Reanimated (UI thread) instead of React state. On the New
+  // Architecture (Fabric), a React re-render fired from a TextInput's own onFocus
+  // immediately blurs the input — the keyboard flashes up then dismisses. Driving the
+  // border/glow off a shared value means focusing causes NO re-render, so it sticks.
+  const focus = useSharedValue(0)
+  const boxStyle = useAnimatedStyle(() => ({
+    borderColor: interpolateColor(focus.value, [0, 1], [colors.border, brand.cyan]),
+    shadowOpacity: focus.value * 0.25,
+  }))
+  const Icon = icon === 'mail' ? Mail : Lock
+  return (
+    <View style={{ marginTop: 19 }}>
+      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.4, color: Platform.OS === 'web' ? colors.txMuted : LABEL_COLOR, marginBottom: 8 }}>
+        {label.toUpperCase()}
+      </Text>
+      <View className={FIELD_FOCUS_RING} style={{ borderRadius: 15 }}>
+      <Reanimated.View
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 11,
+            height: 55,
+            paddingHorizontal: 16,
+            borderRadius: 15,
+            backgroundColor: colors.overlay,
+            borderWidth: 1.5,
+            shadowColor: brand.cyan,
+            shadowOffset: { width: 0, height: 0 },
+            shadowRadius: 8,
+          },
+          boxStyle,
+        ]}
+      >
+        <Icon size={17} color={LABEL_COLOR} strokeWidth={2} />
+        <TextInput
+          style={[{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }, NO_INPUT_OUTLINE]}
+          placeholderTextColor={colors.txMuted}
+          secureTextEntry={hide}
+          accessibilityLabel={label}
+          autoCapitalize="none"
+          autoCorrect={false}
+          onFocus={() => { focus.value = withTiming(1, { duration: duration(DURATION.fast) }) }}
+          onBlur={() => { focus.value = withTiming(0, { duration: duration(DURATION.fast) }) }}
+          {...rest}
+        />
+        {password ? (
+          <Pressable onPress={() => setHide((h) => !h)} hitSlop={10}>
+            {hide ? <Eye size={19} color={LABEL_COLOR} strokeWidth={2} /> : <EyeOff size={19} color={LABEL_COLOR} strokeWidth={2} />}
+          </Pressable>
+        ) : null}
+      </Reanimated.View>
+      </View>
+    </View>
+  )
+}
+
+// Boxed error alert — mirror of the web's `.alert-error` (soft error-tinted bg, error
+// border, AlertCircle icon). Text is errorSoft on dark but the stronger error red on
+// light, where errorSoft doesn't have enough contrast. Fades/slides in on appearance.
+export function AuthError({ message }: { message: string }) {
+  const { isDark, brand } = useTheme()
+  const { base } = useMotion()
+  const anim = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    anim.setValue(0)
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: base,
+      useNativeDriver: Platform.OS !== 'web',
+    }).start()
+  }, [message, anim, base])
+  const tint = isDark ? brand.errorSoft : brand.error
+  return (
+    <Animated.View
+      accessibilityRole="alert"
+      style={{
+        marginTop: 16,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        padding: 14,
+        borderRadius: 12,
+        backgroundColor: 'rgba(239,68,68,0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(239,68,68,0.2)',
+        opacity: anim,
+        transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [-4, 0] }) }],
+      }}
+    >
+      <AlertCircle size={16} color={tint} strokeWidth={2.2} style={{ marginTop: 1.5 }} />
+      <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 13, lineHeight: 19, color: tint }}>
+        {message}
+      </Text>
+    </Animated.View>
+  )
+}
+
+export function GradientButton({
+  title,
+  onPress,
+  loading,
+  disabled,
+}: {
+  title: string
+  onPress?: () => void
+  loading?: boolean
+  disabled?: boolean
+}) {
+  const { brand } = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      accessibilityRole="button"
+      style={{
+        marginTop: 26,
+        borderRadius: 16,
+        shadowColor: brand.cyan,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.4,
+        shadowRadius: 20,
+        elevation: 8,
+      }}
+    >
+      <LinearGradient
+        colors={[brand.cyan, brand.violet]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{
+          height: 57,
+          borderRadius: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 9,
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Text style={{ fontFamily: FONT.btn, fontSize: 16.5, color: '#fff' }}>{title}</Text>
+            <LogIn size={18} color="#fff" strokeWidth={2.6} />
+          </>
+        )}
+      </LinearGradient>
+    </Pressable>
+  )
+}
+
+export function SecondaryButton({ title, hint, onPress, disabled }: { title: string; hint?: string; onPress?: () => void; disabled?: boolean }) {
+  const { colors, brand } = useTheme()
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled: !!disabled }}
+      accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+      style={{
+        height: 55,
+        borderRadius: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 9,
+        backgroundColor: colors.raised,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+      }}
+    >
+      <Play size={17} color={brand.cyan} strokeWidth={2.2} fill="rgba(0,184,217,0.18)" />
+      <Text style={{ fontFamily: FONT.btn, fontSize: 15, color: colors.txPrimary }}>{title}</Text>
+      {hint ? <Text style={{ fontFamily: FONT.body, fontSize: 12.5, color: colors.txMuted }}>{hint}</Text> : null}
+    </Pressable>
+  )
+}
+
+export function AuthDivider() {
+  const { t } = useTranslation()
+  const { colors } = useTheme()
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginVertical: 22 }}>
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+      <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.8, color: colors.txMuted }}>{t('auth.divider.or')}</Text>
+      <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
+    </View>
+  )
+}
+
+// What the row last learned, kept as its inputs so the line follows a language switch.
+type ServerResult =
+  | { kind: 'invalid' }
+  | { kind: 'connected'; name: string; version: string }
+  | { kind: 'saved'; failure: UiMessage }
+
+// Server settings row that expands to a URL field (self-hosted users).
+export function ServerRow() {
+  const { t } = useTranslation()
+  const { colors, brand, accent } = useTheme()
+  const serverUrl = useServerStore((s) => s.serverUrl)
+  const setServerUrl = useServerStore((s) => s.setServerUrl)
+  const [open, setOpen] = useState(false)
+  const [url, setUrl] = useState(serverUrl)
+  const [result, setResult] = useState<ServerResult | null>(null)
+  const [testing, setTesting] = useState(false)
+  const insecure = isInsecureServerUrl(serverUrl)
+
+  const save = async () => {
+    setTesting(true)
+    setResult(null)
+    const base = normalizeServerUrl(url)
+    if (url.trim() && !base) {
+      setResult({ kind: 'invalid' })
+      setTesting(false)
+      return
+    }
+    // Warn-but-save, matching Settings: gating the save on a successful probe means a user
+    // whose server is unreachable for any reason can never store a URL from this screen —
+    // exactly the dead end hit when the device itself blocks the connection (issue #79).
+    await setServerUrl(base)
+    const probe = await testServerConnection(base)
+    setResult(
+      probe.ok
+        ? { kind: 'connected', name: probe.info.name, version: probe.info.version }
+        : { kind: 'saved', failure: probe.failure },
+    )
+    setTesting(false)
+  }
+
+  return (
+    <View style={{ marginTop: 12 }}>
+      <Pressable
+        onPress={() => setOpen((o) => !o)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 10,
+          backgroundColor: colors.raised,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: 13,
+          paddingVertical: 12,
+          paddingHorizontal: 15,
+        }}
+      >
+        <Server size={16} color={brand.violet} strokeWidth={2} />
+        <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 13, color: colors.txPrimary }}>{t('server.settingsTitle')}</Text>
+        {/* Stays visible while the row is collapsed — the risk outlives the moment of entry. */}
+        {insecure ? <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} /> : null}
+        <Text style={{ fontFamily: FONT.body, fontSize: 12, color: insecure ? brand.warning : colors.txSecondary }}>
+          {serverUrl ? serverUrl.replace(/^https?:\/\//, '') : t('server.defaultShort')}
+        </Text>
+        <ChevronDown size={14} color={colors.txMuted} strokeWidth={2.4} />
+      </Pressable>
+      {open ? (
+        <View style={{ marginTop: 8, gap: 8 }}>
+          <TextInput
+            value={url}
+            onChangeText={(text) => { setResult(null); setUrl(text) }}
+            placeholder={t('settings.server.url.placeholder')}
+            accessibilityLabel={t('settings.server.url.label')}
+            placeholderTextColor={colors.txMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+            style={{
+              height: 48,
+              borderRadius: 13,
+              paddingHorizontal: 15,
+              backgroundColor: colors.overlay,
+              borderWidth: 1.5,
+              borderColor: colors.border,
+              color: colors.txPrimary,
+              fontFamily: FONT.body,
+              fontSize: 14,
+            }}
+          />
+          {result ? (
+            <Text style={{ fontFamily: FONT.body, fontSize: 12, color: result.kind === 'connected' ? brand.success : brand.error }}>
+              {result.kind === 'invalid'
+                ? t('server.status.invalidUrl')
+                : result.kind === 'connected'
+                  ? t('server.status.connectedTo', { name: result.name, version: result.version })
+                  : t('settings.server.savedWithWarning', { message: uiMessage(result.failure) })}
+            </Text>
+          ) : null}
+          {insecure ? (
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
+              <AlertTriangle size={13} color={brand.warning} strokeWidth={2.4} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontFamily: FONT.body, fontSize: 12, color: brand.warning }}>
+                {t('server.insecureWarning')}
+              </Text>
+            </View>
+          ) : null}
+          <Pressable
+            onPress={save}
+            accessibilityRole="button"
+            style={{
+              height: 44,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.raised,
+              borderWidth: 1.5,
+              borderColor: colors.border,
+            }}
+          >
+            {testing ? (
+              <ActivityIndicator color={accent} />
+            ) : (
+              <Text style={{ fontFamily: FONT.btn, fontSize: 14, color: colors.txSecondary }}>{t('settings.server.url.testAndSave')}</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+export function Footer({ children }: { children: ReactNode }) {
+  return (
+    <View style={{ marginTop: 28, paddingBottom: 16, alignItems: 'center' }}>
+      {children}
+    </View>
+  )
+}

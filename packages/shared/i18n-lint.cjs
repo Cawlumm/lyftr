@@ -1,5 +1,4 @@
-// The i18n guard's rule data, plain so web/eslint.config.mjs (ESM) and
-// mobile/eslint.config.js (CJS) import the one copy and cannot drift apart.
+// The i18n guard's rule data, plain so every ESLint config imports the one copy and cannot drift apart.
 //
 // eslint-plugin-i18next replaces a default list wholesale when an option is given,
 // so every list below restates the defaults it still wants.
@@ -23,11 +22,11 @@ const NON_COPY_PROPS = [
   // enums and tokens the component switches on
   'variant', 'size', 'tone', 'icon', 'kind', 'mode', 'layout', 'edges', 'behavior',
   'haptic', 'descriptionTone', 'descriptionId', 'animationType', 'presentation',
-  'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole',
+  'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole', 'backBehavior',
   // keyboard, scrolling, camera and live-region behaviour
   'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior',
   'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',
-  'themeVariant', 'align', 'side', 'tint',
+  'themeVariant', 'align', 'side', 'tint', 'maxWidth',
   'keyboardType', 'autoCapitalize', 'autoComplete', 'autoCorrect', 'textContentType',
   'inputMode', 'enterKeyHint', 'returnKeyType',
   // colours and geometry

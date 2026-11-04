@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Lyftr — Workout &amp; Nutrition Tracker</title>
+    <meta
+      name="description"
+      content="Log workouts, run guided gym sessions, and track nutrition and bodyweight. Self-hosted, so the data stays yours."
+    />
+    <!-- What the browser paints before JS runs: surfaces.dark.base, the store's dark-first
+         default. useDocumentChrome replaces it once the stored theme is known. -->
+    <meta name="theme-color" content="#070d1a" />
+    <meta name="color-scheme" content="dark light" />
+    <!-- Every self-hosted instance ships this file; a crawler that finds one would be
+         indexing someone's private training log. No og:* tags for the same reason. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-transparent.svg" />
+    <link rel="icon" type="image/png" href="/favicon-transparent.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icon.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* The app's focus ring for any control that does not draw its own (ui/interaction.ts),
+         so keyboard focus never falls back to the browser's thin default ring. Controls that set
+         their own ring (class selectors, same specificity) are expected to win by stylesheet order; check a new one in the browser. */
+      :focus-visible {
+        outline: 2px solid rgb(var(--focus-ring));
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <div id="root"></div>
+  </body>
+</html>

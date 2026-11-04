@@ -1,0 +1,311 @@
+import { useEffect, useState } from 'react'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
+import { router, useLocalSearchParams, type Href } from 'expo-router'
+import {
+  ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
+} from '../../../src/components/ui/icons'
+import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
+import { interactive } from '../../../src/components/ui/interaction'
+import { linkProps } from '../../../src/components/ui/link'
+import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
+import { client, useSettingsStore } from '../../../src/lib/lyftr'
+import { useTheme } from '../../../src/theme/useTheme'
+import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+
+// Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
+const exercisePath = (exerciseId: number) => `/workouts/exercise/${exerciseId}`
+
+
+function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit: string }) {
+  const { t } = useTranslation()
+  return (
+    // Web's ring-1 → a real border; non-best chips get border-transparent so both
+    // states are the same size (RN borders take layout space, rings don't).
+    <View
+      className={`px-2.5 py-1.5 rounded-lg ${
+        isBest ? 'bg-brand-500/15 border border-brand-500/25' : 'bg-surface-raised border border-transparent'
+      }`}
+    >
+      <AppText
+        variant="caption"
+        color={isBest ? 'brand' : 'secondary'}
+        style={{ fontVariant: ['tabular-nums'] }}
+      >
+        {set.reps > 0 ? set.reps : '—'} × {set.weight > 0 ? `${displayWeight(set.weight, unit)} ${unit}` : t('weight.bodyweightShort')}
+      </AppText>
+    </View>
+  )
+}
+
+function MuscleBadge({ muscle }: { muscle: string }) {
+  const { colors } = useTheme()
+  const tint = muscleColor(muscle)
+  return (
+    <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
+      {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
+        {muscleLabel(muscle)}
+      </AppText>
+    </View>
+  )
+}
+
+export default function WorkoutDetail() {
+  const pillInset = useSessionPillInset()
+  const { t } = useTranslation()
+  const { id } = useLocalSearchParams<{ id: string }>()
+  const settings = useSettingsStore((s) => s.settings)
+  const fetchSettings = useSettingsStore((s) => s.fetch)
+  const wUnit = weightShort(settings.weight_unit)
+  const restOn = settings.rest_enabled ?? true
+  const { colors, accent } = useTheme()
+
+  const [workout, setWorkout] = useState<Workout | null>(null)
+  const [loading, setLoading] = useState(true)
+  // A UiMessage, not its sentence, so the banner follows a live language switch.
+  const [error, setError] = useState<UiMessage | null>(null)
+  // Bumping this re-runs the load effect — three lines, rather than restructuring a
+  // working effect to gain a retry button.
+  const [retryKey, setRetryKey] = useState(0)
+  const [confirming, setConfirming] = useState(false)
+
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const data = await client.workoutAPI.get(Number(id))
+        if (!cancelled) setWorkout(data)
+      } catch (err) {
+        if (!cancelled) setError({ key: 'errors.unknown', cause: err })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [id, retryKey])
+
+  // Deep links can land here with no history — fall back to the list route.
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
+
+  // Web's portal bottom-sheet confirm, ported 1:1 to a slide-up ConfirmSheet
+  // (replaces the interim OS Alert) — closer to the web app the user knows.
+  // The catch here just closed up and left the screen unchanged, which is
+  // indistinguishable from a tap that never registered. It says why now.
+  const remove = useAsyncAction(async () => {
+    if (!workout) return
+    await client.workoutAPI.delete(workout.id)
+    goBack() // list refetches on focus
+  }, t('workouts.deleteFailed'))
+
+  if (loading) return <Loading />
+
+
+  if (error || !workout) {
+    return (
+      <Screen maxWidth="medium">
+        <View className="flex-1 py-4">
+          <ErrorState
+            size="page"
+            title={t('workouts.detail.loadFailed')}
+            message={error ? uiMessage(error) : t('workouts.detail.gone')}
+            onRetry={error ? () => { setError(null); setRetryKey((k) => k + 1) } : undefined}
+            secondary={<Button title={t('workouts.detail.backToWorkouts')} variant="secondary" onPress={goBack} />}
+          />
+        </View>
+      </Screen>
+    )
+  }
+
+  const exs = workout.exercises ?? []
+  const totalVolume = displayVolume(calcVolume(workout), wUnit)
+  const totalSets = countWorkingSets(workout)
+  const durationMin = Math.round(workout.duration / 60)
+
+  return (
+    <Screen maxWidth="medium">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
+        <View className="gap-5 py-4">
+          {/* Back nav + actions (web's top row) */}
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={goBack}
+              accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+              hitSlop={8}
+              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+            >
+              <ArrowLeft size={16} color={colors.txMuted} />
+              <AppText variant="body" color="muted">{t('workouts.detail.back')}</AppText>
+            </Pressable>
+            <View className="flex-row items-center gap-2">
+              {/* Clear hierarchy over two competing colored squares: Edit is the
+                  primary action, so it gets a labeled brand pill; Delete stays a
+                  quiet ghost glyph and only turns red at the confirm step (ConfirmSheet).
+                  Both are h-9 so they read as a matched pair. */}
+              <Pressable
+                {...linkProps(`/workouts/${workout.id}/edit`, () => router.push(`/workouts/${workout.id}/edit`))}
+                accessibilityLabel={t('workouts.detail.editLabel')}
+                hitSlop={6}
+                className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95 ${interactive('hover:bg-brand-500/20')}`}
+              >
+                <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('workouts.detail.deleteLabel')}
+                onPress={() => setConfirming(true)}
+                disabled={remove.busy}
+                hitSlop={6}
+                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''} ${interactive('hover:bg-error-500/10', { disabled: remove.busy })}`}
+              >
+                <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Delete confirm — slide-up bottom sheet (mirrors web's portal sheet). */}
+          <ConfirmSheet
+            {...deleteConfirmProps({ title: t('workouts.deleteConfirmTitle'), name: workout.name })}
+            open={confirming}
+            busy={remove.busy}
+            error={remove.error}
+            onConfirm={() => { void remove.run() }}
+            onCancel={() => { setConfirming(false); remove.reset() }}
+          />
+
+          {/* Header card */}
+          <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
+            <View className="flex-row items-start gap-3">
+              <ExerciseImage url={exs[0]?.exercise?.image_url} size="hero" />
+              <View className="flex-1">
+                <AppText variant="heading" headingLevel={1}>{workout.name}</AppText>
+                <AppText variant="body" color="muted" className="mt-0.5">
+                  {formatDay(workoutDay(workout), 'weekdayDate')}
+                </AppText>
+              </View>
+            </View>
+
+            {/* Stats strip: Duration / Sets / Volume */}
+            <View className="flex-row mt-4 pt-4 border-t border-surface-border">
+              <View className="flex-1 items-center">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <Clock size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('workouts.detail.duration')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
+                  {durationMin}
+                  <AppText variant="caption" color="muted"> {t('workouts.detail.minutesUnit')}</AppText>
+                </AppText>
+              </View>
+              <View className="flex-1 items-center border-x border-surface-border">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <Layers size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('workouts.detail.sets')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>{totalSets}</AppText>
+              </View>
+              <View className="flex-1 items-center">
+                <View className="flex-row items-center gap-1 mb-0.5">
+                  <TrendingUp size={13} color={colors.txMuted} />
+                  <AppText variant="caption" color="muted">{t('workouts.detail.volume')}</AppText>
+                </View>
+                <AppText variant="heading" style={{ fontVariant: ['tabular-nums'] }}>
+                  {totalVolume > 0 ? totalVolume.toLocaleString() : '—'}
+                  {totalVolume > 0 && <AppText variant="caption" color="muted"> {wUnit}</AppText>}
+                </AppText>
+              </View>
+            </View>
+
+            {workout.notes ? (
+              <View className="mt-3 pt-3 border-t border-surface-border">
+                <AppText variant="body" color="muted">{workout.notes}</AppText>
+              </View>
+            ) : null}
+          </View>
+
+          {/* Exercises */}
+          {!restOn && (
+            <View className="flex-row items-center gap-1.5 px-1">
+              <TimerOff size={13} color={colors.txMuted} />
+              <AppText variant="caption" color="muted">{t('common.rest.timerOff')}</AppText>
+            </View>
+          )}
+          <View className="gap-3">
+            {exs.map((ex) => {
+              const sets = ex.sets ?? []
+              const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.weight || 0)) : 0
+              const maxWeight = displayWeight(maxWeightLbs, wUnit)
+              const exVol = displayVolume(exerciseVolume(sets), wUnit)
+              const setsSummary = [
+                t('common.count.sets', { count: sets.length }),
+                ...(exVol > 0 ? [`${exVol.toLocaleString()} ${wUnit}`] : []),
+              ].join(' · ')
+
+              return (
+                <Pressable
+                  key={ex.id ?? ex.exercise_id}
+                  {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
+                  // On web the card is a link, named by what it opens rather than its text run together.
+                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
+                  // Card surface inlined (not <Card>): its baked-in p-4 can't be
+                  // overridden safely (two padding classes = stylesheet-order
+                  // roulette) and this card needs edge-to-edge inner sections.
+                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                >
+                  <View className="flex-row items-center gap-3 p-4">
+                    <ExerciseImage url={ex.exercise?.image_url} />
+                    <View className="flex-1">
+                      <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
+                      <View className="flex-row items-center gap-2 mt-0.5">
+                        {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
+                        <AppText variant="caption" color="muted" numberOfLines={1} className="flex-shrink">
+                          {setsSummary}
+                        </AppText>
+                      </View>
+                    </View>
+                    {maxWeight > 0 && (
+                      <View className="items-end mr-1">
+                        <AppText variant="label" color="muted">{t('workouts.detail.best')}</AppText>
+                        <AppText variant="subheading" color="brand" style={{ fontVariant: ['tabular-nums'] }}>
+                          {maxWeight} {wUnit}
+                        </AppText>
+                      </View>
+                    )}
+                    <ChevronRight size={16} color={colors.txMuted} />
+                  </View>
+
+                  {sets.length > 0 && (
+                    <View className="flex-row items-center gap-2 px-4 pb-4 pt-3 border-t border-surface-border/50">
+                      <View className="flex-1 flex-row flex-wrap gap-1.5">
+                        {sets.map((set, i) => (
+                          <SetChip key={i} set={set} isBest={set.weight === maxWeightLbs && maxWeightLbs > 0} unit={wUnit} />
+                        ))}
+                      </View>
+                      {restOn && (
+                        ex.rest_seconds === 0 ? (
+                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
+                        ) : (
+                          <View className="flex-row items-center gap-1">
+                            <Pause size={13} color={colors.txMuted} />
+                            <AppText variant="caption" color="muted">{restLabel(ex.rest_seconds ?? 90)}</AppText>
+                          </View>
+                        )
+                      )}
+                    </View>
+                  )}
+                </Pressable>
+              )
+            })}
+          </View>
+        </View>
+      </ScrollView>
+    </Screen>
+  )
+}
