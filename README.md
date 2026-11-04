@@ -39,16 +39,6 @@ No subscription, no cloud account, nothing to export: the database is already yo
 
 <p align="center">
   <img src="docs/media/tour-desktop.gif" alt="A 14-second tour of Lyftr in a desktop browser: the dashboard and its charts, a push/pull/legs program, logging a set in Gym Mode with the rest timer counting down, the nutrition diary, and the bodyweight trend chart" width="100%" />
-  <br />
-  <sub><a href="docs/media/tour-desktop.mp4">Watch it as a full-quality video (MP4)</a></sub>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/dashboard-mobile.png" width="150" alt="Dashboard on a phone" />
-  <img src="docs/media/tour-mobile.gif" width="150" alt="On a phone: starting the day's workout, completing a set, the rest timer, then the nutrition diary" />
-  <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="150" alt="Gym Mode, one exercise at a time" />
-  <img src="docs/screenshots/exercise-detail-mobile.png" width="150" alt="Exercise detail with muscle diagram" />
-  <img src="docs/screenshots/food-mobile.png" width="150" alt="Nutrition diary" />
 </p>
 
 ## Features
@@ -62,8 +52,6 @@ No subscription, no cloud account, nothing to export: the database is already yo
 | **Weight** | Bodyweight log with a trend chart, in lbs or kg |
 | **Everywhere** | One app: a sidebar layout on desktop, a tab bar on phones, and an Android build. Light and dark themes, English and Spanish |
 | **Yours** | Self-hosted with Docker on amd64, arm64 or armv7. One SQLite file, and registration you can leave open, limit to the first user, or close |
-
-More screenshots, desktop and mobile, are in [docs/screenshots](docs/screenshots).
 
 ## Quick start
 
