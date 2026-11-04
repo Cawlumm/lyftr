@@ -1,0 +1,150 @@
+# Google Play — build the production Android App Bundle and upload it to the INTERNAL track
+# as a DRAFT release. Opt-in and manual only: it never runs on a push, a tag or a PR.
+#
+# What it does
+#   1. Builds the `production` profile (apps/app/eas.json: app-bundle, autoIncrement,
+#      versionCode from EAS's remote counter) with `eas build --local` on this runner —
+#      the same recipe and the same EAS-held upload keystore as hosted EAS, but no build
+#      queue, no EAS build credit, and the version you type below actually reaches the
+#      binary (app.config.js reads LYFTR_VERSION; a hosted worker would not see this
+#      runner's environment). eas-build.yml's release job builds on the runner for the
+#      same reasons.
+#   2. Checks the bundle carries that version and the network security config.
+#   3. `eas submit` to Play using submit.production in eas.json: track internal,
+#      releaseStatus draft. Nothing reaches testers until someone rolls the draft out in
+#      Play Console. Draft is also what Expo suggests for an app whose Play setup is not
+#      finished yet (https://docs.expo.dev/submit/android/).
+#
+# One-time setup (owner; none of it is in the repo)
+#   • EXPO_TOKEN repo secret — see eas-build.yml's header.
+#   • The app exists in Play Console with package local.lyftr.app (docs/GOOGLE_PLAY.md).
+#   • A Google Cloud service account with release access to the app in Play Console. Upload
+#     its JSON key to EAS, not to GitHub: expo.dev → project → Credentials → Android →
+#     local.lyftr.app → Service credentials (or `eas credentials --platform android`).
+#     `eas submit --non-interactive` then uses that key. Never commit the key file; if you
+#     prefer a file, keep it outside the repo and set submit.production.android
+#     .serviceAccountKeyPath locally.
+#   • Optional but recommended: add protection rules (required reviewer) to the
+#     `google-play` environment this job uses: Settings → Environments → google-play.
+#
+# Running it: Actions → "Google Play (internal draft)" → Run workflow → enter the version.
+name: Google Play (internal draft)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'User-facing version (versionName), e.g. 0.1.0-beta.8 — normally the release tag without the v'
+        required: true
+        type: string
+
+concurrency:
+  group: play-submit
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-submit:
+    name: Build AAB and submit (internal, draft)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    environment: google-play
+    steps:
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::EXPO_TOKEN secret is not set — see this workflow's header."
+            exit 1
+          fi
+
+      # The input arrives through env, never ${{ }} inside the script: typed text expanded
+      # into `run:` is arbitrary code in a job holding EXPO_TOKEN.
+      - name: Validate the version
+        id: ver
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          case "$V" in
+            [0-9]*.[0-9]*.[0-9]*) ;;
+            *) echo "::error::'$V' isn't a version — expected MAJOR.MINOR.PATCH[-suffix]"; exit 1 ;;
+          esac
+          case "$V" in
+            *[!0-9A-Za-z.+-]*) echo "::error::'$V' has characters a version can't contain"; exit 1 ;;
+          esac
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # eas-cli needs >= 22; see eas-build.yml
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # Same pinned commit as eas-build.yml.
+      - uses: expo/expo-github-action@c7b66a9c327a43a8fa7c0158e7f30d6040d2481e # v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Build the AAB on this runner
+        working-directory: apps/app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          LYFTR_VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          eas build \
+            --platform android \
+            --profile production \
+            --local \
+            --non-interactive \
+            --output "$GITHUB_WORKSPACE/lyftr.aab"
+
+      # The bundle's manifest is protobuf, but attribute values are stored as plain strings,
+      # so a byte search is enough to prove the version and the #79 config made it in.
+      - name: Verify the bundle
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          AAB="$GITHUB_WORKSPACE/lyftr.aab"
+          test -s "$AAB" || { echo "::error::No AAB at $AAB"; exit 1; }
+          M="$(mktemp -d)"
+          unzip -q -o "$AAB" base/manifest/AndroidManifest.xml -d "$M"
+          grep -aqF "$VERSION" "$M/base/manifest/AndroidManifest.xml" \
+            || { echo "::error::AAB manifest does not carry versionName $VERSION"; exit 1; }
+          grep -aq networkSecurityConfig "$M/base/manifest/AndroidManifest.xml" \
+            || { echo "::error::AAB has no networkSecurityConfig — see issue #79"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lyftr-${{ steps.ver.outputs.version }}.aab
+          path: lyftr.aab
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Submit to Play (internal track, draft)
+        working-directory: apps/app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas submit \
+            --platform android \
+            --profile production \
+            --path "$GITHUB_WORKSPACE/lyftr.aab" \
+            --non-interactive

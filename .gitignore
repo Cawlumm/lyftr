@@ -97,3 +97,6 @@ apps/app/.maestro/
 
 # tsc --incremental caches. Regenerated on every build; never useful in a diff.
 *.tsbuildinfo
+
+# Google Play service account keys: upload them to EAS, never commit (see play-submit.yml)
+*service-account*.json
