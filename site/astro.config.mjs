@@ -29,6 +29,10 @@ export default defineConfig({
         { tag: 'meta', attrs: { property: 'og:image', content: ogImage } },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
         { tag: 'meta', attrs: { name: 'twitter:image', content: ogImage } },
+        { tag: 'meta', attrs: { property: 'og:image:width', content: '1280' } },
+        { tag: 'meta', attrs: { property: 'og:image:height', content: '640' } },
+        { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Lyftr: workout and nutrition tracking on your own server, shown on a desktop dashboard and a phone.' } },
+        { tag: 'meta', attrs: { name: 'twitter:image:alt', content: 'Lyftr: workout and nutrition tracking on your own server, shown on a desktop dashboard and a phone.' } },
       ],
       // The marketing landing lives at `/` (src/pages/index.astro); docs are served at
       // their own slugs and linked from here.
