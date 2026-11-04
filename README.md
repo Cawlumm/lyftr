@@ -38,12 +38,14 @@ lives in a single SQLite file on your server.
 No subscription, no cloud account, nothing to export: the database is already yours.
 
 <p align="center">
-  <img src="docs/screenshots/dashboard-desktop.png" alt="Lyftr dashboard in a desktop browser: up next, this week, calories, protein, last workout and today's nutrition" width="100%" />
+  <img src="docs/media/tour-desktop.gif" alt="A 14-second tour of Lyftr in a desktop browser: the dashboard and its charts, a push/pull/legs program, logging a set in Gym Mode with the rest timer counting down, the nutrition diary, and the bodyweight trend chart" width="100%" />
+  <br />
+  <sub><a href="docs/media/tour-desktop.mp4">Watch it as a full-quality video (MP4)</a></sub>
 </p>
 
 <p align="center">
   <img src="docs/screenshots/dashboard-mobile.png" width="150" alt="Dashboard on a phone" />
-  <img src="docs/screenshots/active-workout-mobile.png" width="150" alt="Logging sets during a workout" />
+  <img src="docs/media/tour-mobile.gif" width="150" alt="On a phone: starting the day's workout, completing a set, the rest timer, then the nutrition diary" />
   <img src="docs/screenshots/gym-mode-exercise-mobile.png" width="150" alt="Gym Mode, one exercise at a time" />
   <img src="docs/screenshots/exercise-detail-mobile.png" width="150" alt="Exercise detail with muscle diagram" />
   <img src="docs/screenshots/food-mobile.png" width="150" alt="Nutrition diary" />
