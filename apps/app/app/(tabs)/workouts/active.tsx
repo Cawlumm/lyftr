@@ -15,6 +15,8 @@ import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/ly
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 
+// The list's top padding and the gap between cards; jumpToExercise adds up positions with it.
+const CARD_GAP = 12
 
 export default function ActiveWorkout() {
   const { t } = useTranslation()
@@ -45,7 +47,11 @@ export default function ActiveWorkout() {
   const [showReorder, setShowReorder] = useState(false)
 
   const scrollRef = useRef<ScrollViewInstance>(null)
-  const cardY = useRef<number[]>([])
+  // Heights by exercise rather than y by slot: react-native-web reports onLayout only when a
+  // view resizes (ResizeObserver), so a card that merely changes place after a reorder never
+  // re-reports its y. Summing the heights in the current order stays right on both.
+  const cardH = useRef(new Map<string, number>())
+  const keysRef = useRef<string[]>([])
 
   useEffect(() => {
     fetchSettings()
@@ -72,10 +78,15 @@ export default function ActiveWorkout() {
 
   const jumpToExercise = useCallback((idx: number) => {
     setActiveExIdx(idx)
-    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, (cardY.current[idx] ?? 0) - 8), animated: true }))
+    let y = CARD_GAP
+    for (let j = 0; j < idx; j++) y += (cardH.current.get(keysRef.current[j]) ?? 0) + CARD_GAP
+    requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true }))
   }, [])
 
-  const handleCardLayout = useStableCallback((idx: number, y: number) => { cardY.current[idx] = y })
+  const handleCardLayout = useStableCallback((idx: number, height: number) => {
+    const key = keysRef.current[idx]
+    if (key) cardH.current.set(key, height)
+  })
 
   const requestFinish = useCallback(() => setConfirmFinish(true), [])
   const openReorder = useCallback(() => setShowReorder(true), [])
@@ -145,6 +156,7 @@ export default function ActiveWorkout() {
   const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const allComplete = totalSets > 0 && completedSets === totalSets
   const rowKeys = occurrenceKeys(session.exercises.map((e) => e.exercise_id))
+  keysRef.current = rowKeys
 
   return (
     <Screen maxWidth="medium">
@@ -208,7 +220,7 @@ export default function ActiveWorkout() {
       <ScrollView
         ref={scrollRef}
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40, paddingTop: 12, gap: 12 }}
+        contentContainerStyle={{ paddingBottom: 40, paddingTop: CARD_GAP, gap: CARD_GAP }}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
       >

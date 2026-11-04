@@ -117,7 +117,12 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
         <AppText variant="caption" color="muted" className="mb-4 mt-1 text-center">{t('workouts.reorder.hint')}</AppText>
         <ScrollView
           style={{ maxHeight: Math.max(STRIDE * 3, height * 0.55) }}
+          // Frozen while a row is dragged, and there is no autoscroll: a row beyond the visible
+          // part of a long list is reached with the arrows, which go anywhere.
           scrollEnabled={!drag}
+          // iOS: a bouncing list can start its own pan on a short flick, before the state update
+          // above reaches it, and cancel the drag.
+          bounces={false}
           showsVerticalScrollIndicator={false}
         >
           {names.map((name, i) => {

@@ -147,4 +147,36 @@ test.describe('Reorder exercises (#166)', () => {
     expect(await sheetOrder(await openSheet(page))).toEqual([b.name, a.name])
     await page.evaluate((k) => localStorage.removeItem(k), SESSION_KEY)
   })
+
+  // react-native-web reports onLayout only on resize, so a card that only moved never re-reports
+  // where it is: the jump must still land on the exercise, not on its old slot.
+  test('jumping to an exercise after a reorder scrolls to that exercise', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const [a, b, c] = exercises
+    const ex = (e: Ex, sets: number) => ({
+      exercise_id: e.id,
+      exercise: { id: e.id, name: e.name, muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+      notes: '', rest_seconds: 90,
+      sets: Array.from({ length: sets }, (_, i) => ({ set_number: i + 1, target_reps: 5, target_weight: 100, actual_reps: 0, actual_weight: 0, completed: false })),
+    })
+    await page.addInitScript(({ sk, lk, s }: { sk: string; lk: string; s: unknown }) => {
+      if (localStorage.getItem(sk)) return
+      localStorage.setItem(sk, JSON.stringify(s))
+      localStorage.setItem(lk, 'list')
+    }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: { name: 'E2E Reorder Jump', started_at: new Date().toISOString(), exercises: [ex(a, 6), ex(b, 2), ex(c, 3)] } })
+
+    await page.goto('/workouts/active')
+    const sheet = await openSheet(page)
+    await dragRow(page, sheet, 0, 2)
+    expect(await sheetOrder(sheet)).toEqual([b.name, c.name, a.name])
+    await sheet.getByRole('button', { name: 'Done' }).click()
+    await expect(sheet).toBeHidden()
+
+    // The step pills: the second is now C.
+    await page.getByRole('button', { name: c.name }).first().click()
+    const title = page.getByText(c.name, { exact: true }).last()
+    await expect.poll(async () => (await title.boundingBox())?.y ?? -1).toBeGreaterThan(150)
+    await expect.poll(async () => (await title.boundingBox())?.y ?? 9999).toBeLessThan(400)
+    await page.evaluate((k) => localStorage.removeItem(k), SESSION_KEY)
+  })
 })
