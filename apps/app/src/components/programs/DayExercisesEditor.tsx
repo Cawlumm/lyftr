@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
-import { useTranslation, type Exercise } from '@lyftr/shared'
+import { moveItem, occurrenceKeys, useTranslation, type Exercise } from '@lyftr/shared'
 import { EmptyState } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
+import { ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
 import type { DayExerciseDraft } from './types'
@@ -29,6 +30,7 @@ export function DayExercisesEditor({
   const { t } = useTranslation()
   const { accent } = useTheme()
   const [showPicker, setShowPicker] = useState(false)
+  const [showReorder, setShowReorder] = useState(false)
 
   const addExercise = (exercise: Exercise) => {
     onCacheExercise(exercise)
@@ -73,7 +75,11 @@ export function DayExercisesEditor({
     onChange(exercises.map((ex, i) => (i !== exIdx ? ex : { ...ex, rest_seconds: secs })))
   })
 
+  const openReorder = useStableCallback(() => setShowReorder(true))
+  const moveExercise = useStableCallback((from: number, to: number) => onChange(moveItem(exercises, from, to)))
+
   const selectedIds = exercises.map((e) => e.exercise_id)
+  const rowKeys = occurrenceKeys(selectedIds)
 
   return (
     <View>
@@ -94,7 +100,7 @@ export function DayExercisesEditor({
         <View className="gap-4">
           {exercises.map((dayEx, exIdx) => (
             <ExerciseFormCard
-              key={exIdx}
+              key={rowKeys[exIdx]}
               index={exIdx}
               exercise={pickerExercises[dayEx.exercise_id]}
               notes={dayEx.notes}
@@ -107,6 +113,7 @@ export function DayExercisesEditor({
               onRemoveSet={removeSet}
               onUpdateSet={updateSet}
               onRestChange={setExRest}
+              onReorder={exercises.length > 1 ? openReorder : undefined}
               inputAccessoryViewID={inputAccessoryViewID}
             />
           ))}
@@ -125,6 +132,13 @@ export function DayExercisesEditor({
       {showPicker && (
         <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />
       )}
+      <ReorderExercisesSheet
+        open={showReorder}
+        names={exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
+        rowKeys={rowKeys}
+        onMove={moveExercise}
+        onClose={() => setShowReorder(false)}
+      />
     </View>
   )
 }

@@ -1,7 +1,7 @@
 import { memo } from 'react'
 import { Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
-import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from '../ui/icons'
+import { ArrowUpDown, CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
 import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
@@ -81,6 +81,8 @@ interface Props {
   onCompleteSet: (index: number, setIdx: number) => void
   onJumpToExercise: (index: number) => void
   onRequestFinish: () => void
+  /** Opens the reorder sheet; omitted while there is nothing to reorder (one exercise). */
+  onReorder?: () => void
 }
 
 // One exercise inside the active-workout screen: header (thumbnail · name ·
@@ -91,7 +93,7 @@ interface Props {
 function ActiveExerciseCardBase({
   index, ex, isActive, isLast, wUnit, weightUnit,
   onCardLayout, onRemoveExercise, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onCompleteSet,
-  onJumpToExercise, onRequestFinish,
+  onJumpToExercise, onRequestFinish, onReorder,
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
@@ -116,9 +118,18 @@ function ActiveExerciseCardBase({
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>
         </Pressable>
+        {onReorder ? (
+          <Pressable onPress={onReorder} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.reorder.title')} className={`h-9 w-9 items-center justify-center rounded-xl active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
+            <ArrowUpDown size={16} color={colors.txMuted} />
+          </Pressable>
+        ) : null}
         {allSetsComplete ? (
-          <View className="h-8 w-8 items-center justify-center rounded-full bg-brand-500">
-            <CheckCircle2 size={18} color="#ffffff" />
+          // Same 36pt slot as the remove button it replaces, so the reorder button beside it
+          // does not shift when the last set is ticked.
+          <View className="h-9 w-9 items-center justify-center">
+            <View className="h-8 w-8 items-center justify-center rounded-full bg-brand-500">
+              <CheckCircle2 size={18} color="#ffffff" />
+            </View>
           </View>
         ) : (
           <Pressable onPress={() => onRemoveExercise(index)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.removeExercise')} className={`h-9 w-9 items-center justify-center rounded-xl active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>

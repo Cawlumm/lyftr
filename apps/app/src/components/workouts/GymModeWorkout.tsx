@@ -4,15 +4,16 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { router, usePathname } from 'expo-router'
 import {
-  Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flag, Layers, Minimize2,
+  ArrowUpDown, Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flag, Layers, Minimize2,
   Play, Plus, Repeat, Timer, Trash2, X,
 } from '../ui/icons'
 import {
-  useAsyncAction, displayToLbs, displayWeight, weightShort, useTranslation, type Exercise,
+  useAsyncAction, displayToLbs, displayWeight, occurrenceKeys, weightShort, useTranslation, type Exercise,
 } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
+import { ReorderExercisesSheet } from './ReorderExercisesSheet'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
 import { GymFrame } from './GymFrame'
@@ -83,6 +84,7 @@ export function GymModeWorkout() {
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
+  const moveExercise = useWorkoutSession((s) => s.moveExercise)
   const updateExerciseNotes = useWorkoutSession((s) => s.updateExerciseNotes)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
@@ -108,6 +110,7 @@ export function GymModeWorkout() {
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  const [showReorder, setShowReorder] = useState(false)
 
   const setPhase = (p: typeof phase) => setGymState(p, activeIdx, activeSetIdx)
   const onSetActiveIdx = (i: number) => setGymState(phase, i, 0)
@@ -204,6 +207,13 @@ export function GymModeWorkout() {
           onClose={() => setShowPicker(false)}
         />
       ) : null}
+      <ReorderExercisesSheet
+        open={showReorder}
+        names={session.exercises.map((e) => e.exercise.name)}
+        rowKeys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))}
+        onMove={moveExercise}
+        onClose={() => setShowReorder(false)}
+      />
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
       <NumericKeyboardAccessory />
     </SafeAreaView>
@@ -259,6 +269,11 @@ export function GymModeWorkout() {
             <AppText variant="heading" numberOfLines={1}>{session.name}</AppText>
           </View>
           <View className="flex-row items-center gap-1">
+            {session.exercises.length > 1 ? (
+              <Pressable onPress={() => setShowReorder(true)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.reorder.title')} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
+                <ArrowUpDown size={16} color={colors.txMuted} />
+              </Pressable>
+            ) : null}
             <Pressable onPress={handleMinimize} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.minimize')} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
               <Minimize2 size={16} color={colors.txMuted} />
             </Pressable>

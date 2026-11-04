@@ -1172,6 +1172,13 @@
       },
       "markSetDone": "Set {{number}}, mark done"
     },
+    "reorder": {
+      "title": "Reorder exercises",
+      "hint": "Drag a handle, or use the arrows.",
+      "moveUp": "Move {{name}} up",
+      "moveDown": "Move {{name}} down",
+      "moved": "{{name}} moved to position {{position}} of {{count}}"
+    },
     "rest": {
       "off": "Off",
       "custom": "Custom",

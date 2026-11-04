@@ -3,12 +3,13 @@ import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } 
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/components/ui/icons'
-import { useAsyncAction, weightShort, type Exercise, formatElapsed, useElapsedSeconds, useTranslation } from '@lyftr/shared'
+import { useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
+import { ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
@@ -25,6 +26,7 @@ export default function ActiveWorkout() {
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
+  const moveExercise = useWorkoutSession((s) => s.moveExercise)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
   const openGym = useWorkoutSession((s) => s.openGym)
@@ -40,6 +42,7 @@ export default function ActiveWorkout() {
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [activeExIdx, setActiveExIdx] = useState(0)
   const [showPicker, setShowPicker] = useState(false)
+  const [showReorder, setShowReorder] = useState(false)
 
   const scrollRef = useRef<ScrollViewInstance>(null)
   const cardY = useRef<number[]>([])
@@ -75,6 +78,13 @@ export default function ActiveWorkout() {
   const handleCardLayout = useStableCallback((idx: number, y: number) => { cardY.current[idx] = y })
 
   const requestFinish = useCallback(() => setConfirmFinish(true), [])
+  const openReorder = useCallback(() => setShowReorder(true), [])
+
+  // The highlighted exercise follows the one it was on, not the slot.
+  const handleMove = useCallback((from: number, to: number) => {
+    moveExercise(from, to)
+    setActiveExIdx((a) => remapIndex(a, from, to))
+  }, [moveExercise])
 
   // useStableCallback (not plain closure): this is passed to the memoized
   // ActiveExerciseCard for every exercise, so it must keep a permanently stable
@@ -134,6 +144,7 @@ export default function ActiveWorkout() {
   const completedSets = session.exercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0)
   const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const allComplete = totalSets > 0 && completedSets === totalSets
+  const rowKeys = occurrenceKeys(session.exercises.map((e) => e.exercise_id))
 
   return (
     <Screen maxWidth="medium">
@@ -171,7 +182,7 @@ export default function ActiveWorkout() {
               const active = i === activeExIdx
               return (
                 <Pressable
-                  key={i}
+                  key={rowKeys[i]}
                   onPress={() => jumpToExercise(i)}
                   accessibilityRole={WEB_BUTTON}
                   {...currentStep(active)}
@@ -210,7 +221,7 @@ export default function ActiveWorkout() {
         ) : (
           session.exercises.map((ex, exIdx) => (
             <ActiveExerciseCard
-              key={exIdx}
+              key={rowKeys[exIdx]}
               index={exIdx}
               ex={ex}
               isActive={exIdx === activeExIdx}
@@ -226,6 +237,7 @@ export default function ActiveWorkout() {
               onCompleteSet={handleCompleteSet}
               onJumpToExercise={jumpToExercise}
               onRequestFinish={requestFinish}
+              onReorder={session.exercises.length > 1 ? openReorder : undefined}
             />
           ))
         )}
@@ -277,6 +289,14 @@ export default function ActiveWorkout() {
           onClose={() => setShowPicker(false)}
         />
       ) : null}
+
+      <ReorderExercisesSheet
+        open={showReorder}
+        names={session.exercises.map((e) => e.exercise.name)}
+        rowKeys={rowKeys}
+        onMove={handleMove}
+        onClose={() => setShowReorder(false)}
+      />
 
       {/* iOS Done bar above the numeric keyboard (reps/weight fields reference it). */}
       <NumericKeyboardAccessory />

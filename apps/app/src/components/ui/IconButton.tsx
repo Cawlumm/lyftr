@@ -1,4 +1,5 @@
-import { Pressable } from 'react-native'
+import type { Ref } from 'react'
+import { Pressable, type PressableInstance } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { Icon, type IconSize } from './Icon'
@@ -15,6 +16,8 @@ interface Props {
   size?: IconSize
   disabled?: boolean
   className?: string
+  /** For a caller that has to put focus back on the button after re-rendering it. */
+  ref?: Ref<PressableInstance>
 }
 
 const BOX: Record<IconSize, string> = {
@@ -42,6 +45,7 @@ export function IconButton({
   size = 'sm',
   disabled = false,
   className = '',
+  ref,
 }: Props) {
   const { colors, brand, accent, isDark } = useTheme()
   const iconColor: Record<IconButtonVariant, string> = {
@@ -54,6 +58,7 @@ export function IconButton({
   }
   return (
     <Pressable
+      ref={ref}
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}

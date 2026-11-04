@@ -1189,6 +1189,13 @@
       },
       "markSetDone": "Serie {{number}}, marcar como hecha"
     },
+    "reorder": {
+      "title": "Reordenar ejercicios",
+      "hint": "Arrastra un asa o usa las flechas.",
+      "moveUp": "Subir {{name}}",
+      "moveDown": "Bajar {{name}}",
+      "moved": "{{name}} movido a la posición {{position}} de {{count}}"
+    },
     "rest": {
       "off": "No",
       "custom": "Otro",
