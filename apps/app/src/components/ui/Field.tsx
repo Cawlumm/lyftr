@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { TextInput, TextInputProps, View } from 'react-native'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from './interaction'
 import type { LucideIcon } from './icons'
 import Reanimated, {
   useSharedValue,
@@ -43,6 +44,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
   return (
     <View className={`gap-1.5 ${className}`}>
       {label ? <Label>{label}</Label> : null}
+      <View className={FIELD_FOCUS_RING} style={{ borderRadius: 8 }}>
       <Reanimated.View
         style={[
           {
@@ -69,7 +71,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
           // the native <input>), so a frame taller than the glyph box centres the text AND
           // leaves room for descenders. Using paddingVertical instead top-aligned the text
           // (frame == line box + pad pushed from the top) — it rode too high in the box.
-          style={multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' } : { fontSize: 16, height: 46 }}
+          style={[multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' } : { fontSize: 16, height: 46 }, NO_INPUT_OUTLINE]}
           multiline={multiline}
           accessibilityLabel={label}
           placeholderTextColor={colors.txMuted}
@@ -85,6 +87,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
         />
         {rightSlot ? <View style={{ marginLeft: 8 }}>{rightSlot}</View> : null}
       </Reanimated.View>
+      </View>
       {error ? <AppText variant="caption" color="error">{error}</AppText> : null}
     </View>
   )

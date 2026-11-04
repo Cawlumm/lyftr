@@ -19,3 +19,8 @@ export const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefine
 
 // The aria-current of the step being worked; RN's types have no aria-current.
 export const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object
+
+// A boxed text field: the ring is drawn on a plain wrapper that shares the box's radius (a
+// Reanimated View takes no className on web) and the input's own square UA outline is off.
+export const FIELD_FOCUS_RING = Platform.OS === 'web' ? 'focus-within:outline focus-within:outline-2 focus-within:outline-focus focus-within:outline-offset-2' : ''
+export const NO_INPUT_OUTLINE = (Platform.OS === 'web' ? { outlineStyle: 'none' } : null) as object

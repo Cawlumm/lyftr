@@ -16,6 +16,7 @@ import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateCo
 import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from './ui/icons'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from './ui/interaction'
 import {
   testServerConnection,
   normalizeServerUrl,
@@ -57,6 +58,7 @@ export function IconInput({
       <Text style={{ fontFamily: FONT.label, fontSize: 11, letterSpacing: 1.4, color: Platform.OS === 'web' ? colors.txMuted : LABEL_COLOR, marginBottom: 8 }}>
         {label.toUpperCase()}
       </Text>
+      <View className={FIELD_FOCUS_RING} style={{ borderRadius: 15 }}>
       <Reanimated.View
         style={[
           {
@@ -77,7 +79,7 @@ export function IconInput({
       >
         <Icon size={17} color={LABEL_COLOR} strokeWidth={2} />
         <TextInput
-          style={{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }}
+          style={[{ flex: 1, fontFamily: FONT.body, fontSize: 15, color: colors.txPrimary }, NO_INPUT_OUTLINE]}
           placeholderTextColor={colors.txMuted}
           secureTextEntry={hide}
           accessibilityLabel={label}
@@ -93,6 +95,7 @@ export function IconInput({
           </Pressable>
         ) : null}
       </Reanimated.View>
+      </View>
     </View>
   )
 }
