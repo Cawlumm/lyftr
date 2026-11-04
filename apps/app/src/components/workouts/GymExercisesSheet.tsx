@@ -75,7 +75,12 @@ function Body({
   const toggle = () => {
     if (!reorder) setMode('reorder')
     else if (initial === 'reorder') onClose()
-    else setMode('list')
+    else {
+      // The list remounts at the top: put it back on the exercise being worked, which a
+      // reorder may have moved.
+      scrolled.current = false
+      setMode('list')
+    }
   }
 
   return (
