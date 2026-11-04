@@ -39,10 +39,12 @@ export function DateInput({ label, value, onChange, maximumDate, children }: Pro
   return (
     <View className={label ? 'gap-1.5' : 'flex-1'}>
       {label ? <Label>{label}</Label> : null}
+      {/* Unlabelled it fills its row's height; min-h-12 is the floor when it sits in a column
+          instead, where flex-1 alone shrank it to its text (weight's date & note). */}
       <View
         className={children
           ? `rounded-xl ${ring ? RING : ''}`
-          : `${label ? 'h-12' : 'flex-1'} flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 ${ring ? RING : ''}`}
+          : `${label ? 'h-12' : 'min-h-12 flex-1'} flex-row items-center gap-2.5 rounded-lg border border-surface-border bg-surface-overlay px-3.5 ${ring ? RING : ''}`}
       >
         {children ?? (
           <>

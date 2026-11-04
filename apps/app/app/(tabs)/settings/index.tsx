@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Pressable, ScrollView, View } from 'react-native'
+import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import {
   ArrowLeft,
@@ -55,6 +55,8 @@ import { client, useAuthStore, useDisplayName, useLanguageStore, useServerStore,
 import { LanguageSheet } from '../../../src/components/settings/LanguageSheet'
 import { ExerciseCacheAdmin } from '../../../src/components/settings/ExerciseCacheAdmin'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 
 const REST_PRESETS = [60, 90, 120, 180]
 
@@ -63,6 +65,11 @@ const REST_PRESETS = [60, 90, 120, 180]
 type ToastState = 'saved' | 'saveTargets' | 'changeUnit' | 'deleteAccount'
 
 export default function SettingsScreen() {
+  const pillInset = useSessionPillInset()
+  // Beside the web sidebar Settings is opened from any page, so a back link labelled Home
+  // was wrong as often as not, and no other top-level page carries one.
+  const { lg } = useBreakpoint()
+  const showBack = !(Platform.OS === 'web' && lg)
   const { t } = useTranslation()
   const preference = useLanguageStore((s) => s.preference)
   const setPreference = useLanguageStore((s) => s.setPreference)
@@ -210,11 +217,11 @@ export default function SettingsScreen() {
 
   return (
     <Screen maxWidth="medium">
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: pillInset }}>
         <View className="gap-6 py-4">
           {/* Back — Settings is reached from the Home avatar (no longer a footer tab). */}
           <View className="gap-3">
-            <Pressable
+            {showBack ? <Pressable
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}
               hitSlop={8}
               accessibilityRole={WEB_BUTTON}
@@ -222,7 +229,7 @@ export default function SettingsScreen() {
             >
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('settings.back')}</AppText>
-            </Pressable>
+            </Pressable> : null}
             <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
           </View>
 

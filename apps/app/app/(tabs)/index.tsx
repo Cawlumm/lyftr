@@ -23,6 +23,7 @@ import { muscleColor, muscleLabel } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
 import { useBreakpoint } from '../../src/lib/useBreakpoint'
 import { ONE_THIRD, TWO_THIRDS } from '../../src/components/dashboard/layout'
+import { useSessionPillInset } from '../../src/components/workouts/SessionPill'
 
 // Native tap feedback (matches the rest of the app): selection tick for navigations /
 // sheet-opens, a firmer impact for the primary Start action.
@@ -56,7 +57,7 @@ function MuscleBadge({ muscle }: { muscle: string }) {
   const tint = muscleColor(muscle)
   return (
     <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
@@ -107,6 +108,7 @@ function StatTile({ label, icon: TileIcon, value, target, pct, color, failed }: 
 }
 
 export default function Dashboard() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   // Re-read on every load rather than once at mount: this tab stays mounted for the
   // life of the process, so an app left open overnight kept yesterday's header, week
@@ -414,7 +416,7 @@ export default function Dashboard() {
         accessibilityRole="button"
         accessibilityLabel={t('home.upNext.viewRoutine', { name: upNext.program.name })}
         onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
-        className="min-w-0 flex-1 flex-row items-center gap-3 active:opacity-70"
+        className="min-w-0 flex-1 flex-row items-center gap-3 rounded-lg active:opacity-70"
       >
         <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
         <View className="min-w-0 flex-1">
@@ -579,7 +581,7 @@ export default function Dashboard() {
     const totalVolume = displayVolume(calcVolume(lastWorkout), unit)
     const mins = Math.round(lastWorkout.duration / 60)
     return (
-      <Pressable onPress={() => { hSelect(); router.navigate(`/workouts/${lastWorkout.id}`) }} className={`active:scale-[0.99] ${cell}`}>
+      <Pressable onPress={() => { hSelect(); router.navigate(`/workouts/${lastWorkout.id}`) }} className={`rounded-xl active:scale-[0.99] ${cell}`}>
         <Card className={cell}>
           <View className="mb-3 flex-row items-start justify-between gap-2">
             <View className="min-w-0 flex-1">
@@ -750,7 +752,7 @@ export default function Dashboard() {
           </View>
         </Pressable>
       ) : (
-        <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className={`active:scale-[0.99] ${cell}`} accessibilityLabel={t('home.weight.logAria')}>
+        <Pressable onPress={() => { hSelect(); setSheetOpen(true) }} className={`rounded-lg active:scale-[0.99] ${cell}`} accessibilityLabel={t('home.weight.logAria')}>
           <View className="mb-2 flex-row items-center justify-between">
             <View className="flex-row items-baseline gap-1.5">
               <AppText variant="display" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>{displayWeight(weightLogs[0].weight, unit)}</AppText>
@@ -801,7 +803,7 @@ export default function Dashboard() {
     <Screen maxWidth="wide">
       <ScrollView
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: 40 + pillInset }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={accent} colors={[accent]} />}
       >
         {wide ? (

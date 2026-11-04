@@ -19,6 +19,7 @@ import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { semanticInk } from '../../../src/theme/theme'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 const HISTORY_PERIODS = ['7d', '30d', '90d'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
@@ -58,6 +59,7 @@ const mealForNow = (): Meal => {
 }
 
 export default function Nutrition() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { colors, brand, accent, isDark } = useTheme()
   const { width: windowWidth } = useWindowDimensions()
@@ -557,7 +559,7 @@ export default function Nutrition() {
     const lastMatchIdx = filteredEntries.length - 1
     return (
       <Screen maxWidth="wide">
-        <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
           <View className="gap-6 pt-4">
             {header}
             <View className="flex-row items-center justify-between gap-6">
@@ -595,7 +597,7 @@ export default function Nutrition() {
         data={isDiary && !dayPending ? visibleEntries : []}
         keyExtractor={(e) => String(e.id)}
         style={scrollBleed} showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 32 }}
+        contentContainerStyle={{ paddingBottom: 32 + pillInset }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         onEndReached={loadMoreFood}

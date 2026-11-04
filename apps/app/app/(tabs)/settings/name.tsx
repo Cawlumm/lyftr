@@ -95,17 +95,16 @@ export default function ChangeNameScreen() {
 
             <View className="flex-row gap-2">
               <Button
-                title={t('common.save')}
-                onPress={() => void save.run()}
-                loading={save.busy}
-                disabled={name.trim() === (settings.display_name ?? '')}
-                className="flex-1"
-              />
-              <Button
                 title={t('common.cancel')}
                 variant="secondary"
                 onPress={back}
                 disabled={save.busy}
+              />
+              <Button
+                title={t('common.save')}
+                onPress={() => void save.run()}
+                loading={save.busy}
+                disabled={name.trim() === (settings.display_name ?? '')}
                 className="flex-1"
               />
             </View>

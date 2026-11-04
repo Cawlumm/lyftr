@@ -13,12 +13,14 @@ import {
 import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Read-only view of a logged food entry, matching the weight/[id] · workouts/[id] idiom:
 // back-nav on the left, Edit (pencil) + Delete (trash) icons top-right. Edit hands off to
 // the shared log flow in edit mode; Delete routes through the ConfirmSheet. The dashboard
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 export default function NutritionDetail() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { colors, accent } = useTheme()
@@ -65,7 +67,7 @@ export default function NutritionDetail() {
 
   if (error || !entry) {
     return (
-      <Screen>
+      <Screen maxWidth="medium">
         <View className="flex-1 py-4">
           <ErrorState
             size="page"
@@ -114,8 +116,8 @@ export default function NutritionDetail() {
   ]
 
   return (
-    <Screen>
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+    <Screen maxWidth="medium">
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">

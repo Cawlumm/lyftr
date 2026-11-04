@@ -11,6 +11,7 @@ import { DayPickerSheet, pickProgramDay } from '../../../src/components/programs
 import { client, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
+import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 
 function ProgramRows({ wide, children }: { wide: boolean; children: ReactNode }) {
@@ -22,6 +23,7 @@ function ProgramRows({ wide, children }: { wide: boolean; children: ReactNode })
 // resume/discard banner for an in-progress session. Navigates to /workouts/active,
 // which itself opens the gym overlay when the layout pref is 'gym'.
 export default function StartWorkout() {
+  const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
   const startSession = useWorkoutSession((s) => s.startSession)
@@ -62,7 +64,7 @@ export default function StartWorkout() {
 
   return (
     <Screen maxWidth="medium">
-      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className="gap-6 py-4">
           <View className="flex-row items-center gap-3">
             <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={goBack} />

@@ -48,7 +48,7 @@ function MuscleBadge({ muscle, small }: { muscle: string; small?: boolean }) {
   const tint = muscleColor(muscle)
   return (
     <View className={`rounded ${small ? 'px-1.5 py-0.5' : 'px-2 py-0.5'} ${tint?.chip ?? 'bg-surface-muted'} ${tint?.border ? `border ${tint.border}` : ''}`}>
-      <AppText variant="caption" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }

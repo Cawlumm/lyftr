@@ -128,17 +128,16 @@ export default function ChangeEmailScreen() {
 
             <View className="flex-row gap-2">
               <Button
-                title={t('settings.account.email.submit')}
-                onPress={submit}
-                loading={save.busy}
-                disabled={!ready}
-                className="flex-1"
-              />
-              <Button
                 title={t('common.cancel')}
                 variant="secondary"
                 onPress={back}
                 disabled={save.busy}
+              />
+              <Button
+                title={t('settings.account.email.submit')}
+                onPress={submit}
+                loading={save.busy}
+                disabled={!ready}
                 className="flex-1"
               />
             </View>

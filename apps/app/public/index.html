@@ -37,6 +37,13 @@
         height: 100%;
         flex: 1;
       }
+      /* The app's focus ring for any control that does not draw its own (ui/interaction.ts),
+         so keyboard focus never falls back to the browser's thin default ring. Controls that set
+         their own ring (class selectors, same specificity) are expected to win by stylesheet order; check a new one in the browser. */
+      :focus-visible {
+        outline: 2px solid rgb(var(--focus-ring));
+        outline-offset: 2px;
+      }
     </style>
   </head>
 

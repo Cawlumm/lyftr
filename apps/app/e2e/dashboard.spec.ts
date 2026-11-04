@@ -109,7 +109,8 @@ test('at 390 the dashboard is one column with no stat tiles @mobile', async ({ p
 
 test('keyboard: Tab reaches every card link on the wide layout', async ({ page }) => {
   await openDashboard(page, 1280)
-  const want = ['Start', 'Settings', WORKOUT, 'All', 'View', 'Log weight']
+  // No Settings avatar here: beside the sidebar its user menu is the one way in (P18).
+  const want = ['Start', WORKOUT, 'All', 'View', 'Log weight']
   const seen = new Set<string>()
   // Generous bound: the heatmap's 84 day cells are each a stop before the last cards.
   for (let i = 0; i < 160 && want.some(w => !seen.has(w)); i++) {
@@ -131,7 +132,8 @@ test('axe: the wide dashboard has no structural violations', async ({ page }) =>
     .analyze()
   expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)).toEqual([])
   await expect(page.getByRole('main')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /user menu/ })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('button', { name: 'Settings' })).toHaveCount(0)
 })
 
 // Cumulative Layout Shift over the load, skeleton to content. Shifts right after input do
