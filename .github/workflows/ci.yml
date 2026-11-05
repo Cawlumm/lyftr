@@ -12,7 +12,8 @@ name: CI
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
 # the mobile jobs, a mobile-only change skips the Go + version-smoke jobs,
 # and so on. The image-build and deploy jobs stay eligible regardless (on branches other
-# than main the image builds run in the pull_request run only) — they're guarded
+# than main the image builds run in the pull_request run only, as the build-*-pr jobs,
+# alongside the tests rather than after them) — the main/tag ones are guarded
 # with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
 # cascade into skipping the build/deploy gate. On main/tags every test job runs
 # unconditionally, so filtering never weakens deploys.
@@ -245,12 +246,40 @@ jobs:
       # run). https://docs.docker.com/build/cache/backends/gha/
       - uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
       # Own scopes: build-backend/build-frontend write multi-arch caches, and builds sharing a
-      # scope overwrite each other. Both shards read; only shard 1 writes, once.
-      - name: Build images with layer cache
+      # scope overwrite each other. Every run reads; only main's push run writes (shard 1).
+      # A PR run can restore main's caches, so writing from branches bought little and cost
+      # ~95s of cache export on the critical path, plus GBs that pushed the repo past the
+      # 10 GB cache cap, where eviction takes main's entries too.
+      # https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache
+      #
+      # Browsers and their OS libraries come preinstalled in Playwright's own image, tagged to
+      # the exact @playwright/test in the lockfile. `install-deps` fetched ~114 MB from the
+      # runner's apt mirror, which at times trickled at ~80 KB/s and ran the job into its
+      # timeout before a test started. A pull is bounded and retried instead.
+      # https://playwright.dev/docs/docker
+      #
+      # npm ci and the image pull are mostly network-bound and the bake mostly CPU-bound, so
+      # both run in the background under the bake instead of after it.
+      - name: Build images, install deps, pull the Playwright image
+        timeout-minutes: 10   # above retry.sh's worst case (3 x 160s + 10s), so its own error shows
         env:
-          WRITE: ${{ matrix.shard == 1 }}
+          WRITE: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && matrix.shard == 1 }}
         run: |
+          v=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          img="mcr.microsoft.com/playwright:v${v}-noble"
+          echo "PW_IMAGE=$img" >> "$GITHUB_ENV"
+
+          # The runtime token is for the cache only; npm ci's install scripts don't get it.
+          env -u ACTIONS_RUNTIME_TOKEN npm ci > "$RUNNER_TEMP/npm-ci.log" 2>&1 & npm_pid=$!
+          bash .github/scripts/retry.sh 3 150 docker pull -q "$img" > "$RUNNER_TEMP/pull.log" 2>&1 & pull_pid=$!
+
           to=()
           if [ "$WRITE" = true ]; then
             to=(--set "backend.cache-to=type=gha,scope=lyftr-e2e-backend,mode=max"
@@ -261,35 +290,21 @@ jobs:
             --set "frontend.cache-from=type=gha,scope=lyftr-e2e-frontend" \
             "${to[@]}" \
             --load
-          # The runtime token was for the cache only; npm ci's install scripts don't get it.
           echo "ACTIONS_RUNTIME_TOKEN=" >> "$GITHUB_ENV"
+
+          rc=0
+          wait "$npm_pid" || rc=$?
+          echo "::group::npm ci (exit $rc)"; cat "$RUNNER_TEMP/npm-ci.log"; echo "::endgroup::"
+          [ "$rc" -eq 0 ] || { echo "::error::npm ci failed (exit $rc)"; exit "$rc"; }
+          wait "$pull_pid" || rc=$?
+          cat "$RUNNER_TEMP/pull.log"
+          [ "$rc" -eq 0 ] || exit "$rc"
 
       # The compose healthcheck polls every 30s, so `--wait` always took 31s. CI-only override.
       - name: Start stack
         run: |
           printf 'services:\n  backend:\n    healthcheck:\n      interval: 2s\n      retries: 30\n' > "$RUNNER_TEMP/compose.ci.yml"
           docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.ci.yml" up -d --wait
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
-
-      - run: npm ci
-
-      # Browsers and their OS libraries come preinstalled in Playwright's own image, tagged to
-      # the exact @playwright/test in the lockfile. `install-deps` fetched ~114 MB from the
-      # runner's apt mirror, which at times trickled at ~80 KB/s and ran the job into its
-      # timeout before a test started. A pull is bounded and retried instead.
-      # https://playwright.dev/docs/docker
-      - name: Pull the Playwright image
-        timeout-minutes: 9   # above retry.sh's worst case (3 x 160s + 10s), so its own error shows
-        run: |
-          v=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
-          img="mcr.microsoft.com/playwright:v${v}-noble"
-          bash .github/scripts/retry.sh 3 150 docker pull -q "$img"
-          echo "PW_IMAGE=$img" >> "$GITHUB_ENV"
 
       # --network host: the stack is published on the runner's localhost:8081.
       - name: Run E2E tests
@@ -405,17 +420,16 @@ jobs:
             echo "::warning::This PR changes ${CHANGED} reviewable lines. Past 5000 the automated review is skipped entirely, and a diff this size is hard for anyone to hold in their head — consider splitting it."
           fi
 
+  # main and tags push, so they wait for the tests. Still build even if a test dependency was
+  # *skipped* by filtering; only a genuine failure/cancel of a dependency should stop it.
   build-backend:
     name: Build & push backend image
     needs: [test, e2e-app, version-smoke]
-    # Still verify the image builds even if a test dependency was *skipped* by filtering;
-    # only a genuine failure/cancel of a dependency should stop it. On other branches only in
-    # the pull_request run: the push run for the same commit would build the same images.
     if: >-
       !failure() && !cancelled() &&
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
-    steps:
+    steps: &build-backend-steps
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # full history so `git describe --tags` resolves
@@ -447,7 +461,17 @@ jobs:
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
           cache-from: type=gha,scope=lyftr-backend
-          cache-to: type=gha,scope=lyftr-backend,mode=max
+          # Written from main/tags only, for the reason given at the e2e bake.
+          cache-to: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'type=gha,scope=lyftr-backend,mode=max' || '' }}
+
+  # A PR only validates that the images build (push is false), so nothing here waits on the
+  # tests: it starts with them instead of adding its ~4 min after them. Branch push runs skip
+  # it; the pull_request run for the same commit builds the same images.
+  build-backend-pr:
+    name: Build backend image
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps: *build-backend-steps
 
   build-frontend:
     name: Build & push frontend image
@@ -455,9 +479,9 @@ jobs:
     # Tolerate skipped (filtered) test deps; stop on real failure. Same event rule as build-backend.
     if: >-
       !failure() && !cancelled() &&
-      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
-    steps:
+    steps: &build-frontend-steps
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -484,7 +508,13 @@ jobs:
           push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=lyftr-frontend
-          cache-to: type=gha,scope=lyftr-frontend,mode=max
+          cache-to: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'type=gha,scope=lyftr-frontend,mode=max' || '' }}
+
+  build-frontend-pr:
+    name: Build frontend image
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps: *build-frontend-steps
 
   deploy-demo:
     name: Deploy to Fly.io
