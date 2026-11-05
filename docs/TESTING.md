@@ -76,8 +76,8 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
   stack cannot bind the port.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 - **Workers:** CI runs four (`playwright.config.ts`: the public-repo `ubuntu-24.04` runner
-  has 4 vCPUs and 16 GB; four ran the suite in 4.5 min against 6.3 for three) on each of two
-  shards (`--shard=1/2`, `2/2`: whole files per project per shard, each with its own runner and compose
+  has 4 vCPUs and 16 GB; four ran the suite in 4.5 min against 6.3 for three) on each of three
+  shards (`--shard=1/3` to `3/3`: whole files per project per shard, each with its own runner and compose
   stack, browsers from the `mcr.microsoft.com/playwright` image); locally one,
   because the machine is shared. `--workers=2` opts in. Files run in parallel, tests within a file
   in order (`fullyParallel: false`), so a file's tests may share its `beforeAll` seed.
@@ -176,7 +176,7 @@ CI runs all of these on every PR (see `.github/workflows/ci.yml`).
   and calculations currently inline in `GetDailyStats` / `GetWeightStats` (extract →
   unit-test the math).
 - ✅ **Integration** — 82 Go controller tests.
-- ✅ **E2E** — parallel by file on CI (two shards of four workers, per-worker accounts); being
+- ✅ **E2E** — parallel by file on CI (three shards of four workers, per-worker accounts); being
   rebalanced (API-contract tests moving down to Go).
 
 Tracked in the testing-architecture overhaul issue.
