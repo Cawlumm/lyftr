@@ -123,7 +123,8 @@ export function AuthStack({
                 >
                   <BarbellMark size={34} bar="#ffffff" />
                 </View>
-                <View>
+                {/* Shrinks so a long tagline (es at 360) wraps instead of running off the screen. */}
+                <View style={{ flexShrink: 1 }}>
                   <Text style={{ fontFamily: 'Outfit_800ExtraBold', fontSize: 30, letterSpacing: -0.6, color: '#fff' }}>
                     lyftr
                   </Text>
