@@ -7,7 +7,7 @@ import { useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKe
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { RestTimerBanner } from '../../../src/components/workouts/RestTimerBanner'
-import { applyRestOnToggle } from '../../../src/hooks/restOnSetToggle'
+import { applyRestOnToggle } from '../../../src/lib/restOnSetToggle'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
@@ -25,7 +25,6 @@ export default function ActiveWorkout() {
   const session = useWorkoutSession((s) => s.session)
   const updateSet = useWorkoutSession((s) => s.updateSet)
   const updateExerciseNotes = useWorkoutSession((s) => s.updateExerciseNotes)
-  const completeSet = useWorkoutSession((s) => s.completeSet)
   const addSet = useWorkoutSession((s) => s.addSet)
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
@@ -43,6 +42,12 @@ export default function ActiveWorkout() {
 
   const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [keyboardUp, setKeyboardUp] = useState(false)
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardUp(true))
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardUp(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [activeExIdx, setActiveExIdx] = useState(0)
   const [showPicker, setShowPicker] = useState(false)
@@ -109,13 +114,9 @@ export default function ActiveWorkout() {
     // settles and nothing reflows later (e.g. a rest timer starting under a raised board).
     Keyboard.dismiss()
     // Impact only when a set becomes completed (not on un-toggle).
-    const ex = session?.exercises[exIdx]
-    const wasCompleted = !!ex?.sets[setIdx].completed
-    if (ex && !wasCompleted) {
+    if (!applyRestOnToggle(exIdx, setIdx)) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
     }
-    completeSet(exIdx, setIdx)
-    if (ex) applyRestOnToggle(ex, exIdx, setIdx, wasCompleted)
     if (exIdx !== activeExIdx) setActiveExIdx(exIdx)
   })
 
@@ -273,8 +274,14 @@ export default function ActiveWorkout() {
         </View>
       </ScrollView>
 
-      {/* Docked in-flow under the list, above the tab bar (which owns the bottom inset). */}
-      <RestTimerBanner bottomInset={false} />
+      {/* Docked in-flow under the list, above the tab bar (which owns the bottom inset), edge to
+          edge like the header. Hidden while the keyboard is up so the list keeps its room; rest
+          keeps running in the store. */}
+      {keyboardUp ? null : (
+        <View className="-mx-5">
+          <RestTimerBanner bottomInset={false} />
+        </View>
+      )}
 
       {/* Finish confirm */}
       <ConfirmSheet

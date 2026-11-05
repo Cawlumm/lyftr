@@ -548,7 +548,7 @@ test.describe('List layout rest timer', () => {
     }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: session, on: restEnabled })
   }
 
-  test('ticking a set starts the rest banner, un-ticking dismisses it, Finish stays reachable', async ({ page }) => {
+  test('ticking a set starts the rest banner, un-ticking dismisses it, and the banner never covers Add Exercise', async ({ page }) => {
     await seedList(page, true)
     await page.goto('/workouts/active')
     const pause = page.getByRole('button', { name: 'Pause rest timer' })
@@ -557,7 +557,14 @@ test.describe('List layout rest timer', () => {
     await page.getByRole('button', { name: /^Complete set 1/ }).click()
     await expect(pause).toBeVisible()
     await expect(page.getByText(/^0:(?:1[0-9]|20)$/)).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Finish', exact: true }).first()).toBeVisible()
+    const add = page.getByRole('button', { name: 'Add Exercise' })
+    await add.scrollIntoViewIfNeeded()
+    await expect(add).toBeVisible()
+    const addBox = await add.boundingBox()
+    const bannerBox = await page.getByText(/^Set 1 done/).boundingBox()
+    expect(addBox).not.toBeNull()
+    expect(bannerBox).not.toBeNull()
+    expect(addBox!.y + addBox!.height).toBeLessThanOrEqual(bannerBox!.y)
 
     await page.getByRole('button', { name: /^Completed set 1/ }).click()
     await expect(pause).toHaveCount(0)

@@ -21,8 +21,7 @@ import { WEB_BUTTON, interactive } from '../ui/interaction'
 // and non-dimming). A draining line, a big optically-centred countdown with pause/
 // resume, and full-width −15/+15/Skip actions (Done when finished). Docked in-flow as
 // the last child of every gym phase, below its bottom actions, so it never covers a
-// control. The list layout sits above the tab bar, which already owns the bottom inset
-// (bottomInset={false}). When minimized the countdown is the session-pill chip instead.
+// control. When minimized the countdown is the session-pill chip instead.
 export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean } = {}) {
   const { t } = useTranslation()
   const { colors, brand } = useTheme()

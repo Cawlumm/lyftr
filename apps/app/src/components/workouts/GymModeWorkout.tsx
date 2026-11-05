@@ -18,7 +18,7 @@ import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
 import { ElapsedClock, ProgressSegments } from './GymProgress'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
-import { applyRestOnToggle } from '../../hooks/restOnSetToggle'
+import { applyRestOnToggle } from '../../lib/restOnSetToggle'
 import { GymFrame } from './GymFrame'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
@@ -122,7 +122,6 @@ export function GymModeWorkout() {
   const activeSetIdx = useWorkoutSession((s) => s.gymSetIdx)
   const setGymState = useWorkoutSession((s) => s.setGymState)
   const updateSet = useWorkoutSession((s) => s.updateSet)
-  const completeSet = useWorkoutSession((s) => s.completeSet)
   const addSet = useWorkoutSession((s) => s.addSet)
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
@@ -560,10 +559,7 @@ export function GymModeWorkout() {
     // Done typing this set — drop the keyboard so the rest sheet doesn't animate in under
     // a raised keyboard (and pausing it later can't trigger a blur-reflow).
     Keyboard.dismiss()
-    const wasCompleted = ex.sets[setIdx].completed
-    completeSet(activeIdx, setIdx)
-    applyRestOnToggle(ex, activeIdx, setIdx, wasCompleted)
-    if (wasCompleted) return
+    if (applyRestOnToggle(activeIdx, setIdx)) return
     // Satisfying "clunk" when a set lands (native-feel; web has none).
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
     const next = nextIncompleteSet(ex.sets, setIdx)
