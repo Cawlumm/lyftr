@@ -11,7 +11,8 @@ name: CI
 #
 # Per-job filtering (the `changes` job + dorny/paths-filter): a backend-only change skips
 # the mobile jobs, a mobile-only change skips the Go + version-smoke jobs,
-# and so on. The image-build and deploy jobs stay eligible regardless — they're guarded
+# and so on. The image-build and deploy jobs stay eligible regardless (on branches other
+# than main the image builds run in the pull_request run only) — they're guarded
 # with `!failure() && !cancelled()` so a *skipped* (not failed) test dependency doesn't
 # cascade into skipping the build/deploy gate. On main/tags every test job runs
 # unconditionally, so filtering never weakens deploys.
@@ -36,6 +37,15 @@ on:
 # now applied workflow-wide since mobile checks run here too.
 permissions:
   contents: read
+
+# A newer commit on a branch or PR cancels the run it supersedes. main and tags get a group
+# of their own per run, so nothing there is ever cancelled or held pending (every main
+# commit still builds, pushes and deploys). Push and pull_request runs stay in separate
+# groups: both report the required checks on the same head SHA, and GitHub does not
+# document which of two same-named checks a ruleset reads, so neither may cancel the other.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
   # Which domains changed? Gates the fast unit-test jobs below so a backend-only PR doesn't
@@ -104,12 +114,6 @@ jobs:
       startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Job-level (not workflow-level) so a superseded mobile run gets canceled on rapid pushes —
-    # mobile-ci.yml had this at the workflow level; scoping it to just this job here avoids ever
-    # risking cancellation of the build-backend/build-frontend/deploy-demo jobs on a main push.
-    concurrency:
-      group: ci-mobile-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -140,9 +144,6 @@ jobs:
       startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    concurrency:
-      group: ci-web-export-${{ github.ref }}
-      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
@@ -207,19 +208,24 @@ jobs:
 
   # The e2e gate: the Expo app's web export, served by the `frontend` image
   # (apps/app/Dockerfile.web) and driven by the Playwright harness in apps/app/e2e.
-  e2e-app:
-    name: Playwright E2E (Expo app)
+  # Two shards on two runners, each with its own compose stack; `e2e-app` below is the
+  # required check and passes only when both do.
+  e2e-shard:
+    name: Playwright E2E shard ${{ matrix.shard }}/2
     needs: changes
     if: >-
       needs.changes.outputs.backend == 'true' ||
       needs.changes.outputs.mobile == 'true' ||
       github.ref == 'refs/heads/main' ||
       startsWith(github.ref, 'refs/tags/')
-    # Not ubuntu-latest: that moved to 26.04, which has no ICU 74, and Playwright's WebKit
-    # build links against it, so every `mobile` project test died at browser launch.
-    # Unpin once the Playwright we run ships WebKit for 26.04.
+    # Not ubuntu-latest: that moved to 26.04. The browsers now run in the Playwright image,
+    # so this pin only holds the host (docker, compose) steady.
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
 
@@ -231,20 +237,38 @@ jobs:
           echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
 
       - uses: docker/setup-buildx-action@v3
+        with:
+          cleanup: false   # the hosted runner is discarded anyway; removing the builder cost ~15s
 
-      # Same cache scopes as build-backend/build-frontend, so whichever runs first warms
-      # the others.
+      # `type=gha` from a plain `run:` step needs ACTIONS_RUNTIME_TOKEN and ACTIONS_RESULTS_URL,
+      # which only actions see; without them buildx used no cache at all (no CACHED step in any
+      # run). https://docs.docker.com/build/cache/backends/gha/
+      - uses: crazy-max/ghaction-github-runtime@3cb05d89e1f492524af3d41a1c98c83bc3025124 # v3
+
+      # Own scopes: build-backend/build-frontend write multi-arch caches, and builds sharing a
+      # scope overwrite each other. Both shards read; only shard 1 writes, once.
       - name: Build images with layer cache
+        env:
+          WRITE: ${{ matrix.shard == 1 }}
         run: |
+          to=()
+          if [ "$WRITE" = true ]; then
+            to=(--set "backend.cache-to=type=gha,scope=lyftr-e2e-backend,mode=max"
+                --set "frontend.cache-to=type=gha,scope=lyftr-e2e-frontend,mode=max")
+          fi
           docker buildx bake \
-            --set "backend.cache-from=type=gha,scope=lyftr-backend" \
-            --set "backend.cache-to=type=gha,scope=lyftr-backend,mode=max" \
-            --set "frontend.cache-from=type=gha,scope=lyftr-frontend" \
-            --set "frontend.cache-to=type=gha,scope=lyftr-frontend,mode=max" \
+            --set "backend.cache-from=type=gha,scope=lyftr-e2e-backend" \
+            --set "frontend.cache-from=type=gha,scope=lyftr-e2e-frontend" \
+            "${to[@]}" \
             --load
+          # The runtime token was for the cache only; npm ci's install scripts don't get it.
+          echo "ACTIONS_RUNTIME_TOKEN=" >> "$GITHUB_ENV"
 
+      # The compose healthcheck polls every 30s, so `--wait` always took 31s. CI-only override.
       - name: Start stack
-        run: docker compose up -d --wait
+        run: |
+          printf 'services:\n  backend:\n    healthcheck:\n      interval: 2s\n      retries: 30\n' > "$RUNNER_TEMP/compose.ci.yml"
+          docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.ci.yml" up -d --wait
 
       - uses: actions/setup-node@v4
         with:
@@ -254,22 +278,25 @@ jobs:
 
       - run: npm ci
 
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      # Browsers and their OS libraries come preinstalled in Playwright's own image, tagged to
+      # the exact @playwright/test in the lockfile. `install-deps` fetched ~114 MB from the
+      # runner's apt mirror, which at times trickled at ~80 KB/s and ran the job into its
+      # timeout before a test started. A pull is bounded and retried instead.
+      # https://playwright.dev/docs/docker
+      - name: Pull the Playwright image
+        timeout-minutes: 9   # above retry.sh's worst case (3 x 160s + 10s), so its own error shows
+        run: |
+          v=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")
+          img="mcr.microsoft.com/playwright:v${v}-noble"
+          bash .github/scripts/retry.sh 3 150 docker pull -q "$img"
+          echo "PW_IMAGE=$img" >> "$GITHUB_ENV"
 
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: cd apps/app && npx playwright install chromium webkit
-
-      - name: Install Playwright system dependencies
-        run: cd apps/app && npx playwright install-deps chromium webkit
-
+      # --network host: the stack is published on the runner's localhost:8081.
       - name: Run E2E tests
-        run: cd apps/app && npm run test:e2e
+        run: |
+          docker run --rm --init --ipc=host --network host -e CI=true \
+            -v "$PWD:/work" -w /work/apps/app "$PW_IMAGE" \
+            npx playwright test --shard=${{ matrix.shard }}/2
 
       - name: Show container logs
         if: failure()
@@ -278,11 +305,32 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-app
+          name: playwright-report-app-${{ matrix.shard }}
           path: |
             apps/app/playwright-report/
             apps/app/test-results/
           retention-days: 7
+
+  # The required check. always(): a failed or cancelled shard must fail this job, not skip
+  # it, since a skipped required check counts as passing. When the filter skips e2e this
+  # job's own `if` skips it too, exactly as the single job used to be skipped.
+  e2e-app:
+    name: Playwright E2E (Expo app)
+    needs: [changes, e2e-shard]
+    if: >-
+      always() && (
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.mobile == 'true' ||
+      github.ref == 'refs/heads/main' ||
+      startsWith(github.ref, 'refs/tags/'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: All shards passed
+        env:
+          RESULT: ${{ needs.e2e-shard.result }}
+        run: |
+          echo "shards: $RESULT"
+          test "$RESULT" = success
 
   version-smoke:
     name: Version injection smoke test
@@ -361,8 +409,11 @@ jobs:
     name: Build & push backend image
     needs: [test, e2e-app, version-smoke]
     # Still verify the image builds even if a test dependency was *skipped* by filtering;
-    # only a genuine failure/cancel of a dependency should stop it.
-    if: ${{ !failure() && !cancelled() }}
+    # only a genuine failure/cancel of a dependency should stop it. On other branches only in
+    # the pull_request run: the push run for the same commit would build the same images.
+    if: >-
+      !failure() && !cancelled() &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -401,7 +452,10 @@ jobs:
   build-frontend:
     name: Build & push frontend image
     needs: [test, e2e-app, mobile, web-export]
-    if: ${{ !failure() && !cancelled() }}   # tolerate skipped (filtered) test deps; stop on real failure
+    # Tolerate skipped (filtered) test deps; stop on real failure. Same event rule as build-backend.
+    if: >-
+      !failure() && !cancelled() &&
+      (github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
