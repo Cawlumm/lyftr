@@ -288,7 +288,7 @@ test.describe('Workouts', () => {
       await page.goto('/workouts/active')
       await page.getByRole('button', { name: 'Finish', exact: true }).first().click()
       const sheet = page.getByRole('dialog', { name: 'Nothing to save yet' })
-      await expect(sheet.getByText('No sets are completed.', { exact: false })).toBeVisible()
+      await expect(sheet.getByText('No sets are done yet.', { exact: false })).toBeVisible()
       await expect(sheet.getByRole('button', { name: 'Finish', exact: true })).toHaveCount(0)
       await sheet.getByRole('button', { name: 'Discard', exact: true }).click()
       await page.waitForURL('**/workouts')
