@@ -76,12 +76,13 @@ describe('top bar', () => {
     useWorkoutSession.setState({ session: { ...s, exercises: [...s.exercises, second()] }, gymPhase: 'exercise', gymExIdx: 0, gymSetIdx: 1 })
   })
 
-  it('opens the exercises sheet from the exercise heading and jumps to the exercise picked', async () => {
+  it('opens the exercises sheet from the exercise heading and jumps to the first set still to do', async () => {
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press, chest, 1/3 sets done' }))
     await fireEvent.press(screen.getByLabelText('2. Squat, 1/3 sets done'))
     const state = useWorkoutSession.getState()
-    expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise-info', 1, 0])
+    // Squat's set 1 is logged, so it opens on set 2.
+    expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise-info', 1, 1])
     expect(screen.queryByLabelText(/^1\. Bench Press/)).toBeNull()
     // The info phase's title is the same switcher, so the way back is the sheet.
     expect(screen.getByRole('button', { name: 'Exercises, 2 of 2, Squat, chest, Barbell, strength' })).toBeTruthy()
@@ -150,7 +151,50 @@ describe('top bar', () => {
     await fireEvent.press(screen.getByText('Workout overview'))
     await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
     expect(useWorkoutSession.getState().gymPhase).toBe('overview')
-    expect(screen.getByText('Start Workout')).toBeTruthy()
+    // Sets are logged, so it continues where the workout is rather than restarting at 1.
+    await fireEvent.press(screen.getByText('Continue Workout'))
+    const state = useWorkoutSession.getState()
+    expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise-info', 0, 1])
+    await view.unmount()
+  })
+
+  it('tapping the exercise being worked only closes the sheet', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercises, 1 of 2, Bench Press, chest, 1/3 sets done' }))
+    await fireEvent.press(screen.getByLabelText('1. Bench Press, current exercise, 1/3 sets done'))
+    const state = useWorkoutSession.getState()
+    expect([state.gymPhase, state.gymExIdx, state.gymSetIdx]).toEqual(['exercise', 0, 1])
+    await view.unmount()
+  })
+
+  it('asks before removing an exercise that has logged sets', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByLabelText('Remove this exercise'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(useWorkoutSession.getState().session!.exercises).toHaveLength(2)
+    expect(screen.getByText('Bench Press and its 1 completed set will be removed from this workout.')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Remove'))
+    expect(useWorkoutSession.getState().session!.exercises.map((e) => e.exercise.name)).toEqual(['Squat'])
+    await view.unmount()
+  })
+
+  it('removes an exercise with nothing logged at once', async () => {
+    const s = useWorkoutSession.getState().session!
+    useWorkoutSession.setState({
+      session: { ...s, exercises: s.exercises.map((e) => ({ ...e, sets: e.sets.map((st) => ({ ...st, completed: false })) })) },
+    })
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByLabelText('Remove this exercise'))
+    expect(useWorkoutSession.getState().session!.exercises.map((e) => e.exercise.name)).toEqual(['Squat'])
+    await view.unmount()
+  })
+
+  it('offers Remove this set only on a set not yet logged', async () => {
+    useWorkoutSession.setState({ gymSetIdx: 0 })
+    const view = await render(<GymModeWorkout />)
+    expect(screen.queryByText('Remove this set')).toBeNull()
+    await fireEvent.press(screen.getByLabelText('Set 2'))
+    expect(screen.getByText('Remove this set')).toBeTruthy()
     await view.unmount()
   })
 

@@ -1258,7 +1258,8 @@
       "totalSets": "Series totales",
       "muscles": "Músculos",
       "empty": "Aún no has agregado ejercicios",
-      "startWorkout": "Empezar entrenamiento"
+      "startWorkout": "Empezar entrenamiento",
+      "continueWorkout": "Continuar entrenamiento"
     },
     "info": {
       "restTitle": "Descanso entre series",
@@ -1279,6 +1280,13 @@
     "completed": "Completada",
     "removeSet": "Quitar esta serie",
     "removeExercise": "Quitar este ejercicio",
+    "removeConfirm": {
+      "title": "¿Quitar ejercicio?",
+      "message_one": "Se quitarán {{name}} y su {{count}} serie completada de este entrenamiento.",
+      "message_many": "Se quitarán {{name}} y sus {{count}} series completadas de este entrenamiento.",
+      "message_other": "Se quitarán {{name}} y sus {{count}} series completadas de este entrenamiento.",
+      "confirm": "Quitar"
+    },
     "previousSet": "Serie anterior",
     "nextSet": "Serie siguiente",
     "nav": {

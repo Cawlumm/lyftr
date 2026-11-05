@@ -1241,7 +1241,8 @@
       "totalSets": "Total Sets",
       "muscles": "Muscles",
       "empty": "No exercises added yet",
-      "startWorkout": "Start Workout"
+      "startWorkout": "Start Workout",
+      "continueWorkout": "Continue Workout"
     },
     "info": {
       "restTitle": "Rest between sets",
@@ -1262,6 +1263,12 @@
     "completed": "Completed",
     "removeSet": "Remove this set",
     "removeExercise": "Remove this exercise",
+    "removeConfirm": {
+      "title": "Remove exercise?",
+      "message_one": "{{name}} and its {{count}} completed set will be removed from this workout.",
+      "message_other": "{{name}} and its {{count}} completed sets will be removed from this workout.",
+      "confirm": "Remove"
+    },
     "previousSet": "Previous set",
     "nextSet": "Next set",
     "nav": {

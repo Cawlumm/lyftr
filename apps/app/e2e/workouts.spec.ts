@@ -460,14 +460,15 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expectBelow('Begin Exercise')
 
     // Exercise info -> overview, from the workout menu (Back is gone from the exercise screens).
+    // A set is logged, so the overview's CTA continues the workout.
     await button(page, 'More options').click()
     await page.getByRole('menuitem', { name: 'Workout overview' }).click()
-    await expect(button(page, 'Start Workout')).toBeVisible()
+    await expect(button(page, 'Continue Workout')).toBeVisible()
     await expect(skip).toHaveCount(1)
-    await expectBelow('Start Workout')
+    await expectBelow('Continue Workout')
 
     // Both CTAs stay reachable while resting.
-    await button(page, 'Start Workout').click()
+    await button(page, 'Continue Workout').click()
     await button(page, 'Begin Exercise').click()
     await expect(skip).toBeVisible()
   })
