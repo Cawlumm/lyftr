@@ -1,4 +1,18 @@
-import { fmtClock, nextIncompleteSet, formatElapsed, restLabel, numericRange } from './workoutSets'
+import { exerciseFractions, fmtClock, nextIncompleteSet, formatElapsed, restLabel, numericRange } from './workoutSets'
+
+describe('exerciseFractions', () => {
+  const sets = (...done: boolean[]) => ({ sets: done.map((completed) => ({ completed })) })
+  it('gives each exercise the share of its sets completed', () => {
+    expect(exerciseFractions([sets(true, true, true), sets(true, false, false), sets(false, false)]))
+      .toEqual([1, 1 / 3, 0])
+  })
+  it('treats an exercise with no sets as empty, not NaN', () => {
+    expect(exerciseFractions([{ sets: [] }])).toEqual([0])
+  })
+  it('is empty for no exercises', () => {
+    expect(exerciseFractions([])).toEqual([])
+  })
+})
 
 describe('fmtClock', () => {
   it('formats seconds as m:ss with zero-padding', () => {

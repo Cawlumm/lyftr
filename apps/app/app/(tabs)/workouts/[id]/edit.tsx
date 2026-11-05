@@ -5,12 +5,13 @@ import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../../src/components/ui/icons'
-import { useAsyncAction, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { useAsyncAction, moveItem, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { interactive } from '../../../../src/components/ui/interaction'
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
+import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
@@ -69,6 +70,7 @@ export default function EditWorkout() {
   const smooth = !(Platform.OS === 'web' && reduced)
 
   const [showPicker, setShowPicker] = useState(false)
+  const [showReorder, setShowReorder] = useState(false)
   const [initialLoading, setInitialLoading] = useState(true)
   // Only what the FORM can say before anything is sent. What the SERVER says lives
   // on `save` below; both render in the same alert. Both messages here are a UiMessage
@@ -182,6 +184,10 @@ export default function EditWorkout() {
     }))
   }, [])
 
+  const openReorder = useCallback(() => setShowReorder(true), [])
+  const moveExercise = useCallback((from: number, to: number) =>
+    setFormData((prev) => ({ ...prev, exercises: moveItem(prev.exercises, from, to) })), [])
+
   const setExRest = useCallback((exIdx: number, secs: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -248,6 +254,7 @@ export default function EditWorkout() {
 
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
+  const rowKeys = occurrenceKeys(selectedIds)
   const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const totalWeight = formData.exercises.reduce(
     (sum, ex) => sum + ex.sets.reduce((s, set) => s + (set.weight || 0), 0),
@@ -335,19 +342,24 @@ export default function EditWorkout() {
 
           {/* No summary strip — the header caption already carries exercises · sets · total. */}
           <View>
-            <View className="mb-3 flex-row items-center justify-between">
+            {/* Wraps where the label and both buttons do not fit one row (a phone in Spanish):
+                the buttons drop to their own row, still on the right. */}
+            <View className="mb-3 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
               <View className="flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
                 <Label>{t('workouts.form.exercises')}</Label>
               </View>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowPicker(true)}
-                className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
-              >
-                <Plus size={13} color="#ffffff" />
-                <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
-              </Pressable>
+              <View className="ml-auto flex-row items-center gap-2">
+                {formData.exercises.length > 1 ? <ReorderButton onPress={openReorder} size="compact" /> : null}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setShowPicker(true)}
+                  className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+                >
+                  <Plus size={13} color="#ffffff" />
+                  <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                </Pressable>
+              </View>
             </View>
 
             {formData.exercises.length === 0 && (
@@ -364,7 +376,7 @@ export default function EditWorkout() {
             <View className="gap-4">
               {formData.exercises.map((workoutEx, exIdx) => (
                 <ExerciseFormCard
-                  key={exIdx}
+                  key={rowKeys[exIdx]}
                   index={exIdx}
                   exercise={pickerExercises[workoutEx.exercise_id]}
                   notes={workoutEx.notes}
@@ -413,6 +425,13 @@ export default function EditWorkout() {
       {showPicker && (
         <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />
       )}
+      <ReorderExercisesSheet
+        open={showReorder}
+        names={formData.exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
+        rowKeys={rowKeys}
+        onMove={moveExercise}
+        onClose={() => setShowReorder(false)}
+      />
     </Screen>
   )
 }

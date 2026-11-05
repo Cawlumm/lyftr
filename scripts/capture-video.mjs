@@ -303,7 +303,8 @@ const tours = {
     await take.hold(800)
     await take.click(page.getByRole('button', { name: 'Complete Set', exact: true }))
     await take.hold(2000)
-    await take.click(page.getByRole('button', { name: 'Minimize workout' }))
+    await take.click(page.getByRole('button', { name: 'More options' }))
+    await take.click(page.getByRole('menuitem', { name: 'Minimize' }))
     await take.offCamera(async () => {
       await take.settle()
       await nav(page, 'Nutrition').click()

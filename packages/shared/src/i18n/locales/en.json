@@ -1172,6 +1172,14 @@
       },
       "markSetDone": "Set {{number}}, mark done"
     },
+    "reorder": {
+      "title": "Reorder exercises",
+      "button": "Reorder",
+      "hint": "Hold and drag a row, or use the arrows.",
+      "moveUp": "Move {{name}} up",
+      "moveDown": "Move {{name}} down",
+      "moved": "{{name}} moved to position {{position}} of {{count}}"
+    },
     "rest": {
       "off": "Off",
       "custom": "Custom",
@@ -1200,14 +1208,27 @@
   },
   "gym": {
     "workout": "Workout",
-    "goToExercise": "Go to exercise {{number}}",
-    "minimizeWorkout": "Minimize workout",
     "minimize": "Minimize",
+    "elapsed": "Workout time {{time}}",
     "discardWorkout": "Discard workout",
     "discard": {
       "title": "Discard workout?",
       "message": "This ends the workout without saving — all progress is lost.",
       "confirm": "Discard"
+    },
+    "menu": {
+      "more": "More options",
+      "addExercise": "Add exercise",
+      "allExercises": "All exercises",
+      "overview": "Workout overview",
+      "subtitle": "{{name}} · {{sets}}"
+    },
+    "exercises": {
+      "title": "Exercises",
+      "switcher": "Exercises, {{current}} of {{total}}, {{name}}",
+      "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
+      "rowCurrent": "{{number}}. {{name}}, current exercise, {{sets}}",
+      "rowDone": "{{number}}. {{name}}, done, {{sets}}"
     },
     "labels": {
       "sets": "Sets",
@@ -1220,7 +1241,8 @@
       "totalSets": "Total Sets",
       "muscles": "Muscles",
       "empty": "No exercises added yet",
-      "startWorkout": "Start Workout"
+      "startWorkout": "Start Workout",
+      "continueWorkout": "Continue Workout"
     },
     "info": {
       "restTitle": "Rest between sets",
@@ -1241,6 +1263,12 @@
     "completed": "Completed",
     "removeSet": "Remove this set",
     "removeExercise": "Remove this exercise",
+    "removeConfirm": {
+      "title": "Remove exercise?",
+      "message_one": "{{name}} and its {{count}} completed set will be removed from this workout.",
+      "message_other": "{{name}} and its {{count}} completed sets will be removed from this workout.",
+      "confirm": "Remove"
+    },
     "previousSet": "Previous set",
     "nextSet": "Next set",
     "nav": {
@@ -1311,7 +1339,10 @@
       "noMatchBody": "Try another search or reset the filters."
     },
     "picker": {
-      "catalogEmpty": { "title": "The exercise library is still loading", "body": "Try again in a moment." },
+      "catalogEmpty": {
+        "title": "The exercise library is still loading",
+        "body": "Try again in a moment."
+      },
       "title": "Add Exercise",
       "loaded_one": "{{count}} loaded",
       "loaded_other": "{{count}} loaded",

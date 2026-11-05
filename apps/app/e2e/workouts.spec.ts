@@ -272,6 +272,13 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
   const button = (page: Page, name: string | RegExp) => dialog(page).getByRole('button', { name })
   const pill = (page: Page, name: string) => page.getByText(name, { exact: true }).locator('visible=true')
 
+  // Minimize is the chevron at the top left; Discard lives in the workout menu.
+  async function exitMenu(page: Page, item: 'Minimize' | 'Discard workout') {
+    if (item === 'Minimize') return button(page, 'Minimize').click()
+    await button(page, 'More options').click()
+    await page.getByRole('menuitem', { name: item }).click()
+  }
+
   async function openGym(page: Page) {
     await page.goto('/workouts/active')
     await expect(dialog(page)).toBeVisible({ timeout: 5000 })
@@ -337,7 +344,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await seedGym(page, 'E2E Cancel Test', [ex('Bench Press', 'Chest', [set(1)])])
     await openGym(page)
 
-    await button(page, 'Discard workout').click()
+    await exitMenu(page, 'Discard workout')
     const confirm = page.getByRole('dialog').filter({ hasText: 'Discard workout?' })
     await expect(confirm).toBeVisible({ timeout: 3000 })
     await confirm.getByRole('button', { name: /keep going/i }).click()
@@ -362,7 +369,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await seedGym(page, 'E2E Minimize Test', [ex('Deadlift', 'Back', [set(1, 3, 150)])])
     await openGym(page)
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     await expect(dialog(page)).toHaveCount(0)
     await expect(pill(page, 'E2E Minimize Test')).toBeVisible()
 
@@ -452,14 +459,16 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(skip).toHaveCount(1)
     await expectBelow('Begin Exercise')
 
-    // Exercise info -> overview, by the header's first control.
-    await dialog(page).getByRole('button').first().click()
-    await expect(button(page, 'Start Workout')).toBeVisible()
+    // Exercise info -> overview, from the workout menu (Back is gone from the exercise screens).
+    // A set is logged, so the overview's CTA continues the workout.
+    await button(page, 'More options').click()
+    await page.getByRole('menuitem', { name: 'Workout overview' }).click()
+    await expect(button(page, 'Continue Workout')).toBeVisible()
     await expect(skip).toHaveCount(1)
-    await expectBelow('Start Workout')
+    await expectBelow('Continue Workout')
 
     // Both CTAs stay reachable while resting.
-    await button(page, 'Start Workout').click()
+    await button(page, 'Continue Workout').click()
     await button(page, 'Begin Exercise').click()
     await expect(skip).toBeVisible()
   })
@@ -476,7 +485,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await button(page, 'Next Exercise').click()
     await expect(dialog(page).getByText('Exercise Two').first()).toBeVisible()
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     await expect(pill(page, 'E2E Restore Test')).toBeVisible()
 
     // The phase is persisted in the gym store, so the pill resumes where the lifter was.
@@ -498,7 +507,7 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await button(page, 'Begin Exercise').click()
     await expect(button(page, 'Complete Set')).toBeVisible()
 
-    await button(page, /^minimize/i).click()
+    await exitMenu(page, 'Minimize')
     // Minimizing replaces /workouts/active with /workouts; reloading before that lands would
     // reload the overlay's own URL.
     await expect(dialog(page)).toHaveCount(0)

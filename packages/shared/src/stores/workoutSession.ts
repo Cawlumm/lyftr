@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as types from '../types'
 import { StorageAdapter } from '../storage'
+import { moveItem, remapIndex } from '../utils/reorder'
 
 // Same keys as the web app's localStorage — a future web migration to @lyftr/shared
 // is a drop-in. Exported so tests (and hydration seeding) can reference them.
@@ -82,6 +83,7 @@ export interface WorkoutSessionStore {
   removeSet: (exIdx: number, setIdx: number) => void
   addExercise: (ex: types.ActiveSessionExercise) => void
   removeExercise: (exIdx: number) => void
+  moveExercise: (from: number, to: number) => void
   buildPayload: () => any
   cancelSession: () => void
   openGym: () => void
@@ -308,6 +310,26 @@ export function createWorkoutSession(storage: StorageAdapter) {
       // filter() shifts exercise indices, invalidating the positional restExIdx — cancel
       // the (ephemeral) rest so it can't collapse controls on the wrong exercise.
       set({ session: updated, ...CLEARED_REST })
+    },
+
+    // Sets are nested in their exercise, so they travel with it. The positional indices
+    // that point into the list follow the exercise they belonged to: the gym screen keeps
+    // showing the exercise it was on, and a running rest keeps counting for its own set.
+    moveExercise: (from, to) => {
+      const state = get()
+      const session = state.session
+      if (!session) return
+      const exercises = moveItem(session.exercises, from, to)
+      if (exercises === session.exercises) return
+      const updated = { ...session, exercises }
+      saveLocal(updated)
+      const gymExIdx = remapIndex(state.gymExIdx, from, to)
+      saveGymUi({ phase: state.gymPhase, exIdx: gymExIdx, setIdx: state.gymSetIdx })
+      set({
+        session: updated,
+        gymExIdx,
+        restExIdx: state.restExIdx == null ? null : remapIndex(state.restExIdx, from, to),
+      })
     },
 
     buildPayload: () => {

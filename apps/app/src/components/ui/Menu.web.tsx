@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
+import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { Pressable } from 'react-native'
 import { MoreVertical } from './icons'
 import { useTheme } from '../../theme/useTheme'
@@ -119,23 +119,25 @@ export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, dis
           className="min-w-[200px] max-w-[320px] rounded-xl border border-surface-border bg-surface-raised p-1.5 shadow-lg"
         >
           {items.map((item, i) => (
-            <div
-              key={i}
-              ref={el => { itemEls.current[i] = el }}
-              role="menuitem"
-              tabIndex={-1}
-              // A portal still bubbles through the React tree, into whatever card holds the menu.
-              onClick={e => { e.stopPropagation(); run(i) }}
-              // Pointer and keyboard share one highlight: hovering an item focuses it, as in the
-              // APG example and in desktop menus.
-              onPointerMove={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.focus() }}
-              className={`flex flex-row items-center gap-2.5 rounded-lg px-3 py-2 outline-none focus:bg-surface-muted ${interactive('', { inset: true })}`}
-            >
-              {item.icon ? (
-                <Icon icon={item.icon} size="md" color={item.destructive ? (isDark ? brand.errorSoft : brand.error) : colors.txMuted} />
-              ) : null}
-              <AppText variant="body" color={item.destructive ? 'error' : 'primary'}>{item.label}</AppText>
-            </div>
+            <Fragment key={i}>
+              {item.separated && i > 0 ? <div role="separator" className="mx-1.5 my-1 h-px bg-surface-border" /> : null}
+              <div
+                ref={el => { itemEls.current[i] = el }}
+                role="menuitem"
+                tabIndex={-1}
+                // A portal still bubbles through the React tree, into whatever card holds the menu.
+                onClick={e => { e.stopPropagation(); run(i) }}
+                // Pointer and keyboard share one highlight: hovering an item focuses it, as in the
+                // APG example and in desktop menus.
+                onPointerMove={e => { if (document.activeElement !== e.currentTarget) e.currentTarget.focus() }}
+                className={`flex flex-row items-center gap-2.5 rounded-lg px-3 py-2 outline-none focus:bg-surface-muted ${interactive('', { inset: true })}`}
+              >
+                {item.icon ? (
+                  <Icon icon={item.icon} size="md" color={item.destructive ? (isDark ? brand.errorSoft : brand.error) : colors.txMuted} />
+                ) : null}
+                <AppText variant="body" color={item.destructive ? 'error' : 'primary'}>{item.label}</AppText>
+              </div>
+            </Fragment>
           ))}
         </AnchoredOverlay>
       ) : null}

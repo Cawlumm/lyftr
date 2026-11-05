@@ -1189,6 +1189,14 @@
       },
       "markSetDone": "Serie {{number}}, marcar como hecha"
     },
+    "reorder": {
+      "title": "Reordenar ejercicios",
+      "button": "Reordenar",
+      "hint": "Mantén pulsada una fila y arrástrala, o usa las flechas.",
+      "moveUp": "Subir {{name}}",
+      "moveDown": "Bajar {{name}}",
+      "moved": "{{name}} movido a la posición {{position}} de {{count}}"
+    },
     "rest": {
       "off": "No",
       "custom": "Otro",
@@ -1217,14 +1225,27 @@
   },
   "gym": {
     "workout": "Entrenamiento",
-    "goToExercise": "Ir al ejercicio {{number}}",
-    "minimizeWorkout": "Minimizar entrenamiento",
     "minimize": "Minimizar",
+    "elapsed": "Tiempo de entrenamiento {{time}}",
     "discardWorkout": "Descartar entrenamiento",
     "discard": {
       "title": "¿Descartar el entrenamiento?",
       "message": "Esto termina el entrenamiento sin guardarlo: se pierde todo el progreso.",
       "confirm": "Descartar"
+    },
+    "menu": {
+      "more": "Más opciones",
+      "addExercise": "Agregar ejercicio",
+      "allExercises": "Todos los ejercicios",
+      "overview": "Resumen del entrenamiento",
+      "subtitle": "{{name}} · {{sets}}"
+    },
+    "exercises": {
+      "title": "Ejercicios",
+      "switcher": "Ejercicios, {{current}} de {{total}}, {{name}}",
+      "rowUpcoming": "{{number}}. {{name}}, {{sets}}",
+      "rowCurrent": "{{number}}. {{name}}, ejercicio actual, {{sets}}",
+      "rowDone": "{{number}}. {{name}}, hecho, {{sets}}"
     },
     "labels": {
       "sets": "Series",
@@ -1237,7 +1258,8 @@
       "totalSets": "Series totales",
       "muscles": "Músculos",
       "empty": "Aún no has agregado ejercicios",
-      "startWorkout": "Empezar entrenamiento"
+      "startWorkout": "Empezar entrenamiento",
+      "continueWorkout": "Continuar entrenamiento"
     },
     "info": {
       "restTitle": "Descanso entre series",
@@ -1258,6 +1280,13 @@
     "completed": "Completada",
     "removeSet": "Quitar esta serie",
     "removeExercise": "Quitar este ejercicio",
+    "removeConfirm": {
+      "title": "¿Quitar ejercicio?",
+      "message_one": "Se quitarán {{name}} y su {{count}} serie completada de este entrenamiento.",
+      "message_many": "Se quitarán {{name}} y sus {{count}} series completadas de este entrenamiento.",
+      "message_other": "Se quitarán {{name}} y sus {{count}} series completadas de este entrenamiento.",
+      "confirm": "Quitar"
+    },
     "previousSet": "Serie anterior",
     "nextSet": "Serie siguiente",
     "nav": {
@@ -1328,7 +1357,10 @@
       "noMatchBody": "Prueba otra búsqueda o restablece los filtros."
     },
     "picker": {
-      "catalogEmpty": { "title": "La biblioteca de ejercicios todavía se está cargando", "body": "Inténtalo de nuevo en un momento." },
+      "catalogEmpty": {
+        "title": "La biblioteca de ejercicios todavía se está cargando",
+        "body": "Inténtalo de nuevo en un momento."
+      },
       "title": "Agregar ejercicio",
       "loaded_one": "{{count}} cargado",
       "loaded_other": "{{count}} cargados",

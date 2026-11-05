@@ -125,6 +125,55 @@ describe('workoutSession rest timer (ephemeral)', () => {
   })
 })
 
+describe('workoutSession moveExercise (#166)', () => {
+  const three = () => [
+    { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: 'a', sets: [{ set_number: 1, actual_reps: 5, completed: true }] },
+    { exercise_id: 2, exercise: { id: 2, name: 'B' }, notes: '', sets: [{ set_number: 1 }, { set_number: 2 }] },
+    { exercise_id: 3, exercise: { id: 3, name: 'C' }, notes: '', sets: [] },
+  ] as any
+
+  it('reorders the exercises with their sets and notes, and persists the new order', async () => {
+    const { store, storage } = setup()
+    store().startSession('T', three())
+    store().moveExercise(0, 2)
+    const ids = store().session!.exercises.map((e) => e.exercise_id)
+    expect(ids).toEqual([2, 3, 1])
+    expect(store().session!.exercises[2]).toMatchObject({ notes: 'a', sets: [{ actual_reps: 5, completed: true }] })
+    const saved = JSON.parse((await storage.get(WORKOUT_SESSION_KEY))!)
+    expect(saved.exercises.map((e: any) => e.exercise_id)).toEqual([2, 3, 1])
+    expect(store().buildPayload().exercises.map((e: any) => e.exercise_id)).toEqual([2, 3, 1])
+  })
+
+  it('keeps a running rest on the exercise it belongs to', () => {
+    const { store } = setup()
+    store().startSession('T', three())
+    store().startRest(60, 1, 1)
+    store().moveExercise(1, 0)
+    expect(store().restEndsAt).not.toBeNull()
+    expect(store().restExIdx).toBe(0)
+    expect(store().restSetIdx).toBe(1)
+  })
+
+  it('keeps the gym screen on the exercise it was showing, and persists that', async () => {
+    const { store, storage } = setup()
+    store().startSession('T', three())
+    store().setGymState('exercise', 2, 0)
+    store().moveExercise(0, 2)
+    expect(store().gymExIdx).toBe(1)
+    expect(JSON.parse((await storage.get(GYM_UI_KEY))!)).toMatchObject({ phase: 'exercise', exIdx: 1 })
+  })
+
+  it('ignores an out-of-range or no-op move', () => {
+    const { store } = setup()
+    store().startSession('T', three())
+    const before = store().session
+    store().moveExercise(0, 0)
+    store().moveExercise(2, 3)
+    store().moveExercise(-1, 0)
+    expect(store().session).toBe(before)
+  })
+})
+
 describe('workoutSession buildPayload — auto-progression (#40)', () => {
   it('carries program_id and per-set program_set_id for a routine-sourced session', () => {
     const { store } = setup()
