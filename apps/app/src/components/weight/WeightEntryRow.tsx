@@ -6,6 +6,7 @@ import { ChevronRight, Edit2, MoreVertical, Scale, Trash2, TrendingDown, Trendin
 import { useAsyncAction, displayWeight, entryDay, weightShort, type WeightLog, formatDay, useTranslation } from '@lyftr/shared'
 import { ActionSheet, AppText, Card, CardActions, ConfirmSheet, IconButton, LinkCard, deleteAction, deleteConfirmProps, editAction } from '../ui'
 import { useTheme } from '../../theme/useTheme'
+import { trendInk } from '../../theme/theme'
 import { client } from '../../lib/lyftr'
 
 interface Props {
@@ -23,7 +24,7 @@ interface Props {
 // Delete routes through the shared ConfirmSheet.
 export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
   const { t } = useTranslation()
-  const { colors, accent, brand } = useTheme()
+  const { colors, accent, mode } = useTheme()
   const wUnit = weightShort(unit)
   const [menuOpen, setMenuOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
@@ -56,8 +57,8 @@ export function WeightEntryRow({ item, next, unit, onDeleted }: Props) {
           <View className="mt-0.5 flex-row items-center gap-x-2 overflow-hidden">
             {deltaLbs !== 0 ? (
               <View className="flex-row items-center gap-0.5">
-                {deltaLbs < 0 ? <TrendingDown size={12} color={brand.successSoft} /> : <TrendingUp size={12} color={brand.errorSoft} />}
-                <Text className="font-sans-medium text-xs" style={{ color: deltaLbs < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
+                {deltaLbs < 0 ? <TrendingDown size={12} color={trendInk(deltaLbs, mode)} /> : <TrendingUp size={12} color={trendInk(deltaLbs, mode)} />}
+                <Text className="font-sans-medium text-xs" style={{ color: trendInk(deltaLbs, mode), fontVariant: ['tabular-nums'] }}>
                   {Math.round(displayDelta)}
                 </Text>
               </View>

@@ -33,9 +33,9 @@ interface Props {
 export function FoodResultRow({
   item, onPress, favorited, onToggleFavorite, togglingFavorite = false, loading = false,
 }: Props) {
-  const { colors, isDark } = useTheme()
+  const { colors, mode } = useTheme()
   const { t } = useTranslation()
-  const ink = MACRO_INK[isDark ? 'dark' : 'light']
+  const ink = MACRO_INK[mode]
 
   return (
     <Pressable

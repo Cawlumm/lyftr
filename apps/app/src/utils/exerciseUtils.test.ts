@@ -1,5 +1,5 @@
 import { surfaces } from '@lyftr/shared'
-import { muscleColor, muscleInk, muscleToBodySlugs } from './exerciseUtils'
+import { MUSCLE_COLORS, muscleColor, muscleToBodySlugs } from './exerciseUtils'
 
 // The lookup rule and the equipment and muscle labels are covered in
 // packages/shared/src/utils/exerciseUtils.test.ts. What's left here is what is
@@ -7,7 +7,7 @@ import { muscleColor, muscleInk, muscleToBodySlugs } from './exerciseUtils'
 
 describe('muscleColor', () => {
   it('resolves a tint case-insensitively', () => {
-    expect(muscleColor('Chest')?.text).toBe('#f87171')
+    expect(muscleColor('Chest')?.ink.dark).toBe('#f87171')
     expect(muscleColor('LEGS')?.chip).toBe('bg-green-500/20')
   })
 
@@ -50,16 +50,12 @@ const ratio = (a: number[], b: number[]) => {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-describe('muscleInk - AA on the chip tint, both themes', () => {
-  const MUSCLES = ['chest', 'back', 'shoulders', 'biceps', 'triceps', 'legs', 'quadriceps', 'hamstrings', 'glutes', 'calves',
-    'abdominals', 'core', 'forearms', 'traps', 'lats', 'lower-back', 'middle-back', 'neck', 'adductors', 'abductors']
-
+describe('muscle ink - AA on the chip tint, both themes', () => {
   for (const mode of ['light', 'dark'] as const) {
     it(`${mode}: every ink clears 4.5:1 on the raised and base surfaces`, () => {
-      for (const m of MUSCLES) {
-        const tint = muscleColor(m)
-        const hue = /bg-(\w+)-500\/20/.exec(tint?.chip ?? '')?.[1] ?? ''
-        const ink = rgb(muscleInk(tint, mode === 'dark') ?? '#000000')
+      for (const [m, tint] of Object.entries(MUSCLE_COLORS)) {
+        const hue = /bg-(\w+)-500\/20/.exec(tint.chip)?.[1] ?? ''
+        const ink = rgb(tint.ink[mode])
         for (const s of [surfaces[mode].raised, surfaces[mode].base]) {
           const bg = rgb(HUE_500[hue]).map((c, i) => c * 0.2 + rgb(s)[i] * 0.8)
           expect({ m, mode, ok: ratio(ink, bg) >= 4.5 }).toEqual({ m, mode, ok: true })
@@ -67,8 +63,4 @@ describe('muscleInk - AA on the chip tint, both themes', () => {
       }
     })
   }
-
-  it('is undefined for an unknown muscle, so the caller falls back to the muted ink', () => {
-    expect(muscleInk(null, false)).toBeUndefined()
-  })
 })

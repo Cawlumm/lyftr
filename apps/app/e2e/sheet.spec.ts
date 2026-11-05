@@ -56,11 +56,9 @@ for (const width of WIDTHS) {
       await expect(dialog).toHaveAttribute('aria-modal', 'true')
       await expect(dialog).toHaveAccessibleDescription(/permanently deletes your account/)
       await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
-      // Contrast is off for the same palette reason as a11y.spec.ts.
       const { violations } = await new AxeBuilder({ page })
         .include('[role="dialog"]')
         .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-        .disableRules(['color-contrast'])
         .analyze()
       expect(violations.map(v => v.id)).toEqual([])
       await testInfo.attach(`confirm-${width}.png`, { body: await page.screenshot(), contentType: 'image/png' })

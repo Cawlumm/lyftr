@@ -25,7 +25,8 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
 import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
-import { muscleColor, muscleInk, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { MuscleBadge } from './MuscleBadge'
 
 const web = Platform.OS === 'web'
 
@@ -46,16 +47,6 @@ const webNotes = (exIdx: number, notes: string, onSave: (i: number, v: string) =
 // Port of web/pages/GymModeWorkout.tsx — full-screen 3-phase FSM overlay
 // (overview → exercise-info → exercise). Mounted at the ROOT layout when a session
 // exists, the layout pref is 'gym', and gymOpen is true (mirrors web's Layout).
-function MuscleBadge({ muscle, small }: { muscle: string; small?: boolean }) {
-  const { colors, isDark } = useTheme()
-  const tint = muscleColor(muscle)
-  return (
-    <View className={`rounded ${small ? 'px-1.5 py-0.5' : 'px-2 py-0.5'} ${tint?.chip ?? 'bg-surface-muted'} ${tint?.border ? `border ${tint.border}` : ''}`}>
-      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
-    </View>
-  )
-}
-
 function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string; onSave: (i: number, v: string) => void }) {
   const { t } = useTranslation()
   const { colors } = useTheme()
@@ -412,7 +403,7 @@ export function GymModeWorkout() {
                   <View className="flex-1">
                     <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
                     <View className="mt-0.5 flex-row items-center gap-2">
-                      <MuscleBadge muscle={ex.exercise.muscle_group} small />
+                      <MuscleBadge muscle={ex.exercise.muscle_group} border />
                       <AppText variant="caption" color="muted">{t('common.count.sets', { count: ex.sets.length })}</AppText>
                     </View>
                   </View>
@@ -475,7 +466,7 @@ export function GymModeWorkout() {
                 outside a parent's bounds). */}
             <View className="-mx-2 -my-1.5 flex-row">
               <ExerciseSwitcher ref={switcherRef} title name={exercise.name} current={activeIdx + 1} total={session.exercises.length} details={infoDetails} onPress={openSwitcher}>
-                <MuscleBadge muscle={exercise.muscle_group} />
+                <MuscleBadge muscle={exercise.muscle_group} wide border />
                 {equipLabel && exercise.equipment !== 'other' ? (
                   <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary">{equipLabel}</AppText></View>
                 ) : null}
@@ -512,7 +503,7 @@ export function GymModeWorkout() {
               <View>
                 <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
                 <View className="flex-row flex-wrap gap-1.5">
-                  {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} small />)}
+                  {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} border />)}
                 </View>
               </View>
             ) : null}
@@ -595,7 +586,7 @@ export function GymModeWorkout() {
         <View className="-mx-2 -my-1.5 flex-row items-center justify-between gap-2">
           <View className="min-w-0 flex-1 flex-row">
             <ExerciseSwitcher ref={switcherRef} name={ex.exercise.name} current={activeIdx + 1} total={session.exercises.length} details={[muscleLabel(ex.exercise.muscle_group), setsDoneHere]} onPress={openSwitcher}>
-              <MuscleBadge muscle={ex.exercise.muscle_group} small />
+              <MuscleBadge muscle={ex.exercise.muscle_group} border />
               <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{setsDoneHere}</AppText>
             </ExerciseSwitcher>
           </View>

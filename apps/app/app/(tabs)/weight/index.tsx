@@ -16,7 +16,7 @@ import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
 import { WeightSkeleton } from '../../../src/components/weight/WeightSkeleton'
 import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
-import { semanticInk } from '../../../src/theme/theme'
+import { semanticInk, trendInk } from '../../../src/theme/theme'
 import { useTheme } from '../../../src/theme/useTheme'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
@@ -37,7 +37,7 @@ export default function Weight() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand, isDark } = useTheme()
+  const { colors, accent, brand, isDark, mode } = useTheme()
   // Web from lg: figures and trend on the left, log and history on the right. Below lg, and on
   // every native device, the phone's single column.
   const { lg, xl } = useBreakpoint()
@@ -301,7 +301,7 @@ export default function Weight() {
       : change < 0
         ? 'bg-success-500/10 border-success-500/20'
         : 'bg-error-500/10 border-error-500/20'
-  const trendText = change === 0 ? colors.txMuted : semanticInk[isDark ? 'dark' : 'light'][change < 0 ? 'success' : 'error']
+  const trendText = change === 0 ? colors.txMuted : trendInk(change, mode)
   const changeKey = change === 0 ? 'weight.hero.changeNone' : change < 0 ? 'weight.hero.changeLost' : 'weight.hero.changeGained'
 
   const statCards = [

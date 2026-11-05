@@ -19,8 +19,10 @@ import {
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
-import { muscleColor, muscleInk, muscleLabel } from '../../src/utils/exerciseUtils'
+import { muscleLabel } from '../../src/utils/exerciseUtils'
+import { MuscleBadge } from '../../src/components/workouts/MuscleBadge'
 import { useTheme } from '../../src/theme/useTheme'
+import { trendInk } from '../../src/theme/theme'
 import { useBreakpoint } from '../../src/lib/useBreakpoint'
 import { ONE_THIRD, TWO_THIRDS } from '../../src/components/dashboard/layout'
 import { useSessionPillInset } from '../../src/components/workouts/SessionPill'
@@ -46,18 +48,6 @@ function ProgressBar({ pct, color, opacity = 1, className = '' }: { pct: number;
   return (
     <View className={`h-1.5 overflow-hidden rounded-full bg-surface-muted ${className}`}>
       <View style={{ width: `${p}%`, height: '100%', borderRadius: 999, backgroundColor: color, opacity }} />
-    </View>
-  )
-}
-
-function MuscleBadge({ muscle }: { muscle: string }) {
-  // Re-renders on a language switch: the badge names the muscle from the catalog.
-  useTranslation()
-  const { colors, isDark } = useTheme()
-  const tint = muscleColor(muscle)
-  return (
-    <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
@@ -121,7 +111,7 @@ export default function Dashboard() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const unit = settings.weight_unit
   const wUnit = weightShort(unit)
-  const { colors, accent, brand, isDark } = useTheme()
+  const { colors, accent, brand, isDark, mode } = useTheme()
 
   // Consistency heatmap cell fill — explicit hex (not NativeWind opacity classes, which
   // wash out on the light theme + don't render reliably on native): empty is a visible
@@ -607,7 +597,7 @@ export default function Dashboard() {
                   <ExerciseImage url={ex.exercise.image_url} size="row" />
                   <View className="min-w-0 flex-1 gap-1">
                     <Text className="text-sm text-tx-secondary" numberOfLines={1}>{ex.exercise.name}</Text>
-                    <MuscleBadge muscle={ex.exercise.muscle_group} />
+                    <MuscleBadge muscle={ex.exercise.muscle_group} selfStart />
                   </View>
                   {best ? (
                     <Text className="text-xs text-tx-muted" style={{ fontVariant: ['tabular-nums'] }}>
@@ -766,7 +756,7 @@ export default function Dashboard() {
                 if (typeof delta !== 'number' || !Number.isFinite(delta)) return null
                 if (delta === 0) return <AppText variant="caption" color="muted">{t('home.weight.noChange7d')}</AppText>
                 return (
-                  <Text className="text-xs" style={{ color: delta < 0 ? brand.successSoft : brand.errorSoft, fontVariant: ['tabular-nums'] }}>
+                  <Text className="text-xs" style={{ color: trendInk(delta, mode), fontVariant: ['tabular-nums'] }}>
                     {t(delta < 0 ? 'home.weight.trendDown' : 'home.weight.trendUp', { amount: Math.abs(displayWeight(delta, unit)), unit: wUnit })}
                   </Text>
                 )

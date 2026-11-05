@@ -36,7 +36,7 @@ export const MEAL_COLORS: Record<Meal, string> = {
 // Text in the meal's tint or a macro's, on the 10% tints they sit in. The 400s above are
 // 1.3 to 2.3:1 there on a light surface; the 800 rung clears AA (4.5:1) on every one. The
 // dark entries are the 400s, which clear it on dark. Icons, dots and bars keep the 400s:
-// graphics need only 3:1 and are not read as text.
+// graphics need only 3:1, and each sits beside a text label that carries the meaning.
 export const MEAL_INK = {
   light: { breakfast: '#92400e', lunch: '#854d0e', dinner: '#3730a3', snacks: '#9d174d' },
   dark: MEAL_COLORS,

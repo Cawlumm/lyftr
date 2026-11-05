@@ -33,7 +33,7 @@ const FILL: Record<Variant, string> = {
   neutral: 'bg-surface-muted active:opacity-80',
   brandOutline: 'bg-brand-500/10 border border-brand-500/20 active:opacity-70',
   primary: 'bg-brand-500 active:opacity-90',
-  destructive: 'bg-error-500 active:opacity-90',
+  destructive: 'bg-error-600 active:opacity-90',
 }
 
 export function SheetButton({
