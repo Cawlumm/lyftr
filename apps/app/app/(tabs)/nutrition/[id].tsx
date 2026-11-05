@@ -7,6 +7,7 @@ import { entryToResult, formatLoggedAmount, isNotFound, uiMessage, useAsyncActio
 import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
+import { touchPad, touchTarget } from '../../../src/components/ui/interaction'
 import {
   MACRO_COLORS, MACRO_INK, mealLabel, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
@@ -20,6 +21,9 @@ import { useSessionPillInset } from '../../../src/components/workouts/SessionPil
 // back-nav on the left, Edit (pencil) + Delete (trash) icons top-right. Edit hands off to
 // the shared log flow in edit mode; Delete routes through the ConfirmSheet. The dashboard
 // refetches on focus, so a delete/edit here is reflected when we pop back.
+// Edit is wider than 44 and Delete is not; both are 36px tall.
+const editHit = touchTarget(75, 36)
+
 export default function NutritionDetail() {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
@@ -114,13 +118,15 @@ export default function NutritionDetail() {
     { label: t('food.entry.logged'), value: formatDay(entryDay(entry), 'weekdayMonthDayYear') },
   ]
 
+  const deleteHit = touchTarget(36, 36, { disabled: remove.busy })
+
   return (
     <Screen maxWidth="medium">
       <ScrollView style={scrollBleed} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 + pillInset }}>
         <View className="gap-5 py-4">
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
+            <Pressable onPress={goBack} style={touchPad(92, 19)} className="flex-row items-center gap-1.5 active:opacity-60">
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('food.entry.back')}</AppText>
             </Pressable>
@@ -138,21 +144,25 @@ export default function NutritionDetail() {
                 accessibilityRole="button"
                 accessibilityLabel={t('food.entry.editLabel')}
                 onPress={() => router.push(`/nutrition/log?edit=${entry.id}`)}
-                hitSlop={6}
-                className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
+                style={editHit.style}
+                className={`active:scale-95 ${editHit.outer}`}
               >
-                <Edit2 size={15} color={accent} strokeWidth={2.2} />
-                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                <View className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 group-hover/hit:bg-brand-500/20 ${editHit.inner}`}>
+                  <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                  <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                </View>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('food.entry.deleteLabel')}
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
-                hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
+                style={deleteHit.style}
+                className={`${remove.busy ? 'opacity-40' : ''} ${deleteHit.outer}`}
               >
-                <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                <View className={`h-9 w-9 items-center justify-center rounded-lg group-active/hit:bg-error-500/10 ${remove.busy ? '' : 'group-hover/hit:bg-error-500/10'} ${deleteHit.inner}`}>
+                  <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                </View>
               </Pressable>
             </View>
           </View>

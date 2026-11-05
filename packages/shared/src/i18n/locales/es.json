@@ -89,7 +89,6 @@
       "restTimer": {
         "label": "Temporizador de descanso",
         "description": "Inicia automáticamente una cuenta regresiva entre series",
-        "gymDescription": "Inicia automáticamente una cuenta regresiva entre series en el modo gimnasio",
         "off": "No",
         "on": "Sí"
       },
@@ -1181,7 +1180,14 @@
         "title": "¿Terminar el entrenamiento?",
         "message_one": "{{done}} de {{count}} serie completada. Se guardará el entrenamiento.",
         "message_other": "{{done}} de {{count}} series completadas. Se guardará el entrenamiento.",
-        "message_many": "{{done}} de {{count}} de series completadas. Se guardará el entrenamiento."
+        "message_many": "{{done}} de {{count}} de series completadas. Se guardará el entrenamiento.",
+        "unfinished_one": "{{done}} de {{total}} series completadas. No se guardará {{count}} serie sin terminar.",
+        "unfinished_other": "{{done}} de {{total}} series completadas. No se guardarán {{count}} series sin terminar.",
+        "unfinished_many": "{{done}} de {{total}} series completadas. No se guardarán {{count}} de series sin terminar."
+      },
+      "nothingToSave": {
+        "title": "Todavía no hay nada que guardar",
+        "message": "Aún no hay series hechas. Marca una serie como hecha para guardarla o descarta este entrenamiento."
       },
       "cancelConfirm": {
         "title": "¿Cancelar el entrenamiento?",

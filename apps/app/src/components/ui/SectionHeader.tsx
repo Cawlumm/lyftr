@@ -19,7 +19,8 @@ export function SectionHeader({ icon: Icon, title, right, className = '' }: Prop
   // cyan legible on both light and dark surfaces.
   const { accent } = useTheme()
   return (
-    <View className={`flex-row items-center justify-between ${className}`}>
+    // z-10: a link in the right slot pads out past the header, over what follows it.
+    <View className={`z-10 flex-row items-center justify-between ${className}`}>
       <View className="flex-row items-center gap-2">
         {Icon ? <Icon size={15} color={accent} strokeWidth={2.2} /> : null}
         <AppText variant="subheading">{title}</AppText>

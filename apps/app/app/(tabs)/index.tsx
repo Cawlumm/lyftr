@@ -10,7 +10,7 @@ import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp, Utensils,
 } from '../../src/components/ui/icons'
 import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure } from '../../src/components/ui'
+import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
 import type { LucideIcon } from '../../src/components/ui/icons'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -56,7 +56,7 @@ function ProgressBar({ pct, color, opacity = 1, className = '' }: { pct: number;
 function LinkRow({ label, onPress }: { label: string; onPress: () => void }) {
   const { accent } = useTheme()
   return (
-    <Pressable onPress={() => { hSelect(); onPress() }} hitSlop={8} className="flex-row items-center gap-0.5 active:opacity-60">
+    <Pressable onPress={() => { hSelect(); onPress() }} style={touchPad(28, 16)} className="flex-row items-center gap-0.5 active:opacity-60">
       <AppText variant="caption" color="brand">{label}</AppText>
       <ArrowRight size={12} color={accent} />
     </Pressable>
@@ -328,6 +328,8 @@ export default function Dashboard() {
   const cell = wide ? 'flex-1' : ''
   const heatCell = wide ? 20 : 12
   const heatGap = wide ? 4 : 2
+  const startHit = touchTarget(87, 40)
+  const avatarHit = touchTarget(36, 36)
 
   const header = (
     <>
@@ -342,10 +344,13 @@ export default function Dashboard() {
         <View className="flex-row items-center gap-2">
           <Pressable
             onPress={() => { hImpact(); router.navigate('/workouts/start') }}
-            className="flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 active:scale-95"
+            style={startHit.style}
+            className={`active:scale-95 ${startHit.outer}`}
           >
-            <Play size={15} color="#fff" />
-            <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
+            <View className={`flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 ${startHit.inner}`}>
+              <Play size={15} color="#fff" />
+              <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
+            </View>
           </Pressable>
           {/* Avatar → Settings. Settings moved off the footer; this is its entry point.
               The wide web shell's sidebar user menu already holds it. */}
@@ -353,17 +358,19 @@ export default function Dashboard() {
             accessibilityRole="button"
             accessibilityLabel={t('nav.settings')}
             onPress={() => { hSelect(); router.navigate('/settings') }}
-            hitSlop={6}
-            className="active:scale-95"
+            style={avatarHit.style}
+            className={`active:scale-95 ${avatarHit.outer}`}
           >
-            <LinearGradient
-              colors={['#0891b2', '#00b8d9']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
-            </LinearGradient>
+            <View className={`rounded-full ${avatarHit.inner}`}>
+              <LinearGradient
+                colors={['#0891b2', '#00b8d9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
+              </LinearGradient>
+            </View>
           </Pressable>}
         </View>
       </View>
@@ -524,7 +531,7 @@ export default function Dashboard() {
               ))}
             </View>
             {heatmapWeeks.map((week, wi) => (
-              <View key={wi} className="flex-1" style={{ gap: heatGap }}>
+              <View key={wi} testID="heatmap-week" className="flex-1" style={{ gap: heatGap }}>
                 {week.map((day, di) => {
                   const k = format(day, 'yyyy-MM-dd')
                   const count = workoutDayMap.get(k) || 0
@@ -623,7 +630,7 @@ export default function Dashboard() {
           "start your first workout" link right under it is the exact
           redundant-buttons clutter this card exists to avoid. */}
       {!upNext ? (
-        <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} hitSlop={6} className="active:opacity-60">
+        <Pressable onPress={() => { hSelect(); router.navigate('/workouts/start') }} style={touchPad(120, 16)} className="active:opacity-60">
           <AppText variant="caption" color="brand">{t('home.lastWorkout.startFirst')}</AppText>
         </Pressable>
       ) : null}

@@ -2,7 +2,7 @@ import { memo, useRef, useState } from 'react'
 import { Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native'
 import { FileText, Plus, Timer, Trash2, X } from '../ui/icons'
 import type { Exercise } from '@lyftr/shared'
-import { AppText, IconButton, Label } from '../ui'
+import { AppText, IconButton, Label, TOUCH_MIN, touchPad } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
 import { equipmentLabel, muscleLabel, sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
@@ -35,13 +35,15 @@ interface Props {
   inputAccessoryViewID?: string
 }
 
+// Add Set and Note are 36px tall rows beside each other, so only their height is padded out.
+const ROW_BUTTON = touchPad(TOUCH_MIN, 36)
+
 // Compact spreadsheet cell: static border, no focus glow — never re-renders on focus
 // (Fabric-safe by construction, same rationale as the screens' old COMPACT_INPUT).
 const CELL = 'h-9 w-full rounded-lg border border-surface-border/60 bg-surface-overlay px-2 py-0 text-center font-sans text-sm text-tx-primary'
 
 // Set-table column widths — header and rows must agree or the columns shear.
-// COL_DELETE fits the 32pt IconButton so its hitSlop isn't clipped by the parent
-// (hitSlop outside parent bounds is unreliable on Android) → ~44pt effective target.
+// COL_DELETE fits the 32pt IconButton; the IconButton pads itself out to a 44pt target.
 const COL_SET = 'w-9'
 const COL_DELETE = 'w-9'
 
@@ -198,25 +200,29 @@ function ExerciseFormCardBase({
         <Pressable
           accessibilityRole="button"
           onPress={() => onAddSet(index)}
-          // 36pt row + 6pt vertical slop ≈ 48pt effective target; the slop stays
-          // inside the surrounding whitespace (mt-2.5 above, card padding below).
-          hitSlop={{ top: 6, bottom: 6 }}
-          className="h-9 flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-dashed border-surface-border active:opacity-60"
+          // 36pt row padded out to 44pt; the extra stays inside the surrounding whitespace
+          // (mt-2.5 above, card padding below).
+          style={ROW_BUTTON}
+          className="flex-1 active:opacity-60"
         >
-          <Plus size={13} color={accent} />
-          {/* accent (not text-brand-500): raw brand cyan washes out on light. */}
-          <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addSet')}</Text>
+          <View className="h-9 flex-row items-center justify-center gap-1.5 rounded-lg border border-dashed border-surface-border">
+            <Plus size={13} color={accent} />
+            {/* accent (not text-brand-500): raw brand cyan washes out on light. */}
+            <Text className="font-sans-semibold text-xs" style={{ color: accent }}>{t('workouts.form.addSet')}</Text>
+          </View>
         </Pressable>
         {!showNotes && (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('workouts.form.addNoteLabel')}
             onPress={() => setShowNotes(true)}
-            hitSlop={{ top: 6, bottom: 6 }}
-            className="h-9 flex-row items-center gap-1.5 rounded-lg px-3 active:opacity-60"
+            style={ROW_BUTTON}
+            className="active:opacity-60"
           >
-            <FileText size={13} color={colors.txMuted} />
-            <Text className="font-sans-semibold text-xs text-tx-muted">{t('workouts.form.note')}</Text>
+            <View className="h-9 flex-row items-center gap-1.5 rounded-lg px-3">
+              <FileText size={13} color={colors.txMuted} />
+              <Text className="font-sans-semibold text-xs text-tx-muted">{t('workouts.form.note')}</Text>
+            </View>
           </Pressable>
         )}
       </View>

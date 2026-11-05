@@ -18,7 +18,7 @@ export function CardActions({ label, items, disabled }: { label: string; items: 
   const { sm } = useBreakpoint()
   if (!sm) return <Menu label={label} items={items} disabled={disabled} />
   return (
-    <View className="flex-row items-center gap-0.5 motion-safe:transition-opacity motion-safe:duration-[120ms] [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+    <View className="flex-row items-center gap-3 motion-safe:transition-opacity motion-safe:duration-[120ms] [@media(hover:hover)]:opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
       {items.map((item) => (
         <IconButton
           key={item.namedLabel}

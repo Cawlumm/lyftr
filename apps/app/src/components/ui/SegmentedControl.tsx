@@ -1,6 +1,6 @@
 import { Platform, Pressable, Text, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { interactive } from './interaction'
+import { touchTarget } from './interaction'
 
 interface Option<T extends string> {
   value: T
@@ -15,9 +15,11 @@ interface Props<T extends string> {
   className?: string
 }
 
-const ITEM: Record<'sm' | 'md', { item: string; text: string }> = {
-  sm: { item: 'py-1.5 rounded-md', text: 'text-xs' },
-  md: { item: 'py-2.5 rounded-lg', text: 'text-sm' },
+// `box` is the segment's smallest size, which the tap area is padded out from (a segment is
+// flex-1, so its width is whatever the row gives it; sm rows of three come to about 38px).
+const ITEM: Record<'sm' | 'md', { item: string; text: string; box: [number, number] }> = {
+  sm: { item: 'py-1.5 rounded-md', text: 'text-xs', box: [38, 30] },
+  md: { item: 'py-2.5 rounded-lg', text: 'text-sm', box: [44, 42] },
 }
 
 // Mirrors web ui/SegmentedControl: pill container on the overlay surface, active
@@ -31,6 +33,7 @@ export function SegmentedControl<T extends string>({
   className = '',
 }: Props<T>) {
   const s = ITEM[size]
+  const hit = touchTarget(...s.box)
   return (
     <View className={`flex-row gap-1 bg-surface-overlay rounded-xl p-1 ${className}`}>
       {options.map((opt) => {
@@ -50,15 +53,20 @@ export function SegmentedControl<T extends string>({
               Haptics.selectionAsync().catch(() => {})
               onChange(opt.value)
             }}
-            className={`flex-1 items-center justify-center ${s.item} ${
-              active ? 'bg-surface-raised border border-surface-border' : ''
-            } ${interactive(active ? '' : 'hover:bg-surface-raised/60')}`}
+            style={hit.style}
+            className={`flex-1 ${hit.outer}`}
           >
-            <Text
-              className={`font-sans-semibold ${s.text} ${active ? 'text-tx-primary' : 'text-tx-muted'}`}
+            <View
+              className={`items-center justify-center ${s.item} ${
+                active ? 'bg-surface-raised border border-surface-border' : 'group-hover/hit:bg-surface-raised/60'
+              } ${hit.inner}`}
             >
-              {opt.label}
-            </Text>
+              <Text
+                className={`font-sans-semibold ${s.text} ${active ? 'text-tx-primary' : 'text-tx-muted'}`}
+              >
+                {opt.label}
+              </Text>
+            </View>
           </Pressable>
         )
       })}

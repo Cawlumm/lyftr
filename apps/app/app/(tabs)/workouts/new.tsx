@@ -7,7 +7,11 @@ import {
 import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, occurrenceKeys, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
-import { interactive } from '../../../src/components/ui/interaction'
+import { TOUCH_MIN, interactive, touchTarget } from '../../../src/components/ui/interaction'
+
+// Both sit in a row with 8px between them and are wider than 44, so only their height is padded.
+const LOAD_HIT = touchTarget(TOUCH_MIN, 38)
+const ADD_HIT = touchTarget(TOUCH_MIN, 36)
 import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
@@ -324,18 +328,24 @@ export default function AddWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowProgramPicker(true)}
-                  className={`${wide ? '' : 'flex-1 '}flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 active:scale-95 ${interactive('hover:bg-surface-border')}`}
+                  style={LOAD_HIT.style}
+                  className={`${wide ? '' : 'flex-1 '}active:scale-95 ${LOAD_HIT.outer}`}
                 >
-                  <BookOpen size={13} color={colors.txSecondary} />
-                  <Text className="font-sans-semibold text-xs text-tx-secondary">{t('workouts.form.loadProgram')}</Text>
+                  <View className={`flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted px-3 py-2.5 group-hover/hit:bg-surface-border ${LOAD_HIT.inner}`}>
+                    <BookOpen size={13} color={colors.txSecondary} />
+                    <Text className="font-sans-semibold text-xs text-tx-secondary">{t('workouts.form.loadProgram')}</Text>
+                  </View>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowPicker(true)}
-                  className={`${wide ? '' : 'flex-1 '}flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+                  style={ADD_HIT.style}
+                  className={`${wide ? '' : 'flex-1 '}active:scale-95 ${ADD_HIT.outer}`}
                 >
-                  <Plus size={13} color="#ffffff" />
-                  <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                  <View className={`flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 group-hover/hit:bg-brand-600 ${ADD_HIT.inner}`}>
+                    <Plus size={13} color="#ffffff" />
+                    <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                  </View>
                 </Pressable>
               </View>
             </View>

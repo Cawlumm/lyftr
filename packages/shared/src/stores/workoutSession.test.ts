@@ -128,8 +128,8 @@ describe('workoutSession rest timer (ephemeral)', () => {
 describe('workoutSession moveExercise (#166)', () => {
   const three = () => [
     { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: 'a', sets: [{ set_number: 1, actual_reps: 5, completed: true }] },
-    { exercise_id: 2, exercise: { id: 2, name: 'B' }, notes: '', sets: [{ set_number: 1 }, { set_number: 2 }] },
-    { exercise_id: 3, exercise: { id: 3, name: 'C' }, notes: '', sets: [] },
+    { exercise_id: 2, exercise: { id: 2, name: 'B' }, notes: '', sets: [{ set_number: 1, completed: true }, { set_number: 2 }] },
+    { exercise_id: 3, exercise: { id: 3, name: 'C' }, notes: '', sets: [{ set_number: 1, completed: true }] },
   ] as any
 
   it('reorders the exercises with their sets and notes, and persists the new order', async () => {
@@ -218,6 +218,40 @@ describe('workoutSession buildPayload — auto-progression (#40)', () => {
     const payload = store().buildPayload()
     expect(payload.exercises[0].sets[0].reps).toBe(5)
     expect(payload.exercises[0].sets[0].weight).toBe(100)
+  })
+})
+
+describe('workoutSession buildPayload — only completed sets are saved', () => {
+  const set = (n: number, completed: boolean, extra: object = {}) =>
+    ({ set_number: n, target_reps: 5, target_weight: 100, actual_reps: 0, actual_weight: 0, completed, ...extra })
+
+  it('drops unticked sets, renumbers the kept ones and omits exercises with none', () => {
+    const { store } = setup()
+    store().startSession('Push A', [
+      { exercise_id: 1, exercise: { id: 1, name: 'Bench' }, notes: '', rest_seconds: 90,
+        sets: [set(1, false, { program_set_id: 11 }), set(2, true, { actual_reps: 6, actual_weight: 105, program_set_id: 12 }), set(3, false, { program_set_id: 13 })] },
+      { exercise_id: 2, exercise: { id: 2, name: 'Fly' }, notes: '', sets: [set(1, false), set(2, false)] },
+    ] as any, 7)
+    const payload = store().buildPayload()
+    expect(payload.exercises).toHaveLength(1)
+    expect(payload.exercises[0]).toMatchObject({ exercise_id: 1, rest_seconds: 90 })
+    expect(payload.exercises[0].sets).toEqual([{ set_number: 1, reps: 6, weight: 105, program_set_id: 12 }])
+  })
+
+  it('a ticked set with empty fields saves the target', () => {
+    const { store } = setup()
+    store().startSession('T', [
+      { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: '', sets: [set(1, true), set(2, false)] },
+    ] as any)
+    expect(store().buildPayload().exercises[0].sets).toEqual([{ set_number: 1, reps: 5, weight: 100, program_set_id: null }])
+  })
+
+  it('sends no exercises when nothing is ticked', () => {
+    const { store } = setup()
+    store().startSession('T', [
+      { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: '', sets: [set(1, false)] },
+    ] as any)
+    expect(store().buildPayload().exercises).toEqual([])
   })
 })
 

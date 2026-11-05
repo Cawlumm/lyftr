@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Pressable, View } from 'react-native'
 import { ChevronDown, ChevronRight, ChevronUp, Dumbbell, Moon, Plus, Trash2 } from '../ui/icons'
 import { useTranslation, type Exercise } from '@lyftr/shared'
-import { AppText, Field, IconButton, SegmentedControl, interactive } from '../ui'
+import { AppText, Field, IconButton, SegmentedControl, TOUCH_MIN, interactive, touchPad } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { DayExercisesEditor } from './DayExercisesEditor'
 import type { DayDraft } from './types'
@@ -17,6 +17,17 @@ interface Props {
   restSecondsDefault: number
   inputAccessoryViewID?: string
 }
+
+// The two arrows are 16px glyphs stacked flush, so they cannot each be 44 tall without
+// overlapping: each takes 6px outward (22 in all, 44 together) and the full 44 across. The card
+// pads 12px on the left, so the extra width goes mostly right. The stack carries zIndex 1 (a View
+// is its own stacking context): the day icon after it would otherwise sit over the part of the
+// box that reaches over it.
+const ARROW = { paddingLeft: 12, paddingRight: 16, marginLeft: -12, marginRight: -16 }
+const MOVE_UP = { ...ARROW, paddingTop: 6, marginTop: -6 }
+const MOVE_DOWN = { ...ARROW, paddingBottom: 6, marginBottom: -6 }
+// Full width, so only the 36px height is padded out.
+const ADD_DAY = touchPad(TOUCH_MIN, 36)
 
 // The program's day/rest-day cycle, in order. Add/remove/reorder days here; each
 // workout day expands to the (unchanged) per-day exercise editor. The array operations
@@ -72,11 +83,11 @@ export function ProgramDaysEditor({
             className={`overflow-hidden rounded-2xl border ${day.is_rest_day ? 'border-surface-border bg-surface-muted/20' : 'border-surface-border bg-surface-raised'}`}
           >
             <View className="flex-row items-center gap-2 p-3">
-              <View className="flex-shrink-0">
-                <Pressable accessibilityRole="button" accessibilityLabel={t('programs.form.daysEditor.moveUpNumbered', { number: idx + 1 })} onPress={() => moveDay(idx, -1)} disabled={idx === 0} hitSlop={4} className={idx === 0 ? 'opacity-20' : 'active:opacity-60'}>
+              <View className="flex-shrink-0" style={{ zIndex: 1 }}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('programs.form.daysEditor.moveUpNumbered', { number: idx + 1 })} onPress={() => moveDay(idx, -1)} disabled={idx === 0} style={MOVE_UP} className={idx === 0 ? 'opacity-20' : 'active:opacity-60'}>
                   <ChevronUp size={16} color={colors.txMuted} />
                 </Pressable>
-                <Pressable accessibilityRole="button" accessibilityLabel={t('programs.form.daysEditor.moveDownNumbered', { number: idx + 1 })} onPress={() => moveDay(idx, 1)} disabled={idx === days.length - 1} hitSlop={4} className={idx === days.length - 1 ? 'opacity-20' : 'active:opacity-60'}>
+                <Pressable accessibilityRole="button" accessibilityLabel={t('programs.form.daysEditor.moveDownNumbered', { number: idx + 1 })} onPress={() => moveDay(idx, 1)} disabled={idx === days.length - 1} style={MOVE_DOWN} className={idx === days.length - 1 ? 'opacity-20' : 'active:opacity-60'}>
                   <ChevronDown size={16} color={colors.txMuted} />
                 </Pressable>
               </View>
@@ -139,18 +150,24 @@ export function ProgramDaysEditor({
         <Pressable
           accessibilityRole="button"
           onPress={() => addDay(false)}
-          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 py-2.5 active:scale-95"
+          style={ADD_DAY}
+          className="flex-1 active:scale-95"
         >
-          <Plus size={14} color={accent} />
-          <AppText variant="label" style={{ color: accent }}>{t('programs.form.daysEditor.addWorkoutDay')}</AppText>
+          <View className="flex-row items-center justify-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 py-2.5">
+            <Plus size={14} color={accent} />
+            <AppText variant="label" style={{ color: accent }}>{t('programs.form.daysEditor.addWorkoutDay')}</AppText>
+          </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => addDay(true)}
-          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted py-2.5 active:scale-95"
+          style={ADD_DAY}
+          className="flex-1 active:scale-95"
         >
-          <Moon size={14} color={colors.txMuted} />
-          <AppText variant="label" color="secondary">{t('programs.form.daysEditor.addRestDay')}</AppText>
+          <View className="flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted py-2.5">
+            <Moon size={14} color={colors.txMuted} />
+            <AppText variant="label" color="secondary">{t('programs.form.daysEditor.addRestDay')}</AppText>
+          </View>
         </Pressable>
       </View>
     </View>
