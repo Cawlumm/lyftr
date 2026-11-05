@@ -5,7 +5,7 @@ import type { LucideIcon } from './icons'
 import * as Haptics from 'expo-haptics'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
-import { interactive } from './interaction'
+import { touchTarget } from './interaction'
 import { Label } from './Typography'
 
 interface Props {
@@ -35,6 +35,8 @@ export function StepperTile({
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
+  // Full width, so only the 40px height is padded out.
+  const stepHit = touchTarget(158, 40, { disabled, inset: true })
 
   const tap = (delta: number) => {
     // A light tick per ± tap makes repeated stepping feel mechanical (in the good,
@@ -49,15 +51,20 @@ export function StepperTile({
       accessibilityLabel={t(delta < 0 ? 'common.stepper.decrease' : 'common.stepper.increase', { name })}
       disabled={disabled}
       onPress={() => tap(delta)}
-      // Inset ring: the tile clips anything drawn outside its rounded edge.
-      className={`flex-1 py-2.5 items-center justify-center active:bg-surface-muted ${disabled ? 'opacity-30' : ''} ${interactive('hover:bg-surface-muted', { disabled, inset: true })} ${side}`}
+      // The button is 40px tall and flush with the tile, so it is padded out 2px past it; the
+      // tile therefore does not clip, and each button rounds its own outer corner.
+      // The minus's divider used to count toward its flex size (1px), as the border now sits on the inner box.
+      style={delta < 0 ? { ...stepHit.style, flexBasis: 1 } : stepHit.style}
+      className={`flex-1 ${stepHit.outer}`}
     >
-      <StepIcon size={20} color={colors.txSecondary} strokeWidth={2.2} />
+      <View className={`py-2.5 items-center justify-center group-active/hit:bg-surface-muted ${disabled ? 'opacity-30' : 'group-hover/hit:bg-surface-muted'} ${stepHit.inner} ${side}`}>
+        <StepIcon size={20} color={colors.txSecondary} strokeWidth={2.2} />
+      </View>
     </Pressable>
   )
 
   return (
-    <View className="bg-surface-raised border border-surface-border rounded-xl overflow-hidden">
+    <View className="bg-surface-raised border border-surface-border rounded-xl">
       <View className="px-3 pt-3 pb-1.5 items-center gap-1">
         <View className="flex-row items-center gap-1.5">
           <Icon size={14} color={accent} strokeWidth={2.2} />

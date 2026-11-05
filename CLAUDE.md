@@ -311,7 +311,8 @@ Single points of truth, each named once:
 - `apps/app/src/theme/breakpoints.json` — read by `tailwind.config.js` and `useBreakpoint`.
 - `apps/app/src/theme/motion.ts` + `useMotion` — durations, easing, reduced motion.
 - `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — the per-icon registry; no lucide barrel imports.
-- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`.
+- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`, and `touchTarget`/`touchPad`:
+  every control's own box is at least 44x44 (react-native-web ignores `hitSlop`); `e2e/touch-targets.spec.ts` holds it.
 - `apps/app/src/components/ui/link.ts` — `linkProps`: a real `<a>` on web.
 - `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`
   (regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`).

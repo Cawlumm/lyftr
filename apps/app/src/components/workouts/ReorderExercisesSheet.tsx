@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics'
 import { autoScrollSpeed, useTranslation } from '@lyftr/shared'
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical } from '../ui/icons'
 import { AppText, IconButton, Sheet, SheetButton } from '../ui'
-import { interactive } from '../ui/interaction'
+import { touchTarget } from '../ui/interaction'
 import { useMotion } from '../../lib/useMotion'
 import { useTheme } from '../../theme/useTheme'
 
@@ -65,9 +65,9 @@ type Drag = { from: number; to: number }
 // Matched to the "Add exercise" button each one sits beside: the forms' small header
 // buttons (`compact` where that button is py-2) and the running session's footer button.
 const BUTTON_SIZE = {
-  form: { box: 'rounded-lg px-3 py-2.5', text: 'text-xs', icon: 13 },
-  compact: { box: 'rounded-lg px-3 py-2', text: 'text-xs', icon: 13 },
-  footer: { box: 'rounded-2xl px-4 py-3.5', text: 'text-sm', icon: 16 },
+  form: { box: 'rounded-lg px-3 py-2.5', text: 'text-xs', icon: 13, hit: touchTarget(92, 38) },
+  compact: { box: 'rounded-lg px-3 py-2', text: 'text-xs', icon: 13, hit: touchTarget(92, 34) },
+  footer: { box: 'rounded-2xl px-4 py-3.5', text: 'text-sm', icon: 16, hit: touchTarget(92, 52) },
 } as const
 
 /** The one way into the sheet, placed beside "Add exercise" on each screen; shown only once
@@ -85,10 +85,13 @@ export function ReorderButton({ onPress, size = 'form', className = '' }: {
       accessibilityRole="button"
       accessibilityLabel={t('workouts.reorder.title')}
       onPress={onPress}
-      className={`flex-row items-center justify-center gap-1.5 border border-surface-border bg-surface-muted active:scale-95 ${s.box} ${interactive('hover:bg-surface-border')} ${className}`}
+      style={s.hit.style}
+      className={`active:scale-95 ${s.hit.outer} ${className}`}
     >
-      <ArrowUpDown size={s.icon} color={colors.txSecondary} />
-      <Text className={`font-sans-semibold text-tx-secondary ${s.text}`} numberOfLines={1}>{t('workouts.reorder.button')}</Text>
+      <View className={`flex-row items-center justify-center gap-1.5 border border-surface-border bg-surface-muted group-hover/hit:bg-surface-border ${s.box} ${s.hit.inner}`}>
+        <ArrowUpDown size={s.icon} color={colors.txSecondary} />
+        <Text className={`font-sans-semibold text-tx-secondary ${s.text}`} numberOfLines={1}>{t('workouts.reorder.button')}</Text>
+      </View>
     </Pressable>
   )
 }

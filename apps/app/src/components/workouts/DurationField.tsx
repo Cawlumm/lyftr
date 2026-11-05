@@ -1,7 +1,7 @@
 import { Platform, Pressable, Text, TextInput, View, type TextStyle } from 'react-native'
 import { Minus, Plus } from '../ui/icons'
 import { sanitizeNumericInput, useTranslation } from '@lyftr/shared'
-import { NO_INPUT_OUTLINE } from '../ui/interaction'
+import { NO_INPUT_OUTLINE, TOUCH_MIN, touchTarget } from '../ui/interaction'
 import { useTheme } from '../../theme/useTheme'
 
 // A thumb-friendly duration input: one unified stepper — −/+ as integrated end
@@ -10,6 +10,14 @@ import { useTheme } from '../../theme/useTheme'
 // Value + onChange are whole MINUTES (same as the form's formData.duration), so the
 // payload upstream is unchanged.
 const STEP = 5
+
+// The segments are 32px wide and flush with the field's edge, so they take their extra width
+// inward, over the value (whose text is a few characters wide in the middle). zIndex puts the
+// minus above the value block that follows it.
+const GROW = TOUCH_MIN - 32
+const HIT = touchTarget(32, 48)
+const STEP_MINUS = { width: TOUCH_MIN, marginRight: -GROW, zIndex: 1 } as const
+const STEP_PLUS = { width: TOUCH_MIN, marginLeft: -GROW, alignItems: 'flex-end' } as const
 
 export function DurationField({ value, onChange, inputAccessoryViewID }: {
   value: number
@@ -28,9 +36,12 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         accessibilityLabel={t('workouts.form.durationField.decrease')}
         onPress={() => step(-STEP)}
         disabled={!canDec}
-        className={`w-8 items-center justify-center border-r border-surface-border active:bg-surface-muted ${canDec ? '' : 'opacity-40'}`}
+        style={STEP_MINUS}
+        className={`${HIT.outer} ${canDec ? '' : 'opacity-40'}`}
       >
-        <Minus size={16} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
+        <View className="h-full w-8 items-center justify-center border-r border-surface-border group-active/hit:bg-surface-muted">
+          <Minus size={16} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
+        </View>
       </Pressable>
 
       {/* The value + "min" read as one group. They live in an auto-height inner block
@@ -80,9 +91,12 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         accessibilityRole="button"
         accessibilityLabel={t('workouts.form.durationField.increase')}
         onPress={() => step(STEP)}
-        className="w-8 items-center justify-center border-l border-surface-border active:bg-surface-muted"
+        style={STEP_PLUS}
+        className={HIT.outer}
       >
-        <Plus size={16} color={accent} strokeWidth={2.4} />
+        <View className="h-full w-8 items-center justify-center border-l border-surface-border group-active/hit:bg-surface-muted">
+          <Plus size={16} color={accent} strokeWidth={2.4} />
+        </View>
       </Pressable>
     </View>
   )

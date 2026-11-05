@@ -50,7 +50,7 @@ import {
   Toggle,
   type ToastVariant,
 } from '../../../src/components/ui'
-import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, interactive, touchPad } from '../../../src/components/ui/interaction'
 import { client, useAuthStore, useDisplayName, useLanguageStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { LanguageSheet } from '../../../src/components/settings/LanguageSheet'
 import { ExerciseCacheAdmin } from '../../../src/components/settings/ExerciseCacheAdmin'
@@ -223,7 +223,7 @@ export default function SettingsScreen() {
           <View className="gap-3">
             {showBack ? <Pressable
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}
-              hitSlop={8}
+              style={touchPad(66, 19)}
               accessibilityRole={WEB_BUTTON}
               className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}
             >

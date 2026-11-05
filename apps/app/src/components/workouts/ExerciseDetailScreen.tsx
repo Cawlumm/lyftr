@@ -21,7 +21,8 @@ import {
   type ExerciseHistoryPoint,
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Screen, interactive, scrollBleed, SegmentedControl } from '../ui'
+import { touchTarget } from '../ui/interaction'
+import { AppText, Button, ErrorState, Screen, scrollBleed, SegmentedControl } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -41,6 +42,8 @@ import { useSessionPillInset } from './SessionPill'
 // route per stack (rather than one route in the workouts stack) is what keeps back working
 // — pushing a workouts-tab route from the programs tab jumps tabs and strands the back
 // stack. `backFallback` is where a deep-link with no history returns to (its own tab root).
+
+const BACK_HIT = touchTarget(36, 36)
 
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
@@ -181,12 +184,15 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const backButton = (
     <Pressable
       onPress={goBack}
-      hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={t('common.back')}
-      className={`-ml-2 h-9 w-9 items-center justify-center rounded-lg active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}
+      // The old -ml-2 (8px) keeps the glyph on the screen's left edge once the 4px of padding is in.
+      style={{ ...BACK_HIT.style, marginLeft: -12 }}
+      className={BACK_HIT.outer}
     >
-      <ArrowLeft size={20} color={colors.txMuted} />
+      <View className={`h-9 w-9 items-center justify-center rounded-lg group-active/hit:bg-surface-muted group-hover/hit:bg-surface-muted ${BACK_HIT.inner}`}>
+        <ArrowLeft size={20} color={colors.txMuted} />
+      </View>
     </Pressable>
   )
   // Title + identity badges (muscle group + equipment + category, grouped).
@@ -342,12 +348,15 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             />
             <Pressable
               onPress={goBack}
-              hitSlop={8}
               accessibilityRole="button"
               accessibilityLabel={t('common.back')}
-              className="absolute left-4 top-3 h-9 w-9 items-center justify-center rounded-full bg-black/40 active:bg-black/60"
+              // left-3 top-2: the pressable is 4px larger on every side than the disc it holds.
+              style={BACK_HIT.style}
+              className={`absolute left-3 top-2 ${BACK_HIT.outer}`}
             >
-              <ArrowLeft size={20} color="#ffffff" />
+              <View className={`h-9 w-9 items-center justify-center rounded-full bg-black/40 group-active/hit:bg-black/60 ${BACK_HIT.inner}`}>
+                <ArrowLeft size={20} color="#ffffff" />
+              </View>
             </Pressable>
           </View>
         ) : null}

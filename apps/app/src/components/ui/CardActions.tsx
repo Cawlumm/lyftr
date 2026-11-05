@@ -25,6 +25,7 @@ export function CardActions({ label, items, disabled }: { label: string; items: 
           icon={item.icon}
           label={item.namedLabel}
           variant={item.destructive ? 'danger' : 'ghost'}
+          tight
           onPress={item.onSelect}
           disabled={disabled}
         />

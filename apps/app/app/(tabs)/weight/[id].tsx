@@ -8,6 +8,7 @@ import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
   NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
+import { touchPad, touchTarget } from '../../../src/components/ui/interaction'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
@@ -15,6 +16,10 @@ import { useSessionPillInset } from '../../../src/components/workouts/SessionPil
 // Web centres the entry in a narrower column than the screen default: a single entry at
 // the list's width is a stretched phone card. Native keeps the full width.
 const COLUMN = Platform.OS === 'web' ? 'mx-auto w-full max-w-2xl ' : ''
+
+// Edit is wider than 44 and Delete is not; both are 36px tall.
+const editHit = touchTarget(75, 36)
+const deleteHit = touchTarget(36, 36)
 
 export default function WeightDetail() {
   const pillInset = useSessionPillInset()
@@ -136,7 +141,7 @@ export default function WeightDetail() {
         <View className={`${COLUMN}gap-5 py-4`}>
           {/* Back nav + actions */}
           <View className="flex-row items-center justify-between">
-            <Pressable onPress={goBack} hitSlop={8} className="flex-row items-center gap-1.5 active:opacity-60">
+            <Pressable onPress={goBack} style={touchPad(92, 19)} className="flex-row items-center gap-1.5 active:opacity-60">
               <ArrowLeft size={16} color={colors.txMuted} />
               <AppText variant="body" color="muted">{t('weight.detail.back')}</AppText>
             </Pressable>
@@ -146,21 +151,25 @@ export default function WeightDetail() {
                   accessibilityRole="button"
                   accessibilityLabel={t('weight.detail.editLabel')}
                   onPress={startEdit}
-                  hitSlop={6}
-                  className="h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95"
+                  style={editHit.style}
+                  className={`active:scale-95 ${editHit.outer}`}
                 >
-                  <Edit2 size={15} color={accent} strokeWidth={2.2} />
-                  <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                  <View className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 group-hover/hit:bg-brand-500/20 ${editHit.inner}`}>
+                    <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                    <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                  </View>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t('weight.detail.deleteLabel')}
                   onPress={() => setConfirming(true)}
                   disabled={remove.busy}
-                  hitSlop={6}
-                  className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''}`}
+                  style={deleteHit.style}
+                  className={`${remove.busy ? 'opacity-40' : ''} ${deleteHit.outer}`}
                 >
-                  <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                  <View className={`h-9 w-9 items-center justify-center rounded-lg group-active/hit:bg-error-500/10 ${remove.busy ? '' : 'group-hover/hit:bg-error-500/10'} ${deleteHit.inner}`}>
+                    <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                  </View>
                 </Pressable>
               </View>
             ) : null}

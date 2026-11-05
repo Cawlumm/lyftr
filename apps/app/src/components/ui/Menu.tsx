@@ -1,9 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { MoreVertical, type LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { ActionSheet } from './ActionSheet'
 import { Icon } from './Icon'
+import { touchTarget } from './interaction'
 import { MENU_TRIGGER_BOX } from './overlay'
 
 export interface MenuItem {
@@ -34,9 +35,11 @@ export interface MenuProps {
 
 // On a phone a menu is a bottom sheet, so native renders the trigger over an ActionSheet.
 // The web dropdown is Menu.web.tsx.
-export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, disabled, title, subtitle }: MenuProps) {
+export function Menu({ label, items, children, className, disabled, title, subtitle }: MenuProps) {
   const { colors } = useTheme()
   const [open, setOpen] = useState(false)
+  const hit = touchTarget(32, 32, { disabled })
+  const trigger = children ?? <Icon icon={MoreVertical} size="sm" color={colors.txMuted} />
   return (
     <>
       <Pressable
@@ -44,10 +47,10 @@ export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, dis
         accessibilityLabel={label}
         onPress={() => setOpen(true)}
         disabled={disabled}
-        hitSlop={6}
-        className={`active:scale-95 ${disabled ? 'opacity-40' : ''} ${className}`}
+        style={className === undefined ? hit.style : undefined}
+        className={`active:scale-95 ${disabled ? 'opacity-40' : ''} ${className ?? ''}`}
       >
-        {children ?? <Icon icon={MoreVertical} size="sm" color={colors.txMuted} />}
+        {className === undefined ? <View className={MENU_TRIGGER_BOX}>{trigger}</View> : trigger}
       </Pressable>
       <ActionSheet
         open={open}

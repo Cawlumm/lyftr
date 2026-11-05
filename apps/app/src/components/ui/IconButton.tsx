@@ -1,9 +1,9 @@
 import type { Ref } from 'react'
-import { Pressable, type PressableInstance } from 'react-native'
+import { Pressable, View, type PressableInstance } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { Icon, type IconSize } from './Icon'
-import { interactive } from './interaction'
+import { TOUCH_MIN, touchTarget } from './interaction'
 
 type IconButtonVariant = 'brand' | 'danger' | 'ghost' | 'secondary' | 'solid'
 
@@ -16,22 +16,24 @@ interface Props {
   size?: IconSize
   disabled?: boolean
   className?: string
+  /** Neighbours closer than 44px: keep the visual box as the hit box rather than overlap them. */
+  tight?: boolean
   /** For a caller that has to put focus back on the button after re-rendering it. */
   ref?: Ref<PressableInstance>
 }
 
-const BOX: Record<IconSize, string> = {
-  sm: 'w-8 h-8 rounded-lg',
-  md: 'w-10 h-10 rounded-xl',
-  lg: 'w-12 h-12 rounded-xl',
+const BOX: Record<IconSize, { px: number; cls: string }> = {
+  sm: { px: 32, cls: 'w-8 h-8 rounded-lg' },
+  md: { px: 40, cls: 'w-10 h-10 rounded-xl' },
+  lg: { px: 48, cls: 'w-12 h-12 rounded-xl' },
 }
 
 const VARIANT: Record<IconButtonVariant, { bg: string; hover: string }> = {
-  brand: { bg: 'bg-brand-500/10 border border-brand-500/20', hover: 'hover:bg-brand-500/20' },
-  danger: { bg: '', hover: 'hover:bg-error-500/10' },
-  ghost: { bg: '', hover: 'hover:bg-surface-muted' },
-  secondary: { bg: 'bg-surface-muted border border-surface-border', hover: 'hover:bg-surface-border' },
-  solid: { bg: 'bg-brand-500', hover: 'hover:bg-brand-600' },
+  brand: { bg: 'bg-brand-500/10 border border-brand-500/20', hover: 'group-hover/hit:bg-brand-500/20' },
+  danger: { bg: '', hover: 'group-hover/hit:bg-error-500/10' },
+  ghost: { bg: '', hover: 'group-hover/hit:bg-surface-muted' },
+  secondary: { bg: 'bg-surface-muted border border-surface-border', hover: 'group-hover/hit:bg-surface-border' },
+  solid: { bg: 'bg-brand-500', hover: 'group-hover/hit:bg-brand-600' },
 }
 
 // Mirrors web ui/IconButton (same variants/sizes; onPress + accessibilityLabel
@@ -45,6 +47,7 @@ export function IconButton({
   size = 'sm',
   disabled = false,
   className = '',
+  tight = false,
   ref,
 }: Props) {
   const { colors, brand, accent, isDark } = useTheme()
@@ -56,6 +59,8 @@ export function IconButton({
     secondary: colors.txPrimary,
     solid: '#ffffff',
   }
+  const box = BOX[size]
+  const hit = touchTarget(tight ? TOUCH_MIN : box.px, tight ? TOUCH_MIN : box.px, { disabled })
   return (
     <Pressable
       ref={ref}
@@ -63,10 +68,12 @@ export function IconButton({
       accessibilityLabel={label}
       onPress={onPress}
       disabled={disabled}
-      hitSlop={size === 'sm' ? 6 : 0}
-      className={`items-center justify-center active:scale-95 ${BOX[size]} ${VARIANT[variant].bg} ${disabled ? 'opacity-40' : ''} ${interactive(VARIANT[variant].hover, { disabled })} ${className}`}
+      style={hit.style}
+      className={`items-center justify-center active:scale-95 ${disabled ? 'opacity-40' : ''} ${hit.outer} ${className}`}
     >
-      <Icon icon={icon} size={size} color={iconColor[variant]} />
+      <View className={`items-center justify-center ${box.cls} ${VARIANT[variant].bg} ${disabled ? '' : VARIANT[variant].hover} ${hit.inner}`}>
+        <Icon icon={icon} size={size} color={iconColor[variant]} />
+      </View>
     </Pressable>
   )
 }

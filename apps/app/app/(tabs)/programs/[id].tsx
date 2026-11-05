@@ -10,7 +10,7 @@ import { useAsyncAction,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
-import { WEB_BUTTON, interactive } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, interactive, touchPad, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -74,11 +74,19 @@ function MuscleBadge({ muscle }: { muscle: string }) {
 function DayStrip({ wide, children }: { wide: boolean; children: ReactNode }) {
   if (wide) return <View className="flex-row flex-wrap gap-2">{children}</View>
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+    // The pills are padded 3px past their box to reach 44px tall; the scroller clips to its own
+    // box, so it takes that room as padding and gives it back as margin.
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: -3 }} contentContainerStyle={{ gap: 8, paddingRight: 8, paddingVertical: 3 }}>
       {children}
     </ScrollView>
   )
 }
+
+// The header buttons are 36px tall; only their height needs padding out (Start and Edit are wider than 44).
+const startHit = touchTarget(83, 36)
+const editHit = touchTarget(75, 36)
+const deleteHit = touchTarget(36, 36)
+const dayHit = touchTarget(77, 38)
 
 export default function ProgramDetail() {
   const pillInset = useSessionPillInset()
@@ -272,7 +280,7 @@ export default function ProgramDetail() {
             <Pressable
               onPress={goBack}
               accessibilityRole={WEB_BUTTON}
-              hitSlop={8}
+              style={touchPad(92, 19)}
               className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
             >
               <ArrowLeft size={16} color={colors.txMuted} />
@@ -286,30 +294,36 @@ export default function ProgramDetail() {
                 accessibilityLabel={t('programs.detail.startLabel')}
                 onPress={handleStart}
                 disabled={!selectedDay || selectedDay.is_rest_day}
-                hitSlop={6}
-                className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''} ${interactive('hover:bg-brand-600', { disabled: !selectedDay || selectedDay.is_rest_day })}`}
+                style={startHit.style}
+                className={`active:scale-95 ${!selectedDay || selectedDay.is_rest_day ? 'opacity-40' : ''} ${startHit.outer}`}
               >
-                <Play size={14} color="#ffffff" strokeWidth={2.2} />
-                <AppText variant="label" color="white">{t('programs.detail.start')}</AppText>
+                <View className={`h-9 flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 ${!selectedDay || selectedDay.is_rest_day ? '' : 'group-hover/hit:bg-brand-600'} ${startHit.inner}`}>
+                  <Play size={14} color="#ffffff" strokeWidth={2.2} />
+                  <AppText variant="label" color="white">{t('programs.detail.start')}</AppText>
+                </View>
               </Pressable>
               <Pressable
                 {...linkProps(`/programs/${program.id}/edit`, () => router.push(`/programs/${program.id}/edit`))}
                 accessibilityLabel={t('programs.detail.editLabel')}
-                hitSlop={6}
-                className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 active:scale-95 ${interactive('hover:bg-brand-500/20')}`}
+                style={editHit.style}
+                className={`active:scale-95 ${editHit.outer}`}
               >
-                <Edit2 size={15} color={accent} strokeWidth={2.2} />
-                <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                <View className={`h-9 flex-row items-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 px-3 group-hover/hit:bg-brand-500/20 ${editHit.inner}`}>
+                  <Edit2 size={15} color={accent} strokeWidth={2.2} />
+                  <AppText variant="label" style={{ color: accent }}>{t('common.edit')}</AppText>
+                </View>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t('programs.detail.deleteLabel')}
                 onPress={() => setConfirming(true)}
                 disabled={remove.busy}
-                hitSlop={6}
-                className={`h-9 w-9 items-center justify-center rounded-lg active:bg-error-500/10 ${remove.busy ? 'opacity-40' : ''} ${interactive('hover:bg-error-500/10', { disabled: remove.busy })}`}
+                style={deleteHit.style}
+                className={`${remove.busy ? 'opacity-40' : ''} ${deleteHit.outer}`}
               >
-                <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                <View className={`h-9 w-9 items-center justify-center rounded-lg group-active/hit:bg-error-500/10 ${remove.busy ? '' : 'group-hover/hit:bg-error-500/10'} ${deleteHit.inner}`}>
+                  <Trash2 size={17} color={colors.txMuted} strokeWidth={2.2} />
+                </View>
               </Pressable>
             </View>
           </View>
@@ -480,14 +494,18 @@ export default function ProgramDetail() {
                     accessibilityRole={WEB_BUTTON}
                     // react-native-web drops accessibilityState, so the web DOM says which day is shown.
                     {...(Platform.OS === 'web' ? { 'aria-pressed': isSelected } : {})}
-                    className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 active:scale-95 ${interactive(isSelected ? '' : 'hover:border-brand-500/40')} ${
-                      isSelected
-                        ? 'bg-brand-500 border-brand-500'
-                        : day.is_rest_day
-                          ? 'bg-surface-muted/40 border-surface-border'
-                          : 'bg-surface-raised border-surface-border'
-                    }`}
+                    style={dayHit.style}
+                    className={`active:scale-95 ${dayHit.outer}`}
                   >
+                    <View
+                      className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 ${dayHit.inner} ${isSelected ? '' : 'group-hover/hit:border-brand-500/40'} ${
+                        isSelected
+                          ? 'bg-brand-500 border-brand-500'
+                          : day.is_rest_day
+                            ? 'bg-surface-muted/40 border-surface-border'
+                            : 'bg-surface-raised border-surface-border'
+                      }`}
+                    >
                     {day.is_rest_day
                       ? <Moon size={14} color={isSelected ? '#ffffff' : colors.txMuted} />
                       : <Dumbbell size={14} color={isSelected ? '#ffffff' : accent} />}
@@ -501,6 +519,7 @@ export default function ProgramDetail() {
                         <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('common.todayChip')}</AppText>
                       </View>
                     ) : null}
+                    </View>
                   </Pressable>
                 )
               })}
