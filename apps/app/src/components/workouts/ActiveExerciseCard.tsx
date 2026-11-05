@@ -72,7 +72,8 @@ interface Props {
   isLast: boolean
   wUnit: string
   weightUnit: 'lbs' | 'kg'
-  onCardLayout: (index: number, y: number) => void
+  /** Reports the card's height; the screen works out positions from heights in order. */
+  onCardLayout: (index: number, height: number) => void
   onRemoveExercise: (index: number) => void
   onNotesChange: (index: number, text: string) => void
   onAddSet: (index: number) => void
@@ -101,7 +102,7 @@ function ActiveExerciseCardBase({
 
   return (
     <View
-      onLayout={(e: LayoutChangeEvent) => onCardLayout(index, e.nativeEvent.layout.y)}
+      onLayout={(e: LayoutChangeEvent) => onCardLayout(index, e.nativeEvent.layout.height)}
       className={`overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
     >
       {/* Header */}

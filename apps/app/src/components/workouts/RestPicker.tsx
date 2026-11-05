@@ -93,7 +93,7 @@ export function RestPicker({ value, onChange }: Props) {
             accessibilityRole="button"
             accessibilityLabel={t('workouts.rest.stepDown5Spoken')}
             onPress={() => step(-5)}
-            className="rounded-xl border border-surface-border bg-surface-muted p-2.5 active:scale-95"
+            className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted active:scale-95"
           >
             <Minus size={16} color={colors.txSecondary} />
           </Pressable>
@@ -115,7 +115,7 @@ export function RestPicker({ value, onChange }: Props) {
             accessibilityRole="button"
             accessibilityLabel={t('workouts.rest.stepUp5Spoken')}
             onPress={() => step(5)}
-            className="rounded-xl border border-surface-border bg-surface-muted p-2.5 active:scale-95"
+            className="h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted active:scale-95"
           >
             <Plus size={16} color={colors.txSecondary} />
           </Pressable>

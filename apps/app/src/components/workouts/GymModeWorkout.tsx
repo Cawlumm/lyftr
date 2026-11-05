@@ -1,22 +1,25 @@
-import { useEffect, useRef, useState } from 'react'
-import { Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState, type Ref } from 'react'
+import { Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View, type PressableInstance } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { router, usePathname } from 'expo-router'
 import {
-  Check, CheckCircle2, ChevronLeft, ChevronRight, Dumbbell, Flag, Layers, Minimize2,
-  Play, Plus, Repeat, Timer, Trash2, X,
+  ArrowUpDown, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Ellipsis, Flag, Layers,
+  LayoutList, List, Play, Plus, Repeat, Timer, Trash2,
 } from '../ui/icons'
 import {
-  useAsyncAction, displayToLbs, displayWeight, weightShort, useTranslation, type Exercise,
+  useAsyncAction, displayToLbs, displayWeight, exerciseFractions, occurrenceKeys, weightShort, useTranslation, type Exercise,
 } from '@lyftr/shared'
-import { AppText, ConfirmSheet, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile } from '../ui'
+import { SHEET_ANIM_MS } from '../ui/Sheet'
+import { AppText, ConfirmSheet, Menu, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile, type MenuItem } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
+import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
+import { ElapsedClock, ProgressSegments } from './GymProgress'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
 import { GymFrame } from './GymFrame'
-import { WEB_BUTTON, currentStep, interactive } from '../ui/interaction'
+import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
@@ -63,8 +66,48 @@ function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string;
       {...(web ? webNotes(exIdx, notes, onSave) : {})}
       placeholder={t('workouts.active.notes.placeholderMobile')}
       placeholderTextColor={colors.txMuted}
-      className="font-sans text-xs text-tx-secondary"
+      className="min-h-6 font-sans text-xs text-tx-secondary"
     />
+  )
+}
+
+// The exercise's name is the way to the others: the whole block (name, ▾, position and meta)
+// opens the exercises sheet, so the name is shown once and is never cut to fit a chip.
+function ExerciseSwitcher({ name, current, total, title, details, onPress, children, ref }: {
+  name: string
+  /** 1-based position of this exercise. */
+  current: number
+  total: number
+  /** The info phase's larger title rather than the set screen's heading. */
+  title?: boolean
+  /** What the meta row says, for the accessible name: a button's name replaces its content. */
+  details: string[]
+  onPress: () => void
+  children: React.ReactNode
+  ref?: Ref<PressableInstance>
+}) {
+  const { t } = useTranslation()
+  const { colors, accent } = useTheme()
+  return (
+    <Pressable
+      ref={ref}
+      testID="gym-exercise-switcher"
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={[t('gym.exercises.switcher', { current, total, name }), ...details].join(', ')}
+      className={`min-w-0 flex-shrink rounded-xl px-2 py-1.5 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}
+    >
+      <View className="flex-row items-center gap-2">
+        <AppText variant={title ? 'title' : 'heading'} numberOfLines={1} className="min-w-0 flex-shrink">{name}</AppText>
+        <View className="h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg border border-surface-border bg-surface-muted">
+          <ChevronDown size={14} color={colors.txMuted} />
+        </View>
+      </View>
+      <View className={`${title ? 'mt-2' : 'mt-1'} flex-row flex-wrap items-center gap-2`}>
+        <Text className="font-sans-bold text-xs" style={{ color: accent, fontVariant: ['tabular-nums'] }}>{`${current}/${total}`}</Text>
+        {children}
+      </View>
+    </Pressable>
   )
 }
 
@@ -83,6 +126,7 @@ export function GymModeWorkout() {
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
+  const moveExercise = useWorkoutSession((s) => s.moveExercise)
   const updateExerciseNotes = useWorkoutSession((s) => s.updateExerciseNotes)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
@@ -107,13 +151,32 @@ export function GymModeWorkout() {
   const [imgFailed, setImgFailed] = useState(false)
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  const [exercisesSheet, setExercisesSheet] = useState<ExercisesSheetMode | null>(null)
+  // On web, a jump or a phase change unmounts the control focus would go back to, so focus is
+  // put on its counterpart in the new phase instead of falling to the page.
+  const switcherRef = useRef<PressableInstance>(null)
+  const minimizeRef = useRef<PressableInstance>(null)
+  const pendingFocus = useRef<typeof switcherRef | null>(null)
 
   const setPhase = (p: typeof phase) => setGymState(p, activeIdx, activeSetIdx)
   const onSetActiveIdx = (i: number) => setGymState(phase, i, 0)
   const setActiveSetIdx = (i: number) => setGymState(phase, activeIdx, i)
+  // A jump lands on the exercise's first set still to do, not on set 1 when that is logged.
+  const openExercise = (i: number) =>
+    setGymState('exercise-info', i, Math.max(0, nextIncompleteSet(session?.exercises[i]?.sets ?? [], -1)))
 
   useEffect(() => { setImgFailed(false) }, [activeIdx])
+
+  useEffect(() => {
+    const target = pendingFocus.current
+    if (!web || !target || exercisesSheet) return
+    pendingFocus.current = null
+    // The switcher's comes after the sheet has finished closing, so the sheet's own focus
+    // restore cannot undo it.
+    setTimeout(() => target.current?.focus(), target === switcherRef ? SHEET_ANIM_MS + 50 : 0)
+  }, [phase, activeIdx, exercisesSheet])
 
   // Jump to a newly added exercise
   const prevLenRef = useRef(session?.exercises.length ?? 0)
@@ -158,6 +221,13 @@ export function GymModeWorkout() {
     if (pathname === '/workouts/active') router.replace('/workouts')
   }
 
+  const handleRemoveExercise = () => {
+    removeExercise(activeIdx)
+    const newLen = session.exercises.length - 1
+    if (newLen === 0) { setPhase('overview'); return }
+    onSetActiveIdx(Math.min(activeIdx, newLen - 1))
+  }
+
   const addExerciseFromPicker = (exercise: Exercise) => {
     addExercise({
       exercise_id: exercise.id,
@@ -197,6 +267,15 @@ export function GymModeWorkout() {
         onConfirm={() => { setOutcome({ kind: 'discarded', session }); cancelSession(); handleMinimize() }}
         onCancel={() => setConfirmCancel(false)}
       />
+      <ConfirmSheet
+        open={confirmRemove}
+        icon={Trash2} destructive
+        title={t('gym.removeConfirm.title')}
+        message={t('gym.removeConfirm.message', { name: session.exercises[activeIdx]?.exercise.name ?? '', count: session.exercises[activeIdx]?.sets.filter((st) => st.completed).length ?? 0 })}
+        confirmLabel={t('gym.removeConfirm.confirm')} cancelLabel={t('workouts.active.keepGoing')}
+        onConfirm={() => { setConfirmRemove(false); handleRemoveExercise() }}
+        onCancel={() => setConfirmRemove(false)}
+      />
       {showPicker ? (
         <ExercisePicker
           selectedIds={session.exercises.map((e) => e.exercise_id)}
@@ -204,67 +283,94 @@ export function GymModeWorkout() {
           onClose={() => setShowPicker(false)}
         />
       ) : null}
+      <GymExercisesSheet
+        open={exercisesSheet}
+        exercises={session.exercises.map((e) => ({
+          name: e.exercise.name, done: e.sets.filter((st) => st.completed).length, total: e.sets.length,
+        }))}
+        rowKeys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))}
+        current={activeIdx}
+        onJump={(i) => { pendingFocus.current = switcherRef; setExercisesSheet(null); if (i !== activeIdx) openExercise(i) }}
+        onMove={moveExercise}
+        onClose={() => setExercisesSheet(null)}
+      />
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
       <NumericKeyboardAccessory />
     </SafeAreaView>
     </GymFrame>
   )
 
-  const topBar = (onBack: () => void) => (
-    <View className="flex-shrink-0 flex-row items-center gap-3 border-b border-surface-border px-4 pb-3 pt-2">
-      <Pressable onPress={onBack} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={web ? t('common.back') : undefined} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
-        <ChevronLeft size={20} color={colors.txMuted} />
-      </Pressable>
-      <View className="min-w-0 flex-1 flex-row items-center gap-2">
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, alignItems: 'center' }}>
-          {session.exercises.map((_, i) => {
-            const done = session.exercises[i].sets.every((st) => st.completed) && session.exercises[i].sets.length > 0
-            return (
-              <Pressable
-                key={i}
-                onPress={() => setGymState('exercise-info', i, 0)}
-                accessibilityLabel={t('gym.goToExercise', { number: i + 1 })}
-                accessibilityRole={WEB_BUTTON}
-                {...currentStep(i === activeIdx)}
-                className={`h-1.5 rounded-full ${i === activeIdx ? 'w-6 bg-brand-500' : done ? 'w-2 bg-brand-500/40' : 'w-2 bg-surface-border'} ${interactive('hover:opacity-70')}`}
-              />
-            )
-          })}
-        </ScrollView>
-        <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{activeIdx + 1}/{session.exercises.length}</AppText>
+  // Whole-workout actions: a dropdown on web, an action sheet on a phone (Menu / Menu.web).
+  // Minimize is the ⌄ beside it, not an item here. Discard still asks first. The overview
+  // already shows the list, its Add Exercise and its reorder button, so there only Discard.
+  const onExerciseScreen = phase !== 'overview'
+  const menuItems: MenuItem[] = [
+    ...(onExerciseScreen ? [{ label: t('gym.menu.addExercise'), icon: Plus, onSelect: () => setShowPicker(true) }] : []),
+    ...(onExerciseScreen && session.exercises.length > 1
+      ? [{ label: t('workouts.reorder.title'), icon: ArrowUpDown, onSelect: () => setExercisesSheet('reorder') }]
+      : []),
+    ...(onExerciseScreen ? [{ label: t('gym.menu.allExercises'), icon: List, onSelect: () => setExercisesSheet('list') }] : []),
+    // With Back gone from the exercise screens, this is the way to the overview.
+    ...(onExerciseScreen
+      ? [{ label: t('gym.menu.overview'), icon: LayoutList, onSelect: () => { pendingFocus.current = minimizeRef; setPhase('overview') } }]
+      : []),
+    { label: t('gym.discardWorkout'), icon: Trash2, destructive: true, separated: true, onSelect: () => setConfirmCancel(true) },
+  ]
+  const setProgress = t('workouts.active.setProgress', { done: completedSets, total: totalSets })
+  const moreMenu = (
+    <Menu
+      label={t('gym.menu.more')}
+      title={t('gym.workout')}
+      subtitle={session.name ? t('gym.menu.subtitle', { name: session.name, sets: setProgress }) : setProgress}
+      items={menuItems}
+      className="h-11 w-11 items-center justify-center rounded-xl active:bg-surface-muted"
+    >
+      <Ellipsis size={20} color={colors.txMuted} />
+    </Menu>
+  )
+
+  const minimizeButton = (
+    <Pressable ref={minimizeRef} onPress={handleMinimize} accessibilityRole="button" accessibilityLabel={t('gym.minimize')} className={`h-11 w-11 items-center justify-center rounded-xl active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
+      <ChevronDown size={20} color={colors.txMuted} />
+    </Pressable>
+  )
+
+  // Only whole-workout things up here: minimize, the clock over the set count, Finish and the
+  // menu (kept last, at the right edge), every one a 44pt target. Where you are in the workout is the heading below it.
+  const topBar = (
+    <View className="flex-shrink-0">
+      <View className="flex-row items-center gap-1 px-3 py-1.5">
+        {minimizeButton}
+        <ElapsedClock startedAt={session.started_at} done={completedSets} total={totalSets} />
+        <Pressable onPress={() => setConfirmFinish(true)} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.finish')} className={`h-11 w-11 items-center justify-center rounded-xl active:scale-95 ${allDone ? 'bg-brand-500' : 'active:bg-surface-muted'} ${interactive(allDone ? 'hover:bg-brand-600' : 'hover:bg-surface-muted')}`}>
+          <Check size={20} color={allDone ? '#ffffff' : colors.txMuted} />
+        </Pressable>
+        {moreMenu}
       </View>
-      <View className="flex-shrink-0 flex-row items-center gap-1">
-        <Pressable onPress={() => setConfirmFinish(true)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center gap-1.5 rounded-xl px-3 py-2 ${allDone ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allDone ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
-          <Flag size={14} color={allDone ? '#ffffff' : colors.txMuted} />
-          <Text className={`font-sans-semibold text-xs ${allDone ? 'text-white' : 'text-tx-muted'}`}>{t('workouts.active.finish')}</Text>
-        </Pressable>
-        <Pressable onPress={handleMinimize} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.minimizeWorkout')} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
-          <Minimize2 size={16} color={colors.txMuted} />
-        </Pressable>
-        <Pressable onPress={() => setConfirmCancel(true)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.discardWorkout')} className={`rounded-xl p-2 active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>
-          <X size={20} color={colors.txMuted} />
-        </Pressable>
-      </View>
+      <ProgressSegments values={exerciseFractions(session.exercises)} keys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))} current={activeIdx} />
     </View>
   )
+
+  const openSwitcher = () => setExercisesSheet('list')
 
   // ── Overview ──────────────────────────────────────────────
   if (phase === 'overview') {
     const muscles = [...new Set(session.exercises.map((e) => e.exercise.muscle_group))].length
     return overlay(
       <>
-        <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-4 pt-2">
-          <View className="flex-1">
+        <View className="flex-row items-center justify-between gap-2 border-b border-surface-border px-3 pb-3 pt-1.5">
+          {minimizeButton}
+          <View className="min-w-0 flex-1">
             <AppText variant="label" color="muted" className="uppercase">{t('gym.workout')}</AppText>
             <AppText variant="heading" numberOfLines={1}>{session.name}</AppText>
           </View>
           <View className="flex-row items-center gap-1">
-            <Pressable onPress={handleMinimize} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.minimize')} className={`rounded-xl p-2 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
-              <Minimize2 size={16} color={colors.txMuted} />
-            </Pressable>
-            <Pressable onPress={() => setConfirmCancel(true)} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.discardWorkout')} className={`rounded-xl p-2 active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>
-              <X size={20} color={colors.txMuted} />
-            </Pressable>
+            {session.exercises.length > 1 ? (
+              <Pressable onPress={() => setExercisesSheet('reorder')} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.reorder.title')} className={`h-11 w-11 items-center justify-center rounded-xl active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}>
+                <ArrowUpDown size={18} color={colors.txMuted} />
+              </Pressable>
+            ) : null}
+            {moreMenu}
           </View>
         </View>
 
@@ -281,7 +387,8 @@ export function GymModeWorkout() {
           ))}
         </View>
 
-        <ScrollView className="flex-1" contentContainerStyle={{ padding: 20, gap: 8 }}>
+        {/* Focusable on web so a keyboard can scroll a long list: its rows are not buttons. */}
+        <ScrollView focusable={web} className="flex-1" contentContainerStyle={{ padding: 20, gap: 8 }}>
           {session.exercises.length === 0 ? (
             <View className="items-center gap-3 py-16">
               <Dumbbell size={40} color={colors.txMuted} />
@@ -322,9 +429,9 @@ export function GymModeWorkout() {
             <Text className="font-sans-semibold text-sm text-tx-secondary">{t('workouts.active.addExercise')}</Text>
           </Pressable>
           {session.exercises.length > 0 ? (
-            <Pressable onPress={() => setGymState('exercise-info', 0, 0)} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand-500 py-4 active:scale-95 ${interactive('hover:bg-brand-600')}`}>
+            <Pressable onPress={() => openExercise(Math.min(activeIdx, session.exercises.length - 1))} accessibilityRole={WEB_BUTTON} className={`flex-row items-center justify-center gap-2 rounded-2xl bg-brand-500 py-4 active:scale-95 ${interactive('hover:bg-brand-600')}`}>
               <Play size={20} color="#ffffff" />
-              <Text className="font-sans-bold text-base text-white">{t('gym.overview.startWorkout')}</Text>
+              <Text className="font-sans-bold text-base text-white">{completedSets > 0 ? t('gym.overview.continueWorkout') : t('gym.overview.startWorkout')}</Text>
             </Pressable>
           ) : null}
         </View>
@@ -336,7 +443,6 @@ export function GymModeWorkout() {
   // above fixes activeIdx (no store writes during render).
   const ex = session.exercises[activeIdx]
   if (!ex) return null
-  const isFirst = activeIdx === 0
   const isLast = activeIdx === session.exercises.length - 1
 
   // ── Exercise info ─────────────────────────────────────────
@@ -346,6 +452,11 @@ export function GymModeWorkout() {
     const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
     const repsVals = ex.sets.map((s) => s.target_reps).filter((r) => r > 0)
     const wtVals = ex.sets.map((s) => displayWeight(s.target_weight, wUnit)).filter((w) => w > 0)
+    const infoDetails = [
+      muscleLabel(exercise.muscle_group),
+      ...(equipLabel && exercise.equipment !== 'other' ? [equipLabel] : []),
+      ...(exercise.category ? [categoryLabel(exercise.category)] : []),
+    ]
     const planStats = [
       { icon: Layers, label: t('gym.labels.sets'), value: String(ex.sets.length) },
       { icon: Repeat, label: t('gym.labels.reps'), value: numericRange(repsVals) },
@@ -353,15 +464,17 @@ export function GymModeWorkout() {
     ]
     return overlay(
       <>
-        {topBar(() => (isFirst ? setPhase('overview') : setGymState('exercise', activeIdx - 1, 0)))}
+        {topBar}
         <ScrollView className="flex-1" contentContainerStyle={{ paddingBottom: 20 }}>
           {exercise.image_url && !imgFailed ? (
             <Image source={{ uri: exercise.image_url }} onError={() => setImgFailed(true)} className="h-52 w-full bg-surface-muted" resizeMode="cover" />
           ) : null}
           <View className="gap-5 px-5 pb-4 pt-5">
-            <View>
-              <AppText variant="title">{exercise.name}</AppText>
-              <View className="mt-2 flex-row flex-wrap items-center gap-2">
+            {/* The negative margin puts the button's padding in this view's padding, so the text
+                lines up and the whole pressed area stays inside the parent (Android drops touches
+                outside a parent's bounds). */}
+            <View className="-mx-2 -my-1.5 flex-row">
+              <ExerciseSwitcher ref={switcherRef} title name={exercise.name} current={activeIdx + 1} total={session.exercises.length} details={infoDetails} onPress={openSwitcher}>
                 <MuscleBadge muscle={exercise.muscle_group} />
                 {equipLabel && exercise.equipment !== 'other' ? (
                   <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary">{equipLabel}</AppText></View>
@@ -369,7 +482,7 @@ export function GymModeWorkout() {
                 {exercise.category ? (
                   <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary" className="capitalize">{categoryLabel(exercise.category)}</AppText></View>
                 ) : null}
-              </View>
+              </ExerciseSwitcher>
             </View>
 
             {/* Plan */}
@@ -440,6 +553,7 @@ export function GymModeWorkout() {
   // ── Exercise sets ─────────────────────────────────────────
   const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const completedHere = ex.sets.filter((s) => s.completed).length
+  const setsDoneHere = t('workouts.active.setsDone', { done: completedHere, count: ex.sets.length })
   const clampedSetIdx = Math.min(activeSetIdx, ex.sets.length - 1)
   const set = ex.sets[clampedSetIdx]
 
@@ -468,32 +582,25 @@ export function GymModeWorkout() {
     setActiveSetIdx(Math.max(0, Math.min(setIdx, ex.sets.length - 2)))
   }
 
-  const handleRemoveExercise = () => {
-    removeExercise(activeIdx)
-    const newLen = session.exercises.length - 1
-    if (newLen === 0) { setPhase('overview'); return }
-    onSetActiveIdx(Math.min(activeIdx, newLen - 1))
-  }
-
   if (!set) return null
 
   const restingHere = restExIdx === activeIdx
 
   return overlay(
     <>
-      {topBar(() => setPhase('exercise-info'))}
+      {topBar}
       {/* name + muscle */}
       <View className="flex-shrink-0 border-b border-surface-border px-5 pb-3 pt-4">
-        <View className="flex-row items-center justify-between gap-2">
-          <View className="min-w-0 flex-1">
-            <AppText variant="heading" numberOfLines={1}>{ex.exercise.name}</AppText>
-            <View className="mt-1 flex-row items-center gap-2">
+        {/* Negative margin: see the info phase's switcher. */}
+        <View className="-mx-2 -my-1.5 flex-row items-center justify-between gap-2">
+          <View className="min-w-0 flex-1 flex-row">
+            <ExerciseSwitcher ref={switcherRef} name={ex.exercise.name} current={activeIdx + 1} total={session.exercises.length} details={[muscleLabel(ex.exercise.muscle_group), setsDoneHere]} onPress={openSwitcher}>
               <MuscleBadge muscle={ex.exercise.muscle_group} small />
-              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setsDone', { done: completedHere, count: ex.sets.length })}</AppText>
-            </View>
+              <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{setsDoneHere}</AppText>
+            </ExerciseSwitcher>
           </View>
           {!allSetsComplete ? (
-            <Pressable onPress={handleRemoveExercise} hitSlop={6} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.removeExercise')} className={`rounded-lg p-1.5 active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>
+            <Pressable onPress={() => (completedHere > 0 ? setConfirmRemove(true) : handleRemoveExercise())} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('gym.removeExercise')} className={`h-11 w-11 items-center justify-center rounded-lg active:bg-error-500/10 ${interactive('hover:bg-error-500/10')}`}>
               <Trash2 size={16} color={colors.txMuted} />
             </Pressable>
           ) : null}
@@ -521,7 +628,7 @@ export function GymModeWorkout() {
                       : (resting ? 'gym.set.chipResting' : 'gym.set.chip'),
                     { number: i + 1 },
                   )}
-                  className={`h-10 min-w-[44px] flex-row items-center justify-center gap-1 rounded-full px-3 active:scale-95 ${
+                  className={`h-11 min-w-[44px] flex-row items-center justify-center gap-1 rounded-full px-3 active:scale-95 ${
                     i === clampedSetIdx ? 'bg-brand-500' : s.completed ? `bg-brand-500/15 ${resting ? 'border border-brand-500/60' : ''}` : 'bg-surface-muted'
                   } ${interactive(i === clampedSetIdx ? '' : 'hover:bg-surface-border')}`}
                 >
@@ -554,13 +661,13 @@ export function GymModeWorkout() {
             </View>
           </View>
 
-          <View className="w-full items-center gap-6">
+          <View className="w-full items-center gap-3">
             <Pressable onPress={() => handleCompleteSetGym(clampedSetIdx)} accessibilityRole={WEB_BUTTON} className={`w-full flex-row items-center justify-center gap-3 rounded-2xl py-5 active:scale-95 ${set.completed ? 'border-2 border-brand-500/40 bg-brand-500/15' : 'bg-brand-500'} ${interactive(set.completed ? 'hover:bg-brand-500/25' : 'hover:bg-brand-600')}`}>
               <CheckCircle2 size={24} color={set.completed ? accent : '#ffffff'} />
               <Text className={`font-sans-bold text-base ${set.completed ? '' : 'text-white'}`} style={set.completed ? { color: accent } : undefined}>{set.completed ? t('gym.completed') : t('gym.completeSet')}</Text>
             </Pressable>
-            {ex.sets.length > 1 ? (
-              <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} accessibilityRole={WEB_BUTTON} className={`active:opacity-60 ${interactive('rounded hover:opacity-70')}`}>
+            {ex.sets.length > 1 && !set.completed ? (
+              <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} accessibilityRole={WEB_BUTTON} className={`min-h-11 justify-center px-3 active:opacity-60 ${interactive('rounded hover:opacity-70')}`}>
                 <Text className="font-sans text-xs text-tx-muted">{t('gym.removeSet')}</Text>
               </Pressable>
             ) : null}
@@ -578,14 +685,14 @@ export function GymModeWorkout() {
               which fires a dev-only printUpgradeWarning whose JSON.stringify walks into
               react-navigation's default context getter and throws. Keeping active: stable
               avoids the churn entirely. */}
-          <Pressable onPress={() => setActiveSetIdx(clampedSetIdx - 1)} disabled={clampedSetIdx === 0} accessibilityRole={WEB_BUTTON} accessibilityLabel={web ? t('gym.previousSet') : undefined} className={`rounded-xl border border-surface-border bg-surface-muted p-3 active:scale-95 ${clampedSetIdx === 0 ? 'opacity-30' : ''} ${interactive('hover:bg-surface-border', { disabled: clampedSetIdx === 0 })}`}>
+          <Pressable onPress={() => setActiveSetIdx(clampedSetIdx - 1)} disabled={clampedSetIdx === 0} accessibilityRole={WEB_BUTTON} accessibilityLabel={web ? t('gym.previousSet') : undefined} className={`h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted active:scale-95 ${clampedSetIdx === 0 ? 'opacity-30' : ''} ${interactive('hover:bg-surface-border', { disabled: clampedSetIdx === 0 })}`}>
             <ChevronLeft size={16} color={colors.txSecondary} />
           </Pressable>
           <Pressable onPress={() => { addSet(activeIdx); setActiveSetIdx(ex.sets.length) }} accessibilityRole={WEB_BUTTON} className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl border border-dashed border-surface-border py-3 active:opacity-60 ${interactive('hover:bg-surface-muted')}`}>
             <Plus size={14} color={colors.txMuted} />
             <Text className="font-sans-semibold text-xs text-tx-muted">{t('workouts.active.addSet')}</Text>
           </Pressable>
-          <Pressable onPress={() => setActiveSetIdx(clampedSetIdx + 1)} disabled={clampedSetIdx >= ex.sets.length - 1} accessibilityRole={WEB_BUTTON} accessibilityLabel={web ? t('gym.nextSet') : undefined} className={`rounded-xl border border-surface-border bg-surface-muted p-3 active:scale-95 ${clampedSetIdx >= ex.sets.length - 1 ? 'opacity-30' : ''} ${interactive('hover:bg-surface-border', { disabled: clampedSetIdx >= ex.sets.length - 1 })}`}>
+          <Pressable onPress={() => setActiveSetIdx(clampedSetIdx + 1)} disabled={clampedSetIdx >= ex.sets.length - 1} accessibilityRole={WEB_BUTTON} accessibilityLabel={web ? t('gym.nextSet') : undefined} className={`h-11 w-11 items-center justify-center rounded-xl border border-surface-border bg-surface-muted active:scale-95 ${clampedSetIdx >= ex.sets.length - 1 ? 'opacity-30' : ''} ${interactive('hover:bg-surface-border', { disabled: clampedSetIdx >= ex.sets.length - 1 })}`}>
             <ChevronRight size={16} color={colors.txSecondary} />
           </Pressable>
         </View>
@@ -600,7 +707,7 @@ export function GymModeWorkout() {
               <Text className={`font-sans-bold text-sm ${allSetsComplete ? 'text-white' : ''}`} style={allSetsComplete ? undefined : { color: accent }}>{t('gym.nav.finishWorkout')}</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => setGymState('exercise-info', activeIdx + 1, 0)} accessibilityRole={WEB_BUTTON} className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl py-3 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allSetsComplete ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
+            <Pressable onPress={() => openExercise(activeIdx + 1)} accessibilityRole={WEB_BUTTON} className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl py-3 active:scale-95 ${allSetsComplete ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allSetsComplete ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
               <Text className={`font-sans-bold text-sm ${allSetsComplete ? 'text-white' : 'text-tx-secondary'}`}>{t('gym.nav.nextExercise')}</Text>
               <ChevronRight size={16} color={allSetsComplete ? '#ffffff' : colors.txSecondary} />
             </Pressable>

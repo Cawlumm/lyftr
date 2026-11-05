@@ -14,6 +14,12 @@ export function nextIncompleteSet(sets: { completed?: boolean }[], afterIdx: num
   return sets.findIndex((s, i) => i > afterIdx && !s.completed)
 }
 
+// One value per exercise, 0..1: the share of its sets completed. An exercise with no sets
+// is 0, never NaN. Gym Mode draws one progress segment from each.
+export function exerciseFractions(exercises: { sets: { completed?: boolean }[] }[]): number[] {
+  return exercises.map(({ sets }) => (sets.length ? sets.filter((s) => s.completed).length / sets.length : 0))
+}
+
 // Elapsed time for a running workout: h:mm:ss once past an hour, mm:ss below it.
 // Both parts are zero-padded — unlike fmtClock, which leaves the minute bare. That is
 // deliberate: this one sits in a fixed-width slot (the session pill, the active-workout
