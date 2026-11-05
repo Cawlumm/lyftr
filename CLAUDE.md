@@ -440,9 +440,13 @@ ignored.
 
   A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
   there. This dodge is local-only.
-- **CI jobs for the app:** `e2e-app` runs Playwright against the compose stack (nginx +
-  Expo web export + backend); `perf.spec.ts` holds LCP/CLS tripwires and `polish.spec.ts`
-  walks every route at four widths in both themes. `web-export` builds the export and
+- **CI jobs for the app:** Playwright runs against the compose stack (nginx + Expo web
+  export + backend) as two `e2e-shard` jobs (`--shard=N/2`), inside the official
+  `mcr.microsoft.com/playwright` image tagged to the lockfile's `@playwright/test`;
+  `e2e-app` only aggregates them and carries the required check name. Never put
+  `playwright install-deps` back: it runs apt against the runner's mirror, which has
+  trickled at ~80 KB/s and timed the job out before a test ran. `perf.spec.ts` holds
+  LCP/CLS tripwires and `polish.spec.ts` walks every route at four widths in both themes. `web-export` builds the export and
   enforces the bundle budget in `apps/app/perf-budget.json`.
 - **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
   the mobile filter includes). The suite drives the Expo web export, so a native-only
