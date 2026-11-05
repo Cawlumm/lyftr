@@ -11,12 +11,11 @@ import { useTheme } from '../../theme/useTheme'
 // payload upstream is unchanged.
 const STEP = 5
 
-// The segments are 32px wide and flush with the field's edge, so they take their extra width
-// inward, over the value (whose text is a few characters wide in the middle). zIndex puts the
-// minus above the value block that follows it.
+// The segments are 32px wide and flush with the field's edge, and the value in the middle needs
+// every pixel between them, so they take their extra width outward, past the field's border.
 const GROW = TOUCH_MIN - 32
-const STEP_MINUS = { width: TOUCH_MIN, marginRight: -GROW, zIndex: 1 } as const
-const STEP_PLUS = { width: TOUCH_MIN, marginLeft: -GROW, alignItems: 'flex-end' } as const
+const STEP_MINUS = { width: TOUCH_MIN, marginLeft: -GROW, alignItems: 'flex-end' } as const
+const STEP_PLUS = { width: TOUCH_MIN, marginRight: -GROW, alignItems: 'flex-start' } as const
 
 export function DurationField({ value, onChange, inputAccessoryViewID }: {
   value: number
@@ -31,7 +30,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
   const plusHit = touchTarget(32, 48, { inset: true })
 
   return (
-    <View className="h-12 flex-row items-stretch overflow-hidden rounded-xl border border-surface-border bg-surface-overlay">
+    <View className="h-12 flex-row items-stretch rounded-xl border border-surface-border bg-surface-overlay">
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('workouts.form.durationField.decrease')}
@@ -40,7 +39,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         style={STEP_MINUS}
         className={`${minusHit.outer} ${canDec ? '' : 'opacity-40'}`}
       >
-        <View className={`h-full w-8 items-center justify-center border-r border-surface-border group-active/hit:bg-surface-muted ${minusHit.inner}`}>
+        <View className={`h-full w-8 items-center justify-center rounded-l-xl border-r border-surface-border group-active/hit:bg-surface-muted ${minusHit.inner}`}>
           <Minus size={16} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
         </View>
       </Pressable>
@@ -95,7 +94,7 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         style={STEP_PLUS}
         className={plusHit.outer}
       >
-        <View className={`h-full w-8 items-center justify-center border-l border-surface-border group-active/hit:bg-surface-muted ${plusHit.inner}`}>
+        <View className={`h-full w-8 items-center justify-center rounded-r-xl border-l border-surface-border group-active/hit:bg-surface-muted ${plusHit.inner}`}>
           <Plus size={16} color={accent} strokeWidth={2.4} />
         </View>
       </Pressable>
