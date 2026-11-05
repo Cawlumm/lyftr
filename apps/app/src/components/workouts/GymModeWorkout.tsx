@@ -18,6 +18,7 @@ import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
 import { ElapsedClock, ProgressSegments } from './GymProgress'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
+import { applyRestOnToggle } from '../../lib/restOnSetToggle'
 import { GymFrame } from './GymFrame'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
@@ -122,7 +123,6 @@ export function GymModeWorkout() {
   const activeSetIdx = useWorkoutSession((s) => s.gymSetIdx)
   const setGymState = useWorkoutSession((s) => s.setGymState)
   const updateSet = useWorkoutSession((s) => s.updateSet)
-  const completeSet = useWorkoutSession((s) => s.completeSet)
   const addSet = useWorkoutSession((s) => s.addSet)
   const removeSet = useWorkoutSession((s) => s.removeSet)
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
@@ -132,8 +132,6 @@ export function GymModeWorkout() {
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
   const setOutcome = useWorkoutOutcome((s) => s.setOutcome)
-  const startRest = useWorkoutSession((s) => s.startRest)
-  const clearRest = useWorkoutSession((s) => s.clearRest)
   const restExIdx = useWorkoutSession((s) => s.restExIdx)
   const restSetIdx = useWorkoutSession((s) => s.restSetIdx)
   // Subscribe to the DERIVED boolean, not the raw rest stamps. Pause/resume/adjust flip
@@ -566,18 +564,9 @@ export function GymModeWorkout() {
     // Done typing this set — drop the keyboard so the rest sheet doesn't animate in under
     // a raised keyboard (and pausing it later can't trigger a blur-reflow).
     Keyboard.dismiss()
-    const wasCompleted = ex.sets[setIdx].completed
-    completeSet(activeIdx, setIdx)
-    if (wasCompleted) {
-      if (restExIdx === activeIdx && restSetIdx === setIdx) clearRest()
-      return
-    }
+    if (applyRestOnToggle(activeIdx, setIdx)) return
     // Satisfying "clunk" when a set lands (native-feel; web has none).
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-    if (settings.rest_enabled) {
-      const r = ex.rest_seconds ?? settings.rest_seconds_default ?? 90
-      if (r > 0) startRest(r, activeIdx, setIdx)
-    }
     const next = nextIncompleteSet(ex.sets, setIdx)
     if (next !== -1) setActiveSetIdx(next)
   }

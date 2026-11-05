@@ -89,7 +89,6 @@
       "restTimer": {
         "label": "Temporizador de descanso",
         "description": "Inicia automáticamente una cuenta regresiva entre series",
-        "gymDescription": "Inicia automáticamente una cuenta regresiva entre series en el modo gimnasio",
         "off": "No",
         "on": "Sí"
       },

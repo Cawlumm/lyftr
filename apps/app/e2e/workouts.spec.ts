@@ -591,3 +591,60 @@ test.describe('Gym Mode', { tag: '@mobile' }, () => {
     await expect(button(page, 'Complete Set')).toBeVisible()
   })
 })
+
+// -- List layout rest timer ----------------------------------------------------------------
+
+test.describe('List layout rest timer', () => {
+  test.beforeAll(async ({ request, workerAuth }) => {
+    const res = await request.get(`${API}/exercises?limit=1`, { headers: { Authorization: `Bearer ${workerAuth.token}` } })
+    exerciseId = (await res.json()).data[0].id
+  })
+
+  function seedList(page: Page, restEnabled: boolean) {
+    const sets = [1, 2].map(n => ({ set_number: n, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false }))
+    const session = {
+      name: 'E2E List Rest', started_at: new Date().toISOString(),
+      exercises: [{
+        exercise_id: exerciseId,
+        exercise: { id: exerciseId, name: 'Bench Press', muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+        notes: '', rest_seconds: 20, sets,
+      }],
+    }
+    return page.addInitScript(({ sk, lk, s, on }: { sk: string; lk: string; s: unknown; on: boolean }) => {
+      if (localStorage.getItem(sk)) return
+      localStorage.setItem(sk, JSON.stringify(s))
+      localStorage.setItem(lk, 'list')
+      localStorage.setItem('lyftr_rest_enabled', String(on))
+    }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: session, on: restEnabled })
+  }
+
+  test('ticking a set starts the rest banner, un-ticking dismisses it, and the banner never covers Add Exercise', async ({ page }) => {
+    await seedList(page, true)
+    await page.goto('/workouts/active')
+    const pause = page.getByRole('button', { name: 'Pause rest timer' })
+    await expect(pause).toHaveCount(0)
+
+    await page.getByRole('button', { name: /^Complete set 1/ }).click()
+    await expect(pause).toBeVisible()
+    await expect(page.getByText(/^0:(?:1[0-9]|20)$/)).toBeVisible()
+    const add = page.getByRole('button', { name: 'Add Exercise' })
+    await add.scrollIntoViewIfNeeded()
+    await expect(add).toBeVisible()
+    const addBox = await add.boundingBox()
+    const bannerBox = await page.getByText(/^Set 1 done/).boundingBox()
+    expect(addBox).not.toBeNull()
+    expect(bannerBox).not.toBeNull()
+    expect(addBox!.y + addBox!.height).toBeLessThanOrEqual(bannerBox!.y)
+
+    await page.getByRole('button', { name: /^Completed set 1/ }).click()
+    await expect(pause).toHaveCount(0)
+  })
+
+  test('with the rest timer off, ticking a set shows no banner', async ({ page }) => {
+    await seedList(page, false)
+    await page.goto('/workouts/active')
+    await page.getByRole('button', { name: /^Complete set 1/ }).click()
+    await expect(page.getByRole('button', { name: /^Completed set 1/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Pause rest timer' })).toHaveCount(0)
+  })
+})

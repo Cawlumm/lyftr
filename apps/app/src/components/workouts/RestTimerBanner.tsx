@@ -22,7 +22,7 @@ import { WEB_BUTTON, interactive } from '../ui/interaction'
 // resume, and full-width −15/+15/Skip actions (Done when finished). Docked in-flow as
 // the last child of every gym phase, below its bottom actions, so it never covers a
 // control. When minimized the countdown is the session-pill chip instead.
-export function RestTimerBanner() {
+export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean } = {}) {
   const { t } = useTranslation()
   const { colors, brand } = useTheme()
   const insets = useSafeAreaInsets()
@@ -123,7 +123,7 @@ export function RestTimerBanner() {
       )}
       {/* The sheet surface reaches the physical bottom edge; only its content is inset
           by the safe area (home indicator) — no dead band below the actions. */}
-      <View className="px-5 pt-3" style={{ paddingBottom: insets.bottom + 16 }}>
+      <View className="px-5 pt-3" style={{ paddingBottom: (bottomInset ? insets.bottom : 0) + 16 }}>
         <AppText variant="caption" color="muted" className="text-center">{label}</AppText>
         {done ? (
           // Done confirmation: a compact, celebratory stack — pulsing success check over

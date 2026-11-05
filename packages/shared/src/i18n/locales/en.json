@@ -89,7 +89,6 @@
       "restTimer": {
         "label": "Rest timer",
         "description": "Auto-start a countdown between sets",
-        "gymDescription": "Auto-start a countdown between sets in gym mode",
         "off": "Off",
         "on": "On"
       },
