@@ -8,7 +8,7 @@ import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
+import { muscleColor, muscleInk, muscleLabel } from '../../utils/exerciseUtils'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
@@ -94,7 +94,7 @@ function ActiveExerciseCardBase({
   onJumpToExercise, onRequestFinish,
 }: Props) {
   const { t } = useTranslation()
-  const { colors, accent } = useTheme()
+  const { colors, accent, isDark } = useTheme()
   const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const completedHere = ex.sets.filter((s) => s.completed).length
   const tint = muscleColor(ex.exercise.muscle_group)
@@ -111,7 +111,7 @@ function ActiveExerciseCardBase({
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-              <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
+              <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
             </View>
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>

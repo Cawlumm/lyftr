@@ -16,8 +16,9 @@ export function useTheme() {
     isDark,
     colors: palettes[mode],
     brand,
-    // cyanEdge is 3.5:1 on the light surfaces; web holds accent text to AA with brand-700.
-    accent: isDark ? brand.cyanLight : Platform.OS === 'web' ? palette.brand[700] : brand.cyanEdge,
+    // cyanEdge is 3.5:1 on the light surfaces; web holds accent text to AA with brand-800,
+    // the rung that also clears 4.5:1 on the /10 and /15 brand tints (brand-700 is 4.0 to 4.4 there).
+    accent: isDark ? brand.cyanLight : Platform.OS === 'web' ? palette.brand[800] : brand.cyanEdge,
     toggle,
     setMode,
   }

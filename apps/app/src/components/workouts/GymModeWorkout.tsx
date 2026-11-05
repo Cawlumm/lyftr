@@ -22,7 +22,7 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
 import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
-import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { muscleColor, muscleInk, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 
 const web = Platform.OS === 'web'
 
@@ -44,11 +44,11 @@ const webNotes = (exIdx: number, notes: string, onSave: (i: number, v: string) =
 // (overview → exercise-info → exercise). Mounted at the ROOT layout when a session
 // exists, the layout pref is 'gym', and gymOpen is true (mirrors web's Layout).
 function MuscleBadge({ muscle, small }: { muscle: string; small?: boolean }) {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const tint = muscleColor(muscle)
   return (
     <View className={`rounded ${small ? 'px-1.5 py-0.5' : 'px-2 py-0.5'} ${tint?.chip ?? 'bg-surface-muted'} ${tint?.border ? `border ${tint.border}` : ''}`}>
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }

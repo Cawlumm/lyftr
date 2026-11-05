@@ -11,7 +11,7 @@ import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
+import { muscleColor, muscleInk, muscleLabel } from '../../../src/utils/exerciseUtils'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Exercise-detail leaf (workouts/exercise/[exerciseId]) — 1:1 port of web ExerciseDetail.
@@ -40,12 +40,12 @@ function SetChip({ set, isBest, unit }: { set: WorkoutSet; isBest: boolean; unit
 }
 
 function MuscleBadge({ muscle }: { muscle: string }) {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const tint = muscleColor(muscle)
   return (
     <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
       {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
+      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>
         {muscleLabel(muscle)}
       </AppText>
     </View>

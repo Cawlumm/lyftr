@@ -18,7 +18,7 @@ import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
 import {
-  MACRO_COLORS, MACRO_TEXT, MEALS, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
+  MACRO_COLORS, MACRO_INK, MEALS, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -520,9 +520,9 @@ export default function LogFood() {
                   {/* Macro grid */}
                   <View className="flex-row gap-2">
                     {([
-                      { key: 'protein', value: figures ? `${pro}g` : '—', color: MACRO_TEXT.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-                      { key: 'carbs', value: figures ? `${carb}g` : '—', color: MACRO_TEXT.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-                      { key: 'fat', value: figures ? `${fat_}g` : '—', color: MACRO_TEXT.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+                      { key: 'protein', value: figures ? `${pro}g` : '—', color: MACRO_INK[isDark ? 'dark' : 'light'].protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+                      { key: 'carbs', value: figures ? `${carb}g` : '—', color: MACRO_INK[isDark ? 'dark' : 'light'].carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+                      { key: 'fat', value: figures ? `${fat_}g` : '—', color: MACRO_INK[isDark ? 'dark' : 'light'].fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
                       { key: 'fiber', value: figures ? `${figures.fiber}g` : '—', color: colors.txSecondary, bg: colors.muted, border: colors.border },
                     ] as const).map((m) => (
                       <View key={m.key} className="flex-1 items-center rounded-xl border p-2.5" style={{ backgroundColor: m.bg, borderColor: m.border }}>

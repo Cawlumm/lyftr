@@ -4,7 +4,7 @@ import { useTranslation, type FoodSearchResult } from '@lyftr/shared'
 import { AppText } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { FoodThumb } from './FoodImage'
-import { MACRO_TEXT } from './nutritionMeta'
+import { MACRO_INK } from './nutritionMeta'
 
 interface Props {
   item: FoodSearchResult
@@ -33,8 +33,9 @@ interface Props {
 export function FoodResultRow({
   item, onPress, favorited, onToggleFavorite, togglingFavorite = false, loading = false,
 }: Props) {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const { t } = useTranslation()
+  const ink = MACRO_INK[isDark ? 'dark' : 'light']
 
   return (
     <Pressable
@@ -49,11 +50,11 @@ export function FoodResultRow({
         <View className="mt-1 flex-row flex-wrap items-center gap-x-1.5">
           <AppText variant="caption" color="secondary" style={{ fontWeight: '600', fontVariant: ['tabular-nums'] }}>{Math.round(item.calories)} kcal</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g {t('food.macro.proteinInitial')}</AppText>
+          <AppText variant="caption" style={{ color: ink.protein, fontVariant: ['tabular-nums'] }}>{item.protein.toFixed(0)}g {t('food.macro.proteinInitial')}</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g {t('food.macro.carbsInitial')}</AppText>
+          <AppText variant="caption" style={{ color: ink.carbs, fontVariant: ['tabular-nums'] }}>{item.carbs.toFixed(0)}g {t('food.macro.carbsInitial')}</AppText>
           <Dot />
-          <AppText variant="caption" style={{ color: MACRO_TEXT.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g {t('food.macro.fatInitial')}</AppText>
+          <AppText variant="caption" style={{ color: ink.fat, fontVariant: ['tabular-nums'] }}>{item.fat.toFixed(0)}g {t('food.macro.fatInitial')}</AppText>
           {item.serving_size ? (<><Dot /><AppText variant="caption" color="muted" style={{ fontSize: 10 }}>{item.serving_size}</AppText></>) : null}
         </View>
       </View>

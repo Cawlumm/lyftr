@@ -135,10 +135,8 @@ test.describe('at 1280px', () => {
     await openWeight(page)
     await tabTo(page, weightChart(page))
     await expect(tip(page)).toBeVisible()
-    // Contrast is off for the same palette reason as a11y.spec.ts.
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-      .disableRules(['color-contrast'])
       .analyze()
     expect(violations).toEqual([])
   })

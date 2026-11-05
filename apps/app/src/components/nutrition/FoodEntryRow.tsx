@@ -9,18 +9,19 @@ import { linkProps } from '../ui/link'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { FoodThumb } from './FoodImage'
-import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal } from './nutritionMeta'
+import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_INK, mealLabel, type Meal } from './nutritionMeta'
 
 // Compact meal tag shown on each row now that meals share one list (icon + label in the
 // meal's tint). 8-digit hex (#RRGGBBAA) for the fill/border is fine on RN core Views.
 function MealChip({ meal }: { meal: Meal }) {
   useTranslation()
+  const { isDark } = useTheme()
   const Icon = MEAL_ICONS[meal]
   const color = MEAL_COLORS[meal]
   return (
     <View className="flex-row items-center gap-1 rounded-full border px-2 py-0.5" style={{ backgroundColor: `${color}1A`, borderColor: `${color}40` }}>
       <Icon size={11} color={color} />
-      <AppText variant="caption" style={{ fontSize: 10, color, fontWeight: '700' }}>{mealLabel(meal)}</AppText>
+      <AppText variant="caption" style={{ fontSize: 10, color: MEAL_INK[isDark ? 'dark' : 'light'][meal], fontWeight: '700' }}>{mealLabel(meal)}</AppText>
     </View>
   )
 }

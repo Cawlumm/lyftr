@@ -27,7 +27,7 @@ import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { muscleColor, muscleInk, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { useSessionPillInset } from './SessionPill'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
@@ -49,7 +49,7 @@ const HISTORY_DAYS: Record<HistoryPeriod, number | null> = { '1m': 30, '3m': 90,
 // Header muscle badge (web muscleColorBordered) + borderless variant for "Also works"
 // (web muscleColor). px-2 py-0.5 rounded, matching the web spans.
 function MuscleBadge({ muscle, bordered }: { muscle: string; bordered?: boolean }) {
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const tint = muscleColor(muscle)
   return (
     <View
@@ -58,7 +58,7 @@ function MuscleBadge({ muscle, bordered }: { muscle: string; bordered?: boolean 
       }`}
     >
       {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
+      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>
         {muscleLabel(muscle)}
       </AppText>
     </View>

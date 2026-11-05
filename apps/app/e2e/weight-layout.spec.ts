@@ -215,7 +215,7 @@ for (const [name, width, dialog] of [
     }
     const { violations } = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-      .disableRules(['color-contrast']) // tracked by the fixme in a11y.spec.ts
+      .disableRules(['color-contrast']) // the confirm sheet's solid bg-error-500 Delete button (text-tx-primary): not a tint, out of scope here
       .analyze()
     expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)).toEqual([])
   })

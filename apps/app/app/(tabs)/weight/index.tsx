@@ -301,7 +301,7 @@ export default function Weight() {
       : change < 0
         ? 'bg-success-500/10 border-success-500/20'
         : 'bg-error-500/10 border-error-500/20'
-  const trendText = change === 0 ? colors.txMuted : change < 0 ? brand.successSoft : brand.errorSoft
+  const trendText = change === 0 ? colors.txMuted : semanticInk[isDark ? 'dark' : 'light'][change < 0 ? 'success' : 'error']
   const changeKey = change === 0 ? 'weight.hero.changeNone' : change < 0 ? 'weight.hero.changeLost' : 'weight.hero.changeGained'
 
   const statCards = [

@@ -8,7 +8,7 @@ import {
   AppText, Button, Card, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, Toast, deleteConfirmProps,
 } from '../../../src/components/ui'
 import {
-  MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
+  MACRO_COLORS, MACRO_INK, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
 import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
@@ -23,7 +23,7 @@ export default function NutritionDetail() {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { colors, accent } = useTheme()
+  const { colors, accent, isDark } = useTheme()
 
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -95,9 +95,9 @@ export default function NutritionDetail() {
   const MealIcon = MEAL_ICONS[meal]
   const mealColor = MEAL_COLORS[meal]
   const macros = [
-    { label: t('food.macro.protein'), value: entry.protein, color: MACRO_TEXT.protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-    { label: t('food.macro.carbs'), value: entry.carbs, color: MACRO_TEXT.carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-    { label: t('food.macro.fat'), value: entry.fat, color: MACRO_TEXT.fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+    { label: t('food.macro.protein'), value: entry.protein, color: MACRO_INK[isDark ? 'dark' : 'light'].protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+    { label: t('food.macro.carbs'), value: entry.carbs, color: MACRO_INK[isDark ? 'dark' : 'light'].carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+    { label: t('food.macro.fat'), value: entry.fat, color: MACRO_INK[isDark ? 'dark' : 'light'].fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
     { label: t('food.macro.fiber'), value: entry.fiber ?? 0, color: colors.txSecondary, bar: colors.txMuted, bg: colors.muted, border: colors.border },
   ]
 

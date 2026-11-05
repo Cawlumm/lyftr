@@ -19,7 +19,7 @@ import {
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
-import { muscleColor, muscleLabel } from '../../src/utils/exerciseUtils'
+import { muscleColor, muscleInk, muscleLabel } from '../../src/utils/exerciseUtils'
 import { useTheme } from '../../src/theme/useTheme'
 import { useBreakpoint } from '../../src/lib/useBreakpoint'
 import { ONE_THIRD, TWO_THIRDS } from '../../src/components/dashboard/layout'
@@ -53,11 +53,11 @@ function ProgressBar({ pct, color, opacity = 1, className = '' }: { pct: number;
 function MuscleBadge({ muscle }: { muscle: string }) {
   // Re-renders on a language switch: the badge names the muscle from the catalog.
   useTranslation()
-  const { colors } = useTheme()
+  const { colors, isDark } = useTheme()
   const tint = muscleColor(muscle)
   return (
     <View className={`self-start rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
+      <AppText variant="caption" className="capitalize" style={{ color: muscleInk(tint, isDark) ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
     </View>
   )
 }
