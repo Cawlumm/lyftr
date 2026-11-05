@@ -2,14 +2,16 @@ import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
 import { moveItem, occurrenceKeys, useTranslation, type Exercise } from '@lyftr/shared'
-import { EmptyState } from '../ui'
-import { interactive } from '../ui/interaction'
+import { EmptyState, TOUCH_MIN, touchTarget } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
 import type { DayExerciseDraft } from './types'
+
+// Full width, so only the 36px height is padded out.
+const ADD_EXERCISE = touchTarget(TOUCH_MIN, 36)
 
 interface Props {
   exercises: DayExerciseDraft[]
@@ -88,10 +90,13 @@ export function DayExercisesEditor({
         <Pressable
           accessibilityRole="button"
           onPress={() => setShowPicker(true)}
-          className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+          style={ADD_EXERCISE.style}
+          className={`flex-1 active:scale-95 ${ADD_EXERCISE.outer}`}
         >
-          <Plus size={13} color="#ffffff" />
-          <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+          <View className={`flex-row items-center justify-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2.5 group-hover/hit:bg-brand-600 ${ADD_EXERCISE.inner}`}>
+            <Plus size={13} color="#ffffff" />
+            <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+          </View>
         </Pressable>
         {exercises.length > 1 ? <ReorderButton onPress={openReorder} /> : null}
       </View>

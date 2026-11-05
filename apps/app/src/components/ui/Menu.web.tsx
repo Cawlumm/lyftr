@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
-import { Pressable } from 'react-native'
+import { Pressable, View } from 'react-native'
 import { MoreVertical } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { AnchoredOverlay } from './AnchoredOverlay.web'
 import { Icon } from './Icon'
-import { interactive } from './interaction'
+import { interactive, touchTarget } from './interaction'
 import type { MenuProps } from './Menu'
 import { MENU_TRIGGER_BOX, swallowEscapeKeyup, typeaheadIndex } from './overlay'
 import { AppText } from './Typography'
@@ -15,11 +15,14 @@ import { AppText } from './Typography'
 // item starting with it; Enter/Space/click runs an item; Escape closes onto the button, Tab
 // closes and moves on from the button, and a press outside closes where it landed. Roving focus:
 // every item is tabindex=-1 and focus itself moves.
-export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, disabled, align = 'end' }: MenuProps) {
+export function Menu({ label, items, children, className, disabled, align = 'end' }: MenuProps) {
   const { colors, brand, isDark } = useTheme()
   const buttonId = useId()
   const menuId = useId()
   const [button, setButton] = useState<HTMLElement | null>(null)
+  // The default trigger is a 32px box padded out to a 44px target; the menu lines up with the box.
+  const [box, setBox] = useState<HTMLElement | null>(null)
+  const hit = touchTarget(32, 32, { disabled })
   const menu = useRef<HTMLDivElement>(null)
   const itemEls = useRef<(HTMLDivElement | null)[]>([])
   // The item to focus when it opens; null while closed.
@@ -100,10 +103,17 @@ export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, dis
         accessibilityLabel={label}
         disabled={disabled}
         onPress={() => (isOpen ? close(true) : setOpen(0))}
-        className={`${disabled ? 'opacity-40' : ''} ${interactive('hover:bg-surface-muted', { disabled })} ${className}`}
+        style={className === undefined ? hit.style : undefined}
+        className={className === undefined
+          ? `${disabled ? 'opacity-40' : ''} ${hit.outer}`
+          : `${disabled ? 'opacity-40' : ''} ${interactive('hover:bg-surface-muted', { disabled })} ${className}`}
         {...triggerA11y}
       >
-        {children ?? <Icon icon={MoreVertical} size="sm" color={colors.txMuted} />}
+        {className === undefined ? (
+          <View ref={node => setBox(node as unknown as HTMLElement | null)} className={`${MENU_TRIGGER_BOX} group-hover/hit:bg-surface-muted ${hit.inner}`}>
+            {children ?? <Icon icon={MoreVertical} size="sm" color={colors.txMuted} />}
+          </View>
+        ) : (children ?? <Icon icon={MoreVertical} size="sm" color={colors.txMuted} />)}
       </Pressable>
       {button ? (
         <AnchoredOverlay
@@ -111,7 +121,7 @@ export function Menu({ label, items, children, className = MENU_TRIGGER_BOX, dis
           id={menuId}
           role="menu"
           aria-labelledby={buttonId}
-          anchor={button}
+          anchor={box ?? button}
           open={isOpen}
           side="bottom"
           align={align}

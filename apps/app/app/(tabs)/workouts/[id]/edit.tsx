@@ -7,7 +7,10 @@ import {
 import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
-import { interactive } from '../../../../src/components/ui/interaction'
+import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
+
+// Wider than 44 and 32 tall, so only the height is padded.
+const ADD_HIT = touchTarget(TOUCH_MIN, 32)
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
@@ -354,10 +357,13 @@ export default function EditWorkout() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setShowPicker(true)}
-                  className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 active:scale-95 ${interactive('hover:bg-brand-600')}`}
+                  style={ADD_HIT.style}
+                  className={`active:scale-95 ${ADD_HIT.outer}`}
                 >
-                  <Plus size={13} color="#ffffff" />
-                  <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                  <View className={`flex-row items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-2 group-hover/hit:bg-brand-600 ${ADD_HIT.inner}`}>
+                    <Plus size={13} color="#ffffff" />
+                    <Text className="font-sans-semibold text-xs text-white">{t('common.addExercise')}</Text>
+                  </View>
                 </Pressable>
               </View>
             </View>
