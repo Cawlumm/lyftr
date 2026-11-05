@@ -9,8 +9,9 @@ import {
 } from '../../../src/components/ui'
 import { touchPad, touchTarget } from '../../../src/components/ui/interaction'
 import {
-  MACRO_COLORS, MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal,
+  MACRO_COLORS, MACRO_INK, mealLabel, type Meal,
 } from '../../../src/components/nutrition/nutritionMeta'
+import { MealChip } from '../../../src/components/nutrition/FoodEntryRow'
 import { FavoriteStar } from '../../../src/components/nutrition/FoodResultRow'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
@@ -27,7 +28,7 @@ export default function NutritionDetail() {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const { colors, accent } = useTheme()
+  const { colors, accent, mode } = useTheme()
 
   const [entry, setEntry] = useState<FoodLog | null>(null)
   const [loading, setLoading] = useState(true)
@@ -96,12 +97,10 @@ export default function NutritionDetail() {
   }
 
   const meal = entry.meal as Meal
-  const MealIcon = MEAL_ICONS[meal]
-  const mealColor = MEAL_COLORS[meal]
   const macros = [
-    { label: t('food.macro.protein'), value: entry.protein, color: MACRO_TEXT.protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
-    { label: t('food.macro.carbs'), value: entry.carbs, color: MACRO_TEXT.carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
-    { label: t('food.macro.fat'), value: entry.fat, color: MACRO_TEXT.fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
+    { label: t('food.macro.protein'), value: entry.protein, color: MACRO_INK[mode].protein, bar: MACRO_COLORS.protein, bg: 'rgba(16,185,129,0.10)', border: 'rgba(16,185,129,0.20)' },
+    { label: t('food.macro.carbs'), value: entry.carbs, color: MACRO_INK[mode].carbs, bar: MACRO_COLORS.carbs, bg: 'rgba(245,158,11,0.10)', border: 'rgba(245,158,11,0.20)' },
+    { label: t('food.macro.fat'), value: entry.fat, color: MACRO_INK[mode].fat, bar: MACRO_COLORS.fat, bg: 'rgba(139,92,246,0.10)', border: 'rgba(139,92,246,0.20)' },
     { label: t('food.macro.fiber'), value: entry.fiber ?? 0, color: colors.txSecondary, bar: colors.txMuted, bg: colors.muted, border: colors.border },
   ]
 
@@ -175,10 +174,7 @@ export default function NutritionDetail() {
             ) : null}
             <View className="p-5">
               {/* Meal chip */}
-              <View className="flex-row items-center gap-1.5 self-start rounded-full border px-2.5 py-1" style={{ backgroundColor: `${mealColor}1A`, borderColor: `${mealColor}40` }}>
-                <MealIcon size={13} color={mealColor} />
-                <AppText variant="caption" style={{ color: mealColor, fontWeight: '700' }}>{mealLabel(meal)}</AppText>
-              </View>
+              <MealChip meal={meal} large />
 
               {/* Name + calorie hero */}
               <AppText variant="title" className="mt-3" numberOfLines={2}>{entry.name}</AppText>

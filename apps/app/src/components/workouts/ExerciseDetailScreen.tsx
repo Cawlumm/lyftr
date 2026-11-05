@@ -28,7 +28,8 @@ import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
+import { MuscleBadge } from './MuscleBadge'
 import { useSessionPillInset } from './SessionPill'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
@@ -48,25 +49,6 @@ const BACK_HIT = touchTarget(36, 36)
 const HISTORY_PERIODS = ['1m', '3m', '6m', 'All'] as const
 type HistoryPeriod = typeof HISTORY_PERIODS[number]
 const HISTORY_DAYS: Record<HistoryPeriod, number | null> = { '1m': 30, '3m': 90, '6m': 180, 'All': null }
-
-// Header muscle badge (web muscleColorBordered) + borderless variant for "Also works"
-// (web muscleColor). px-2 py-0.5 rounded, matching the web spans.
-function MuscleBadge({ muscle, bordered }: { muscle: string; bordered?: boolean }) {
-  const { colors } = useTheme()
-  const tint = muscleColor(muscle)
-  return (
-    <View
-      className={`rounded px-2 py-0.5 ${tint?.chip ?? 'bg-surface-muted'} ${
-        bordered ? `border ${tint?.border ?? 'border-surface-border'}` : ''
-      }`}
-    >
-      {/* Tint via inline style — see exerciseUtils.ts for why not a className. */}
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>
-        {muscleLabel(muscle)}
-      </AppText>
-    </View>
-  )
-}
 
 // Web's loading state: a centered pulsing Dumbbell (animate-pulse). Reanimated opacity
 // loop is the RN analog (CSS keyframes have no RN equivalent).
@@ -200,7 +182,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     <View>
       <AppText variant="title">{exercise.name}</AppText>
       <View className="mt-2 flex-row flex-wrap items-center gap-2">
-        <MuscleBadge muscle={exercise.muscle_group} bordered />
+        <MuscleBadge muscle={exercise.muscle_group} wide border />
         {equipLabel && exercise.equipment !== 'other' ? (
           <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
             <AppText variant="caption" color="secondary">{equipLabel}</AppText>
@@ -224,7 +206,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     <View>
       <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
       <View className="flex-row flex-wrap gap-1.5">
-        {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} />)}
+        {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} wide />)}
       </View>
     </View>
   ) : null

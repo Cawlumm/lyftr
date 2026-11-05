@@ -152,10 +152,8 @@ test.describe('the sidebar', () => {
   })
 
   test('the page and the open user menu pass axe', async ({ page }) => {
-    // Contrast is off for the same palette reason as a11y.spec.ts.
     const axe = () => new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
-      .disableRules(['color-contrast'])
       .analyze()
     await page.waitForLoadState('networkidle')
     expect((await axe()).violations).toEqual([])

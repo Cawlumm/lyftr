@@ -61,11 +61,6 @@ describe('accessibility labels and roles (en)', () => {
     expect(screen.getByRole('button', { name: /show password/i })).toBeTruthy()
   })
 
-  it('IconInput names its show/hide toggle, which was a nameless tab stop on sign-in', async () => {
-    await render(<IconInput label="Password" icon="lock" password value="" onChangeText={jest.fn()} />)
-    expect(screen.getByRole('button', { name: 'Show password' })).toBeTruthy()
-  })
-
   it('Button and GradientButton are role=button', async () => {
     await render(
       <>

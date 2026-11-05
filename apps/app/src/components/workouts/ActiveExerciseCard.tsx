@@ -8,7 +8,7 @@ import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
-import { muscleColor, muscleLabel } from '../../utils/exerciseUtils'
+import { MuscleBadge } from './MuscleBadge'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
@@ -98,7 +98,6 @@ function ActiveExerciseCardBase({
   const { colors, accent } = useTheme()
   const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const completedHere = ex.sets.filter((s) => s.completed).length
-  const tint = muscleColor(ex.exercise.muscle_group)
 
   return (
     <View
@@ -111,9 +110,7 @@ function ActiveExerciseCardBase({
         <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
-            <View className={`rounded px-1.5 py-0.5 ${tint?.chip ?? 'bg-surface-muted'}`}>
-              <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(ex.exercise.muscle_group)}</AppText>
-            </View>
+            <MuscleBadge muscle={ex.exercise.muscle_group} />
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>
         </Pressable>

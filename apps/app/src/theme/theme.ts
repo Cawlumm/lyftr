@@ -40,5 +40,8 @@ export const brand = {
   warningText: accents.warningText,
 }
 
+// Ink for a weight change: loss reads green, gain red (zero is the caller's muted text).
+export const trendInk = (change: number, mode: 'light' | 'dark') => semanticInk[mode][change < 0 ? 'success' : 'error']
+
 // Re-exported so components import their theme from one place.
 export { semanticInk }

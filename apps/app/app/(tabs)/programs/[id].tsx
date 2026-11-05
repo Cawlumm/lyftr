@@ -16,7 +16,7 @@ import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
-import { muscleColor, muscleLabel } from '../../../src/utils/exerciseUtils'
+import { MuscleBadge } from '../../../src/components/workouts/MuscleBadge'
 import { targetWeightLabel, restLabel } from '@lyftr/shared'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
@@ -57,16 +57,6 @@ interface Suggestion {
   isPR: boolean
   oldLabel: string
   newLabel: string
-}
-
-function MuscleBadge({ muscle }: { muscle: string }) {
-  const { colors } = useTheme()
-  const tint = muscleColor(muscle)
-  return (
-    <View className={`px-1.5 py-0.5 rounded ${tint?.chip ?? 'bg-surface-muted'}`}>
-      <AppText variant="caption" className="capitalize" style={{ color: tint?.text ?? colors.txMuted }}>{muscleLabel(muscle)}</AppText>
-    </View>
-  )
 }
 
 // The program's days in order: a sideways scroller on a phone; on wide web a wrapped row, since
@@ -519,7 +509,7 @@ export default function ProgramDetail() {
                     {/* Textual chip, not a bare dot — a color-only marker isn't
                         distinguishable by shape/text (a11y) and reads as decoration. */}
                     {isToday ? (
-                      <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-white/20' : 'bg-brand-500/15'}`}>
+                      <View className={`rounded-full px-1.5 py-0.5 ${isSelected ? 'bg-black/20' : 'bg-brand-500/15'}`}>
                         <AppText variant="caption" style={{ color: isSelected ? '#ffffff' : accent, letterSpacing: 0.5 }}>{t('common.todayChip')}</AppText>
                       </View>
                     ) : null}

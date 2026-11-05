@@ -9,18 +9,21 @@ import { linkProps } from '../ui/link'
 import { useTheme } from '../../theme/useTheme'
 import { client } from '../../lib/lyftr'
 import { FoodThumb } from './FoodImage'
-import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, mealLabel, type Meal } from './nutritionMeta'
+import { MACRO_TEXT, MEAL_COLORS, MEAL_ICONS, MEAL_INK, mealLabel, type Meal } from './nutritionMeta'
 
 // Compact meal tag shown on each row now that meals share one list (icon + label in the
-// meal's tint). 8-digit hex (#RRGGBBAA) for the fill/border is fine on RN core Views.
-function MealChip({ meal }: { meal: Meal }) {
+// meal's tint), and large on the entry's own screen. 8-digit hex (#RRGGBBAA) for the
+// fill/border is fine on RN core Views. The label is MEAL_INK, not the tint: the tint is
+// 1.4 to 2.6:1 on its own 10% fill in light.
+export function MealChip({ meal, large = false }: { meal: Meal; large?: boolean }) {
   useTranslation()
+  const { mode } = useTheme()
   const Icon = MEAL_ICONS[meal]
   const color = MEAL_COLORS[meal]
   return (
-    <View className="flex-row items-center gap-1 rounded-full border px-2 py-0.5" style={{ backgroundColor: `${color}1A`, borderColor: `${color}40` }}>
-      <Icon size={11} color={color} />
-      <AppText variant="caption" style={{ fontSize: 10, color, fontWeight: '700' }}>{mealLabel(meal)}</AppText>
+    <View className={`flex-row items-center self-start rounded-full border ${large ? 'gap-1.5 px-2.5 py-1' : 'gap-1 px-2 py-0.5'}`} style={{ backgroundColor: `${color}1A`, borderColor: `${color}40` }}>
+      <Icon size={large ? 13 : 11} color={color} />
+      <AppText variant="caption" style={{ ...(large ? null : { fontSize: 10 }), color: MEAL_INK[mode][meal], fontWeight: '700' }}>{mealLabel(meal)}</AppText>
     </View>
   )
 }
