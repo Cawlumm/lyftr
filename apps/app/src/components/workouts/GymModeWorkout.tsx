@@ -18,6 +18,7 @@ import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
 import { ElapsedClock, ProgressSegments } from './GymProgress'
 import { MuscleDiagram } from './MuscleDiagram'
 import { RestTimerBanner } from './RestTimerBanner'
+import { applyRestOnToggle } from '../../hooks/restOnSetToggle'
 import { GymFrame } from './GymFrame'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
@@ -131,8 +132,6 @@ export function GymModeWorkout() {
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
   const setOutcome = useWorkoutOutcome((s) => s.setOutcome)
-  const startRest = useWorkoutSession((s) => s.startRest)
-  const clearRest = useWorkoutSession((s) => s.clearRest)
   const restExIdx = useWorkoutSession((s) => s.restExIdx)
   const restSetIdx = useWorkoutSession((s) => s.restSetIdx)
   // Subscribe to the DERIVED boolean, not the raw rest stamps. Pause/resume/adjust flip
@@ -563,16 +562,10 @@ export function GymModeWorkout() {
     Keyboard.dismiss()
     const wasCompleted = ex.sets[setIdx].completed
     completeSet(activeIdx, setIdx)
-    if (wasCompleted) {
-      if (restExIdx === activeIdx && restSetIdx === setIdx) clearRest()
-      return
-    }
+    applyRestOnToggle(ex, activeIdx, setIdx, wasCompleted)
+    if (wasCompleted) return
     // Satisfying "clunk" when a set lands (native-feel; web has none).
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-    if (settings.rest_enabled) {
-      const r = ex.rest_seconds ?? settings.rest_seconds_default ?? 90
-      if (r > 0) startRest(r, activeIdx, setIdx)
-    }
     const next = nextIncompleteSet(ex.sets, setIdx)
     if (next !== -1) setActiveSetIdx(next)
   }

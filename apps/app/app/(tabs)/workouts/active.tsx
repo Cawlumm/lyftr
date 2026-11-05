@@ -6,6 +6,8 @@ import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/compo
 import { useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
+import { RestTimerBanner } from '../../../src/components/workouts/RestTimerBanner'
+import { applyRestOnToggle } from '../../../src/hooks/restOnSetToggle'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
@@ -107,10 +109,13 @@ export default function ActiveWorkout() {
     // settles and nothing reflows later (e.g. a rest timer starting under a raised board).
     Keyboard.dismiss()
     // Impact only when a set becomes completed (not on un-toggle).
-    if (session && !session.exercises[exIdx].sets[setIdx].completed) {
+    const ex = session?.exercises[exIdx]
+    const wasCompleted = !!ex?.sets[setIdx].completed
+    if (ex && !wasCompleted) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
     }
     completeSet(exIdx, setIdx)
+    if (ex) applyRestOnToggle(ex, exIdx, setIdx, wasCompleted)
     if (exIdx !== activeExIdx) setActiveExIdx(exIdx)
   })
 
@@ -267,6 +272,9 @@ export default function ActiveWorkout() {
           </Pressable>
         </View>
       </ScrollView>
+
+      {/* Docked in-flow under the list, above the tab bar (which owns the bottom inset). */}
+      <RestTimerBanner bottomInset={false} />
 
       {/* Finish confirm */}
       <ConfirmSheet
