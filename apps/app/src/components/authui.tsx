@@ -40,6 +40,7 @@ export function IconInput({
   password,
   ...rest
 }: TextInputProps & { label: string; icon: 'mail' | 'lock'; password?: boolean }) {
+  const { t } = useTranslation()
   const { colors, brand } = useTheme()
   const { duration } = useMotion()
   const [hide, setHide] = useState(!!password)
@@ -90,7 +91,12 @@ export function IconInput({
           {...rest}
         />
         {password ? (
-          <Pressable onPress={() => setHide((h) => !h)} hitSlop={10}>
+          <Pressable
+            onPress={() => setHide((h) => !h)}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={t(hide ? 'common.password.show' : 'common.password.hide', { label: label.toLowerCase() })}
+          >
             {hide ? <Eye size={19} color={LABEL_COLOR} strokeWidth={2} /> : <EyeOff size={19} color={LABEL_COLOR} strokeWidth={2} />}
           </Pressable>
         ) : null}
