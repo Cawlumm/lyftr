@@ -442,7 +442,7 @@ ignored.
   A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
   there. This dodge is local-only.
 - **CI jobs for the app:** Playwright runs against the compose stack (nginx + Expo web
-  export + backend) as two `e2e-shard` jobs (`--shard=N/2`), inside the official
+  export + backend) as three `e2e-shard` jobs (`--shard=N/3`), inside the official
   `mcr.microsoft.com/playwright` image tagged to the lockfile's `@playwright/test`;
   `e2e-app` only aggregates them and carries the required check name. Never put
   `playwright install-deps` back: it runs apt against the runner's mirror, which has
