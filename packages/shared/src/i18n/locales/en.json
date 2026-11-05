@@ -1164,7 +1164,13 @@
       "finishConfirm": {
         "title": "Finish Workout?",
         "message_one": "{{done}} of {{count}} set completed. Workout will be saved.",
-        "message_other": "{{done}} of {{count}} sets completed. Workout will be saved."
+        "message_other": "{{done}} of {{count}} sets completed. Workout will be saved.",
+        "unfinished_one": "{{done}} of {{total}} sets completed. {{count}} unfinished set won't be saved.",
+        "unfinished_other": "{{done}} of {{total}} sets completed. {{count}} unfinished sets won't be saved."
+      },
+      "nothingToSave": {
+        "title": "Nothing to save yet",
+        "message": "No sets are completed. Tick a set to save it, or discard this workout."
       },
       "cancelConfirm": {
         "title": "Cancel Workout?",

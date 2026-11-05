@@ -22,6 +22,7 @@ import { GymFrame } from './GymFrame'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { swallowEscapeKeyup } from '../ui/overlay'
 import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
+import { finishConfirmCopy } from '../../lib/finishConfirm'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
 import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
@@ -213,6 +214,7 @@ export function GymModeWorkout() {
   const totalSets = session.exercises.reduce((s, ex) => s + ex.sets.length, 0)
   const completedSets = session.exercises.reduce((s, ex) => s + ex.sets.filter((st) => st.completed).length, 0)
   const allDone = completedSets === totalSets && totalSets > 0
+  const finishCopy = finishConfirmCopy(t, completedSets, totalSets)
 
 
   const handleMinimize = () => {
@@ -251,12 +253,15 @@ export function GymModeWorkout() {
       <RestTimerBanner />
       <ConfirmSheet
         open={confirmFinish}
-        icon={Flag}
-        title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
-        confirmLabel={t('workouts.active.finish')} busyLabel={t('common.saving')} cancelLabel={t('workouts.active.keepGoing')} busy={finish.busy}
+        icon={finishCopy.nothingToSave ? Trash2 : Flag}
+        destructive={finishCopy.nothingToSave}
+        title={finishCopy.title}
+        message={finishCopy.message}
+        confirmLabel={finishCopy.confirmLabel} busyLabel={t('common.saving')} cancelLabel={t('workouts.active.keepGoing')} busy={finish.busy}
         error={finish.error}
-        onConfirm={() => { void finish.run() }} onCancel={() => { setConfirmFinish(false); finish.reset() }}
+        onConfirm={() => {
+          if (finishCopy.nothingToSave) { setOutcome({ kind: 'discarded', session }); cancelSession(); handleMinimize() } else void finish.run()
+        }} onCancel={() => { setConfirmFinish(false); finish.reset() }}
       />
       <ConfirmSheet
         open={confirmCancel}

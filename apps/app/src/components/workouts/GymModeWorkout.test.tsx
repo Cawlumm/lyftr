@@ -217,3 +217,41 @@ describe('top bar', () => {
     await view.unmount()
   })
 })
+
+describe('Finish sheet', () => {
+  const setCompleted = (done: boolean[]) => {
+    const s = session()
+    useWorkoutSession.setState({
+      session: { ...s, exercises: [{ ...s.exercises[0], sets: s.exercises[0].sets.map((st, i) => ({ ...st, completed: done[i] })) }] },
+    })
+  }
+  const openFinish = async () => {
+    useWorkoutSession.getState().clearRest()
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByText('Finish Workout'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    return view
+  }
+
+  it('says unfinished sets will not be saved', async () => {
+    const view = await openFinish()
+    expect(screen.getByText("1 of 3 sets completed. 2 unfinished sets won't be saved.")).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('keeps the plain message when every set is done', async () => {
+    setCompleted([true, true, true])
+    const view = await openFinish()
+    expect(screen.getByText('3 of 3 sets completed. Workout will be saved.')).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('offers Discard, not an empty save, when nothing is completed', async () => {
+    setCompleted([false, false, false])
+    const view = await openFinish()
+    expect(screen.getByText('Nothing to save yet')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Discard'))
+    expect(useWorkoutSession.getState().session).toBeNull()
+    await view.unmount()
+  })
+})

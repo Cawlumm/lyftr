@@ -229,6 +229,77 @@ test.describe('Workouts', () => {
     }
   })
 
+  // Finish saves what was done: one ticked set of three is one saved set, at its own
+  // values, and the volume the app shows is that set's alone.
+  const PARTIAL_NAME = 'E2E Partial Finish'
+  const partialSession = (completed: boolean[]) => ({
+    name: PARTIAL_NAME,
+    started_at: new Date(Date.now() - 600000).toISOString(),
+    exercises: [{
+      exercise_id: exerciseId,
+      exercise: { id: exerciseId, name: 'Bench Press', muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+      notes: '', rest_seconds: 90,
+      sets: completed.map((done, i) => ({ set_number: i + 1, target_reps: 8, target_weight: 100, actual_reps: 8, actual_weight: 100, completed: done })),
+    }],
+  })
+  const savedPartials = async (request: import('@playwright/test').APIRequestContext) => {
+    const wl = await (await request.get(`${API}/workouts?limit=50`, { headers: { Authorization: `Bearer ${authToken}` } })).json()
+    return (wl.data ?? []).filter((w: { name: string }) => w.name === PARTIAL_NAME)
+  }
+
+  test('finishing with one of three sets done saves only that set', async ({ page, request }) => {
+    const headers = { Authorization: `Bearer ${authToken}` }
+    try {
+      await page.addInitScript(({ sk, lk, s }: { sk: string; lk: string; s: unknown }) => {
+        localStorage.setItem(sk, JSON.stringify(s))
+        localStorage.setItem(lk, 'list')
+      }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: partialSession([true, false, false]) })
+
+      await page.goto('/workouts/active')
+      await page.getByRole('button', { name: 'Finish', exact: true }).first().click()
+      const sheet = page.getByRole('dialog', { name: 'Finish Workout?' })
+      await expect(sheet.getByText("1 of 3 sets completed. 2 unfinished sets won't be saved.")).toBeVisible()
+      await sheet.getByRole('button', { name: 'Finish', exact: true }).click()
+      await page.waitForURL('**/workouts')
+
+      const saved = await savedPartials(request)
+      expect(saved).toHaveLength(1)
+      const detail = (await (await request.get(`${API}/workouts/${saved[0].id}`, { headers })).json()).data
+      const sets = detail.exercises.flatMap((e: { sets: unknown[] }) => e.sets)
+      expect(sets).toHaveLength(1)
+      expect(sets[0]).toMatchObject({ set_number: 1, reps: 8, weight: 100 })
+
+      // 8 x 100 lb = 800; the three-set total (2,400) must not appear.
+      await page.goto(`/workouts/${saved[0].id}`)
+      await expect(page.getByText('800', { exact: true }).first()).toBeVisible()
+      await expect(page.getByText('2,400', { exact: true })).toHaveCount(0)
+    } finally {
+      for (const w of await savedPartials(request)) await request.delete(`${API}/workouts/${w.id}`, { headers })
+    }
+  })
+
+  test('with no set done, Finish offers Discard and saves nothing', async ({ page, request }) => {
+    const headers = { Authorization: `Bearer ${authToken}` }
+    try {
+      await page.addInitScript(({ sk, lk, s }: { sk: string; lk: string; s: unknown }) => {
+        localStorage.setItem(sk, JSON.stringify(s))
+        localStorage.setItem(lk, 'list')
+      }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: partialSession([false, false, false]) })
+
+      await page.goto('/workouts/active')
+      await page.getByRole('button', { name: 'Finish', exact: true }).first().click()
+      const sheet = page.getByRole('dialog', { name: 'Nothing to save yet' })
+      await expect(sheet.getByText('No sets are completed.', { exact: false })).toBeVisible()
+      await expect(sheet.getByRole('button', { name: 'Finish', exact: true })).toHaveCount(0)
+      await sheet.getByRole('button', { name: 'Discard', exact: true }).click()
+      await page.waitForURL('**/workouts')
+
+      expect(await savedPartials(request)).toHaveLength(0)
+    } finally {
+      for (const w of await savedPartials(request)) await request.delete(`${API}/workouts/${w.id}`, { headers })
+    }
+  })
+
   // /workout/active and /workout/start moved under /workouts (C09). Old bookmarks and the
   // installed PWA's start URL must keep landing on the same screen.
   test('the old /workout/active URL redirects to /workouts/active', async ({ page }) => {

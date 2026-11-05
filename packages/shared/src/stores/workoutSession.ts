@@ -343,17 +343,21 @@ export function createWorkoutSession(storage: StorageAdapter) {
         started_at: session.started_at,
         program_id: session.program_id ?? null, // lets the backend auto-progress the routine (#40)
         program_day_id: session.program_day_id ?? null, // which cycle day this was — drives the due-day tracker
-        exercises: session.exercises.map(ex => ({
-          exercise_id: ex.exercise_id,
-          notes: ex.notes,
-          rest_seconds: ex.rest_seconds,
-          sets: ex.sets.map((s, i) => ({
-            set_number: i + 1,
-            reps: s.actual_reps || s.target_reps,
-            weight: s.actual_weight || s.target_weight,
-            program_set_id: s.program_set_id ?? null, // which routine target this set can progress (#40)
+        // Only ticked sets are saved (a ticked set with empty fields means "did the target").
+        exercises: session.exercises
+          .map(ex => ({ ex, done: (ex.sets ?? []).filter(s => s.completed) }))
+          .filter(({ done }) => done.length > 0)
+          .map(({ ex, done }) => ({
+            exercise_id: ex.exercise_id,
+            notes: ex.notes,
+            rest_seconds: ex.rest_seconds,
+            sets: done.map((s, i) => ({
+              set_number: i + 1,
+              reps: s.actual_reps || s.target_reps,
+              weight: s.actual_weight || s.target_weight,
+              program_set_id: s.program_set_id ?? null, // which routine target this set can progress (#40)
+            })),
           })),
-        })),
       }
     },
 
