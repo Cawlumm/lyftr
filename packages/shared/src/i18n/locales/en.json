@@ -1170,7 +1170,7 @@
       },
       "nothingToSave": {
         "title": "Nothing to save yet",
-        "message": "No sets are completed. Tick a set to save it, or discard this workout."
+        "message": "No sets are done yet. Mark a set done to save it, or discard this workout."
       },
       "cancelConfirm": {
         "title": "Cancel Workout?",

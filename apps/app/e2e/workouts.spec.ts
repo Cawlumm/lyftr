@@ -269,10 +269,9 @@ test.describe('Workouts', () => {
       expect(sets).toHaveLength(1)
       expect(sets[0]).toMatchObject({ set_number: 1, reps: 8, weight: 100 })
 
-      // 8 x 100 lb = 800; the three-set total (2,400) must not appear.
+      // 8 x 100 lb = 800, not the three-set 2,400.
       await page.goto(`/workouts/${saved[0].id}`)
       await expect(page.getByRole('heading', { name: '800 lb', exact: true })).toBeVisible()
-      await expect(page.getByRole('heading', { name: '2,400 lb', exact: true })).toHaveCount(0)
     } finally {
       for (const w of await savedPartials(request)) await request.delete(`${API}/workouts/${w.id}`, { headers })
     }

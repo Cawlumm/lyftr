@@ -1188,7 +1188,7 @@
       },
       "nothingToSave": {
         "title": "Todavía no hay nada que guardar",
-        "message": "No hay series completadas. Marca una serie para guardarla o descarta este entrenamiento."
+        "message": "Aún no hay series hechas. Marca una serie como hecha para guardarla o descarta este entrenamiento."
       },
       "cancelConfirm": {
         "title": "¿Cancelar el entrenamiento?",

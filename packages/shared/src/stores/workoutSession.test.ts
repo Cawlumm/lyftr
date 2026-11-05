@@ -107,7 +107,7 @@ describe('workoutSession rest timer (ephemeral)', () => {
   it('removeSet clears the rest (set indices shift)', () => {
     const { store } = setup()
     store().startSession('T', [
-      { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: '', sets: [{ set_number: 1, completed: true }, { set_number: 2 }] },
+      { exercise_id: 1, exercise: { id: 1, name: 'A' }, notes: '', sets: [{ set_number: 1 }, { set_number: 2 }] },
     ] as any)
     store().startRest(60, 0, 1)
     store().removeSet(0, 0)

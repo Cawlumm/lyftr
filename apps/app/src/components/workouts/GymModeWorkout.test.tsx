@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { i18n, type ActiveSession } from '@lyftr/shared'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
+import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { GymModeWorkout } from './GymModeWorkout'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
 
@@ -252,6 +253,7 @@ describe('Finish sheet', () => {
     expect(screen.getByText('Nothing to save yet')).toBeTruthy()
     await fireEvent.press(screen.getByText('Discard'))
     expect(useWorkoutSession.getState().session).toBeNull()
+    expect(useWorkoutOutcome.getState().outcome?.kind).toBe('discarded')
     await view.unmount()
   })
 })
