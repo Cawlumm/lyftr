@@ -59,8 +59,8 @@ export function touchTarget(width: number, height: number, { disabled = false, i
     // The pressable keeps the cursor and swallows the browser's own square outline; the inner
     // box draws the ring, so it follows the control's shape, not the padded one; `inset` draws it
     // inside, for a box that sits flush against its neighbour.
-    outer: web ? `group/hit focus-visible:outline-none ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}` : '',
-    // grow: where the pressable is stretched (a row of pills of unequal height), the box fills it.
-    inner: `grow ${web && !disabled ? `${GROUP_RING} ${inset ? 'group-focus-visible/hit:-outline-offset-2' : 'group-focus-visible/hit:outline-offset-2'}` : ''}`,
+    // `group/hit` is on native too: the inner box's `group-active/hit:` press colour needs it.
+    outer: `group/hit ${web ? `focus-visible:outline-none ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}` : ''}`,
+    inner: web && !disabled ? `${GROUP_RING} ${inset ? 'group-focus-visible/hit:-outline-offset-2' : 'group-focus-visible/hit:outline-offset-2'}` : '',
   }
 }

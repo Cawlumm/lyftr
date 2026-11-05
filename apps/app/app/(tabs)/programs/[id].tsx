@@ -10,7 +10,7 @@ import { useAsyncAction,
   weightShort, type Program, type ProgramSet, formatDate, uiMessage, useTranslation, type UiMessage
 } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
-import { WEB_BUTTON, interactive, touchPad, touchTarget } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, interactive, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
@@ -83,9 +83,7 @@ function DayStrip({ wide, children }: { wide: boolean; children: ReactNode }) {
 }
 
 // The header buttons are 36px tall; only their height needs padding out (Start and Edit are wider than 44).
-const startHit = touchTarget(83, 36)
 const editHit = touchTarget(75, 36)
-const deleteHit = touchTarget(36, 36)
 const dayHit = touchTarget(77, 38)
 
 export default function ProgramDetail() {
@@ -270,6 +268,9 @@ export default function ProgramDetail() {
   )
   const suggestedSetIds = suggestions.map((s) => s.setId)
   const warningColor = isDark ? brand.warningSoft : brand.warning
+  const backHit = touchTarget(92, 19)
+  const startHit = touchTarget(83, 36, { disabled: !selectedDay || selectedDay.is_rest_day })
+  const deleteHit = touchTarget(36, 36, { disabled: remove.busy })
 
   return (
     <Screen maxWidth="medium">
@@ -280,11 +281,13 @@ export default function ProgramDetail() {
             <Pressable
               onPress={goBack}
               accessibilityRole={WEB_BUTTON}
-              style={touchPad(92, 19)}
-              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+              style={backHit.style}
+              className={`active:opacity-60 ${backHit.outer}`}
             >
-              <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">{t('programs.detail.back')}</AppText>
+              <View className={`flex-row items-center gap-1.5 rounded-md group-hover/hit:opacity-80 ${backHit.inner}`}>
+                <ArrowLeft size={16} color={colors.txMuted} />
+                <AppText variant="body" color="muted">{t('programs.detail.back')}</AppText>
+              </View>
             </Pressable>
             <View className="flex-row items-center gap-2">
               {/* Start is the primary action → filled brand pill; Edit brand outline;
@@ -498,7 +501,8 @@ export default function ProgramDetail() {
                     className={`active:scale-95 ${dayHit.outer}`}
                   >
                     <View
-                      className={`flex-row items-center gap-1.5 rounded-xl border px-3 py-2 ${dayHit.inner} ${isSelected ? '' : 'group-hover/hit:border-brand-500/40'} ${
+                      // grow: the pills stretch to the tallest (today's carries a chip), and the box must fill.
+                      className={`grow flex-row items-center gap-1.5 rounded-xl border px-3 py-2 ${dayHit.inner} ${isSelected ? '' : 'group-hover/hit:border-brand-500/40'} ${
                         isSelected
                           ? 'bg-brand-500 border-brand-500'
                           : day.is_rest_day

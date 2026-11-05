@@ -6,7 +6,7 @@ import {
 } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
-import { interactive, touchPad, touchTarget } from '../../../src/components/ui/interaction'
+import { interactive, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -54,7 +54,6 @@ function MuscleBadge({ muscle }: { muscle: string }) {
 
 // Edit and Delete are 36px tall; only their height needs padding out (Edit is wider than 44).
 const editHit = touchTarget(75, 36)
-const deleteHit = touchTarget(36, 36)
 
 export default function WorkoutDetail() {
   const pillInset = useSessionPillInset()
@@ -131,6 +130,8 @@ export default function WorkoutDetail() {
   const totalVolume = displayVolume(calcVolume(workout), wUnit)
   const totalSets = countWorkingSets(workout)
   const durationMin = Math.round(workout.duration / 60)
+  const backHit = touchTarget(92, 19)
+  const deleteHit = touchTarget(36, 36, { disabled: remove.busy })
 
   return (
     <Screen maxWidth="medium">
@@ -141,11 +142,13 @@ export default function WorkoutDetail() {
             <Pressable
               onPress={goBack}
               accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
-              style={touchPad(92, 19)}
-              className={`flex-row items-center gap-1.5 rounded-md active:opacity-60 ${interactive('hover:opacity-80')}`}
+              style={backHit.style}
+              className={`active:opacity-60 ${backHit.outer}`}
             >
-              <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">{t('workouts.detail.back')}</AppText>
+              <View className={`flex-row items-center gap-1.5 rounded-md group-hover/hit:opacity-80 ${backHit.inner}`}>
+                <ArrowLeft size={16} color={colors.txMuted} />
+                <AppText variant="body" color="muted">{t('workouts.detail.back')}</AppText>
+              </View>
             </Pressable>
             <View className="flex-row items-center gap-2">
               {/* Clear hierarchy over two competing colored squares: Edit is the

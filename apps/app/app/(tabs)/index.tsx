@@ -371,14 +371,16 @@ export default function Dashboard() {
             style={avatarHit.style}
             className={`active:scale-95 ${avatarHit.outer}`}
           >
-            <LinearGradient
-              colors={['#0891b2', '#00b8d9']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
-            </LinearGradient>
+            <View className={`rounded-full ${avatarHit.inner}`}>
+              <LinearGradient
+                colors={['#0891b2', '#00b8d9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text className="font-sans-bold text-sm text-white">{avatarInitial}</Text>
+              </LinearGradient>
+            </View>
           </Pressable>}
         </View>
       </View>
@@ -539,7 +541,7 @@ export default function Dashboard() {
               ))}
             </View>
             {heatmapWeeks.map((week, wi) => (
-              <View key={wi} className="flex-1" style={{ gap: heatGap }}>
+              <View key={wi} testID="heatmap-week" className="flex-1" style={{ gap: heatGap }}>
                 {week.map((day, di) => {
                   const k = format(day, 'yyyy-MM-dd')
                   const count = workoutDayMap.get(k) || 0

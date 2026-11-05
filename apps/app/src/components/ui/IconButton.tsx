@@ -3,7 +3,7 @@ import { Pressable, View, type PressableInstance } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTheme } from '../../theme/useTheme'
 import { Icon, type IconSize } from './Icon'
-import { TOUCH_MIN, touchTarget } from './interaction'
+import { touchTarget } from './interaction'
 
 type IconButtonVariant = 'brand' | 'danger' | 'ghost' | 'secondary' | 'solid'
 
@@ -16,8 +16,6 @@ interface Props {
   size?: IconSize
   disabled?: boolean
   className?: string
-  /** Neighbours closer than 44px: keep the visual box as the hit box rather than overlap them. */
-  tight?: boolean
   /** For a caller that has to put focus back on the button after re-rendering it. */
   ref?: Ref<PressableInstance>
 }
@@ -47,7 +45,6 @@ export function IconButton({
   size = 'sm',
   disabled = false,
   className = '',
-  tight = false,
   ref,
 }: Props) {
   const { colors, brand, accent, isDark } = useTheme()
@@ -60,7 +57,7 @@ export function IconButton({
     solid: '#ffffff',
   }
   const box = BOX[size]
-  const hit = touchTarget(tight ? TOUCH_MIN : box.px, tight ? TOUCH_MIN : box.px, { disabled })
+  const hit = touchTarget(box.px, box.px, { disabled })
   return (
     <Pressable
       ref={ref}

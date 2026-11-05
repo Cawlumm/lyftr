@@ -11,8 +11,10 @@ import {
 } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, interactive, Label, NumberField, Toast,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl,
+  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl, touchTarget,
 } from '../../../src/components/ui'
+
+const BACK_HIT = touchTarget(40, 40)
 import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScannerLoader'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
@@ -248,8 +250,10 @@ export default function LogFood() {
     <Screen maxWidth="narrow">
       {/* Header */}
       <View className="flex-row items-center gap-3 py-4">
-        <Pressable onPress={goBack} className="h-10 w-10 items-center justify-center rounded-xl active:scale-95" accessibilityRole="button" accessibilityLabel={t('common.goBack')}>
-          <ArrowLeft size={20} color={colors.txMuted} />
+        <Pressable onPress={goBack} style={BACK_HIT.style} className={`active:scale-95 ${BACK_HIT.outer}`} accessibilityRole="button" accessibilityLabel={t('common.goBack')}>
+          <View className={`h-10 w-10 items-center justify-center rounded-xl ${BACK_HIT.inner}`}>
+            <ArrowLeft size={20} color={colors.txMuted} />
+          </View>
         </Pressable>
         <View className="min-w-0 flex-1">
           {phase === 'detail' && selected ? (

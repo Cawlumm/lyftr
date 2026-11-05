@@ -19,7 +19,6 @@ const COLUMN = Platform.OS === 'web' ? 'mx-auto w-full max-w-2xl ' : ''
 
 // Edit is wider than 44 and Delete is not; both are 36px tall.
 const editHit = touchTarget(75, 36)
-const deleteHit = touchTarget(36, 36)
 
 export default function WeightDetail() {
   const pillInset = useSessionPillInset()
@@ -134,6 +133,8 @@ export default function WeightDetail() {
       </Screen>
     )
   }
+
+  const deleteHit = touchTarget(36, 36, { disabled: remove.busy })
 
   return (
     <Screen maxWidth="medium">

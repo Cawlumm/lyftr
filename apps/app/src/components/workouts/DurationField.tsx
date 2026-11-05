@@ -15,7 +15,6 @@ const STEP = 5
 // inward, over the value (whose text is a few characters wide in the middle). zIndex puts the
 // minus above the value block that follows it.
 const GROW = TOUCH_MIN - 32
-const HIT = touchTarget(32, 48)
 const STEP_MINUS = { width: TOUCH_MIN, marginRight: -GROW, zIndex: 1 } as const
 const STEP_PLUS = { width: TOUCH_MIN, marginLeft: -GROW, alignItems: 'flex-end' } as const
 
@@ -28,6 +27,8 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
   const { colors, accent } = useTheme()
   const step = (delta: number) => onChange(Math.max(0, value + delta))
   const canDec = value > 0
+  const minusHit = touchTarget(32, 48, { disabled: !canDec, inset: true })
+  const plusHit = touchTarget(32, 48, { inset: true })
 
   return (
     <View className="h-12 flex-row items-stretch overflow-hidden rounded-xl border border-surface-border bg-surface-overlay">
@@ -37,9 +38,9 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         onPress={() => step(-STEP)}
         disabled={!canDec}
         style={STEP_MINUS}
-        className={`${HIT.outer} ${canDec ? '' : 'opacity-40'}`}
+        className={`${minusHit.outer} ${canDec ? '' : 'opacity-40'}`}
       >
-        <View className="h-full w-8 items-center justify-center border-r border-surface-border group-active/hit:bg-surface-muted">
+        <View className={`h-full w-8 items-center justify-center border-r border-surface-border group-active/hit:bg-surface-muted ${minusHit.inner}`}>
           <Minus size={16} color={canDec ? accent : colors.txMuted} strokeWidth={2.4} />
         </View>
       </Pressable>
@@ -92,9 +93,9 @@ export function DurationField({ value, onChange, inputAccessoryViewID }: {
         accessibilityLabel={t('workouts.form.durationField.increase')}
         onPress={() => step(STEP)}
         style={STEP_PLUS}
-        className={HIT.outer}
+        className={plusHit.outer}
       >
-        <View className="h-full w-8 items-center justify-center border-l border-surface-border group-active/hit:bg-surface-muted">
+        <View className={`h-full w-8 items-center justify-center border-l border-surface-border group-active/hit:bg-surface-muted ${plusHit.inner}`}>
           <Plus size={16} color={accent} strokeWidth={2.4} />
         </View>
       </Pressable>

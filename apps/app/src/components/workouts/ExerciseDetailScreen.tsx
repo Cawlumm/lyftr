@@ -350,9 +350,9 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               onPress={goBack}
               accessibilityRole="button"
               accessibilityLabel={t('common.back')}
-              // left-3 top-2: the pressable is 4px larger on every side than the disc it holds.
+              // The negative margin already offsets the 4px of padding, so left/top stay as they were.
               style={BACK_HIT.style}
-              className={`absolute left-3 top-2 ${BACK_HIT.outer}`}
+              className={`absolute left-4 top-3 ${BACK_HIT.outer}`}
             >
               <View className={`h-9 w-9 items-center justify-center rounded-full bg-black/40 group-active/hit:bg-black/60 ${BACK_HIT.inner}`}>
                 <ArrowLeft size={20} color="#ffffff" />

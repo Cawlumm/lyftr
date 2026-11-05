@@ -5,7 +5,7 @@ import type { LucideIcon } from './icons'
 import * as Haptics from 'expo-haptics'
 import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
-import { touchTarget } from './interaction'
+import { TOUCH_MIN, touchTarget } from './interaction'
 import { Label } from './Typography'
 
 interface Props {
@@ -35,8 +35,8 @@ export function StepperTile({
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
-  // Full width, so only the 40px height is padded out.
-  const stepHit = touchTarget(158, 40, { disabled, inset: true })
+  // Each half is far wider than 44, so only the 40px height is padded out.
+  const stepHit = touchTarget(TOUCH_MIN, 40, { disabled, inset: true })
 
   const tap = (delta: number) => {
     // A light tick per ± tap makes repeated stepping feel mechanical (in the good,
@@ -53,8 +53,7 @@ export function StepperTile({
       onPress={() => tap(delta)}
       // The button is 40px tall and flush with the tile, so it is padded out 2px past it; the
       // tile therefore does not clip, and each button rounds its own outer corner.
-      // The minus's divider used to count toward its flex size (1px), as the border now sits on the inner box.
-      style={delta < 0 ? { ...stepHit.style, flexBasis: 1 } : stepHit.style}
+      style={stepHit.style}
       className={`flex-1 ${stepHit.outer}`}
     >
       <View className={`py-2.5 items-center justify-center group-active/hit:bg-surface-muted ${disabled ? 'opacity-30' : 'group-hover/hit:bg-surface-muted'} ${stepHit.inner} ${side}`}>

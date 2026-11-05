@@ -53,10 +53,7 @@ export function SegmentedControl<T extends string>({
               Haptics.selectionAsync().catch(() => {})
               onChange(opt.value)
             }}
-            // The active segment's border used to count toward its flex size, making it 1px wider
-            // than the others; the basis (border-box, so padding included) keeps that now that the border is
-            // on the inner box.
-            style={active ? { ...hit.style, flexBasis: 2 + 2 * hit.style.paddingHorizontal } : hit.style}
+            style={hit.style}
             className={`flex-1 ${hit.outer}`}
           >
             <View

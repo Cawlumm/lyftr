@@ -22,7 +22,6 @@ import { useSessionPillInset } from '../../../src/components/workouts/SessionPil
 // refetches on focus, so a delete/edit here is reflected when we pop back.
 // Edit is wider than 44 and Delete is not; both are 36px tall.
 const editHit = touchTarget(75, 36)
-const deleteHit = touchTarget(36, 36)
 
 export default function NutritionDetail() {
   const pillInset = useSessionPillInset()
@@ -119,6 +118,8 @@ export default function NutritionDetail() {
     { label: t('food.entry.meal'), value: mealLabel(meal) },
     { label: t('food.entry.logged'), value: formatDay(entryDay(entry), 'weekdayMonthDayYear') },
   ]
+
+  const deleteHit = touchTarget(36, 36, { disabled: remove.busy })
 
   return (
     <Screen maxWidth="medium">

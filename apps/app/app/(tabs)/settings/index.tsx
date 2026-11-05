@@ -50,7 +50,7 @@ import {
   Toggle,
   type ToastVariant,
 } from '../../../src/components/ui'
-import { WEB_BUTTON, interactive, touchPad } from '../../../src/components/ui/interaction'
+import { WEB_BUTTON, touchTarget } from '../../../src/components/ui/interaction'
 import { client, useAuthStore, useDisplayName, useLanguageStore, useServerStore, useSettingsStore } from '../../../src/lib/lyftr'
 import { LanguageSheet } from '../../../src/components/settings/LanguageSheet'
 import { ExerciseCacheAdmin } from '../../../src/components/settings/ExerciseCacheAdmin'
@@ -58,6 +58,7 @@ import { useTheme } from '../../../src/theme/useTheme'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 
+const BACK_HIT = touchTarget(66, 19)
 const REST_PRESETS = [60, 90, 120, 180]
 
 // Which toast is up, not its words: the title and the failure sentence are made at render, so a
@@ -223,12 +224,14 @@ export default function SettingsScreen() {
           <View className="gap-3">
             {showBack ? <Pressable
               onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}
-              style={touchPad(66, 19)}
+              style={BACK_HIT.style}
               accessibilityRole={WEB_BUTTON}
-              className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}
+              className={`self-start active:opacity-60 ${BACK_HIT.outer}`}
             >
-              <ArrowLeft size={16} color={colors.txMuted} />
-              <AppText variant="body" color="muted">{t('settings.back')}</AppText>
+              <View className={`flex-row items-center gap-1.5 rounded-md group-hover/hit:opacity-80 ${BACK_HIT.inner}`}>
+                <ArrowLeft size={16} color={colors.txMuted} />
+                <AppText variant="body" color="muted">{t('settings.back')}</AppText>
+              </View>
             </Pressable> : null}
             <PageHeader title={t('settings.title')} subtitle={t('settings.subtitle')} />
           </View>

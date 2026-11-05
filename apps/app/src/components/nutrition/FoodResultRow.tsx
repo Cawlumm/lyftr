@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, View } from 'react-native'
 import { ChevronRight, Star } from '../ui/icons'
 import { useTranslation, type FoodSearchResult } from '@lyftr/shared'
-import { AppText } from '../ui'
+import { AppText, touchTarget } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { FoodThumb } from './FoodImage'
 import { MACRO_TEXT } from './nutritionMeta'
@@ -80,12 +80,14 @@ export function FavoriteStar(
 ) {
   const { colors, accent } = useTheme()
   const { t } = useTranslation()
-  // Same box, hit slop and press feedback as ui/IconButton — written out rather than
+  // Same box, hit area and press feedback as ui/IconButton — written out rather than
   // reusing it because a filled star needs an SVG `fill`, and adding a fill prop to the
   // shared primitive for one toggle is the wrong place to put it.
   // `header` matches the h-9 icon actions every detail screen's header uses (weight,
   // workouts and nutrition [id]), so the star reads as one of that set.
-  const box = size === 'sm' ? 'w-8 h-8 rounded-lg' : size === 'header' ? 'h-9 w-9 rounded-lg active:bg-surface-muted' : 'w-10 h-10 rounded-xl'
+  const box = size === 'sm' ? 'w-8 h-8 rounded-lg' : size === 'header' ? 'h-9 w-9 rounded-lg group-active/hit:bg-surface-muted' : 'w-10 h-10 rounded-xl'
+  const px = size === 'sm' ? 32 : size === 'header' ? 36 : 40
+  const hit = touchTarget(px, px, { disabled: busy })
   return (
     <Pressable
       accessibilityRole="button"
@@ -93,15 +95,17 @@ export function FavoriteStar(
       accessibilityLabel={t(favorited ? 'food.favorites.remove' : 'food.favorites.add', { name })}
       onPress={onPress}
       disabled={busy}
-      hitSlop={size === 'header' ? 6 : 8}
-      className={`items-center justify-center active:scale-95 ${box} ${busy ? 'opacity-40' : ''}`}
+      style={hit.style}
+      className={`active:scale-95 ${busy ? 'opacity-40' : ''} ${hit.outer}`}
     >
-      <Star
-        size={size === 'sm' ? 18 : size === 'header' ? 17 : 22}
-        color={favorited ? accent : colors.txMuted}
-        fill={favorited ? accent : 'transparent'}
-        strokeWidth={2.2}
-      />
+      <View className={`items-center justify-center ${box} ${hit.inner}`}>
+        <Star
+          size={size === 'sm' ? 18 : size === 'header' ? 17 : 22}
+          color={favorited ? accent : colors.txMuted}
+          fill={favorited ? accent : 'transparent'}
+          strokeWidth={2.2}
+        />
+      </View>
     </Pressable>
   )
 }
