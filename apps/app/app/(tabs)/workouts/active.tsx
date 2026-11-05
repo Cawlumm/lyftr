@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
-import { CheckCircle2, Dumbbell, Flag, Plus, Timer, X } from '../../../src/components/ui/icons'
+import { CheckCircle2, Dumbbell, Flag, Plus, Timer, Trash2, X } from '../../../src/components/ui/icons'
 import { useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
@@ -12,6 +12,7 @@ import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
 import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
+import { finishConfirmCopy } from '../../../src/lib/finishConfirm'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 
@@ -155,6 +156,7 @@ export default function ActiveWorkout() {
   const completedSets = session.exercises.reduce((sum, ex) => sum + ex.sets.filter((s) => s.completed).length, 0)
   const totalSets = session.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const allComplete = totalSets > 0 && completedSets === totalSets
+  const finishCopy = finishConfirmCopy(t, completedSets, totalSets)
   const rowKeys = occurrenceKeys(session.exercises.map((e) => e.exercise_id))
   keysRef.current = rowKeys
 
@@ -271,15 +273,18 @@ export default function ActiveWorkout() {
       {/* Finish confirm */}
       <ConfirmSheet
         open={confirmFinish}
-        icon={Flag}
-        title={t('workouts.active.finishConfirm.title')}
-        message={t('workouts.active.finishConfirm.message', { done: completedSets, count: totalSets })}
-        confirmLabel={t('workouts.active.finish')}
+        icon={finishCopy.nothingToSave ? Trash2 : Flag}
+        destructive={finishCopy.nothingToSave}
+        title={finishCopy.title}
+        message={finishCopy.message}
+        confirmLabel={finishCopy.confirmLabel}
         busyLabel={t('common.saving')}
         cancelLabel={t('workouts.active.keepGoing')}
         busy={finish.busy}
         error={finish.error}
-        onConfirm={() => { void finish.run() }}
+        onConfirm={() => {
+          if (finishCopy.nothingToSave) { setOutcome({ kind: 'discarded', session }); cancelSession(); router.replace('/workouts') } else void finish.run()
+        }}
         onCancel={() => { setConfirmFinish(false); finish.reset() }}
       />
 
