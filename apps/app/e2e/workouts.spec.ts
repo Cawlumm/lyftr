@@ -271,8 +271,8 @@ test.describe('Workouts', () => {
 
       // 8 x 100 lb = 800; the three-set total (2,400) must not appear.
       await page.goto(`/workouts/${saved[0].id}`)
-      await expect(page.getByText('800', { exact: true }).first()).toBeVisible()
-      await expect(page.getByText('2,400', { exact: true })).toHaveCount(0)
+      await expect(page.getByRole('heading', { name: '800 lb', exact: true })).toBeVisible()
+      await expect(page.getByRole('heading', { name: '2,400 lb', exact: true })).toHaveCount(0)
     } finally {
       for (const w of await savedPartials(request)) await request.delete(`${API}/workouts/${w.id}`, { headers })
     }
