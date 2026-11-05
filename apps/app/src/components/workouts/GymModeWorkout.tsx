@@ -335,18 +335,17 @@ export function GymModeWorkout() {
     </Pressable>
   )
 
-  // Only whole-workout things up here: minimize, the clock over the set count, the menu and
-  // Finish, every one a 44pt target. Where you are in the workout is the heading below it.
+  // Only whole-workout things up here: minimize, the clock over the set count, Finish and the
+  // menu (kept last, at the right edge), every one a 44pt target. Where you are in the workout is the heading below it.
   const topBar = (
     <View className="flex-shrink-0">
       <View className="flex-row items-center gap-1 px-3 py-1.5">
         {minimizeButton}
         <ElapsedClock startedAt={session.started_at} done={completedSets} total={totalSets} />
-        {moreMenu}
-        <Pressable onPress={() => setConfirmFinish(true)} accessibilityRole={WEB_BUTTON} className={`ml-1 h-11 flex-row items-center gap-1.5 rounded-xl px-3 ${allDone ? 'bg-brand-500' : 'border border-surface-border bg-surface-muted'} ${interactive(allDone ? 'hover:bg-brand-600' : 'hover:bg-surface-border')}`}>
-          <Flag size={14} color={allDone ? '#ffffff' : colors.txMuted} />
-          <Text className={`font-sans-semibold text-xs ${allDone ? 'text-white' : 'text-tx-muted'}`}>{t('workouts.active.finish')}</Text>
+        <Pressable onPress={() => setConfirmFinish(true)} accessibilityRole={WEB_BUTTON} accessibilityLabel={t('workouts.active.finish')} className={`h-11 w-11 items-center justify-center rounded-xl active:scale-95 ${allDone ? 'bg-brand-500' : 'active:bg-surface-muted'} ${interactive(allDone ? 'hover:bg-brand-600' : 'hover:bg-surface-muted')}`}>
+          <Check size={20} color={allDone ? '#ffffff' : colors.txMuted} />
         </Pressable>
+        {moreMenu}
       </View>
       <ProgressSegments values={exerciseFractions(session.exercises)} keys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))} current={activeIdx} />
     </View>

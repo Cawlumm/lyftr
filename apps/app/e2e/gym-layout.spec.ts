@@ -57,16 +57,17 @@ const heading = (page: Page) => dialog(page).getByTestId('gym-exercise-switcher'
 const exercisesSheet = (page: Page) => page.getByRole('dialog', { name: 'Exercises' })
 const storedNames = async (page: Page) => (await storedSession(page)).exercises.map((e: { exercise: { name: string } }) => e.exercise.name)
 
-// The top row holds only whole-workout things: Minimize, the clock, the menu and Finish, in that
-// order, none over another, all inside the panel, and every control a 44px target.
+// The top row holds only whole-workout things: Minimize, the clock, Finish (an icon) and the menu, in
+// that order, none over another, all inside the panel, every control a 44px target, and the menu the
+// right-most of them.
 async function barFits(page: Page, labels: { minimize: string; more: string; finish: string }) {
   const gym = page.getByRole('dialog').filter({ has: page.getByTestId('gym-panel') })
   const panel = await box(page.getByTestId('gym-panel'))
   const row = [
     await box(button(gym, labels.minimize)),
     await box(gym.getByTestId('gym-clock')),
-    await box(button(gym, labels.more)),
     await box(button(gym, labels.finish)),
+    await box(button(gym, labels.more)),
   ]
   for (let i = 0; i < row.length; i++) {
     if (i !== 1) expect(row[i].height, `control ${i} height`).toBeGreaterThanOrEqual(44)
@@ -74,6 +75,10 @@ async function barFits(page: Page, labels: { minimize: string; more: string; fin
     expect(row[i].x + row[i].width).toBeLessThanOrEqual(panel.x + panel.width)
     if (i > 0) expect(row[i].x, `control ${i} overlaps the one before`).toBeGreaterThanOrEqual(row[i - 1].x + row[i - 1].width)
   }
+  expect(row[2].width, 'Finish width').toBeGreaterThanOrEqual(44)
+  expect(row[2].height, 'Finish height').toBeGreaterThanOrEqual(44)
+  const right = Math.max(...row.map(r => r.x + r.width))
+  expect(row[3].x + row[3].width, 'the menu is the right-most control').toBe(right)
 }
 
 async function tabTo(page: Page, target: Locator) {
@@ -310,7 +315,7 @@ test('the menu opens the picker, the reorder list, the exercise list and the ove
   await expect(page.getByRole('menuitem')).toHaveText(['Discard workout'])
 })
 
-test('keyboard: Minimize, the menu, Finish, then the heading; Escape returns focus to what opened it', async ({ page }) => {
+test('keyboard: Minimize, Finish, the menu, then the heading; Escape returns focus to what opened it', async ({ page }) => {
   await seed(page, { names: NAMES })
   await openGym(page, 1280)
   await toSets(page)
@@ -318,7 +323,7 @@ test('keyboard: Minimize, the menu, Finish, then the heading; Escape returns foc
   const more = button(dialog(page), 'More options')
   const finish = button(dialog(page), 'Finish')
   await tabTo(page, minimize)
-  for (const next of [more, finish, heading(page)]) {
+  for (const next of [finish, more, heading(page)]) {
     await page.keyboard.press('Tab')
     await expect(next).toBeFocused()
   }
