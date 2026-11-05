@@ -56,6 +56,7 @@ temp/
 docs/*.md
 !docs/TESTING.md
 !docs/API_CHANGES.md
+!docs/GOOGLE_PLAY.md
 docs/*.txt
 
 # Personal Claude context. CLAUDE.md itself is COMMITTED — it is the project's shared
@@ -97,3 +98,6 @@ apps/app/.maestro/
 
 # tsc --incremental caches. Regenerated on every build; never useful in a diff.
 *.tsbuildinfo
+
+# Google Play service account keys: upload them to EAS, never commit (see play-submit.yml)
+*service-account*.json
