@@ -304,7 +304,12 @@ jobs:
       - name: Start stack
         run: |
           printf 'services:\n  backend:\n    healthcheck:\n      interval: 2s\n      retries: 30\n' > "$RUNNER_TEMP/compose.ci.yml"
-          docker compose -f docker-compose.yml -f "$RUNNER_TEMP/compose.ci.yml" up -d --wait
+          # The oedb stub overlay keeps the stack off the hosted open-exercise-db, whose metered
+          # database every e2e boot used to sync in full (apps/app/e2e/oedb-stub/server.mjs).
+          # COMPOSE_FILE, so the later logs and guard steps see the same services.
+          f="docker-compose.yml:$RUNNER_TEMP/compose.ci.yml:apps/app/e2e/oedb-stub/compose.yml"
+          echo "COMPOSE_FILE=$f" >> "$GITHUB_ENV"
+          COMPOSE_FILE="$f" docker compose up -d --wait
 
       # --network host: the stack is published on the runner's localhost:8081.
       - name: Run E2E tests
@@ -312,6 +317,15 @@ jobs:
           docker run --rm --init --ipc=host --network host -e CI=true \
             -v "$PWD:/work" -w /work/apps/app "$PW_IMAGE" \
             npx playwright test --shard=${{ matrix.shard }}/3
+
+      # The backend falls back to the hosted oedb when OEDB_BASE_URL is empty, and a suite run
+      # that way passes. So prove where its boot sync went: the stub logs every request.
+      - name: Assert the backend synced from the oedb stub
+        run: |
+          docker compose logs --no-color oedb-stub | grep -q 'GET /api/v1/exercises/export 200' || {
+            echo "::error::the backend never fetched the catalog from the oedb stub; is OEDB_BASE_URL pointing at production?"
+            exit 1
+          }
 
       - name: Show container logs
         if: failure()

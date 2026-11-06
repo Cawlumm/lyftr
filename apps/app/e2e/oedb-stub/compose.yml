@@ -1,0 +1,28 @@
+# Overlay for the e2e stack: points the backend at server.mjs instead of the hosted oedb.
+#
+#   docker compose -f docker-compose.yml -f apps/app/e2e/oedb-stub/compose.yml up -d --wait
+#
+# Relative paths resolve against the first file's directory, the repo root.
+services:
+  oedb-stub:
+    image: node:20-alpine
+    command: ["node", "/stub/server.mjs"]
+    environment:
+      - PORT=8090
+      # Published below, so the browser (on the host network in CI) can load the images.
+      - PUBLIC_URL=http://localhost:8090
+    volumes:
+      - ./apps/app/e2e/oedb-stub:/stub:ro
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8090/health"]
+      interval: 1s
+      retries: 30
+
+  backend:
+    environment:
+      - OEDB_BASE_URL=http://oedb-stub:8090
+    depends_on:
+      oedb-stub:
+        condition: service_healthy

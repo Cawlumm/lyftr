@@ -69,11 +69,20 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
   (`apps/app/e2e/config.ts`: `APP_PORT` / `BASE_URL` / `API_URL` override). CI sets
   `JWT_SECRET`, `PORT=8081` and `CORS_ORIGIN=http://localhost,http://localhost:8081` in `.env`, then:
   ```bash
-  PORT=8081 docker compose up -d --wait   # repo root; needs .env with JWT_SECRET
+  # repo root; needs .env with JWT_SECRET
+  PORT=8081 docker compose -f docker-compose.yml -f apps/app/e2e/oedb-stub/compose.yml up -d --wait
   cd apps/app && npm run test:e2e
   ```
   `npx expo start` also listens on 8081 but is **not** the e2e target; stop it first or the
   stack cannot bind the port.
+- **The exercise catalog is a stub, never the hosted oedb.** `apps/app/e2e/oedb-stub/compose.yml`
+  adds `server.mjs`, which serves a recorded 64-exercise subset (`catalog.json`, English and
+  Spanish) on `:8090` and points the backend's `OEDB_BASE_URL` at it. Without the overlay the
+  backend falls back to the hosted instance, whose database is on a metered free tier: every
+  boot syncs the whole catalog and every browser loads its images from there. CI fails a shard
+  whose stub log has no export request. A spec that needs an exercise the fixture lacks adds
+  its search term to `TERMS` in `record.mjs` and re-records once (`node record.mjs`, about
+  three requests); never record from CI.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 - **Workers:** CI runs four (`playwright.config.ts`: the public-repo `ubuntu-24.04` runner
   has 4 vCPUs and 16 GB; four ran the suite in 4.5 min against 6.3 for three) on each of three
