@@ -112,6 +112,39 @@ to whatever body already exists (`append_body: true`), so it's safe to write
 the notes before or after the APK finishes building — neither overwrites the
 other.
 
+## Mirroring an older release to GHCR
+
+`ci.yml` has pushed every image to both Docker Hub and `ghcr.io/cawlumm/*` since #271.
+Releases tagged before that (up to `v0.1.0-beta.9`) exist on Docker Hub only. To put one on
+GHCR, run **`mirror-ghcr.yml`** by hand with the release tag:
+
+```bash
+gh workflow run mirror-ghcr.yml -f tag=v0.1.0-beta.9
+```
+
+It copies each image's multi-arch index without rebuilding, so the GHCR digest is the
+Docker Hub digest; the job fails if they differ, and it refuses to repoint a GHCR tag that
+already holds a different image. The digests land in the run's summary. Releases cut after
+#271 never need it.
+
+**New GHCR packages start private**, and no workflow can change that. The first time an
+image lands on GHCR, open the package from the repo's **Packages** sidebar, then
+**Package settings â†’ Danger Zone â†’ Change visibility â†’ Public**, once per image
+(`lyftr-backend`, `lyftr-frontend`). While the package settings are open, check that
+**Manage Actions access** lists this repository; a package pushed from a workflow with
+`GITHUB_TOKEN` is linked to it automatically, but if it is not, use **Connect repository**.
+
+Verify that GHCR serves the same index as Docker Hub, with all three platforms:
+
+```bash
+docker buildx imagetools inspect ghcr.io/cawlumm/lyftr-backend:v0.1.0-beta.9
+docker buildx imagetools inspect cwlumm/lyftr-backend:v0.1.0-beta.9
+```
+
+The `Digest:` lines must match, and `Manifests:` must list `linux/amd64`, `linux/arm64`
+and `linux/arm/v7`. Repeat for `lyftr-frontend`. Run it logged out of ghcr.io
+(`docker logout ghcr.io`) to confirm the package really is public.
+
 ## Historical note
 
 Releases before this change used a separate `mobile-v*` tag namespace for
