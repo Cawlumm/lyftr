@@ -63,6 +63,22 @@ miss whatever hasn't been checkpointed yet.
 From this point the hourly cron (`reset.sh`) will restore this snapshot every hour,
 keeping the demo clean regardless of what visitors do.
 
+The reset restores user data only. It keeps the live exercise catalog and its
+`catalog_sync` record (the last catalog pass), so the restarted backend sees a
+catalog synced under 24 hours ago and does not download it from open-exercise-db
+again; the daily refresh still happens, on the first restart after it falls due.
+This needs a snapshot that has the `catalog_sync` table, i.e. one taken on a build
+that includes it. With an older snapshot the reset logs "could not keep the live
+exercise catalog" and every hourly restart re-syncs the whole catalog. To fix that,
+take a fresh snapshot from a clean, synced database:
+
+```bash
+fly ssh console --app lyftr-demo -C "/app/reset.sh"
+# wait until the logs show: exercises: synced ... in "es"
+fly logs --app lyftr-demo
+fly ssh console --app lyftr-demo -C "/app/snapshot.sh"
+```
+
 ## 6. Custom domain (optional)
 
 ```bash

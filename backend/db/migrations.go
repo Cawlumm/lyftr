@@ -206,6 +206,20 @@ func alterMigrations() {
 		)`); err != nil {
 		log.Fatalf("create exercise_translations: %v", err)
 	}
+
+	// The last catalog pass, so a restart can tell a catalog synced an hour ago from one
+	// never synced and skip the boot pass (stores.RunCatalogSync). One row; times are
+	// RFC3339 UTC text, because the driver's own time format defeats SQLite's date
+	// functions. Nothing to backfill: an install upgrading to this syncs once at boot.
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS catalog_sync (
+		  id              INTEGER PRIMARY KEY CHECK (id = 1),
+		  last_attempt_at TEXT NOT NULL,
+		  last_synced_at  TEXT,
+		  last_failure    TEXT
+		)`); err != nil {
+		log.Fatalf("create catalog_sync: %v", err)
+	}
 }
 
 // emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.

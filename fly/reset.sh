@@ -31,10 +31,40 @@ echo "[reset] $(date): restoring demo DB..."
 # touching the live files — if cp fails partway (full volume, I/O error),
 # set -e aborts here and the current (stale but valid) live DB is left
 # exactly as it was, instead of being deleted with nothing to replace it.
+# The staged WAL is named after the staged DB so SQLite pairs the two when
+# the catalog step below opens it. The -shm is not copied: it holds nothing
+# durable and SQLite rebuilds it from the WAL.
 cp "$SEED" "$LIVE.new"
-rm -f "$LIVE-wal.new" "$LIVE-shm.new"
-if [ -f "$SEED-wal" ]; then cp "$SEED-wal" "$LIVE-wal.new"; fi
-if [ -f "$SEED-shm" ]; then cp "$SEED-shm" "$LIVE-shm.new"; fi
+rm -f "$LIVE.new-wal" "$LIVE.new-shm"
+if [ -f "$SEED-wal" ]; then cp "$SEED-wal" "$LIVE.new-wal"; fi
+
+# Keep the live exercise catalog and its last sync across the reset: restoring
+# the seed's would rewind catalog_sync to the snapshot's, and every hourly
+# restart would download the whole catalog from open-exercise-db again. Only
+# the catalog moves; every user row is the seed's. One transaction: if any step
+# fails (an old seed without these tables, no sqlite3) the restore keeps the
+# seed's catalog and the backend syncs at boot, as before. Foreign keys stay
+# off so replacing an exercise row never touches the workouts that reference
+# it; the live catalog holds every seed id, because exercises are never deleted.
+ecols=$(sqlite3 "$LIVE.new" "SELECT group_concat(name, ',') FROM pragma_table_info('exercises')" 2>/dev/null) || ecols=""
+tcols=$(sqlite3 "$LIVE.new" "SELECT group_concat(name, ',') FROM pragma_table_info('exercise_translations')" 2>/dev/null) || tcols=""
+if [ -f "$LIVE" ] && [ -n "$ecols" ] && [ -n "$tcols" ] && sqlite3 -bail "$LIVE.new" <<SQL
+PRAGMA foreign_keys = OFF;
+ATTACH '$LIVE' AS prev;
+BEGIN;
+INSERT OR REPLACE INTO exercises ($ecols) SELECT $ecols FROM prev.exercises;
+DELETE FROM exercise_translations;
+INSERT INTO exercise_translations ($tcols) SELECT $tcols FROM prev.exercise_translations;
+DELETE FROM catalog_sync;
+INSERT INTO catalog_sync (id, last_attempt_at, last_synced_at, last_failure)
+  SELECT id, last_attempt_at, last_synced_at, last_failure FROM prev.catalog_sync;
+COMMIT;
+SQL
+then
+    echo "[reset] $(date): kept the live exercise catalog and its last sync"
+else
+    echo "[reset] $(date): could not keep the live exercise catalog; the backend will sync it at boot"
+fi
 
 # journal_mode=WAL means recent writes can still be sitting in lyftr.db-wal,
 # not yet folded into lyftr.db. Leaving stale WAL/SHM side files behind lets
@@ -44,7 +74,7 @@ if [ -f "$SEED-shm" ]; then cp "$SEED-shm" "$LIVE-shm.new"; fi
 # atomic rename.
 mv -f "$LIVE.new" "$LIVE"
 rm -f "$LIVE-wal" "$LIVE-shm"
-if [ -f "$LIVE-wal.new" ]; then mv -f "$LIVE-wal.new" "$LIVE-wal"; fi
-if [ -f "$LIVE-shm.new" ]; then mv -f "$LIVE-shm.new" "$LIVE-shm"; fi
+if [ -f "$LIVE.new-wal" ]; then mv -f "$LIVE.new-wal" "$LIVE-wal"; fi
+rm -f "$LIVE.new-shm"
 
 echo "[reset] $(date): done — backend will restart automatically"
