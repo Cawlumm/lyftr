@@ -29,3 +29,13 @@ test('Settings exposes an editable API server: change persists and resets in-app
   await expect.poll(() => page.evaluate(() => localStorage.getItem('server_url'))).toBeNull()
   await expect(page.getByText('Default backend')).toBeVisible()
 })
+
+// A server that accepts the connection and never answers (a wrong address on a gym's wifi) used to
+// hold Settings on a full-screen spinner for the whole request timeout, hiding the one field that
+// repoints the app. The server field is device-side, so it must be there while the fetch is pending.
+test('Settings shows the server field while the settings request is still pending', async ({ page }) => {
+  await page.route('**/api/v1/settings', () => new Promise(() => {}))
+  await page.goto('/settings')
+  await expect(page.getByRole('textbox', { name: 'Server URL' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /test & save/i })).toBeVisible()
+})

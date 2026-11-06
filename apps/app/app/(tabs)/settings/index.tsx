@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Platform, Pressable, ScrollView, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, ScrollView, View } from 'react-native'
 import { router } from 'expo-router'
 import {
   ArrowLeft,
@@ -38,7 +38,6 @@ import {
   ErrorState,
   Field,
   IconButton,
-  Loading,
   Muted,
   NumberField,
   PageHeader,
@@ -94,7 +93,7 @@ export default function SettingsScreen() {
   const setRestEnabled = useSettingsStore((s) => s.setRestEnabled)
   const setRestSeconds = useSettingsStore((s) => s.setRestSeconds)
 
-  const { mode, setMode, colors, brand } = useTheme()
+  const { mode, setMode, colors, brand, accent } = useTheme()
 
   const [toast, setToast] = useState<ToastState | null>(null)
 
@@ -213,8 +212,6 @@ export default function SettingsScreen() {
     : toast === 'changeUnit' ? { variant: 'error', title: t('settings.targets.weightUnit.changeFailedTitle'), description: changeUnit.error }
     : toast === 'deleteAccount' ? { variant: 'error', title: t('settings.deleteAccount.failed'), description: deleteAccount.error }
     : null
-
-  if (!loaded) return <Loading />
 
   return (
     <Screen maxWidth="medium">
@@ -385,7 +382,11 @@ export default function SettingsScreen() {
               Withheld rather than filled with defaults: the store falls back to
               2000/150/250/65 so the rest of the app keeps working, and Save would PUT
               those straight over the user's real targets. */}
-          {settingsLoadFailed ? (
+          {!loaded && !settingsLoadFailed ? (
+            <SettingsGroup title={t('settings.targets.title')}>
+              <View className="items-center py-8"><ActivityIndicator color={accent} /></View>
+            </SettingsGroup>
+          ) : settingsLoadFailed ? (
             <SettingsGroup title={t('settings.targets.title')}>
               <ErrorState
                 size="section"

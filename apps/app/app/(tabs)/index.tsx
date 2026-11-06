@@ -10,7 +10,7 @@ import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp, Utensils,
 } from '../../src/components/ui/icons'
 import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
+import { AppText, Button, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
 import type { LucideIcon } from '../../src/components/ui/icons'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -96,6 +96,9 @@ function StatTile({ label, icon: TileIcon, value, target, pct, color, failed }: 
     </Card>
   )
 }
+
+// How long the dashboard may spin before Settings is offered beside it.
+const SLOW_LOAD_MS = 5000
 
 export default function Dashboard() {
   const pillInset = useSessionPillInset()
@@ -217,8 +220,29 @@ export default function Dashboard() {
   const username = useDisplayName()
   const { lg } = useBreakpoint()
   const wide = Platform.OS === 'web' && lg
+  const [slow, setSlow] = useState(false)
+  useEffect(() => {
+    if (!loading) { setSlow(false); return }
+    const timer = setTimeout(() => setSlow(true), SLOW_LOAD_MS)
+    return () => clearTimeout(timer)
+  }, [loading])
 
-  if (loading) return <DashboardSkeleton />
+  // A request that hangs holds the skeleton for the full timeout, and the avatar that opens
+  // Settings is part of what it hides. Past a few seconds the way to the server URL comes
+  // back, so a wrong address is never a lockout.
+  const openServerSettings = <Button variant="secondary" title={t('server.settingsTitle')} onPress={() => router.navigate('/settings')} />
+  if (loading) {
+    return (
+      <>
+        <DashboardSkeleton />
+        {slow ? (
+          <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 24, alignItems: 'center' }}>
+            {openServerSettings}
+          </View>
+        ) : null}
+      </>
+    )
+  }
 
   if (error) {
     // Every tile here is another request's answer, so a failed load has no honest
@@ -235,6 +259,7 @@ export default function Dashboard() {
             setLoading(true)
             load().catch((err) => setError({ key: 'errors.unknown', cause: err })).finally(() => setLoading(false))
           }}
+          secondary={openServerSettings}
         />
       </Screen>
     )
