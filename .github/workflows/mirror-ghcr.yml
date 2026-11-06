@@ -1,0 +1,106 @@
+# Copies a release that was published to Docker Hub before ci.yml pushed to GHCR (#271)
+# onto ghcr.io under the same tag. No rebuild: the multi-arch index is copied as-is, so
+# the GHCR digest is the Docker Hub digest, and the job fails if they differ.
+# Manual only. See RELEASING.md, "Mirroring an older release to GHCR".
+#
+# Why not also add an org.opencontainers.image.source annotation: any annotation on the
+# index changes its digest, which is the one thing this copy must not do. GitHub links a
+# package to the repository whose workflow publishes it with GITHUB_TOKEN, so pushing from
+# here is what links it.
+# https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry
+name: Mirror release to GHCR
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag already on Docker Hub, e.g. v0.1.0-beta.9'
+        required: true
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: mirror-ghcr
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Copy ${{ matrix.image }} to ghcr.io
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [lyftr-backend, lyftr-frontend]
+    env:
+      # Passed through env, never interpolated into a script, and checked before any use.
+      TAG: ${{ inputs.tag }}
+      SRC: docker.io/cwlumm/${{ matrix.image }}
+      DST: ghcr.io/cawlumm/${{ matrix.image }}
+    steps:
+      - name: Validate tag
+        run: |
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+            echo "::error::tag must look like v1.2.3 or v1.2.3-beta.4"
+            exit 1
+          fi
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Docker Hub is read anonymously: the images are public, and one run is a handful of
+      # manifest reads against the 100-per-6h anonymous limit
+      # (https://docs.docker.com/docker-hub/usage/). If that ever bites, add a docker/login-action
+      # step with DOCKERHUB_USERNAME/DOCKERHUB_TOKEN before this one.
+      - name: Copy the index
+        run: |
+          set -euo pipefail
+          # {{.Manifest.Digest}} prints the whole human-readable block, not the digest.
+          digest() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | jq -er .digest; }
+          src_digest=$(digest "$SRC:$TAG")
+          echo "source $SRC:$TAG $src_digest"
+
+          # A release tag is fixed forever: never repoint one that already holds something else.
+          # Only a registry "not found" answer means the tag is absent. Any other failure of the
+          # check (a 5xx, a rate limit, an auth hiccup) says nothing about the tag, so it stops the
+          # job instead of falling through to a copy that could overwrite an existing release.
+          err=$(mktemp)
+          if dst_digest=$(digest "$DST:$TAG" 2>"$err"); then
+            if [ "$dst_digest" != "$src_digest" ]; then
+              echo "::error::$DST:$TAG already exists as $dst_digest, not $src_digest; refusing to overwrite"
+              exit 1
+            fi
+            echo "$DST:$TAG already matches; nothing to copy"
+          elif grep -qiE 'not found|manifest unknown|name unknown' "$err"; then
+            echo "$DST:$TAG does not exist yet; copying"
+            # One source that is an index: imagetools create makes a carbon copy of it.
+            # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
+            docker buildx imagetools create --tag "$DST:$TAG" "$SRC:$TAG"
+          else
+            echo "::error::could not tell whether $DST:$TAG exists; refusing to copy over a tag that may hold something else"
+            cat "$err" >&2
+            exit 1
+          fi
+
+          dst_digest=$(digest "$DST:$TAG")
+          if [ "$dst_digest" != "$src_digest" ]; then
+            echo "::error::digest changed in the copy: $SRC:$TAG is $src_digest, $DST:$TAG is $dst_digest"
+            exit 1
+          fi
+
+          {
+            echo "### $DST:$TAG"
+            echo
+            echo "Digest \`$dst_digest\`, identical to \`$SRC:$TAG\`."
+            echo
+            echo '```'
+            docker buildx imagetools inspect "$DST:$TAG"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
