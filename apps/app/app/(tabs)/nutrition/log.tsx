@@ -15,7 +15,7 @@ import {
 } from '../../../src/components/ui'
 
 const BACK_HIT = touchTarget(40, 40)
-import { BarcodeScanner } from '../../../src/components/nutrition/BarcodeScannerLoader'
+import { BarcodeScanner, cameraAvailable } from '../../../src/components/nutrition/BarcodeScannerLoader'
 import { BarcodeLookup } from '../../../src/components/nutrition/BarcodeLookup'
 import { FoodHero } from '../../../src/components/nutrition/FoodImage'
 import { FavoriteStar, FoodResultRow } from '../../../src/components/nutrition/FoodResultRow'
@@ -303,7 +303,7 @@ export default function LogFood() {
         <ScrollView
           style={scrollBleed} showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: 32 + pillInset }}
+          contentContainerStyle={{ paddingTop: 4, paddingBottom: 32 + pillInset }}
           refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />}
         >
           <View className="gap-4">
@@ -320,17 +320,19 @@ export default function LogFood() {
                   onChangeText={(text) => { setQuery(text); if (text.trim()) setTab('all'); if (lookup?.error) setLookup(null) }}
                 />
               </View>
-              <Pressable
-                onPress={() => { hSelect(); setPhase('scan') }}
-                disabled={lookingUp}
-                accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
-                accessibilityLabel={t('food.log.scanLabel')}
-                accessibilityState={{ disabled: lookingUp }}
-                className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''} ${interactive('hover:bg-surface-border', { disabled: lookingUp })}`}
-              >
-                <Scan size={20} color={colors.txSecondary} />
-                <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>{t('food.log.scan')}</AppText>
-              </Pressable>
+              {cameraAvailable ? (
+                <Pressable
+                  onPress={() => { hSelect(); setPhase('scan') }}
+                  disabled={lookingUp}
+                  accessibilityRole={Platform.OS === 'web' ? 'button' : undefined}
+                  accessibilityLabel={t('food.log.scanLabel')}
+                  accessibilityState={{ disabled: lookingUp }}
+                  className={`h-12 flex-row items-center gap-1.5 rounded-xl border border-surface-border bg-surface-muted px-3.5 active:opacity-70 ${lookingUp ? 'opacity-40' : ''} ${interactive('hover:bg-surface-border', { disabled: lookingUp })}`}
+                >
+                  <Scan size={20} color={colors.txSecondary} />
+                  <AppText variant="caption" color="secondary" style={{ fontWeight: '600' }}>{t('food.log.scan')}</AppText>
+                </Pressable>
+              ) : null}
             </View>
 
             {/* Tabs */}
