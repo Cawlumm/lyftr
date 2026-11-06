@@ -7,6 +7,10 @@ import { useTranslation } from '@lyftr/shared'
 // route no longer carries the camera for the many visits that never scan.
 const Scanner = lazy(() => import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })))
 
+// getUserMedia exists only on HTTPS or localhost: over plain http the browser has no camera API
+// and the scanner could only ever show a permission screen that cannot be granted.
+export const cameraAvailable = typeof window !== 'undefined' && window.isSecureContext && !!navigator.mediaDevices?.getUserMedia
+
 export function BarcodeScanner(props: ComponentProps<typeof Scanner>) {
   const { t } = useTranslation()
   return (

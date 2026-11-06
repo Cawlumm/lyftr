@@ -368,6 +368,13 @@ test.describe('Food', () => {
 
   // --- Barcode scanner ----------------------------------------------------------------
 
+  test('Scan is not offered where the browser has no camera API (plain http)', async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(window, 'isSecureContext', { value: false, configurable: true }))
+    await page.goto('/nutrition/log')
+    await expect(page.getByPlaceholder(SEARCH)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Scan barcode' })).toHaveCount(0)
+  })
+
   // The Chromium fake camera (launch flags in playwright.config.ts, chromium project only) plus a granted permission, so the
   // scanner shows its live view (reticle and hint) instead of the permission-denied panel.
   test.describe('scanner with a fake camera', () => {
