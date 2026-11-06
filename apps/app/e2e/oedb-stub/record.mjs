@@ -50,5 +50,5 @@ for (const locale of locales.filter((l) => l !== 'en')) {
   translations[locale] = Object.fromEntries(body.exercises.map((e) => [e.id, e.translation]))
 }
 
-writeFileSync(OUT, JSON.stringify({ locales, exercises, translations }, null, 1) + '\n')
-console.log(`${exercises.length} exercises, locales ${locales.join(', ')} -> ${OUT.pathname}`)
+process.stdout.write(JSON.stringify({ locales, exercises, translations }, null, 1) + '\n')
+console.error(`${exercises.length} exercises, locales ${locales.join(', ')}`)
