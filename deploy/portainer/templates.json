@@ -1,0 +1,48 @@
+{
+  "version": "3",
+  "templates": [
+    {
+      "id": 1,
+      "type": 3,
+      "title": "Lyftr",
+      "description": "Self-hosted workout, nutrition and bodyweight tracker (API + web app, SQLite)",
+      "note": "Generate JWT_SECRET with <code>openssl rand -hex 32</code> and keep it across updates. Registration defaults to first-user here: only the first account can be created. Data lives in the <code>lyftr-data</code> volume. Docs: <a href=\"https://lyftr-app.pages.dev\" target=\"_blank\">lyftr-app.pages.dev</a>",
+      "categories": ["Health", "Productivity"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/Cawlumm/lyftr/main/apps/app/assets/icon.png",
+      "repository": {
+        "url": "https://github.com/Cawlumm/lyftr",
+        "stackfile": "deploy/portainer/docker-compose.yml"
+      },
+      "env": [
+        {
+          "name": "JWT_SECRET",
+          "label": "JWT secret",
+          "description": "Random string of at least 32 characters that signs sign-in tokens, e.g. the output of: openssl rand -hex 32. Keep it the same across updates."
+        },
+        {
+          "name": "HTTP_PORT",
+          "label": "Web UI port",
+          "default": "8080",
+          "description": "Host port the web app is published on."
+        },
+        {
+          "name": "REGISTRATION",
+          "label": "Registration",
+          "description": "Who may create an account.",
+          "select": [
+            { "text": "First user only (recommended for a new install)", "value": "first-user", "default": true },
+            { "text": "Open (anyone who can reach the server)", "value": "open" },
+            { "text": "Closed", "value": "closed" }
+          ]
+        },
+        {
+          "name": "LYFTR_VERSION",
+          "label": "Image tag",
+          "default": "stable",
+          "description": "stable follows releases; a version tag such as v0.1.0-beta.9 pins one; latest follows the main branch."
+        }
+      ]
+    }
+  ]
+}

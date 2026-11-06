@@ -69,6 +69,21 @@ until you set `REGISTRATION`, so read
 [locking down registration](https://lyftr-app.pages.dev/configuration/#locking-down-registration)
 before giving it a public hostname.
 
+### Portainer
+
+In Portainer, open **Settings > App Templates**, set the URL to
+
+```
+https://raw.githubusercontent.com/Cawlumm/lyftr/main/deploy/portainer/templates.json
+```
+
+and save. **Lyftr** then appears under **App Templates**: fill in a JWT secret and deploy. The
+stack ([`deploy/portainer/docker-compose.yml`](deploy/portainer/docker-compose.yml)) keeps its
+data in the `lyftr-data` volume, publishes the web app on port 8080, starts with registration
+limited to the first user, and pulls the `stable` image tag, which follows releases. `stable`
+is published from the first release after v0.1.0-beta.9; before that, set the image tag field
+to `v0.1.0-beta.9`.
+
 The [docs](https://lyftr-app.pages.dev) cover the rest:
 [configuration](https://lyftr-app.pages.dev/configuration/),
 [HTTPS and reverse proxies](https://lyftr-app.pages.dev/https/),
