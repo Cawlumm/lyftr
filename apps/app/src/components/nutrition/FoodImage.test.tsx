@@ -46,4 +46,10 @@ describe('FoodThumb', () => {
     await fireEvent(photo(), 'load')
     expect(photo().props.style.opacity).toBe(1)
   })
+
+  it('asks OpenFoodFacts for the 200px rendition, not the 400 the search returns', async () => {
+    const off = 'https://images.openfoodfacts.org/images/products/500/031/600/0256/front_en.21'
+    await render(<FoodThumb src={`${off}.400.jpg`} />)
+    expect(photo().props.source).toEqual({ uri: `${off}.200.jpg` })
+  })
 })
