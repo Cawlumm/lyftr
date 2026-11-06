@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Image, View } from 'react-native'
+import { foodThumbUrl } from '@lyftr/shared'
 import { Utensils } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 
@@ -16,6 +17,7 @@ import { useTheme } from '../../theme/useTheme'
 // often be wrong.
 
 // A row's picture. Fixed square whether or not a photo arrives, so the list cannot jitter.
+// It asks for OFF's 200px rendition rather than the 400 the search hands back.
 export function FoodThumb({ src, size = 44 }: { src?: string, size?: number }) {
   const { colors } = useTheme()
   const [loaded, setLoaded] = useState(false)
@@ -27,7 +29,7 @@ export function FoodThumb({ src, size = 44 }: { src?: string, size?: number }) {
       <Utensils size={size * 0.45} color={colors.txMuted} />
       {src ? (
         <Image
-          source={{ uri: src }}
+          source={{ uri: foodThumbUrl(src) }}
           onLoad={() => setLoaded(true)}
           resizeMode="cover"
           style={{ position: 'absolute', top: 0, left: 0, width: size, height: size, opacity: loaded ? 1 : 0 }}

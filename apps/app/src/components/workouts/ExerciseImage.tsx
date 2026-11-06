@@ -1,8 +1,8 @@
-import { useState } from 'react'
 import { Image, View } from 'react-native'
 import { Dumbbell } from '../ui/icons'
 import type { LucideIcon } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
+import { useImageRetry } from '../../hooks/useImageRetry'
 
 type Size = 'row' | 'hero'
 
@@ -22,11 +22,13 @@ const BOX: Record<Size, { box: string; icon: number }> = {
 // Exercise thumbnail with the web's onError fallback: missing/broken image_url →
 // brand-tinted Dumbbell chip. The web hides the <img> element on error; RN Images
 // can't be restyled after failing, so we swap components via state instead.
+// Retrying lives in useImageRetry, which takes whatever url this renders, so choosing a
+// smaller rendition per size can change `url` here without touching it.
 export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumbbell }: Props) {
   // Icon color is an SVG prop (documented className exception) — accent keeps the
   // cyan legible on both themes.
   const { accent } = useTheme()
-  const [failed, setFailed] = useState(false)
+  const { failed, key, onError } = useImageRetry(url)
 
   const s = BOX[size]
   if (!url || failed) {
@@ -38,8 +40,9 @@ export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumb
   }
   return (
     <Image
+      key={key}
       source={{ uri: url }}
-      onError={() => setFailed(true)}
+      onError={onError}
       resizeMode="cover"
       className={`${s.box} rounded-xl bg-surface-muted`}
     />
