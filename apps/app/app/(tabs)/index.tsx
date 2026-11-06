@@ -10,7 +10,7 @@ import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp, Utensils,
 } from '../../src/components/ui/icons'
 import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
+import { AppText, Button, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
 import type { LucideIcon } from '../../src/components/ui/icons'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
@@ -235,6 +235,7 @@ export default function Dashboard() {
             setLoading(true)
             load().catch((err) => setError({ key: 'errors.unknown', cause: err })).finally(() => setLoading(false))
           }}
+          secondary={<Button variant="secondary" title={t('server.settingsTitle')} onPress={() => router.navigate('/settings')} />}
         />
       </Screen>
     )
