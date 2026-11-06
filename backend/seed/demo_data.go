@@ -365,10 +365,16 @@ func seedFoodLogs(db *sql.DB, userID int64) {
 // search, and the first is always the most specific spelling. Failures are logged
 // and skipped rather than fatal: lookupExercise already tolerates a missing
 // exercise, and a demo account with 29 of 30 movements is far better than none.
+// A slot already held locally sends nothing.
 func primeDemoExercises(db *sql.DB, primer CatalogPrimer) {
 	seen := map[string]bool{}
 	for _, template := range workoutTemplates {
 		for _, ex := range template {
+			// Already held: a demo restarted hourly over a restored snapshot would
+			// otherwise send every query again on every boot.
+			if _, ok := lookupExercise(db, ex.patterns); ok {
+				continue
+			}
 			for _, pattern := range ex.patterns {
 				term := strings.TrimSpace(strings.ReplaceAll(pattern, "%", " "))
 				if term == "" || seen[term] {

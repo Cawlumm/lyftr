@@ -9,7 +9,8 @@ nothing to import. Your server keeps its own copy and keeps it up to date.
 ## How it stays up to date
 
 - On startup, and then every 24 hours, the server downloads the whole catalog from
-  open-exercise-db, in every language it offers.
+  open-exercise-db, in every language it offers. A restart within 24 hours of a successful
+  sync skips the startup download and keeps the 24-hour schedule.
 - If that fails, the server tries again by itself: after 1 minute, then 5, then every 30.
 - Searching uses the catalog when it can. If it can't be reached, you get your local copy, so
   logging a workout never waits on the network.

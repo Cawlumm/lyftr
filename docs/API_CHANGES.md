@@ -33,9 +33,11 @@ still includes hidden rows.
 started), `next_attempt_at` (when the scheduled pass runs next, null while one runs),
 `last_failed`, and `last_failure` (`"unreachable"` for an open-exercise-db outage,
 `"other"` for anything else, null when the last pass was clean). Times are RFC3339 UTC and
-may carry fractional seconds; unknown ones are null. The values live in memory, so they are
-null after a restart until the boot pass finishes. Callers that read only `count` see no
-change.
+may carry fractional seconds; unknown ones are null. `last_synced_at`, `last_attempt_at` and
+`last_failure` are kept in the database, so they survive a restart and are null only on an
+install that has never finished a pass; `next_attempt_at` and `syncing` are the running
+process's. A restart within 24 hours of a clean pass does not sync again: `next_attempt_at`
+is then 24 hours after `last_synced_at`. Callers that read only `count` see no change.
 
 ## `POST /api/v1/admin/reset-exercises` removed; `POST /api/v1/admin/sync-exercises` imports the whole catalog
 

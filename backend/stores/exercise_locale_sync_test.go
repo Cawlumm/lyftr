@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Cawlumm/lyftr-backend/models"
 	"github.com/Cawlumm/lyftr-backend/oedb"
 )
 
@@ -907,5 +908,132 @@ func TestSyncCatalog_PanicIsAFailedPassNotACrash(t *testing.T) {
 	}
 	if st.Syncing {
 		t.Error("the single-flight flag stayed set after a panic")
+	}
+}
+
+func TestBootSkip(t *testing.T) {
+	now := time.Date(2026, 11, 6, 12, 0, 0, 0, time.UTC)
+	at := func(d time.Duration) *time.Time { v := now.Add(-d); return &v }
+	unreachable := syncFailureUnreachable
+	cases := []struct {
+		name string
+		st   models.ExerciseCacheStatus
+		held bool
+		skip bool
+	}{
+		{"fresh", models.ExerciseCacheStatus{LastSyncedAt: at(time.Hour)}, true, true},
+		{"never synced", models.ExerciseCacheStatus{}, true, false},
+		{"stale", models.ExerciseCacheStatus{LastSyncedAt: at(CatalogSyncInterval)}, true, false},
+		{"last pass failed", models.ExerciseCacheStatus{LastSyncedAt: at(time.Hour), LastFailure: &unreachable}, true, false},
+		{"catalog not held", models.ExerciseCacheStatus{LastSyncedAt: at(time.Hour)}, false, false},
+		{"stamp in the future", models.ExerciseCacheStatus{LastSyncedAt: at(-time.Hour)}, true, false},
+	}
+	for _, c := range cases {
+		next, skip := bootSkip(c.st, c.held, now, CatalogSyncInterval)
+		if skip != c.skip {
+			t.Errorf("%s: skip = %v, want %v", c.name, skip, c.skip)
+		}
+		if skip && !next.Equal(c.st.LastSyncedAt.Add(CatalogSyncInterval)) {
+			t.Errorf("%s: next = %s, want the last pass plus the interval", c.name, next)
+		}
+	}
+}
+
+// restarted is a second store over s's database and catalog: the same install after a
+// process restart.
+func restarted(s *ExerciseStore, cat *localeCatalog) *ExerciseStore {
+	r := NewExerciseStore(s.db)
+	r.UseCatalog(oedb.New(cat.srv.URL, "test"))
+	return r
+}
+
+func TestRunCatalogSync_RestartAfterAFreshPassSkipsTheBootPass(t *testing.T) {
+	s, cat := syncStore(t, 2, "en", "es")
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := s.CacheStatus()
+
+	r := restarted(s, cat)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go r.RunCatalogSync(ctx, time.Hour)
+	waitFor(t, func() bool {
+		st, _ := r.CacheStatus()
+		return st.NextAttemptAt != nil
+	})
+	time.Sleep(50 * time.Millisecond)
+	if got := cat.localeRequests(); got != 1 {
+		t.Errorf("locale requests = %d, want 1: the restart must not sync again", got)
+	}
+	st, _ := r.CacheStatus()
+	if st.LastSyncedAt == nil || !st.LastSyncedAt.Equal(*before.LastSyncedAt) {
+		t.Errorf("last_synced_at after restart = %v, want the persisted %s", st.LastSyncedAt, before.LastSyncedAt)
+	}
+	if st.LastAttemptAt == nil || !st.LastAttemptAt.Equal(*before.LastAttemptAt) || st.LastFailed {
+		t.Errorf("status after restart = %+v, want the persisted clean attempt", st)
+	}
+	if want := before.LastSyncedAt.Add(time.Hour); !st.NextAttemptAt.Equal(want) {
+		t.Errorf("next = %s, want %s", st.NextAttemptAt, want)
+	}
+}
+
+func TestRunCatalogSync_RestartSyncsWhenTheBootPassIsDue(t *testing.T) {
+	cases := map[string]func(t *testing.T, s *ExerciseStore){
+		"stale": func(t *testing.T, s *ExerciseStore) {
+			old := time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)
+			if _, err := s.db.Exec(`UPDATE catalog_sync SET last_synced_at = ?`, old); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"last pass failed": func(t *testing.T, s *ExerciseStore) {
+			if _, err := s.db.Exec(`UPDATE catalog_sync SET last_failure = 'unreachable'`); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"translations gone": func(t *testing.T, s *ExerciseStore) {
+			if _, err := s.db.Exec(`DELETE FROM exercise_translations`); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			s, cat := syncStore(t, 2, "en", "es")
+			if _, err := s.syncCatalog(t.Context()); err != nil {
+				t.Fatal(err)
+			}
+			mutate(t, s)
+
+			r := restarted(s, cat)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			go r.RunCatalogSync(ctx, time.Hour)
+			waitFor(t, func() bool { return cat.localeRequests() >= 2 })
+		})
+	}
+}
+
+func TestRunCatalogSync_NeverSyncedSyncsAtBoot(t *testing.T) {
+	s, cat := syncStore(t, 2, "en", "es")
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	go s.RunCatalogSync(ctx, time.Hour)
+	waitFor(t, func() bool { return cat.localeRequests() >= 1 })
+}
+
+func TestSyncCatalog_FailedPassIsPersisted(t *testing.T) {
+	s, cat := syncStore(t, 2, "en")
+	cat.setFail("/api/v1/meta/locales", "")
+	if _, err := s.syncCatalog(t.Context()); err == nil {
+		t.Fatal("want an error")
+	}
+	r := restarted(s, cat)
+	if err := r.loadSyncState(); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := r.CacheStatus()
+	if st.LastAttemptAt == nil || st.LastSyncedAt != nil || st.LastFailure == nil || *st.LastFailure != "unreachable" {
+		t.Errorf("status after restart = %+v, want the failed attempt and no clean pass", st)
 	}
 }

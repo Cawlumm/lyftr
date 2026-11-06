@@ -532,8 +532,9 @@ type ActiveSessionRequest struct {
 	Data string `json:"data" binding:"required"`
 }
 
-// ExerciseCacheStatus is what GET /admin/seed-status reports. The sync fields are this
-// process's memory, so they read null after a restart until the boot pass ends.
+// ExerciseCacheStatus is what GET /admin/seed-status reports. The last pass's times and
+// failure are kept in the database, so they survive a restart; NextAttemptAt and Syncing
+// are this process's own.
 type ExerciseCacheStatus struct {
 	Count         int        `json:"count"`
 	Syncing       bool       `json:"syncing"`

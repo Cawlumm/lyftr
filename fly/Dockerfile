@@ -40,7 +40,8 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH VERSION=$VERSION sh build.sh
 FROM nginx:alpine
 # ca-certificates: needed for Go TLS (exercise seed fetch from GitHub)
 # wget: used in health checks if needed
-RUN apk add --no-cache ca-certificates wget
+# sqlite: reset.sh keeps the live exercise catalog across the hourly restore
+RUN apk add --no-cache ca-certificates wget sqlite
 
 COPY --from=backend /build/lyftr-api /app/lyftr-api
 COPY --from=frontend /app/apps/app/dist /usr/share/nginx/html

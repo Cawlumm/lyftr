@@ -2,6 +2,7 @@ package stores
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,6 +10,8 @@ import (
 	"runtime/debug"
 	"sort"
 	"time"
+
+	"github.com/Cawlumm/lyftr-backend/models"
 )
 
 // CatalogSyncInterval is how long an upstream correction or a new translation takes to
@@ -31,11 +34,27 @@ var localeSyncTimeout = 2 * time.Minute
 
 // RunCatalogSync imports every catalog exercise in English and then re-reads every held
 // one in every other language the catalog offers, once at start and then every interval,
-// sooner while a pass is failing. No request triggers it
-// or waits on it; it blocks until ctx is done, so callers run it in a goroutine.
+// sooner while a pass is failing. A start within the interval of the last clean pass
+// waits out the rest of it instead, so a restart loop is not a sync loop. No request
+// triggers it or waits on it; it blocks until ctx is done, so callers run it in a goroutine.
 func (s *ExerciseStore) RunCatalogSync(ctx context.Context, every time.Duration) {
 	if s.catalog == nil {
 		return
+	}
+	if err := s.loadSyncState(); err != nil {
+		log.Printf("exercises: reading the last catalog pass failed, syncing now: %v", err)
+	}
+	s.statusMu.Lock()
+	st := s.status
+	s.statusMu.Unlock()
+	if next, ok := bootSkip(st, s.catalogHeld(), time.Now(), every); ok {
+		s.setNextAttempt(&next)
+		log.Printf("exercises: catalog last synced at %s, next pass at %s", st.LastSyncedAt.Format(time.RFC3339), next.Format(time.RFC3339))
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Until(next)):
+		}
 	}
 	failures := 0
 	for {
@@ -64,24 +83,110 @@ func (s *ExerciseStore) setNextAttempt(t *time.Time) {
 	s.status.NextAttemptAt = t
 }
 
-// recordPass is the one place a finished pass is written to the status. A failed pass
-// leaves LastSyncedAt at the last clean one.
-func (s *ExerciseStore) recordPass(started time.Time, err error) {
+// bootSkip decides whether the first pass after a start can wait, and until when. Only a
+// clean last pass inside the interval, over a catalog still held in English and at least
+// one other language, may skip: never synced, failed, stale, a clock set back, or a
+// stamp over an emptied catalog all sync now.
+func bootSkip(st models.ExerciseCacheStatus, held bool, now time.Time, every time.Duration) (time.Time, bool) {
+	if !held || st.LastSyncedAt == nil || st.LastFailure != nil {
+		return time.Time{}, false
+	}
+	age := now.Sub(*st.LastSyncedAt)
+	if age < 0 || age >= every {
+		return time.Time{}, false
+	}
+	return st.LastSyncedAt.Add(every).UTC(), true
+}
+
+// catalogHeld reports whether this instance holds visible catalog rows and translations
+// for them. A database error reads as not held, so the pass runs.
+func (s *ExerciseStore) catalogHeld() bool {
+	var held bool
+	err := s.db.QueryRow(`SELECT
+		EXISTS (SELECT 1 FROM exercises WHERE oedb_id IS NOT NULL AND upstream_missing_at IS NULL)
+		AND EXISTS (SELECT 1 FROM exercise_translations)`).Scan(&held)
+	return err == nil && held
+}
+
+// loadSyncState reads the last recorded pass into the status, so seed-status is truthful
+// straight after a restart.
+func (s *ExerciseStore) loadSyncState() error {
+	var attempt string
+	var synced, failure sql.NullString
+	err := s.db.QueryRow(`SELECT last_attempt_at, last_synced_at, last_failure FROM catalog_sync WHERE id = 1`).
+		Scan(&attempt, &synced, &failure)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	at, err := time.Parse(time.RFC3339Nano, attempt)
+	if err != nil {
+		return err
+	}
+	var syncedAt *time.Time
+	if synced.Valid {
+		t, err := time.Parse(time.RFC3339Nano, synced.String)
+		if err != nil {
+			return err
+		}
+		syncedAt = &t
+	}
+	var reason *string
+	if failure.Valid {
+		reason = &failure.String
+	}
 	s.statusMu.Lock()
 	defer s.statusMu.Unlock()
+	at = at.UTC()
+	s.status.LastAttemptAt = &at
+	s.status.LastSyncedAt = syncedAt
+	s.status.LastFailure = reason
+	return nil
+}
+
+// recordPass is the one place a finished pass is written to the status, in memory and in
+// catalog_sync. A failed pass leaves LastSyncedAt at the last clean one.
+func (s *ExerciseStore) recordPass(started time.Time, err error) {
+	s.statusMu.Lock()
 	at := started.UTC()
 	s.status.LastAttemptAt = &at
 	if err == nil {
 		now := time.Now().UTC()
 		s.status.LastSyncedAt = &now
 		s.status.LastFailure = nil
-		return
+	} else {
+		reason := syncFailureOther
+		if errors.Is(err, ErrCatalogUnreachable) {
+			reason = syncFailureUnreachable
+		}
+		s.status.LastFailure = &reason
 	}
-	reason := syncFailureOther
-	if errors.Is(err, ErrCatalogUnreachable) {
-		reason = syncFailureUnreachable
+	st := s.status
+	s.statusMu.Unlock()
+	// Losing this write costs one extra pass at the next start, never a skipped one: the
+	// row it would replace is older.
+	if perr := s.persistSyncState(st); perr != nil {
+		log.Printf("exercises: recording the catalog pass failed: %v", perr)
 	}
-	s.status.LastFailure = &reason
+}
+
+func (s *ExerciseStore) persistSyncState(st models.ExerciseCacheStatus) error {
+	// A store with no database (a test inducing a panic) has nowhere to write.
+	if s.db == nil {
+		return nil
+	}
+	var synced any
+	if st.LastSyncedAt != nil {
+		synced = st.LastSyncedAt.Format(time.RFC3339Nano)
+	}
+	_, err := s.db.Exec(`INSERT INTO catalog_sync (id, last_attempt_at, last_synced_at, last_failure)
+		VALUES (1, ?, ?, ?)
+		ON CONFLICT (id) DO UPDATE SET last_attempt_at = excluded.last_attempt_at,
+			last_synced_at = excluded.last_synced_at, last_failure = excluded.last_failure`,
+		st.LastAttemptAt.Format(time.RFC3339Nano), synced, st.LastFailure)
+	return err
 }
 
 // retryDelay is the wait after the failures-th consecutive failed pass, never longer than
