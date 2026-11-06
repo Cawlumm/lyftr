@@ -19,7 +19,8 @@ git push origin v0.1.0-beta.4
 Pushing the tag triggers two workflows:
 
 - **`ci.yml`** — builds and pushes the backend/frontend Docker images tagged
-  with this version (`git describe --tags`).
+  with this version (`git describe --tags`), and moves the `stable` tag to it.
+  App-store listings install `:stable`, so a pushed tag reaches them on their next update.
 - **`eas-build.yml`** — builds the Android APK on the runner (`eas build --local`,
   so there's no hosted-EAS queue to wait behind) and attaches it to the GitHub
   Release for this tag. Budget ~30-45 min; it's a full Gradle build.

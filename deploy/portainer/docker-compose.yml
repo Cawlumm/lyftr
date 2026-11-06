@@ -1,0 +1,47 @@
+# The stack Portainer deploys from deploy/portainer/templates.json. It is the repo-root
+# docker-compose.yml without the build: sections (Portainer only pulls), with a named volume
+# instead of ./data, and with JWT_SECRET required rather than silently empty.
+#
+# Images default to `stable`, which CI moves on every release tag (see ci.yml). It does not
+# exist until the first release tagged after it was added; until then set LYFTR_VERSION to a
+# version tag, e.g. v0.1.0-beta.9.
+services:
+  backend:
+    image: cwlumm/lyftr-backend:${LYFTR_VERSION:-stable}
+    restart: unless-stopped
+    volumes:
+      - lyftr-data:/app/data
+    environment:
+      - ENV=production
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - DB_TYPE=sqlite
+      - DB_PATH=/app/data/lyftr.db
+      - REGISTRATION=${REGISTRATION:-first-user}
+      - DEMO_MODE=false
+      - OEDB_BASE_URL=${OEDB_BASE_URL:-}
+    expose:
+      - "3000"
+    # Also declared in the image from the release that added it; repeated here so an older
+    # LYFTR_VERSION still satisfies the frontend's depends_on.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    image: cwlumm/lyftr-frontend:${LYFTR_VERSION:-stable}
+    restart: unless-stopped
+    environment:
+      - BACKEND_ORIGIN=backend:3000
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  lyftr-data:
