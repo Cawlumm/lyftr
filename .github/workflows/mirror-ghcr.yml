@@ -68,16 +68,25 @@ jobs:
           echo "source $SRC:$TAG $src_digest"
 
           # A release tag is fixed forever: never repoint one that already holds something else.
-          if dst_digest=$(digest "$DST:$TAG" 2>/dev/null); then
+          # Only a registry "not found" answer means the tag is absent. Any other failure of the
+          # check (a 5xx, a rate limit, an auth hiccup) says nothing about the tag, so it stops the
+          # job instead of falling through to a copy that could overwrite an existing release.
+          err=$(mktemp)
+          if dst_digest=$(digest "$DST:$TAG" 2>"$err"); then
             if [ "$dst_digest" != "$src_digest" ]; then
               echo "::error::$DST:$TAG already exists as $dst_digest, not $src_digest; refusing to overwrite"
               exit 1
             fi
             echo "$DST:$TAG already matches; nothing to copy"
-          else
+          elif grep -qiE 'not found|manifest unknown|name unknown' "$err"; then
+            echo "$DST:$TAG does not exist yet; copying"
             # One source that is an index: imagetools create makes a carbon copy of it.
             # https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/
             docker buildx imagetools create --tag "$DST:$TAG" "$SRC:$TAG"
+          else
+            echo "::error::could not tell whether $DST:$TAG exists; refusing to copy over a tag that may hold something else"
+            cat "$err" >&2
+            exit 1
           fi
 
           dst_digest=$(digest "$DST:$TAG")
