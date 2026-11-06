@@ -429,6 +429,12 @@ jobs:
       !failure() && !cancelled() &&
       (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
+    # Job-level, so it replaces the workflow's read-only default: packages: write lets
+    # GITHUB_TOKEN push to ghcr.io. Only the two push jobs get it; the -pr jobs reuse the
+    # steps but not this block.
+    permissions:
+      contents: read
+      packages: write
     steps: &build-backend-steps
       - uses: actions/checkout@v4
         with:
@@ -443,15 +449,25 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Every image below gets every tag, and build-push-action builds once and pushes the
+      # result to both registries, so GHCR adds a push, not a build.
       # Tags: `vX.Y.Z[-beta.N]` is the release, fixed forever. `latest` is whatever main last
-      # built, untested by any release. `stable` is the newest release tag pushed: it moves
+      # built, not a release. `stable` is the newest release tag pushed: it moves
       # only on a `v*` tag push, never on main, so an app-store listing that installs
       # `:stable` gets releases and nothing in between. It includes betas while every
       # release is one, and it follows push order, so re-pushing an older tag moves it back.
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-backend
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-backend
+            ghcr.io/cawlumm/lyftr-backend
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
@@ -487,6 +503,9 @@ jobs:
       !failure() && !cancelled() &&
       (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     runs-on: ubuntu-latest
+    permissions:   # as build-backend: ghcr.io push for this job only
+      contents: read
+      packages: write
     steps: &build-frontend-steps
       - uses: actions/checkout@v4
       - uses: docker/setup-qemu-action@v3
@@ -496,11 +515,19 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-frontend
-          # Same three tags as the backend image; what each promises is noted there.
+          images: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/lyftr-frontend
+            ghcr.io/cawlumm/lyftr-frontend
+          # Same images and tags as the backend; what each tag promises is noted there.
           tags: |
             type=ref,event=tag
             type=raw,value=latest,enable={{is_default_branch}}
