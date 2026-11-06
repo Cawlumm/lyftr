@@ -10,14 +10,13 @@ import {
   Activity, ArrowRight, BookOpen, ChevronRight, Dumbbell, Flame, Play, Plus, Scale, Timer, TrendingUp, Utensils,
 } from '../../src/components/ui/icons'
 import { isDailyStats, activeSessionExercisesForDay, dayLabel, displayVolume, displayWeight, sessionNameForDay, weightShort, type DailyStats, type Program, type WeightLog, type WeightStats, type Workout, workoutDay, entryDay, nextStartableDay, muscleRoast, muscleHex, calcVolume, greeting, formatDay, nameInitial, lifterQuip, formatDate, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
+import { AppText, Button, Card, ErrorState, IconButton, Label, Screen, scrollBleed, SectionHeader, SegmentedControl, StatFailure, touchPad, touchTarget } from '../../src/components/ui'
 import type { LucideIcon } from '../../src/components/ui/icons'
 import { ExerciseImage } from '../../src/components/workouts/ExerciseImage'
 import {
   MuscleDonut, MuscleSparkline, VolumeBarChart, WeightSparkline,
 } from '../../src/components/dashboard/DashboardCharts'
 import { QuickWeighInSheet } from '../../src/components/dashboard/QuickWeighInSheet'
-import { ServerRow } from '../../src/components/authui'
 import { DashboardSkeleton } from '../../src/components/dashboard/DashboardSkeleton'
 import { client, useAuthStore, useDisplayName, useSettingsStore, useWorkoutSession } from '../../src/lib/lyftr'
 import { muscleLabel } from '../../src/utils/exerciseUtils'
@@ -97,9 +96,6 @@ function StatTile({ label, icon: TileIcon, value, target, pct, color, failed }: 
     </Card>
   )
 }
-
-// How long the dashboard may spin before Settings is offered beside it.
-const SLOW_LOAD_MS = 5000
 
 export default function Dashboard() {
   const pillInset = useSessionPillInset()
@@ -189,22 +185,12 @@ export default function Dashboard() {
     setMissing(absent)
   }, [])
 
-  // Only the latest run may report: a request still hanging against an old address must not
-  // put its failure on top of a reload against the new one.
-  const run = useRef(0)
-  const reload = useCallback(() => {
-    const id = ++run.current
-    setError(null)
-    setLoading(true)
-    load()
-      .catch((err) => { if (run.current === id) setError({ key: 'errors.unknown', cause: err }) })
-      .finally(() => { if (run.current === id) setLoading(false) })
-  }, [load])
-
   useEffect(() => {
     fetchSettings()
-    reload()
-  }, [fetchSettings, reload])
+    load()
+      .catch((err) => setError({ key: 'errors.unknown', cause: err }))
+      .finally(() => setLoading(false))
+  }, [fetchSettings, load])
 
   // Keep-mounted tab → refetch on re-focus (skip the first, the mount effect fetched).
   const focusedOnce = useRef(false)
@@ -231,28 +217,8 @@ export default function Dashboard() {
   const username = useDisplayName()
   const { lg } = useBreakpoint()
   const wide = Platform.OS === 'web' && lg
-  const [slow, setSlow] = useState(false)
-  useEffect(() => {
-    if (!loading) { setSlow(false); return }
-    const timer = setTimeout(() => setSlow(true), SLOW_LOAD_MS)
-    return () => clearTimeout(timer)
-  }, [loading])
 
-  // A request that hangs holds the skeleton for the full timeout, and the avatar that opens
-  // Settings is part of what it hides. Past a few seconds the sign-in screens' server row is
-  // offered right here, so a wrong address is fixed where it shows rather than being a lockout.
-  if (loading) {
-    return (
-      <>
-        <DashboardSkeleton />
-        {slow ? (
-          <View pointerEvents="box-none" style={{ position: 'absolute', left: 16, right: 16, bottom: 24 }}>
-            <ServerRow onSaved={reload} />
-          </View>
-        ) : null}
-      </>
-    )
-  }
+  if (loading) return <DashboardSkeleton />
 
   if (error) {
     // Every tile here is another request's answer, so a failed load has no honest
@@ -264,9 +230,13 @@ export default function Dashboard() {
           size="page"
           title={t('home.loadFailed')}
           message={uiMessage(error)}
-          onRetry={reload}
+          onRetry={() => {
+            setError(null)
+            setLoading(true)
+            load().catch((err) => setError({ key: 'errors.unknown', cause: err })).finally(() => setLoading(false))
+          }}
+          secondary={<Button variant="secondary" title={t('server.settingsTitle')} onPress={() => router.navigate('/settings')} />}
         />
-        <ServerRow onSaved={reload} />
       </Screen>
     )
   }

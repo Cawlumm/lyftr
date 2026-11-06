@@ -240,9 +240,8 @@ type ServerResult =
   | { kind: 'connected'; name: string; version: string }
   | { kind: 'saved'; failure: UiMessage }
 
-// Server settings row that expands to a URL field (self-hosted users). `onSaved` fires once the
-// saved address answers, for a screen that was waiting on the old one to retry in place.
-export function ServerRow({ onSaved }: { onSaved?: () => void } = {}) {
+// Server settings row that expands to a URL field (self-hosted users).
+export function ServerRow() {
   const { t } = useTranslation()
   const { colors, brand, accent } = useTheme()
   const serverUrl = useServerStore((s) => s.serverUrl)
@@ -273,7 +272,6 @@ export function ServerRow({ onSaved }: { onSaved?: () => void } = {}) {
         : { kind: 'saved', failure: probe.failure },
     )
     setTesting(false)
-    if (probe.ok) onSaved?.()
   }
 
   return (
