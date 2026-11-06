@@ -449,6 +449,11 @@ ignored.
   trickled at ~80 KB/s and timed the job out before a test ran. `perf.spec.ts` holds
   LCP/CLS tripwires and `polish.spec.ts` walks every route at four widths in both themes. `web-export` builds the export and
   enforces the bundle budget in `apps/app/perf-budget.json`.
+- **The e2e stack never calls the hosted open-exercise-db.** An empty `OEDB_BASE_URL` means
+  production, whose database is on a metered free tier, and every e2e boot synced the whole
+  catalog from it. `apps/app/e2e/oedb-stub/` (a recorded fixture and a dependency-free server)
+  is overlaid on the compose stack, and a CI step fails the shard if the stub never served the
+  backend's export. Run e2e locally with that overlay too (docs/TESTING.md).
 - **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
   the mobile filter includes). The suite drives the Expo web export, so a native-only
   change still runs it; the jest suite and type-check are what stand behind native code.
