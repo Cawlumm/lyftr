@@ -1028,3 +1028,26 @@ func TestUpgrade_ExerciseUpstreamMissingAt(t *testing.T) {
 		t.Error("a fresh database must have the column")
 	}
 }
+
+// catalog_sync is created on an existing database without touching its data, survives a
+// second boot, and holds one row only.
+func TestCatalogSyncMigration_ExistingDatabase(t *testing.T) {
+	setupMigrationTestDB(t)
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('a@x.com', 'h')`); err != nil {
+		t.Fatalf("seed user: %v", err)
+	}
+	alterMigrations()
+	if _, err := DB.Exec(`INSERT INTO catalog_sync (id, last_attempt_at, last_synced_at) VALUES (1, '2026-11-06T00:00:00Z', '2026-11-06T00:01:00Z')`); err != nil {
+		t.Fatalf("write sync row: %v", err)
+	}
+	alterMigrations()
+	if n := countRow(t, `SELECT COUNT(*) FROM catalog_sync WHERE last_synced_at = '2026-11-06T00:01:00Z'`); n != 1 {
+		t.Errorf("sync rows after a second boot = %d, want 1", n)
+	}
+	if n := countRow(t, `SELECT COUNT(*) FROM users`); n != 1 {
+		t.Errorf("users = %d, want 1", n)
+	}
+	if _, err := DB.Exec(`INSERT INTO catalog_sync (id, last_attempt_at) VALUES (2, '2026-11-06T00:00:00Z')`); err == nil {
+		t.Error("a second sync row was accepted")
+	}
+}
