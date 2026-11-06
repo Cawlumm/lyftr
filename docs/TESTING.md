@@ -81,7 +81,7 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
   backend falls back to the hosted instance, whose database is on a metered free tier: every
   boot syncs the whole catalog and every browser loads its images from there. CI fails a shard
   whose stub log has no export request. A spec that needs an exercise the fixture lacks adds
-  its search term to `TERMS` in `record.mjs` and re-records once (`node record.mjs`, about
+  its search term to `TERMS` in `record.mjs` and re-records once (`node record.mjs > catalog.json.new`, then move it over `catalog.json`, about
   three requests); never record from CI.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.
 - **Workers:** CI runs four (`playwright.config.ts`: the public-repo `ubuntu-24.04` runner

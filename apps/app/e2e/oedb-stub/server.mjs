@@ -96,5 +96,6 @@ function route(req, res) {
 createServer((req, res) => {
   const status = route(req, res)
   // The CI guard greps this log: an export line proves the backend synced from here.
-  if (req.url !== '/health') console.log(`${req.method} ${req.url} ${status}`)
+  // The request line is the caller's text: drop line breaks so one request cannot forge another log line.
+  if (req.url !== '/health') console.log(`${req.method} ${req.url} ${status}`.replace(/[\r\n]/g, ''))
 }).listen(PORT, () => console.log(`oedb stub: ${english.length} exercises on :${PORT}`))

@@ -3,17 +3,16 @@
 // fixture lacks — never from CI or a loop: oedb's database runs on a metered free tier, and
 // keeping CI off it is the reason this stub exists.
 //
-//   node apps/app/e2e/oedb-stub/record.mjs [export.json]
+//   node apps/app/e2e/oedb-stub/record.mjs > /tmp/catalog.json && mv /tmp/catalog.json apps/app/e2e/oedb-stub/catalog.json
 //
 // Costs 1 + 1 + (one per non-English locale) requests: the export, the locale list, and each
 // locale's translations of the subset (it stays at or under 100 rows, oedb's per_page cap).
-// Pass a previously downloaded export to skip the first.
-import { readFileSync, writeFileSync } from 'node:fs'
+// It prints the fixture to stdout rather than writing the file itself, so a failed run leaves
+// the committed fixture untouched and nothing fetched from the network is written by this script.
 
 const BASE = 'https://oedb-api-o4dqddih5q-uk.a.run.app'
 // The same identity the backend sends, so the request lands in oedb's identified tier.
 const UA = 'lyftr/dev (+https://github.com/Cawlumm/lyftr)'
-const OUT = new URL('./catalog.json', import.meta.url)
 
 async function get(path) {
   const res = await fetch(BASE + path, { headers: { 'User-Agent': UA, Accept: 'application/json' } })
@@ -21,9 +20,7 @@ async function get(path) {
   return res.json()
 }
 
-const exportBody = process.argv[2]
-  ? JSON.parse(readFileSync(process.argv[2], 'utf8'))
-  : await get('/api/v1/exercises/export')
+const exportBody = await get('/api/v1/exercises/export')
 const all = exportBody.exercises
 
 // What the specs search or filter for (grep apps/app/e2e for `fill(` on a search box and for
