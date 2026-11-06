@@ -42,4 +42,10 @@ COPY --from=builder /app/apps/app/dist /usr/share/nginx/html
 
 EXPOSE 80
 
+# Probes this nginx serving the export, not the backend: the backend image has its own
+# check, and proxying it here would mark the wrong container unhealthy when the API is down. Busybox wget (the image has no curl guarantee); 127.0.0.1 because the server
+# block listens on IPv4 only. --start-interval takes effect on Docker Engine 25+.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=2s --retries=3 \
+    CMD wget -q -O /dev/null http://127.0.0.1/ || exit 1
+
 CMD ["nginx", "-g", "daemon off;"]

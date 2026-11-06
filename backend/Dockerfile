@@ -32,4 +32,13 @@ RUN mkdir -p /app/data
 
 EXPOSE 3000
 
+# /health is public and answers once migrations have run and the router is listening.
+# -O /dev/null, not --spider: the apk wget above is GNU wget, whose --spider sends HEAD, and
+# Gin answers HEAD on a GET route with 404. Shell form so a custom PORT is followed. The long
+# start period is for a Raspberry Pi running migrations; probes inside it every 2s still mark
+# the container healthy as soon as it answers (--start-interval takes effect on Docker
+# Engine 25+).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --start-interval=2s --retries=3 \
+    CMD wget -q -O /dev/null "http://127.0.0.1:${PORT:-3000}/health" || exit 1
+
 ENTRYPOINT ["/app/lyftr-api"]
