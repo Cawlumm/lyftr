@@ -7,6 +7,7 @@ import { cleanupSeed } from './seedHelpers'
 // keyboard and by dragging a row (mouse and touch), and check the order is what gets saved.
 const WORKOUT_NAME = 'E2E Reorder Workout'
 const LONG_NAME = 'E2E Reorder Long'
+const SUPERSET_NAME = 'E2E Reorder Superset'
 const SESSION_KEY = 'lyftr_active_session'
 const LAYOUT_KEY = 'lyftr_workout_layout'
 
@@ -16,7 +17,7 @@ let token: string
 let exercises: Ex[]
 let workoutId: number
 
-const ours = (w: { name: string }) => w.name === WORKOUT_NAME
+const ours = (w: { name: string }) => w.name === WORKOUT_NAME || w.name === SUPERSET_NAME
 
 // The sheet's rows in order, read off each row's "Move … up" button.
 async function sheetOrder(sheet: Locator): Promise<string[]> {
@@ -169,6 +170,45 @@ test.describe('Reorder exercises (#166)', () => {
     // And a fresh load shows it.
     await page.goto(`/workouts/${workoutId}/edit`)
     expect(await sheetOrder(await openSheet(page))).toEqual([a, c, b])
+  })
+
+  // Supersets (#227): a move inside the run keeps it; a move that takes a member out dissolves it.
+  test('moving a superset member out of its run unlinks it, says so, and saves that', async ({ page, request }) => {
+    const headers = { Authorization: `Bearer ${token}` }
+    const [a, b, c] = exercises.map((e) => e.name)
+    const r = await request.post(`${API}/workouts`, {
+      headers,
+      data: {
+        name: SUPERSET_NAME, duration: 1800, started_at: new Date().toISOString(),
+        exercises: exercises.map((e, i) => ({
+          exercise_id: e.id, rest_seconds: 60, superset_group: i < 2 ? 1 : null,
+          sets: [{ set_number: 1, reps: 10, weight: 100 }],
+        })),
+      },
+    })
+    const id = (await r.json()).data.id
+    const groups = async () => (await (await request.get(`${API}/workouts/${id}`, { headers })).json()).data.exercises
+      .map((e: { superset_group: number | null }) => e.superset_group)
+    expect((await groups())[0]).not.toBeNull()
+
+    await page.goto(`/workouts/${id}/edit`)
+    await expect(page.getByRole('button', { name: /^Unlink .+ from .+/ })).toBeVisible()
+    const sheet = await openSheet(page)
+
+    await sheet.getByRole('button', { name: `Move ${a} down` }).click()
+    expect(await sheetOrder(sheet)).toEqual([b, a, c])
+    await expect(sheet.locator('[aria-live="polite"]')).toHaveText(`${a} moved to position 2 of 3`)
+
+    await sheet.getByRole('button', { name: `Move ${a} down` }).click()
+    expect(await sheetOrder(sheet)).toEqual([b, c, a])
+    await expect(sheet.locator('[aria-live="polite"]')).toHaveText(`${a} moved to position 3 of 3 and unlinked from its superset`)
+
+    await sheet.getByRole('button', { name: 'Done' }).click()
+    await expect(sheet).toBeHidden()
+    await expect(page.getByRole('button', { name: /^Unlink .+ from .+/ })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+    await page.waitForURL('**/workouts')
+    expect(await groups()).toEqual([null, null, null])
   })
 
   test('reorders a running session at phone width, and the order survives a reload', async ({ page }) => {

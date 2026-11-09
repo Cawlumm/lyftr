@@ -25,7 +25,7 @@ const NAMES = ['Bench Press', 'Barbell Row', 'Overhead Press']
 // The same keys the app persists to (AsyncStorage on web is localStorage). An init script runs
 // on every full load, so a test navigates inside the app after its one goto, unless it seeds
 // with `once`, which leaves what the app stored for a reload to read back.
-function seed(page: Page, { rest = false, count = 1, names = [] as string[], once = false } = {}) {
+function seed(page: Page, { rest = false, count = 1, names = [] as string[], once = false, groups = [] as (number | null)[] } = {}) {
   const session = {
     name: SESSION,
     started_at: new Date().toISOString(),
@@ -34,6 +34,7 @@ function seed(page: Page, { rest = false, count = 1, names = [] as string[], onc
       exercise: { id: exerciseId, name: names[i] ?? 'Bench Press', muscle_group: 'chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
       notes: '',
       rest_seconds: 15,
+      superset_group: groups[i] ?? null,
       sets: [set(1), set(2)],
     })),
   }
@@ -259,7 +260,7 @@ test('the menu holds the workout actions and discards only once confirmed; the c
   await toSets(page)
   const more = button(dialog(page), 'More options')
   await more.click()
-  await expect(page.getByRole('menuitem')).toHaveText(['Add exercise', 'Reorder exercises', 'All exercises', 'Workout overview', 'Discard workout'])
+  await expect(page.getByRole('menuitem')).toHaveText(['Add exercise', 'Reorder exercises', 'All exercises', 'Superset with next', 'Workout overview', 'Discard workout'])
   await expect(page.getByRole('menu').getByRole('separator')).toHaveCount(1)
   await page.getByRole('menuitem', { name: 'Discard workout' }).click()
   const confirm = page.getByRole('dialog').filter({ hasText: 'Discard workout?' })
@@ -425,7 +426,7 @@ test('in Spanish at 360 the top row fits and nothing scrolls sideways @mobile', 
   expect(await sets.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
 
   await button(gym, 'Más opciones').click()
-  await expect(page.getByRole('menuitem')).toHaveText(['Agregar ejercicio', 'Reordenar ejercicios', 'Todos los ejercicios', 'Resumen del entrenamiento', 'Descartar entrenamiento'])
+  await expect(page.getByRole('menuitem')).toHaveText(['Agregar ejercicio', 'Reordenar ejercicios', 'Todos los ejercicios', 'Superserie con el siguiente', 'Resumen del entrenamiento', 'Descartar entrenamiento'])
   expect(await noHorizontalScroll(page)).toBe(true)
   await page.keyboard.press('Escape')
 
@@ -535,6 +536,110 @@ for (const [phase, width] of [['overview', 1280], ['sets', 1280], ['overview', 3
     expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`)).toEqual([])
   })
 }
+
+// Supersets (#227): A1 -> B1 -> A2 -> B2 is one round-robin, and rest waits for the end of a round.
+test.describe('Supersets', () => {
+  const GROUPED = { names: NAMES, groups: [1, 1, null] as (number | null)[] }
+  const rest = (page: Page) => page.getByRole('button', { name: 'Pause rest timer' })
+  const switcherName = (page: Page) => heading(page)
+  const groupsOf = async (page: Page) => (await storedSession(page)).exercises.map((e: { superset_group: number | null }) => e.superset_group)
+
+  test('Complete Set moves A1 -> B1 -> A2, announces it, and rests only after B', async ({ page }) => {
+    await seed(page, { ...GROUPED, rest: true })
+    await openGym(page, 390, 844)
+    await toSets(page)
+    await expect(heading(page)).toContainText('Superset A · 1 of 2')
+    await expect(heading(page)).toContainText('1/3')
+
+    await button(dialog(page), 'Complete Set').click()
+    await expect(switcherName(page)).toHaveAccessibleName(/^Exercises, 2 of 3, Barbell Row, Superset A, exercise 2 of 2/)
+    await expect(dialog(page).getByTestId('gym-announcement')).toHaveText('Next: Barbell Row, set 1')
+    await expect(rest(page)).toHaveCount(0)
+
+    await button(dialog(page), 'Complete Set').click()
+    await expect(switcherName(page)).toHaveAccessibleName(/^Exercises, 1 of 3, Bench Press, Superset A, exercise 1 of 2/)
+    await expect(dialog(page).getByTestId('gym-announcement')).toHaveText('Next: Bench Press, set 2')
+    await expect(rest(page)).toBeVisible()
+    await expect(button(dialog(page), 'Set 2')).toHaveAttribute('aria-pressed', 'true')
+
+    const stored = await storedSession(page)
+    expect(stored.exercises[0].sets.map((s: { completed: boolean }) => s.completed)).toEqual([true, false])
+    expect(stored.exercises[1].sets.map((s: { completed: boolean }) => s.completed)).toEqual([true, false])
+  })
+
+  test('the menu links the next exercise and unlinks it again', async ({ page }) => {
+    await seed(page, { names: NAMES })
+    await openGym(page, 390, 844)
+    await toSets(page)
+    const more = button(dialog(page), 'More options')
+
+    await more.click()
+    await page.getByRole('menuitem', { name: 'Superset with next' }).click()
+    await expect(heading(page)).toContainText('Superset A · 1 of 2')
+    await expect(heading(page)).toHaveAccessibleName(/Superset A, exercise 1 of 2/)
+    const linked = await groupsOf(page)
+    expect(linked[0]).not.toBeNull()
+    expect(linked[1]).toBe(linked[0])
+    expect(linked[2]).toBeNull()
+
+    await more.click()
+    await page.getByRole('menuitem', { name: 'Unlink from next' }).click()
+    await expect(heading(page)).not.toContainText('Superset A')
+    expect(await groupsOf(page)).toEqual([null, null, null])
+  })
+
+  test('a grouped session survives a reload still linked', async ({ page }) => {
+    await seed(page, { ...GROUPED, once: true })
+    await openGym(page, 390, 844)
+    await toSets(page)
+    await page.reload()
+    await expect(dialog(page)).toBeVisible()
+    await expect(heading(page)).toContainText('Superset A · 1 of 2')
+    const groups = await groupsOf(page)
+    expect(groups[0]).not.toBeNull()
+    expect(groups[1]).toBe(groups[0])
+    expect(groups[2]).toBeNull()
+  })
+
+  test('the exercises sheet badges members and picking one lands in the round', async ({ page }) => {
+    await seed(page, GROUPED)
+    await openGym(page, 390, 844)
+    await toSets(page)
+    await heading(page).click()
+    const sheet = exercisesSheet(page)
+    await expect(sheet.getByRole('button', { name: /^2\. Barbell Row.*Superset A, exercise 2 of 2/ })).toBeVisible()
+    await expect(sheet.getByRole('button', { name: /^3\. Overhead Press/ })).not.toHaveAccessibleName(/Superset/)
+  })
+
+  for (const width of [320, 390]) {
+    test(`axe and no sideways scroll with a superset at ${width}`, async ({ page }) => {
+      await seed(page, GROUPED)
+      await openGym(page, width, 844)
+      for (const phase of ['overview', 'sets']) {
+        if (phase === 'sets') await toSets(page)
+        expect(await noHorizontalScroll(page), `${phase}: sideways scroll`).toBe(true)
+        const { violations } = await new AxeBuilder({ page })
+          .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+          .analyze()
+        expect(violations.map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(' | ')}`), phase).toEqual([])
+      }
+    })
+  }
+
+  test('in Spanish at 360 the superset reads in Spanish and nothing scrolls sideways @mobile', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('lyftr_language', 'es'))
+    await seed(page, GROUPED)
+    await page.setViewportSize({ width: 360, height: 780 })
+    await page.goto('/workouts/active')
+    const gym = page.getByRole('dialog', { name: 'Entrenamiento' })
+    await button(gym, 'Empezar entrenamiento').click()
+    await button(gym, 'Empezar ejercicio').click()
+    await expect(button(gym, 'Completar serie')).toBeVisible()
+    await expect(gym.getByTestId('gym-exercise-switcher')).toContainText('Superserie A · 1 de 2')
+    await expect(gym.getByTestId('gym-exercise-switcher')).toHaveAccessibleName(/Superserie A, ejercicio 1 de 2/)
+    expect(await noHorizontalScroll(page)).toBe(true)
+  })
+})
 
 test.describe('reduced motion', () => {
   test.use({ reducedMotion: 'reduce' })
