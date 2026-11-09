@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, Award, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ChevronUp, Dumbbell,
-  Edit2, Layers, Moon, Pause, Play, TimerOff, TrendingUp, Trash2, X,
+  Edit2, Layers, Moon, Play, TimerOff, TrendingUp, Trash2, X,
 } from '../../../src/components/ui/icons'
 import { useAsyncAction,
   activeSessionExercisesForDay, allExercises, dayLabel, displayWeight, sessionNameForDay,
@@ -16,8 +16,9 @@ import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
+import { SupersetCardAccent, SupersetCardBadge, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
 import { MuscleBadge } from '../../../src/components/workouts/MuscleBadge'
-import { targetWeightLabel, restLabel } from '@lyftr/shared'
+import { targetWeightLabel } from '@lyftr/shared'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
 // Exercise-detail leaf, routed INSIDE the Programs stack (programs/exercise/[exerciseId])
@@ -79,6 +80,7 @@ const dayHit = touchTarget(77, 38)
 export default function ProgramDetail() {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
+  const cardLabel = useSupersetCardLabel()
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -543,7 +545,8 @@ export default function ProgramDetail() {
                     <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
                     <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noExercises')}</AppText>
                   </View>
-                ) : (selectedDay.exercises ?? []).map((ex) => {
+                ) : (selectedDay.exercises ?? []).map((ex, exIdx) => {
+              const place = supersetPlace(selectedDay.exercises, exIdx)
               const sets = ex.sets ?? []
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
               const maxTarget = displayWeight(maxTargetLbs, wUnit)
@@ -557,12 +560,14 @@ export default function ProgramDetail() {
                   key={ex.id ?? ex.exercise_id}
                   {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
                   // On web the card is a link, named by what it opens rather than its text run together.
-                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
-                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                  accessibilityLabel={Platform.OS === 'web' ? cardLabel(place, ex.exercise?.name) : undefined}
+                  className={`relative bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
                 >
+                  <SupersetCardAccent place={place} />
                   <View className="flex-row items-center gap-3 p-4">
                     <ExerciseImage url={ex.exercise?.image_url} />
                     <View className="flex-1">
+                      <SupersetCardBadge place={place} />
                       <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
@@ -581,16 +586,7 @@ export default function ProgramDetail() {
                           <SetChip key={i} set={set} isBest={set.target_weight === maxTargetLbs && maxTargetLbs > 0} hasSuggestion={set.suggested_reps != null} unit={wUnit} />
                         ))}
                       </View>
-                      {restOn && (
-                        ex.rest_seconds === 0 ? (
-                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
-                        ) : (
-                          <View className="flex-row items-center gap-1">
-                            <Pause size={13} color={colors.txMuted} />
-                            <AppText variant="caption" color="muted">{restLabel(ex.rest_seconds ?? 90)}</AppText>
-                          </View>
-                        )
-                      )}
+                      {restOn && <ReadOnlyRest place={place} restSeconds={ex.rest_seconds} />}
                     </View>
                   )}
                 </Pressable>

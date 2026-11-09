@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react'
 import { Platform, Pressable, ScrollView, View } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import {
-  ArrowLeft, ChevronRight, Clock, Edit2, Layers, Pause, TimerOff, Trash2, TrendingUp,
+  ArrowLeft, ChevronRight, Clock, Edit2, Layers, TimerOff, Trash2, TrendingUp,
 } from '../../../src/components/ui/icons'
-import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, restLabel, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { useAsyncAction, displayVolume, displayWeight, weightShort, type Workout, type Set as WorkoutSet, workoutDay, calcVolume, countWorkingSets, exerciseVolume, formatDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed, deleteConfirmProps } from '../../../src/components/ui'
 import { interactive, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
+import { SupersetCardAccent, SupersetCardBadge, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
 import { MuscleBadge } from '../../../src/components/workouts/MuscleBadge'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
@@ -45,6 +46,7 @@ const editHit = touchTarget(75, 36)
 export default function WorkoutDetail() {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
+  const cardLabel = useSupersetCardLabel()
   const { id } = useLocalSearchParams<{ id: string }>()
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -236,7 +238,8 @@ export default function WorkoutDetail() {
             </View>
           )}
           <View className="gap-3">
-            {exs.map((ex) => {
+            {exs.map((ex, exIdx) => {
+              const place = supersetPlace(exs, exIdx)
               const sets = ex.sets ?? []
               const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.weight || 0)) : 0
               const maxWeight = displayWeight(maxWeightLbs, wUnit)
@@ -251,15 +254,17 @@ export default function WorkoutDetail() {
                   key={ex.id ?? ex.exercise_id}
                   {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
                   // On web the card is a link, named by what it opens rather than its text run together.
-                  accessibilityLabel={Platform.OS === 'web' ? ex.exercise?.name : undefined}
+                  accessibilityLabel={Platform.OS === 'web' ? cardLabel(place, ex.exercise?.name) : undefined}
                   // Card surface inlined (not <Card>): its baked-in p-4 can't be
                   // overridden safely (two padding classes = stylesheet-order
                   // roulette) and this card needs edge-to-edge inner sections.
-                  className={`bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                  className={`relative bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
                 >
+                  <SupersetCardAccent place={place} />
                   <View className="flex-row items-center gap-3 p-4">
                     <ExerciseImage url={ex.exercise?.image_url} />
                     <View className="flex-1">
+                      <SupersetCardBadge place={place} />
                       <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
@@ -286,16 +291,7 @@ export default function WorkoutDetail() {
                           <SetChip key={i} set={set} isBest={set.weight === maxWeightLbs && maxWeightLbs > 0} unit={wUnit} />
                         ))}
                       </View>
-                      {restOn && (
-                        ex.rest_seconds === 0 ? (
-                          <AppText variant="caption" color="muted">{t('common.rest.none')}</AppText>
-                        ) : (
-                          <View className="flex-row items-center gap-1">
-                            <Pause size={13} color={colors.txMuted} />
-                            <AppText variant="caption" color="muted">{restLabel(ex.rest_seconds ?? 90)}</AppText>
-                          </View>
-                        )
-                      )}
+                      {restOn && <ReadOnlyRest place={place} restSeconds={ex.rest_seconds} />}
                     </View>
                   )}
                 </Pressable>
