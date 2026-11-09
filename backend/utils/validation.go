@@ -133,17 +133,18 @@ func kindClass(k reflect.Kind) string {
 // The one map from validator failure to code, keyed by tag and kind class. A tag not
 // here becomes INVALID_FIELD and keeps the library's sentence.
 var rules = map[string]rule{
-	"required":     {code: codeRequired},
-	"email:text":   {code: codeInvalidEmail},
-	"min:text":     {code: codeTooShort, limit: "min"},
-	"max:text":     {code: codeTooLong, limit: "max"},
-	"max:list":     {code: codeTooManyItems, limit: "max"},
-	"gte:number":   {code: codeBelowMinimum, limit: "min"},
-	"gt:number":    {code: codeNotAboveMinimum, limit: "min"},
-	"lte:number":   {code: codeAboveMaximum, limit: "max"},
-	"oneof":        {code: codeNotAnOption},
-	"maxtotalsets": {code: codeTooManyWorkoutSets, noName: true},
-	"maxtotalrows": {code: codeTooManyProgramRows, noName: true},
+	"required":           {code: codeRequired},
+	"email:text":         {code: codeInvalidEmail},
+	"min:text":           {code: codeTooShort, limit: "min"},
+	"max:text":           {code: codeTooLong, limit: "max"},
+	"max:list":           {code: codeTooManyItems, limit: "max"},
+	"gte:number":         {code: codeBelowMinimum, limit: "min"},
+	"gt:number":          {code: codeNotAboveMinimum, limit: "min"},
+	"lte:number":         {code: codeAboveMaximum, limit: "max"},
+	"oneof":              {code: codeNotAnOption},
+	"maxtotalsets":       {code: codeTooManyWorkoutSets, noName: true},
+	"maxtotalrows":       {code: codeTooManyProgramRows, noName: true},
+	"supersetcontiguous": {code: codeSupersetNotContiguous, noName: true},
 }
 
 func ruleFor(fe validator.FieldError) (rule, bool) {

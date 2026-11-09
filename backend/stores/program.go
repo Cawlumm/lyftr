@@ -625,10 +625,15 @@ func insertProgramDay(tx *sql.Tx, programID int64, orderIndex int, day models.Cr
 }
 
 func insertProgramExercises(tx *sql.Tx, programID, dayID int64, exercises []models.CreateProgramExerciseReq) error {
+	groups := make([]*int, len(exercises))
+	for i, ex := range exercises {
+		groups[i] = ex.SupersetGroup
+	}
+	groups = normaliseSupersetGroups(groups)
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?, ?)`,
-			programID, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
+			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds, superset_group) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			programID, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds, groups[i],
 		)
 		if err != nil {
 			return err
@@ -699,7 +704,7 @@ func (s *ProgramStore) loadDays(programID int64, locale string) ([]models.Progra
 func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.ProgramExercise, error) {
 	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
-		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
+		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds, pe.superset_group,
 		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id`+join+`
@@ -712,14 +717,16 @@ func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.Progr
 	exercises := []models.ProgramExercise{}
 	for rows.Next() {
 		var pe models.ProgramExercise
+		var group sql.NullInt64
 		if err := rows.Scan(
-			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
+			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds, &group,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {
 			rows.Close()
 			return nil, err
 		}
+		pe.SupersetGroup = nullableInt(group)
 		pe.Exercise.ID = pe.ExerciseID
 		exercises = append(exercises, pe)
 	}

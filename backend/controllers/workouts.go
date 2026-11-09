@@ -22,8 +22,13 @@ func init() {
 	validate.RegisterStructValidation(func(sl validator.StructLevel) {
 		req := sl.Current().Interface().(models.CreateWorkoutRequest)
 		total := 0
-		for _, ex := range req.Exercises {
+		groups := make([]*int, len(req.Exercises))
+		for i, ex := range req.Exercises {
 			total += len(ex.Sets)
+			groups[i] = ex.SupersetGroup
+		}
+		if !supersetsContiguous(groups) {
+			sl.ReportError(req.Exercises, "Exercises", "Exercises", "supersetcontiguous", "")
 		}
 		if total > models.MaxWorkoutSets {
 			sl.ReportError(req.Exercises, "Exercises", "Exercises", "maxtotalsets", "")

@@ -109,14 +109,16 @@ type ResolveSuggestionsReq struct {
 }
 
 type WorkoutExercise struct {
-	ID          int64    `json:"id" db:"id"`
-	WorkoutID   int64    `json:"workout_id" db:"workout_id"`
-	ExerciseID  int64    `json:"exercise_id" db:"exercise_id"`
-	OrderIndex  int      `json:"order_index" db:"order_index"`
-	Notes       string   `json:"notes,omitempty" db:"notes"`
-	RestSeconds int      `json:"rest_seconds" db:"rest_seconds"`
-	Exercise    Exercise `json:"exercise,omitempty"`
-	Sets        []Set    `json:"sets,omitempty"`
+	ID          int64  `json:"id" db:"id"`
+	WorkoutID   int64  `json:"workout_id" db:"workout_id"`
+	ExerciseID  int64  `json:"exercise_id" db:"exercise_id"`
+	OrderIndex  int    `json:"order_index" db:"order_index"`
+	Notes       string `json:"notes,omitempty" db:"notes"`
+	RestSeconds int    `json:"rest_seconds" db:"rest_seconds"`
+	// SupersetGroup is a label scoped to one workout; null when not in a superset.
+	SupersetGroup *int     `json:"superset_group" db:"superset_group"`
+	Exercise      Exercise `json:"exercise,omitempty"`
+	Sets          []Set    `json:"sets,omitempty"`
 }
 
 type Set struct {
@@ -303,11 +305,13 @@ type CreateWorkoutRequest struct {
 }
 
 type CreateWorkoutExerciseReq struct {
-	ExerciseID  int64          `json:"exercise_id" validate:"required"`
-	OrderIndex  int            `json:"order_index"`
-	Notes       string         `json:"notes"`
-	RestSeconds int            `json:"rest_seconds"`
-	Sets        []CreateSetReq `json:"sets" validate:"max=500"`
+	ExerciseID  int64  `json:"exercise_id" validate:"required"`
+	OrderIndex  int    `json:"order_index"`
+	Notes       string `json:"notes"`
+	RestSeconds int    `json:"rest_seconds"`
+	// Omitted by older clients, which store NULL.
+	SupersetGroup *int           `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
+	Sets          []CreateSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateSetReq struct {
@@ -441,14 +445,16 @@ type ProgramDay struct {
 }
 
 type ProgramExercise struct {
-	ID           int64        `json:"id,omitempty"`
-	ProgramDayID int64        `json:"program_day_id,omitempty"`
-	ExerciseID   int64        `json:"exercise_id"`
-	OrderIndex   int          `json:"order_index,omitempty"`
-	Notes        string       `json:"notes"`
-	RestSeconds  int          `json:"rest_seconds"`
-	Exercise     Exercise     `json:"exercise"`
-	Sets         []ProgramSet `json:"sets"`
+	ID           int64  `json:"id,omitempty"`
+	ProgramDayID int64  `json:"program_day_id,omitempty"`
+	ExerciseID   int64  `json:"exercise_id"`
+	OrderIndex   int    `json:"order_index,omitempty"`
+	Notes        string `json:"notes"`
+	RestSeconds  int    `json:"rest_seconds"`
+	// SupersetGroup is a label scoped to one program day; null when not in a superset.
+	SupersetGroup *int         `json:"superset_group"`
+	Exercise      Exercise     `json:"exercise"`
+	Sets          []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -505,10 +511,12 @@ type CreateProgramDayReq struct {
 }
 
 type CreateProgramExerciseReq struct {
-	ExerciseID  int64                 `json:"exercise_id" validate:"required"`
-	Notes       string                `json:"notes"`
-	RestSeconds int                   `json:"rest_seconds"`
-	Sets        []CreateProgramSetReq `json:"sets" validate:"max=500"`
+	ExerciseID  int64  `json:"exercise_id" validate:"required"`
+	Notes       string `json:"notes"`
+	RestSeconds int    `json:"rest_seconds"`
+	// Omitted by older clients, which store NULL.
+	SupersetGroup *int                  `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
+	Sets          []CreateProgramSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateProgramSetReq struct {

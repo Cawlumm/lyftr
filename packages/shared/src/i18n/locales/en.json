@@ -348,6 +348,7 @@
         "NOT_AN_OPTION": "{{field}} must be one of: {{options}}.",
         "TOO_MANY_WORKOUT_SETS": "A workout can't have more than {{max}} sets.",
         "TOO_MANY_PROGRAM_ROWS": "A program can't have more than {{max}} days, exercises and sets combined.",
+        "SUPERSET_NOT_CONTIGUOUS": "Exercises in a superset must be next to each other.",
         "INVALID_FIELD": "{{field}} isn't valid.",
         "INVALID_ID": "That id isn't valid.",
         "INVALID_EXERCISE_ID": "That exercise id isn't valid.",
@@ -443,6 +444,7 @@
         "set_number": "Set number",
         "sets": "Sets",
         "started_at": "Started at",
+        "superset_group": "Superset group",
         "target_reps": "Target reps",
         "target_weight": "Target weight",
         "timezone": "Timezone",
@@ -1185,6 +1187,18 @@
       "moveDown": "Move {{name}} down",
       "moved": "{{name}} moved to position {{position}} of {{count}}"
     },
+    "superset": {
+      "label": "Superset {{letter}}",
+      "badge": "Superset {{letter}} · {{position}} of {{total}}",
+      "position": "Superset {{letter}}, exercise {{position}} of {{total}}",
+      "linkNext": "Superset {{a}} with {{b}}",
+      "unlinkNext": "Unlink {{a}} from {{b}}",
+      "linkedA11y": "{{a}} and {{b}} are now a superset",
+      "unlinkedA11y": "{{a}} and {{b}} are no longer a superset",
+      "restAfterRound": "Rest after round: {{rest}}",
+      "restAfterRoundHint": "Rest after the round",
+      "movedUnlinked": "{{name}} moved to position {{position}} of {{count}} and unlinked from its superset"
+    },
     "rest": {
       "off": "Off",
       "custom": "Custom",
@@ -1201,6 +1215,7 @@
         "setDone": "Set {{done}} done",
         "setDonePaused": "Set {{done}} done · paused",
         "setDoneNext": "Set {{done}} done · set {{next}} next",
+        "setDoneNextExercise": "Set {{done}} done · {{name}} next",
         "setDoneResting": "Set {{done}} done · resting",
         "overNext": "Rest over · set {{next}} next"
       },
@@ -1226,7 +1241,9 @@
       "addExercise": "Add exercise",
       "allExercises": "All exercises",
       "overview": "Workout overview",
-      "subtitle": "{{name}} · {{sets}}"
+      "subtitle": "{{name}} · {{sets}}",
+      "supersetNext": "Superset with next",
+      "unlinkNext": "Unlink from next"
     },
     "exercises": {
       "title": "Exercises",
@@ -1264,6 +1281,7 @@
       "label": "Target",
       "repsUnknown": "— reps"
     },
+    "supersetNext": "Next: {{name}}, set {{number}}",
     "completeSet": "Complete Set",
     "completed": "Completed",
     "removeSet": "Remove this set",

@@ -354,6 +354,7 @@
         "NOT_AN_OPTION": "El campo {{field}} debe ser uno de estos: {{options}}.",
         "TOO_MANY_WORKOUT_SETS": "Un entrenamiento no puede tener más de {{max}} series.",
         "TOO_MANY_PROGRAM_ROWS": "Un programa no puede tener más de {{max}} días, ejercicios y series en total.",
+        "SUPERSET_NOT_CONTIGUOUS": "Los ejercicios de una superserie deben ir uno junto al otro.",
         "INVALID_FIELD": "El campo {{field}} no es válido.",
         "INVALID_ID": "Ese identificador no es válido.",
         "INVALID_EXERCISE_ID": "Ese identificador de ejercicio no es válido.",
@@ -449,6 +450,7 @@
         "set_number": "Número de serie",
         "sets": "Series",
         "started_at": "Inicio",
+        "superset_group": "Grupo de superserie",
         "target_reps": "Repeticiones objetivo",
         "target_weight": "Peso objetivo",
         "timezone": "Zona horaria",
@@ -1203,6 +1205,18 @@
       "moveDown": "Bajar {{name}}",
       "moved": "{{name}} movido a la posición {{position}} de {{count}}"
     },
+    "superset": {
+      "label": "Superserie {{letter}}",
+      "badge": "Superserie {{letter}} · {{position}} de {{total}}",
+      "position": "Superserie {{letter}}, ejercicio {{position}} de {{total}}",
+      "linkNext": "Superserie de {{a}} con {{b}}",
+      "unlinkNext": "Separar {{a}} de {{b}}",
+      "linkedA11y": "{{a}} y {{b}} ahora forman una superserie",
+      "unlinkedA11y": "{{a}} y {{b}} ya no forman una superserie",
+      "restAfterRound": "Descanso tras la ronda: {{rest}}",
+      "restAfterRoundHint": "Descanso tras la ronda",
+      "movedUnlinked": "{{name}} se movió a la posición {{position}} de {{count}} y se separó de su superserie"
+    },
     "rest": {
       "off": "No",
       "custom": "Otro",
@@ -1219,6 +1233,7 @@
         "setDone": "Serie {{done}} hecha",
         "setDonePaused": "Serie {{done}} hecha · en pausa",
         "setDoneNext": "Serie {{done}} hecha · sigue la serie {{next}}",
+        "setDoneNextExercise": "Serie {{done}} hecha · sigue {{name}}",
         "setDoneResting": "Serie {{done}} hecha · descansando",
         "overNext": "Descanso terminado · sigue la serie {{next}}"
       },
@@ -1244,7 +1259,9 @@
       "addExercise": "Agregar ejercicio",
       "allExercises": "Todos los ejercicios",
       "overview": "Resumen del entrenamiento",
-      "subtitle": "{{name}} · {{sets}}"
+      "subtitle": "{{name}} · {{sets}}",
+      "supersetNext": "Superserie con el siguiente",
+      "unlinkNext": "Separar del siguiente"
     },
     "exercises": {
       "title": "Ejercicios",
@@ -1282,6 +1299,7 @@
       "label": "Objetivo",
       "repsUnknown": "— reps"
     },
+    "supersetNext": "Siguiente: {{name}}, serie {{number}}",
     "completeSet": "Completar serie",
     "completed": "Completada",
     "removeSet": "Quitar esta serie",

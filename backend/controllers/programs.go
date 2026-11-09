@@ -25,9 +25,14 @@ func init() {
 		total := 0
 		for _, d := range req.Days {
 			total++
-			for _, ex := range d.Exercises {
+			groups := make([]*int, len(d.Exercises))
+			for i, ex := range d.Exercises {
 				total++
 				total += len(ex.Sets)
+				groups[i] = ex.SupersetGroup
+			}
+			if !d.IsRestDay && !supersetsContiguous(groups) {
+				sl.ReportError(req.Days, "Days", "Days", "supersetcontiguous", "")
 			}
 		}
 		if total > models.MaxProgramRows {

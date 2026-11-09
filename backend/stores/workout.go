@@ -208,10 +208,15 @@ func (s *WorkoutStore) Delete(uid, id int64) (int64, error) {
 
 // insertWorkoutExercises writes the exercises + their sets for a workout within tx.
 func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWorkoutExerciseReq) error {
+	groups := make([]*int, len(exercises))
+	for i, ex := range exercises {
+		groups[i] = ex.SupersetGroup
+	}
+	groups = normaliseSupersetGroups(groups)
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?)`,
-			wid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
+			`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, notes, rest_seconds, superset_group) VALUES (?, ?, ?, ?, ?, ?)`,
+			wid, ex.ExerciseID, i, ex.Notes, ex.RestSeconds, groups[i],
 		)
 		if err != nil {
 			return err
@@ -239,7 +244,7 @@ func insertWorkoutExercises(tx *sql.Tx, wid int64, exercises []models.CreateWork
 func (s *WorkoutStore) loadExercises(workoutID int64, locale string) ([]models.WorkoutExercise, error) {
 	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
-		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes, we.rest_seconds,
+		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes, we.rest_seconds, we.superset_group,
 		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM workout_exercises we
 		 JOIN exercises e ON e.id = we.exercise_id`+join+`
@@ -252,14 +257,16 @@ func (s *WorkoutStore) loadExercises(workoutID int64, locale string) ([]models.W
 	var exercises []models.WorkoutExercise
 	for rows.Next() {
 		var we models.WorkoutExercise
+		var group sql.NullInt64
 		if err := rows.Scan(
-			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes, &we.RestSeconds,
+			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes, &we.RestSeconds, &group,
 			&we.Exercise.Name, &we.Exercise.MuscleGroup, &we.Exercise.Category,
 			&we.Exercise.Equipment, &we.Exercise.ImageURL,
 		); err != nil {
 			rows.Close()
 			return nil, err
 		}
+		we.SupersetGroup = nullableInt(group)
 		we.Exercise.ID = we.ExerciseID
 		exercises = append(exercises, we)
 	}

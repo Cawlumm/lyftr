@@ -1051,3 +1051,49 @@ func TestCatalogSyncMigration_ExistingDatabase(t *testing.T) {
 		t.Error("a second sync row was accepted")
 	}
 }
+
+func TestUpgrade_SupersetGroup(t *testing.T) {
+	setupMigrationTestDB(t)
+	alterMigrations()
+	for _, tbl := range []string{"workout_exercises", "program_exercises"} {
+		if _, err := DB.Exec(`ALTER TABLE ` + tbl + ` DROP COLUMN superset_group`); err != nil {
+			t.Fatalf("recreate the old schema: %v", err)
+		}
+		if has, _ := hasColumn(tbl, "superset_group"); has {
+			t.Fatalf("%s must not have the column yet", tbl)
+		}
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (id, name) VALUES (1, 'E')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO users (id, email, password_hash) VALUES (1, 'u@example.com', 'x')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workouts (id, user_id, name, started_at) VALUES (1, 1, 'W', '2026-01-01 00:00:00')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (1, 1, 0), (1, 1, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO programs (id, user_id, name) VALUES (1, 1, 'P')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := DB.Exec(`INSERT INTO program_exercises (program_id, exercise_id, order_index) VALUES (1, 1, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	alterMigrations()
+	alterMigrations()
+
+	for _, tbl := range []string{"workout_exercises", "program_exercises"} {
+		if has, err := hasColumn(tbl, "superset_group"); err != nil || !has {
+			t.Fatalf("%s: hasColumn = %v, %v, want the column added", tbl, has, err)
+		}
+		if n := countRow(t, `SELECT COUNT(*) FROM `+tbl); n == 0 {
+			t.Fatalf("%s lost its rows", tbl)
+		}
+		if n := countRow(t, `SELECT COUNT(*) FROM `+tbl+` WHERE superset_group IS NOT NULL`); n != 0 {
+			t.Errorf("%s: %d old rows have a group, want NULL", tbl, n)
+		}
+	}
+}
