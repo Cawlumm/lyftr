@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Fragment, useState } from 'react'
+import { AccessibilityInfo, Platform, Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
-import { moveItem, occurrenceKeys, useTranslation, type Exercise } from '@lyftr/shared'
+import {
+  groupOf, isLinkedToNext, linkWithNext, moveItem, normaliseSupersets, occurrenceKeys, unlinkFromNext, useTranslation, type Exercise,
+} from '@lyftr/shared'
 import { EmptyState, TOUCH_MIN, touchTarget } from '../ui'
 import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
+import { SupersetJoint } from '../workouts/SupersetJoint'
 import { ReorderButton, ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
@@ -42,6 +45,7 @@ export function DayExercisesEditor({
       notes: '',
       rest_seconds: restSecondsDefault,
       sets: [{ set_number: 1, reps: 0, weight: 0 }],
+      superset_group: null,
     }])
     setShowPicker(false)
   }
@@ -52,7 +56,7 @@ export function DayExercisesEditor({
   // handler prop, which invalidates its memo for every card, not just the edited
   // one (the visible lag when a program has many exercises).
   const removeExercise = useStableCallback((index: number) =>
-    onChange(exercises.filter((_, i) => i !== index)))
+    onChange(normaliseSupersets(exercises.filter((_, i) => i !== index))))
 
   const addSet = useStableCallback((exIdx: number) => {
     onChange(exercises.map((ex, i) => {
@@ -79,7 +83,19 @@ export function DayExercisesEditor({
   })
 
   const openReorder = useStableCallback(() => setShowReorder(true))
-  const moveExercise = useStableCallback((from: number, to: number) => onChange(moveItem(exercises, from, to)))
+  const moveExercise = useStableCallback((from: number, to: number) =>
+    onChange(normaliseSupersets(moveItem(exercises, from, to))))
+
+  const nameAt = (i: number) => pickerExercises[exercises[i]?.exercise_id]?.name ?? t('workouts.form.exerciseFallback')
+  const toggleJoint = (i: number) => {
+    const linked = isLinkedToNext(exercises, i)
+    onChange(linked ? unlinkFromNext(exercises, i) : linkWithNext(exercises, i))
+    if (Platform.OS !== 'web') {
+      AccessibilityInfo.announceForAccessibility(
+        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', { a: nameAt(i), b: nameAt(i + 1) }),
+      )
+    }
+  }
 
   const selectedIds = exercises.map((e) => e.exercise_id)
   const rowKeys = occurrenceKeys(selectedIds)
@@ -107,9 +123,11 @@ export function DayExercisesEditor({
         </View>
       ) : (
         <View className="gap-4">
-          {exercises.map((dayEx, exIdx) => (
+          {exercises.map((dayEx, exIdx) => {
+            const g = groupOf(exercises, exIdx)
+            return (
+            <Fragment key={rowKeys[exIdx]}>
             <ExerciseFormCard
-              key={rowKeys[exIdx]}
               index={exIdx}
               exercise={pickerExercises[dayEx.exercise_id]}
               notes={dayEx.notes}
@@ -123,8 +141,23 @@ export function DayExercisesEditor({
               onUpdateSet={updateSet}
               onRestChange={setExRest}
               inputAccessoryViewID={inputAccessoryViewID}
+              supersetLetter={g?.letter}
+              supersetPosition={g ? exIdx - g.start + 1 : undefined}
+              supersetTotal={g ? g.end - g.start + 1 : undefined}
             />
-          ))}
+            {exIdx < exercises.length - 1 ? (
+              <View>
+                <SupersetJoint
+                  linked={isLinkedToNext(exercises, exIdx)}
+                  aName={nameAt(exIdx)}
+                  bName={nameAt(exIdx + 1)}
+                  onToggle={() => toggleJoint(exIdx)}
+                />
+              </View>
+            ) : null}
+            </Fragment>
+            )
+          })}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('workouts.form.addExerciseLabel')}
@@ -144,6 +177,7 @@ export function DayExercisesEditor({
         open={showReorder}
         names={exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
         rowKeys={rowKeys}
+        groups={exercises.map((e) => e.superset_group)}
         onMove={moveExercise}
         onClose={() => setShowReorder(false)}
       />

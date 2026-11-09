@@ -4,12 +4,13 @@ import {
   type GestureResponderEvent, type PressableInstance, type ScrollViewInstance, type ViewInstance,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { autoScrollSpeed, useTranslation } from '@lyftr/shared'
+import { autoScrollSpeed, groupOf, moveItem, normaliseSupersets, useTranslation } from '@lyftr/shared'
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical } from '../ui/icons'
 import { AppText, IconButton, Sheet, SheetButton } from '../ui'
 import { touchTarget } from '../ui/interaction'
 import { useMotion } from '../../lib/useMotion'
 import { useTheme } from '../../theme/useTheme'
+import { SupersetMarker } from './SupersetMarker'
 
 // Every row is the same height, so a drag's target slot is its offset divided by the
 // stride: no measuring, and the rows between source and target shift by exactly one stride.
@@ -56,6 +57,8 @@ interface Props {
   names: string[]
   /** One stable key per row (occurrenceKeys), so a row keeps its identity as it moves. */
   rowKeys: string[]
+  /** Each row's superset_group, in the same order. Absent: no row is shown as linked. */
+  groups?: (number | null | undefined)[]
   onMove: (from: number, to: number) => void
   onClose: () => void
 }
@@ -100,7 +103,7 @@ export function ReorderButton({ onPress, size = 'form', className = '' }: {
 // ("Reorder exercises") and Hevy (drag and drop from the exercise menu) do it: dragging a
 // whole exercise card, set table and all, past other tall cards is the hard version of the
 // same task. Every move applies at once; Done just closes.
-export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }: Props) {
+export function ReorderExercisesSheet({ open, names, rowKeys, groups, onMove, onClose }: Props) {
   const { t } = useTranslation()
   const titleId = useId()
   return (
@@ -108,7 +111,7 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
       <View className="px-6">
         <AppText nativeID={titleId} variant="heading" className="text-center">{t('workouts.reorder.title')}</AppText>
         <AppText variant="caption" color="muted" className="mb-4 mt-1 text-center">{t('workouts.reorder.hint')}</AppText>
-        <ReorderList names={names} rowKeys={rowKeys} onMove={onMove} />
+        <ReorderList names={names} rowKeys={rowKeys} groups={groups} onMove={onMove} />
         <View className="mt-3">
           <SheetButton label={t('common.done')} variant="primary" onPress={onClose} />
         </View>
@@ -122,7 +125,7 @@ export function ReorderExercisesSheet({ open, names, rowKeys, onMove, onClose }:
 // itself near its edges. The up/down buttons are the single-pointer and keyboard path WCAG
 // 2.5.7 asks a drag to have. Mounted only while its sheet shows, so every open starts from
 // rest at the top of the list.
-export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'rowKeys' | 'onMove'>) {
+export function ReorderList({ names, rowKeys, groups, onMove }: Pick<Props, 'names' | 'rowKeys' | 'groups' | 'onMove'>) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const motion = useMotion()
@@ -135,8 +138,9 @@ export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'r
   const [refocus, setRefocus] = useState<string | null>(null)
 
   const count = names.length
-  const latest = useRef({ names, rowKeys, count, onMove, motion })
-  latest.current = { names, rowKeys, count, onMove, motion }
+  const latest = useRef({ names, rowKeys, count, groups, onMove, motion })
+  latest.current = { names, rowKeys, count, groups, onMove, motion }
+  const rows = useMemo(() => names.map((_, i) => ({ superset_group: groups?.[i] ?? null })), [names, groups])
 
   // One translateY per row, by key, so a row's value travels with it when the order changes.
   const pos = useRef(new Map<string, Animated.Value>())
@@ -158,8 +162,18 @@ export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'r
   const [settle, setSettle] = useState<{ seq: number; key: string | null; residual: number }>({ seq: 0, key: null, residual: 0 })
   const swallowEscapeUp = useRef(false)
 
+  // A row that leaves its run is unlinked by the screen's normaliser; say so here, because the
+  // announcement is made before the new order arrives. Moving inside the run keeps it linked.
+  const leavesSuperset = (from: number, to: number) => {
+    const before = latest.current.groups?.map((g) => ({ superset_group: g ?? null })) ?? []
+    if (!groupOf(before, from)) return false
+    const after = normaliseSupersets(moveItem(before, from, to))
+    return (after[to]?.superset_group ?? null) === null
+  }
+
   const announce = (from: number, to: number) => {
-    const msg = t('workouts.reorder.moved', { name: latest.current.names[from], position: to + 1, count: latest.current.count })
+    const key = leavesSuperset(from, to) ? 'workouts.superset.movedUnlinked' : 'workouts.reorder.moved'
+    const msg = t(key, { name: latest.current.names[from], position: to + 1, count: latest.current.count })
     if (Platform.OS === 'web') setAnnouncement(msg)
     else AccessibilityInfo.announceForAccessibility(msg)
   }
@@ -312,6 +326,11 @@ export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const markerFor = (i: number) => {
+    const g = groupOf(rows, i)
+    return g ? { letter: g.letter, position: i - g.start + 1, total: g.end - g.start + 1 } : null
+  }
+
   const scale = useMemo(() => lift.interpolate({ inputRange: [0, 1], outputRange: [1, LIFT_SCALE] }), [lift])
   const measureFrame = () => frameRef.current?.measureInWindow((_x, y, _w, h) => { frame.current.top = y; frame.current.viewH = h })
 
@@ -365,6 +384,7 @@ export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'r
                   index={i}
                   name={name}
                   count={count}
+                  marker={markerFor(i)}
                   dragging={dragging}
                   gripColor={colors.txMuted}
                   onLift={onLift}
@@ -390,11 +410,12 @@ export function ReorderList({ names, rowKeys, onMove }: Pick<Props, 'names' | 'r
 type Phase = 'idle' | 'pending' | 'active'
 
 function ReorderRow({
-  index, name, count, dragging, gripColor, onLift, onDragMove, onDrop, onCancel, onMoveBy, upRef, downRef,
+  index, name, count, marker, dragging, gripColor, onLift, onDragMove, onDrop, onCancel, onMoveBy, upRef, downRef,
 }: {
   index: number
   name: string
   count: number
+  marker: { letter: string; position: number; total: number } | null
   dragging: boolean
   gripColor: string
   onLift: (from: number, pointerY: number) => void
@@ -531,6 +552,7 @@ function ReorderRow({
       </View>
       <AppText variant="bodySemibold" color="muted" style={{ fontVariant: ['tabular-nums'], minWidth: 18 }}>{index + 1}</AppText>
       <AppText variant="body" numberOfLines={1} className="flex-1">{name}</AppText>
+      {marker ? <SupersetMarker letter={marker.letter} position={marker.position} total={marker.total} /> : null}
       <IconButton
         ref={upRef}
         icon={ChevronUp}

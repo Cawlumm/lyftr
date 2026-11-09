@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { AccessibilityInfo, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../../src/components/ui/icons'
-import { useAsyncAction, moveItem, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { useAsyncAction, groupOf, isLinkedToNext, linkWithNext, moveItem, normaliseSupersets, occurrenceKeys, unlinkFromNext, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
 
@@ -13,6 +13,7 @@ import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/
 const ADD_HIT = touchTarget(TOUCH_MIN, 32)
 import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
+import { SupersetJoint } from '../../../../src/components/workouts/SupersetJoint'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
@@ -33,6 +34,7 @@ interface WorkoutFormData {
     exercise_id: number
     notes: string
     rest_seconds: number
+    superset_group?: number | null
     sets: { set_number: number; reps: number; weight: number }[]
   }[]
 }
@@ -120,6 +122,7 @@ export default function EditWorkout() {
             exercise_id: ex.exercise_id,
             notes: ex.notes || '',
             rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
+            superset_group: ex.superset_group ?? null,
             // Web parity: unrounded lbsToDisplay prefill (kg users see long decimals).
             sets: (ex.sets || []).map((s) => ({
               set_number: s.set_number,
@@ -147,6 +150,7 @@ export default function EditWorkout() {
           exercise_id: exercise.id,
           notes: '',
           rest_seconds: settings.rest_seconds_default ?? 90,
+          superset_group: null,
           sets: [{ set_number: 1, reps: 0, weight: 0 }],
         },
       ],
@@ -158,7 +162,7 @@ export default function EditWorkout() {
   // Stable + immutable so the memoized ExerciseFormCard only re-renders the edited card,
   // not all N of them, on each keystroke/tap. See the matching note in new.tsx.
   const removeExercise = useCallback((index: number) =>
-    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
+    setFormData((prev) => ({ ...prev, exercises: normaliseSupersets(prev.exercises.filter((_, i) => i !== index)) })), [])
 
   const addSet = useCallback((exIdx: number) => {
     setFormData((prev) => ({
@@ -188,8 +192,21 @@ export default function EditWorkout() {
   }, [])
 
   const openReorder = useCallback(() => setShowReorder(true), [])
+
+  const toggleJoint = (i: number) => {
+    const linked = isLinkedToNext(formData.exercises, i)
+    setFormData((prev) => ({
+      ...prev,
+      exercises: linked ? unlinkFromNext(prev.exercises, i) : linkWithNext(prev.exercises, i),
+    }))
+    if (Platform.OS !== 'web') {
+      AccessibilityInfo.announceForAccessibility(
+        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', { a: nameAt(i), b: nameAt(i + 1) }),
+      )
+    }
+  }
   const moveExercise = useCallback((from: number, to: number) =>
-    setFormData((prev) => ({ ...prev, exercises: moveItem(prev.exercises, from, to) })), [])
+    setFormData((prev) => ({ ...prev, exercises: normaliseSupersets(moveItem(prev.exercises, from, to)) })), [])
 
   const setExRest = useCallback((exIdx: number, secs: number) => {
     setFormData((prev) => ({
@@ -257,6 +274,7 @@ export default function EditWorkout() {
 
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
+  const nameAt = (i: number) => pickerExercises[formData.exercises[i]?.exercise_id]?.name ?? t('workouts.form.exerciseFallback')
   const rowKeys = occurrenceKeys(selectedIds)
   const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const totalWeight = formData.exercises.reduce(
@@ -380,9 +398,11 @@ export default function EditWorkout() {
             )}
 
             <View className="gap-4">
-              {formData.exercises.map((workoutEx, exIdx) => (
+              {formData.exercises.map((workoutEx, exIdx) => {
+                const g = groupOf(formData.exercises, exIdx)
+                return (
+                <Fragment key={rowKeys[exIdx]}>
                 <ExerciseFormCard
-                  key={rowKeys[exIdx]}
                   index={exIdx}
                   exercise={pickerExercises[workoutEx.exercise_id]}
                   notes={workoutEx.notes}
@@ -396,8 +416,23 @@ export default function EditWorkout() {
                   onUpdateSet={updateSet}
                   onRestChange={setExRest}
                   inputAccessoryViewID={KEYPAD_DONE_ID}
+                  supersetLetter={g?.letter}
+                  supersetPosition={g ? exIdx - g.start + 1 : undefined}
+                  supersetTotal={g ? g.end - g.start + 1 : undefined}
                 />
-              ))}
+                {exIdx < formData.exercises.length - 1 ? (
+                  <View>
+                    <SupersetJoint
+                      linked={isLinkedToNext(formData.exercises, exIdx)}
+                      aName={nameAt(exIdx)}
+                      bName={nameAt(exIdx + 1)}
+                      onToggle={() => toggleJoint(exIdx)}
+                    />
+                  </View>
+                ) : null}
+                </Fragment>
+                )
+              })}
               {/* Thumb-zone duplicate of Add Exercise: the header button scrolls away
                   as cards stack up, so the "next exercise" tap lands where the thumb
                   already is (right after the last card) — no scroll-to-top round trip. */}
@@ -435,6 +470,7 @@ export default function EditWorkout() {
         open={showReorder}
         names={formData.exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
         rowKeys={rowKeys}
+        groups={formData.exercises.map((e) => e.superset_group)}
         onMove={moveExercise}
         onClose={() => setShowReorder(false)}
       />

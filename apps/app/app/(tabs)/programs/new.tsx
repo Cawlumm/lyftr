@@ -77,6 +77,7 @@ export default function AddProgram() {
     exercise_id: ex.exercise_id,
     notes: ex.notes,
     rest_seconds: ex.rest_seconds,
+    superset_group: ex.superset_group ?? null,
     sets: ex.sets.map((s) => ({
     set_number: s.set_number,
     target_reps: s.reps,

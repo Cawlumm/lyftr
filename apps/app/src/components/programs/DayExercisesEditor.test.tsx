@@ -95,4 +95,46 @@ describe('DayExercisesEditor', () => {
     expect(next[0].sets).toHaveLength(1)
     expect(next[0].sets[0].weight).toBe(145)
   })
+
+  describe('supersets', () => {
+    const row = (superset_group: number | null = null) => draft({ superset_group })
+
+    it('offers a joint between each pair of cards and none after the last', async () => {
+      await renderEditor([row(), row(), row()])
+      expect(screen.getAllByLabelText('Superset Bench Press with Bench Press')).toHaveLength(2)
+    })
+
+    it('linking emits both rows in one group', async () => {
+      const onChange = await renderEditor([row(), row()])
+      await fireEvent.press(screen.getAllByLabelText('Superset Bench Press with Bench Press')[0])
+      const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
+      expect(next.map((e) => e.superset_group)).toEqual([1, 1])
+    })
+
+    it('unlinking emits null groups again', async () => {
+      const onChange = await renderEditor([row(1), row(1)])
+      await fireEvent.press(screen.getByLabelText('Unlink Bench Press from Bench Press'))
+      const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
+      expect(next.map((e) => e.superset_group)).toEqual([null, null])
+    })
+
+    it('marks linked cards and replaces the rest picker on non-final members', async () => {
+      await renderEditor([row(1), row(1)])
+      expect(screen.getByText('Superset A · 1 of 2')).toBeTruthy()
+      expect(screen.getByText('Superset A · 2 of 2')).toBeTruthy()
+      expect(screen.getAllByText('Rest after the round')).toHaveLength(1)
+    })
+
+    it('removing a member dissolves the partner it leaves alone', async () => {
+      const onChange = await renderEditor([row(1), row(1)])
+      await fireEvent.press(screen.getAllByLabelText('Remove Bench Press')[0])
+      expect(onChange.mock.calls[0][0].map((e: DayExerciseDraft) => e.superset_group)).toEqual([null])
+    })
+
+    it('keeps the group on every other edit', async () => {
+      const onChange = await renderEditor([row(1), row(1)])
+      await fireEvent.press(screen.getAllByText('Add Set')[0])
+      expect(onChange.mock.calls[0][0].map((e: DayExerciseDraft) => e.superset_group)).toEqual([1, 1])
+    })
+  })
 })

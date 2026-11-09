@@ -84,3 +84,29 @@ describe('ActiveExerciseCard copy', () => {
     }
   })
 })
+
+describe('ActiveExerciseCard superset badge', () => {
+  const noop = () => {}
+  const card = (extra: object) => (
+    <ActiveExerciseCard
+      index={0} ex={exercise} isActive isLast wUnit="kg" weightUnit="kg"
+      onCardLayout={noop} onRemoveExercise={noop} onNotesChange={noop} onAddSet={noop} onRemoveSet={noop}
+      onUpdateSet={noop} onCompleteSet={noop} onJumpToExercise={noop} onRequestFinish={noop}
+      {...extra}
+    />
+  )
+
+  it('shows the badge and rail for a member', async () => {
+    await i18n.changeLanguage('en')
+    await render(card({ supersetLetter: 'A', supersetPosition: 1, supersetTotal: 2 }))
+    expect(screen.getByText('Superset A · 1 of 2')).toBeTruthy()
+    expect(screen.getByTestId('superset-rail', { includeHiddenElements: true })).toBeTruthy()
+  })
+
+  it('shows neither for an exercise on its own', async () => {
+    await i18n.changeLanguage('en')
+    await render(card({}))
+    expect(screen.queryByText(/^Superset/)).toBeNull()
+    expect(screen.queryByTestId('superset-rail', { includeHiddenElements: true })).toBeNull()
+  })
+})

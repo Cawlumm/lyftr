@@ -7,6 +7,7 @@ import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
 import { equipmentLabel, muscleLabel, sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import { SupersetMarker, SupersetRail } from './SupersetMarker'
 
 interface SetData {
   set_number: number
@@ -31,6 +32,11 @@ interface Props {
   onRemoveSet: (index: number, setIdx: number) => void
   onUpdateSet: (index: number, setIdx: number, field: 'reps' | 'weight', value: string) => void
   onRestChange: (index: number, secs: number) => void
+  /** Primitives, not an object, so the memo holds: set together when the card is in a superset. */
+  supersetLetter?: string
+  /** 1-based place inside the group. */
+  supersetPosition?: number
+  supersetTotal?: number
   /** iOS: ties the numeric cells to the screen's keyboard "Done" accessory bar. */
   inputAccessoryViewID?: string
 }
@@ -96,10 +102,13 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
 function ExerciseFormCardBase({
   index, exercise, notes, sets, restSeconds, unit,
   onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange,
-  inputAccessoryViewID,
+  inputAccessoryViewID, supersetLetter, supersetPosition, supersetTotal,
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
+  const inSuperset = !!supersetLetter && !!supersetPosition && !!supersetTotal
+  // Rest runs once per round, after the last member; the stored value is kept for unlinking.
+  const restsAfterRound = inSuperset && supersetPosition < supersetTotal
   // Once revealed the input stays mounted for the card's lifetime, so typed text
   // can never be hidden; cards with saved notes start revealed.
   const [showNotes, setShowNotes] = useState(notes.length > 0)
@@ -111,7 +120,8 @@ function ExerciseFormCardBase({
   const weightRefs = useRef<(TextInputInstance | null)[]>([])
 
   return (
-    <View className="rounded-2xl border border-surface-border bg-surface-muted/30 p-4">
+    <View className={`relative rounded-2xl border border-surface-border bg-surface-muted/30 p-4 ${inSuperset ? 'overflow-hidden' : ''}`}>
+      {inSuperset ? <SupersetRail first={supersetPosition === 1} last={supersetPosition === supersetTotal} /> : null}
       {/* Header: exercise thumbnail (with the order number tucked into a corner
           badge), name, muscle • equipment; muted (not red) remove — destructive
           styling is reserved for the confirm step, like the list screens. */}
@@ -133,6 +143,11 @@ function ExerciseFormCardBase({
           <AppText variant="caption" color="muted" numberOfLines={1} className="capitalize">
             {muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}
           </AppText>
+          {inSuperset ? (
+            <View className="mt-1">
+              <SupersetMarker letter={supersetLetter} position={supersetPosition} total={supersetTotal} variant="full" />
+            </View>
+          ) : null}
         </View>
         <IconButton
           icon={Trash2}
@@ -255,9 +270,11 @@ function ExerciseFormCardBase({
       <View className="mt-3 border-t border-surface-border/60 pt-3">
         <View className="mb-1 flex-row items-center gap-1.5">
           <Timer size={13} color={accent} />
-          <Label>{t('workouts.form.restBetweenSets')}</Label>
+          <Label>{t(restsAfterRound ? 'workouts.superset.restAfterRoundHint' : 'workouts.form.restBetweenSets')}</Label>
         </View>
-        <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
+        {restsAfterRound ? null : (
+          <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
+        )}
       </View>
     </View>
   )

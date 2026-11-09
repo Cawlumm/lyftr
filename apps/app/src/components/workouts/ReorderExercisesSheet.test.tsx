@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AccessibilityInfo } from 'react-native'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
-import { moveItem, occurrenceKeys } from '@lyftr/shared'
+import { moveItem, normaliseSupersets, occurrenceKeys } from '@lyftr/shared'
 import { ReorderExercisesSheet, dragTarget, shiftFor } from './ReorderExercisesSheet'
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
@@ -157,5 +157,50 @@ describe('ReorderExercisesSheet', () => {
     await render(<Harness initial={['Squat', 'Bench']} onClose={onClose} />)
     await fireEvent.press(screen.getByText('Done'))
     expect(onClose).toHaveBeenCalled()
+  })
+})
+
+describe('ReorderExercisesSheet supersets', () => {
+  function LinkedHarness({ initial }: { initial: { name: string; superset_group: number | null }[] }) {
+    const [rows, setRows] = useState(initial)
+    return (
+      <ReorderExercisesSheet
+        open
+        names={rows.map((r) => r.name)}
+        rowKeys={occurrenceKeys(rows.map((r) => r.name.charCodeAt(0)))}
+        groups={rows.map((r) => r.superset_group)}
+        onMove={(from, to) => setRows((prev) => normaliseSupersets(moveItem(prev, from, to)))}
+        onClose={() => {}}
+      />
+    )
+  }
+  const rows = [
+    { name: 'Squat', superset_group: 1 },
+    { name: 'Bench', superset_group: 1 },
+    { name: 'Row', superset_group: null },
+  ]
+
+  it('shows each member\'s letter and place', async () => {
+    await render(<LinkedHarness initial={rows} />)
+    expect(screen.getByLabelText('Superset A, exercise 1 of 2')).toBeTruthy()
+    expect(screen.getByLabelText('Superset A, exercise 2 of 2')).toBeTruthy()
+  })
+
+  it('says so when a move takes a member out of its superset', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    await render(<LinkedHarness initial={rows} />)
+    await fireEvent.press(screen.getByLabelText('Move Bench down'))
+    expect(announce).toHaveBeenCalledWith('Bench moved to position 3 of 3 and unlinked from its superset')
+    expect(screen.queryByLabelText(/^Superset A/)).toBeNull()
+    announce.mockRestore()
+  })
+
+  it('keeps the plain announcement when the member stays inside its run', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    await render(<LinkedHarness initial={rows} />)
+    await fireEvent.press(screen.getByLabelText('Move Squat down'))
+    expect(announce).toHaveBeenCalledWith('Squat moved to position 2 of 3')
+    expect(screen.getAllByLabelText(/^Superset A/)).toHaveLength(2)
+    announce.mockRestore()
   })
 })

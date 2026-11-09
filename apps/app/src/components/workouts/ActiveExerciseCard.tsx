@@ -9,6 +9,7 @@ import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
 import { MuscleBadge } from './MuscleBadge'
+import { SupersetMarker, SupersetRail } from './SupersetMarker'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
@@ -82,6 +83,11 @@ interface Props {
   onCompleteSet: (index: number, setIdx: number) => void
   onJumpToExercise: (index: number) => void
   onRequestFinish: () => void
+  /** Primitives, so the memo holds: set together when the exercise is in a superset. */
+  supersetLetter?: string
+  /** 1-based place inside the group. */
+  supersetPosition?: number
+  supersetTotal?: number
 }
 
 // One exercise inside the active-workout screen: header (thumbnail · name ·
@@ -92,18 +98,20 @@ interface Props {
 function ActiveExerciseCardBase({
   index, ex, isActive, isLast, wUnit, weightUnit,
   onCardLayout, onRemoveExercise, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onCompleteSet,
-  onJumpToExercise, onRequestFinish,
+  onJumpToExercise, onRequestFinish, supersetLetter, supersetPosition, supersetTotal,
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const completedHere = ex.sets.filter((s) => s.completed).length
+  const inSuperset = !!supersetLetter && !!supersetPosition && !!supersetTotal
 
   return (
     <View
       onLayout={(e: LayoutChangeEvent) => onCardLayout(index, e.nativeEvent.layout.height)}
-      className={`overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
+      className={`relative overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
     >
+      {inSuperset ? <SupersetRail first={supersetPosition === 1} last={supersetPosition === supersetTotal} /> : null}
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         <ExerciseImage url={ex.exercise.image_url} />
@@ -113,6 +121,11 @@ function ActiveExerciseCardBase({
             <MuscleBadge muscle={ex.exercise.muscle_group} />
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>
+          {inSuperset ? (
+            <View className="mt-1">
+              <SupersetMarker letter={supersetLetter} position={supersetPosition} total={supersetTotal} variant="full" />
+            </View>
+          ) : null}
         </Pressable>
         {allSetsComplete ? (
           <View className="h-8 w-8 items-center justify-center rounded-full bg-brand-500">

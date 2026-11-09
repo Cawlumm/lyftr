@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Keyboard, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { AccessibilityInfo, Keyboard, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, Trash2, X } from '../../../src/components/ui/icons'
-import { useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
+import { groupOf, isLinkedToNext, nextSupersetTarget, useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { RestTimerBanner } from '../../../src/components/workouts/RestTimerBanner'
 import { applyRestOnToggle } from '../../../src/lib/restOnSetToggle'
 import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
+import { SupersetJoint } from '../../../src/components/workouts/SupersetJoint'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
 import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../../src/hooks/useStableCallback'
@@ -20,6 +21,8 @@ import { useTheme } from '../../../src/theme/useTheme'
 
 // The list's top padding and the gap between cards; jumpToExercise adds up positions with it.
 const CARD_GAP = 12
+// A joint is 32px tall and sits in the list's flow, so it adds its height plus one more gap.
+const JOINT_STEP = 32 + CARD_GAP
 
 export default function ActiveWorkout() {
   const { t } = useTranslation()
@@ -31,6 +34,8 @@ export default function ActiveWorkout() {
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
   const moveExercise = useWorkoutSession((s) => s.moveExercise)
+  const linkWithNext = useWorkoutSession((s) => s.linkWithNext)
+  const unlinkFromNext = useWorkoutSession((s) => s.unlinkFromNext)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
   const openGym = useWorkoutSession((s) => s.openGym)
@@ -87,7 +92,7 @@ export default function ActiveWorkout() {
   const jumpToExercise = useCallback((idx: number) => {
     setActiveExIdx(idx)
     let y = CARD_GAP
-    for (let j = 0; j < idx; j++) y += (cardH.current.get(keysRef.current[j]) ?? 0) + CARD_GAP
+    for (let j = 0; j < idx; j++) y += (cardH.current.get(keysRef.current[j]) ?? 0) + CARD_GAP + JOINT_STEP
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true }))
   }, [])
 
@@ -115,10 +120,29 @@ export default function ActiveWorkout() {
     // settles and nothing reflows later (e.g. a rest timer starting under a raised board).
     Keyboard.dismiss()
     // Impact only when a set becomes completed (not on un-toggle).
-    if (!applyRestOnToggle(exIdx, setIdx)) {
+    const wasCompleted = applyRestOnToggle(exIdx, setIdx)
+    if (!wasCompleted) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
     }
-    if (exIdx !== activeExIdx) setActiveExIdx(exIdx)
+    // After a tick in a superset the highlight moves to its partner; the list does not scroll,
+    // so the card under the finger stays put.
+    const target = wasCompleted ? null : nextSupersetTarget(useWorkoutSession.getState().session?.exercises ?? [], exIdx, setIdx)
+    const focus = target?.exIdx ?? exIdx
+    if (focus !== activeExIdx) setActiveExIdx(focus)
+  })
+
+  const toggleJoint = useStableCallback((i: number) => {
+    const exercises = useWorkoutSession.getState().session?.exercises ?? []
+    const linked = isLinkedToNext(exercises, i)
+    if (linked) unlinkFromNext(i)
+    else linkWithNext(i)
+    if (Platform.OS !== 'web') {
+      AccessibilityInfo.announceForAccessibility(
+        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', {
+          a: exercises[i]?.exercise.name, b: exercises[i + 1]?.exercise.name,
+        }),
+      )
+    }
   })
 
   // Mid-session add: web routes to a picker page, but the gym overlay would cover a
@@ -239,9 +263,11 @@ export default function ActiveWorkout() {
             <AppText variant="caption" color="muted">{t('workouts.active.empty.hint')}</AppText>
           </View>
         ) : (
-          session.exercises.map((ex, exIdx) => (
+          session.exercises.map((ex, exIdx) => {
+            const g = groupOf(session.exercises, exIdx)
+            return (
+            <Fragment key={rowKeys[exIdx]}>
             <ActiveExerciseCard
-              key={rowKeys[exIdx]}
               index={exIdx}
               ex={ex}
               isActive={exIdx === activeExIdx}
@@ -257,8 +283,23 @@ export default function ActiveWorkout() {
               onCompleteSet={handleCompleteSet}
               onJumpToExercise={jumpToExercise}
               onRequestFinish={requestFinish}
+              supersetLetter={g?.letter}
+              supersetPosition={g ? exIdx - g.start + 1 : undefined}
+              supersetTotal={g ? g.end - g.start + 1 : undefined}
             />
-          ))
+            {exIdx < session.exercises.length - 1 ? (
+              <View>
+                <SupersetJoint
+                  linked={isLinkedToNext(session.exercises, exIdx)}
+                  aName={ex.exercise.name}
+                  bName={session.exercises[exIdx + 1].exercise.name}
+                  onToggle={() => toggleJoint(exIdx)}
+                />
+              </View>
+            ) : null}
+            </Fragment>
+            )
+          })
         )}
 
         {/* Footer */}
@@ -328,6 +369,7 @@ export default function ActiveWorkout() {
         open={showReorder}
         names={session.exercises.map((e) => e.exercise.name)}
         rowKeys={rowKeys}
+        groups={session.exercises.map((e) => e.superset_group)}
         onMove={handleMove}
         onClose={() => setShowReorder(false)}
       />
