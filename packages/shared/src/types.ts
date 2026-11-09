@@ -59,6 +59,8 @@ export interface WorkoutExercise {
   notes?: string
   exercise: Exercise
   rest_seconds?: number
+  /** Run label; rows sharing it and adjacent form a superset. null/absent = none. */
+  superset_group?: number | null
   sets: Set[]
 }
 
@@ -211,6 +213,7 @@ export interface ProgramExercise {
   notes?: string
   exercise: Exercise
   rest_seconds?: number
+  superset_group?: number | null
   sets: ProgramSet[]
 }
 
@@ -256,6 +259,7 @@ export interface ActiveSessionExercise {
   exercise: Exercise
   notes: string
   rest_seconds?: number
+  superset_group?: number | null
   sets: ActiveSessionSet[]
 }
 

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import * as types from '../types'
 import { StorageAdapter } from '../storage'
 import { moveItem, remapIndex } from '../utils/reorder'
+import { linkWithNext, normaliseSupersets, unlinkFromNext } from '../utils/supersets'
 
 // Same keys as the web app's localStorage — a future web migration to @lyftr/shared
 // is a drop-in. Exported so tests (and hydration seeding) can reference them.
@@ -84,6 +85,8 @@ export interface WorkoutSessionStore {
   addExercise: (ex: types.ActiveSessionExercise) => void
   removeExercise: (exIdx: number) => void
   moveExercise: (from: number, to: number) => void
+  linkWithNext: (exIdx: number) => void
+  unlinkFromNext: (exIdx: number) => void
   buildPayload: () => any
   cancelSession: () => void
   openGym: () => void
@@ -297,7 +300,7 @@ export function createWorkoutSession(storage: StorageAdapter) {
     addExercise: (ex) => {
       const session = get().session
       if (!session) return
-      const updated = { ...session, exercises: [...session.exercises, ex] }
+      const updated = { ...session, exercises: normaliseSupersets([...session.exercises, ex]) }
       saveLocal(updated)
       set({ session: updated })
     },
@@ -305,7 +308,7 @@ export function createWorkoutSession(storage: StorageAdapter) {
     removeExercise: (exIdx) => {
       const session = get().session
       if (!session) return
-      const updated = { ...session, exercises: session.exercises.filter((_, i) => i !== exIdx) }
+      const updated = { ...session, exercises: normaliseSupersets(session.exercises.filter((_, i) => i !== exIdx)) }
       saveLocal(updated)
       // filter() shifts exercise indices, invalidating the positional restExIdx — cancel
       // the (ephemeral) rest so it can't collapse controls on the wrong exercise.
@@ -319,9 +322,9 @@ export function createWorkoutSession(storage: StorageAdapter) {
       const state = get()
       const session = state.session
       if (!session) return
-      const exercises = moveItem(session.exercises, from, to)
-      if (exercises === session.exercises) return
-      const updated = { ...session, exercises }
+      const moved = moveItem(session.exercises, from, to)
+      if (moved === session.exercises) return
+      const updated = { ...session, exercises: normaliseSupersets(moved) }
       saveLocal(updated)
       const gymExIdx = remapIndex(state.gymExIdx, from, to)
       saveGymUi({ phase: state.gymPhase, exIdx: gymExIdx, setIdx: state.gymSetIdx })
@@ -330,6 +333,26 @@ export function createWorkoutSession(storage: StorageAdapter) {
         gymExIdx,
         restExIdx: state.restExIdx == null ? null : remapIndex(state.restExIdx, from, to),
       })
+    },
+
+    linkWithNext: (exIdx) => {
+      const session = get().session
+      if (!session) return
+      const exercises = linkWithNext(session.exercises, exIdx)
+      if (exercises === session.exercises) return
+      const updated = { ...session, exercises }
+      saveLocal(updated)
+      set({ session: updated })
+    },
+
+    unlinkFromNext: (exIdx) => {
+      const session = get().session
+      if (!session) return
+      const exercises = unlinkFromNext(session.exercises, exIdx)
+      if (exercises === session.exercises) return
+      const updated = { ...session, exercises }
+      saveLocal(updated)
+      set({ session: updated })
     },
 
     buildPayload: () => {
@@ -344,13 +367,18 @@ export function createWorkoutSession(storage: StorageAdapter) {
         program_id: session.program_id ?? null, // lets the backend auto-progress the routine (#40)
         program_day_id: session.program_day_id ?? null, // which cycle day this was — drives the due-day tracker
         // Only ticked sets are saved (a ticked set with empty fields means "did the target").
-        exercises: session.exercises
-          .map(ex => ({ ex, done: (ex.sets ?? []).filter(s => s.completed) }))
-          .filter(({ done }) => done.length > 0)
-          .map(({ ex, done }) => ({
+        // A partner with no ticked sets is dropped, so groups are re-normalised afterwards.
+        exercises: normaliseSupersets(
+          session.exercises
+            .map(ex => ({ ex, done: (ex.sets ?? []).filter(s => s.completed) }))
+            .filter(({ done }) => done.length > 0)
+            .map(({ ex, done }) => ({ ex, done, superset_group: ex.superset_group ?? null })),
+        )
+          .map(({ ex, done, superset_group }) => ({
             exercise_id: ex.exercise_id,
             notes: ex.notes,
             rest_seconds: ex.rest_seconds,
+            superset_group,
             sets: done.map((s, i) => ({
               set_number: i + 1,
               reps: s.actual_reps || s.target_reps,
