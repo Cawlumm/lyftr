@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Check, Pause, Play, SkipForward } from '../ui/icons'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'
+import { fmtClock, nextSupersetTarget, useTranslation } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { AMBIENT, EASING } from '../../theme/motion'
@@ -84,7 +84,9 @@ export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean 
   // Set ↔ timer linkage (Hevy-style): label the panel with the just-completed set +
   // the next incomplete one (mirrors gym-mode's auto-advance).
   const restEx = restExIdx != null ? session?.exercises[restExIdx] : undefined
-  const nextIdx = restEx != null && restSetIdx != null ? nextIncompleteSet(restEx.sets, restSetIdx) : -1
+  const target = restEx != null && restExIdx != null && restSetIdx != null && session ? nextSupersetTarget(session.exercises, restExIdx, restSetIdx) : null
+  const otherExercise = target && target.exIdx !== restExIdx ? session?.exercises[target.exIdx] : undefined
+  const nextIdx = target && !otherExercise ? target.setIdx : -1
   const doneSetNum = restEx != null && restSetIdx != null ? restSetIdx + 1 : null
   const label =
     doneSetNum == null
@@ -93,7 +95,9 @@ export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean 
         ? nextIdx !== -1 ? t('workouts.rest.label.overNext', { next: nextIdx + 1 }) : t('workouts.rest.label.over')
         : paused
           ? t('workouts.rest.label.setDonePaused', { done: doneSetNum })
-          : nextIdx !== -1
+          : otherExercise
+            ? t('workouts.rest.label.setDoneNextExercise', { done: doneSetNum, name: otherExercise.exercise.name })
+            : nextIdx !== -1
             ? t('workouts.rest.label.setDoneNext', { done: doneSetNum, next: nextIdx + 1 })
             : t('workouts.rest.label.setDoneResting', { done: doneSetNum })
 

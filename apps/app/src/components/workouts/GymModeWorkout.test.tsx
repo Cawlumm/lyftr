@@ -1,3 +1,4 @@
+import { AccessibilityInfo } from 'react-native'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { i18n, type ActiveSession } from '@lyftr/shared'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -254,6 +255,72 @@ describe('Finish sheet', () => {
     await fireEvent.press(screen.getByText('Discard'))
     expect(useWorkoutSession.getState().session).toBeNull()
     expect(useWorkoutOutcome.getState().outcome?.kind).toBe('discarded')
+    await view.unmount()
+  })
+})
+
+describe('supersets', () => {
+  const grouped = (): ActiveSession => {
+    const base = session().exercises[0]
+    const mk = (id: number, name: string, rest: number) => ({
+      ...base, exercise_id: id, exercise: { ...base.exercise, id, name }, rest_seconds: rest, superset_group: 1,
+      sets: [1, 2].map((set_number) => ({ ...base.sets[0], set_number, completed: false })),
+    })
+    return { ...session(), exercises: [mk(1, 'Bench Press', 30), mk(2, 'Row', 75)] }
+  }
+  beforeEach(() => {
+    useWorkoutSession.getState().clearRest()
+    useWorkoutSession.setState({ session: grouped(), gymPhase: 'exercise', gymExIdx: 0, gymSetIdx: 0 })
+  })
+
+  it('advances A1 -> B1 -> A2, announces each jump and rests only after the round', async () => {
+    const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+    const view = await render(<GymModeWorkout />)
+    const pos = () => { const s = useWorkoutSession.getState(); return [s.gymPhase, s.gymExIdx, s.gymSetIdx, s.restEndsAt != null] }
+
+    await fireEvent.press(screen.getByText('Complete Set'))
+    expect(pos()).toEqual(['exercise', 1, 0, false])
+    expect(announce).toHaveBeenLastCalledWith('Next: Row, set 1')
+
+    await fireEvent.press(screen.getByText('Complete Set'))
+    expect(pos()).toEqual(['exercise', 0, 1, true])
+    expect(useWorkoutSession.getState().restDurationSec).toBe(75)
+    expect(announce).toHaveBeenLastCalledWith('Next: Bench Press, set 2')
+    announce.mockRestore()
+    await view.unmount()
+  })
+
+  it('shows the marker beside the counter, and offers Unlink from next in the menu', async () => {
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByText('1/2')).toBeTruthy()
+    expect(screen.getByText('Superset A · 1 of 2')).toBeTruthy()
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    await fireEvent.press(screen.getByText('Unlink from next'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(useWorkoutSession.getState().session!.exercises.map((e) => e.superset_group ?? null)).toEqual([null, null])
+    await view.unmount()
+  })
+
+  it('links with the next exercise from the menu', async () => {
+    const s = grouped()
+    useWorkoutSession.setState({ session: { ...s, exercises: s.exercises.map((e) => ({ ...e, superset_group: null })) } })
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
+    await fireEvent.press(screen.getByText('Superset with next'))
+    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    expect(useWorkoutSession.getState().session!.exercises.map((e) => e.superset_group)).toEqual([1, 1])
+    await view.unmount()
+  })
+
+  it('picking a member from the sheet lands on the group\'s first open step', async () => {
+    const s = grouped()
+    useWorkoutSession.getState().completeSet(0, 0)
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByRole('button', { name: /^Exercises, 1 of 2, Bench Press/ }))
+    await fireEvent.press(screen.getByLabelText(/^2\. Row/))
+    const st = useWorkoutSession.getState()
+    expect([st.gymPhase, st.gymExIdx, st.gymSetIdx]).toEqual(['exercise-info', 1, 0])
+    expect(s.exercises).toHaveLength(2)
     await view.unmount()
   })
 })

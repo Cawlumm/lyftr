@@ -104,4 +104,16 @@ describe('GymExercisesSheet', () => {
     await fireEvent.press(screen.getByText('Close'))
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('badges a superset member and names it in the row label', async () => {
+    const list: ExerciseProgress[] = [
+      { name: 'Squat', done: 0, total: 3 },
+      { name: 'Bench', done: 0, total: 3, superset: { letter: 'A', position: 1, total: 2 } },
+      { name: 'Row', done: 0, total: 2, superset: { letter: 'A', position: 2, total: 2 } },
+    ]
+    await render(<GymExercisesSheet open="list" exercises={list} rowKeys={['a', 'b', 'c']} current={0} onJump={jest.fn()} onMove={jest.fn()} onClose={jest.fn()} />)
+    expect(screen.getByText('A1')).toBeTruthy()
+    expect(screen.getByText('A2')).toBeTruthy()
+    expect(screen.getByLabelText(/^2\. Bench.*Superset A, exercise 1 of 2$/)).toBeTruthy()
+  })
 })
