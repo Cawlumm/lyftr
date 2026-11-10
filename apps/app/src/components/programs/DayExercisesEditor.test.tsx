@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { Exercise } from '@lyftr/shared'
 
 // Same transitive-import stubs as DayPickerSheet.test.tsx (ui barrel → useTheme →
@@ -15,6 +15,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 import { DayExercisesEditor } from './DayExercisesEditor'
 import type { DayExerciseDraft } from './types'
+import { SHEET_ANIM_MS } from '../ui/Sheet'
 
 const bench: Exercise = {
   id: 1, name: 'Bench Press', muscle_group: 'chest', secondary_muscles: [],
@@ -41,6 +42,15 @@ const renderEditor = async (exercises: DayExerciseDraft[], onChange = jest.fn())
     />
   )
   return onChange
+}
+
+
+const pickMenu = async (idx: number, item: string) => {
+  jest.useFakeTimers()
+  await fireEvent.press(screen.getAllByLabelText('More options')[idx])
+  await fireEvent.press(await screen.findByText(item))
+  await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS + 50) })
+  jest.useRealTimers()
 }
 
 describe('DayExercisesEditor', () => {
@@ -99,30 +109,42 @@ describe('DayExercisesEditor', () => {
   describe('supersets', () => {
     const row = (superset_group: number | null = null) => draft({ superset_group })
 
-    it('offers a joint between each pair of cards and none after the last', async () => {
+    it('offers a Superset pill between each pair of unlinked cards and none after the last', async () => {
       await renderEditor([row(), row(), row()])
       expect(screen.getAllByLabelText('Superset Bench Press with Bench Press')).toHaveLength(2)
     })
 
-    it('linking emits both rows in one group', async () => {
+    it('linking through the pill and sheet emits both rows in one group', async () => {
       const onChange = await renderEditor([row(), row()])
       await fireEvent.press(screen.getAllByLabelText('Superset Bench Press with Bench Press')[0])
+      await fireEvent.press(await screen.findByText('Create superset'))
       const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
       expect(next.map((e) => e.superset_group)).toEqual([1, 1])
     })
 
-    it('unlinking emits null groups again', async () => {
+    it('linking through the card menu opens the same sheet', async () => {
+      const onChange = await renderEditor([row(), row()])
+      await pickMenu(0, 'Superset with…')
+      expect(screen.getByText('Make a superset')).toBeTruthy()
+      await fireEvent.press(screen.getByLabelText('Bench Press'))
+      await fireEvent.press(screen.getByText('Create superset'))
+      expect(onChange.mock.calls[0][0].map((e: DayExerciseDraft) => e.superset_group)).toEqual([1, 1])
+    })
+
+    it('removing from the superset in the menu emits null groups again', async () => {
       const onChange = await renderEditor([row(1), row(1)])
-      await fireEvent.press(screen.getByLabelText('Unlink Bench Press from Bench Press'))
+      await pickMenu(0, 'Remove from superset A')
       const next: DayExerciseDraft[] = onChange.mock.calls[0][0]
       expect(next.map((e) => e.superset_group)).toEqual([null, null])
     })
 
-    it('marks linked cards and replaces the rest picker on non-final members', async () => {
+    it('draws one labelled block with tags, connector and rest footer, and no per-member rest label', async () => {
       await renderEditor([row(1), row(1)])
-      expect(screen.getByText('Superset A · 1 of 2')).toBeTruthy()
-      expect(screen.getByText('Superset A · 2 of 2')).toBeTruthy()
-      expect(screen.getAllByText('Rest after the round')).toHaveLength(1)
+      expect(screen.getByLabelText('Superset A, 2 exercises, 1 round')).toBeTruthy()
+      expect(screen.getByText('A1')).toBeTruthy()
+      expect(screen.getByText('A2')).toBeTruthy()
+      expect(screen.queryByText('Rest after the round')).toBeNull()
+      expect(screen.getByText(/^Rest 90s after Bench Press/)).toBeTruthy()
     })
 
     it('removing a member dissolves the partner it leaves alone', async () => {

@@ -1,15 +1,16 @@
 import { memo } from 'react'
 import { Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } from 'react-native'
 import { router, type Href } from 'expo-router'
-import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Plus, X } from '../ui/icons'
+import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Link2, Plus, Sparkles, Unlink2, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
-import { AppText, NUMERIC_ACCESSORY_ID } from '../ui'
+import { AppText, Menu, NUMERIC_ACCESSORY_ID } from '../ui'
+import { Icon } from '../ui/Icon'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
 import { ExerciseImage } from './ExerciseImage'
 import { useTheme } from '../../theme/useTheme'
 import { MuscleBadge } from './MuscleBadge'
-import { SupersetMarker, SupersetRail } from './SupersetMarker'
+import { ExerciseThumb, UpNextPill } from './superset'
 
 const exerciseHref = (id: number) => `/workouts/exercise/${id}` as unknown as Href
 
@@ -88,6 +89,36 @@ interface Props {
   /** 1-based place inside the group. */
   supersetPosition?: number
   supersetTotal?: number
+  /** From groupColorIndex. */
+  supersetColorIndex?: number
+  /** The member to do next in a round that is under way. */
+  upNext?: boolean
+  /** Both menu callbacks are stable, so the memo holds. Without onPairWith there is no menu. */
+  onPairWith?: (index: number) => void
+  onRemoveFromSuperset?: (index: number) => void
+}
+
+// Not interactive: a status line for the set just ticked mid-round. The region is always
+// mounted so a screen reader announces the text appearing inside it (web); native speaks it
+// through announceForAccessibility from the caller.
+export function SupersetStatusToast({ message }: { message: string | null }) {
+  const { accent } = useTheme()
+  return (
+    <View
+      pointerEvents="none"
+      accessible
+      role="status"
+      accessibilityLiveRegion="polite"
+      className="absolute bottom-3 left-3 right-3 z-50 items-center"
+    >
+      {message ? (
+        <View className="max-w-full flex-row items-center gap-2 rounded-2xl border border-surface-border bg-surface-raised px-4 py-3 shadow-lg">
+          <Icon icon={Sparkles} size={16} color={accent} />
+          <AppText variant="bodySemibold" className="shrink">{message}</AppText>
+        </View>
+      ) : null}
+    </View>
+  )
 }
 
 // One exercise inside the active-workout screen: header (thumbnail · name ·
@@ -99,34 +130,44 @@ function ActiveExerciseCardBase({
   index, ex, isActive, isLast, wUnit, weightUnit,
   onCardLayout, onRemoveExercise, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onCompleteSet,
   onJumpToExercise, onRequestFinish, supersetLetter, supersetPosition, supersetTotal,
+  supersetColorIndex = 0, upNext = false, onPairWith, onRemoveFromSuperset,
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
   const allSetsComplete = ex.sets.length > 0 && ex.sets.every((s) => s.completed)
   const completedHere = ex.sets.filter((s) => s.completed).length
   const inSuperset = !!supersetLetter && !!supersetPosition && !!supersetTotal
+  const menuItems = onPairWith
+    ? [inSuperset && onRemoveFromSuperset
+        ? { label: t('workouts.superset.menuRemove', { letter: supersetLetter }), icon: Unlink2, onSelect: () => onRemoveFromSuperset(index) }
+        : { label: t('workouts.superset.menuPair'), icon: Link2, onSelect: () => onPairWith(index) }]
+    : []
 
   return (
     <View
       onLayout={(e: LayoutChangeEvent) => onCardLayout(index, e.nativeEvent.layout.height)}
-      className={`relative overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
+      className={inSuperset
+        ? `relative ${allSetsComplete ? 'bg-brand-500/5' : ''}`
+        : `relative overflow-hidden rounded-2xl border ${allSetsComplete ? 'border-brand-500/30 bg-brand-500/5' : isActive ? 'border-brand-500/40 bg-surface-base' : 'border-surface-border bg-surface-base'}`}
     >
-      {inSuperset ? <SupersetRail first={supersetPosition === 1} last={supersetPosition === supersetTotal} /> : null}
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
-        <ExerciseImage url={ex.exercise.image_url} />
+        {inSuperset
+          ? <ExerciseThumb url={ex.exercise.image_url} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColorIndex} />
+          : <ExerciseImage url={ex.exercise.image_url} />}
         <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
             <MuscleBadge muscle={ex.exercise.muscle_group} />
             <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{t('workouts.active.setProgress', { done: completedHere, total: ex.sets.length })}</AppText>
           </View>
-          {inSuperset ? (
-            <View className="mt-1">
-              <SupersetMarker letter={supersetLetter} position={supersetPosition} total={supersetTotal} variant="full" />
-            </View>
+          {upNext ? (
+            <View className="mt-1 self-start"><UpNextPill colorIndex={supersetColorIndex} /></View>
           ) : null}
         </Pressable>
+        {menuItems.length > 0 ? (
+          <Menu label={t('gym.menu.more')} items={menuItems} title={ex.exercise.name} />
+        ) : null}
         {allSetsComplete ? (
           <View className="h-8 w-8 items-center justify-center rounded-full bg-brand-500">
             <CheckCircle2 size={18} color="#ffffff" />

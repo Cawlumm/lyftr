@@ -1,6 +1,6 @@
 import { AccessibilityInfo } from 'react-native'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { i18n, type ActiveSession } from '@lyftr/shared'
+import { i18n, restLabel, type ActiveSession } from '@lyftr/shared'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { GymModeWorkout } from './GymModeWorkout'
@@ -290,25 +290,70 @@ describe('supersets', () => {
     await view.unmount()
   })
 
-  it('shows the marker beside the counter, and offers Unlink from next in the menu', async () => {
+  it('shows the round pill and the Then card, and offers Remove from superset in the menu', async () => {
     const view = await render(<GymModeWorkout />)
     expect(screen.getByText('1/2')).toBeTruthy()
-    expect(screen.getByText('Superset A · 1 of 2')).toBeTruthy()
+    expect(screen.getByText('Superset A · Round 1 of 2')).toBeTruthy()
+    expect(screen.getByText('Straight to Row · set 1, no rest')).toBeTruthy()
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
-    await fireEvent.press(screen.getByText('Unlink from next'))
+    await fireEvent.press(screen.getByText('Remove from superset A'))
     await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
     expect(useWorkoutSession.getState().session!.exercises.map((e) => e.superset_group ?? null)).toEqual([null, null])
     await view.unmount()
   })
 
-  it('links with the next exercise from the menu', async () => {
+  it('names the rest in the Then card on the last step of a round', async () => {
+    useWorkoutSession.getState().completeSet(0, 0)
+    useWorkoutSession.setState({ gymExIdx: 1, gymSetIdx: 0 })
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByText(`Rest ${restLabel(75)}, then Bench Press · set 2`)).toBeTruthy()
+    await view.unmount()
+  })
+
+  it('shows a toast when a set hands over to the partner', async () => {
+    const view = await render(<GymModeWorkout />)
+    await fireEvent.press(screen.getByText('Complete Set'))
+    const hidden = { includeHiddenElements: true }
+    expect(screen.getByTestId('gym-superset-toast', hidden)).toBeTruthy()
+    expect(screen.getByText('Next: Row, set 1', hidden)).toBeTruthy()
+    await act(async () => { jest.advanceTimersByTime(3000) })
+    expect(screen.queryByTestId('gym-superset-toast', hidden)).toBeNull()
+    await view.unmount()
+  })
+
+  it('swaps the set body for the round recap and Up next while the round rest runs', async () => {
+    const st = useWorkoutSession.getState()
+    st.completeSet(0, 0)
+    st.completeSet(1, 0)
+    useWorkoutSession.setState({ gymExIdx: 0, gymSetIdx: 1 })
+    st.startRest(75, 1, 0)
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByTestId('gym-round-complete')).toBeTruthy()
+    expect(screen.getByText('This round')).toBeTruthy()
+    expect(screen.getByText('Round 1 of 2 done')).toBeTruthy()
+    expect(screen.getByText('Bench Press · set 2')).toBeTruthy()
+    expect(screen.getByText('Up next · final round')).toBeTruthy()
+    expect(screen.getByText('100 lb × 8, then straight to Row')).toBeTruthy()
+    expect(screen.queryByText('Complete Set')).toBeNull()
+    await view.unmount()
+  })
+
+  it('pairs from the menu sheet, moving the partner next to this exercise', async () => {
     const s = grouped()
-    useWorkoutSession.setState({ session: { ...s, exercises: s.exercises.map((e) => ({ ...e, superset_group: null })) } })
+    const third = { ...s.exercises[0], exercise_id: 3, exercise: { ...s.exercises[0].exercise, id: 3, name: 'Squat' } }
+    useWorkoutSession.setState({
+      session: { ...s, exercises: [{ ...s.exercises[0], superset_group: null }, { ...third, superset_group: null }, { ...s.exercises[1], superset_group: null }] },
+    })
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
-    await fireEvent.press(screen.getByText('Superset with next'))
+    await fireEvent.press(screen.getByText('Superset with…'))
     await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
-    expect(useWorkoutSession.getState().session!.exercises.map((e) => e.superset_group)).toEqual([1, 1])
+    await fireEvent.press(screen.getByRole('radio', { name: /Row/ }))
+    await fireEvent.press(screen.getByText('Create superset'))
+    const rows = useWorkoutSession.getState().session!.exercises
+    expect(rows.map((e) => e.exercise.name)).toEqual(['Bench Press', 'Row', 'Squat'])
+    expect(rows.map((e) => e.superset_group ?? null)).toEqual([1, 1, null])
+    expect(useWorkoutSession.getState().gymExIdx).toBe(0)
     await view.unmount()
   })
 

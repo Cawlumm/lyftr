@@ -1,13 +1,12 @@
-import { Fragment, useState } from 'react'
-import { AccessibilityInfo, Platform, Pressable, Text, View } from 'react-native'
+import { useState } from 'react'
+import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
 import {
-  groupOf, isLinkedToNext, linkWithNext, moveItem, normaliseSupersets, occurrenceKeys, unlinkFromNext, useTranslation, type Exercise,
+  moveItem, normaliseSupersets, occurrenceKeys, useTranslation, type Exercise,
 } from '@lyftr/shared'
 import { EmptyState, TOUCH_MIN, touchTarget } from '../ui'
-import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
+import { ExerciseFormList } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
-import { SupersetJoint } from '../workouts/SupersetJoint'
 import { ReorderButton, ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { useTheme } from '../../theme/useTheme'
@@ -86,16 +85,7 @@ export function DayExercisesEditor({
   const moveExercise = useStableCallback((from: number, to: number) =>
     onChange(normaliseSupersets(moveItem(exercises, from, to))))
 
-  const nameAt = (i: number) => pickerExercises[exercises[i]?.exercise_id]?.name ?? t('workouts.form.exerciseFallback')
-  const toggleJoint = (i: number) => {
-    const linked = isLinkedToNext(exercises, i)
-    onChange(linked ? unlinkFromNext(exercises, i) : linkWithNext(exercises, i))
-    if (Platform.OS !== 'web') {
-      AccessibilityInfo.announceForAccessibility(
-        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', { a: nameAt(i), b: nameAt(i + 1) }),
-      )
-    }
-  }
+  const rewrite = useStableCallback((fn: (rows: DayExerciseDraft[]) => DayExerciseDraft[]) => onChange(fn(exercises)))
 
   const selectedIds = exercises.map((e) => e.exercise_id)
   const rowKeys = occurrenceKeys(selectedIds)
@@ -123,41 +113,20 @@ export function DayExercisesEditor({
         </View>
       ) : (
         <View className="gap-4">
-          {exercises.map((dayEx, exIdx) => {
-            const g = groupOf(exercises, exIdx)
-            return (
-            <Fragment key={rowKeys[exIdx]}>
-            <ExerciseFormCard
-              index={exIdx}
-              exercise={pickerExercises[dayEx.exercise_id]}
-              notes={dayEx.notes}
-              sets={dayEx.sets}
-              restSeconds={dayEx.rest_seconds ?? 90}
-              unit={unit}
-              onRemove={removeExercise}
-              onNotesChange={updateExNotes}
-              onAddSet={addSet}
-              onRemoveSet={removeSet}
-              onUpdateSet={updateSet}
-              onRestChange={setExRest}
-              inputAccessoryViewID={inputAccessoryViewID}
-              supersetLetter={g?.letter}
-              supersetPosition={g ? exIdx - g.start + 1 : undefined}
-              supersetTotal={g ? g.end - g.start + 1 : undefined}
-            />
-            {exIdx < exercises.length - 1 ? (
-              <View>
-                <SupersetJoint
-                  linked={isLinkedToNext(exercises, exIdx)}
-                  aName={nameAt(exIdx)}
-                  bName={nameAt(exIdx + 1)}
-                  onToggle={() => toggleJoint(exIdx)}
-                />
-              </View>
-            ) : null}
-            </Fragment>
-            )
-          })}
+          <ExerciseFormList
+            exercises={exercises}
+            rowKeys={rowKeys}
+            pickerExercises={pickerExercises}
+            unit={unit}
+            onRewrite={rewrite}
+            onRemove={removeExercise}
+            onNotesChange={updateExNotes}
+            onAddSet={addSet}
+            onRemoveSet={removeSet}
+            onUpdateSet={updateSet}
+            onRestChange={setExRest}
+            inputAccessoryViewID={inputAccessoryViewID}
+          />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('workouts.form.addExerciseLabel')}

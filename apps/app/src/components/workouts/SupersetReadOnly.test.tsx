@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
-import { View } from 'react-native'
-import { ReadOnlyRest, SupersetCardBadge, supersetPlace } from './SupersetReadOnly'
+import { Text, View } from 'react-native'
+import { ReadOnlyRest, SupersetList, supersetPlace } from './SupersetReadOnly'
 
 jest.mock('@react-native-async-storage/async-storage', () => mockAsyncStorage)
 
@@ -15,25 +15,30 @@ describe('SupersetReadOnly (en)', () => {
     expect(supersetPlace(undefined, 0)).toBeNull()
   })
 
-  it('renders the linked pair: badges, rest only on the last member', async () => {
+  it('renders a linked pair in one block with tags, a connector and one rest footer', async () => {
+    const list = [
+      { superset_group: 1, rest_seconds: 0, exercise: { name: 'Bench' }, sets: [{}, {}] },
+      { superset_group: 1, rest_seconds: 75, exercise: { name: 'Row' }, sets: [{}, {}] },
+      { superset_group: null, rest_seconds: 90, exercise: { name: 'Curl' }, sets: [{}] },
+    ]
     await render(
-      <View>
-        {[0, 1, 2].map((i) => {
-          const place = supersetPlace(rows, i)
-          return (
-            <View key={i}>
-              <SupersetCardBadge place={place} />
-              <ReadOnlyRest place={place} restSeconds={90} />
-            </View>
-          )
-        })}
-      </View>,
+      <SupersetList
+        rows={list}
+        restOn
+        renderMember={(ex, slot) => (
+          <View>
+            <Text>{`${ex.exercise?.name}${slot.tag ? ` ${slot.tag}` : ''}`}</Text>
+            <ReadOnlyRest place={null} restSeconds={slot.grouped ? 0 : ex.rest_seconds} />
+          </View>
+        )}
+      />,
     )
-    expect(screen.getByLabelText('Superset A, exercise 1 of 2')).toBeTruthy()
-    expect(screen.getByLabelText('Superset A, exercise 2 of 2')).toBeTruthy()
-    expect(screen.getAllByText('A1')).toHaveLength(1)
-    expect(screen.getAllByText(/Rest after round/)).toHaveLength(1)
-    expect(screen.getAllByText(/1:30|90/)).toHaveLength(2)
+    expect(screen.getAllByLabelText(/^Superset A, 2 exercises/)).toHaveLength(1)
+    expect(screen.getByText('Bench A1')).toBeTruthy()
+    expect(screen.getByText('Row A2')).toBeTruthy()
+    expect(screen.getByText('Curl')).toBeTruthy()
+    expect(screen.getByText(/Straight to Row/)).toBeTruthy()
+    expect(screen.getAllByText(/Rest .* after Row/)).toHaveLength(1)
   })
 
   it('keeps "no rest" on a solo exercise', async () => {

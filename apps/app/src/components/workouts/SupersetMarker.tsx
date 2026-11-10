@@ -31,25 +31,3 @@ export function SupersetMarker({ letter, position, total, variant = 'compact' }:
     </View>
   )
 }
-
-interface RailProps {
-  /** First and last member round the ends so a run reads as one bracket. */
-  first?: boolean
-  last?: boolean
-}
-
-// Absolutely positioned on the left edge: the parent must be `relative`.
-export function SupersetRail({ first = false, last = false }: RailProps) {
-  const { accent } = useTheme()
-  return (
-    <View
-      pointerEvents="none"
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      aria-hidden
-      testID="superset-rail"
-      className={`absolute bottom-0 left-0 top-0 w-1 ${first ? 'rounded-tl-xl' : ''} ${last ? 'rounded-bl-xl' : ''}`}
-      style={{ backgroundColor: accent }}
-    />
-  )
-}

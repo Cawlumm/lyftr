@@ -114,6 +114,8 @@ describe('GymExercisesSheet', () => {
     await render(<GymExercisesSheet open="list" exercises={list} rowKeys={['a', 'b', 'c']} current={0} onJump={jest.fn()} onMove={jest.fn()} onClose={jest.fn()} />)
     expect(screen.getByText('A1')).toBeTruthy()
     expect(screen.getByText('A2')).toBeTruthy()
+    expect(screen.queryByText('A3')).toBeNull()
+    expect(screen.getAllByTestId('thumb-fallback')).toHaveLength(3)
     expect(screen.getByLabelText(/^2\. Bench.*Superset A, exercise 1 of 2$/)).toBeTruthy()
   })
 })

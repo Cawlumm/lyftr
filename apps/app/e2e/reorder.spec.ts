@@ -192,7 +192,7 @@ test.describe('Reorder exercises (#166)', () => {
     expect((await groups())[0]).not.toBeNull()
 
     await page.goto(`/workouts/${id}/edit`)
-    await expect(page.getByRole('button', { name: /^Unlink .+ from .+/ })).toBeVisible()
+    await expect(page.getByRole('group', { name: /^Superset A, 2 exercises/ })).toBeVisible()
     const sheet = await openSheet(page)
 
     await sheet.getByRole('button', { name: `Move ${a} down` }).click()
@@ -205,7 +205,7 @@ test.describe('Reorder exercises (#166)', () => {
 
     await sheet.getByRole('button', { name: 'Done' }).click()
     await expect(sheet).toBeHidden()
-    await expect(page.getByRole('button', { name: /^Unlink .+ from .+/ })).toHaveCount(0)
+    await expect(page.getByRole('group', { name: /^Superset/ })).toHaveCount(0)
     await page.getByRole('button', { name: 'Save Changes' }).click()
     await page.waitForURL('**/workouts')
     expect(await groups()).toEqual([null, null, null])

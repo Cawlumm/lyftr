@@ -13,10 +13,11 @@ import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed
 import { WEB_BUTTON, interactive, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
+import { ExerciseThumb } from '../../../src/components/workouts/superset'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useTheme } from '../../../src/theme/useTheme'
-import { SupersetCardAccent, SupersetCardBadge, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
+import { SupersetList, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
 import { MuscleBadge } from '../../../src/components/workouts/MuscleBadge'
 import { targetWeightLabel } from '@lyftr/shared'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
@@ -545,7 +546,8 @@ export default function ProgramDetail() {
                     <Dumbbell size={28} color={colors.txMuted} style={{ opacity: 0.5 }} />
                     <AppText variant="body" color="muted" className="mt-2">{t('programs.detail.noExercises')}</AppText>
                   </View>
-                ) : (selectedDay.exercises ?? []).map((ex, exIdx) => {
+                ) : <SupersetList rows={selectedDay.exercises} restOn={restOn} renderMember={(ex, slot) => {
+              const exIdx = slot.index
               const place = supersetPlace(selectedDay.exercises, exIdx)
               const sets = ex.sets ?? []
               const maxTargetLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.target_weight || 0)) : 0
@@ -561,13 +563,11 @@ export default function ProgramDetail() {
                   {...linkProps(exercisePath(ex.exercise_id), () => router.push(exercisePath(ex.exercise_id) as Href))}
                   // On web the card is a link, named by what it opens rather than its text run together.
                   accessibilityLabel={Platform.OS === 'web' ? cardLabel(place, ex.exercise?.name) : undefined}
-                  className={`relative bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                  className={`relative overflow-hidden active:scale-[0.99] ${slot.grouped ? '' : `bg-surface-raised border border-surface-border rounded-2xl ${interactive('hover:border-brand-500/40')}`}`}
                 >
-                  <SupersetCardAccent place={place} />
                   <View className="flex-row items-center gap-3 p-4">
-                    <ExerciseImage url={ex.exercise?.image_url} />
+                    {slot.grouped ? <ExerciseThumb url={ex.exercise?.image_url} tag={slot.tag} colorIndex={slot.colorIndex} /> : <ExerciseImage url={ex.exercise?.image_url} />}
                     <View className="flex-1">
-                      <SupersetCardBadge place={place} />
                       <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
@@ -586,12 +586,12 @@ export default function ProgramDetail() {
                           <SetChip key={i} set={set} isBest={set.target_weight === maxTargetLbs && maxTargetLbs > 0} hasSuggestion={set.suggested_reps != null} unit={wUnit} />
                         ))}
                       </View>
-                      {restOn && <ReadOnlyRest place={place} restSeconds={ex.rest_seconds} />}
+                      {restOn && !slot.grouped && <ReadOnlyRest place={null} restSeconds={ex.rest_seconds} />}
                     </View>
                   )}
                 </Pressable>
               )
-                })}
+                }} />}
               </View>
             </>
           ) : null}

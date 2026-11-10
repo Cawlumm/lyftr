@@ -9,9 +9,10 @@ import { AppText, Button, ConfirmSheet, ErrorState, Loading, Screen, scrollBleed
 import { interactive, touchTarget } from '../../../src/components/ui/interaction'
 import { linkProps } from '../../../src/components/ui/link'
 import { ExerciseImage } from '../../../src/components/workouts/ExerciseImage'
+import { ExerciseThumb } from '../../../src/components/workouts/superset'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
-import { SupersetCardAccent, SupersetCardBadge, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
+import { SupersetList, ReadOnlyRest, supersetPlace, useSupersetCardLabel } from '../../../src/components/workouts/SupersetReadOnly'
 import { MuscleBadge } from '../../../src/components/workouts/MuscleBadge'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
 
@@ -238,7 +239,8 @@ export default function WorkoutDetail() {
             </View>
           )}
           <View className="gap-3">
-            {exs.map((ex, exIdx) => {
+            <SupersetList rows={exs} restOn={restOn} renderMember={(ex, slot) => {
+              const exIdx = slot.index
               const place = supersetPlace(exs, exIdx)
               const sets = ex.sets ?? []
               const maxWeightLbs = sets.length > 0 ? Math.max(...sets.map((s) => s.weight || 0)) : 0
@@ -258,13 +260,11 @@ export default function WorkoutDetail() {
                   // Card surface inlined (not <Card>): its baked-in p-4 can't be
                   // overridden safely (two padding classes = stylesheet-order
                   // roulette) and this card needs edge-to-edge inner sections.
-                  className={`relative bg-surface-raised border border-surface-border rounded-2xl overflow-hidden active:scale-[0.99] ${interactive('hover:border-brand-500/40')}`}
+                  className={`relative overflow-hidden active:scale-[0.99] ${slot.grouped ? '' : `bg-surface-raised border border-surface-border rounded-2xl ${interactive('hover:border-brand-500/40')}`}`}
                 >
-                  <SupersetCardAccent place={place} />
                   <View className="flex-row items-center gap-3 p-4">
-                    <ExerciseImage url={ex.exercise?.image_url} />
+                    {slot.grouped ? <ExerciseThumb url={ex.exercise?.image_url} tag={slot.tag} colorIndex={slot.colorIndex} /> : <ExerciseImage url={ex.exercise?.image_url} />}
                     <View className="flex-1">
-                      <SupersetCardBadge place={place} />
                       <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
                       <View className="flex-row items-center gap-2 mt-0.5">
                         {ex.exercise?.muscle_group ? <MuscleBadge muscle={ex.exercise.muscle_group} /> : null}
@@ -291,12 +291,12 @@ export default function WorkoutDetail() {
                           <SetChip key={i} set={set} isBest={set.weight === maxWeightLbs && maxWeightLbs > 0} unit={wUnit} />
                         ))}
                       </View>
-                      {restOn && <ReadOnlyRest place={place} restSeconds={ex.rest_seconds} />}
+                      {restOn && !slot.grouped && <ReadOnlyRest place={null} restSeconds={ex.rest_seconds} />}
                     </View>
                   )}
                 </Pressable>
               )
-            })}
+            }} />
           </View>
         </View>
       </ScrollView>

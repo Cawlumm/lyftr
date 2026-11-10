@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { i18n } from '@lyftr/shared'
 import { client } from './lyftr'
 import EditWorkout from '../../app/(tabs)/workouts/[id]/edit'
 import AddWorkout from '../../app/(tabs)/workouts/new'
+import { SHEET_ANIM_MS } from '../components/ui/Sheet'
 
 // A linked pair has to survive load -> save: the server's Update deletes and re-inserts the
 // exercise rows, so a mapper that drops superset_group silently unlinks them.
@@ -38,6 +39,14 @@ const ex = (id: number, group: number | null) => ({
   superset_group: group, sets: [{ set_number: 1, reps: 5, weight: 100 }],
 })
 
+const pickMenu = async (idx: number, item: string) => {
+  jest.useFakeTimers()
+  await fireEvent.press(screen.getAllByLabelText('More options')[idx])
+  await fireEvent.press(await screen.findByText(item))
+  await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS + 50) })
+  jest.useRealTimers()
+}
+
 beforeEach(async () => { await i18n.changeLanguage('en') })
 afterEach(() => jest.restoreAllMocks())
 
@@ -51,7 +60,7 @@ it('edit: a linked workout is still linked after load and save', async () => {
   } as never)
   const update = jest.spyOn(client.workoutAPI, 'update').mockResolvedValue({} as never)
   await render(<EditWorkout />)
-  await screen.findByLabelText('Unlink Move 1 from Move 2')
+  await screen.findByLabelText(/^Superset A, 2 exercises/)
   expect(screen.getByLabelText('Superset Move 2 with Move 3')).toBeTruthy()
   await fireEvent.press(screen.getByText('Save Changes'))
   await waitFor(() => expect(update).toHaveBeenCalled())
@@ -65,7 +74,8 @@ it('edit: unlinking the pair saves null groups', async () => {
   } as never)
   const update = jest.spyOn(client.workoutAPI, 'update').mockResolvedValue({} as never)
   await render(<EditWorkout />)
-  await fireEvent.press(await screen.findByLabelText('Unlink Move 1 from Move 2'))
+  await screen.findByLabelText(/^Superset A, 2 exercises/)
+  await pickMenu(0, 'Remove from superset A')
   await fireEvent.press(screen.getByText('Save Changes'))
   await waitFor(() => expect(update).toHaveBeenCalled())
   expect(groups(update.mock.calls[0][1] as never)).toEqual([null, null, null])
@@ -76,7 +86,7 @@ it('new: loading a program day keeps its superset into the saved workout', async
   await render(<AddWorkout />)
   await fireEvent.press(screen.getByText('Load Program'))
   await fireEvent.press(await screen.findByText('pick-day'))
-  await screen.findByLabelText('Unlink Move 1 from Move 2')
+  await screen.findByLabelText(/^Superset A, 2 exercises/)
   await fireEvent.changeText(screen.getByPlaceholderText('e.g., Leg Day, Push Day'), 'Legs')
   await fireEvent.press(screen.getByText('Save Workout'))
   await waitFor(() => expect(create).toHaveBeenCalled())

@@ -46,3 +46,19 @@ it('keeps the set number for an exercise outside a superset', async () => {
   await act(async () => {})
   expect(screen.getByText('Set 1 done · set 2 next')).toBeTruthy()
 })
+
+it('shows a round-done chip once every member has done the round', async () => {
+  seed([mk(1, 'Bench Press', 1, true), mk(2, 'Row', 1, true)])
+  useWorkoutSession.getState().startRest(60, 1, 0)
+  await render(<RestTimerBanner />)
+  await act(async () => {})
+  expect(screen.getByText('Round 1 of 2 done')).toBeTruthy()
+})
+
+it('keeps the caption for a rest outside a superset', async () => {
+  seed([mk(1, 'Bench Press', null, true)])
+  useWorkoutSession.getState().startRest(60, 0, 0)
+  await render(<RestTimerBanner />)
+  await act(async () => {})
+  expect(screen.queryByTestId('rest-round-chip')).toBeNull()
+})

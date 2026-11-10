@@ -129,3 +129,70 @@ export function roundRest(exercises: (SupersetRow & SetsRow)[], exIdx: number, s
   }
   return { rest, sourceExIdx }
 }
+
+type RoundRow = { sets?: { completed?: boolean; weight?: number | null; reps?: number | null }[] }
+
+export interface RoundRecapEntry {
+  exIdx: number
+  weight: number | null
+  reps: number | null
+  completed: boolean
+}
+
+// Rounds in a group: the longest member's set count (a round is set index s across the group).
+export function totalRounds(rows: RoundRow[], start: number, end: number): number {
+  let n = 0
+  for (let k = start; k <= end; k++) n = Math.max(n, rows[k]?.sets?.length ?? 0)
+  return n
+}
+
+// 0-based index of the round being worked: the first set index where some member that has that
+// set has not completed it. When every round is done it is totalRounds (one past the last), so
+// a caller shows Math.min(index + 1, total).
+export function currentRound(rows: RoundRow[], start: number, end: number): number {
+  const total = totalRounds(rows, start, end)
+  for (let s = 0; s < total; s++) {
+    for (let k = start; k <= end; k++) {
+      const set = rows[k]?.sets?.[s]
+      if (set && !set.completed) return s
+    }
+  }
+  return total
+}
+
+// What each member did (or will do) in one round, in list order; members with no such set are skipped.
+export function roundRecap(rows: RoundRow[], g: { start: number; end: number }, roundIdx: number): RoundRecapEntry[] {
+  const out: RoundRecapEntry[] = []
+  for (let k = g.start; k <= g.end; k++) {
+    const s = rows[k]?.sets?.[roundIdx]
+    if (s) out.push({ exIdx: k, weight: s.weight ?? null, reps: s.reps ?? null, completed: !!s.completed })
+  }
+  return out
+}
+
+// Which group (0 = first in the list, 1 = second, ...) row i belongs to, for colour cycling;
+// -1 when i is not in a superset. Matches the letter order groupOf gives.
+export function groupColorIndex(rows: SupersetRow[], i: number): number {
+  return runs(rows).findIndex((r) => r.start <= i && i <= r.end)
+}
+
+// Moves row j to directly after row i and links it to i. Adjacent rows (either side) are only
+// linked, not reordered; rows already in one group are returned unchanged. Normalised.
+export function pairWith<T extends SupersetRow>(input: T[], i: number, j: number): T[] {
+  if (i === j || i < 0 || j < 0 || i >= input.length || j >= input.length) return input
+  const rows = normaliseSupersets(input)
+  const gi = rows[i].superset_group ?? null
+  if (gi !== null && gi === (rows[j].superset_group ?? null)) return rows
+  if (j === i + 1) return linkWithNext(rows, i)
+  if (j === i - 1) return linkWithNext(rows, j)
+  // Cleared first: a stale label must not re-join j to former group mates it lands beside.
+  const moved = { ...rows[j], superset_group: null } as T
+  const rest = rows.filter((_, k) => k !== j)
+  const at = (j < i ? i - 1 : i) + 1
+  const next = [...rest.slice(0, at), moved, ...rest.slice(at)]
+  const anchor = j < i ? i - 1 : i
+  if (gi !== null) {
+    return normaliseSupersets(next.map((r, k) => (k === at ? { ...r, superset_group: gi } : r)))
+  }
+  return linkWithNext(next, anchor)
+}

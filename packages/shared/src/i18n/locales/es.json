@@ -1215,7 +1215,34 @@
       "unlinkedA11y": "{{a}} y {{b}} ya no forman una superserie",
       "restAfterRound": "Descanso tras la ronda: {{rest}}",
       "restAfterRoundHint": "Descanso tras la ronda",
-      "movedUnlinked": "{{name}} se movió a la posición {{position}} de {{count}} y se separó de su superserie"
+      "movedUnlinked": "{{name}} se movió a la posición {{position}} de {{count}} y se separó de su superserie",
+      "subtitle": "Series alternadas · descanso tras cada ronda",
+      "round": "Ronda {{n}} de {{total}}",
+      "groupLabel": "Superserie {{letter}}, {{count}} ejercicios, ronda {{n}} de {{total}}",
+      "groupLabelStatic": "Superserie {{letter}}, {{count}} ejercicios, {{rounds}}",
+      "roundsCount_one": "{{count}} ronda",
+      "roundsCount_many": "{{count}} de rondas",
+      "roundsCount_other": "{{count}} rondas",
+      "straightTo": "Directo a {{name}}, sin descanso",
+      "restThen": "Descanso de {{rest}} tras {{name}}, luego ronda {{n}}",
+      "restThenLast": "Descanso de {{rest}} tras {{name}}",
+      "upNext": "Sigue",
+      "toastNext": "{{done}} listo. Sigue {{next}}, sin descanso.",
+      "menuPair": "Superserie con…",
+      "menuRemove": "Quitar de la superserie {{letter}}",
+      "addPill": "Superserie",
+      "addPillLabel": "Superserie de {{a}} con {{b}}",
+      "sheet": {
+        "title": "Crear una superserie",
+        "body": "Alterna una serie de cada ejercicio y descansa una vez por ronda. Ahorra tiempo entre series.",
+        "pairWith": "Combinar {{name}} con",
+        "movesNextTo": "{{muscle}} · lo pasa junto a {{name}}",
+        "moves": "Lo pasa junto a {{name}}",
+        "restNote": "Descansarás {{rest}} después de {{name}} en cada ronda. Puedes cambiarlo cuando quieras.",
+        "create": "Crear superserie",
+        "cancel": "Cancelar",
+        "empty": "No hay otros ejercicios para combinar."
+      }
     },
     "rest": {
       "off": "No",
@@ -1317,6 +1344,21 @@
       "info": "Info",
       "finishWorkout": "Terminar",
       "nextExercise": "Siguiente"
+    },
+    "superset": {
+      "pill": "Superserie {{letter}} · Ronda {{n}} de {{total}}",
+      "then": "Después",
+      "thenRest": "Descanso de {{rest}}, luego {{name}} · serie {{number}}",
+      "thenStraight": "Directo a {{name}} · serie {{number}}, sin descanso",
+      "roundDone": "Ronda {{n}} de {{total}} completada",
+      "thisRound": "Esta ronda",
+      "upNext": "Sigue",
+      "upNextFinal": "Sigue · última ronda",
+      "finalRound": "Última ronda",
+      "next": "Siguiente: {{name}}, serie {{number}}",
+      "upNextTitle": "{{name}} · serie {{number}}",
+      "upNextThen": "{{detail}}, luego directo a {{name}}",
+      "effort": "{{weight}} × {{reps}}"
     }
   },
   "exercises": {

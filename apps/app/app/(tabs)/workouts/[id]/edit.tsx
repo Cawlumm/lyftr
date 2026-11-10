@@ -1,19 +1,18 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../../src/components/ui/icons'
-import { useAsyncAction, groupOf, isLinkedToNext, linkWithNext, moveItem, normaliseSupersets, occurrenceKeys, unlinkFromNext, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
 
 // Wider than 44 and 32 tall, so only the height is padded.
 const ADD_HIT = touchTarget(TOUCH_MIN, 32)
-import { ExerciseFormCard } from '../../../../src/components/workouts/ExerciseFormCard'
+import { ExerciseFormList } from '../../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../../src/components/workouts/DurationField'
-import { SupersetJoint } from '../../../../src/components/workouts/SupersetJoint'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
 import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
@@ -193,18 +192,8 @@ export default function EditWorkout() {
 
   const openReorder = useCallback(() => setShowReorder(true), [])
 
-  const toggleJoint = (i: number) => {
-    const linked = isLinkedToNext(formData.exercises, i)
-    setFormData((prev) => ({
-      ...prev,
-      exercises: linked ? unlinkFromNext(prev.exercises, i) : linkWithNext(prev.exercises, i),
-    }))
-    if (Platform.OS !== 'web') {
-      AccessibilityInfo.announceForAccessibility(
-        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', { a: nameAt(i), b: nameAt(i + 1) }),
-      )
-    }
-  }
+  const rewriteExercises = useCallback((fn: (rows: WorkoutFormData['exercises']) => WorkoutFormData['exercises']) =>
+    setFormData((prev) => ({ ...prev, exercises: fn(prev.exercises) })), [])
   const moveExercise = useCallback((from: number, to: number) =>
     setFormData((prev) => ({ ...prev, exercises: normaliseSupersets(moveItem(prev.exercises, from, to)) })), [])
 
@@ -274,7 +263,6 @@ export default function EditWorkout() {
 
 
   const selectedIds = formData.exercises.map((e) => e.exercise_id)
-  const nameAt = (i: number) => pickerExercises[formData.exercises[i]?.exercise_id]?.name ?? t('workouts.form.exerciseFallback')
   const rowKeys = occurrenceKeys(selectedIds)
   const totalSets = formData.exercises.reduce((sum, ex) => sum + ex.sets.length, 0)
   const totalWeight = formData.exercises.reduce(
@@ -398,41 +386,20 @@ export default function EditWorkout() {
             )}
 
             <View className="gap-4">
-              {formData.exercises.map((workoutEx, exIdx) => {
-                const g = groupOf(formData.exercises, exIdx)
-                return (
-                <Fragment key={rowKeys[exIdx]}>
-                <ExerciseFormCard
-                  index={exIdx}
-                  exercise={pickerExercises[workoutEx.exercise_id]}
-                  notes={workoutEx.notes}
-                  sets={workoutEx.sets}
-                  restSeconds={workoutEx.rest_seconds ?? 90}
-                  unit={wUnit}
-                  onRemove={removeExercise}
-                  onNotesChange={updateExNotes}
-                  onAddSet={addSet}
-                  onRemoveSet={removeSet}
-                  onUpdateSet={updateSet}
-                  onRestChange={setExRest}
-                  inputAccessoryViewID={KEYPAD_DONE_ID}
-                  supersetLetter={g?.letter}
-                  supersetPosition={g ? exIdx - g.start + 1 : undefined}
-                  supersetTotal={g ? g.end - g.start + 1 : undefined}
-                />
-                {exIdx < formData.exercises.length - 1 ? (
-                  <View>
-                    <SupersetJoint
-                      linked={isLinkedToNext(formData.exercises, exIdx)}
-                      aName={nameAt(exIdx)}
-                      bName={nameAt(exIdx + 1)}
-                      onToggle={() => toggleJoint(exIdx)}
-                    />
-                  </View>
-                ) : null}
-                </Fragment>
-                )
-              })}
+              <ExerciseFormList
+                exercises={formData.exercises}
+                rowKeys={rowKeys}
+                pickerExercises={pickerExercises}
+                unit={wUnit}
+                onRewrite={rewriteExercises}
+                onRemove={removeExercise}
+                onNotesChange={updateExNotes}
+                onAddSet={addSet}
+                onRemoveSet={removeSet}
+                onUpdateSet={updateSet}
+                onRestChange={setExRest}
+                inputAccessoryViewID={KEYPAD_DONE_ID}
+              />
               {/* Thumb-zone duplicate of Add Exercise: the header button scrolls away
                   as cards stack up, so the "next exercise" tap lands where the thumb
                   already is (right after the last card) — no scroll-to-top round trip. */}

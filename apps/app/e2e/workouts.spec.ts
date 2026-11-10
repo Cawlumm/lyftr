@@ -661,12 +661,13 @@ test.describe('List layout rest timer', () => {
     await page.getByRole('button', { name: 'Complete set 1, Bench Press' }).click()
     await expect(page.getByRole('button', { name: 'Completed set 1, Bench Press' })).toBeVisible()
     await expect(pause).toHaveCount(0)
+    await expect(page.getByRole('status').getByText('Bench Press done. Barbell Row is up, no rest.')).toBeVisible()
 
     await page.getByRole('button', { name: 'Complete set 1, Barbell Row' }).click()
     await expect(pause).toBeVisible()
     // The length is the last member's own rest (20s), and the banner names who is next.
     await expect(page.getByText(/^0:(?:1[0-9]|20)$/)).toBeVisible()
-    await expect(page.getByText('Set 1 done · Bench Press next')).toBeVisible()
+    await expect(page.getByText('Round 1 of 2 done')).toBeVisible()
 
     await page.getByRole('button', { name: 'Completed set 1, Barbell Row' }).click()
     await expect(pause).toHaveCount(0)

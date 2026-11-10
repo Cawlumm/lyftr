@@ -1,28 +1,35 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { AccessibilityInfo, Keyboard, Platform, Pressable, ScrollView, Text, View, type ScrollViewInstance } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, Trash2, X } from '../../../src/components/ui/icons'
-import { groupOf, isLinkedToNext, nextSupersetTarget, useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
+import { currentRound, groupColorIndex, groupOf, isLinkedToNext, nextSupersetTarget, restLabel, roundRest, totalRounds, useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
 import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { RestTimerBanner } from '../../../src/components/workouts/RestTimerBanner'
 import { applyRestOnToggle } from '../../../src/lib/restOnSetToggle'
-import { ActiveExerciseCard } from '../../../src/components/workouts/ActiveExerciseCard'
+import { ActiveExerciseCard, SupersetStatusToast } from '../../../src/components/workouts/ActiveExerciseCard'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
-import { SupersetJoint } from '../../../src/components/workouts/SupersetJoint'
+import { AddSupersetPill, SupersetBlock, SupersetConnector, SupersetRestFooter, SupersetSheet } from '../../../src/components/workouts/superset'
 import { GymModeWorkout } from '../../../src/components/workouts/GymModeWorkout'
 import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../../src/hooks/useStableCallback'
 import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/lyftr'
+import { muscleLabel } from '../../../src/utils/exerciseUtils'
+import { pairLive } from '../../../src/lib/pairLiveSession'
 import { finishConfirmCopy } from '../../../src/lib/finishConfirm'
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 
 // The list's top padding and the gap between cards; jumpToExercise adds up positions with it.
 const CARD_GAP = 12
-// A joint is 32px tall and sits in the list's flow, so it adds its height plus one more gap.
+// The "+ Superset" pill is 32px tall and sits in the list's flow, so it adds its height plus one more gap.
 const JOINT_STEP = 32 + CARD_GAP
+// Inside a superset block: the tinted header (12 + 36 + 12 + border), and a connector between
+// members (6 + ~30 pill + 6). Estimates are enough: the scroll lands a little above the card.
+const BLOCK_HEAD = 62
+const CONNECTOR_STEP = 42
+const TOAST_MS = 3000
 
 export default function ActiveWorkout() {
   const { t } = useTranslation()
@@ -34,7 +41,6 @@ export default function ActiveWorkout() {
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
   const moveExercise = useWorkoutSession((s) => s.moveExercise)
-  const linkWithNext = useWorkoutSession((s) => s.linkWithNext)
   const unlinkFromNext = useWorkoutSession((s) => s.unlinkFromNext)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
@@ -65,6 +71,14 @@ export default function ActiveWorkout() {
   // re-reports its y. Summing the heights in the current order stays right on both.
   const cardH = useRef(new Map<string, number>())
   const keysRef = useRef<string[]>([])
+  // Each stretch of the list - one standalone exercise or a whole superset block - is measured
+  // as a unit; the members inside a block are summed from their own heights.
+  const segH = useRef(new Map<string, number>())
+  const segsRef = useRef<{ start: number; end: number }[]>([])
+  const [sheet, setSheet] = useState<{ index: number; preselect?: number } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current) }, [])
 
   useEffect(() => {
     fetchSettings()
@@ -92,7 +106,17 @@ export default function ActiveWorkout() {
   const jumpToExercise = useCallback((idx: number) => {
     setActiveExIdx(idx)
     let y = CARD_GAP
-    for (let j = 0; j < idx; j++) y += (cardH.current.get(keysRef.current[j]) ?? 0) + CARD_GAP + JOINT_STEP
+    for (const seg of segsRef.current) {
+      if (idx > seg.end) {
+        y += (segH.current.get(keysRef.current[seg.start]) ?? 0) + CARD_GAP + JOINT_STEP
+        continue
+      }
+      if (seg.end > seg.start) {
+        y += BLOCK_HEAD
+        for (let j = seg.start; j < idx; j++) y += (cardH.current.get(keysRef.current[j]) ?? 0) + CONNECTOR_STEP
+      }
+      break
+    }
     requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: Math.max(0, y - 8), animated: true }))
   }, [])
 
@@ -129,21 +153,37 @@ export default function ActiveWorkout() {
     const target = wasCompleted ? null : nextSupersetTarget(useWorkoutSession.getState().session?.exercises ?? [], exIdx, setIdx)
     const focus = target?.exIdx ?? exIdx
     if (focus !== activeExIdx) setActiveExIdx(focus)
-  })
-
-  const toggleJoint = useStableCallback((i: number) => {
-    const exercises = useWorkoutSession.getState().session?.exercises ?? []
-    const linked = isLinkedToNext(exercises, i)
-    if (linked) unlinkFromNext(i)
-    else linkWithNext(i)
-    if (Platform.OS !== 'web') {
-      AccessibilityInfo.announceForAccessibility(
-        t(linked ? 'workouts.superset.unlinkedA11y' : 'workouts.superset.linkedA11y', {
-          a: exercises[i]?.exercise.name, b: exercises[i + 1]?.exercise.name,
-        }),
-      )
+    // Mid-round only: a finished round starts the rest timer, which says what comes next.
+    const rows = useWorkoutSession.getState().session?.exercises ?? []
+    if (!wasCompleted && target && target.exIdx !== exIdx && groupOf(rows, exIdx) && !roundRest(rows, exIdx, setIdx).rest) {
+      const message = t('workouts.superset.toastNext', { done: rows[exIdx].exercise.name, next: rows[target.exIdx].exercise.name })
+      setToast(message)
+      if (toastTimer.current) clearTimeout(toastTimer.current)
+      toastTimer.current = setTimeout(() => setToast(null), TOAST_MS)
+      if (Platform.OS !== 'web') AccessibilityInfo.announceForAccessibility(message)
     }
   })
+
+  const openPairSheet = useStableCallback((i: number) => setSheet({ index: i }))
+
+  const removeFromSuperset = useStableCallback((i: number) => {
+    const rows = () => useWorkoutSession.getState().session?.exercises ?? []
+    if (isLinkedToNext(rows(), i)) unlinkFromNext(i)
+    if (isLinkedToNext(rows(), i - 1)) unlinkFromNext(i - 1)
+  })
+
+  const createSuperset = (partner: number) => {
+    if (!sheet) return
+    const exercises = useWorkoutSession.getState().session?.exercises ?? []
+    const a = exercises[sheet.index]?.exercise.name
+    const b = exercises[partner]?.exercise.name
+    const moves = pairLive(sheet.index, partner)
+    if (moves.length) setActiveExIdx((cur) => moves.reduce((at, m) => remapIndex(at, m.from, m.to), cur))
+    setSheet(null)
+    if (Platform.OS !== 'web') {
+      AccessibilityInfo.announceForAccessibility(t('workouts.superset.linkedA11y', { a, b }))
+    }
+  }
 
   // Mid-session add: web routes to a picker page, but the gym overlay would cover a
   // routed page — so both modes open the ExercisePicker modal (1 blank set, web parity).
@@ -263,43 +303,103 @@ export default function ActiveWorkout() {
             <AppText variant="caption" color="muted">{t('workouts.active.empty.hint')}</AppText>
           </View>
         ) : (
-          session.exercises.map((ex, exIdx) => {
-            const g = groupOf(session.exercises, exIdx)
-            return (
-            <Fragment key={rowKeys[exIdx]}>
-            <ActiveExerciseCard
-              index={exIdx}
-              ex={ex}
-              isActive={exIdx === activeExIdx}
-              isLast={exIdx === session.exercises.length - 1}
-              wUnit={wUnit}
-              weightUnit={settings.weight_unit}
-              onCardLayout={handleCardLayout}
-              onRemoveExercise={removeExercise}
-              onNotesChange={updateExerciseNotes}
-              onAddSet={addSet}
-              onRemoveSet={removeSet}
-              onUpdateSet={updateSet}
-              onCompleteSet={handleCompleteSet}
-              onJumpToExercise={jumpToExercise}
-              onRequestFinish={requestFinish}
-              supersetLetter={g?.letter}
-              supersetPosition={g ? exIdx - g.start + 1 : undefined}
-              supersetTotal={g ? g.end - g.start + 1 : undefined}
-            />
-            {exIdx < session.exercises.length - 1 ? (
-              <View>
-                <SupersetJoint
-                  linked={isLinkedToNext(session.exercises, exIdx)}
-                  aName={ex.exercise.name}
-                  bName={session.exercises[exIdx + 1].exercise.name}
-                  onToggle={() => toggleJoint(exIdx)}
-                />
-              </View>
-            ) : null}
-            </Fragment>
+          (() => {
+            const rows = session.exercises
+            const segs: { start: number; end: number }[] = []
+            for (let i = 0; i < rows.length;) {
+              const g = groupOf(rows, i)
+              const end = g ? g.end : i
+              segs.push({ start: i, end })
+              i = end + 1
+            }
+            segsRef.current = segs
+            const card = (exIdx: number, g: ReturnType<typeof groupOf>, upNext: boolean) => (
+              <ActiveExerciseCard
+                key={rowKeys[exIdx]}
+                index={exIdx}
+                ex={rows[exIdx]}
+                isActive={exIdx === activeExIdx}
+                isLast={exIdx === rows.length - 1}
+                wUnit={wUnit}
+                weightUnit={settings.weight_unit}
+                onCardLayout={handleCardLayout}
+                onRemoveExercise={removeExercise}
+                onNotesChange={updateExerciseNotes}
+                onAddSet={addSet}
+                onRemoveSet={removeSet}
+                onUpdateSet={updateSet}
+                onCompleteSet={handleCompleteSet}
+                onJumpToExercise={jumpToExercise}
+                onRequestFinish={requestFinish}
+                supersetLetter={g?.letter}
+                supersetPosition={g ? exIdx - g.start + 1 : undefined}
+                supersetTotal={g ? g.end - g.start + 1 : undefined}
+                supersetColorIndex={g ? groupColorIndex(rows, exIdx) : undefined}
+                upNext={upNext}
+                onPairWith={rows.length > 1 ? openPairSheet : undefined}
+                onRemoveFromSuperset={removeFromSuperset}
+              />
             )
-          })
+            return segs.map((seg, n) => {
+              const g = groupOf(rows, seg.start)
+              let body: ReactNode
+              if (!g) {
+                body = card(seg.start, null, false)
+              } else {
+                const total = totalRounds(rows, g.start, g.end)
+                const round = currentRound(rows, g.start, g.end)
+                const shown = Math.min(round, total - 1)
+                const members = rows.slice(g.start, g.end + 1)
+                // Mid-round: someone has ticked this round's set and the next member has not.
+                const ticked = members.some((m) => m.sets[shown]?.completed)
+                const upNextIdx = ticked ? members.findIndex((m) => m.sets[shown] && !m.sets[shown].completed) : -1
+                let footer: ReactNode = null
+                const rest = roundRest(rows, g.start, shown)
+                const src = rows[rest.sourceExIdx]
+                const seconds = src?.rest_seconds ?? settings.rest_seconds_default ?? 90
+                if (settings.rest_enabled !== false && seconds > 0 && src) {
+                  footer = (
+                    <SupersetRestFooter
+                      rest={restLabel(seconds)}
+                      afterName={src.exercise.name}
+                      nextRound={shown + 1 < total ? shown + 2 : null}
+                      colorIndex={groupColorIndex(rows, g.start)}
+                    />
+                  )
+                }
+                body = (
+                  <SupersetBlock
+                    letter={g.letter}
+                    colorIndex={groupColorIndex(rows, g.start)}
+                    count={members.length}
+                    round={round}
+                    total={total}
+                    live
+                    footer={footer}
+                  >
+                    {members.map((_, k) => (
+                      <Fragment key={rowKeys[g.start + k]}>
+                        {k > 0 ? <SupersetConnector nextName={rows[g.start + k].exercise.name} colorIndex={groupColorIndex(rows, g.start)} /> : null}
+                        {card(g.start + k, g, k === upNextIdx)}
+                      </Fragment>
+                    ))}
+                  </SupersetBlock>
+                )
+              }
+              return (
+                <Fragment key={rowKeys[seg.start]}>
+                  <View onLayout={(e) => segH.current.set(rowKeys[seg.start], e.nativeEvent.layout.height)}>{body}</View>
+                  {n < segs.length - 1 ? (
+                    <AddSupersetPill
+                      aName={rows[seg.end].exercise.name}
+                      bName={rows[seg.end + 1].exercise.name}
+                      onPress={() => setSheet({ index: seg.end, preselect: seg.end + 1 })}
+                    />
+                  ) : null}
+                </Fragment>
+              )
+            })
+          })()
         )}
 
         {/* Footer */}
@@ -364,6 +464,29 @@ export default function ActiveWorkout() {
           onClose={() => setShowPicker(false)}
         />
       ) : null}
+
+      {sheet ? (() => {
+        const rows = session.exercises
+        const cur = rows[sheet.index]
+        const group = groupOf(rows, sheet.index)
+        const partnerRest = rows[sheet.preselect ?? sheet.index]?.rest_seconds ?? cur?.rest_seconds ?? settings.rest_seconds_default ?? 90
+        return (
+          <SupersetSheet
+            visible
+            currentName={cur?.exercise.name ?? ''}
+            currentIndex={sheet.index}
+            candidates={rows
+              .map((r, index) => ({ index, name: r.exercise.name, muscle: muscleLabel(r.exercise.muscle_group), imageUrl: r.exercise.image_url }))
+              .filter((c) => c.index !== sheet.index && !(group && c.index >= group.start && c.index <= group.end))}
+            preselect={sheet.preselect}
+            restLabel={settings.rest_enabled !== false && partnerRest > 0 ? restLabel(partnerRest) : undefined}
+            onCreate={createSuperset}
+            onClose={() => setSheet(null)}
+          />
+        )
+      })() : null}
+
+      <SupersetStatusToast message={toast} />
 
       <ReorderExercisesSheet
         open={showReorder}

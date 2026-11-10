@@ -6,7 +6,7 @@ import { AppText, Sheet, SheetButton } from '../ui'
 import { currentStep, interactive } from '../ui/interaction'
 import { useTheme } from '../../theme/useTheme'
 import { ReorderList } from './ReorderExercisesSheet'
-import { SupersetMarker } from './SupersetMarker'
+import { ExerciseThumb } from './superset'
 
 export type ExercisesSheetMode = 'list' | 'reorder'
 
@@ -18,6 +18,9 @@ export interface ExerciseProgress {
   total: number
   /** Set when it is in a superset. */
   superset?: { letter: string; position: number; total: number }
+  imageUrl?: string
+  /** groupColorIndex of the row; only read when it is in a superset. */
+  colorIndex?: number
 }
 
 export type RowStatus = 'current' | 'done' | 'upcoming'
@@ -142,8 +145,13 @@ function Body({
                   className={`flex-row items-center gap-3 rounded-xl border px-3 active:opacity-70 ${here ? 'border-brand-500/50 bg-brand-500/10' : 'border-surface-border bg-surface-muted'} ${interactive(here ? 'hover:bg-brand-500/20' : 'hover:bg-surface-border', { inset: true })}`}
                 >
                   <Text className="font-sans-bold text-sm" style={{ color: here ? accent : colors.txMuted, fontVariant: ['tabular-nums'], minWidth: 18 }}>{i + 1}</Text>
+                  <ExerciseThumb
+                    url={e.imageUrl}
+                    size={36}
+                    tag={e.superset ? `${e.superset.letter}${e.superset.position}` : undefined}
+                    colorIndex={e.colorIndex ?? 0}
+                  />
                   <AppText variant={here ? 'bodySemibold' : 'body'} numberOfLines={1} className="min-w-0 flex-1">{e.name}</AppText>
-                  {e.superset ? <SupersetMarker {...e.superset} /> : null}
                   <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{`${e.done}/${e.total}`}</AppText>
                   {status === 'done' ? <CheckCircle2 size={18} color={accent} />
                     : here ? <CircleDot size={18} color={accent} />

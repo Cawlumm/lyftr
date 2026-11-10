@@ -4,13 +4,13 @@ import {
   type GestureResponderEvent, type PressableInstance, type ScrollViewInstance, type ViewInstance,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import { autoScrollSpeed, groupOf, moveItem, normaliseSupersets, useTranslation } from '@lyftr/shared'
+import { autoScrollSpeed, groupColorIndex, groupOf, moveItem, normaliseSupersets, useTranslation } from '@lyftr/shared'
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical } from '../ui/icons'
 import { AppText, IconButton, Sheet, SheetButton } from '../ui'
 import { touchTarget } from '../ui/interaction'
 import { useMotion } from '../../lib/useMotion'
 import { useTheme } from '../../theme/useTheme'
-import { SupersetMarker } from './SupersetMarker'
+import { useGroupColors } from './superset'
 
 // Every row is the same height, so a drag's target slot is its offset divided by the
 // stride: no measuring, and the rows between source and target shift by exactly one stride.
@@ -328,7 +328,7 @@ export function ReorderList({ names, rowKeys, groups, onMove }: Pick<Props, 'nam
 
   const markerFor = (i: number) => {
     const g = groupOf(rows, i)
-    return g ? { letter: g.letter, position: i - g.start + 1, total: g.end - g.start + 1 } : null
+    return g ? { letter: g.letter, position: i - g.start + 1, total: g.end - g.start + 1, colorIndex: groupColorIndex(rows, i) } : null
   }
 
   const scale = useMemo(() => lift.interpolate({ inputRange: [0, 1], outputRange: [1, LIFT_SCALE] }), [lift])
@@ -415,7 +415,7 @@ function ReorderRow({
   index: number
   name: string
   count: number
-  marker: { letter: string; position: number; total: number } | null
+  marker: { letter: string; position: number; total: number; colorIndex: number } | null
   dragging: boolean
   gripColor: string
   onLift: (from: number, pointerY: number) => void
@@ -552,7 +552,7 @@ function ReorderRow({
       </View>
       <AppText variant="bodySemibold" color="muted" style={{ fontVariant: ['tabular-nums'], minWidth: 18 }}>{index + 1}</AppText>
       <AppText variant="body" numberOfLines={1} className="flex-1">{name}</AppText>
-      {marker ? <SupersetMarker letter={marker.letter} position={marker.position} total={marker.total} /> : null}
+      {marker ? <GroupChip {...marker} /> : null}
       <IconButton
         ref={upRef}
         icon={ChevronUp}
@@ -567,6 +567,22 @@ function ReorderRow({
         disabled={index === count - 1}
         onPress={() => onMoveBy(index, 1)}
       />
+    </View>
+  )
+}
+
+// "A1" in the group's colour; the letter and place carry the meaning, the colour only groups.
+function GroupChip({ letter, position, total, colorIndex }: { letter: string; position: number; total: number; colorIndex: number }) {
+  const { t } = useTranslation()
+  const c = useGroupColors(colorIndex)
+  return (
+    <View
+      accessible
+      accessibilityLabel={t('workouts.superset.position', { letter, position, total })}
+      className="self-start rounded-md px-1.5 py-0.5"
+      style={{ backgroundColor: c.tint, borderWidth: 1, borderColor: c.border }}
+    >
+      <AppText variant="label" className="text-xs" style={{ color: c.ink }}>{`${letter}${position}`}</AppText>
     </View>
   )
 }

@@ -102,7 +102,7 @@ test.describe('Keeping the screen awake during a workout', () => {
 
 // Supersets (#227): the group is part of the persisted session, so a reload keeps the link.
 test.describe('A grouped session', () => {
-  test('survives a reload still linked, with the badge on both cards', async ({ page, request, workerAuth }) => {
+  test('survives a reload still linked, as one superset block', async ({ page, request, workerAuth }) => {
     const exercise = (await (await request.get(`${API_BASE}/exercises?limit=1`, { headers: { Authorization: `Bearer ${workerAuth.token}` } })).json()).data[0].id
     const member = (name: string) => ({
       exercise_id: exercise,
@@ -118,13 +118,13 @@ test.describe('A grouped session', () => {
     }, session)
 
     await page.goto('/workouts/active')
-    await expect(page.getByText('Superset A · 1 of 2')).toBeVisible()
-    await expect(page.getByText('Superset A · 2 of 2')).toBeVisible()
-    await expect(page.getByRole('button', { name: /^Unlink Bench Press from Barbell Row/ })).toBeVisible()
+    const block = page.getByRole('group', { name: /^Superset A, 2 exercises/ })
+    await expect(block).toBeVisible()
+    await expect(block.getByText('Straight to Barbell Row, no rest')).toBeVisible()
 
     await page.reload()
-    await expect(page.getByText('Superset A · 1 of 2')).toBeVisible()
-    await expect(page.getByText('Superset A · 2 of 2')).toBeVisible()
+    await expect(block).toBeVisible()
+    await expect(block.getByText('Straight to Barbell Row, no rest')).toBeVisible()
     const groups = await page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session')!).exercises.map((e: { superset_group: number | null }) => e.superset_group))
     expect(groups).toEqual([1, 1])
   })
