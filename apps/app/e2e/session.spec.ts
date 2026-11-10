@@ -120,11 +120,11 @@ test.describe('A grouped session', () => {
     await page.goto('/workouts/active')
     const block = page.getByRole('group', { name: /^Superset A, 2 exercises/ })
     await expect(block).toBeVisible()
-    await expect(block.getByText('Straight to Barbell Row, no rest')).toBeVisible()
+    await expect(block.getByRole('img', { name: 'Straight to Barbell Row, no rest' })).toBeVisible()
 
     await page.reload()
     await expect(block).toBeVisible()
-    await expect(block.getByText('Straight to Barbell Row, no rest')).toBeVisible()
+    await expect(block.getByRole('img', { name: 'Straight to Barbell Row, no rest' })).toBeVisible()
     const groups = await page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session')!).exercises.map((e: { superset_group: number | null }) => e.superset_group))
     expect(groups).toEqual([1, 1])
   })

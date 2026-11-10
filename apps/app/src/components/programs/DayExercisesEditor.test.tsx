@@ -144,7 +144,7 @@ describe('DayExercisesEditor', () => {
       expect(screen.getByText('A1')).toBeTruthy()
       expect(screen.getByText('A2')).toBeTruthy()
       expect(screen.queryByText('Rest after the round')).toBeNull()
-      expect(screen.getByText(/^Rest 90s after Bench Press/)).toBeTruthy()
+      expect(screen.getByLabelText(/^Rest 90s after Bench Press/)).toBeTruthy()
     })
 
     it('removing a member dissolves the partner it leaves alone', async () => {

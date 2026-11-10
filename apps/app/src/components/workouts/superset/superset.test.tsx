@@ -62,14 +62,14 @@ describe('colours', () => {
 describe('pieces (en)', () => {
   it('connector names the next exercise', async () => {
     await render(<SupersetConnector nextName="Row" colorIndex={0} />)
-    expect(screen.getByText('Straight to Row, no rest')).toBeTruthy()
+    expect(screen.getByLabelText('Straight to Row, no rest')).toBeTruthy()
   })
 
   it('rest footer says what comes after, and drops it on the last round', async () => {
     const { rerender } = await render(<SupersetRestFooter rest="1:15" afterName="Row" nextRound={3} colorIndex={0} />)
-    expect(screen.getByText('Rest 1:15 after Row, then round 3')).toBeTruthy()
+    expect(screen.getByLabelText('Rest 1:15 after Row, then round 3')).toBeTruthy()
     await rerender(<SupersetRestFooter rest="1:15" afterName="Row" nextRound={null} colorIndex={0} />)
-    expect(screen.getByText('Rest 1:15 after Row')).toBeTruthy()
+    expect(screen.getByLabelText('Rest 1:15 after Row')).toBeTruthy()
   })
 
   it('thumb shows the tag, and a dumbbell tile without an image', async () => {

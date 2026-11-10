@@ -37,8 +37,8 @@ describe('SupersetReadOnly (en)', () => {
     expect(screen.getByText('Bench A1')).toBeTruthy()
     expect(screen.getByText('Row A2')).toBeTruthy()
     expect(screen.getByText('Curl')).toBeTruthy()
-    expect(screen.getByText(/Straight to Row/)).toBeTruthy()
-    expect(screen.getAllByText(/Rest .* after Row/)).toHaveLength(1)
+    expect(screen.getByLabelText(/Straight to Row/)).toBeTruthy()
+    expect(screen.getAllByLabelText(/Rest .* after Row/)).toHaveLength(1)
   })
 
   it('keeps "no rest" on a solo exercise', async () => {

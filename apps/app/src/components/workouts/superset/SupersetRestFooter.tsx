@@ -15,17 +15,29 @@ export interface SupersetRestFooterProps {
   colorIndex: number
 }
 
-// "Rest 1:15 after Row, then round 3" (last round: "Rest 1:15 after Row"), at the block's foot.
+// A timer chip with the duration at the block's foot. The sentence ("Rest 1:15 after Row, then
+// round 3") is the label screen readers hear and the web tooltip; sighted users get the icon
+// and the number, since the header already says rest comes after each round.
 export function SupersetRestFooter({ rest, afterName, nextRound, colorIndex }: SupersetRestFooterProps) {
   const { t } = useTranslation()
   const c = useGroupColors(colorIndex)
-  const text = nextRound
+  const label = nextRound
     ? t('workouts.superset.restThen', { rest, name: afterName, n: nextRound })
     : t('workouts.superset.restThenLast', { rest, name: afterName })
   return (
-    <View className="flex-row items-center gap-2 border-t border-surface-border bg-surface-base px-3.5 py-2.5">
-      <Icon icon={Timer} size={16} color={c.ink} />
-      <AppText variant="body" className="flex-1 text-[13px]">{text}</AppText>
+    <View className="flex-row items-center justify-end border-t border-surface-border bg-surface-base px-3.5 py-2">
+      <View
+        role="img"
+        aria-label={label}
+        accessibilityLabel={label}
+        // @ts-expect-error title is a react-native-web prop (tooltip); native ignores it
+        title={label}
+        className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1"
+        style={{ backgroundColor: c.tint }}
+      >
+        <Icon icon={Timer} size={15} color={c.ink} />
+        <AppText variant="bodySemibold" className="text-[13px]" style={{ color: c.ink }}>{rest}</AppText>
+      </View>
     </View>
   )
 }

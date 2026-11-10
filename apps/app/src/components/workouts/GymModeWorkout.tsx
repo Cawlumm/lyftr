@@ -4,7 +4,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { router, usePathname } from 'expo-router'
 import {
-  ArrowRight, ArrowUpDown, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Ellipsis, Flag, Layers,
+  ArrowDown, ArrowRight, ArrowUpDown, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Ellipsis, Flag, Layers,
   LayoutList, Link2, List, Play, Plus, Repeat, Timer, Trash2, Unlink2,
 } from '../ui/icons'
 import {
@@ -98,18 +98,22 @@ function SupersetPill({ letter, round, total, colorIndex }: { letter: string; ro
   )
 }
 
-function ThenCard({ text, rests, colorIndex }: { text: string; rests: boolean; colorIndex: number }) {
+function ThenCard({ label, rest, target, colorIndex }: { label: string; rest: string | null; target: string; colorIndex: number }) {
   const { t } = useTranslation()
   const c = useGroupColors(colorIndex)
-  const Ico = rests ? Timer : ArrowRight
+  const Ico = rest ? Timer : ArrowDown
   return (
-    <View testID="gym-superset-then" className="w-full flex-row items-center gap-3 rounded-2xl border border-dashed bg-surface-raised px-3 py-2.5" style={{ borderColor: c.border }}>
+    <View testID="gym-superset-then" role="img" aria-label={label} accessibilityLabel={label} className="w-full flex-row items-center gap-3 rounded-2xl border border-dashed bg-surface-raised px-3 py-2.5" style={{ borderColor: c.border }}>
       <View className="h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: c.tint }}>
         <Ico size={20} color={c.ink} />
       </View>
-      <View className="min-w-0 flex-1">
+      <View className="min-w-0 flex-1 gap-0.5">
         <AppText variant="label" className="uppercase" style={{ color: c.ink }}>{t('gym.superset.then')}</AppText>
-        <AppText variant="bodySemibold">{text}</AppText>
+        <View className="flex-row items-center gap-1.5">
+          {rest ? <AppText variant="bodySemibold" style={{ color: c.ink }}>{rest}</AppText> : null}
+          {rest ? <ArrowRight size={15} color={c.ink} /> : null}
+          <AppText variant="bodySemibold" numberOfLines={1} className="shrink">{target}</AppText>
+        </View>
       </View>
     </View>
   )
@@ -781,7 +785,7 @@ export function GymModeWorkout() {
     && activeIdx >= restGroup.start && activeIdx <= restGroup.end
     && roundRest(session.exercises, restExIdx, restSetIdx).rest
 
-  let then: { text: string; rests: boolean } | null = null
+  let then: { label: string; rest: string | null; target: string } | null = null
   if (activeGroup && !set.completed) {
     const sim = session.exercises.map((r, k) => (k === activeIdx ? { ...r, sets: r.sets.map((s, si) => (si === clampedSetIdx ? { ...s, completed: true } : s)) } : r))
     const to = nextSupersetTarget(sim, activeIdx, clampedSetIdx)
@@ -790,7 +794,11 @@ export function GymModeWorkout() {
       const secs = sim[round.sourceExIdx]?.rest_seconds ?? settings.rest_seconds_default ?? 90
       const rests = round.rest && settings.rest_enabled !== false && secs > 0
       const args = { name: sim[to.exIdx].exercise.name, number: to.setIdx + 1 }
-      then = { rests, text: rests ? t('gym.superset.thenRest', { ...args, rest: restLabel(secs) }) : t('gym.superset.thenStraight', args) }
+      then = {
+        label: rests ? t('gym.superset.thenRest', { ...args, rest: restLabel(secs) }) : t('gym.superset.thenStraight', args),
+        rest: rests ? restLabel(secs) : null,
+        target: t('gym.superset.upNextTitle', args),
+      }
     }
   }
 
@@ -880,7 +888,7 @@ export function GymModeWorkout() {
               <CheckCircle2 size={24} color={set.completed ? accent : '#ffffff'} />
               <Text className={`font-sans-bold text-base ${set.completed ? '' : 'text-white'}`} style={set.completed ? { color: accent } : undefined}>{set.completed ? t('gym.completed') : t('gym.completeSet')}</Text>
             </Pressable>
-            {then ? <ThenCard text={then.text} rests={then.rests} colorIndex={groupColorIndex(session.exercises, activeIdx)} /> : null}
+            {then ? <ThenCard label={then.label} rest={then.rest} target={then.target} colorIndex={groupColorIndex(session.exercises, activeIdx)} /> : null}
             {ex.sets.length > 1 && !set.completed ? (
               <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} accessibilityRole={WEB_BUTTON} className={`min-h-11 justify-center px-3 active:opacity-60 ${interactive('rounded hover:opacity-70')}`}>
                 <Text className="font-sans text-xs text-tx-muted">{t('gym.removeSet')}</Text>

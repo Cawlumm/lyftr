@@ -294,7 +294,7 @@ describe('supersets', () => {
     const view = await render(<GymModeWorkout />)
     expect(screen.getByText('1/2')).toBeTruthy()
     expect(screen.getByText('Superset A · Round 1 of 2')).toBeTruthy()
-    expect(screen.getByText('Straight to Row · set 1, no rest')).toBeTruthy()
+    expect(screen.getByLabelText('Straight to Row · set 1, no rest')).toBeTruthy()
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
     await fireEvent.press(screen.getByText('Remove from superset A'))
     await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
@@ -306,7 +306,7 @@ describe('supersets', () => {
     useWorkoutSession.getState().completeSet(0, 0)
     useWorkoutSession.setState({ gymExIdx: 1, gymSetIdx: 0 })
     const view = await render(<GymModeWorkout />)
-    expect(screen.getByText(`Rest ${restLabel(75)}, then Bench Press · set 2`)).toBeTruthy()
+    expect(screen.getByLabelText(`Rest ${restLabel(75)}, then Bench Press · set 2`)).toBeTruthy()
     await view.unmount()
   })
 
