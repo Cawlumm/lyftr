@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -111,7 +112,10 @@ func main() {
 	// daily, and reads record rows too, so a fresh instance is usable before that pass
 	// finishes.
 	s := stores.New(db.DB)
-	s.Exercise.UseCatalog(oedb.New(config.C.OEDBBaseURL, config.Version()))
+	catalog := oedb.New(config.C.OEDBBaseURL, config.Version())
+	s.Exercise.UseCatalog(catalog)
+	// Thumbnails live beside the database, so they share its volume and its backups.
+	s.Thumbs = stores.NewThumbStore(db.DB, filepath.Join(filepath.Dir(config.C.DBPath), "thumbs"), catalog.BaseURL())
 
 	// The demo's exercises are primed first so the boot pass translates them too.
 	go func() {

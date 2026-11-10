@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { ExerciseImage } from './ExerciseImage'
 import { IMAGE_RETRY_DELAY_MS, IMAGE_RETRY_JITTER_MS } from '../../hooks/useImageRetry'
+import { useServerStore } from '../../lib/lyftr'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
@@ -79,5 +80,34 @@ describe('ExerciseImage', () => {
     const retry = set.mock.results[i].value
     await screen.unmount()
     expect(clear).toHaveBeenCalledWith(retry)
+  })
+
+  describe('oedb images', () => {
+    const ID = '48fe6ee6-f6e4-4d8b-9be5-a235eb8ca7e5'
+    const OEDB = `https://oedb.example/api/v1/images/${ID}`
+    const THUMB = `http://100.106.145.44:3000/api/v1/media/exercise-thumbs/${ID}`
+    beforeEach(() => { useServerStore.setState({ serverUrl: 'http://100.106.145.44:3000' }) })
+    afterEach(async () => { await act(async () => { useServerStore.setState({ serverUrl: '' }) }) })
+
+    it("loads the server's thumbnail, not the full image", async () => {
+      await render(<ExerciseImage url={OEDB} />)
+      expect(images()[0].props.source).toEqual({ uri: THUMB })
+    })
+
+    it('falls back to the original at once when the thumbnail fails (a server without the route)', async () => {
+      await render(<ExerciseImage url={OEDB} />)
+      await fail()
+      expect(images()).toHaveLength(1)
+      expect(images()[0].props.source).toEqual({ uri: OEDB })
+    })
+
+    it('gives the original its usual single retry, and never goes back to the thumbnail', async () => {
+      await render(<ExerciseImage url={OEDB} />)
+      await fail()
+      await fail()
+      expect(images()).toHaveLength(0)
+      await wait(LONGEST)
+      expect(images()[0].props.source).toEqual({ uri: OEDB })
+    })
   })
 })
