@@ -29,6 +29,12 @@ Pushing the tag triggers two workflows:
   native config, say — run the workflow manually with **dry_run_release** checked.
   It builds the same APK and leaves it as a workflow artifact, touching no Release.
 
+Google Play is separate and manual: **`play-submit.yml`** (Actions → "Google Play
+(internal draft)" → enter the version) builds the production AAB on the runner and
+uploads it to Play's internal track as a draft. Nothing reaches users until it is
+rolled out in Play Console. Console answers, listing text and assets:
+[docs/GOOGLE_PLAY.md](docs/GOOGLE_PLAY.md).
+
 ## Mobile version numbers
 
 The tag is the version, on every platform. **There is nothing to bump** — the release
