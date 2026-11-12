@@ -426,7 +426,7 @@ test('in Spanish at 360 the top row fits and nothing scrolls sideways @mobile', 
   expect(await sets.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
 
   await button(gym, 'Más opciones').click()
-  await expect(page.getByRole('menuitem')).toHaveText(['Agregar ejercicio', 'Reordenar ejercicios', 'Todos los ejercicios', 'Superserie con el siguiente', 'Resumen del entrenamiento', 'Descartar entrenamiento'])
+  await expect(page.getByRole('menuitem')).toHaveText(['Agregar ejercicio', 'Reordenar ejercicios', 'Todos los ejercicios', 'Superserie con…', 'Resumen del entrenamiento', 'Descartar entrenamiento'])
   expect(await noHorizontalScroll(page)).toBe(true)
   await page.keyboard.press('Escape')
 
@@ -563,7 +563,8 @@ test.describe('Supersets', () => {
     await expect(rest(page)).toBeVisible()
     await expect(dialog(page).getByTestId('gym-round-complete')).toBeVisible()
     await expect(dialog(page).getByText('Round 1 of 2 done')).toBeVisible()
-    await expect(dialog(page).getByText('Up next', { exact: true })).toBeVisible()
+    // Two rounds, so the one after round 1 is the last.
+    await expect(dialog(page).getByText('Up next · final round', { exact: true })).toBeVisible()
 
     const stored = await storedSession(page)
     expect(stored.exercises[0].sets.map((s: { completed: boolean }) => s.completed)).toEqual([true, false])
