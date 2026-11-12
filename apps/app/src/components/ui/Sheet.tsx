@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Animated as RNAnimated, Modal, PanResponder, Platform, View } from 'react-native'
-import Animated, { Keyframe, SlideInDown } from 'react-native-reanimated'
+import { Animated as RNAnimated, Dimensions, Easing as RNEasing, Modal, PanResponder, Platform, View } from 'react-native'
+import Animated, { Keyframe } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { DURATION, EASING } from '../../theme/motion'
@@ -52,6 +52,12 @@ interface Props {
 //  • Motion — animationType="slide" would slide the whole overlay, scrim included, up
 //    from the bottom. Instead the scrim fades in place (animationType="fade") and only
 //    the sheet slides, on an ease-out curve (no spring bounce).
+//  • The slide is a plain Animated transform, not a Reanimated `entering` animation (#145).
+//    On Android a Modal is first laid out short by the system bars, then at full height
+//    (react-native#59353), and a view with `entering` keeps painting at its first position when
+//    it moves before first paint (reanimated#10806, unreleased fix). The sheet was then drawn
+//    about 50dp above where it took touches: taps on its buttons missed unless they hit the
+//    lower edge. A transform over the sheet's real layout moves with it.
 // Children own their horizontal padding; the shell provides the surface, grabber, and
 // safe bottom. Tap the scrim to dismiss; the sheet body stops propagation.
 // On a web screen from sm up the same content is a centred dialog instead (SheetFrame.web).
@@ -66,6 +72,8 @@ export function Sheet({
   // its own native root, and gesture-handler needs a root view inside it to receive touches.
   // Only the grabber zone listens, so a ScrollView inside the sheet keeps its own scrolling.
   const dragY = useRef(new RNAnimated.Value(0)).current
+  // Starts below the screen, so the first frame of an opening sheet is already off-screen.
+  const slideY = useRef(new RNAnimated.Value(Dimensions.get('window').height)).current
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
   const durationRef = useRef(duration)
@@ -96,6 +104,19 @@ export function Sheet({
   useEffect(() => {
     if (open) dragY.setValue(0)
   }, [open, dragY])
+
+  useEffect(() => {
+    if (!open) {
+      slideY.setValue(Dimensions.get('window').height)
+      return
+    }
+    RNAnimated.timing(slideY, {
+      toValue: 0,
+      duration: durationRef.current(SHEET_ANIM_MS),
+      easing: RNEasing.out(RNEasing.cubic), // EASING.enter's curve; that token is Reanimated's
+      useNativeDriver: nativeDriver(),
+    }).start()
+  }, [open, slideY])
 
   useEffect(() => {
     if (!open || haptic === 'none') return
@@ -137,21 +158,19 @@ export function Sheet({
             </Animated.View>
           </View>
         ) : (
-          <Animated.View entering={SlideInDown.duration(duration(SHEET_ANIM_MS)).easing(EASING.enter)}>
-            <RNAnimated.View style={{ transform: [{ translateY: dragY }] }}>
-              <SheetSurface
-                style={{ paddingBottom: insets.bottom + bottomInset }}
-                className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
-              >
-                {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
-                    zone is taller than the bar so it is easy to hit; matches the web handle. */}
-                <View testID="sheet-grabber" {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
-                  <View className="h-1 w-10 rounded-full bg-surface-muted" />
-                </View>
-                {children}
-              </SheetSurface>
-            </RNAnimated.View>
-          </Animated.View>
+          <RNAnimated.View style={{ transform: [{ translateY: RNAnimated.add(slideY, dragY) }] }}>
+            <SheetSurface
+              style={{ paddingBottom: insets.bottom + bottomInset }}
+              className="rounded-t-3xl border border-surface-border bg-surface-base pt-3"
+            >
+              {/* Grabber — signals a dismissible sheet, and is the handle you swipe down. The
+                  zone is taller than the bar so it is easy to hit; matches the web handle. */}
+              <View testID="sheet-grabber" {...pan.panHandlers} className="-mt-3 items-center pb-3 pt-3">
+                <View className="h-1 w-10 rounded-full bg-surface-muted" />
+              </View>
+              {children}
+            </SheetSurface>
+          </RNAnimated.View>
         )}
       </SheetBackdrop>
     </Modal>
