@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/gin-gonic/gin"
@@ -32,13 +33,19 @@ func (h *Handler) ExerciseThumb(c *gin.Context) {
 	case errors.Is(err, stores.ErrThumbUnknown):
 		c.Status(http.StatusNotFound)
 	case errors.Is(err, stores.ErrThumbUpstream):
-		log.Printf("exercise thumb %s: %v", c.Param("id"), err)
+		log.Printf("exercise thumb: %s", logSafe(err))
 		// Not cached: the next request should try oedb again.
 		c.Header("Cache-Control", "no-store")
 		c.Status(http.StatusBadGateway)
 	default:
-		log.Printf("exercise thumb %s: %v", c.Param("id"), err)
+		log.Printf("exercise thumb: %s", logSafe(err))
 		c.Header("Cache-Control", "no-store")
 		c.Status(http.StatusInternalServerError)
 	}
+}
+
+// The error can carry the requested id (inside oedb's URL); the store has already held it to
+// a UUID, but a log line must not be splittable by anything that reached it from a request.
+func logSafe(err error) string {
+	return strings.ReplaceAll(strings.ReplaceAll(err.Error(), "\n", ""), "\r", "")
 }
