@@ -16,7 +16,9 @@ type Stores struct {
 	Exercise      *ExerciseStore
 	Workout       *WorkoutStore
 	Program       *ProgramStore
-	db            *sql.DB // for operations that must span two stores in one transaction
+	// Thumbs is wired by main (it needs the data directory and oedb origin); nil in tests that do not use it.
+	Thumbs *ThumbStore
+	db     *sql.DB // for operations that must span two stores in one transaction
 }
 
 func New(db *sql.DB) *Stores {

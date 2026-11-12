@@ -23,6 +23,9 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 	// Public: "test connection" probe for the in-app server selector.
 	api.GET("/info", h.ServerInfo)
 
+	// Public: exercise thumbnails load through <img>/<Image>, which cannot send a token.
+	api.GET("/media/exercise-thumbs/:id", h.ExerciseThumb)
+
 	// Auth (public)
 	auth := api.Group("/auth")
 	{
