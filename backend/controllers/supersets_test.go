@@ -1,70 +1,37 @@
 package controllers
 
 import (
-	"encoding/json"
 	"net/http"
-	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/gin-gonic/gin"
 )
 
-func loadSupersetFixtures(t *testing.T) []struct {
-	Name       string `json:"name"`
-	Input      []*int `json:"input"`
-	Normalised []*int `json:"normalised"`
-	Contiguous bool   `json:"contiguous"`
-} {
-	t.Helper()
-	raw, err := os.ReadFile("../../packages/shared/src/utils/supersets.fixtures.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var f struct {
-		Cases []struct {
-			Name       string `json:"name"`
-			Input      []*int `json:"input"`
-			Normalised []*int `json:"normalised"`
-			Contiguous bool   `json:"contiguous"`
-		} `json:"cases"`
-	}
-	if err := json.Unmarshal(raw, &f); err != nil {
-		t.Fatal(err)
-	}
-	return f.Cases
-}
-
-func TestSupersetsContiguous_matchesSharedFixtures(t *testing.T) {
-	for _, tc := range loadSupersetFixtures(t) {
-		if got := supersetsContiguous(tc.Input); got != tc.Contiguous {
-			t.Errorf("%s: contiguous = %v, want %v", tc.Name, got, tc.Contiguous)
-		}
-	}
-}
-
+// wexList and pexList build rows the way current clients do: superset_group on every row,
+// null when ungrouped. legacyRows strips it, as a client predating supersets sends them.
 func wexList(groups []any, exID int64) []map[string]any {
 	out := make([]map[string]any, len(groups))
 	for i, g := range groups {
-		ex := map[string]any{"exercise_id": exID, "sets": []map[string]any{{"reps": 5, "weight": 100}}}
-		if g != nil {
-			ex["superset_group"] = g
-		}
-		out[i] = ex
+		out[i] = map[string]any{"exercise_id": exID, "superset_group": g, "sets": []map[string]any{{"reps": 5, "weight": 100}}}
 	}
 	return out
+}
+
+func legacyRows(rows []map[string]any) []map[string]any {
+	for _, r := range rows {
+		delete(r, "superset_group")
+	}
+	return rows
 }
 
 func pexList(groups []any, exID int64) []map[string]any {
 	out := make([]map[string]any, len(groups))
 	for i, g := range groups {
-		ex := map[string]any{"exercise_id": exID, "sets": []map[string]any{{"target_reps": 5, "target_weight": 100}}}
-		if g != nil {
-			ex["superset_group"] = g
-		}
-		out[i] = ex
+		out[i] = map[string]any{"exercise_id": exID, "superset_group": g, "sets": []map[string]any{{"target_reps": 5, "target_weight": 100}}}
 	}
 	return out
 }
@@ -261,21 +228,92 @@ func TestCreate_singletonNormalisedToNull(t *testing.T) {
 	wantGroups(t, groupsOf(t, programDays(body)[0].(map[string]any)["exercises"].([]any)), nil, nil)
 }
 
-func TestOldClientOmitsGroup_storesNull(t *testing.T) {
+// A client predating supersets sends no superset_group at all. Its edit must keep the stored
+// links rather than read the absent field as "unlink" (#227).
+func TestLegacyClientWorkoutEdit_keepsSupersets(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	a, b, c := namedExercise(t, "Bench"), namedExercise(t, "Row"), namedExercise(t, "Curl")
+	rows := func(ids ...int64) []map[string]any {
+		out := []map[string]any{}
+		for _, id := range ids {
+			out = append(out, map[string]any{"exercise_id": id, "superset_group": nil, "sets": []map[string]any{{"reps": 5, "weight": 100}}})
+		}
+		return out
+	}
+	create := func() string {
+		r := rows(a, b, c)
+		r[0]["superset_group"], r[1]["superset_group"] = 1, 1
+		cx, w := newContext(uid, http.MethodPost, "/api/v1/workouts", map[string]any{"name": "SS", "exercises": r})
+		th.CreateWorkout(cx)
+		return strconv.FormatInt(int64(decodeResponse(t, w)["data"].(map[string]any)["id"].(float64)), 10)
+	}
+	put := func(id string, exs []map[string]any) []any {
+		cx, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+id, map[string]any{"name": "SS edited", "exercises": exs})
+		setParam(cx, "id", id)
+		th.UpdateWorkout(cx)
+		if w.Code != http.StatusOK {
+			t.Fatalf("update: %d %s", w.Code, w.Body.String())
+		}
+		return groupsOf(t, workoutExercises(decodeResponse(t, w)))
+	}
+
+	id := create()
+	wantGroups(t, put(id, legacyRows(rows(a, b, c))), 1, 1, nil)
+	wantGroups(t, put(id, legacyRows(rows(b, a, c))), 1, 1, nil)         // the pair reordered stays a pair
+	wantGroups(t, put(id, legacyRows(rows(b, a, c, c))), 1, 1, nil, nil) // an added row is not linked
+	wantGroups(t, put(id, legacyRows(rows(b, c))), nil, nil)             // a removed partner dissolves the pair
+
+	id = create()
+	wantGroups(t, put(id, legacyRows(rows(a, c, b))), nil, nil, nil) // split by a reorder: saved unlinked, not refused
+
+	// A current client's explicit nulls still unlink.
+	id = create()
+	wantGroups(t, put(id, rows(a, b, c)), nil, nil, nil)
+}
+
+func namedExercise(t *testing.T, name string) int64 {
+	t.Helper()
+	res, err := db.DB.Exec(`INSERT INTO exercises (name, muscle_group, category) VALUES (?, 'chest', 'strength')`, name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, _ := res.LastInsertId()
+	return id
+}
+
+func TestLegacyClientProgramEdit_keepsSupersetsPerDay(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
 	ex := createTestExercise(t)
-	_, body := postWorkout(t, uid, []any{1, 1}, ex)
+	_, body := postProgram(t, uid, [][]any{{1, 1, nil}, {nil, 2, 2}}, ex)
 	id := strconv.FormatInt(int64(body["data"].(map[string]any)["id"].(float64)), 10)
 
-	c, w := newContext(uid, http.MethodPut, "/api/v1/workouts/"+id, map[string]any{
-		"name":      "SS",
-		"exercises": []map[string]any{{"exercise_id": ex, "sets": []map[string]any{{"reps": 5}}}, {"exercise_id": ex}},
-	})
+	days := []map[string]any{
+		{"is_rest_day": false, "exercises": legacyRows(pexList([]any{nil, nil, nil}, ex))},
+		{"is_rest_day": false, "exercises": legacyRows(pexList([]any{nil, nil, nil}, ex))},
+		{"is_rest_day": false, "exercises": legacyRows(pexList([]any{nil, nil}, ex))}, // a new day has nothing to keep
+	}
+	c, w := newContext(uid, http.MethodPut, "/api/v1/programs/"+id, map[string]any{"name": "SS edited", "days": days})
 	setParam(c, "id", id)
-	th.UpdateWorkout(c)
+	th.UpdateProgram(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("update: %d %s", w.Code, w.Body.String())
+	}
+	got := programDays(decodeResponse(t, w))
+	wantGroups(t, groupsOf(t, got[0].(map[string]any)["exercises"].([]any)), 1, 1, nil)
+	wantGroups(t, groupsOf(t, got[1].(map[string]any)["exercises"].([]any)), nil, 1, 1)
+	wantGroups(t, groupsOf(t, got[2].(map[string]any)["exercises"].([]any)), nil, nil)
+}
+
+func TestLegacyClientCreate_storesNull(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	ex := createTestExercise(t)
+	c, w := newContext(uid, http.MethodPost, "/api/v1/workouts", map[string]any{"name": "SS", "exercises": legacyRows(wexList([]any{1, 1}, ex))})
+	th.CreateWorkout(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", w.Code, w.Body.String())
 	}
 	wantGroups(t, groupsOf(t, workoutExercises(decodeResponse(t, w))), nil, nil)
 }
@@ -321,4 +359,22 @@ func violationCode(body map[string]any) string {
 	}
 	code, _ := vs[0].(map[string]any)["code"].(string)
 	return code
+}
+
+func TestSupersetsOmitted_matchesKeysLikeTheDecoder(t *testing.T) {
+	for body, want := range map[string]bool{
+		`{"exercises":[{"exercise_id":1},{"exercise_id":2}]}`:                       true,
+		`{"exercises":[{"exercise_id":1,"superset_group":null},{"exercise_id":2}]}`: false,
+		`{"exercises":[{"exercise_id":1,"Superset_Group":3}]}`:                      false,
+		`{"days":[{"exercises":[{"exercise_id":1}]},{"exercises":[]}]}`:             true,
+		`{"days":[{"exercises":[]},{"exercises":[{"superset_group":null}]}]}`:       false,
+		`{"name":"rename only"}`: false,
+		`{"exercises":[]}`:       false,
+	} {
+		c, _ := newContext(1, http.MethodPut, "/", nil)
+		c.Set(gin.BodyBytesKey, []byte(body))
+		if got := supersetsOmitted(c); got != want {
+			t.Errorf("%s: omitted = %v, want %v", body, got, want)
+		}
+	}
 }

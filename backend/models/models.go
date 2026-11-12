@@ -302,6 +302,10 @@ type CreateWorkoutRequest struct {
 	// each dimension independently, not their product — see MaxWorkoutSets above for
 	// the cap that actually matters.
 	Exercises []CreateWorkoutExerciseReq `json:"exercises" validate:"max=500,dive"`
+	// LegacySupersets is set by the handler, never decoded, when no exercise in an update
+	// carries superset_group: a client predating supersets. Update then keeps the stored
+	// labels (carrySupersetGroups) instead of reading the absent field as "unlink".
+	LegacySupersets bool `json:"-"`
 }
 
 type CreateWorkoutExerciseReq struct {
@@ -309,7 +313,8 @@ type CreateWorkoutExerciseReq struct {
 	OrderIndex  int    `json:"order_index"`
 	Notes       string `json:"notes"`
 	RestSeconds int    `json:"rest_seconds"`
-	// Omitted by older clients, which store NULL.
+	// Omitted by clients predating supersets: a create stores NULL, an update keeps
+	// what was stored (CreateWorkoutRequest.LegacySupersets).
 	SupersetGroup *int           `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
 	Sets          []CreateSetReq `json:"sets" validate:"max=500"`
 }
@@ -494,6 +499,10 @@ type CreateProgramRequest struct {
 	// would positionally re-attribute the deleted days' workout history to the
 	// brand-new days (see ProgramStore.Update). Ignored on create.
 	DayIDsKnown bool `json:"day_ids_known"`
+	// LegacySupersets is set by the handler, never decoded, when no exercise in an update
+	// carries superset_group: a client predating supersets. Update then keeps each kept day's
+	// stored labels (carrySupersetGroups) instead of reading the absent field as "unlink".
+	LegacySupersets bool `json:"-"`
 }
 
 // CreateProgramDayReq is one Day in a program's cycle. Exercises is ignored (and
@@ -514,7 +523,8 @@ type CreateProgramExerciseReq struct {
 	ExerciseID  int64  `json:"exercise_id" validate:"required"`
 	Notes       string `json:"notes"`
 	RestSeconds int    `json:"rest_seconds"`
-	// Omitted by older clients, which store NULL.
+	// Omitted by clients predating supersets: a create stores NULL, an update keeps
+	// what was stored (CreateProgramRequest.LegacySupersets).
 	SupersetGroup *int                  `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
 	Sets          []CreateProgramSetReq `json:"sets" validate:"max=500"`
 }

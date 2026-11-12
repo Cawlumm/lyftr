@@ -9,6 +9,7 @@ import (
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -27,7 +28,7 @@ func init() {
 			total += len(ex.Sets)
 			groups[i] = ex.SupersetGroup
 		}
-		if !supersetsContiguous(groups) {
+		if !stores.SupersetsContiguous(groups) {
 			sl.ReportError(req.Exercises, "Exercises", "Exercises", "supersetcontiguous", "")
 		}
 		if total > models.MaxWorkoutSets {
@@ -119,10 +120,12 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 		return
 	}
 	var req models.CreateWorkoutRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// BodyWith keeps the body, so supersetsOmitted can tell an absent superset_group from null.
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		utils.BindError(c, err)
 		return
 	}
+	req.LegacySupersets = supersetsOmitted(c)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return

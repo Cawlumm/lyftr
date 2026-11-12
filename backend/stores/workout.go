@@ -186,11 +186,18 @@ func (s *WorkoutStore) Update(uid, id int64, req models.CreateWorkoutRequest, lo
 		); err != nil {
 			return err
 		}
+		exercises := req.Exercises
+		if req.LegacySupersets {
+			var err error
+			if exercises, err = carryWorkoutSupersets(tx, id, exercises); err != nil {
+				return err
+			}
+		}
 		// Children replaced wholesale; sets cascade-delete with their workout_exercise.
 		if _, err := tx.Exec(`DELETE FROM workout_exercises WHERE workout_id = ?`, id); err != nil {
 			return err
 		}
-		return insertWorkoutExercises(tx, id, req.Exercises)
+		return insertWorkoutExercises(tx, id, exercises)
 	}); err != nil {
 		return models.Workout{}, err
 	}
@@ -204,6 +211,27 @@ func (s *WorkoutStore) Delete(uid, id int64) (int64, error) {
 	}
 	n, _ := res.RowsAffected()
 	return n, nil
+}
+
+// carryWorkoutSupersets returns a copy of exercises labelled as the stored rows were, for an
+// edit from a client that cannot send labels (CreateWorkoutRequest.LegacySupersets).
+func carryWorkoutSupersets(tx *sql.Tx, wid int64, exercises []models.CreateWorkoutExerciseReq) ([]models.CreateWorkoutExerciseReq, error) {
+	prevIDs, prevGroups, err := storedSupersetGroups(tx,
+		`SELECT exercise_id, superset_group FROM workout_exercises WHERE workout_id = ? ORDER BY order_index`, wid)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(exercises))
+	for i, ex := range exercises {
+		ids[i] = ex.ExerciseID
+	}
+	groups := carrySupersetGroups(prevIDs, prevGroups, ids)
+	out := make([]models.CreateWorkoutExerciseReq, len(exercises))
+	for i, ex := range exercises {
+		ex.SupersetGroup = groups[i]
+		out[i] = ex
+	}
+	return out, nil
 }
 
 // insertWorkoutExercises writes the exercises + their sets for a workout within tx.
