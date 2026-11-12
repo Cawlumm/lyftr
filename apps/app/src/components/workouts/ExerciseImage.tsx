@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { Image, View } from 'react-native'
+import { exerciseThumbUrl } from '@lyftr/shared'
 import { Dumbbell } from '../ui/icons'
 import type { LucideIcon } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 import { useImageRetry } from '../../hooks/useImageRetry'
+import { useServerStore } from '../../lib/lyftr'
 
 type Size = 'row' | 'hero'
 
@@ -22,16 +25,21 @@ const BOX: Record<Size, { box: string; icon: number }> = {
 // Exercise thumbnail with the web's onError fallback: missing/broken image_url →
 // brand-tinted Dumbbell chip. The web hides the <img> element on error; RN Images
 // can't be restyled after failing, so we swap components via state instead.
-// Retrying lives in useImageRetry, which takes whatever url this renders, so choosing a
-// smaller rendition per size can change `url` here without touching it.
+// An oedb image is drawn from the server's 192px thumbnail (exerciseThumbUrl). If that fails
+// once - a server older than the app has no such route - it falls back to the original for
+// good, and the original gets useImageRetry's usual single retry.
 export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumbbell }: Props) {
   // Icon color is an SVG prop (documented className exception) — accent keeps the
   // cyan legible on both themes.
   const { accent } = useTheme()
-  const { failed, key, onError } = useImageRetry(url)
+  const serverUrl = useServerStore((st) => st.serverUrl)
+  const thumb = exerciseThumbUrl(url, serverUrl)
+  const [brokenThumb, setBrokenThumb] = useState<string>()
+  const src = thumb && thumb !== brokenThumb ? thumb : url
+  const { failed, key, onError } = useImageRetry(src)
 
   const s = BOX[size]
-  if (!url || failed) {
+  if (!src || failed) {
     return (
       <View className={`${s.box} rounded-xl bg-brand-500/10 border border-brand-500/20 items-center justify-center`}>
         <Fallback size={s.icon} color={accent} strokeWidth={2} />
@@ -41,8 +49,8 @@ export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumb
   return (
     <Image
       key={key}
-      source={{ uri: url }}
-      onError={onError}
+      source={{ uri: src }}
+      onError={src === thumb ? () => setBrokenThumb(thumb) : onError}
       resizeMode="cover"
       className={`${s.box} rounded-xl bg-surface-muted`}
     />

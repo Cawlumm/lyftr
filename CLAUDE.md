@@ -1,74 +1,27 @@
 # Lyftr — project context
 
-Self-hosted workout tracker. Go backend, React/TypeScript frontend, SQLite, Docker.
-GitHub: https://github.com/Cawlumm/lyftr
+Self-hosted workout tracker: Go (Gin) + SQLite backend, Expo/React Native app (iOS, Android and the web export), Docker. GitHub: https://github.com/Cawlumm/lyftr
 
-Written for everyone who works on this repo, human or agent. It is checked in, so it is
-also what the automated PR review reads; `REVIEW.md` says how findings against these rules
-should be weighed, and deliberately does not restate them.
+Written for humans and agents alike; it is checked in, so it is also what the automated PR review reads (`REVIEW.md` says how to weigh findings against it). Machine-specific setup — your paths, ports, editor, hardware limits — goes in `~/.claude/CLAUDE.md` or the gitignored `CLAUDE.local.md`, never here.
 
-Machine-specific setup — your own paths, ports, editor, hardware limits — does not belong
-here. Put that in your personal `~/.claude/CLAUDE.md`, which is not shared.
-
-Every rule below was paid for by a bug. Where one names a file, that file is the single
-place the rule is enforced; adding a second is how the rule stops holding.
-
----
-
-## Stack
-
-| Layer | Tech |
-|-------|------|
-| Backend | Go 1.26, Gin, SQLite (`_foreign_keys=on`) |
-| Frontend | Expo / React Native (one app for iOS, Android and the web export), TypeScript, NativeWind |
-| Auth | JWT + refresh tokens (middleware/auth.go) |
-| Deployment | Docker Compose, nginx reverse proxy |
-
----
-
-## Project Structure
-
-```
-backend/
-  main.go               — entry point, wires DB + routes + seed
-  config/config.go      — env vars (JWT_SECRET, CORS_ORIGIN, PORT)
-  controllers/          — one file per resource
-  db/sqlite.go          — opens SQLite, enables WAL + foreign keys
-  db/migrations.go      — schema migrations (run on startup)
-  middleware/auth.go    — JWT validation middleware
-  models/models.go      — all structs + request types
-  routes/routes.go      — all routes, protected vs public
-  stores/exercise.go    — exercise store: local cache of oedb rows + scheduled sync
-  seed/users.go         — demo user seeding (see also seed/demo_data.go)
-  utils/response.go     — utils.OK / utils.BadRequest helpers
-
-apps/app/
-  app/                  — Expo Router: one file per screen/route (native and web)
-  src/                  — components, hooks, theme, lib/lyftr.ts (client + stores)
-  e2e/                  — Playwright specs against the web export
-packages/shared/src/
-  client.ts             — the one axios client; types, stores, utils (dateUtils, weight, number)
-```
+Every rule below was paid for by a bug. Where one names a file, that file is the single place the rule is enforced; adding a second is how the rule stops holding.
 
 ---
 
 ## Key Conventions
 
 **Backend**
-- All handlers use `utils.OK(c, data)` and `utils.BadRequest(c, msg)`
-- Routes: public under `/api/v1/auth/`, protected under `/api/v1/` (JWT required)
-- Admin routes: `protected.GET/POST("admin/...")` — requires auth, no separate role check yet
-- Weight stored in **lbs** internally (backend stores raw numbers; the unit is a frontend convention). Frontend converts via `lbsToDisplay`/`displayToLbs` in `packages/shared/src/utils/weight.ts` based on `user_settings.weight_unit` — never store display values directly
-- `exercise_id` FK references `exercises(id)` — **no ON DELETE CASCADE** — never wipe exercises table while workout/program data exists
-- New migrations go in `db/migrations.go` — append only, never modify existing
+- Handlers use `utils.OK(c, data)` / `utils.BadRequest(c, msg)`. Routes: public under `/api/v1/auth/`, protected under `/api/v1/` (JWT). `admin/...` routes need auth but have no role check yet.
+- Weight is stored in **lbs**; the unit is a frontend convention. Convert via `lbsToDisplay`/`displayToLbs` in `packages/shared/src/utils/weight.ts` using `user_settings.weight_unit` — never store display values.
+- `exercise_id` FKs reference `exercises(id)` with **no ON DELETE CASCADE** — never wipe/DELETE from `exercises` while workout/program data exists. A row oedb stops listing is hidden (`exercises.upstream_missing_at`, hidden from `List` only), never deleted; `markUpstreamMissing` is the one place that decides, and it refuses an export under half of what is held (`ErrCatalogShrank`) unless an operator confirms with `?confirm_removals=true`.
+- Migrations go in `db/migrations.go` — append only, never modify existing.
 
 **Frontend**
-- API calls go through the shared client (`packages/shared/src/client.ts`, bound in `apps/app/src/lib/lyftr.ts`) — never inline `axios`/`fetch`
-- Always null-guard arrays before `.reduce`/`.forEach`: `(w.exercises ?? []).forEach(...)`
-- Duration stored as **seconds** in DB — display as `Math.round(duration / 60)` min
-- Light/dark theme via `localStorage.setItem('theme', 'light|dark')` + `document.documentElement.classList`
-- Mobile-first: 90% of users on mobile, desktop is secondary
-- New pages: create a route file in `apps/app/app/` (it serves native and web)
+- API calls go through the shared client (`packages/shared/src/client.ts`, bound in `apps/app/src/lib/lyftr.ts`) — never inline `axios`/`fetch`.
+- Null-guard arrays before `.reduce`/`.forEach`: `(w.exercises ?? []).forEach(...)`.
+- Duration is stored as **seconds** — display `Math.round(duration / 60)` min.
+- Theme: `localStorage.setItem('theme', 'light|dark')` + `document.documentElement.classList`.
+- Mobile-first (90% of users); desktop is secondary. New pages are a route file in `apps/app/app/` (serves native and web).
 
 ---
 
@@ -76,98 +29,49 @@ packages/shared/src/
 
 **The rule: a row records its own day. Nothing re-derives one from whoever is reading.**
 
-An instant does not contain a day — a day is an instant *plus a place*. So every
-day-scoped row stores both. This is the model Fitbit, Garmin, Strava and Android
-Health Connect all use, and the reason travelling no longer rewrites history.
+An instant does not contain a day — a day is an instant *plus a place* — so every day-scoped row stores both, and travelling does not rewrite history.
 
-| Entity | Instant | Day attribution | Peer precedent |
-|---|---|---|---|
-| `food_logs`, `weight_logs` | `logged_at` (UTC) | `logged_on` — stored `YYYY-MM-DD` | Fitbit `logDate` |
-| `workouts` | `started_at` (UTC) | `tz_offset_minutes` — offset at start | Strava `utc_offset`, Garmin `startTimeOffsetInSeconds` |
+- `food_logs`, `weight_logs`: `logged_at` (UTC) + `logged_on` (`YYYY-MM-DD`). The user *picks* the day.
+- `workouts`: `started_at` (UTC) + `tz_offset_minutes` (offset at start). The day *follows* from where the moment happened.
 
-Diary entries store the day because the user *picks* it. Workouts store an offset
-because the day *follows* from where the moment happened. Fitbit splits them the
-same way.
-
-**`user_settings.timezone` is not dead and is not the source of day attribution.**
-It answers only questions about *now*, which no stored row can answer:
-- "What is today?" for a read with no `date` param
-- "30 days back from *your* today" — `/food/history`, `/weight/stats` send no dates
-- The day/offset for a write from a client too old to send one (back-compat fallback)
+**`user_settings.timezone` is not dead and is not the source of day attribution.** It answers only questions about *now*: "what is today?" for a read with no `date` param; "30 days back from your today" (`/food/history`, `/weight/stats` send no dates); and the day/offset for a write from a client too old to send one.
 
 ### Single points of truth — do not add a fifth way to get a day
 
-- **Backend**: `backend/controllers/timezone.go`. `resolveDay` (writes),
-  `resolveQueryDay` (reads), `daysAgoDay` (windows), `tzOffsetMinutes` (workouts).
-  Every handler goes through one of these. No inline `time.Now().In(loc)` elsewhere.
-- **Client**: `packages/shared/src/utils/dateUtils.ts` — **one copy, imported
-  from `@lyftr/shared`**. `entryDay(e)` for diary rows, `workoutDay(w)` for
-  workouts — never `new Date(x).getDate()` or `.toISOString().slice(0,10)` in a page.
-  Writes go through `withLoggedOn` / `utcOffsetMinutes` in the API layer, so no screen
-  can forget to send the day.
-- There is no fork to keep in step (and no `dateUtils.fork.test.ts`). What protects the
-  shared copy is CI: the `mobile` paths filter in `ci.yml` includes `packages/shared/**`,
-  so editing a shared util runs mobile's jest suite, the web export and the e2e gate.
+- **Backend**: `backend/controllers/timezone.go` — `resolveDay` (writes), `resolveQueryDay` (reads), `daysAgoDay` (windows), `tzOffsetMinutes` (workouts). Every handler goes through one; no inline `time.Now().In(loc)` elsewhere.
+- **Client**: `packages/shared/src/utils/dateUtils.ts`, one copy, imported from `@lyftr/shared`. `entryDay(e)` for diary rows, `workoutDay(w)` for workouts — never `new Date(x).getDate()` or `.toISOString().slice(0,10)` in a page. Writes go through `withLoggedOn` / `utcOffsetMinutes` in the API layer so no screen can forget the day.
+- Editing a shared util is guarded by CI: the `mobile` paths filter in `ci.yml` includes `packages/shared/**`, so mobile's jest suite, the web export and the e2e gate run.
 
 ### Gotchas
 
-- SQLite `date(started_at, ...)` returns NULL: the modernc driver writes Go's
-  `String()` form (`2026-04-25 03:30:00 +0000 UTC`). Use `substr(x, 1, 19)` first.
-- `time/tzdata` must stay imported — Alpine ships no `/usr/share/zoneinfo`, so
-  `LoadLocation` would silently fall back to UTC in production only.
+- SQLite `date(started_at, ...)` returns NULL: the modernc driver writes Go's `String()` form (`2026-04-25 03:30:00 +0000 UTC`). Use `substr(x, 1, 19)` first.
+- `time/tzdata` must stay imported — Alpine has no zoneinfo, so `LoadLocation` silently falls back to UTC in production only.
 - Day arithmetic uses `AddDate(0, 0, n)`, never `Add(24 * time.Hour)` (DST).
 
 ---
 
 ## Numbers & Locale — read before rendering or reading a number
 
-**The rule: the app stores canonical, the screen shows the user's notation, and one
-module owns the conversion both ways.**
+**The rule: the app stores canonical, the screen shows the user's notation, and one module owns the conversion both ways.**
 
-Half of Europe writes twelve and a half as `12,5`. Android's `decimal-pad` shows the
-*locale's* separator, and on those keypads there is often no full stop at all — so a field
-that strips "anything that isn't a digit or a dot" makes decimals unenterable for those
-users. That was #141. React Native makes the sanitizing mandatory rather than defensive:
-`ReactEditText` replaces Android's `KeyListener` specifically to *"permit all keyboard
-input through"*, so `keyboardType` constrains what is **drawn**, never what arrives.
+Many locales write `12,5`, and on Android `decimal-pad` there is often no full stop at all, so stripping "anything that isn't a digit or a dot" makes decimals unenterable (#141). React Native's `ReactEditText` permits all keyboard input, so `keyboardType` constrains what is *drawn*, never what arrives — sanitizing is mandatory.
 
-| Layer | Notation | Why |
-|---|---|---|
-| DB, API, stores, arithmetic | canonical `.` | one machine-readable form; `Number()` works everywhere |
-| A numeric field's buffer | canonical `.` | so no caller has to learn a second notation |
-| Anything a person reads | the locale's | what they typed is what they see |
+- DB, API, stores, arithmetic, and a numeric field's buffer: canonical `.`.
+- Anything a person reads: the locale's notation.
 
 ### Single points of truth — do not add a fourth way to write a number
 
-In `packages/shared/src/utils/number.ts`, imported from `@lyftr/shared`:
+In `packages/shared/src/utils/number.ts`, imported from `@lyftr/shared`: **`sanitizeNumericInput(raw, mode)`** — typed text → canonical. Every numeric `TextInput` on mobile goes through it; there is no second copy.
 
-- **`sanitizeNumericInput(raw, mode)`** — typed text → canonical. Every numeric
-  `TextInput` on mobile goes through it; there is no second copy.
-
-**The display half of this — turning a stored number back into the reader's notation — is
-not merged yet.** Until it is, there is no shared formatter, so a screen that needs one is
-writing the first: put it in this module rather than in the screen, so the rule above stays
-true of one file. Do not document it here before it lands.
+The display half (stored number → reader's notation) is **not merged yet**, so there is no shared formatter. A screen that needs one is writing the first: put it in this module, not the screen. Do not document it here before it lands.
 
 ### Gotchas
 
-- **Numbers that are not for reading stay canonical.** SVG path data, keys, ids, query
-  params. `DashboardCharts.tsx` builds paths with `toFixed(1)`; localise that and the
-  path parser reads the comma as a coordinate separator and the chart collapses.
-- **Whitespace is never a separator.** `fr`, `ru`, `sv`, `pl`, `cs`, `fi`, `nb`, `uk` use
-  a space as the *group* character and `expo-localization` passes it through verbatim.
-  Treating it as a separator candidate made a trailing space read as a decimal point.
-- **Grouping is never detected.** A `TextInput` re-sends the whole field each keystroke, so
-  `"1,"` arrives with nothing after it and is read as a decimal. `1,200` on en-US is `1.2`
-  **whether typed or pasted** — they agree on purpose. An earlier grouping-aware rule made
-  them disagree (`1.2` typed, `1200` pasted), so the same characters meant different numbers
-  depending on how they arrived. Pinned by `number.test.ts`.
-- **Non-ASCII digits are folded arithmetically** (U+0660–0669, U+06F0–06F9), not via
-  `normalize('NFKC')` — NFKC folds fullwidth digits but leaves Arabic-Indic alone, so a
-  test written with `１２` passes while the real case still logs a weight of 0.
-- **A locale-dependent test must say so.** `packages/shared` is plain `ts-jest` with no
-  locale set up, so a test that does not establish one is an en-US test — and en-US is the
-  one locale where separator bugs never appear. Say which locale a test is asserting.
+- **Numbers not for reading stay canonical** — SVG path data, keys, ids, query params. `DashboardCharts.tsx` builds paths with `toFixed(1)`; localise that and the parser reads the comma as a coordinate separator and the chart collapses.
+- **Whitespace is never a separator.** `fr`, `ru`, `sv`, `pl`, `cs`, `fi`, `nb`, `uk` use a space as the *group* character and `expo-localization` passes it through; treating it as a candidate made a trailing space read as a decimal point.
+- **Grouping is never detected.** A `TextInput` re-sends the whole field each keystroke, so `"1,"` arrives with nothing after it and is read as a decimal. `1,200` on en-US is `1.2` whether typed or pasted — they agree on purpose (pinned by `number.test.ts`).
+- **Non-ASCII digits are folded arithmetically** (U+0660–0669, U+06F0–06F9), not via `normalize('NFKC')`, which folds fullwidth digits but leaves Arabic-Indic alone — a test with `１２` passes while the real case logs a weight of 0.
+- **A locale-dependent test must say which locale it asserts.** `packages/shared` is plain `ts-jest` with no locale set, so an unlabelled test is an en-US test, the one locale where separator bugs never appear.
 
 ---
 
@@ -175,23 +79,11 @@ true of one file. Do not document it here before it lands.
 
 **The rule: screen copy goes through `t()`, with keys in `packages/shared/src/i18n/locales/en.json`.**
 
-- Single points of truth: `i18n/index.ts` (init, language registry, `resolveLanguage`),
-  `stores/language.ts` (the device-level preference), `i18n/catalog.test.ts` (key, placeholder
-  and plural parity across locales).
-- `i18n/index.ts` also owns the language picker's entries, order, current-choice label
-  (`LANGUAGE_ORDER`, `languageChoiceLabel`).
-  The OS per-app language list is `supportedLocales` in `apps/app/app.json`, held to the registry
-  by a mobile test, and only changes with an EAS build.
+- Single points of truth: `i18n/index.ts` (init, language registry, `resolveLanguage`, and the picker's entries/order/label: `LANGUAGE_ORDER`, `languageChoiceLabel`), `stores/language.ts` (device-level preference), `i18n/catalog.test.ts` (key, placeholder and plural parity across locales).
+- The OS per-app language list is `supportedLocales` in `apps/app/app.json`, held to the registry by a mobile test; it only changes with an EAS build.
 - Hermes has no `Intl.PluralRules`; `apps/app/src/lib/polyfills.ts` imports the polyfill.
-- **The guard is lint.** `eslint-plugin-i18next` (`no-literal-string`) plus three
-  `no-restricted-syntax` selectors fail mobile lint, as errors, on a hard-coded string
-  in JSX text or a string prop, and on copy passed to `apiErrorMessage`, `useAsyncAction`,
-  `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title` default. The rule
-  data is `packages/shared/i18n-lint.cjs`, imported by the ESLint config: a prop or word
-  that is not copy is allowlisted there, once. A hit is copy to migrate, not
-  something to silence (CONTRIBUTING.md, "Translations").
+- **The guard is lint.** `eslint-plugin-i18next` (`no-literal-string`) plus three `no-restricted-syntax` selectors fail mobile lint on a hard-coded string in JSX text or a string prop, and on copy passed to `apiErrorMessage`, `useAsyncAction`, `useServerList`, a `set…Error` setter or a `label`/`placeholder`/`title` default. Rule data is `packages/shared/i18n-lint.cjs`: a prop or word that is not copy is allowlisted there, once. A hit is copy to migrate, not something to silence (CONTRIBUTING.md, "Translations", has key-naming rules).
 - Numbers and dates are never formatted through i18next (see Numbers & Locale).
-- Details and key-naming rules: CONTRIBUTING.md, "Translations".
 
 ---
 
@@ -199,127 +91,52 @@ true of one file. Do not document it here before it lands.
 
 **The rule: every request settles, and only the server may end a session.**
 
-A promise that never settles is not a slow app, it is a dead one. Anything gated on it —
-`saving`, `isLoading`, a disabled button — stays that way until the process is killed,
-while the render loop carries on at 60fps around it. That is #145: the reporter filmed a
-workout timer ticking beside five taps on a dead button, and it took a full restart to
-clear. The hang was a token refresh issued on the bare `axios` export, which inherits
-axios's own `timeout: 0` instead of the client's bound.
+A promise that never settles is a dead app: anything gated on it (`saving`, `isLoading`, a disabled button) stays that way until the process is killed (#145 — a token refresh on bare `axios`, which has `timeout: 0`).
 
-| the failure | what it means | what we do |
-|---|---|---|
-| timeout, dropped connection, 5xx, proxy 502/504 | we never got an answer | keep the session, surface the error, let them retry |
-| refresh answers 400/401/403 | the server revoked it | clear the tokens, `onAuthFailure` |
+| the failure | what we do |
+|---|---|
+| timeout, dropped connection, 5xx, proxy 502/504 (no answer) | keep the session, surface the error, let them retry |
+| refresh answers 400/401/403 (server revoked it) | clear the tokens, `onAuthFailure` |
 
-Silence is not a verdict. Signing out on it ends a live workout every time someone walks
-past a dead spot in their gym's wifi — which is who self-hosts this. wger's Flutter client
-lands in the same place ("pure network errors keep the session intact so offline use
-continues to work"), though it clears on 5xx where we keep; a self-hosted backend restart
-answering 502 must not evict anyone.
+Silence is not a verdict: signing out on it ends a live workout whenever someone passes a dead spot in gym wifi, and a self-hosted backend restart answering 502 must not evict anyone.
 
 ### Single points of truth
 
-- **`packages/shared/src/client.ts`** — one axios instance, `REQUEST_TIMEOUT` on every
-  call *including the refresh*, `sessionWasRevoked` for the table above, and `refreshOnce`
-  so a burst of 401s shares one round-trip rather than racing to rotate the same token.
-  Native and web share it, so a fix here is a fix on both at once.
-- **`apiErrorMessage(err, fallback)`** — the only way to turn an error into words. Never
-  read `err.response.data.error` at a call site: the failures that matter most have no
-  response at all, and the raw read falls through to a generic string. It routes those to
-  `networkFailureMessage`, which names cleartext blocks, bad certificates and timeouts
-  from the native detail RN hides on the XHR.
-- **Say it where the tap was.** `ConfirmSheet` takes an `error` and stays open, so a failed
-  confirm shows why with the retry under the same finger. Dismissing to a banner at the top
-  of a scrolled list is the same as saying nothing.
+- **`packages/shared/src/client.ts`** — one axios instance, `REQUEST_TIMEOUT` on every call *including the refresh*, `sessionWasRevoked` for the table above, `refreshOnce` so a burst of 401s shares one round-trip instead of racing to rotate the same token. Native and web share it.
+- **`apiErrorMessage(err, fallback)`** — the only way to turn an error into words. Never read `err.response.data.error` at a call site: the failures that matter most have no response. It routes those to `networkFailureMessage`, which names cleartext blocks, bad certificates and timeouts from the native detail RN hides on the XHR.
+- **Say it where the tap was.** `ConfirmSheet` takes an `error` and stays open, so a failed confirm shows why with the retry under the same finger; a banner at the top of a scrolled list is saying nothing.
 
 ### Gotchas
 
-- **A bare `axios.*` call is not the client.** It skips the instance's timeout, the auth
-  header and the interceptor. `client.ts` has exactly two on purpose — the `/info` probe
-  (8s, fails fast by design) and the refresh (cannot use `api` without recursing into the
-  interceptor that calls it). Both pass an explicit `timeout`. Adding a third without one
-  re-opens #145.
-- **RN does not report timeouts the way the web does.** No `ECONNABORTED`, no
-  `request._timedOut` — just the literal string `timeout` on the XHR's `_response`.
-  Measured on Android against a black-holed refresh; `classifyNetworkError` matches it.
-- **Reproduce network failure with a black hole, not a stopped server.** A stopped server
-  gives an instant ECONNREFUSED and hides every bug of this class. Gym wifi accepts the
-  connection and says nothing; a proxy that accepts and never replies is the faithful
-  model, and it is what turned #145 from intermittent into a one-tap repro.
-
-## Data Models (summary)
-
-- `User` → `UserSettings` (calorie/macro targets, weight unit)
-- `Workout` → `WorkoutExercise[]` → `Set[]`
-- `Program` → `ProgramExercise[]` → `ProgramSet[]` (target reps/weight)
-- `Exercise` (cached from oedb, 800+, shared across users; names/instructions per language in `exercise_translations`)
-- `FoodLog` (meal, macros, per day)
-- `WeightLog` (bodyweight over time)
+- **A bare `axios.*` call is not the client:** it skips the timeout, auth header and interceptor. `client.ts` has exactly two on purpose — the `/info` probe (8s, fails fast) and the refresh (cannot use `api` without recursing into its own interceptor). Both pass an explicit `timeout`; a third without one re-opens #145.
+- **RN does not report timeouts like the web:** no `ECONNABORTED`, no `request._timedOut` — just the literal string `timeout` on the XHR's `_response`. `classifyNetworkError` matches it.
+- **Reproduce network failure with a black hole, not a stopped server.** A stopped server gives an instant ECONNREFUSED and hides every bug of this class; a proxy that accepts and never replies is the faithful model.
 
 ---
 
-## Known Constraints
+## Demo mode and registration
 
-- SQLite FK: `workout_exercises` and `program_exercises` reference `exercises(id)` with no cascade. Never DELETE from exercises while user data exists.
-  A row oedb stops listing is hidden (`exercises.upstream_missing_at`, hidden from `List` only), never deleted;
-  `markUpstreamMissing` is the one place that decides, and it refuses an export under half of what is held
-  (`ErrCatalogShrank`) unless an operator confirms with `?confirm_removals=true`.
-- Go 1.26 required — Dockerfile must use `golang:1.26-alpine`
-- Build via `backend/build.sh`, which both Dockerfiles invoke — never `go build` by hand.
-  It is the single source of the version ldflag
-  (`-X …/config.buildVersion=${VERSION:-dev}`), and CI's `version-smoke` job asserts on
-  the value, so a binary built without it is one CI rejects. Note `.`, not `./...`:
-  package main spans several files.
-
----
-
-## Demo mode
-
-- Email: `demo@lyftr.local` / Password: `password123`
-- Pre-seeded: PPL program + 8 weeks of workouts
-- **Only seeded when `DEMO_MODE` is on, and it is off by default everywhere — development
-  included.** It used to default to `ENV == "development"`, and `ENV` itself defaults to
-  `"development"`, so a bare `go run .` seeded this account with a password published in
-  the docs. Now it is explicit opt-in: `DEMO_MODE=true go run .`. Compose passes
-  `${DEMO_MODE:-false}` and `fly.toml` sets it true, so no real deployment changed.
-- The same flag drives the one-tap demo button on the login screen, exposed as `demo_mode`
-  on `/api/v1/info` and read via `demoMode()` from `@lyftr/shared`. The button follows the
-  account because both read one flag — never gate it on `import.meta.env.DEV`, which is
-  decided at build time and so was absent from the public demo (a production build) and
-  present against servers with no demo account.
-- CI's e2e job runs against the production default with **no** demo account; the suite
-  registers its own throwaway user in `globalSetup`, so it depends on nothing being seeded.
-
-## Registration modes
-
-`REGISTRATION` = `open` (default) | `first-user` | `closed`, enforced in
-`controllers/auth.go` before any hashing and advertised as `registration_open` on
-`/api/v1/info`. `first-user` re-counts inside the insert transaction
-(`stores.UserStore.CreateFirst`) — the handler's pre-check alone loses the race it exists
-to prevent. An invalid value is a startup failure, never a fallback to open.
+- Demo account: `demo@lyftr.local` / `password123`, with a PPL program + 8 weeks of workouts. **Seeded only when `DEMO_MODE` is on, and it is off by default everywhere, development included** (`ENV` itself defaults to `"development"`, so keying off it seeded a published password). Opt in with `DEMO_MODE=true go run .`; Compose passes `${DEMO_MODE:-false}`, `fly.toml` sets it true.
+- The same flag drives the login screen's demo button, exposed as `demo_mode` on `/api/v1/info` and read via `demoMode()` from `@lyftr/shared`. Never gate the button on `import.meta.env.DEV` — it is decided at build time.
+- CI's e2e runs against the production default with **no** demo account; the suite registers its own throwaway user in `globalSetup`.
+- `REGISTRATION` = `open` (default) | `first-user` | `closed`, enforced in `controllers/auth.go` before any hashing and advertised as `registration_open` on `/api/v1/info`. `first-user` re-counts inside the insert transaction (`stores.UserStore.CreateFirst`) — the handler's pre-check alone loses the race. An invalid value is a startup failure, never a fallback to open.
 
 ---
 
 ## Web (react-native-web)
 
-The web is the Expo app's `--platform web` export, not a separate app. Platform splits are
-`.web.tsx` / `.native.tsx` files beside the shared one. Dev: `cd apps/app && npx expo start --web`
-(:8081) calls the backend on :3000 directly; the backend allows all origins while
-`ENV=development`, so no proxy is needed. Production and e2e use the nginx stack, which proxies `/api`.
+The web is the Expo app's `--platform web` export, not a separate app. Platform splits are `.web.tsx` / `.native.tsx` beside the shared file. Dev (`npx expo start --web`, :8081) calls the backend on :3000 directly; the backend allows all origins while `ENV=development`. Production and e2e use the nginx stack, which proxies `/api`.
 
-Single points of truth, each named once:
+Single points of truth:
 - `apps/app/src/theme/breakpoints.json` — read by `tailwind.config.js` and `useBreakpoint`.
 - `apps/app/src/theme/motion.ts` + `useMotion` — durations, easing, reduced motion.
-- `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — the per-icon registry; no lucide barrel imports.
-- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`, and `touchTarget`/`touchPad`:
-  every control's own box is at least 44x44 (react-native-web ignores `hitSlop`); `e2e/touch-targets.spec.ts` holds it.
+- `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — per-icon registry; no lucide barrel imports.
+- `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`, `touchTarget`/`touchPad`: every control's own box is at least 44x44 (react-native-web ignores `hitSlop`); `e2e/touch-targets.spec.ts` holds it.
 - `apps/app/src/components/ui/link.ts` — `linkProps`: a real `<a>` on web.
-- `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`
-  (regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`).
+- `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`; regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`.
 - Web quality checklist: `docs/TESTING.md`.
 
-**Later:** splitting the shared core (i18n core/react, an exports map, injected TZ) is deferred
-until a CLI/MCP client exists.
+**Later:** splitting the shared core (i18n core/react, exports map, injected TZ) is deferred until a CLI/MCP client exists.
 
 ---
 
@@ -327,69 +144,42 @@ until a CLI/MCP client exists.
 
 ```bash
 cd backend && go run .                  # :3000 — `.`, not main.go: package main spans several files
-cd apps/app && npx expo start --web     # :8081, the app in a browser; point it at :3000
+cd apps/app && npx expo start --web     # :8081, point it at :3000
 docker compose up -d                    # prod, needs .env with JWT_SECRET
 ```
 
+- Go 1.26 required — Dockerfile must use `golang:1.26-alpine`.
+- Build the backend via `backend/build.sh` (both Dockerfiles invoke it) — never `go build` by hand. It is the single source of the version ldflag (`-X …/config.buildVersion=${VERSION:-dev}`) that CI's `version-smoke` asserts on. Note `.`, not `./...`.
+
 ### Mobile builds — MANDATORY
 
-**Never build the app locally.** No `expo run:android`/`run:ios`, no `expo prebuild` +
-Gradle, no `eas build --local`. Build through the **EAS CLI** (cloud) or a CI runner:
+**Never build the app locally.** No `expo run:android`/`run:ios`, no `expo prebuild` + Gradle, no `eas build --local` (`prebuild` writes an untracked `apps/app/android/` and rewrites the `android`/`ios` scripts in `package.json`). Build through the **EAS CLI** (cloud) or a CI runner:
 
 ```bash
 cd apps/app && eas build --platform android --profile preview
 ```
 
-A first local build is 10–25 min of toolchain download before it compiles anything, and
-`prebuild` writes an untracked `apps/app/android/` and rewrites the `android`/`ios` scripts in
-`apps/app/package.json`.
+`apps/app/eas.json` defines **`preview` and `production` only** — no `development` profile, so nothing produces a `developmentClient` build; add one if you need native modules on device. For JS-only work, **Expo Go plus `npx expo start` loads the working tree directly**.
 
-`apps/app/eas.json` currently defines **`preview` and `production` only**. There is no
-`development` profile, so nothing here produces a `developmentClient` build; adding one is
-what you want if you need native modules on device, and it is a one-time cost.
-
-For JS-only work you usually need neither: **Expo Go plus `npx expo start` loads the
-working tree directly**, which is enough to drive the real screens against a real backend.
-
-Emulator notes: the backend is reachable at `http://10.0.2.2:3000` (the emulator's own
-loopback is itself), or over an `adb reverse` tunnel if one is set up — check
-`adb reverse --list` before assuming which.
-
-Maestro flows are **not** in the repo: `apps/app/.maestro/` is gitignored, so a fresh
-checkout has none and yours are yours alone.
+Emulator: the backend is at `http://10.0.2.2:3000`, or over an `adb reverse` tunnel — check `adb reverse --list` first. Maestro flows are not in the repo (`apps/app/.maestro/` is gitignored).
 
 ---
 
 ## Code Style
 
-- Go: `gofmt`, no unnecessary abstractions, errors wrapped with context
-- TypeScript: existing patterns, no new deps without discussion
-- No comments unless WHY is non-obvious
-- No half-finished features on main branch
-- Each PR: one feature or fix, focused diff
+- Go: `gofmt`, no unnecessary abstractions, errors wrapped with context. TypeScript: existing patterns, no new deps without discussion.
+- No comments unless WHY is non-obvious.
+- No half-finished features on main. Each PR: one feature or fix, focused diff.
 
 ---
 
 ## Git — MANDATORY
 
-**Never force-push. Never rewrite published history.** No `git push --force`, no
-`--force-with-lease`, no `git rebase` of a branch that has already been pushed, no
-`git commit --amend` on a pushed commit. Once a commit is on the remote it is
-permanent — fix things by adding a commit on top.
+**Never force-push. Never rewrite published history.** No `git push --force`, no `--force-with-lease`, no `git rebase` of a pushed branch, no `git commit --amend` on a pushed commit. Fix things by adding a commit on top.
 
-**Bring a branch up to date by merging, not rebasing:**
+**Bring a branch up to date by merging, not rebasing:** `git merge origin/main`.
 
-```bash
-git checkout feature/my-branch
-git merge origin/main          # not: git rebase origin/main
-```
-
-**Squash-merge PRs** — `gh pr merge --squash`. Not `--merge`, not `--rebase`. One
-commit per PR keeps `main` readable; the individual commits stay on the PR if anyone
-needs them.
-
-Squashing on merge is not a contradiction of the no-force-push rule above: GitHub
-writes a new commit onto `main` rather than rewriting anything already published.
+**Squash-merge PRs** — `gh pr merge --squash`, not `--merge` or `--rebase`. This does not contradict the no-force-push rule: GitHub writes a new commit onto `main` rather than rewriting any.
 
 ---
 
@@ -397,15 +187,9 @@ writes a new commit onto `main` rather than rewriting anything already published
 
 **CI is the e2e gate. Local runs are the fast checks CI does not cover.**
 
-`ci.yml` triggers on `push: branches: ['**']`, so every push to any branch runs
-Playwright, not just PRs. Running the suite locally *as well* buys a few minutes of
-earlier warning at real cost on a memory-constrained machine: a Chromium fleet and a Metro
-bundler together will exhaust a laptop with a modest amount of RAM, and the resulting
-`worker process exited unexpectedly` — out of memory — reads exactly like a broken test.
-Chasing that has cost more than it has ever caught. If your machine has room, run it; the
-point is that a failure there is not automatically a failure in the code.
+`ci.yml` triggers on `push: branches: ['**']`, so every push runs Playwright. Running it locally too buys minutes of earlier warning at real cost on a small machine: a Chromium fleet plus Metro can exhaust RAM, and the resulting `worker process exited unexpectedly` reads exactly like a broken test. If your machine has room, run it; a failure there is not automatically a failure in the code.
 
-Before a commit or push, run what is fast and what CI will not run for you:
+Before a commit or push:
 
 ```bash
 cd backend && go test ./... -timeout 180s   # ./... — see the gap below
@@ -416,69 +200,37 @@ npm run shared:test && npm run type-check -w @lyftr/mobile
 npm run test -w @lyftr/mobile -- --ci --maxWorkers=4
 ```
 
-Then push, and **watch the run** — `gh pr checks <n>` or a Monitor. Pushing is not
-finishing; a red check you walked away from is the same as a failing local test you
-ignored.
+Then push and **watch the run** (`gh pr checks <n>` or a Monitor). Pushing is not finishing.
 
 ### Where CI's coverage stops — do not over-trust it
 
-- **Go: all packages, since CI moved to `go test ./...`.** It ran three of seven for a
-  long time, which left `utils/`, `stores/`, `config/` and `oedb/` invisible — and
-  `utils/validation.go`, which owns every error sentence the API emits, was among them.
-  Keep new packages inside `./...` rather than adding a hand-maintained list.
-- **No `gofmt`, no `go vet`, no `govulncheck`.** Space-indented Go has been pushed and
-  merged unnoticed. Until CI gains the check, formatting is yours to verify — but
-  **not with bare `gofmt -l .`** on a Windows checkout: git hands you CRLF, gofmt only
-  emits LF, so it reports *every* Go file and the real nits drown in the noise. On a
-  checkout with LF endings plain `gofmt -l` is correct. To be safe either way, normalise
-  first:
+- **Go: all packages** (`go test ./...`). Keep new packages inside `./...` rather than a hand-maintained list — `utils/validation.go`, which owns every API error sentence, was once invisible to CI.
+- **No `gofmt`, no `go vet`, no `govulncheck`** — formatting is yours to verify. Not with bare `gofmt -l .` on a Windows checkout: git hands you CRLF, gofmt emits LF, so it reports every file. Normalise first (local-only dodge; on Linux/LF plain `gofmt -l` is correct):
 
   ```bash
   for f in $(git ls-files '*.go'); do
-    diff -q <(tr -d '' < "$f") <(tr -d '' < "$f" | gofmt) >/dev/null || echo "$f"
+    diff -q <(tr -d '\r' < "$f") <(tr -d '\r' < "$f" | gofmt) >/dev/null || echo "$f"
   done
   ```
 
-  A CI check runs on Linux, where the checkout is LF, so plain `gofmt -l` is correct
-  there. This dodge is local-only.
-- **CI jobs for the app:** Playwright runs against the compose stack (nginx + Expo web
-  export + backend) as three `e2e-shard` jobs (`--shard=N/3`), inside the official
-  `mcr.microsoft.com/playwright` image tagged to the lockfile's `@playwright/test`;
-  `e2e-app` only aggregates them and carries the required check name. Never put
-  `playwright install-deps` back: it runs apt against the runner's mirror, which has
-  trickled at ~80 KB/s and timed the job out before a test ran. `perf.spec.ts` holds
-  LCP/CLS tripwires and `polish.spec.ts` walks every route at four widths in both themes. `web-export` builds the export and
-  enforces the bundle budget in `apps/app/perf-budget.json`.
-- **The e2e stack never calls the hosted open-exercise-db.** An empty `OEDB_BASE_URL` means
-  production, whose database is on a metered free tier, and every e2e boot synced the whole
-  catalog from it. `apps/app/e2e/oedb-stub/` (a recorded fixture and a dependency-free server)
-  is overlaid on the compose stack, and a CI step fails the shard if the stub never served the
-  backend's export. Run e2e locally with that overlay too (docs/TESTING.md).
-- **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**`, which
-  the mobile filter includes). The suite drives the Expo web export, so a native-only
-  change still runs it; the jest suite and type-check are what stand behind native code.
-- **Markdown-only *pushes* run nothing** (`paths-ignore` on the `push` trigger).
-  Pull requests always run, deliberately: `main` requires these checks, and a workflow
-  skipped at the trigger leaves them Pending forever rather than skipped, so a docs-only PR
-  could never merge. The per-job `changes` filter keeps such a run near-free.
+- **App jobs:** Playwright runs against the compose stack (nginx + Expo web export + backend) as three `e2e-shard` jobs (`--shard=N/3`) in the official `mcr.microsoft.com/playwright` image tagged to the lockfile's `@playwright/test`; `e2e-app` only aggregates them and carries the required check name. Never put `playwright install-deps` back — apt against the runner's mirror trickled at ~80 KB/s and timed the job out. `perf.spec.ts` holds LCP/CLS tripwires; `polish.spec.ts` walks every route at four widths in both themes. `web-export` builds the export and enforces the bundle budget in `apps/app/perf-budget.json`.
+- **The e2e stack never calls the hosted open-exercise-db** (metered free tier; an empty `OEDB_BASE_URL` means production). `apps/app/e2e/oedb-stub/` is overlaid on the compose stack, and a CI step fails the shard if the stub never served the backend's export. Run e2e locally with that overlay too (docs/TESTING.md).
+- **e2e is path-filtered** to `backend/**` or `apps/app/**` (and `packages/shared/**` via the mobile filter). A native-only change still runs it; jest and type-check stand behind native code.
+- **Markdown-only *pushes* run nothing** (`paths-ignore`), but pull requests always run, deliberately: `main` requires these checks, and a workflow skipped at the trigger leaves them Pending forever, so a docs-only PR could never merge. The per-job `changes` filter keeps that run near-free.
 
 **Rules:**
 - Never push a change you have seen fail. Red CI is fixed forward, never abandoned.
 - Fix the root cause; never skip or comment out a failing test.
-- Run e2e locally when you want the signal before pushing, or when CI is red and you are
-  reproducing — free the RAM first (`dev-doctor.ps1`, then close Metro/Expo).
+- Run e2e locally when you want the signal first or are reproducing red CI — free the RAM first (`dev-doctor.ps1`, close Metro/Expo).
 
 ---
 
 ## Working without a specific brief
 
-For anyone — contributor or agent — picking up work with no ticket in hand:
-1. Work from the issue tracker, not from this file. Priorities and status live where they
-   can be closed; a list here goes stale silently and has done before.
-2. Follow conventions exactly — no new patterns without reason
-3. Mobile layout always primary, desktop secondary
-4. Run through empty state + null guard checklist before marking done
-5. After any backend change: verify migration runs clean, test endpoint with curl
-6. After any frontend change: verify mobile 390px width, no overflow
-7. Run the local checks above, push, and watch CI — a task is done when its run is green,
-   not when the push succeeds
+1. Work from the issue tracker, not from this file — priorities live where they can be closed.
+2. Follow conventions exactly; no new patterns without reason.
+3. Mobile layout primary, desktop secondary.
+4. Run the empty-state + null-guard checklist before marking done.
+5. After a backend change: verify the migration runs clean and curl the endpoint.
+6. After a frontend change: verify 390px width, no overflow.
+7. Run the local checks above, push, and watch CI — done means the run is green, not that the push succeeded.
