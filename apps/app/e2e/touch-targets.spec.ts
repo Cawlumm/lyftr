@@ -130,7 +130,7 @@ test.describe('Touch targets are at least 44x44 @mobile', () => {
       headers,
       data: {
         name: `${SEED} Workout`, duration: 1800, started_at: now.toISOString(),
-        exercises: exercises.map((e) => ({ exercise_id: e.id, notes: '', rest_seconds: 90, sets: [{ set_number: 1, reps: 10, weight: 100 }] })),
+        exercises: exercises.map((e) => ({ exercise_id: e.id, notes: '', rest_seconds: 90, superset_group: 1, sets: [{ set_number: 1, reps: 10, weight: 100 }] })),
       },
     })
     workoutId = (await w.json()).data.id
@@ -140,7 +140,7 @@ test.describe('Touch targets are at least 44x44 @mobile', () => {
       data: {
         name: `${SEED} Program`, notes: '',
         days: [
-          { name: 'Push', is_rest_day: false, exercises: exercises.map((e) => ({ exercise_id: e.id, notes: '', rest_seconds: 90, sets })) },
+          { name: 'Push', is_rest_day: false, exercises: exercises.map((e) => ({ exercise_id: e.id, notes: '', rest_seconds: 90, superset_group: 1, sets })) },
           { name: 'Rest', is_rest_day: true, exercises: [] },
           { name: 'Pull', is_rest_day: false, exercises: [{ exercise_id: exercises[0].id, notes: '', rest_seconds: 90, sets }] },
         ],

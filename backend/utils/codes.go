@@ -85,6 +85,7 @@ var (
 	codeAboveMaximum             = define("ABOVE_MAXIMUM", 422, "{{field}} must be {{max}} or less.")
 	codeNotAnOption              = define("NOT_AN_OPTION", 422, "{{field}} must be one of: {{options}}.")
 	codeTooManyWorkoutSets       = define("TOO_MANY_WORKOUT_SETS", 422, "A workout can't have more than {{max}} sets.")
+	codeSupersetNotContiguous    = define("SUPERSET_NOT_CONTIGUOUS", 422, "Exercises in a superset must be next to each other.")
 	codeTooManyProgramRows       = define("TOO_MANY_PROGRAM_ROWS", 422, "A program can't have more than {{max}} days, exercises and sets combined.")
 	codeInvalidField             = define("INVALID_FIELD", 422, "{{field}} isn't valid.")
 	CodeInvalidID                = define("INVALID_ID", 400, "That id isn't valid.")

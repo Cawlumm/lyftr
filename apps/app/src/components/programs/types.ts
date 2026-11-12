@@ -13,6 +13,8 @@ export interface DayExerciseDraft {
   exercise_id: number
   notes: string
   rest_seconds: number
+  // Label inside this day only; links are neighbours, so the editor re-runs normaliseSupersets on every move.
+  superset_group?: number | null
   sets: DaySetDraft[]
 }
 

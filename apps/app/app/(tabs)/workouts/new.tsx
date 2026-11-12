@@ -5,14 +5,14 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../src/components/ui/icons'
 import type { LucideIcon } from '../../../src/components/ui/icons'
-import { useAsyncAction, moveItem, occurrenceKeys, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
+import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../src/components/ui/interaction'
 
 // Both sit in a row with 8px between them and are wider than 44, so only their height is padded.
 const LOAD_HIT = touchTarget(TOUCH_MIN, 38)
 const ADD_HIT = touchTarget(TOUCH_MIN, 36)
-import { ExerciseFormCard } from '../../../src/components/workouts/ExerciseFormCard'
+import { ExerciseFormList } from '../../../src/components/workouts/ExerciseFormCard'
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
@@ -34,6 +34,7 @@ interface WorkoutFormData {
     exercise_id: number
     notes: string
     rest_seconds: number
+    superset_group?: number | null
     sets: { set_number: number; reps: number; weight: number }[]
   }[]
 }
@@ -102,6 +103,7 @@ export default function AddWorkout() {
         exercise_id: ex.exercise_id,
         notes: ex.notes || '',
         rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
+        superset_group: ex.superset_group ?? null,
         sets: (ex.sets || []).map((s) => ({ set_number: s.set_number, reps: s.target_reps, weight: lbsToDisplay(s.target_weight, settings.weight_unit) })),
       }
     })
@@ -121,6 +123,7 @@ export default function AddWorkout() {
           exercise_id: exercise.id,
           notes: '',
           rest_seconds: settings.rest_seconds_default ?? 90,
+          superset_group: null,
           sets: [{ set_number: 1, reps: 0, weight: 0 }],
         },
       ],
@@ -135,7 +138,7 @@ export default function AddWorkout() {
   // is what lets memo work: the edited card gets a fresh `sets`/`notes` ref and re-renders,
   // while every other card keeps its old refs and is skipped.
   const removeExercise = useCallback((index: number) =>
-    setFormData((prev) => ({ ...prev, exercises: prev.exercises.filter((_, i) => i !== index) })), [])
+    setFormData((prev) => ({ ...prev, exercises: normaliseSupersets(prev.exercises.filter((_, i) => i !== index)) })), [])
 
   const addSet = useCallback((exIdx: number) => {
     setFormData((prev) => ({
@@ -173,8 +176,11 @@ export default function AddWorkout() {
   }, [])
 
   const openReorder = useCallback(() => setShowReorder(true), [])
+
+  const rewriteExercises = useCallback((fn: (rows: WorkoutFormData['exercises']) => WorkoutFormData['exercises']) =>
+    setFormData((prev) => ({ ...prev, exercises: fn(prev.exercises) })), [])
   const moveExercise = useCallback((from: number, to: number) =>
-    setFormData((prev) => ({ ...prev, exercises: moveItem(prev.exercises, from, to) })), [])
+    setFormData((prev) => ({ ...prev, exercises: normaliseSupersets(moveItem(prev.exercises, from, to)) })), [])
 
   const setExRest = useCallback((exIdx: number, secs: number) => {
     setFormData((prev) => ({
@@ -362,24 +368,20 @@ export default function AddWorkout() {
             )}
 
             <View className="gap-4">
-              {formData.exercises.map((workoutEx, exIdx) => (
-                <ExerciseFormCard
-                  key={rowKeys[exIdx]}
-                  index={exIdx}
-                  exercise={pickerExercises[workoutEx.exercise_id]}
-                  notes={workoutEx.notes}
-                  sets={workoutEx.sets}
-                  restSeconds={workoutEx.rest_seconds ?? 90}
-                  unit={wUnit}
-                  onRemove={removeExercise}
-                  onNotesChange={updateExNotes}
-                  onAddSet={addSet}
-                  onRemoveSet={removeSet}
-                  onUpdateSet={updateSet}
-                  onRestChange={setExRest}
-                  inputAccessoryViewID={KEYPAD_DONE_ID}
-                />
-              ))}
+              <ExerciseFormList
+                exercises={formData.exercises}
+                rowKeys={rowKeys}
+                pickerExercises={pickerExercises}
+                unit={wUnit}
+                onRewrite={rewriteExercises}
+                onRemove={removeExercise}
+                onNotesChange={updateExNotes}
+                onAddSet={addSet}
+                onRemoveSet={removeSet}
+                onUpdateSet={updateSet}
+                onRestChange={setExRest}
+                inputAccessoryViewID={KEYPAD_DONE_ID}
+              />
               {/* Thumb-zone duplicate of Add Exercise: the header buttons scroll away
                   as cards stack up, so the "next exercise" tap lands where the thumb
                   already is (right after the last card) — no scroll-to-top round trip. */}
@@ -418,6 +420,7 @@ export default function AddWorkout() {
         open={showReorder}
         names={formData.exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
         rowKeys={rowKeys}
+        groups={formData.exercises.map((e) => e.superset_group)}
         onMove={moveExercise}
         onClose={() => setShowReorder(false)}
       />

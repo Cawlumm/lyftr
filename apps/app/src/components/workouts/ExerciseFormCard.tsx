@@ -1,12 +1,18 @@
-import { memo, useRef, useState } from 'react'
-import { Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native'
-import { FileText, Plus, Timer, Trash2, X } from '../ui/icons'
-import type { Exercise } from '@lyftr/shared'
-import { AppText, IconButton, Label, TOUCH_MIN, touchPad } from '../ui'
+import { Fragment, memo, useRef, useState, type ReactNode } from 'react'
+import { AccessibilityInfo, Platform, Pressable, Text, TextInput, View, type TextInputInstance } from 'react-native'
+import { FileText, Link2, Plus, Timer, Trash2, Unlink2, X } from '../ui/icons'
+import {
+  groupColorIndex, groupOf, isLinkedToNext, normaliseSupersets, pairWith, restLabel, totalRounds,
+  type Exercise,
+} from '@lyftr/shared'
+import { AppText, IconButton, Label, Menu, TOUCH_MIN, touchPad } from '../ui'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
 import { equipmentLabel, muscleLabel, sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
+import {
+  AddSupersetPill, ExerciseThumb, SupersetBlock, SupersetConnector, SupersetRestFooter, SupersetSheet,
+} from './superset'
 
 interface SetData {
   set_number: number
@@ -31,6 +37,15 @@ interface Props {
   onRemoveSet: (index: number, setIdx: number) => void
   onUpdateSet: (index: number, setIdx: number, field: 'reps' | 'weight', value: string) => void
   onRestChange: (index: number, secs: number) => void
+  /** Primitives, not an object, so the memo holds: set together when the card is in a superset. */
+  supersetLetter?: string
+  /** 1-based place inside the group. */
+  supersetPosition?: number
+  supersetTotal?: number
+  /** From groupColorIndex; with the letter it is how the member's tag and tint are drawn. */
+  supersetColor?: number
+  /** Opens the superset sheet, or removes the card from its group when it is in one. Omit to hide the menu. */
+  onSuperset?: (index: number) => void
   /** iOS: ties the numeric cells to the screen's keyboard "Done" accessory bar. */
   inputAccessoryViewID?: string
 }
@@ -96,10 +111,14 @@ function WeightCell({ value, onChange, placeholderColor, inputRef, onNext, input
 function ExerciseFormCardBase({
   index, exercise, notes, sets, restSeconds, unit,
   onRemove, onNotesChange, onAddSet, onRemoveSet, onUpdateSet, onRestChange,
-  inputAccessoryViewID,
+  inputAccessoryViewID, supersetLetter, supersetPosition, supersetTotal, supersetColor = 0, onSuperset,
 }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
+  const inSuperset = !!supersetLetter && !!supersetPosition && !!supersetTotal
+  // Rest runs once per round, after the last member (the block's footer says so); the others
+  // keep their stored value for unlinking and show no rest control.
+  const restsAfterRound = inSuperset && supersetPosition < supersetTotal
   // Once revealed the input stays mounted for the card's lifetime, so typed text
   // can never be hidden; cards with saved notes start revealed.
   const [showNotes, setShowNotes] = useState(notes.length > 0)
@@ -111,11 +130,14 @@ function ExerciseFormCardBase({
   const weightRefs = useRef<(TextInputInstance | null)[]>([])
 
   return (
-    <View className="rounded-2xl border border-surface-border bg-surface-muted/30 p-4">
+    <View className={inSuperset ? 'p-4' : 'rounded-2xl border border-surface-border bg-surface-muted/30 p-4'}>
       {/* Header: exercise thumbnail (with the order number tucked into a corner
           badge), name, muscle • equipment; muted (not red) remove — destructive
           styling is reserved for the confirm step, like the list screens. */}
       <View className="mb-3 flex-row items-center gap-3">
+        {inSuperset ? (
+          <ExerciseThumb url={exercise?.image_url} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColor} />
+        ) : (
         <View className="relative">
           <ExerciseImage url={exercise?.image_url} />
           {/* Order number rides the thumbnail's corner so the image stays the anchor
@@ -128,12 +150,23 @@ function ExerciseFormCardBase({
             </AppText>
           </View>
         </View>
+        )}
         <View className="flex-1">
           <AppText variant="bodySemibold" numberOfLines={1}>{exercise?.name}</AppText>
           <AppText variant="caption" color="muted" numberOfLines={1} className="capitalize">
             {muscleLabel(exercise?.muscle_group)} • {equipmentLabel(exercise?.equipment)}
           </AppText>
         </View>
+        {onSuperset ? (
+          <Menu
+            label={t('gym.menu.more')}
+            items={[{
+              label: inSuperset ? t('workouts.superset.menuRemove', { letter: supersetLetter }) : t('workouts.superset.menuPair'),
+              icon: inSuperset ? Unlink2 : Link2,
+              onSelect: () => onSuperset(index),
+            }]}
+          />
+        ) : null}
         <IconButton
           icon={Trash2}
           label={t('workouts.form.removeNamed', { name: exercise?.name ?? t('workouts.form.exerciseFallback') })}
@@ -252,13 +285,15 @@ function ExerciseFormCardBase({
       {/* Rest-between-sets picker, tucked at the card foot. Rendered here (not passed as a
           JSX `footer` prop) so the card takes only stable, primitive props — an inline
           footer element would be a new reference every parent render and defeat the memo. */}
-      <View className="mt-3 border-t border-surface-border/60 pt-3">
-        <View className="mb-1 flex-row items-center gap-1.5">
-          <Timer size={13} color={accent} />
-          <Label>{t('workouts.form.restBetweenSets')}</Label>
+      {restsAfterRound ? null : (
+        <View className="mt-3 border-t border-surface-border/60 pt-3">
+          <View className="mb-1 flex-row items-center gap-1.5">
+            <Timer size={13} color={accent} />
+            <Label>{t('workouts.form.restBetweenSets')}</Label>
+          </View>
+          <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
         </View>
-        <RestPicker value={restSeconds} onChange={(secs) => onRestChange(index, secs)} />
-      </View>
+      )}
     </View>
   )
 }
@@ -269,3 +304,158 @@ function ExerciseFormCardBase({
 // by the screens (index-based useCallback handlers + primitive values), so only the card
 // whose data actually changed re-renders.
 export const ExerciseFormCard = memo(ExerciseFormCardBase)
+
+type CardHandlers = Pick<Props,
+  'onRemove' | 'onNotesChange' | 'onAddSet' | 'onRemoveSet' | 'onUpdateSet' | 'onRestChange'>
+
+export interface FormRow {
+  exercise_id: number
+  notes: string
+  rest_seconds?: number | null
+  superset_group?: number | null
+  sets: SetData[]
+}
+
+interface ListProps<T extends FormRow> extends CardHandlers {
+  exercises: T[]
+  rowKeys: string[]
+  pickerExercises: Record<number, Exercise>
+  unit: string
+  /** Applies a pure rewrite of the row list (link, move, unlink) to the owner's state. */
+  onRewrite: (fn: (rows: T[]) => T[]) => void
+  inputAccessoryViewID?: string
+}
+
+const SR_ONLY = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 } as const
+
+// The editors' exercise list: standalone cards, and one SupersetBlock around each run of linked
+// members (connector between members, rest footer after the last). Linking lives in each card's
+// menu and in the "+ Superset" pill between unlinked neighbours; both open the same sheet.
+export function ExerciseFormList<T extends FormRow>({
+  exercises, rowKeys, pickerExercises, unit, onRewrite, inputAccessoryViewID, ...handlers
+}: ListProps<T>) {
+  const { t } = useTranslation()
+  const [sheet, setSheet] = useState<{ index: number; preselect?: number } | null>(null)
+  const [announcement, setAnnouncement] = useState('')
+  const nameAt = (i: number) => pickerExercises[exercises[i]?.exercise_id]?.name ?? t('workouts.form.exerciseFallback')
+
+  const announce = (msg: string) => {
+    if (Platform.OS === 'web') setAnnouncement(msg)
+    else AccessibilityInfo.announceForAccessibility(msg)
+  }
+
+  const onSuperset = (i: number) => {
+    const g = groupOf(exercises, i)
+    if (!g) { setSheet({ index: i }); return }
+    onRewrite((rows) => normaliseSupersets(rows.map((r, k) => (k === i ? { ...r, superset_group: null } : r))))
+    announce(t('workouts.superset.unlinkedA11y', { a: nameAt(i), b: nameAt(i === g.start ? i + 1 : i - 1) }))
+  }
+
+  const create = (partner: number) => {
+    if (!sheet) return
+    const from = sheet.index
+    onRewrite((rows) => pairWith(rows, from, partner))
+    announce(t('workouts.superset.linkedA11y', { a: nameAt(from), b: nameAt(partner) }))
+    setSheet(null)
+  }
+
+  const card = (i: number, g: { letter: string; start: number; end: number } | null) => (
+    <ExerciseFormCard
+      index={i}
+      exercise={pickerExercises[exercises[i].exercise_id]}
+      notes={exercises[i].notes}
+      sets={exercises[i].sets}
+      restSeconds={exercises[i].rest_seconds ?? 90}
+      unit={unit}
+      inputAccessoryViewID={inputAccessoryViewID}
+      supersetLetter={g?.letter}
+      supersetPosition={g ? i - g.start + 1 : undefined}
+      supersetTotal={g ? g.end - g.start + 1 : undefined}
+      supersetColor={g ? groupColorIndex(exercises, i) : undefined}
+      onSuperset={exercises.length > 1 || g ? onSuperset : undefined}
+      {...handlers}
+    />
+  )
+
+  const segments: ReactNode[] = []
+  for (let i = 0; i < exercises.length;) {
+    const g = groupOf(exercises, i)
+    const end = g && g.start === i ? g.end : i
+    if (g && g.start === i) {
+      const colorIndex = groupColorIndex(exercises, i)
+      const last = exercises[end]
+      segments.push(
+        <SupersetBlock
+          key={rowKeys[i]}
+          letter={g.letter}
+          colorIndex={colorIndex}
+          count={end - i + 1}
+          round={0}
+          total={totalRounds(exercises, i, end)}
+          footer={
+            <SupersetRestFooter
+              rest={restLabel(last.rest_seconds ?? 90)}
+              afterName={nameAt(end)}
+              colorIndex={colorIndex}
+            />
+          }
+        >
+          {Array.from({ length: end - i + 1 }, (_, k) => (
+            <Fragment key={rowKeys[i + k]}>
+              {k > 0 ? <SupersetConnector nextName={nameAt(i + k)} colorIndex={colorIndex} /> : null}
+              {card(i + k, g)}
+            </Fragment>
+          ))}
+        </SupersetBlock>,
+      )
+    } else {
+      segments.push(<Fragment key={rowKeys[i]}>{card(i, null)}</Fragment>)
+    }
+    if (end < exercises.length - 1 && !isLinkedToNext(exercises, end)) {
+      segments.push(
+        <AddSupersetPill
+          key={`pill-${rowKeys[end]}`}
+          aName={nameAt(end)}
+          bName={nameAt(end + 1)}
+          onPress={() => setSheet({ index: end, preselect: end + 1 })}
+        />,
+      )
+    }
+    i = end + 1
+  }
+
+  const candidates = sheet
+    ? exercises
+        .map((e, index) => ({ e, index }))
+        .filter(({ index }) => {
+          if (index === sheet.index) return false
+          const g = groupOf(exercises, sheet.index)
+          return !(g && index >= g.start && index <= g.end)
+        })
+        .map(({ e, index }) => ({
+          index,
+          name: nameAt(index),
+          muscle: muscleLabel(pickerExercises[e.exercise_id]?.muscle_group),
+          imageUrl: pickerExercises[e.exercise_id]?.image_url,
+        }))
+    : []
+
+  return (
+    <>
+      {segments}
+      {Platform.OS === 'web' ? (
+        <View accessibilityLiveRegion="polite" style={SR_ONLY}><AppText>{announcement}</AppText></View>
+      ) : null}
+      <SupersetSheet
+        visible={sheet !== null}
+        currentName={sheet ? nameAt(sheet.index) : ''}
+        currentIndex={sheet?.index}
+        candidates={candidates}
+        preselect={sheet?.preselect}
+        restLabel={sheet ? restLabel(exercises[sheet.index].rest_seconds ?? 90) : undefined}
+        onCreate={create}
+        onClose={() => setSheet(null)}
+      />
+    </>
+  )
+}

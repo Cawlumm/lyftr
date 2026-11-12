@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures'
 import { gateway, revoked, countRequests, corruptStorage } from './faults'
+import { API_BASE } from './config'
 
 // The #145 doctrine, end to end: silence is not a verdict.
 //
@@ -96,5 +97,35 @@ test.describe('Keeping the screen awake during a workout', () => {
 
     await expect(page.getByRole('navigation')).toBeVisible()
     await expect(page.getByRole('alert').filter({ hasText: /open lyftr over https/i })).toHaveCount(0)
+  })
+})
+
+// Supersets (#227): the group is part of the persisted session, so a reload keeps the link.
+test.describe('A grouped session', () => {
+  test('survives a reload still linked, as one superset block', async ({ page, request, workerAuth }) => {
+    const exercise = (await (await request.get(`${API_BASE}/exercises?limit=1`, { headers: { Authorization: `Bearer ${workerAuth.token}` } })).json()).data[0].id
+    const member = (name: string) => ({
+      exercise_id: exercise,
+      exercise: { id: exercise, name, muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+      notes: '', rest_seconds: 60, superset_group: 1,
+      sets: [{ set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false }],
+    })
+    const session = { name: 'E2E Grouped Session', started_at: new Date().toISOString(), exercises: [member('Bench Press'), member('Barbell Row')] }
+    await page.addInitScript((s) => {
+      if (localStorage.getItem('lyftr_active_session')) return
+      localStorage.setItem('lyftr_active_session', JSON.stringify(s))
+      localStorage.setItem('lyftr_workout_layout', 'list')
+    }, session)
+
+    await page.goto('/workouts/active')
+    const block = page.getByRole('group', { name: /^Superset A, 2 exercises/ })
+    await expect(block).toBeVisible()
+    await expect(block.getByRole('img', { name: 'Straight to Barbell Row, no rest' })).toBeVisible()
+
+    await page.reload()
+    await expect(block).toBeVisible()
+    await expect(block.getByRole('img', { name: 'Straight to Barbell Row, no rest' })).toBeVisible()
+    const groups = await page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session')!).exercises.map((e: { superset_group: number | null }) => e.superset_group))
+    expect(groups).toEqual([1, 1])
   })
 })

@@ -109,14 +109,16 @@ type ResolveSuggestionsReq struct {
 }
 
 type WorkoutExercise struct {
-	ID          int64    `json:"id" db:"id"`
-	WorkoutID   int64    `json:"workout_id" db:"workout_id"`
-	ExerciseID  int64    `json:"exercise_id" db:"exercise_id"`
-	OrderIndex  int      `json:"order_index" db:"order_index"`
-	Notes       string   `json:"notes,omitempty" db:"notes"`
-	RestSeconds int      `json:"rest_seconds" db:"rest_seconds"`
-	Exercise    Exercise `json:"exercise,omitempty"`
-	Sets        []Set    `json:"sets,omitempty"`
+	ID          int64  `json:"id" db:"id"`
+	WorkoutID   int64  `json:"workout_id" db:"workout_id"`
+	ExerciseID  int64  `json:"exercise_id" db:"exercise_id"`
+	OrderIndex  int    `json:"order_index" db:"order_index"`
+	Notes       string `json:"notes,omitempty" db:"notes"`
+	RestSeconds int    `json:"rest_seconds" db:"rest_seconds"`
+	// SupersetGroup is a label scoped to one workout; null when not in a superset.
+	SupersetGroup *int     `json:"superset_group" db:"superset_group"`
+	Exercise      Exercise `json:"exercise,omitempty"`
+	Sets          []Set    `json:"sets,omitempty"`
 }
 
 type Set struct {
@@ -300,14 +302,21 @@ type CreateWorkoutRequest struct {
 	// each dimension independently, not their product — see MaxWorkoutSets above for
 	// the cap that actually matters.
 	Exercises []CreateWorkoutExerciseReq `json:"exercises" validate:"max=500,dive"`
+	// LegacySupersets is set by the handler, never decoded, when no exercise in an update
+	// carries superset_group: a client predating supersets. Update then keeps the stored
+	// labels (carrySupersetGroups) instead of reading the absent field as "unlink".
+	LegacySupersets bool `json:"-"`
 }
 
 type CreateWorkoutExerciseReq struct {
-	ExerciseID  int64          `json:"exercise_id" validate:"required"`
-	OrderIndex  int            `json:"order_index"`
-	Notes       string         `json:"notes"`
-	RestSeconds int            `json:"rest_seconds"`
-	Sets        []CreateSetReq `json:"sets" validate:"max=500"`
+	ExerciseID  int64  `json:"exercise_id" validate:"required"`
+	OrderIndex  int    `json:"order_index"`
+	Notes       string `json:"notes"`
+	RestSeconds int    `json:"rest_seconds"`
+	// Omitted by clients predating supersets: a create stores NULL, an update keeps
+	// what was stored (CreateWorkoutRequest.LegacySupersets).
+	SupersetGroup *int           `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
+	Sets          []CreateSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateSetReq struct {
@@ -441,14 +450,16 @@ type ProgramDay struct {
 }
 
 type ProgramExercise struct {
-	ID           int64        `json:"id,omitempty"`
-	ProgramDayID int64        `json:"program_day_id,omitempty"`
-	ExerciseID   int64        `json:"exercise_id"`
-	OrderIndex   int          `json:"order_index,omitempty"`
-	Notes        string       `json:"notes"`
-	RestSeconds  int          `json:"rest_seconds"`
-	Exercise     Exercise     `json:"exercise"`
-	Sets         []ProgramSet `json:"sets"`
+	ID           int64  `json:"id,omitempty"`
+	ProgramDayID int64  `json:"program_day_id,omitempty"`
+	ExerciseID   int64  `json:"exercise_id"`
+	OrderIndex   int    `json:"order_index,omitempty"`
+	Notes        string `json:"notes"`
+	RestSeconds  int    `json:"rest_seconds"`
+	// SupersetGroup is a label scoped to one program day; null when not in a superset.
+	SupersetGroup *int         `json:"superset_group"`
+	Exercise      Exercise     `json:"exercise"`
+	Sets          []ProgramSet `json:"sets"`
 }
 
 type ProgramSet struct {
@@ -488,6 +499,10 @@ type CreateProgramRequest struct {
 	// would positionally re-attribute the deleted days' workout history to the
 	// brand-new days (see ProgramStore.Update). Ignored on create.
 	DayIDsKnown bool `json:"day_ids_known"`
+	// LegacySupersets is set by the handler, never decoded, when no exercise in an update
+	// carries superset_group: a client predating supersets. Update then keeps each kept day's
+	// stored labels (carrySupersetGroups) instead of reading the absent field as "unlink".
+	LegacySupersets bool `json:"-"`
 }
 
 // CreateProgramDayReq is one Day in a program's cycle. Exercises is ignored (and
@@ -505,10 +520,13 @@ type CreateProgramDayReq struct {
 }
 
 type CreateProgramExerciseReq struct {
-	ExerciseID  int64                 `json:"exercise_id" validate:"required"`
-	Notes       string                `json:"notes"`
-	RestSeconds int                   `json:"rest_seconds"`
-	Sets        []CreateProgramSetReq `json:"sets" validate:"max=500"`
+	ExerciseID  int64  `json:"exercise_id" validate:"required"`
+	Notes       string `json:"notes"`
+	RestSeconds int    `json:"rest_seconds"`
+	// Omitted by clients predating supersets: a create stores NULL, an update keeps
+	// what was stored (CreateProgramRequest.LegacySupersets).
+	SupersetGroup *int                  `json:"superset_group" validate:"omitempty,gte=1,lte=999"`
+	Sets          []CreateProgramSetReq `json:"sets" validate:"max=500"`
 }
 
 type CreateProgramSetReq struct {

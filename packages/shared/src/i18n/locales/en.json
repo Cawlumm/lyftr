@@ -348,6 +348,7 @@
         "NOT_AN_OPTION": "{{field}} must be one of: {{options}}.",
         "TOO_MANY_WORKOUT_SETS": "A workout can't have more than {{max}} sets.",
         "TOO_MANY_PROGRAM_ROWS": "A program can't have more than {{max}} days, exercises and sets combined.",
+        "SUPERSET_NOT_CONTIGUOUS": "Exercises in a superset must be next to each other.",
         "INVALID_FIELD": "{{field}} isn't valid.",
         "INVALID_ID": "That id isn't valid.",
         "INVALID_EXERCISE_ID": "That exercise id isn't valid.",
@@ -443,6 +444,7 @@
         "set_number": "Set number",
         "sets": "Sets",
         "started_at": "Started at",
+        "superset_group": "Superset group",
         "target_reps": "Target reps",
         "target_weight": "Target weight",
         "timezone": "Timezone",
@@ -1185,6 +1187,44 @@
       "moveDown": "Move {{name}} down",
       "moved": "{{name}} moved to position {{position}} of {{count}}"
     },
+    "superset": {
+      "label": "Superset {{letter}}",
+      "badge": "Superset {{letter}} · {{position}} of {{total}}",
+      "position": "Superset {{letter}}, exercise {{position}} of {{total}}",
+      "linkNext": "Superset {{a}} with {{b}}",
+      "unlinkNext": "Unlink {{a}} from {{b}}",
+      "linkedA11y": "{{a}} and {{b}} are now a superset",
+      "unlinkedA11y": "{{a}} and {{b}} are no longer a superset",
+      "restAfterRound": "Rest after round: {{rest}}",
+      "restAfterRoundHint": "Rest after the round",
+      "movedUnlinked": "{{name}} moved to position {{position}} of {{count}} and unlinked from its superset",
+      "subtitle": "Alternate sets · rest after each round",
+      "round": "Round {{n}} of {{total}}",
+      "groupLabel": "Superset {{letter}}, {{count}} exercises, round {{n}} of {{total}}",
+      "groupLabelStatic": "Superset {{letter}}, {{count}} exercises, {{rounds}}",
+      "roundsCount_one": "{{count}} round",
+      "roundsCount_other": "{{count}} rounds",
+      "straightTo": "Straight to {{name}}, no rest",
+      "restThen": "Rest {{rest}} after {{name}}, then round {{n}}",
+      "restThenLast": "Rest {{rest}} after {{name}}",
+      "upNext": "Up next",
+      "toastNext": "{{done}} done. {{next}} is up, no rest.",
+      "menuPair": "Superset with…",
+      "menuRemove": "Remove from superset {{letter}}",
+      "addPill": "Superset",
+      "addPillLabel": "Superset {{a}} with {{b}}",
+      "sheet": {
+        "title": "Make a superset",
+        "body": "Alternate one set of each, then rest once per round. Saves time between sets.",
+        "pairWith": "Pair {{name}} with",
+        "movesNextTo": "{{muscle}} · moves it next to {{name}}",
+        "moves": "Moves it next to {{name}}",
+        "restNote": "You'll rest {{rest}} after {{name}} each round. Change it any time.",
+        "create": "Create superset",
+        "cancel": "Cancel",
+        "empty": "There are no other exercises to pair with."
+      }
+    },
     "rest": {
       "off": "Off",
       "custom": "Custom",
@@ -1201,6 +1241,7 @@
         "setDone": "Set {{done}} done",
         "setDonePaused": "Set {{done}} done · paused",
         "setDoneNext": "Set {{done}} done · set {{next}} next",
+        "setDoneNextExercise": "Set {{done}} done · {{name}} next",
         "setDoneResting": "Set {{done}} done · resting",
         "overNext": "Rest over · set {{next}} next"
       },
@@ -1226,7 +1267,9 @@
       "addExercise": "Add exercise",
       "allExercises": "All exercises",
       "overview": "Workout overview",
-      "subtitle": "{{name}} · {{sets}}"
+      "subtitle": "{{name}} · {{sets}}",
+      "supersetNext": "Superset with next",
+      "unlinkNext": "Unlink from next"
     },
     "exercises": {
       "title": "Exercises",
@@ -1264,6 +1307,7 @@
       "label": "Target",
       "repsUnknown": "— reps"
     },
+    "supersetNext": "Next: {{name}}, set {{number}}",
     "completeSet": "Complete Set",
     "completed": "Completed",
     "removeSet": "Remove this set",
@@ -1280,6 +1324,21 @@
       "info": "Info",
       "finishWorkout": "Finish Workout",
       "nextExercise": "Next Exercise"
+    },
+    "superset": {
+      "pill": "Superset {{letter}} · Round {{n}} of {{total}}",
+      "then": "Then",
+      "thenRest": "Rest {{rest}}, then {{name}} · set {{number}}",
+      "thenStraight": "Straight to {{name}} · set {{number}}, no rest",
+      "roundDone": "Round {{n}} of {{total}} done",
+      "thisRound": "This round",
+      "upNext": "Up next",
+      "upNextFinal": "Up next · final round",
+      "finalRound": "Final round",
+      "next": "Next: {{name}}, set {{number}}",
+      "upNextTitle": "{{name}} · set {{number}}",
+      "upNextThen": "{{detail}}, then straight to {{name}}",
+      "effort": "{{weight}} × {{reps}}"
     }
   },
   "exercises": {

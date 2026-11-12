@@ -255,6 +255,106 @@ describe('workoutSession buildPayload — only completed sets are saved', () => 
   })
 })
 
+describe('workoutSession supersets (#227)', () => {
+  const ex = (id: number, group?: number | null, done = true) => ({
+    exercise_id: id, exercise: { id, name: `E${id}` }, notes: '', superset_group: group,
+    sets: [{ set_number: 1, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: done }],
+  }) as any
+  const groups = (store: () => any) => store().session!.exercises.map((e: any) => e.superset_group ?? null)
+
+  it('linkWithNext / unlinkFromNext update and persist the session', async () => {
+    const { store, storage } = setup()
+    store().startSession('T', [ex(1), ex(2), ex(3)])
+    store().linkWithNext(0)
+    expect(groups(store)).toEqual([1, 1, null])
+    expect(JSON.parse((await storage.get(WORKOUT_SESSION_KEY))!).exercises.map((e: any) => e.superset_group ?? null)).toEqual([1, 1, null])
+    store().linkWithNext(1)
+    expect(groups(store)).toEqual([1, 1, 1])
+    store().unlinkFromNext(0)
+    expect(groups(store)).toEqual([null, 1, 1])
+  })
+
+  it('does nothing without a session', () => {
+    const { store } = setup()
+    store().linkWithNext(0)
+    store().unlinkFromNext(0)
+    expect(store().session).toBeNull()
+  })
+
+  it('moving a member out of its run unlinks it and dissolves the partner', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1), ex(3, null)])
+    store().moveExercise(0, 2)
+    expect(store().session!.exercises.map((e) => e.exercise_id)).toEqual([2, 3, 1])
+    expect(groups(store)).toEqual([null, null, null])
+  })
+
+  it('moving a row into the middle of a run splits the run', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1), ex(3, 1), ex(4, null)])
+    store().moveExercise(3, 1)
+    expect(store().session!.exercises.map((e) => e.exercise_id)).toEqual([1, 4, 2, 3])
+    expect(groups(store)).toEqual([null, null, 1, 1])
+  })
+
+  it('moving a member within its own run keeps the group', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1), ex(3, 1)])
+    store().moveExercise(0, 1)
+    expect(store().session!.exercises.map((e) => e.exercise_id)).toEqual([2, 1, 3])
+    expect(groups(store)).toEqual([1, 1, 1])
+  })
+
+  it('removeSet mid-round keeps the group and re-targets the round', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1)])
+    store().removeSet(1, 0)
+    expect(groups(store)).toEqual([1, 1])
+    expect(store().session!.exercises[1].sets.length).toBe(store().session!.exercises[0].sets.length - 1)
+  })
+
+  it('removing a member dissolves a pair but keeps a tri-set as a pair', () => {
+    const a = setup()
+    a.store().startSession('T', [ex(1, 1), ex(2, 1)])
+    a.store().removeExercise(0)
+    expect(groups(a.store)).toEqual([null])
+    const b = setup()
+    b.store().startSession('T', [ex(1, 1), ex(2, 1), ex(3, 1)])
+    b.store().removeExercise(2)
+    expect(groups(b.store)).toEqual([1, 1])
+  })
+
+  it('addExercise normalises', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 4)])
+    store().addExercise(ex(2, 4))
+    expect(groups(store)).toEqual([1, 1])
+  })
+
+  it('buildPayload sends superset_group, with an explicit null for ungrouped', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1), ex(3, undefined)])
+    expect(store().buildPayload().exercises.map((e: any) => e.superset_group ?? null)).toEqual([1, 1, null])
+  })
+
+  it('buildPayload dissolves a group whose partner has no completed sets', () => {
+    const { store } = setup()
+    store().startSession('T', [ex(1, 1), ex(2, 1, false), ex(3, 2), ex(4, 2)])
+    const out = store().buildPayload().exercises
+    expect(out.map((e: any) => e.exercise_id)).toEqual([1, 3, 4])
+    expect(out.map((e: any) => e.superset_group)).toEqual([null, 1, 1])
+  })
+
+  it('hydrates an old session without the field', async () => {
+    const old = { name: 'Old', started_at: '2026-07-01T10:00:00Z', exercises: [{ exercise_id: 1, exercise: {}, notes: '', sets: [{ completed: true }] }] }
+    const { store } = setup({ [WORKOUT_SESSION_KEY]: JSON.stringify(old) })
+    await store().hydrate()
+    store().linkWithNext(0)
+    expect(store().session!.exercises[0].superset_group).toBeUndefined()
+    expect(store().buildPayload().exercises[0].superset_group).toBeNull()
+  })
+})
+
 // NEW (mobile-only): the async-hydrate adaptation has its own behavior to pin.
 describe('workoutSession hydrate (async storage adaptation)', () => {
   it('starts empty and un-hydrated; hydrate() restores seeded session + gym UI', async () => {

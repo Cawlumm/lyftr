@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
 import { Dumbbell, Plus } from '../ui/icons'
-import { moveItem, occurrenceKeys, useTranslation, type Exercise } from '@lyftr/shared'
+import {
+  moveItem, normaliseSupersets, occurrenceKeys, useTranslation, type Exercise,
+} from '@lyftr/shared'
 import { EmptyState, TOUCH_MIN, touchTarget } from '../ui'
-import { ExerciseFormCard } from '../workouts/ExerciseFormCard'
+import { ExerciseFormList } from '../workouts/ExerciseFormCard'
 import { ExercisePicker } from '../workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../workouts/ReorderExercisesSheet'
 import { useStableCallback } from '../../hooks/useStableCallback'
@@ -42,6 +44,7 @@ export function DayExercisesEditor({
       notes: '',
       rest_seconds: restSecondsDefault,
       sets: [{ set_number: 1, reps: 0, weight: 0 }],
+      superset_group: null,
     }])
     setShowPicker(false)
   }
@@ -52,7 +55,7 @@ export function DayExercisesEditor({
   // handler prop, which invalidates its memo for every card, not just the edited
   // one (the visible lag when a program has many exercises).
   const removeExercise = useStableCallback((index: number) =>
-    onChange(exercises.filter((_, i) => i !== index)))
+    onChange(normaliseSupersets(exercises.filter((_, i) => i !== index))))
 
   const addSet = useStableCallback((exIdx: number) => {
     onChange(exercises.map((ex, i) => {
@@ -79,7 +82,10 @@ export function DayExercisesEditor({
   })
 
   const openReorder = useStableCallback(() => setShowReorder(true))
-  const moveExercise = useStableCallback((from: number, to: number) => onChange(moveItem(exercises, from, to)))
+  const moveExercise = useStableCallback((from: number, to: number) =>
+    onChange(normaliseSupersets(moveItem(exercises, from, to))))
+
+  const rewrite = useStableCallback((fn: (rows: DayExerciseDraft[]) => DayExerciseDraft[]) => onChange(fn(exercises)))
 
   const selectedIds = exercises.map((e) => e.exercise_id)
   const rowKeys = occurrenceKeys(selectedIds)
@@ -107,24 +113,20 @@ export function DayExercisesEditor({
         </View>
       ) : (
         <View className="gap-4">
-          {exercises.map((dayEx, exIdx) => (
-            <ExerciseFormCard
-              key={rowKeys[exIdx]}
-              index={exIdx}
-              exercise={pickerExercises[dayEx.exercise_id]}
-              notes={dayEx.notes}
-              sets={dayEx.sets}
-              restSeconds={dayEx.rest_seconds ?? 90}
-              unit={unit}
-              onRemove={removeExercise}
-              onNotesChange={updateExNotes}
-              onAddSet={addSet}
-              onRemoveSet={removeSet}
-              onUpdateSet={updateSet}
-              onRestChange={setExRest}
-              inputAccessoryViewID={inputAccessoryViewID}
-            />
-          ))}
+          <ExerciseFormList
+            exercises={exercises}
+            rowKeys={rowKeys}
+            pickerExercises={pickerExercises}
+            unit={unit}
+            onRewrite={rewrite}
+            onRemove={removeExercise}
+            onNotesChange={updateExNotes}
+            onAddSet={addSet}
+            onRemoveSet={removeSet}
+            onUpdateSet={updateSet}
+            onRestChange={setExRest}
+            inputAccessoryViewID={inputAccessoryViewID}
+          />
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('workouts.form.addExerciseLabel')}
@@ -144,6 +146,7 @@ export function DayExercisesEditor({
         open={showReorder}
         names={exercises.map((e) => pickerExercises[e.exercise_id]?.name ?? t('workouts.form.exerciseFallback'))}
         rowKeys={rowKeys}
+        groups={exercises.map((e) => e.superset_group)}
         onMove={moveExercise}
         onClose={() => setShowReorder(false)}
       />

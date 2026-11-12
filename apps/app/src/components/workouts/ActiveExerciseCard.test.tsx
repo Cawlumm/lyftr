@@ -1,7 +1,7 @@
-import { renderHook, act, render, screen } from '@testing-library/react-native'
+import { renderHook, act, render, screen, fireEvent, waitFor } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { i18n, useNumericText, type ActiveSessionExercise } from '@lyftr/shared'
-import { ActiveExerciseCard } from './ActiveExerciseCard'
+import { ActiveExerciseCard, SupersetStatusToast } from './ActiveExerciseCard'
 
 // Same preamble as the other component tests: expo-router can't load under bare jest, and
 // the card reaches it directly and via useTheme -> lib/lyftr.
@@ -82,5 +82,66 @@ describe('ActiveExerciseCard copy', () => {
       await view.unmount()
       await i18n.changeLanguage('en')
     }
+  })
+})
+
+describe('ActiveExerciseCard superset member', () => {
+  const noop = () => {}
+  const card = (extra: object) => (
+    <ActiveExerciseCard
+      index={0} ex={exercise} isActive isLast wUnit="kg" weightUnit="kg"
+      onCardLayout={noop} onRemoveExercise={noop} onNotesChange={noop} onAddSet={noop} onRemoveSet={noop}
+      onUpdateSet={noop} onCompleteSet={noop} onJumpToExercise={noop} onRequestFinish={noop}
+      {...extra}
+    />
+  )
+
+  it('tags the thumbnail with its place and no longer draws a rail or badge', async () => {
+    await i18n.changeLanguage('en')
+    await render(card({ supersetLetter: 'A', supersetPosition: 1, supersetTotal: 2 }))
+    expect(screen.getByText('A1')).toBeTruthy()
+    expect(screen.queryByText(/^Superset A/)).toBeNull()
+  })
+
+  it('shows the up-next pill only when asked', async () => {
+    await i18n.changeLanguage('en')
+    const view = await render(card({ supersetLetter: 'A', supersetPosition: 2, supersetTotal: 2, upNext: true }))
+    expect(screen.getByText('Up next')).toBeTruthy()
+    await view.unmount()
+    await render(card({ supersetLetter: 'A', supersetPosition: 2, supersetTotal: 2 }))
+    expect(screen.queryByText('Up next')).toBeNull()
+  })
+
+  it('offers "Superset with…" for an exercise on its own and "Remove from superset A" for a member', async () => {
+    await i18n.changeLanguage('en')
+    const onPairWith = jest.fn()
+    const onRemoveFromSuperset = jest.fn()
+    const view = await render(card({ onPairWith, onRemoveFromSuperset }))
+    await fireEvent.press(screen.getByLabelText('More options'))
+    await fireEvent.press(await screen.findByText('Superset with…'))
+    await waitFor(() => expect(onPairWith).toHaveBeenCalledWith(0))
+    await view.unmount()
+    await render(card({ onPairWith, onRemoveFromSuperset, supersetLetter: 'A', supersetPosition: 1, supersetTotal: 2 }))
+    await fireEvent.press(screen.getByLabelText('More options'))
+    await fireEvent.press(await screen.findByText('Remove from superset A'))
+    await waitFor(() => expect(onRemoveFromSuperset).toHaveBeenCalledWith(0))
+  })
+
+  it('has no menu without onPairWith', async () => {
+    await i18n.changeLanguage('en')
+    await render(card({}))
+    expect(screen.queryByLabelText('More options')).toBeNull()
+  })
+})
+
+describe('SupersetStatusToast', () => {
+  it('lives in a polite status region and shows the message', async () => {
+    await render(<SupersetStatusToast message="Bench done. Row is up, no rest." />)
+    expect(screen.getByText('Bench done. Row is up, no rest.')).toBeTruthy()
+    expect(screen.getByRole('status', { includeHiddenElements: true })).toBeTruthy()
+  })
+  it('renders nothing visible without one', async () => {
+    await render(<SupersetStatusToast message={null} />)
+    expect(screen.queryByText(/done/)).toBeNull()
   })
 })

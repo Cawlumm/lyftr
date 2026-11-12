@@ -346,3 +346,21 @@ func TestValidationErrorBody(t *testing.T) {
 		t.Fatalf("params present: %v", body)
 	}
 }
+
+func TestValidation_supersetNotContiguous(t *testing.T) {
+	type rows struct {
+		Exercises []int `json:"exercises"`
+	}
+	vl := NewValidator()
+	vl.RegisterStructValidation(func(sl validator.StructLevel) {
+		sl.ReportError(1, "Exercises", "Exercises", "supersetcontiguous", "")
+	}, rows{})
+	status, body := validationBody(t, vl.Struct(rows{}))
+	got := body["params"].(map[string]any)["violations"].([]any)[0]
+	if status != 422 || !reflect.DeepEqual(got, map[string]any{"code": "SUPERSET_NOT_CONTIGUOUS"}) {
+		t.Fatalf("status %d violation %#v", status, got)
+	}
+	if body["error"] != "Exercises in a superset must be next to each other." {
+		t.Errorf("error = %v", body["error"])
+	}
+}

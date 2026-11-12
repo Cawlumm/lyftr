@@ -357,6 +357,13 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest, lo
 			); err != nil {
 				return err
 			}
+			exercises := day.Exercises
+			if req.LegacySupersets && !day.IsRestDay {
+				var err error
+				if exercises, err = carryProgramSupersets(tx, dayID, exercises); err != nil {
+					return err
+				}
+			}
 			if _, err := tx.Exec(`DELETE FROM program_exercises WHERE program_day_id = ?`, dayID); err != nil {
 				return err
 			}
@@ -373,7 +380,7 @@ func (s *ProgramStore) Update(uid, id int64, req models.CreateProgramRequest, lo
 				}
 				continue // rest days never carry exercises, even if the client sent some
 			}
-			if err := insertProgramExercises(tx, id, dayID, day.Exercises); err != nil {
+			if err := insertProgramExercises(tx, id, dayID, exercises); err != nil {
 				return err
 			}
 		}
@@ -624,11 +631,38 @@ func insertProgramDay(tx *sql.Tx, programID int64, orderIndex int, day models.Cr
 	return insertProgramExercises(tx, programID, dayID, day.Exercises)
 }
 
+// carryProgramSupersets returns a copy of a kept day's exercises labelled as its stored rows
+// were, for an edit from a client that cannot send labels (CreateProgramRequest.LegacySupersets).
+// A new day has nothing stored, so it is never called for one.
+func carryProgramSupersets(tx *sql.Tx, dayID int64, exercises []models.CreateProgramExerciseReq) ([]models.CreateProgramExerciseReq, error) {
+	prevIDs, prevGroups, err := storedSupersetGroups(tx,
+		`SELECT exercise_id, superset_group FROM program_exercises WHERE program_day_id = ? ORDER BY order_index`, dayID)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]int64, len(exercises))
+	for i, ex := range exercises {
+		ids[i] = ex.ExerciseID
+	}
+	groups := carrySupersetGroups(prevIDs, prevGroups, ids)
+	out := make([]models.CreateProgramExerciseReq, len(exercises))
+	for i, ex := range exercises {
+		ex.SupersetGroup = groups[i]
+		out[i] = ex
+	}
+	return out, nil
+}
+
 func insertProgramExercises(tx *sql.Tx, programID, dayID int64, exercises []models.CreateProgramExerciseReq) error {
+	groups := make([]*int, len(exercises))
+	for i, ex := range exercises {
+		groups[i] = ex.SupersetGroup
+	}
+	groups = normaliseSupersetGroups(groups)
 	for i, ex := range exercises {
 		exRes, err := tx.Exec(
-			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds) VALUES (?, ?, ?, ?, ?, ?)`,
-			programID, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds,
+			`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, notes, rest_seconds, superset_group) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			programID, dayID, ex.ExerciseID, i, ex.Notes, ex.RestSeconds, groups[i],
 		)
 		if err != nil {
 			return err
@@ -699,7 +733,7 @@ func (s *ProgramStore) loadDays(programID int64, locale string) ([]models.Progra
 func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.ProgramExercise, error) {
 	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
-		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds,
+		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds, pe.superset_group,
 		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id`+join+`
@@ -712,14 +746,16 @@ func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.Progr
 	exercises := []models.ProgramExercise{}
 	for rows.Next() {
 		var pe models.ProgramExercise
+		var group sql.NullInt64
 		if err := rows.Scan(
-			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds,
+			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds, &group,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
 			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
 		); err != nil {
 			rows.Close()
 			return nil, err
 		}
+		pe.SupersetGroup = nullableInt(group)
 		pe.Exercise.ID = pe.ExerciseID
 		exercises = append(exercises, pe)
 	}

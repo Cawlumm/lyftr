@@ -60,6 +60,11 @@ func alterMigrations() {
 	ensureColumn("program_exercises", "rest_seconds", `ALTER TABLE program_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
 	ensureColumn("workout_exercises", "rest_seconds", `ALTER TABLE workout_exercises ADD COLUMN rest_seconds INTEGER NOT NULL DEFAULT 90`)
 
+	// Supersets (#227). A label that only means something inside one workout or one
+	// program day; NULL = not in a superset, which is what every existing row is.
+	ensureColumn("program_exercises", "superset_group", `ALTER TABLE program_exercises ADD COLUMN superset_group INTEGER`)
+	ensureColumn("workout_exercises", "superset_group", `ALTER TABLE workout_exercises ADD COLUMN superset_group INTEGER`)
+
 	// Progressive-overload suggestions (#40). Nullable = "no pending suggestion";
 	// a suggestion exists when suggested_reps IS NOT NULL (weight+reps staged together).
 	// The user reviews + approves these on the routine; approving copies them into target_*.

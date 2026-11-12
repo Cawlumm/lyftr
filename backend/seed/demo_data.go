@@ -16,54 +16,55 @@ type demoEx struct {
 	reps       int
 	baseWeight float64 // lbs, week 1
 	peakWeight float64 // lbs, week 8
+	superset   int     // 0 = none; rows sharing a value are adjacent and linked
 }
 
 var pushA = []demoEx{
-	{[]string{"%bench press%medium%", "%barbell bench press%", "%bench press%"}, 4, 5, 135, 160},
-	{[]string{"%barbell shoulder press%", "%military press%", "%overhead press%"}, 3, 8, 95, 115},
-	{[]string{"%incline%barbell%press%", "%incline%press%"}, 3, 8, 105, 125},
-	{[]string{"%tricep%pushdown%", "%triceps pushdown%", "%pushdown%"}, 3, 12, 50, 65},
-	{[]string{"%lateral raise%"}, 3, 15, 20, 30},
+	{[]string{"%bench press%medium%", "%barbell bench press%", "%bench press%"}, 4, 5, 135, 160, 0},
+	{[]string{"%barbell shoulder press%", "%military press%", "%overhead press%"}, 3, 8, 95, 115, 0},
+	{[]string{"%incline%barbell%press%", "%incline%press%"}, 3, 8, 105, 125, 0},
+	{[]string{"%tricep%pushdown%", "%triceps pushdown%", "%pushdown%"}, 3, 12, 50, 65, 1},
+	{[]string{"%lateral raise%"}, 3, 15, 20, 30, 1},
 }
 
 var pullA = []demoEx{
-	{[]string{"%barbell deadlift%", "%deadlift%"}, 3, 5, 225, 275},
-	{[]string{"%bent over%row%", "%barbell row%"}, 4, 8, 135, 165},
-	{[]string{"%lat pulldown%"}, 3, 10, 120, 150},
-	{[]string{"%face pull%"}, 3, 15, 40, 55},
-	{[]string{"%barbell curl%", "%standing barbell curl%", "%curl%"}, 3, 10, 65, 85},
+	{[]string{"%barbell deadlift%", "%deadlift%"}, 3, 5, 225, 275, 0},
+	{[]string{"%bent over%row%", "%barbell row%"}, 4, 8, 135, 165, 0},
+	{[]string{"%lat pulldown%"}, 3, 10, 120, 150, 0},
+	{[]string{"%face pull%"}, 3, 15, 40, 55, 0},
+	{[]string{"%barbell curl%", "%standing barbell curl%", "%curl%"}, 3, 10, 65, 85, 0},
 }
 
 var legsA = []demoEx{
-	{[]string{"%barbell squat%", "%back squat%", "%squat%"}, 4, 5, 185, 225},
-	{[]string{"%romanian deadlift%"}, 3, 8, 135, 165},
-	{[]string{"%leg press%"}, 3, 12, 270, 360},
-	{[]string{"%leg curl%", "%lying leg curl%"}, 3, 12, 90, 120},
-	{[]string{"%standing calf%", "%calf raise%"}, 4, 15, 135, 175},
+	{[]string{"%barbell squat%", "%back squat%", "%squat%"}, 4, 5, 185, 225, 0},
+	{[]string{"%romanian deadlift%"}, 3, 8, 135, 165, 0},
+	{[]string{"%leg press%"}, 3, 12, 270, 360, 0},
+	{[]string{"%leg curl%", "%lying leg curl%"}, 3, 12, 90, 120, 0},
+	{[]string{"%standing calf%", "%calf raise%"}, 4, 15, 135, 175, 0},
 }
 
 var pushB = []demoEx{
-	{[]string{"%incline%dumbbell%press%", "%incline%press%"}, 4, 8, 65, 80},
-	{[]string{"%dumbbell shoulder press%", "%seated dumbbell press%", "%dumbbell press%"}, 3, 10, 45, 60},
-	{[]string{"%cable fly%", "%chest fly%", "%pec deck%"}, 3, 12, 60, 80},
-	{[]string{"%skull crusher%", "%lying tricep%", "%ez-bar tricep%"}, 3, 10, 60, 80},
-	{[]string{"%dumbbell lateral raise%", "%lateral raise%"}, 3, 15, 20, 30},
+	{[]string{"%incline%dumbbell%press%", "%incline%press%"}, 4, 8, 65, 80, 0},
+	{[]string{"%dumbbell shoulder press%", "%seated dumbbell press%", "%dumbbell press%"}, 3, 10, 45, 60, 0},
+	{[]string{"%cable fly%", "%chest fly%", "%pec deck%"}, 3, 12, 60, 80, 0},
+	{[]string{"%skull crusher%", "%lying tricep%", "%ez-bar tricep%"}, 3, 10, 60, 80, 0},
+	{[]string{"%dumbbell lateral raise%", "%lateral raise%"}, 3, 15, 20, 30, 0},
 }
 
 var pullB = []demoEx{
-	{[]string{"%sumo deadlift%", "%romanian deadlift%"}, 3, 6, 205, 245},
-	{[]string{"%seated cable row%", "%cable row%", "%seated row%"}, 4, 10, 120, 150},
-	{[]string{"%pull-up%", "%pullup%", "%chin-up%"}, 3, 6, 0, 0},
-	{[]string{"%reverse fly%", "%bent over reverse%", "%rear delt%"}, 3, 15, 25, 35},
-	{[]string{"%hammer curl%", "%dumbbell hammer curl%"}, 3, 10, 35, 50},
+	{[]string{"%sumo deadlift%", "%romanian deadlift%"}, 3, 6, 205, 245, 0},
+	{[]string{"%seated cable row%", "%cable row%", "%seated row%"}, 4, 10, 120, 150, 0},
+	{[]string{"%pull-up%", "%pullup%", "%chin-up%"}, 3, 6, 0, 0, 0},
+	{[]string{"%reverse fly%", "%bent over reverse%", "%rear delt%"}, 3, 15, 25, 35, 0},
+	{[]string{"%hammer curl%", "%dumbbell hammer curl%"}, 3, 10, 35, 50, 0},
 }
 
 var legsB = []demoEx{
-	{[]string{"%front squat%", "%hack squat%", "%goblet squat%"}, 4, 6, 135, 165},
-	{[]string{"%good morning%"}, 3, 10, 95, 115},
-	{[]string{"%walking lunge%", "%lunge%"}, 3, 12, 50, 70},
-	{[]string{"%seated leg curl%", "%leg curl%"}, 3, 12, 80, 105},
-	{[]string{"%seated calf%", "%calf raise%"}, 4, 15, 90, 120},
+	{[]string{"%front squat%", "%hack squat%", "%goblet squat%"}, 4, 6, 135, 165, 0},
+	{[]string{"%good morning%"}, 3, 10, 95, 115, 0},
+	{[]string{"%walking lunge%", "%lunge%"}, 3, 12, 50, 70, 0},
+	{[]string{"%seated leg curl%", "%leg curl%"}, 3, 12, 80, 105, 0},
+	{[]string{"%seated calf%", "%calf raise%"}, 4, 15, 90, 120, 0},
 }
 
 // weekSchedule maps day-of-week (0=Sun) to workout template index.
@@ -136,6 +137,28 @@ func lookupExercise(db *sql.DB, patterns []string) (int64, bool) {
 	return 0, false
 }
 
+// supersetGroups returns each template row's superset_group, nil unless at least two
+// of its members resolved to a catalog exercise: a lone member would be a group of
+// one, which the app never stores.
+func supersetGroups(db *sql.DB, template []demoEx) []any {
+	resolved := map[int]int{}
+	for _, ex := range template {
+		if ex.superset == 0 {
+			continue
+		}
+		if _, ok := lookupExercise(db, ex.patterns); ok {
+			resolved[ex.superset]++
+		}
+	}
+	out := make([]any, len(template))
+	for i, ex := range template {
+		if ex.superset != 0 && resolved[ex.superset] >= 2 {
+			out[i] = ex.superset
+		}
+	}
+	return out
+}
+
 // seedProgram builds a 7-day PPL cycle (order matches weekSchedule Mon→Sun) so the
 // demo account showcases multi-day routines with a rest day baked in, not just a
 // flat exercise list. Targets seed at peakWeight (week-8 numbers) — this is the
@@ -172,14 +195,15 @@ func seedProgram(db *sql.DB, userID int64) (int64, error) {
 		if isRest {
 			continue
 		}
+		groups := supersetGroups(db, workoutTemplates[day.tmplIdx])
 		for exOrder, exDef := range workoutTemplates[day.tmplIdx] {
 			exID, ok := lookupExercise(db, exDef.patterns)
 			if !ok {
 				continue
 			}
 			pexRes, err := db.Exec(
-				`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index) VALUES (?, ?, ?, ?)`,
-				progID, dayID, exID, exOrder,
+				`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, superset_group) VALUES (?, ?, ?, ?, ?)`,
+				progID, dayID, exID, exOrder, groups[exOrder],
 			)
 			if err != nil {
 				continue
@@ -244,14 +268,15 @@ func seedWorkouts(db *sql.DB, userID, progID int64) error {
 		}
 		workoutID, _ := res.LastInsertId()
 
+		groups := supersetGroups(db, template)
 		for exOrder, exDef := range template {
 			exID, ok := lookupExercise(db, exDef.patterns)
 			if !ok {
 				continue
 			}
 			wexRes, err := db.Exec(
-				`INSERT INTO workout_exercises (workout_id, exercise_id, order_index) VALUES (?, ?, ?)`,
-				workoutID, exID, exOrder,
+				`INSERT INTO workout_exercises (workout_id, exercise_id, order_index, superset_group) VALUES (?, ?, ?, ?)`,
+				workoutID, exID, exOrder, groups[exOrder],
 			)
 			if err != nil {
 				continue

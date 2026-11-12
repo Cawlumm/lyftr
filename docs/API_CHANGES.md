@@ -14,6 +14,22 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## Workout and program exercises gain `superset_group` (additive)
+
+`GET /workouts/:id` and `GET /programs/:id` return `superset_group` on every exercise: an integer
+when it is in a superset, `null` when not. Rows sharing a label are one superset, labelled 1, 2, …
+in row order within a workout or a program day.
+
+`POST`/`PUT /workouts` and `/programs` accept it per exercise (1–999). A label used by rows that are
+not next to each other is refused with 422 `SUPERSET_NOT_CONTIGUOUS`; a label on one row only is
+stored as `null`. Requests that do not send the field are handled as before:
+
+- A create stores `null`.
+- An update in which **no** exercise carries the key keeps the labels already stored, matched by
+  exercise (and occurrence, for repeats), so a client that predates supersets does not unlink them
+  by editing. If its edit leaves a label split across rows that are no longer adjacent, that label
+  is dropped rather than the save refused. Send `"superset_group": null` explicitly to unlink.
+
 ## `GET /api/v1/exercises` no longer lists exercises removed from the upstream catalog
 
 When a complete daily catalog pass no longer finds an exercise in open-exercise-db, it is left

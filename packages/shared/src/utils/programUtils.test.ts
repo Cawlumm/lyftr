@@ -115,6 +115,12 @@ describe('activeSessionExercisesForDay', () => {
     })
   })
 
+  it('copies superset_group into the session, null when absent', () => {
+    const mk = (id: number, g?: number | null) => ({ exercise_id: id, exercise: { id } as any, sets: [], superset_group: g }) as any
+    const out = activeSessionExercisesForDay(day({ exercises: [mk(1, 1), mk(2, 1), mk(3), mk(4, null)] }))
+    expect(out.map((e) => e.superset_group)).toEqual([1, 1, null, null])
+  })
+
   it('a rest/empty day yields no exercises', () => {
     expect(activeSessionExercisesForDay(day({ is_rest_day: true }))).toEqual([])
     expect(activeSessionExercisesForDay({ ...day(), exercises: undefined as any })).toEqual([])

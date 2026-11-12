@@ -1,0 +1,16 @@
+{
+  "//": "Superset group cases shared by packages/shared (supersets.test.ts) and backend (stores + controllers tests), so the TS and Go rules cannot drift. input/normalised are per-row superset_group values in row order (null = not in a superset). contiguous = every non-null label occupies one unbroken run; the server rejects false with SUPERSET_NOT_CONTIGUOUS, the client splits instead. normalised for a contiguous case is what both sides must produce; for a non-contiguous case it is the client's split result.",
+  "cases": [
+    { "name": "empty", "input": [], "normalised": [], "contiguous": true },
+    { "name": "no groups", "input": [null, null], "normalised": [null, null], "contiguous": true },
+    { "name": "pair", "input": [1, 1], "normalised": [1, 1], "contiguous": true },
+    { "name": "singleton dissolves", "input": [1, null], "normalised": [null, null], "contiguous": true },
+    { "name": "renumbered in order", "input": [5, 5, null, 7, 7], "normalised": [1, 1, null, 2, 2], "contiguous": true },
+    { "name": "two adjacent groups", "input": [1, 1, 2, 2], "normalised": [1, 1, 2, 2], "contiguous": true },
+    { "name": "labels follow row order", "input": [2, 2, 1, 1], "normalised": [1, 1, 2, 2], "contiguous": true },
+    { "name": "tri-set", "input": [3, 3, 3], "normalised": [1, 1, 1], "contiguous": true },
+    { "name": "split leaves two singletons", "input": [1, null, 1], "normalised": [null, null, null], "contiguous": false },
+    { "name": "split leaves two pairs", "input": [1, 1, null, 1, 1], "normalised": [1, 1, null, 2, 2], "contiguous": false },
+    { "name": "interleaved labels", "input": [1, 2, 1, 2], "normalised": [null, null, null, null], "contiguous": false }
+  ]
+}

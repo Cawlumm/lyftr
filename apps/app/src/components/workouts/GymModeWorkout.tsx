@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState, type Ref } from 'react'
-import { Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View, type PressableInstance } from 'react-native'
+import { AccessibilityInfo, Image, Keyboard, Platform, Pressable, ScrollView, Text, TextInput, View, type PressableInstance } from 'react-native'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Haptics from 'expo-haptics'
 import { router, usePathname } from 'expo-router'
 import {
-  ArrowUpDown, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Ellipsis, Flag, Layers,
-  LayoutList, List, Play, Plus, Repeat, Timer, Trash2,
+  ArrowDown, ArrowRight, ArrowUpDown, Check, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Dumbbell, Ellipsis, Flag, Layers,
+  LayoutList, Link2, List, Play, Plus, Repeat, Timer, Trash2, Unlink2,
 } from '../ui/icons'
 import {
-  useAsyncAction, displayToLbs, displayWeight, exerciseFractions, occurrenceKeys, weightShort, useTranslation, type Exercise,
+  useAsyncAction, displayToLbs, type ActiveSessionExercise, displayWeight, exerciseFractions, occurrenceKeys, weightShort, useTranslation, type Exercise,
+  currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
 } from '@lyftr/shared'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
 import { AppText, ConfirmSheet, Menu, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile, type MenuItem } from '../ui'
@@ -26,9 +27,18 @@ import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { finishConfirmCopy } from '../../lib/finishConfirm'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { useTheme } from '../../theme/useTheme'
-import { PLATE_STEP, REP_STEP, clampStep, clampValue, nextIncompleteSet, numericRange } from '@lyftr/shared'
+import {
+  PLATE_STEP, REP_STEP, clampStep, clampValue, groupOf, nextIncompleteSet, nextSupersetTarget, numericRange,
+} from '@lyftr/shared'
 import { muscleLabel, equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
+import { SupersetMarker } from './SupersetMarker'
+import { ExerciseThumb, SupersetSheet, useGroupColors } from './superset'
+
+const supersetInfo = (rows: { superset_group?: number | null }[], i: number) => {
+  const g = groupOf(rows, i)
+  return g ? { letter: g.letter, position: i - g.start + 1, total: g.end - g.start + 1 } : undefined
+}
 
 const web = Platform.OS === 'web'
 
@@ -64,9 +74,119 @@ function ExerciseNotes({ exIdx, notes, onSave }: { exIdx: number; notes: string;
   )
 }
 
+const exerciseTag = (rows: { superset_group?: number | null }[], i: number) => {
+  const g = groupOf(rows, i)
+  return g ? `${g.letter}${i - g.start + 1}` : undefined
+}
+
+// Weight is shown only when there is one: a bodyweight set reads as its reps.
+function useEffort(unit: string) {
+  const { t } = useTranslation()
+  return (weightLbs: number, reps: number) => weightLbs > 0
+    ? t('gym.superset.effort', { weight: `${displayWeight(weightLbs, unit)} ${unit}`, reps })
+    : t('common.count.reps', { count: reps })
+}
+
+function SupersetPill({ letter, round, total, colorIndex }: { letter: string; round: number; total: number; colorIndex: number }) {
+  const { t } = useTranslation()
+  const c = useGroupColors(colorIndex)
+  return (
+    <View testID="gym-superset-pill" className="h-9 flex-row items-center gap-2 self-center rounded-full px-3.5" style={{ backgroundColor: c.tint, borderWidth: 1, borderColor: c.border }}>
+      <Repeat size={16} color={c.ink} />
+      <Text className="font-sans-bold text-[13px]" style={{ color: c.ink }}>{t('gym.superset.pill', { letter, n: Math.min(round + 1, total), total })}</Text>
+    </View>
+  )
+}
+
+function ThenCard({ label, rest, target, colorIndex }: { label: string; rest: string | null; target: string; colorIndex: number }) {
+  const { t } = useTranslation()
+  const c = useGroupColors(colorIndex)
+  const Ico = rest ? Timer : ArrowDown
+  return (
+    <View testID="gym-superset-then" role="img" aria-label={label} accessibilityLabel={label} className="w-full flex-row items-center gap-3 rounded-2xl border border-dashed bg-surface-raised px-3 py-2.5" style={{ borderColor: c.border }}>
+      <View className="h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: c.tint }}>
+        <Ico size={20} color={c.ink} />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <AppText variant="label" className="uppercase" style={{ color: c.ink }}>{t('gym.superset.then')}</AppText>
+        <View className="flex-row items-center gap-1.5">
+          {rest ? <AppText variant="bodySemibold" style={{ color: c.ink }}>{rest}</AppText> : null}
+          {rest ? <ArrowRight size={15} color={c.ink} /> : null}
+          <AppText variant="bodySemibold" numberOfLines={1} className="shrink">{target}</AppText>
+        </View>
+      </View>
+    </View>
+  )
+}
+
+function NextToast({ text }: { text: string }) {
+  const { colors } = useTheme()
+  return (
+    <View pointerEvents="none" aria-hidden accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ position: 'absolute', left: 16, right: 16, bottom: 148, alignItems: 'center' }}>
+      <View testID="gym-superset-toast" className="max-w-full flex-row items-center gap-2 rounded-full border border-surface-border bg-surface-raised px-4 py-2.5 shadow-lg">
+        <ArrowRight size={16} color={colors.txSecondary} />
+        <AppText variant="bodySemibold" numberOfLines={1} className="flex-shrink">{text}</AppText>
+      </View>
+    </View>
+  )
+}
+
+// What replaces the set body while the rest after a superset round runs: the round's result and
+// the step that follows. The countdown and its chip are the docked RestTimerBanner's.
+function RoundComplete({ rows, restExIdx, restSetIdx, wUnit }: { rows: ActiveSessionExercise[]; restExIdx: number; restSetIdx: number; wUnit: string }) {
+  const { t } = useTranslation()
+  const { colors, brand } = useTheme()
+  const effortText = useEffort(wUnit)
+  const g = groupOf(rows, restExIdx)
+  const c = useGroupColors(groupColorIndex(rows, restExIdx))
+  if (!g) return null
+  const recap = roundRecap(
+    rows.map((r) => ({ sets: (r.sets ?? []).map((s) => ({ completed: s.completed, weight: s.actual_weight, reps: s.actual_reps })) })),
+    g, restSetIdx,
+  )
+  const target = nextSupersetTarget(rows, restExIdx, restSetIdx)
+  const final = target ? target.setIdx === totalRounds(rows, g.start, g.end) - 1 : false
+  const after = target ? nextSupersetTarget(rows, target.exIdx, target.setIdx) : null
+  const targetSet = target ? rows[target.exIdx]?.sets[target.setIdx] : undefined
+  const w = targetSet ? targetSet.actual_weight || targetSet.target_weight || 0 : 0
+  const r = targetSet ? targetSet.actual_reps || targetSet.target_reps || 0 : 0
+  const effort = w > 0 || r > 0 ? effortText(w, r) : ''
+  const thenName = after && target && after.exIdx !== target.exIdx ? rows[after.exIdx].exercise.name : ''
+  return (
+    <View testID="gym-round-complete" className="w-full gap-4">
+      <View role="group" accessibilityLabel={t('gym.superset.thisRound')} className="gap-2.5 rounded-2xl border border-surface-border bg-surface-raised px-4 py-3">
+        <AppText variant="label" color="muted" className="uppercase">{t('gym.superset.thisRound')}</AppText>
+        {recap.map((e) => (
+          <View key={e.exIdx} className="min-h-7 flex-row items-center gap-2.5">
+            <View className="h-7 w-7 items-center justify-center rounded-full" style={{ backgroundColor: e.completed ? brand.success : colors.muted }}>
+              {e.completed ? <Check size={14} color="#ffffff" strokeWidth={3} /> : null}
+            </View>
+            <AppText variant="bodySemibold" numberOfLines={1} className="min-w-0 flex-1">{rows[e.exIdx].exercise.name}</AppText>
+            <AppText variant="bodySemibold" style={{ fontVariant: ['tabular-nums'] }}>{effortText(e.weight ?? 0, e.reps ?? 0)}</AppText>
+          </View>
+        ))}
+      </View>
+      {target ? (
+        <View role="group" accessibilityLabel={t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')} className="flex-row items-center gap-3 rounded-2xl px-4 py-3" style={{ backgroundColor: c.tint, borderWidth: 1.5, borderColor: c.border }}>
+          <ExerciseThumb url={rows[target.exIdx].exercise.image_url} tag={exerciseTag(rows, target.exIdx)} colorIndex={groupColorIndex(rows, restExIdx)} />
+          <View className="min-w-0 flex-1">
+            <AppText variant="label" className="uppercase" style={{ color: c.ink }}>{t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')}</AppText>
+            <AppText variant="bodySemibold" numberOfLines={1}>{t('gym.superset.upNextTitle', { name: rows[target.exIdx].exercise.name, number: target.setIdx + 1 })}</AppText>
+            {effort || thenName ? (
+              <AppText variant="caption" color="secondary">
+                {thenName ? t('gym.superset.upNextThen', { detail: effort, name: thenName }) : effort}
+              </AppText>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
 // The exercise's name is the way to the others: the whole block (name, ▾, position and meta)
 // opens the exercises sheet, so the name is shown once and is never cut to fit a chip.
-function ExerciseSwitcher({ name, current, total, title, details, onPress, children, ref }: {
+function ExerciseSwitcher({ name, current, total, title, details, superset, onPress, children, ref }: {
   name: string
   /** 1-based position of this exercise. */
   current: number
@@ -75,6 +195,8 @@ function ExerciseSwitcher({ name, current, total, title, details, onPress, child
   title?: boolean
   /** What the meta row says, for the accessible name: a button's name replaces its content. */
   details: string[]
+  /** Set when the exercise is in a superset: read out in the accessible name; the pill shows it. */
+  superset?: { letter: string; position: number; total: number }
   onPress: () => void
   children: React.ReactNode
   ref?: Ref<PressableInstance>
@@ -87,7 +209,7 @@ function ExerciseSwitcher({ name, current, total, title, details, onPress, child
       testID="gym-exercise-switcher"
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={[t('gym.exercises.switcher', { current, total, name }), ...details].join(', ')}
+      accessibilityLabel={[t('gym.exercises.switcher', { current, total, name }), ...(superset ? [t('workouts.superset.position', superset)] : []), ...details].join(', ')}
       className={`min-w-0 flex-shrink rounded-xl px-2 py-1.5 active:bg-surface-muted ${interactive('hover:bg-surface-muted')}`}
     >
       <View className="flex-row items-center gap-2">
@@ -119,6 +241,7 @@ export function GymModeWorkout() {
   const removeExercise = useWorkoutSession((s) => s.removeExercise)
   const addExercise = useWorkoutSession((s) => s.addExercise)
   const moveExercise = useWorkoutSession((s) => s.moveExercise)
+  const unlinkFromNext = useWorkoutSession((s) => s.unlinkFromNext)
   const updateExerciseNotes = useWorkoutSession((s) => s.updateExerciseNotes)
   const buildPayload = useWorkoutSession((s) => s.buildPayload)
   const cancelSession = useWorkoutSession((s) => s.cancelSession)
@@ -144,6 +267,10 @@ export function GymModeWorkout() {
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
   const [exercisesSheet, setExercisesSheet] = useState<ExercisesSheetMode | null>(null)
+  // Spoken on native by announceForAccessibility; on web this text sits in a live region.
+  const [announcement, setAnnouncement] = useState('')
+  const [toast, setToast] = useState('')
+  const [supersetOpen, setSupersetOpen] = useState(false)
   // On web, a jump or a phase change unmounts the control focus would go back to, so focus is
   // put on its counterpart in the new phase instead of falling to the page.
   const switcherRef = useRef<PressableInstance>(null)
@@ -154,10 +281,25 @@ export function GymModeWorkout() {
   const onSetActiveIdx = (i: number) => setGymState(phase, i, 0)
   const setActiveSetIdx = (i: number) => setGymState(phase, activeIdx, i)
   // A jump lands on the exercise's first set still to do, not on set 1 when that is logged.
-  const openExercise = (i: number) =>
-    setGymState('exercise-info', i, Math.max(0, nextIncompleteSet(session?.exercises[i]?.sets ?? [], -1)))
+  // In a superset it lands on the group's first step still to do, which can be another member.
+  const openExercise = (i: number) => {
+    const rows = session?.exercises ?? []
+    const to = groupOf(rows, i) ? nextSupersetTarget(rows, i, -1) : null
+    if (to) setGymState('exercise-info', to.exIdx, to.setIdx)
+    else setGymState('exercise-info', i, Math.max(0, nextIncompleteSet(rows[i]?.sets ?? [], -1)))
+  }
+  const announce = (message: string) => {
+    setAnnouncement(message)
+    AccessibilityInfo.announceForAccessibility(message)
+  }
 
   useEffect(() => { setImgFailed(false) }, [activeIdx])
+
+  useEffect(() => {
+    if (!toast) return
+    const id = setTimeout(() => setToast(''), 2600)
+    return () => clearTimeout(id)
+  }, [toast])
 
   useEffect(() => {
     const target = pendingFocus.current
@@ -237,6 +379,9 @@ export function GymModeWorkout() {
     <GymFrame onClose={handleMinimize}>
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1 }} className="bg-surface-base">
       {children}
+      {web && announcement ? (
+        <Text role="status" aria-live="polite" testID="gym-announcement" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 }}>{announcement}</Text>
+      ) : null}
       {/* Docked in-flow below every phase's bottom actions so it never covers them; owns
           the bottom safe-area inset while shown. */}
       <RestTimerBanner />
@@ -279,14 +424,25 @@ export function GymModeWorkout() {
       ) : null}
       <GymExercisesSheet
         open={exercisesSheet}
-        exercises={session.exercises.map((e) => ({
+        exercises={session.exercises.map((e, i) => ({
           name: e.exercise.name, done: e.sets.filter((st) => st.completed).length, total: e.sets.length,
+          superset: supersetInfo(session.exercises, i),
+          imageUrl: e.exercise.image_url, colorIndex: groupColorIndex(session.exercises, i),
         }))}
         rowKeys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))}
         current={activeIdx}
         onJump={(i) => { pendingFocus.current = switcherRef; setExercisesSheet(null); if (i !== activeIdx) openExercise(i) }}
         onMove={moveExercise}
         onClose={() => setExercisesSheet(null)}
+      />
+      <SupersetSheet
+        visible={supersetOpen}
+        currentName={session.exercises[activeIdx]?.exercise.name ?? ''}
+        currentIndex={activeIdx}
+        candidates={pairCandidates}
+        restLabel={restLabel(session.exercises[activeIdx]?.rest_seconds ?? settings.rest_seconds_default ?? 90)}
+        onCreate={pairExercise}
+        onClose={() => setSupersetOpen(false)}
       />
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
       <NumericKeyboardAccessory />
@@ -298,12 +454,49 @@ export function GymModeWorkout() {
   // Minimize is the ⌄ beside it, not an item here. Discard still asks first. The overview
   // already shows the list, its Add Exercise and its reorder button, so there only Discard.
   const onExerciseScreen = phase !== 'overview'
+  const activeGroup = groupOf(session.exercises, activeIdx)
+  const pairCandidates = session.exercises.flatMap((e, index) =>
+    index === activeIdx || (activeGroup && index >= activeGroup.start && index <= activeGroup.end)
+      ? []
+      : [{ index, name: e.exercise.name, muscle: muscleLabel(e.exercise.muscle_group), imageUrl: e.exercise.image_url }])
+
+  // The store has no "pair" action, so the result of pairWith is written whole and the positional
+  // indices (screen, running rest) follow the row that was moved, as moveExercise does.
+  const pairExercise = (partner: number) => {
+    const rows = session.exercises
+    const next = pairWith(rows, activeIdx, partner)
+    setSupersetOpen(false)
+    if (next === rows) return
+    const reordered = next.some((r, k) => r.exercise !== rows[k].exercise)
+    const to = partner < activeIdx ? activeIdx : activeIdx + 1
+    useWorkoutSession.getState().restoreSession({ ...session, exercises: next })
+    if (reordered) {
+      const st = useWorkoutSession.getState()
+      setGymState(st.gymPhase, remapIndex(st.gymExIdx, partner, to), st.gymSetIdx)
+      if (st.restExIdx != null) useWorkoutSession.setState({ restExIdx: remapIndex(st.restExIdx, partner, to) })
+    }
+    announce(t('workouts.superset.linkedA11y', { a: rows[activeIdx].exercise.name, b: rows[partner].exercise.name }))
+  }
+
+  // Taking one member out: split after it, and before it when it is not the first.
+  const removeFromSuperset = () => {
+    if (!activeGroup) return
+    const names = { a: session.exercises[activeIdx].exercise.name, b: session.exercises[activeIdx + 1]?.exercise.name ?? session.exercises[activeIdx - 1]?.exercise.name ?? '' }
+    if (activeIdx < activeGroup.end) unlinkFromNext(activeIdx)
+    if (activeIdx > activeGroup.start) unlinkFromNext(activeIdx - 1)
+    announce(t('workouts.superset.unlinkedA11y', names))
+  }
   const menuItems: MenuItem[] = [
     ...(onExerciseScreen ? [{ label: t('gym.menu.addExercise'), icon: Plus, onSelect: () => setShowPicker(true) }] : []),
     ...(onExerciseScreen && session.exercises.length > 1
       ? [{ label: t('workouts.reorder.title'), icon: ArrowUpDown, onSelect: () => setExercisesSheet('reorder') }]
       : []),
     ...(onExerciseScreen ? [{ label: t('gym.menu.allExercises'), icon: List, onSelect: () => setExercisesSheet('list') }] : []),
+    ...(onExerciseScreen && activeGroup
+      ? [{ label: t('workouts.superset.menuRemove', { letter: activeGroup.letter }), icon: Unlink2, onSelect: removeFromSuperset }]
+      : onExerciseScreen && pairCandidates.length > 0
+        ? [{ label: t('workouts.superset.menuPair'), icon: Link2, onSelect: () => setSupersetOpen(true) }]
+        : []),
     // With Back gone from the exercise screens, this is the way to the overview.
     ...(onExerciseScreen
       ? [{ label: t('gym.menu.overview'), icon: LayoutList, onSelect: () => { pendingFocus.current = minimizeRef; setPhase('overview') } }]
@@ -346,6 +539,15 @@ export function GymModeWorkout() {
   )
 
   const openSwitcher = () => setExercisesSheet('list')
+
+  const pill = activeGroup ? (
+    <SupersetPill
+      letter={activeGroup.letter}
+      round={currentRound(session.exercises, activeGroup.start, activeGroup.end)}
+      total={totalRounds(session.exercises, activeGroup.start, activeGroup.end)}
+      colorIndex={groupColorIndex(session.exercises, activeIdx)}
+    />
+  ) : null
 
   // ── Overview ──────────────────────────────────────────────
   if (phase === 'overview') {
@@ -407,6 +609,7 @@ export function GymModeWorkout() {
                     <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
                     <View className="mt-0.5 flex-row items-center gap-2">
                       <MuscleBadge muscle={ex.exercise.muscle_group} border />
+                      {supersetInfo(session.exercises, i) ? <SupersetMarker {...supersetInfo(session.exercises, i)!} /> : null}
                       <AppText variant="caption" color="muted">{t('common.count.sets', { count: ex.sets.length })}</AppText>
                     </View>
                   </View>
@@ -467,8 +670,9 @@ export function GymModeWorkout() {
             {/* The negative margin puts the button's padding in this view's padding, so the text
                 lines up and the whole pressed area stays inside the parent (Android drops touches
                 outside a parent's bounds). */}
+            {pill}
             <View className="-mx-2 -my-1.5 flex-row">
-              <ExerciseSwitcher ref={switcherRef} title name={exercise.name} current={activeIdx + 1} total={session.exercises.length} details={infoDetails} onPress={openSwitcher}>
+              <ExerciseSwitcher ref={switcherRef} title name={exercise.name} current={activeIdx + 1} total={session.exercises.length} details={infoDetails} superset={supersetInfo(session.exercises, activeIdx)} onPress={openSwitcher}>
                 <MuscleBadge muscle={exercise.muscle_group} wide border />
                 {equipLabel && exercise.equipment !== 'other' ? (
                   <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1"><AppText variant="caption" color="secondary">{equipLabel}</AppText></View>
@@ -558,8 +762,14 @@ export function GymModeWorkout() {
     if (applyRestOnToggle(activeIdx, setIdx)) return
     // Satisfying "clunk" when a set lands (native-feel; web has none).
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {})
-    const next = nextIncompleteSet(ex.sets, setIdx)
-    if (next !== -1) setActiveSetIdx(next)
+    const rows = useWorkoutSession.getState().session?.exercises ?? []
+    const to = nextSupersetTarget(rows, activeIdx, setIdx)
+    if (!to) return
+    if (to.exIdx === activeIdx) { setActiveSetIdx(to.setIdx); return }
+    setGymState('exercise', to.exIdx, to.setIdx)
+    const message = t('gym.superset.next', { name: rows[to.exIdx].exercise.name, number: to.setIdx + 1 })
+    announce(message)
+    setToast(message)
   }
 
   const handleRemoveSet = (setIdx: number) => {
@@ -570,16 +780,38 @@ export function GymModeWorkout() {
   if (!set) return null
 
   const restingHere = restExIdx === activeIdx
+  const restGroup = restShown && restExIdx != null && restSetIdx != null ? groupOf(session.exercises, restExIdx) : null
+  const roundView = !!restGroup && restExIdx != null && restSetIdx != null
+    && activeIdx >= restGroup.start && activeIdx <= restGroup.end
+    && roundRest(session.exercises, restExIdx, restSetIdx).rest
+
+  let then: { label: string; rest: string | null; target: string } | null = null
+  if (activeGroup && !set.completed) {
+    const sim = session.exercises.map((r, k) => (k === activeIdx ? { ...r, sets: r.sets.map((s, si) => (si === clampedSetIdx ? { ...s, completed: true } : s)) } : r))
+    const to = nextSupersetTarget(sim, activeIdx, clampedSetIdx)
+    if (to) {
+      const round = roundRest(sim, activeIdx, clampedSetIdx)
+      const secs = sim[round.sourceExIdx]?.rest_seconds ?? settings.rest_seconds_default ?? 90
+      const rests = round.rest && settings.rest_enabled !== false && secs > 0
+      const args = { name: sim[to.exIdx].exercise.name, number: to.setIdx + 1 }
+      then = {
+        label: rests ? t('gym.superset.thenRest', { ...args, rest: restLabel(secs) }) : t('gym.superset.thenStraight', args),
+        rest: rests ? restLabel(secs) : null,
+        target: t('gym.superset.upNextTitle', args),
+      }
+    }
+  }
 
   return overlay(
     <>
       {topBar}
       {/* name + muscle */}
       <View className="flex-shrink-0 border-b border-surface-border px-5 pb-3 pt-4">
+        {pill ? <View className="mb-3">{pill}</View> : null}
         {/* Negative margin: see the info phase's switcher. */}
         <View className="-mx-2 -my-1.5 flex-row items-center justify-between gap-2">
           <View className="min-w-0 flex-1 flex-row">
-            <ExerciseSwitcher ref={switcherRef} name={ex.exercise.name} current={activeIdx + 1} total={session.exercises.length} details={[muscleLabel(ex.exercise.muscle_group), setsDoneHere]} onPress={openSwitcher}>
+            <ExerciseSwitcher ref={switcherRef} name={ex.exercise.name} current={activeIdx + 1} total={session.exercises.length} details={[muscleLabel(ex.exercise.muscle_group), setsDoneHere]} superset={supersetInfo(session.exercises, activeIdx)} onPress={openSwitcher}>
               <MuscleBadge muscle={ex.exercise.muscle_group} border />
               <AppText variant="caption" color="muted" style={{ fontVariant: ['tabular-nums'] }}>{setsDoneHere}</AppText>
             </ExerciseSwitcher>
@@ -596,6 +828,11 @@ export function GymModeWorkout() {
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
+        {roundView && restExIdx != null && restSetIdx != null ? (
+          <View className="m-auto w-full items-center px-5 py-4">
+            <RoundComplete rows={session.exercises} restExIdx={restExIdx} restSetIdx={restSetIdx} wUnit={wUnit} />
+          </View>
+        ) : (
         <View className={`m-auto w-full items-center px-5 ${restingHere ? 'gap-4 py-2' : 'gap-6 py-4'}`}>
           {/* set selector chips */}
           <View className="flex-row flex-wrap items-center justify-center gap-2">
@@ -651,6 +888,7 @@ export function GymModeWorkout() {
               <CheckCircle2 size={24} color={set.completed ? accent : '#ffffff'} />
               <Text className={`font-sans-bold text-base ${set.completed ? '' : 'text-white'}`} style={set.completed ? { color: accent } : undefined}>{set.completed ? t('gym.completed') : t('gym.completeSet')}</Text>
             </Pressable>
+            {then ? <ThenCard label={then.label} rest={then.rest} target={then.target} colorIndex={groupColorIndex(session.exercises, activeIdx)} /> : null}
             {ex.sets.length > 1 && !set.completed ? (
               <Pressable onPress={() => handleRemoveSet(clampedSetIdx)} accessibilityRole={WEB_BUTTON} className={`min-h-11 justify-center px-3 active:opacity-60 ${interactive('rounded hover:opacity-70')}`}>
                 <Text className="font-sans text-xs text-tx-muted">{t('gym.removeSet')}</Text>
@@ -658,7 +896,9 @@ export function GymModeWorkout() {
             ) : null}
           </View>
         </View>
+        )}
       </ScrollView>
+      {toast ? <NextToast text={toast} /> : null}
 
       {/* bottom nav — when a rest sheet is docked below it, that sheet owns the safe-area
           bottom (they sit flush); otherwise the nav reserves the home-indicator inset. */}

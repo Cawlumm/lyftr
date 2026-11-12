@@ -640,6 +640,39 @@ test.describe('List layout rest timer', () => {
     await expect(pause).toHaveCount(0)
   })
 
+  // Supersets (#227): the rest belongs to the end of a round, not to each exercise.
+  test('in a superset no rest starts after A1, and one starts after B1', async ({ page }) => {
+    const sets = [1, 2].map(n => ({ set_number: n, target_reps: 5, target_weight: 100, actual_reps: 5, actual_weight: 100, completed: false }))
+    const member = (name: string, rest: number) => ({
+      exercise_id: exerciseId,
+      exercise: { id: exerciseId, name, muscle_group: 'Chest', equipment: 'barbell', category: 'strength', secondary_muscles: [], description: '', image_url: null },
+      notes: '', rest_seconds: rest, superset_group: 1, sets,
+    })
+    const session = { name: 'E2E Superset Rest', started_at: new Date().toISOString(), exercises: [member('Bench Press', 90), member('Barbell Row', 20)] }
+    await page.addInitScript(({ sk, lk, s }: { sk: string; lk: string; s: unknown }) => {
+      if (localStorage.getItem(sk)) return
+      localStorage.setItem(sk, JSON.stringify(s))
+      localStorage.setItem(lk, 'list')
+      localStorage.setItem('lyftr_rest_enabled', 'true')
+    }, { sk: SESSION_KEY, lk: LAYOUT_KEY, s: session })
+    await page.goto('/workouts/active')
+    const pause = page.getByRole('button', { name: 'Pause rest timer' })
+
+    await page.getByRole('button', { name: 'Complete set 1, Bench Press' }).click()
+    await expect(page.getByRole('button', { name: 'Completed set 1, Bench Press' })).toBeVisible()
+    await expect(pause).toHaveCount(0)
+    await expect(page.getByRole('status').getByText('Bench Press done. Barbell Row is up, no rest.')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Complete set 1, Barbell Row' }).click()
+    await expect(pause).toBeVisible()
+    // The length is the last member's own rest (20s), and the banner names who is next.
+    await expect(page.getByText(/^0:(?:1[0-9]|20)$/)).toBeVisible()
+    await expect(page.getByText('Round 1 of 2 done')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Completed set 1, Barbell Row' }).click()
+    await expect(pause).toHaveCount(0)
+  })
+
   test('with the rest timer off, ticking a set shows no banner', async ({ page }) => {
     await seedList(page, false)
     await page.goto('/workouts/active')

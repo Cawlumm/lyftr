@@ -9,6 +9,7 @@ import (
 	"github.com/Cawlumm/lyftr-backend/stores"
 	"github.com/Cawlumm/lyftr-backend/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -25,9 +26,14 @@ func init() {
 		total := 0
 		for _, d := range req.Days {
 			total++
-			for _, ex := range d.Exercises {
+			groups := make([]*int, len(d.Exercises))
+			for i, ex := range d.Exercises {
 				total++
 				total += len(ex.Sets)
+				groups[i] = ex.SupersetGroup
+			}
+			if !d.IsRestDay && !stores.SupersetsContiguous(groups) {
+				sl.ReportError(req.Days, "Days", "Days", "supersetcontiguous", "")
 			}
 		}
 		if total > models.MaxProgramRows {
@@ -100,10 +106,12 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 		return
 	}
 	var req models.CreateProgramRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// BodyWith keeps the body, so supersetsOmitted can tell an absent superset_group from null.
+	if err := c.ShouldBindBodyWith(&req, binding.JSON); err != nil {
 		utils.BindError(c, err)
 		return
 	}
+	req.LegacySupersets = supersetsOmitted(c)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return

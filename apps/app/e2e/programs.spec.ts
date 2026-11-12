@@ -13,12 +13,13 @@ import { cleanupSeed } from './seedHelpers'
 const E2E_PROGRAM_NAME = 'Test Program E2E'
 const SEED_PROGRAM_NAME = 'Seeded Test Program'
 const SEED_SEARCH_PROGRAM_NAME = 'ZZZ E2E SearchTarget Program'
+const SUPERSET_PROGRAM_NAME = 'E2E Superset Program'
 
 let programId: number
 let authToken: string
 
 const ours = (p: { name: string }) =>
-  p.name === SEED_PROGRAM_NAME || p.name === SEED_SEARCH_PROGRAM_NAME || p.name === E2E_PROGRAM_NAME
+  p.name === SEED_PROGRAM_NAME || p.name === SEED_SEARCH_PROGRAM_NAME || p.name === E2E_PROGRAM_NAME || p.name === SUPERSET_PROGRAM_NAME
 
 test.describe('Programs', () => {
   test.beforeAll(async ({ request, workerAuth }) => {
@@ -137,6 +138,51 @@ test.describe('Programs', () => {
 
     // A fresh account defaults to lb, and the weight column header carries the unit.
     await expect(page.getByText('Weight (lb)', { exact: true }).first()).toBeVisible()
+  })
+
+  // Supersets (#227): link in the editor, save, and the link is what a reload, the detail
+  // page and a started workout all see.
+  test('a superset linked in the editor is saved, shown after reload, and kept when the workout starts', async ({ page, request }) => {
+    const headers = { Authorization: `Bearer ${authToken}` }
+    const ids: number[] = (await (await request.get(`${API}/exercises?limit=2`, { headers })).json()).data.map((e: { id: number }) => e.id)
+    expect(ids).toHaveLength(2)
+    const sets = [{ set_number: 1, target_reps: 8, target_weight: 100 }]
+    const created = await request.post(`${API}/programs`, {
+      headers,
+      data: {
+        name: SUPERSET_PROGRAM_NAME, notes: '',
+        days: [{ order_index: 0, is_rest_day: false, name: 'Upper', exercises: ids.map((id) => ({ exercise_id: id, notes: '', rest_seconds: 60, sets })) }],
+      },
+    })
+    const id = (await created.json()).data.id
+    const groups = async () => (await (await request.get(`${API}/programs/${id}`, { headers })).json()).data.days[0].exercises
+      .map((e: { superset_group: number | null }) => e.superset_group)
+    expect(await groups()).toEqual([null, null])
+
+    await page.goto(`/programs/${id}/edit`)
+    await expect(page.getByRole('heading', { name: 'Edit Program' })).toBeVisible()
+    await page.getByRole('button', { name: /^Superset .+ with .+/ }).click()
+    const sheet = page.getByRole('dialog', { name: 'Make a superset' })
+    await expect(sheet).toBeVisible()
+    await sheet.getByRole('button', { name: 'Create superset', exact: true }).click()
+    await expect(sheet).toBeHidden()
+    await expect(page.getByRole('group', { name: /^Superset A, 2 exercises/ })).toBeVisible()
+    await page.getByRole('button', { name: 'Save Changes' }).click()
+    await expect.poll(async () => (await groups()).every((g: number | null) => g !== null)).toBe(true)
+    const saved = await groups()
+    expect(saved[0]).toBe(saved[1])
+
+    await page.goto(`/programs/${id}/edit`)
+    await expect(page.getByRole('group', { name: /^Superset A, 2 exercises/ })).toBeVisible()
+
+    await page.goto(`/programs/${id}`)
+    await page.getByRole('button', { name: 'Start workout' }).click()
+    await expect.poll(() => page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem('lyftr_active_session') ?? 'null')
+      return s ? s.exercises.map((e: { superset_group: number | null }) => e.superset_group !== null) : null
+    })).toEqual([true, true])
+    const started = await page.evaluate(() => JSON.parse(localStorage.getItem('lyftr_active_session')!).exercises.map((e: { superset_group: number }) => e.superset_group))
+    expect(started[1]).toBe(started[0])
   })
 
   test('delete program shows confirm and cancels', async ({ page }) => {

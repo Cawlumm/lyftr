@@ -32,6 +32,7 @@ Use the same word for the same thing everywhere, so the app reads as one voice:
 | Workout (the activity, a heading) | entrenamiento |
 | Workouts (the tab label only) | Entrenos |
 | set, sets | serie, series |
+| Superset | superserie |
 | reps (a column or tile) | Reps |
 | reps (running text) | repeticiones |
 | Rest | descanso |

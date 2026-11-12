@@ -72,7 +72,7 @@ test.describe('Route walk, signed out', () => {
 })
 
 test.describe('Route walk, signed in', () => {
-  const ids = { exercise: 0, workout: 0, program: 0, food: 0, weight: 0 }
+  const ids = { exercise: 0, exercise2: 0, workout: 0, program: 0, food: 0, weight: 0 }
 
   test.beforeAll(async ({ request, workerAuth }) => {
     const headers = { Authorization: `Bearer ${workerAuth.token}` }
@@ -82,19 +82,21 @@ test.describe('Route walk, signed in', () => {
       if (!body.data) throw new Error(`seed failed: ${JSON.stringify(body)}`)
       return body.data
     }
-    ids.exercise = (await data(request.get(`${API}/exercises?limit=1`, { headers })))[0].id
+    const exercises = await data(request.get(`${API}/exercises?limit=2`, { headers }))
+    ids.exercise = exercises[0].id
+    ids.exercise2 = exercises[1].id
     const now = new Date()
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const sets = [{ set_number: 1, reps: 8, weight: 135 }]
     ids.workout = (await data(request.post(`${API}/workouts`, {
       headers,
-      data: { name: 'Polish walk workout', duration: 2700, started_at: now.toISOString(), exercises: [{ exercise_id: ids.exercise, order_index: 0, notes: '', sets }] },
+      data: { name: 'Polish walk workout', duration: 2700, started_at: now.toISOString(), exercises: [ids.exercise, ids.exercise2].map((id, i) => ({ exercise_id: id, order_index: i, notes: '', superset_group: 1, sets })) },
     }))).id
     ids.program = (await data(request.post(`${API}/programs`, {
       headers,
       data: {
         name: 'Polish walk program', notes: '',
-        days: [{ order_index: 0, is_rest_day: false, name: '', exercises: [{ exercise_id: ids.exercise, notes: '', rest_seconds: 90, sets: [{ set_number: 1, target_reps: 5, target_weight: 100 }] }] }],
+        days: [{ order_index: 0, is_rest_day: false, name: '', exercises: [ids.exercise, ids.exercise2].map((id) => ({ exercise_id: id, notes: '', rest_seconds: 90, superset_group: 1, sets: [{ set_number: 1, target_reps: 5, target_weight: 100 }] })) }],
       },
     }))).id
     ids.food = (await data(request.post(`${API}/food`, {

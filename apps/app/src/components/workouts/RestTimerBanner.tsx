@@ -4,10 +4,10 @@ import Animated, {
   Easing, cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming,
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Check, Pause, Play, SkipForward } from '../ui/icons'
+import { Check, Pause, Play, Sparkles, SkipForward } from '../ui/icons'
 import { useWorkoutSession } from '../../lib/lyftr'
 import { useRestTimer } from '../../hooks/useRestTimer'
-import { fmtClock, nextIncompleteSet, useTranslation } from '@lyftr/shared'
+import { fmtClock, groupOf, nextSupersetTarget, roundRest, totalRounds, useTranslation } from '@lyftr/shared'
 import { AppText, IconButton } from '../ui'
 import { useTheme } from '../../theme/useTheme'
 import { AMBIENT, EASING } from '../../theme/motion'
@@ -84,7 +84,9 @@ export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean 
   // Set ↔ timer linkage (Hevy-style): label the panel with the just-completed set +
   // the next incomplete one (mirrors gym-mode's auto-advance).
   const restEx = restExIdx != null ? session?.exercises[restExIdx] : undefined
-  const nextIdx = restEx != null && restSetIdx != null ? nextIncompleteSet(restEx.sets, restSetIdx) : -1
+  const target = restEx != null && restExIdx != null && restSetIdx != null && session ? nextSupersetTarget(session.exercises, restExIdx, restSetIdx) : null
+  const otherExercise = target && target.exIdx !== restExIdx ? session?.exercises[target.exIdx] : undefined
+  const nextIdx = target && !otherExercise ? target.setIdx : -1
   const doneSetNum = restEx != null && restSetIdx != null ? restSetIdx + 1 : null
   const label =
     doneSetNum == null
@@ -93,9 +95,20 @@ export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean 
         ? nextIdx !== -1 ? t('workouts.rest.label.overNext', { next: nextIdx + 1 }) : t('workouts.rest.label.over')
         : paused
           ? t('workouts.rest.label.setDonePaused', { done: doneSetNum })
-          : nextIdx !== -1
+          : otherExercise
+            ? t('workouts.rest.label.setDoneNextExercise', { done: doneSetNum, name: otherExercise.exercise.name })
+            : nextIdx !== -1
             ? t('workouts.rest.label.setDoneNext', { done: doneSetNum, next: nextIdx + 1 })
             : t('workouts.rest.label.setDoneResting', { done: doneSetNum })
+
+  // Rest after a finished superset round: a chip in place of the caption. The recap and the
+  // step that follows are drawn by the gym screen, which owns the body.
+  const group = restExIdx != null && session ? groupOf(session.exercises, restExIdx) : null
+  const roundDone = !!group && restExIdx != null && restSetIdx != null && session != null
+    && roundRest(session.exercises, restExIdx, restSetIdx).rest
+  const roundChip = roundDone && group && session && restSetIdx != null && !done
+    ? t('gym.superset.roundDone', { n: restSetIdx + 1, total: totalRounds(session.exercises, group.start, group.end) })
+    : null
 
   // Urgency cue: the last 10 running seconds shift the drain + countdown to amber
   // (paused doesn't count down, so it never goes hot). Time-based (not fraction-based)
@@ -124,7 +137,14 @@ export function RestTimerBanner({ bottomInset = true }: { bottomInset?: boolean 
       {/* The sheet surface reaches the physical bottom edge; only its content is inset
           by the safe area (home indicator) — no dead band below the actions. */}
       <View className="px-5 pt-3" style={{ paddingBottom: (bottomInset ? insets.bottom : 0) + 16 }}>
-        <AppText variant="caption" color="muted" className="text-center">{label}</AppText>
+        {roundChip ? (
+          <View testID="rest-round-chip" className="flex-row items-center gap-2 self-center rounded-full bg-success-500/15 px-3.5 py-1.5">
+            <Sparkles size={16} color={brand.success} />
+            <Text className="font-sans-bold text-sm" style={{ color: brand.success }}>{roundChip}</Text>
+          </View>
+        ) : (
+          <AppText variant="caption" color="muted" className="text-center">{label}</AppText>
+        )}
         {done ? (
           // Done confirmation: a compact, celebratory stack — pulsing success check over
           // a single full-width Done button. (NB: the button must NOT reuse brandBtn's

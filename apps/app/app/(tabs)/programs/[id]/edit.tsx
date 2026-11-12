@@ -85,6 +85,7 @@ export default function EditProgram() {
               exercise_id: ex.exercise_id,
               notes: ex.notes || '',
               rest_seconds: ex.rest_seconds ?? (settings.rest_seconds_default ?? 90),
+              superset_group: ex.superset_group ?? null,
               sets: (ex.sets || []).map((s) => ({
                 set_number: s.set_number,
                 reps: s.target_reps,
@@ -123,6 +124,7 @@ export default function EditProgram() {
     exercise_id: ex.exercise_id,
     notes: ex.notes,
     rest_seconds: ex.rest_seconds,
+    superset_group: ex.superset_group ?? null,
     sets: ex.sets.map((s) => ({
     set_number: s.set_number,
     target_reps: s.reps,
