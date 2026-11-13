@@ -106,3 +106,26 @@ func TestResolveCatalogURLs(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckJWTSecret(t *testing.T) {
+	good := "0123456789abcdef0123456789abcdef"
+	cases := []struct {
+		name, env, secret string
+		wantErr           bool
+	}{
+		{"production random", "production", good, false},
+		{"production exactly 32 bytes", "production", "abcdefghijklmnopqrstuvwxyz012345", false},
+		{"production empty", "production", "", true},
+		{"production code fallback", "production", "change-me-in-production-min-32-chars!!", true},
+		{"production root .env.example", "production", "change-me-to-a-random-32-plus-character-string", true},
+		{"production short", "production", "short-secret", true},
+		{"production 31 bytes", "production", "abcdefghijklmnopqrstuvwxyz01234", true},
+		{"development fallback", "development", "change-me-in-production-min-32-chars!!", false},
+		{"development short", "development", "x", false},
+	}
+	for _, tc := range cases {
+		if err := CheckJWTSecret(tc.env, tc.secret); (err != nil) != tc.wantErr {
+			t.Errorf("%s: err = %v, wantErr %v", tc.name, err, tc.wantErr)
+		}
+	}
+}

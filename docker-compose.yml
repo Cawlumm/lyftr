@@ -10,7 +10,7 @@ services:
     environment:
       - ENV=production
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required - generate one with: openssl rand -hex 32}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
       - DB_TYPE=sqlite
       - DB_PATH=/app/data/lyftr.db

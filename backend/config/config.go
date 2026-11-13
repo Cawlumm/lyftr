@@ -110,8 +110,8 @@ func Load() {
 	}
 	C.OEDBCatalogURLs = urls
 
-	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {
-		log.Fatal("JWT_SECRET must be set in production")
+	if err := CheckJWTSecret(C.Env, C.JWTSecret); err != nil {
+		log.Fatal(err)
 	}
 
 	// Refuse to start on a typo rather than falling back to open. REGISTRATION=frst-user
@@ -157,6 +157,34 @@ func ResolveCatalogURLs(raw, baseURL string) ([]string, error) {
 		urls = append(urls, strings.TrimRight(u, "/"))
 	}
 	return urls, nil
+}
+
+// MinJWTSecretBytes is the shortest signing key accepted in production: HS256 wants at
+// least the hash's 256 bits, and anything shorter is brute-forceable offline from one
+// captured token.
+const MinJWTSecretBytes = 32
+
+// exampleJWTSecrets are every value the repository publishes for JWT_SECRET: the code's
+// fallback, backend/.env.example and the root .env.example. A signing key that anyone can
+// read in the README lets them mint a token for any account, so production refuses them.
+var exampleJWTSecrets = []string{
+	"change-me-in-production-min-32-chars!!",
+	"change-me-to-a-random-32-plus-character-string",
+}
+
+// CheckJWTSecret refuses, in production only, a signing key that is published or short.
+// Development keeps its fallback so `go run .` works without setup.
+func CheckJWTSecret(env, secret string) error {
+	if env != "production" {
+		return nil
+	}
+	if secret == "" || slices.Contains(exampleJWTSecrets, secret) {
+		return fmt.Errorf("JWT_SECRET must be set to a private random value in production (the example value is public); generate one with: openssl rand -hex 32")
+	}
+	if len(secret) < MinJWTSecretBytes {
+		return fmt.Errorf("JWT_SECRET is %d bytes; production needs at least %d (openssl rand -hex 32)", len(secret), MinJWTSecretBytes)
+	}
+	return nil
 }
 
 func ValidRegistration(mode string) bool {
