@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import { AxeBuilder } from '@axe-core/playwright'
 import { test, expect } from './fixtures'
+import { ADMIN_STATE } from './config'
 import { WIDTH_GROUPS, sweepWidths } from './widths'
 
 // Settings and the sign-in screens on wide web (C32). Settings is a centred max-w-2xl column of
@@ -84,66 +85,77 @@ test.describe('settings', () => {
     await expect(page).toHaveURL(/\/settings\/password$/)
   })
 
-  test('the exercise-cache admin shows the cache status on web', async ({ page }) => {
+  test('a non-admin account never sees the exercise-cache admin', async ({ page }) => {
     await open(page, '/settings', 1280)
-    await expect(page.getByText('Exercise Library', { exact: true })).toBeVisible()
-    await expect(page.getByText('Exercise database', { exact: true })).toBeVisible()
-    await expect(page.getByText(/^[\d,]+ cached$/)).toBeVisible()
-    await expect(refreshButton(page)).toBeEnabled()
+    await expect(page.getByText('Language', { exact: true })).toBeVisible()
+    await expect(page.getByText('Exercise Library', { exact: true })).toHaveCount(0)
+    await expect(refreshButton(page)).toHaveCount(0)
   })
 
-  test('refresh reports what it refreshed', async ({ page }) => {
-    // Answered here: the real pass reaches out to the upstream catalog.
-    await page.route(SYNC, route => route.fulfill({ json: { data: { refreshed: 812 } } }))
-    await open(page, '/settings', 1280)
-    await refreshButton(page).click()
-    await expect(page.getByRole('status').filter({ hasText: 'Refreshed 812 exercises' })).toBeVisible()
-  })
+  test.describe('as the admin', () => {
+    test.use({ storageState: ADMIN_STATE })
 
-  test('a failed refresh reads as a failure', async ({ page }) => {
-    await page.route(SYNC, route => route.fulfill({ status: 500, json: {} }))
-    await open(page, '/settings', 1280)
-    await refreshButton(page).click()
-    await expect(page.getByRole('alert')).toBeVisible()
-    await expect(refreshButton(page)).toBeEnabled()
-  })
-
-  test('a shrunken catalog asks to confirm, and confirming sends confirm_removals', async ({ page }) => {
-    const sent: string[] = []
-    await page.route(SYNC, route => {
-      const url = new URL(route.request().url())
-      sent.push(url.search)
-      return url.searchParams.get('confirm_removals') === 'true'
-        ? route.fulfill({ json: { data: { refreshed: 300 } } })
-        : route.fulfill({ status: 409, json: { code: 'EXERCISE_CATALOG_SHRANK', error: 'shrank' } })
+    test('the exercise-cache admin shows the cache status on web', async ({ page }) => {
+      await open(page, '/settings', 1280)
+      await expect(page.getByText('Exercise Library', { exact: true })).toBeVisible()
+      await expect(page.getByText('Exercise database', { exact: true })).toBeVisible()
+      await expect(page.getByText(/^[\d,]+ cached$/)).toBeVisible()
+      await expect(refreshButton(page)).toBeEnabled()
     })
-    await open(page, '/settings', 1280)
-    await refreshButton(page).click()
-    const dialog = page.getByRole('dialog', { name: 'Accept the smaller catalog?' })
-    await expect(dialog).toBeVisible()
-    expect(await axe(page)).toEqual([])
-    await dialog.getByRole('button', { name: 'Sync and hide' }).click()
-    await expect(dialog).toHaveCount(0)
-    await expect(page.getByRole('status').filter({ hasText: 'Refreshed 300 exercises' })).toBeVisible()
-    expect(sent).toEqual(['', '?confirm_removals=true'])
-  })
 
-  test('a failed confirm keeps the dialog open and says why inside it', async ({ page }) => {
-    await page.route(SYNC, route => route.fulfill(
-      new URL(route.request().url()).searchParams.has('confirm_removals')
-        ? { status: 500, json: {} }
-        : { status: 409, json: { code: 'EXERCISE_CATALOG_SHRANK', error: 'shrank' } }))
-    await open(page, '/settings', 1280)
-    await refreshButton(page).click()
-    const dialog = page.getByRole('dialog', { name: 'Accept the smaller catalog?' })
-    await dialog.getByRole('button', { name: 'Sync and hide' }).click()
-    await expect(dialog.getByText('Server error. Please try again shortly.')).toBeVisible()
-    // RN Modal on web ignores Escape until its fade-in ends (see Sheet.tsx), and with the 500
-    // fulfilled locally the error can land inside the fade on a loaded runner.
-    await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) =>
-      a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming().endTime)).length)).toBe(0)
-    await page.keyboard.press('Escape')
-    await expect(dialog).toHaveCount(0)
+    test('refresh reports what it refreshed', async ({ page }) => {
+      // Answered here: the real pass reaches out to the upstream catalog.
+      await page.route(SYNC, route => route.fulfill({ json: { data: { refreshed: 812 } } }))
+      await open(page, '/settings', 1280)
+      await refreshButton(page).click()
+      await expect(page.getByRole('status').filter({ hasText: 'Refreshed 812 exercises' })).toBeVisible()
+    })
+
+    test('a failed refresh reads as a failure', async ({ page }) => {
+      await page.route(SYNC, route => route.fulfill({ status: 500, json: {} }))
+      await open(page, '/settings', 1280)
+      await refreshButton(page).click()
+      await expect(page.getByRole('alert')).toBeVisible()
+      await expect(refreshButton(page)).toBeEnabled()
+    })
+
+    test('a shrunken catalog asks to confirm, and confirming sends confirm_removals', async ({ page }) => {
+      const sent: string[] = []
+      await page.route(SYNC, route => {
+        const url = new URL(route.request().url())
+        sent.push(url.search)
+        return url.searchParams.get('confirm_removals') === 'true'
+          ? route.fulfill({ json: { data: { refreshed: 300 } } })
+          : route.fulfill({ status: 409, json: { code: 'EXERCISE_CATALOG_SHRANK', error: 'shrank' } })
+      })
+      await open(page, '/settings', 1280)
+      await refreshButton(page).click()
+      const dialog = page.getByRole('dialog', { name: 'Accept the smaller catalog?' })
+      await expect(dialog).toBeVisible()
+      expect(await axe(page)).toEqual([])
+      await dialog.getByRole('button', { name: 'Sync and hide' }).click()
+      await expect(dialog).toHaveCount(0)
+      await expect(page.getByRole('status').filter({ hasText: 'Refreshed 300 exercises' })).toBeVisible()
+      expect(sent).toEqual(['', '?confirm_removals=true'])
+    })
+
+    test('a failed confirm keeps the dialog open and says why inside it', async ({ page }) => {
+      await page.route(SYNC, route => route.fulfill(
+        new URL(route.request().url()).searchParams.has('confirm_removals')
+          ? { status: 500, json: {} }
+          : { status: 409, json: { code: 'EXERCISE_CATALOG_SHRANK', error: 'shrank' } }))
+      await open(page, '/settings', 1280)
+      await refreshButton(page).click()
+      const dialog = page.getByRole('dialog', { name: 'Accept the smaller catalog?' })
+      await dialog.getByRole('button', { name: 'Sync and hide' }).click()
+      await expect(dialog.getByText('Server error. Please try again shortly.')).toBeVisible()
+      // RN Modal on web ignores Escape until its fade-in ends (see Sheet.tsx), and with the 500
+      // fulfilled locally the error can land inside the fade on a loaded runner.
+      await expect.poll(() => page.evaluate(() => document.getAnimations().filter((a) =>
+        a.playState === 'running' && Number.isFinite(a.effect?.getComputedTiming().endTime)).length)).toBe(0)
+      await page.keyboard.press('Escape')
+      await expect(dialog).toHaveCount(0)
+    })
   })
 
   for (const [name, path, width] of [

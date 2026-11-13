@@ -1,6 +1,12 @@
 import { request } from '@playwright/test'
-import { API_BASE } from './config'
+import { mkdirSync, writeFileSync } from 'fs'
+import path from 'path'
+import { ADMIN_STATE, API_BASE, BASE_URL } from './config'
 import { recordCreatedUser } from './userRegistry'
+
+// The first real account on a fresh stack is its admin (users.is_admin), and this probe is that
+// first account, so it doubles as the admin the admin-only specs sign in as. Worker accounts
+// registered later are ordinary users, which is what every other spec should be.
 
 // Blocks until the stack can actually serve the suite: the API answers, and the
 // exercise library has finished its background seed (specs pick exercises, and an
@@ -40,8 +46,25 @@ export default async function globalSetup(): Promise<void> {
         `If this server runs REGISTRATION=closed or first-user, the suite cannot run against it.`,
       )
     }
-    const token = (await res.json()).data.token
+    const auth = (await res.json()).data
+    const token = auth.token
     recordCreatedUser(token)
+
+    if (!auth.user?.is_admin) {
+      console.warn('[globalSetup] the probe account is not an admin: this stack already held users, so specs that need the admin will fail')
+    }
+    mkdirSync(path.dirname(ADMIN_STATE), { recursive: true })
+    writeFileSync(ADMIN_STATE, JSON.stringify({
+      cookies: [],
+      origins: [{
+        origin: new URL(BASE_URL).origin,
+        localStorage: [
+          { name: 'access_token', value: auth.token },
+          { name: 'refresh_token', value: auth.refresh_token },
+          { name: 'user', value: JSON.stringify(auth.user) },
+        ],
+      }],
+    }))
 
     await poll('the exercise library to seed', async () => {
       const list = await api.get(`${API_BASE}/exercises?limit=1`, {
