@@ -6,6 +6,10 @@
 // same paths, JSON shape, Cache-Control and ETag/304 behaviour the backend's client relies on.
 // Search is a plain substring match, not oedb's ranking: the specs need hits, not an order.
 //
+// It also serves the static snapshot the backend reads before the API (`/v1/manifest.json`
+// and content-addressed locale files), built once at startup from the same catalog.json, so
+// a boot sync from here makes no API request at all.
+//
 // No dependencies: node:*-alpine runs it from a bind mount (apps/app/e2e/oedb-stub/compose.yml).
 import { Buffer } from 'node:buffer'
 import { createServer } from 'node:http'
@@ -35,10 +39,25 @@ function localized(e, locale) {
   return t ? { ...e, translation: t } : e
 }
 
+// The snapshot: one file per locale in the catalog, named by a hash of its bytes, plus the
+// manifest that lists them. Non-English files carry every exercise, answered in English where
+// the fixture has no translation, exactly as /api/v1/exercises?locale= does.
+const snapshotFiles = new Map()
+const snapshotLocales = []
+for (const code of ['en', ...catalog.locales.filter((l) => l !== 'en')]) {
+  const items = english.map((e) => (code === 'en' ? e : localized(e, code))).sort((a, b) => (a.id < b.id ? -1 : 1))
+  const body = Buffer.from(JSON.stringify({ exercises: items, total: items.length }))
+  const sha256 = createHash('sha256').update(body).digest('hex')
+  const file = `exercises.${code}.${sha256.slice(0, 16)}.json`
+  snapshotFiles.set(file, body)
+  snapshotLocales.push({ code, file, total: items.length, sha256 })
+}
+const manifest = { schema_version: 1, generated_at: new Date().toISOString(), published_at: new Date().toISOString(), source: PUBLIC_URL || 'http://oedb-stub:8090', locales: snapshotLocales }
+
 // A 1x1 transparent PNG: what the specs need from an image is that it loads.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')
 
-function send(req, res, status, body, maxAge = 300) {
+function send(req, res, status, body, maxAge = 300, type = Buffer.isBuffer(body) ? 'image/png' : 'application/json') {
   const buf = Buffer.isBuffer(body) ? body : Buffer.from(JSON.stringify(body))
   const etag = `"${createHash('md5').update(buf).digest('hex')}"`
   res.setHeader('Cache-Control', `public, max-age=${maxAge}, stale-while-revalidate=86400`)
@@ -47,7 +66,7 @@ function send(req, res, status, body, maxAge = 300) {
     res.writeHead(304).end()
     return 304
   }
-  res.writeHead(status, { 'Content-Type': Buffer.isBuffer(body) ? 'image/png' : 'application/json' }).end(buf)
+  res.writeHead(status, { 'Content-Type': type }).end(buf)
   return status
 }
 
@@ -74,8 +93,12 @@ function list(req, res, q) {
 function route(req, res) {
   const url = new URL(req.url, 'http://stub')
   const path = url.pathname
+  let m
   if (req.method !== 'GET') return send(req, res, 405, { detail: 'GET only' })
   if (path === '/health') return send(req, res, 200, { ok: true }, 0)
+  if (path === '/v1/manifest.json') return send(req, res, 200, manifest, 0)
+  m = path.match(/^\/v1\/(exercises\.[A-Za-z0-9-]+\.[0-9a-f]{16}\.json)$/)
+  if (m && snapshotFiles.has(m[1])) return send(req, res, 200, snapshotFiles.get(m[1]), 31536000, 'application/json')
   if (path === '/api/v1/meta/locales') {
     return send(req, res, 200, { locales: catalog.locales.map((code) => ({ code })), total: catalog.locales.length, page: 1, per_page: MAX_PER_PAGE })
   }
@@ -83,7 +106,7 @@ function route(req, res) {
     return send(req, res, 200, { exercises: english, total: english.length, generated_at: new Date(0).toISOString() }, 900)
   }
   if (path === '/api/v1/exercises') return list(req, res, url.searchParams)
-  let m = path.match(/^\/api\/v1\/exercises\/([^/]+)$/)
+  m = path.match(/^\/api\/v1\/exercises\/([^/]+)$/)
   if (m) {
     const e = byId.get(decodeURIComponent(m[1]))
     return e ? send(req, res, 200, localized(e, url.searchParams.get('locale') || 'en')) : send(req, res, 404, { detail: 'not found' })
@@ -95,7 +118,7 @@ function route(req, res) {
 
 createServer((req, res) => {
   const status = route(req, res)
-  // The CI guard greps this log: an export line proves the backend synced from here.
+  // The CI guard greps this log: a manifest line proves the backend synced from here.
   // The request line is the caller's text: drop line breaks so one request cannot forge another log line.
   if (req.url !== '/health') console.log(`${req.method} ${req.url} ${status}`.replace(/[\r\n]/g, ''))
 }).listen(PORT, () => console.log(`oedb stub: ${english.length} exercises on :${PORT}`))

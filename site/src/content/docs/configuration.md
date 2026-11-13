@@ -15,7 +15,8 @@ All configuration lives in a `.env` file at the project root.
 | `BACKEND_ORIGIN` | `backend:3000` | Docker **service name**:port the frontend proxies `/api` to — not a host IP. Only change the port, to match a custom backend `PORT`. |
 | `REGISTRATION` | `open` | Who may create an account: `open`, `first-user`, or `closed`. See below. |
 | `DEMO_MODE` | `false` | Seeds the demo account and sample data. Leave off — its password is public. |
-| `OEDB_BASE_URL` | hosted instance | The open-exercise-db the exercise catalog is downloaded from. Set it to use a catalog you host. See [Exercise Library](../exercise-library/). |
+| `OEDB_BASE_URL` | hosted instance | The open-exercise-db API the exercise catalog falls back to, and searches. Set it to use a catalog you host. See [Exercise Library](../exercise-library/). |
+| `OEDB_CATALOG_URLS` | hosted copies | Comma-separated static copies of the catalog, tried in order before the API. Unset uses the hosted copies, unless `OEDB_BASE_URL` is set to something else, which means none. `off` skips them. See [Exercise Library](../exercise-library/). |
 
 ## Locking down registration
 

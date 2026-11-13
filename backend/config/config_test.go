@@ -1,6 +1,11 @@
 package config
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	"github.com/Cawlumm/lyftr-backend/oedb"
+)
 
 func TestGetEnvBool(t *testing.T) {
 	cases := []struct {
@@ -74,6 +79,30 @@ func TestValidRegistration(t *testing.T) {
 	for _, mode := range []string{"", "frst-user", "Open", "first user", "disabled", "true"} {
 		if ValidRegistration(mode) {
 			t.Errorf("ValidRegistration(%q) = true, want false", mode)
+		}
+	}
+}
+
+func TestResolveCatalogURLs(t *testing.T) {
+	hosted := oedb.DefaultBaseURL
+	cases := []struct {
+		name, raw, base string
+		want            []string
+		wantErr         bool
+	}{
+		{"nothing set uses the hosted snapshots", "", "", oedb.DefaultSnapshotURLs, false},
+		{"base equal to default counts as unset", "", hosted, oedb.DefaultSnapshotURLs, false},
+		{"trailing slash and spaces are ignored", "", " " + hosted + "/ ", oedb.DefaultSnapshotURLs, false},
+		{"a custom base gets no snapshot", "", "http://oedb-stub:8090", nil, false},
+		{"off", "off", "", nil, false},
+		{"OFF with a custom base", " OFF ", "http://x", nil, false},
+		{"explicit list wins over a custom base", "http://a/v1/, https://b/v1", "http://x", []string{"http://a/v1", "https://b/v1"}, false},
+		{"junk entry", "a/v1", "", nil, true},
+	}
+	for _, tc := range cases {
+		got, err := ResolveCatalogURLs(tc.raw, tc.base)
+		if (err != nil) != tc.wantErr || !slices.Equal(got, tc.want) {
+			t.Errorf("%s: got %v, %v; want %v (err %v)", tc.name, got, err, tc.want, tc.wantErr)
 		}
 	}
 }

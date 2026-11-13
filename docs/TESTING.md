@@ -77,10 +77,13 @@ test('scanner opens', { tag: '@mobile' }, async ({ page }) => { ... })
   stack cannot bind the port.
 - **The exercise catalog is a stub, never the hosted oedb.** `apps/app/e2e/oedb-stub/compose.yml`
   adds `server.mjs`, which serves a recorded 64-exercise subset (`catalog.json`, English and
-  Spanish) on `:8090` and points the backend's `OEDB_BASE_URL` at it. Without the overlay the
+  Spanish) on `:8090`, both as the API and as a static snapshot (`/v1/manifest.json` plus
+  content-addressed locale files built at startup), and points the backend's `OEDB_BASE_URL`
+  and `OEDB_CATALOG_URLS` at it. Without the overlay the
   backend falls back to the hosted instance, whose database is on a metered free tier: every
   boot syncs the whole catalog and every browser loads its images from there. CI fails a shard
-  whose stub log has no export request. A spec that needs an exercise the fixture lacks adds
+  whose stub log has no `GET /v1/manifest.json 200` (the backend syncs from the snapshot, so
+  there is no export request to look for). A spec that needs an exercise the fixture lacks adds
   its search term to `TERMS` in `record.mjs` and re-records once (`node record.mjs > catalog.json.new`, then move it over `catalog.json`, about
   three requests); never record from CI.
 - **Speed:** minutes. Keep this layer **thin** — it's the slowest and most fragile.

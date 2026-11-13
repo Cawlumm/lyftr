@@ -225,6 +225,12 @@ func alterMigrations() {
 		)`); err != nil {
 		log.Fatalf("create catalog_sync: %v", err)
 	}
+	// Where the last clean pass read the catalog ("api" or "snapshot:<url>") and when that
+	// copy was generated (RFC3339 UTC), so a snapshot older than what is already applied is
+	// refused and an unchanged one is not re-imported. NULL until a pass records them.
+	ensureColumn("catalog_sync", "catalog_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_source TEXT`)
+	ensureColumn("catalog_sync", "catalog_manifest_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_manifest_source TEXT`)
+	ensureColumn("catalog_sync", "catalog_generated_at", `ALTER TABLE catalog_sync ADD COLUMN catalog_generated_at TEXT`)
 }
 
 // emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.

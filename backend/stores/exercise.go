@@ -25,6 +25,8 @@ import (
 type ExerciseStore struct {
 	db      *sql.DB
 	catalog *oedb.Client
+	// snapshot, when set, is read before the API at the start of a catalog pass.
+	snapshot *oedb.Snapshot
 	// syncing is held for the length of a catalog pass, so the daily timer and the
 	// admin endpoint can never run two imports against the one SQLite connection.
 	syncing atomic.Bool
@@ -439,6 +441,11 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 // exercises. Nothing in Lyftr requires the network to work.
 func (s *ExerciseStore) UseCatalog(c *oedb.Client) { s.catalog = c }
 
+// UseSnapshot makes the catalog pass read the bulk catalog from static snapshots first,
+// falling back to the API (UseCatalog) only when none of them validates. Image URLs still
+// resolve against the API's origin.
+func (s *ExerciseStore) UseSnapshot(sn *oedb.Snapshot) { s.snapshot = sn }
+
 const (
 	defaultSearchTimeout = 3 * time.Second
 	// searchBackoff is how long Search stops asking a catalog that did not answer, so
@@ -684,8 +691,8 @@ func (s *ExerciseStore) RefreshCachedConfirmed(ctx context.Context) (int, error)
 	return s.syncCatalogWith(context.WithoutCancel(ctx), true)
 }
 
-// refresh brings one language up to date. English imports every exercise in the bulk
-// export, oedb.MaxPerPage rows per transaction so a pass never holds the single
+// refresh brings one language up to date from the API. English imports every exercise in
+// the bulk export, oedb.MaxPerPage rows per transaction so a pass never holds the single
 // connection for long. Any other language re-reads every held row by id in oedb's
 // batch size, because the export is English-only and a list call is the only way to
 // ask for a translation.
@@ -696,34 +703,46 @@ func (s *ExerciseStore) RefreshCachedConfirmed(ctx context.Context) (int, error)
 // It reads through Revalidating, because a re-read that a cache can answer re-applies
 // what this instance already holds.
 func (s *ExerciseStore) refresh(ctx context.Context, locale string, acceptShrink bool) (int, error) {
+	return s.refreshFrom(ctx, locale, acceptShrink, nil)
+}
+
+// refreshFrom is refresh over a source: a validated snapshot when snap is set, the API
+// otherwise. Both feed the same import, so the guards and the written rows cannot differ.
+func (s *ExerciseStore) refreshFrom(ctx context.Context, locale string, acceptShrink bool, snap *snapshotPass) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
 	cat := s.catalog.Revalidating()
 
 	if servedInEnglish(locale) {
-		items, err := cat.Export(ctx)
-		if err != nil {
-			return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
-		}
-		done := 0
-		for start := 0; start < len(items); start += oedb.MaxPerPage {
-			out, err := s.Materialize(items[start:min(start+oedb.MaxPerPage, len(items))], s.catalog.BaseURL(), defaultLocale)
+		var items []oedb.Exercise
+		if snap != nil {
+			items = snap.items(locale)
+		} else {
+			var err error
+			items, err = cat.Export(ctx)
 			if err != nil {
-				return done, err
+				return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 			}
-			done += len(out)
 		}
-		// Only after the whole export imported: a half-read export must not hide anything.
-		if err := s.markUpstreamMissing(items, acceptShrink); err != nil {
-			return done, err
-		}
-		return done, nil
+		return s.importEnglish(items, acceptShrink)
 	}
 
 	held, err := s.cachedOedbIDs()
 	if err != nil {
 		return 0, err
+	}
+
+	if snap != nil {
+		// A non-English file can only add translations to rows already held and visible:
+		// it never inserts a row or un-hides one the English file stopped listing.
+		var items []oedb.Exercise
+		for _, it := range snap.items(locale) {
+			if held[it.ID] {
+				items = append(items, it)
+			}
+		}
+		return s.materializeChunks(items, locale)
 	}
 
 	ids := make([]string, 0, len(held))
@@ -740,6 +759,33 @@ func (s *ExerciseStore) refresh(ctx context.Context, locale string, acceptShrink
 			return done, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
 		}
 		out, err := s.Materialize(res.Exercises, s.catalog.BaseURL(), locale)
+		if err != nil {
+			return done, err
+		}
+		done += len(out)
+	}
+	return done, nil
+}
+
+// importEnglish writes the complete English catalog, then hides held rows it no longer lists.
+func (s *ExerciseStore) importEnglish(items []oedb.Exercise, acceptShrink bool) (int, error) {
+	done, err := s.materializeChunks(items, defaultLocale)
+	if err != nil {
+		return done, err
+	}
+	// Only after the whole export imported: a half-read export must not hide anything.
+	if err := s.markUpstreamMissing(items, acceptShrink); err != nil {
+		return done, err
+	}
+	return done, nil
+}
+
+// materializeChunks records items oedb.MaxPerPage at a time. Image URLs resolve against the
+// API's origin, never against wherever the items were read from.
+func (s *ExerciseStore) materializeChunks(items []oedb.Exercise, locale string) (int, error) {
+	done := 0
+	for start := 0; start < len(items); start += oedb.MaxPerPage {
+		out, err := s.Materialize(items[start:min(start+oedb.MaxPerPage, len(items))], s.catalog.BaseURL(), locale)
 		if err != nil {
 			return done, err
 		}

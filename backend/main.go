@@ -114,6 +114,9 @@ func main() {
 	s := stores.New(db.DB)
 	catalog := oedb.New(config.C.OEDBBaseURL, config.Version())
 	s.Exercise.UseCatalog(catalog)
+	if len(config.C.OEDBCatalogURLs) > 0 {
+		s.Exercise.UseSnapshot(oedb.NewSnapshot(config.C.OEDBCatalogURLs, config.Version()))
+	}
 	// Thumbnails live beside the database, so they share its volume and its backups.
 	s.Thumbs = stores.NewThumbStore(db.DB, filepath.Join(filepath.Dir(config.C.DBPath), "thumbs"), catalog.BaseURL())
 

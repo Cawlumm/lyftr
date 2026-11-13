@@ -286,7 +286,7 @@ func TestExerciseCacheStatus_shapeBeforeAnyPass(t *testing.T) {
 	th.ExerciseCacheStatus(c)
 
 	data, _ := decodeResponse(t, w)["data"].(map[string]any)
-	want := []string{"count", "syncing", "last_synced_at", "last_attempt_at", "next_attempt_at", "last_failed", "last_failure"}
+	want := []string{"count", "syncing", "last_synced_at", "last_attempt_at", "next_attempt_at", "last_failed", "last_failure", "catalog_source", "catalog_generated_at"}
 	if len(data) != len(want) {
 		t.Errorf("data = %v, want exactly %v", data, want)
 	}

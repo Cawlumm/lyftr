@@ -21,6 +21,7 @@ services:
       - REGISTRATION=${REGISTRATION:-first-user}
       - DEMO_MODE=false
       - OEDB_BASE_URL=${OEDB_BASE_URL:-}
+      - OEDB_CATALOG_URLS=${OEDB_CATALOG_URLS:-}
     expose:
       - "3000"
     # Also declared in the image from the release that added it; repeated here so an older

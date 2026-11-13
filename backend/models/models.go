@@ -561,4 +561,12 @@ type ExerciseCacheStatus struct {
 	NextAttemptAt *time.Time `json:"next_attempt_at"`
 	LastFailed    bool       `json:"last_failed"`
 	LastFailure   *string    `json:"last_failure"`
+	// CatalogSource is where the last clean pass read the catalog from: "api", or
+	// "snapshot:<base URL>". CatalogGeneratedAt is when that copy was generated, when it
+	// said. Both are null until a clean pass has recorded them.
+	CatalogSource      *string    `json:"catalog_source"`
+	CatalogGeneratedAt *time.Time `json:"catalog_generated_at"`
+	// CatalogManifestSource is the API base the snapshot behind CatalogGeneratedAt was
+	// built from, so a stamp is only compared with a manifest of the same catalog.
+	CatalogManifestSource *string `json:"-"`
 }

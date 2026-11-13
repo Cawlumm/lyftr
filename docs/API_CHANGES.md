@@ -14,6 +14,13 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `GET /admin/seed-status` gains `catalog_source` and `catalog_generated_at` (additive)
+
+Two new fields on the exercise-library status: `catalog_source` is where the last clean sync read
+the catalog from, `"api"` or `"snapshot:<base url>"`, and `catalog_generated_at` is when that copy
+was generated (RFC 3339). Both are `null` until a clean sync has recorded them. No existing field
+changes. New env `OEDB_CATALOG_URLS` selects the static copies the sync reads before the API.
+
 ## Workout and program exercises gain `superset_group` (additive)
 
 `GET /workouts/:id` and `GET /programs/:id` return `superset_group` on every exercise: an integer

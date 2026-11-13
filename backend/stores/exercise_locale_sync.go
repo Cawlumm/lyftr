@@ -9,9 +9,11 @@ import (
 	"log"
 	"runtime/debug"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/models"
+	"github.com/Cawlumm/lyftr-backend/oedb"
 )
 
 // CatalogSyncInterval is how long an upstream correction or a new translation takes to
@@ -112,9 +114,9 @@ func (s *ExerciseStore) catalogHeld() bool {
 // straight after a restart.
 func (s *ExerciseStore) loadSyncState() error {
 	var attempt string
-	var synced, failure sql.NullString
-	err := s.db.QueryRow(`SELECT last_attempt_at, last_synced_at, last_failure FROM catalog_sync WHERE id = 1`).
-		Scan(&attempt, &synced, &failure)
+	var synced, failure, source, generated, msource sql.NullString
+	err := s.db.QueryRow(`SELECT last_attempt_at, last_synced_at, last_failure, catalog_source, catalog_generated_at, catalog_manifest_source FROM catalog_sync WHERE id = 1`).
+		Scan(&attempt, &synced, &failure, &source, &generated, &msource)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -133,9 +135,19 @@ func (s *ExerciseStore) loadSyncState() error {
 		}
 		syncedAt = &t
 	}
-	var reason *string
+	var reason, src *string
 	if failure.Valid {
 		reason = &failure.String
+	}
+	if source.Valid {
+		src = &source.String
+	}
+	var genAt *time.Time
+	if generated.Valid {
+		if t, err := time.Parse(time.RFC3339Nano, generated.String); err == nil {
+			t = t.UTC()
+			genAt = &t
+		}
 	}
 	s.statusMu.Lock()
 	defer s.statusMu.Unlock()
@@ -143,12 +155,29 @@ func (s *ExerciseStore) loadSyncState() error {
 	s.status.LastAttemptAt = &at
 	s.status.LastSyncedAt = syncedAt
 	s.status.LastFailure = reason
+	s.status.CatalogSource = src
+	s.status.CatalogGeneratedAt = genAt
+	s.status.CatalogManifestSource = nil
+	if msource.Valid {
+		s.status.CatalogManifestSource = &msource.String
+	}
 	return nil
 }
 
+// passRecord is what a clean pass tells the status about the copy it applied.
+type passRecord struct {
+	source      string
+	generatedAt *time.Time
+	// manifestSource is the API base the snapshot was built from; set with generatedAt.
+	manifestSource string
+}
+
+// (A nil generatedAt keeps the recorded one.)
+//
 // recordPass is the one place a finished pass is written to the status, in memory and in
-// catalog_sync. A failed pass leaves LastSyncedAt at the last clean one.
-func (s *ExerciseStore) recordPass(started time.Time, err error) {
+// catalog_sync. A failed pass leaves LastSyncedAt, the source and its generated_at at the
+// last clean one.
+func (s *ExerciseStore) recordPass(started time.Time, err error, rec passRecord) {
 	s.statusMu.Lock()
 	at := started.UTC()
 	s.status.LastAttemptAt = &at
@@ -156,6 +185,18 @@ func (s *ExerciseStore) recordPass(started time.Time, err error) {
 		now := time.Now().UTC()
 		s.status.LastSyncedAt = &now
 		s.status.LastFailure = nil
+		if rec.source != "" {
+			src := rec.source
+			s.status.CatalogSource = &src
+			// Only a snapshot pass says when its copy was generated. An API pass leaves the
+			// last snapshot's stamp alone: the API stamps build time, which would make every
+			// good snapshot look older than what is applied.
+			if rec.generatedAt != nil {
+				s.status.CatalogGeneratedAt = rec.generatedAt
+				ms := rec.manifestSource
+				s.status.CatalogManifestSource = &ms
+			}
+		}
 	} else {
 		reason := syncFailureOther
 		if errors.Is(err, ErrCatalogUnreachable) {
@@ -181,11 +222,17 @@ func (s *ExerciseStore) persistSyncState(st models.ExerciseCacheStatus) error {
 	if st.LastSyncedAt != nil {
 		synced = st.LastSyncedAt.Format(time.RFC3339Nano)
 	}
-	_, err := s.db.Exec(`INSERT INTO catalog_sync (id, last_attempt_at, last_synced_at, last_failure)
-		VALUES (1, ?, ?, ?)
+	var generated any
+	if st.CatalogGeneratedAt != nil {
+		generated = st.CatalogGeneratedAt.UTC().Format(time.RFC3339Nano)
+	}
+	_, err := s.db.Exec(`INSERT INTO catalog_sync (id, last_attempt_at, last_synced_at, last_failure, catalog_source, catalog_generated_at, catalog_manifest_source)
+		VALUES (1, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET last_attempt_at = excluded.last_attempt_at,
-			last_synced_at = excluded.last_synced_at, last_failure = excluded.last_failure`,
-		st.LastAttemptAt.Format(time.RFC3339Nano), synced, st.LastFailure)
+			last_synced_at = excluded.last_synced_at, last_failure = excluded.last_failure,
+			catalog_source = excluded.catalog_source, catalog_generated_at = excluded.catalog_generated_at,
+			catalog_manifest_source = excluded.catalog_manifest_source`,
+		st.LastAttemptAt.Format(time.RFC3339Nano), synced, st.LastFailure, st.CatalogSource, generated, st.CatalogManifestSource)
 	return err
 }
 
@@ -217,7 +264,8 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 	started := time.Now()
 	// Deferred after the flag's release, so it runs first: a reader never sees the pass
 	// finished with the old outcome.
-	defer func() { s.recordPass(started, err) }()
+	var rec passRecord
+	defer func() { s.recordPass(started, err, rec) }()
 	// Runs before recordPass, so a panic is recorded as the failed pass it was, and the
 	// scheduler goroutine survives to retry instead of taking the whole server down.
 	defer func() {
@@ -226,11 +274,27 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 			log.Printf("exercises: %v\n%s", err, debug.Stack())
 		}
 	}()
-	dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
-	codes, err := s.catalog.Revalidating().Locales(dctx)
-	cancel()
-	if err != nil {
-		return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
+	snap := s.loadSnapshot(ctx)
+	var codes []string
+	switch {
+	case snap != nil && snap.Unchanged:
+		gen := snap.GeneratedAt
+		rec = passRecord{source: snapshotSource(snap), generatedAt: &gen, manifestSource: snap.Source}
+		held, _ := s.cachedOedbIDs()
+		log.Printf("exercises: snapshot generated %s is the one already applied; nothing to import", gen.Format(time.RFC3339))
+		return len(held), nil
+	case snap != nil:
+		gen := snap.GeneratedAt
+		rec = passRecord{source: snapshotSource(snap), generatedAt: &gen, manifestSource: snap.Source}
+		codes = snap.Locales
+	default:
+		rec = passRecord{source: sourceAPI}
+		dctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
+		codes, err = s.catalog.Revalidating().Locales(dctx)
+		cancel()
+		if err != nil {
+			return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
+		}
 	}
 	seen := map[string]bool{}
 	var locales []string
@@ -238,6 +302,9 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 		if l := NormalizeLocale(c); l != defaultLocale && !seen[l] {
 			seen[l] = true
 			locales = append(locales, l)
+			if snap != nil {
+				snap.alias[l] = c
+			}
 		}
 	}
 	var errs []error
@@ -258,7 +325,7 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 	english := 0
 	for _, l := range locales {
 		lctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
-		n, err := s.refresh(lctx, l, acceptShrink)
+		n, err := s.refreshFrom(lctx, l, acceptShrink, snap)
 		cancel()
 		if l == defaultLocale {
 			english = n
@@ -309,6 +376,82 @@ func (s *ExerciseStore) purgeDroppedLocales(offered []string) error {
 	}
 	if n, _ := res.RowsAffected(); n > 0 {
 		log.Printf("exercises: removed %d translations in languages the catalog no longer offers", n)
+	}
+	return nil
+}
+
+const sourceAPI = "api"
+
+// maxSnapshotAge is how old a snapshot may be and still be believed: the publisher runs
+// every six hours, so older means it has stopped, and the API is the better source.
+var maxSnapshotAge = 48 * time.Hour
+
+// maxSnapshotSkew is how far ahead of this clock a manifest may claim to be.
+const maxSnapshotSkew = 10 * time.Minute
+
+// snapshotPass is a validated snapshot a pass imports from.
+type snapshotPass struct {
+	*oedb.LoadedSnapshot
+	// alias maps a normalized locale to the code the manifest spelled it with.
+	alias map[string]string
+}
+
+func (p *snapshotPass) items(locale string) []oedb.Exercise {
+	if c, ok := p.alias[locale]; ok {
+		return p.Exercises[c]
+	}
+	return p.Exercises[locale]
+}
+
+func snapshotSource(p *snapshotPass) string { return "snapshot:" + p.URL }
+
+// loadSnapshot reads the configured snapshots and returns the first that validates, or nil
+// when none is configured or usable; every fallback to the API is logged with its reason.
+// Only loading and validation can fall back: once a snapshot is chosen, an import error is
+// the pass's error, as it would be from the API.
+func (s *ExerciseStore) loadSnapshot(ctx context.Context) *snapshotPass {
+	if s.snapshot == nil {
+		return nil
+	}
+	lctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
+	defer cancel()
+	got, err := s.snapshot.Load(lctx, s.snapshotAccept)
+	if err != nil {
+		log.Printf("exercises: catalog snapshot not used, reading the API instead: %v", err)
+		return nil
+	}
+	return &snapshotPass{LoadedSnapshot: got, alias: map[string]string{}}
+}
+
+// snapshotAccept refuses a manifest that is too old, or older than the copy already
+// applied, so a stalled or rolled-back publisher cannot freeze or rewind an install. A
+// manifest equal to the copy the last clean pass applied from a snapshot needs no import.
+func (s *ExerciseStore) snapshotAccept(m oedb.Manifest) error {
+	// The heartbeat, not the content version: an unchanged catalog keeps an old
+	// generated_at for as long as it likes while the publisher is alive.
+	now := time.Now()
+	if age := now.Sub(m.Published()); age > maxSnapshotAge {
+		return fmt.Errorf("published %s ago, older than %s", age.Round(time.Minute), maxSnapshotAge)
+	}
+	// A clock set wrong on the publisher must not pin the install to a stamp nothing newer can beat.
+	if m.GeneratedAt.After(now.Add(maxSnapshotSkew)) || m.Published().After(now.Add(maxSnapshotSkew)) {
+		return fmt.Errorf("generated %s, published %s: in the future", m.GeneratedAt.Format(time.RFC3339), m.Published().Format(time.RFC3339))
+	}
+	s.statusMu.Lock()
+	st := s.status
+	s.statusMu.Unlock()
+	// A stamp means something only against a manifest of the same catalog: one built
+	// from a different API (OEDB_CATALOG_URLS changed) is accepted and imported.
+	if st.CatalogGeneratedAt == nil || st.CatalogManifestSource == nil || *st.CatalogManifestSource != m.Source {
+		return nil
+	}
+	rec := *st.CatalogGeneratedAt
+	if m.GeneratedAt.Before(rec) {
+		return fmt.Errorf("generated %s, older than the %s already applied", m.GeneratedAt.Format(time.RFC3339), rec.Format(time.RFC3339))
+	}
+	if m.GeneratedAt.Equal(rec) && st.LastFailure == nil && st.LastSyncedAt != nil &&
+		st.CatalogSource != nil && strings.HasPrefix(*st.CatalogSource, "snapshot:") && s.catalogHeld() {
+		return oedb.ErrSnapshotUnchanged
 	}
 	return nil
 }

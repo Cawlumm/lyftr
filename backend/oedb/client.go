@@ -1,12 +1,12 @@
 // Package oedb is Lyftr's client for open-exercise-db, the upstream community
 // exercise catalog.
 //
-// Lyftr queries oedb rather than mirroring it. The local exercises table still
-// exists, but as the rows a user has actually seen — see
-// stores.ExerciseStore.Materialize — which a daily pass keeps current in every
-// catalog language, and not as a copy of the catalog. Search, filtering and
-// ordering are answered upstream, so the data Lyftr shows improves when oedb
-// improves, without a redeploy.
+// Lyftr reads the catalog two ways. The bulk of it — every exercise in every language,
+// which the daily pass imports into the local exercises table (see
+// stores.ExerciseStore.Materialize) — comes from a static snapshot (Snapshot) that costs
+// oedb nothing, with this client's API reads as the fallback. Search, filtering and
+// ordering are still answered by the API through Client, so what Lyftr shows improves when
+// oedb improves, without a redeploy.
 //
 // The cache here is what makes that affordable. oedb serves list and detail reads
 // with `Cache-Control: public, max-age=300, stale-while-revalidate=86400` plus an
