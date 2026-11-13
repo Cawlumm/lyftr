@@ -11,12 +11,22 @@ type Handler struct {
 	s *stores.Stores
 	// loginByEmail caps password guesses against one account however many addresses they
 	// come from; the per-address limit in front of the route cannot see a distributed
-	// attack. 5 at once, then 5 a minute.
+	// attack. It is a ceiling, loose enough that one caller cannot hold a victim out
+	// with a trickle: 20 at once, then 20 a minute. Only failures count; a good login
+	// refunds its token.
 	loginByEmail *middleware.Limiter
+	// loginByPair is the strict one, keyed on address plus email: 5 at once, then 5 a
+	// minute. A guesser is stopped here long before the account-wide ceiling, and
+	// the owner, coming from a different address, never shares it.
+	loginByPair *middleware.Limiter
 }
 
 func NewHandler(s *stores.Stores) *Handler {
-	return &Handler{s: s, loginByEmail: middleware.NewLimiter(5, 5, 10000)}
+	return &Handler{
+		s:            s,
+		loginByEmail: middleware.NewLimiter(20, 20, 10000),
+		loginByPair:  middleware.NewLimiter(5, 5, 10000),
+	}
 }
 
 // TokenVersions is the handler's user store as the auth middleware needs it, so routes can

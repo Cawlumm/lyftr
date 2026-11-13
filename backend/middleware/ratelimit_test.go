@@ -92,3 +92,26 @@ func TestLimiterEvictsLeastRecentlySeen(t *testing.T) {
 		t.Error("a was evicted though more recent than b")
 	}
 }
+
+func TestRefundGivesATokenBackUpToBurst(t *testing.T) {
+	l := NewLimiter(1, 2, 10)
+	fakeClock(l)
+	l.Allow("k")
+	l.Allow("k")
+	if ok, _ := l.Allow("k"); ok {
+		t.Fatal("third request should be refused")
+	}
+	l.Refund("k")
+	if ok, _ := l.Allow("k"); !ok {
+		t.Error("refunded token was not usable")
+	}
+	l.Refund("k")
+	l.Refund("k")
+	l.Refund("k")
+	l.Allow("k")
+	l.Allow("k")
+	if ok, _ := l.Allow("k"); ok {
+		t.Error("refund went past the burst")
+	}
+	l.Refund("unknown")
+}

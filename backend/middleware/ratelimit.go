@@ -77,6 +77,17 @@ func (l *Limiter) Allow(key string) (bool, time.Duration) {
 	return false, time.Duration((1 - b.tokens) / l.rate * float64(time.Second))
 }
 
+// Refund gives back a token Allow spent, up to the bucket's burst. An unknown key is
+// ignored: its bucket was evicted and is already full.
+func (l *Limiter) Refund(key string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if el, ok := l.entries[key]; ok {
+		b := el.Value.(*bucket)
+		b.tokens = math.Min(l.burst, b.tokens+1)
+	}
+}
+
 // Len is the number of keys currently tracked.
 func (l *Limiter) Len() int {
 	l.mu.Lock()

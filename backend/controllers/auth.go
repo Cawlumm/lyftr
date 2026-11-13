@@ -124,9 +124,21 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// Keyed on the address as typed, folded the way sign-in folds it, and spent before the
 	// lookup so an address that does not exist is limited exactly like one that does.
-	if ok, wait := h.loginByEmail.Allow(strings.ToLower(strings.TrimSpace(req.Email))); !ok {
-		middleware.Reject(c, wait)
-		return
+	// A successful login gives its tokens back, so only failures are counted. The demo
+	// account's password is published and every visitor shares it, so it is exempt here
+	// (the per-address limit on the route still applies).
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	pair := c.ClientIP() + "|" + email
+	if !(config.C.DemoMode && config.IsDemoEmail(email)) {
+		if ok, wait := h.loginByPair.Allow(pair); !ok {
+			middleware.Reject(c, wait)
+			return
+		}
+		if ok, wait := h.loginByEmail.Allow(email); !ok {
+			h.loginByPair.Refund(pair)
+			middleware.Reject(c, wait)
+			return
+		}
 	}
 
 	user, err := h.s.User.GetByEmail(req.Email)
@@ -146,6 +158,9 @@ func (h *Handler) Login(c *gin.Context) {
 		utils.Fail(c, utils.CodeInvalidCredentials, nil)
 		return
 	}
+
+	h.loginByPair.Refund(pair)
+	h.loginByEmail.Refund(email)
 
 	access, refresh, err := h.mintSession(user.ID, user.Email, user.TokenVersion)
 	if err != nil {
