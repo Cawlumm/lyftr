@@ -10,11 +10,11 @@ services:
     environment:
       - ENV=production
       - PORT=3000
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required - generate one with: openssl rand -hex 32}
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET, e.g. openssl rand -hex 32}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
       - DB_TYPE=sqlite
       - DB_PATH=/app/data/lyftr.db
-      - REGISTRATION=${REGISTRATION:-open}
+      - REGISTRATION=${REGISTRATION:-first-user}
       - DEMO_MODE=${DEMO_MODE:-false}
       - OEDB_BASE_URL=${OEDB_BASE_URL:-}
       - OEDB_CATALOG_URLS=${OEDB_CATALOG_URLS:-}

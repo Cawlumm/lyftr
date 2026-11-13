@@ -64,10 +64,10 @@ curl -o .env https://raw.githubusercontent.com/Cawlumm/lyftr/main/.env.example
 docker compose pull && docker compose up -d
 ```
 
-Open `http://localhost` and create your account. Anyone who can reach the instance can register
-until you set `REGISTRATION`, so read
+Open `http://localhost` and create your account. The compose file defaults to
+`REGISTRATION=first-user`: your signup claims the instance and everyone after is refused. Read
 [locking down registration](https://lyftr-app.pages.dev/configuration/#locking-down-registration)
-before giving it a public hostname.
+to move to `closed` once you have signed up.
 
 ### Portainer
 

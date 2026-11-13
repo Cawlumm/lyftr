@@ -236,6 +236,8 @@ jobs:
           # Published on 8081, the harness's default (apps/app/e2e/config.ts).
           echo "PORT=8081" >> .env
           echo "CORS_ORIGIN=http://localhost,http://localhost:8081" >> .env
+          # compose defaults to first-user; globalSetup registers a probe account per run.
+          echo "REGISTRATION=open" >> .env
 
       - uses: docker/setup-buildx-action@v3
         with:
