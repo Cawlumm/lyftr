@@ -54,10 +54,11 @@ a fresh install the first account registered does. `GET /me` and the login/regis
 With `DEMO_MODE` on, `PUT /me/password`, `PUT /me/email` and `DELETE /me` for `demo@lyftr.local` answer
 `403 DEMO_ACCOUNT_PROTECTED`. Boot resets its password to the published one if it was changed.
 
-## The server refuses to start in production with a published or short `JWT_SECRET` (breaking)
+## The server refuses to start in production with a published `JWT_SECRET` (breaking)
 
-`ENV=production` now fails at startup if `JWT_SECRET` is empty, equals either example value, or is under
-32 bytes. The root `.env.example` no longer ships a value; generate one with `openssl rand -hex 32`.
+`ENV=production` now fails at startup if `JWT_SECRET` is empty or equals either example value. A
+secret under 32 bytes logs a warning at startup. The root `.env.example` no longer ships a value;
+generate one with `openssl rand -hex 32`.
 
 ## `DELETE /me` requires `current_password` (breaking)
 
