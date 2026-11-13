@@ -131,7 +131,8 @@ func TestCountDataCoversEveryUserOwnedTable(t *testing.T) {
 		got = append(got, n)
 	}
 	rows.Close()
-	want := []string{"active_sessions", "food_logs", "programs", "saved_foods", "user_settings", "weight_logs", "workouts"}
+	// refresh_tokens are credentials, not data the account holds, so CountData leaves them out.
+	want := []string{"active_sessions", "food_logs", "programs", "refresh_tokens", "saved_foods", "user_settings", "weight_logs", "workouts"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("user-owned tables = %v, want %v; add any new table to UserStore.CountData", got, want)
 	}

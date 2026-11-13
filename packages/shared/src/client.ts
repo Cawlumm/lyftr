@@ -177,6 +177,7 @@ const unwrap = <T>(res: { data: { data: T } }) => res.data.data
 // app around it keeps rendering — which is exactly "action buttons stop responding …
 // requires a full app restart".
 const REQUEST_TIMEOUT = 20000
+const LOGOUT_TIMEOUT = 5000
 
 // Was the session actually revoked, or did we just not hear back? Only the server can
 // answer that, and only 400/401/403 are it answering: the refresh token is missing,
@@ -353,6 +354,10 @@ export function createClient(
   const authAPI = {
     login:    (data: types.LoginRequest)    => api.post<{ data: types.AuthResponse }>('/auth/login', data).then(unwrap),
     register: (data: types.RegisterRequest) => api.post<{ data: types.AuthResponse }>('/auth/register', data).then(unwrap),
+    // Tells the server to retire this device's refresh token. Its own short timeout: it is
+    // best-effort, and the caller must not wait on a dead network to finish signing out.
+    // It sits under /auth/, so a failure here never goes through the refresh interceptor.
+    logout:   (refreshToken: string) => api.post('/auth/logout', { refresh_token: refreshToken }, { timeout: LOGOUT_TIMEOUT }),
   }
 
   const userAPI = {

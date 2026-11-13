@@ -121,6 +121,14 @@ func (s *UserStore) TokenVersion(uid int64) (int, error) {
 	return v, err
 }
 
+// BumpTokenVersion ends every session the account has, access and refresh alike, by moving
+// its token generation on. Used when a spent refresh token is replayed: the server cannot
+// tell the owner from a thief, so it signs both out and lets the owner sign in again.
+func (s *UserStore) BumpTokenVersion(uid int64) error {
+	_, err := s.db.Exec(`UPDATE users SET token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, uid)
+	return err
+}
+
 // ErrPasswordChanged means the stored hash moved between the handler reading it and
 // this update running — a second password change racing the first.
 var ErrPasswordChanged = errors.New("password changed concurrently")

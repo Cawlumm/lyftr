@@ -853,6 +853,25 @@ describe('apiErrorMessage — server codes', () => {
       expect(await store.get(STORAGE_KEYS.refresh)).toBe('live-refresh')
     })
 
+    it('logout posts the refresh token to /auth/logout and a failure never triggers a refresh', async () => {
+      const { client, store, wasSignedOut, refreshCount } = setup(401, { code: 'SESSION_INVALID', error: 'x' }, async () => ({}))
+      await signedIn(store)
+      await expect(client.authAPI.logout('live-refresh')).rejects.toBeDefined()
+      expect(refreshCount()).toBe(0)
+      expect(wasSignedOut()).toBe(false)
+
+      let sent: any
+      client.api.defaults.adapter = async (config: any) => {
+        sent = { method: config.method, url: config.url, data: config.data, timeout: config.timeout }
+        return { data: { data: { logged_out: true } }, status: 200, statusText: 'OK', headers: {}, config }
+      }
+      await client.authAPI.logout('live-refresh')
+      expect(sent.method).toBe('post')
+      expect(sent.url).toBe('/auth/logout')
+      expect(JSON.parse(sent.data)).toEqual({ refresh_token: 'live-refresh' })
+      expect(sent.timeout).toBeLessThan(20000)
+    })
+
     it('DELETE /me sends the password in the body', async () => {
       const store = memStorage()
       const client = createClient(store)

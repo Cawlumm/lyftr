@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"strconv"
 	"time"
@@ -39,21 +41,61 @@ func GenerateTokenPair(userID int64, email string, tokenVersion int) (access, re
 		expiry = 3600
 	}
 
-	access, err = generateToken(userID, email, "access", tokenVersion, time.Duration(expiry)*time.Second)
+	access, err = generateToken(userID, email, "access", tokenVersion, time.Duration(expiry)*time.Second, "")
 	if err != nil {
 		return
 	}
-	refresh, err = generateToken(userID, email, "refresh", tokenVersion, 30*24*time.Hour)
+	refresh, err = generateToken(userID, email, "refresh", tokenVersion, 30*24*time.Hour, "")
 	return
 }
 
-func generateToken(userID int64, email, tokenType string, tokenVersion int, dur time.Duration) (string, error) {
+// RefreshGrace is how long a refresh token that has already been rotated may be presented
+// again and still be served rather than treated as theft. It covers the one honest cause of
+// a repeat, a response lost after the server committed (a dropped connection, a client
+// killed mid-write), and nothing a thief could use at leisure.
+const RefreshGrace = 30 * time.Second
+
+// SessionTokens is a freshly minted pair plus what the server must remember about the
+// refresh half.
+type SessionTokens struct {
+	Access, Refresh string
+	RefreshID       string
+	RefreshExpires  time.Time
+}
+
+// GenerateSession is GenerateTokenPair with a jti on the refresh token, for the server to
+// store. GenerateTokenPair still mints the pre-jti shape, which is what tokens already in
+// the wild look like and what the legacy-token tests exercise.
+func GenerateSession(userID int64, email string, tokenVersion int) (SessionTokens, error) {
+	expiry, _ := strconv.Atoi(config.C.JWTExpiry)
+	if expiry == 0 {
+		expiry = 3600
+	}
+	access, err := generateToken(userID, email, "access", tokenVersion, time.Duration(expiry)*time.Second, "")
+	if err != nil {
+		return SessionTokens{}, err
+	}
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		return SessionTokens{}, err
+	}
+	id := hex.EncodeToString(raw)
+	const life = 30 * 24 * time.Hour
+	refresh, err := generateToken(userID, email, "refresh", tokenVersion, life, id)
+	if err != nil {
+		return SessionTokens{}, err
+	}
+	return SessionTokens{Access: access, Refresh: refresh, RefreshID: id, RefreshExpires: time.Now().Add(life)}, nil
+}
+
+func generateToken(userID int64, email, tokenType string, tokenVersion int, dur time.Duration, jti string) (string, error) {
 	claims := Claims{
 		UserID:       userID,
 		Email:        email,
 		Type:         tokenType,
 		TokenVersion: NormalizeTokenVersion(tokenVersion),
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti,
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(dur)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},

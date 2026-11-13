@@ -235,6 +235,23 @@ func alterMigrations() {
 	ensureColumn("catalog_sync", "catalog_generated_at", `ALTER TABLE catalog_sync ADD COLUMN catalog_generated_at TEXT`)
 
 	adminMigration()
+
+	// One row per refresh token issued, keyed by its jti claim (see stores.RefreshStore).
+	// Tokens minted before this existed carry no jti and keep working on token_version
+	// alone until their first refresh, which replaces them with one that is tracked.
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS refresh_tokens (
+		  jti        TEXT    PRIMARY KEY,
+		  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		  expires_at INTEGER NOT NULL,
+		  created_at INTEGER NOT NULL,
+		  used_at    INTEGER,
+		  revoked_at INTEGER
+		)`); err != nil {
+		log.Fatalf("create refresh_tokens: %v", err)
+	}
+	ensureIndex("idx_refresh_tokens_expires", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)`)
+	ensureIndex("idx_refresh_tokens_user", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)`)
 }
 
 // adminMigration adds users.is_admin and, once, makes the earliest-created account the

@@ -63,6 +63,7 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		auth.POST("/register", ipLimit(), h.Register)
 		auth.POST("/login", ipLimit(), h.Login)
 		auth.POST("/refresh", ipLimit(), h.RefreshToken)
+		auth.POST("/logout", ipLimit(), h.Logout)
 	}
 
 	// Protected routes
