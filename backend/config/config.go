@@ -131,6 +131,9 @@ func Load() {
 	if err := CheckJWTSecret(C.Env, C.JWTSecret); err != nil {
 		log.Fatal(err)
 	}
+	if w := JWTSecretWarning(C.Env, C.JWTSecret); w != "" {
+		log.Print(w)
+	}
 
 	// Refuse to start on a typo rather than falling back to open. REGISTRATION=frst-user
 	// silently meaning "anyone may sign up" is the one failure mode that leaves someone
@@ -199,10 +202,18 @@ func CheckJWTSecret(env, secret string) error {
 	if secret == "" || slices.Contains(exampleJWTSecrets, secret) {
 		return fmt.Errorf("JWT_SECRET must be set to a private random value in production (the example value is public); generate one with: openssl rand -hex 32")
 	}
-	if len(secret) < MinJWTSecretBytes {
-		return fmt.Errorf("JWT_SECRET is %d bytes; production needs at least %d (openssl rand -hex 32)", len(secret), MinJWTSecretBytes)
-	}
 	return nil
+}
+
+// JWTSecretWarning flags, in production only, a signing key that works but is short.
+// A warning rather than a refusal: refusing would take a running instance down on the
+// upgrade that added the check, and a random secret of any reasonable length is not
+// brute-forceable; length is a proxy for "typed by a person".
+func JWTSecretWarning(env, secret string) string {
+	if env != "production" || secret == "" || slices.Contains(exampleJWTSecrets, secret) || len(secret) >= MinJWTSecretBytes {
+		return ""
+	}
+	return fmt.Sprintf("WARNING: JWT_SECRET is %d bytes; use at least %d random bytes (openssl rand -hex 32)", len(secret), MinJWTSecretBytes)
 }
 
 func ValidRegistration(mode string) bool {

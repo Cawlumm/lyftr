@@ -118,14 +118,29 @@ func TestCheckJWTSecret(t *testing.T) {
 		{"production empty", "production", "", true},
 		{"production code fallback", "production", "change-me-in-production-min-32-chars!!", true},
 		{"production root .env.example", "production", "change-me-to-a-random-32-plus-character-string", true},
-		{"production short", "production", "short-secret", true},
-		{"production 31 bytes", "production", "abcdefghijklmnopqrstuvwxyz01234", true},
+		{"production short only warns", "production", "short-secret", false},
+		{"production 31 bytes only warns", "production", "abcdefghijklmnopqrstuvwxyz01234", false},
 		{"development fallback", "development", "change-me-in-production-min-32-chars!!", false},
 		{"development short", "development", "x", false},
 	}
 	for _, tc := range cases {
 		if err := CheckJWTSecret(tc.env, tc.secret); (err != nil) != tc.wantErr {
 			t.Errorf("%s: err = %v, wantErr %v", tc.name, err, tc.wantErr)
+		}
+	}
+}
+
+func TestJWTSecretWarning(t *testing.T) {
+	if JWTSecretWarning("production", "short-secret") == "" {
+		t.Error("no warning for a short production secret")
+	}
+	for _, tc := range []struct{ env, secret string }{
+		{"production", "0123456789abcdef0123456789abcdef"},
+		{"production", ""},
+		{"development", "x"},
+	} {
+		if w := JWTSecretWarning(tc.env, tc.secret); w != "" {
+			t.Errorf("JWTSecretWarning(%q, %d bytes) = %q, want none", tc.env, len(tc.secret), w)
 		}
 	}
 }
