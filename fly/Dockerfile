@@ -24,7 +24,7 @@ RUN EXPO_NO_TELEMETRY=1 CI=1 npm run export:web -w @lyftr/mobile
 
 # ── Stage 2: Backend ─────────────────────────────────────────────────────────
 # CGO_ENABLED=0 produces a fully static binary — no libc dependency in runtime.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine AS backend
 ARG TARGETOS TARGETARCH
 # Version baked into the binary. The deploy workflow passes the git tag/describe.
 ARG VERSION=dev
@@ -50,6 +50,8 @@ COPY --from=frontend /app/apps/app/dist /usr/share/nginx/html
 COPY fly/nginx.fly.conf /etc/nginx/conf.d/default.conf
 # The same 301 list apps/app/Dockerfile.web ships, at the path both configs include.
 COPY apps/app/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
+COPY apps/app/nginx.security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY fly/nginx.hsts.conf /etc/nginx/snippets/hsts.conf
 
 # sed strips Windows \r\n → \n so the #!/bin/sh shebang works on Linux
 COPY fly/entrypoint.sh /app/entrypoint.sh

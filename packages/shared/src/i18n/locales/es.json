@@ -208,7 +208,7 @@
       "label": "Eliminar cuenta",
       "description": "Elimina permanentemente todos tus datos",
       "sheetTitle": "¿Eliminar la cuenta?",
-      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer.",
+      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer. Escribe tu contraseña para confirmar.",
       "confirm": "Eliminar cuenta",
       "failed": "No se pudo eliminar la cuenta"
     },
@@ -340,6 +340,8 @@
         "SESSION_INVALID": "Tu sesión no es válida. Inicia sesión de nuevo.",
         "SESSION_EXPIRED": "Tu sesión caducó. Inicia sesión de nuevo.",
         "WRONG_TOKEN_TYPE": "Ese token no se puede usar aquí.",
+        "ADMIN_REQUIRED": "Solo un administrador puede hacer eso.",
+        "DEMO_ACCOUNT_PROTECTED": "La cuenta de demostración no se puede modificar ni eliminar.",
         "INTERNAL_ERROR": "Algo salió mal en el servidor.",
         "DATABASE_BUSY": "La base de datos está ocupada. Inténtalo de nuevo en un momento.",
         "RATE_LIMITED": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
@@ -398,6 +400,7 @@
         "BODY_NOT_JSON": "El cuerpo de la solicitud no era JSON válido.",
         "BODY_EMPTY": "El cuerpo de la solicitud estaba vacío.",
         "BODY_UNREADABLE": "No se pudo leer la solicitud.",
+        "BODY_TOO_LARGE": "La solicitud es demasiado grande.",
         "INVALID_FIELDS": "Algunos de los datos que ingresaste no son válidos."
       },
       "fields": {

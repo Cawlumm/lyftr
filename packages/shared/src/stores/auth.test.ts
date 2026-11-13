@@ -163,3 +163,61 @@ describe('auth store changeEmail', () => {
     expect(JSON.parse((await storage.get(STORAGE_KEYS.user))!)).toEqual(fakeAuthResponse.user)
   })
 })
+
+describe('auth store logout and the server', () => {
+  const signedIn = () =>
+    createMemoryStorage({
+      [STORAGE_KEYS.access]: 'access-123',
+      [STORAGE_KEYS.refresh]: 'refresh-456',
+      [STORAGE_KEYS.user]: JSON.stringify(fakeAuthResponse.user),
+    })
+  const withLogout = (logout: (t: string) => unknown, me?: () => Promise<unknown>) =>
+    ({ authAPI: { logout }, userAPI: { me } }) as unknown as LyftrClient
+
+  it('tells the server which refresh token to retire', async () => {
+    const logout = jest.fn(async () => ({}))
+    const useAuth = createAuthStore(withLogout(logout), signedIn())
+    await useAuth.getState().logout()
+    expect(logout).toHaveBeenCalledWith('refresh-456')
+  })
+
+  it('does not wait for a server that never answers', async () => {
+    const storage = signedIn()
+    const useAuth = createAuthStore(withLogout(() => new Promise(() => {})), storage)
+    await useAuth.getState().logout()
+    expect(useAuth.getState().isAuthenticated).toBe(false)
+    expect(await storage.get(STORAGE_KEYS.refresh)).toBeNull()
+  })
+
+  it('signs out when the request fails, or throws before it starts', async () => {
+    for (const logout of [async () => { throw new Error('offline') }, () => { throw new Error('sync') }]) {
+      const storage = signedIn()
+      const useAuth = createAuthStore(withLogout(logout), storage)
+      await useAuth.getState().logout()
+      expect(useAuth.getState().isAuthenticated).toBe(false)
+      expect(await storage.get(STORAGE_KEYS.access)).toBeNull()
+    }
+  })
+
+  it('sends nothing when there is no refresh token to retire', async () => {
+    const logout = jest.fn(async () => ({}))
+    const useAuth = createAuthStore(withLogout(logout), createMemoryStorage())
+    await useAuth.getState().logout()
+    expect(logout).not.toHaveBeenCalled()
+  })
+
+  it('hydrate refreshes the cached user in the background and survives a failure', async () => {
+    const storage = signedIn()
+    const fresh = { ...fakeAuthResponse.user, is_admin: true }
+    const useAuth = createAuthStore(withLogout(jest.fn(), async () => fresh), storage)
+    await useAuth.getState().hydrate()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(useAuth.getState().user?.is_admin).toBe(true)
+    expect(JSON.parse((await storage.get(STORAGE_KEYS.user))!).is_admin).toBe(true)
+
+    const offline = createAuthStore(withLogout(jest.fn(), async () => { throw new Error('offline') }), signedIn())
+    await offline.getState().hydrate()
+    await new Promise((r) => setTimeout(r, 0))
+    expect(offline.getState().isAuthenticated).toBe(true)
+  })
+})

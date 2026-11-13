@@ -1097,3 +1097,48 @@ func TestUpgrade_SupersetGroup(t *testing.T) {
 		}
 	}
 }
+
+func isAdminOf(t *testing.T, email string) bool {
+	t.Helper()
+	var v int
+	if err := DB.QueryRow(`SELECT is_admin FROM users WHERE email = ?`, email).Scan(&v); err != nil {
+		t.Fatal(err)
+	}
+	return v == 1
+}
+
+func TestAdminMigration_PromotesTheEarliestNonDemoAccountOnce(t *testing.T) {
+	setupMigrationTestDB(t)
+	// The demo account is the oldest row on a demo instance and must never win.
+	for _, e := range []string{"demo@lyftr.local", "owner@x.com", "later@x.com"} {
+		if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES (?, 'x')`, e); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	alterMigrations()
+
+	if isAdminOf(t, "demo@lyftr.local") || isAdminOf(t, "later@x.com") || !isAdminOf(t, "owner@x.com") {
+		t.Fatal("want only owner@x.com promoted")
+	}
+
+	// Removing the admin must stick: the backfill is not a per-boot rule.
+	if _, err := DB.Exec(`UPDATE users SET is_admin = 0`); err != nil {
+		t.Fatal(err)
+	}
+	alterMigrations()
+	if isAdminOf(t, "owner@x.com") {
+		t.Error("a later boot re-promoted an account")
+	}
+}
+
+func TestAdminMigration_NoRealAccountMeansNoAdmin(t *testing.T) {
+	setupMigrationTestDB(t)
+	if _, err := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('Demo@Lyftr.Local', 'x')`); err != nil {
+		t.Fatal(err)
+	}
+	alterMigrations()
+	if isAdminOf(t, "Demo@Lyftr.Local") {
+		t.Error("the demo account was promoted")
+	}
+}

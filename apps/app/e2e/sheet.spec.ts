@@ -50,11 +50,19 @@ for (const width of WIDTHS) {
       await expect(opener).toBeFocused()
     })
 
-    test('a destructive confirm is named, described, and starts on Cancel', async ({ page }, testInfo) => {
+    test('a destructive confirm is named, described, and starts on its password field, with Cancel in reach', async ({ page }, testInfo) => {
       await openFromKeyboard(page, deleteRow(page))
       const dialog = page.getByRole('dialog', { name: 'Delete account?' })
       await expect(dialog).toHaveAttribute('aria-modal', 'true')
       await expect(dialog).toHaveAccessibleDescription(/permanently deletes your account/)
+      // Focus goes to the first thing that needs input (APG: the first focusable element, or the one
+      // the task starts with), which for a confirm that asks for the password is the password field.
+      // Cancel stays two Tabs away (past the show-password toggle) and Confirm is held until a password is typed.
+      await expect(dialog.getByRole('textbox', { name: 'Current password' })).toBeFocused()
+      await expect(dialog.getByRole('button', { name: 'Delete account' })).toBeDisabled()
+      await page.keyboard.press('Tab')
+      await expect(dialog.getByRole('button', { name: 'Show current password' })).toBeFocused()
+      await page.keyboard.press('Tab')
       await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeFocused()
       const { violations } = await new AxeBuilder({ page })
         .include('[role="dialog"]')

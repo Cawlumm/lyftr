@@ -177,6 +177,7 @@ const unwrap = <T>(res: { data: { data: T } }) => res.data.data
 // app around it keeps rendering — which is exactly "action buttons stop responding …
 // requires a full app restart".
 const REQUEST_TIMEOUT = 20000
+const LOGOUT_TIMEOUT = 5000
 
 // Was the session actually revoked, or did we just not hear back? Only the server can
 // answer that, and only 400/401/403 are it answering: the refresh token is missing,
@@ -306,7 +307,9 @@ export function createClient(
       // /auth/login does: it answers "that password is wrong", and refreshing would
       // retry, fail again, and sign the user out over a typo.
       const url = original?.url || ''
-      const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password') || url.includes('/me/email')
+      // DELETE /me is the same kind of call: it answers 401 for a wrong password.
+      const isAccountDelete = String(original?.method).toLowerCase() === 'delete' && /\/me$/.test(url.split('?')[0])
+      const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password') || url.includes('/me/email') || isAccountDelete
       if (error.response?.status === 401 && !original._retry && !isCredentialCheck) {
         original._retry = true
         const sent = original.headers?.Authorization
@@ -351,13 +354,19 @@ export function createClient(
   const authAPI = {
     login:    (data: types.LoginRequest)    => api.post<{ data: types.AuthResponse }>('/auth/login', data).then(unwrap),
     register: (data: types.RegisterRequest) => api.post<{ data: types.AuthResponse }>('/auth/register', data).then(unwrap),
+    // Tells the server to retire this device's refresh token. Its own short timeout: it is
+    // best-effort, and the caller must not wait on a dead network to finish signing out.
+    // It sits under /auth/, so a failure here never goes through the refresh interceptor.
+    logout:   (refreshToken: string) => api.post('/auth/logout', { refresh_token: refreshToken }, { timeout: LOGOUT_TIMEOUT }),
   }
 
   const userAPI = {
     me:             () => api.get<{ data: types.User }>('/me').then(unwrap),
     getSettings:    () => api.get<{ data: types.UserSettings }>('/settings').then(unwrap),
     updateSettings: (data: Partial<types.UserSettings>) => api.put<{ data: types.UserSettings }>('/settings', data).then(unwrap),
-    deleteAccount:  () => api.delete('/me'),
+    // The password rides in the body (axios sends `data` on DELETE) because the server
+    // re-checks it before destroying the account, as it does for a password or email change.
+    deleteAccount:  (currentPassword: string) => api.delete('/me', { data: { current_password: currentPassword } }),
     // Persisting the returned pair is not optional, for either of these. The change bumps
     // the account's token version, which invalidates every token minted before it, this
     // device's included, so skipping this would sign the user out of the very session that

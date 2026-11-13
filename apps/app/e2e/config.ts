@@ -9,3 +9,7 @@ export const BASE_URL = (process.env.BASE_URL ?? `http://localhost:${appPort}`).
 // the image's own /api proxy, which is the path the app itself takes, so a broken proxy
 // fails the suite rather than hiding behind a direct call to the backend.
 export const API_BASE = process.env.API_URL ?? `${BASE_URL}/api/v1`
+
+// Signed-in storage state of the one account that is the stack's admin: globalSetup's probe, the
+// first account registered on a fresh stack. Only specs that need /admin routes use it.
+export const ADMIN_STATE = `${__dirname}/.auth/admin.json`

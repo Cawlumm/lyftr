@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Cawlumm/lyftr-backend/config"
+
 	// The backfill resolves stored zones, and the production image (alpine) ships no
 	// /usr/share/zoneinfo. controllers blank-imports this too; both are needed, since
 	// relying on another package's import would break silently if that one moved.
@@ -231,6 +233,50 @@ func alterMigrations() {
 	ensureColumn("catalog_sync", "catalog_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_source TEXT`)
 	ensureColumn("catalog_sync", "catalog_manifest_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_manifest_source TEXT`)
 	ensureColumn("catalog_sync", "catalog_generated_at", `ALTER TABLE catalog_sync ADD COLUMN catalog_generated_at TEXT`)
+
+	adminMigration()
+
+	// One row per refresh token issued, keyed by its jti claim (see stores.RefreshStore).
+	// Tokens minted before this existed carry no jti and keep working on token_version
+	// alone until their first refresh, which replaces them with one that is tracked.
+	if _, err := DB.Exec(`
+		CREATE TABLE IF NOT EXISTS refresh_tokens (
+		  jti        TEXT    PRIMARY KEY,
+		  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+		  expires_at INTEGER NOT NULL,
+		  created_at INTEGER NOT NULL,
+		  used_at    INTEGER,
+		  revoked_at INTEGER
+		)`); err != nil {
+		log.Fatalf("create refresh_tokens: %v", err)
+	}
+	ensureIndex("idx_refresh_tokens_expires", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)`)
+	ensureIndex("idx_refresh_tokens_user", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)`)
+}
+
+// adminMigration adds users.is_admin and, once, makes the earliest-created account the
+// admin. The /admin routes had no role check at all, so every account could trigger a
+// catalog sync. The backfill runs only on the boot that adds the column: re-running it
+// every boot would re-promote someone after an admin had deliberately been removed.
+// The seeded demo account is skipped (its password is public), and an install whose only
+// account is the demo one has no admin until a real user registers (createUserTx).
+func adminMigration() {
+	has, err := hasColumn("users", "is_admin")
+	if err != nil {
+		log.Printf("migrations: check users.is_admin: %v (skipping this boot)", err)
+		return
+	}
+	if has {
+		return
+	}
+	if _, err := DB.Exec(`ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0`); err != nil {
+		log.Fatalf("alter users add is_admin: %v", err)
+	}
+	if _, err := DB.Exec(`UPDATE users SET is_admin = 1
+		WHERE id = (SELECT MIN(id) FROM users WHERE email != ? COLLATE NOCASE)`, config.DemoEmail); err != nil {
+		log.Fatalf("backfill users.is_admin: %v", err)
+	}
+	log.Println("migration: added users.is_admin; the earliest non-demo account is the admin")
 }
 
 // emailsFoldUnique reports whether no two addresses differ only in letter case, i.e.

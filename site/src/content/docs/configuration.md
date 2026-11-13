@@ -13,19 +13,20 @@ All configuration lives in a `.env` file at the project root.
 | `CORS_ORIGIN` | `http://localhost` | Comma-separated allow-list of client origins. Use `*` to allow any (the API is Bearer-token based, no cookies). |
 | `PORT` | `80` | Host port for the web interface. |
 | `BACKEND_ORIGIN` | `backend:3000` | Docker **service name**:port the frontend proxies `/api` to — not a host IP. Only change the port, to match a custom backend `PORT`. |
-| `REGISTRATION` | `open` | Who may create an account: `open`, `first-user`, or `closed`. See below. |
+| `REGISTRATION` | `first-user` | Who may create an account: `open`, `first-user`, or `closed`. See below. |
 | `DEMO_MODE` | `false` | Seeds the demo account and sample data. Leave off — its password is public. |
 | `OEDB_BASE_URL` | hosted instance | The open-exercise-db API the exercise catalog falls back to, and searches. Set it to use a catalog you host. See [Exercise Library](../exercise-library/). |
 | `OEDB_CATALOG_URLS` | hosted copies | Comma-separated static copies of the catalog, tried in order before the API. Unset uses the hosted copies, unless `OEDB_BASE_URL` is set to something else, which means none. `off` skips them. See [Exercise Library](../exercise-library/). |
 
 ## Locking down registration
 
-By default `/api/v1/auth/register` accepts anyone. That is fine on a LAN and wrong the moment
-your instance has a public hostname, which is what the [reverse proxy](/https/) guide gets you.
-Set `REGISTRATION` in your `.env` and restart:
+The compose file starts in `first-user` mode: the first signup claims the instance and everyone
+after is refused. (The backend binary on its own still defaults to `open`, so a bare `go run .`
+accepts anyone.) That is the right start, but not the right resting place, as explained below.
+To change it, set `REGISTRATION` in your `.env` and restart:
 
 ```bash
-REGISTRATION=first-user
+REGISTRATION=closed
 ```
 
 ```bash
@@ -34,8 +35,8 @@ docker compose up -d          # no rebuild — it is read at startup
 
 | Value | Behaviour |
 |-------|-----------|
-| `open` | Anyone can sign up. The default, and what every version before this one did. |
-| `first-user` | Open only while no account exists. The first person to register claims the instance; everyone after gets a 403. |
+| `open` | Anyone can sign up. What every version before this one did, and still the backend's own default outside compose. |
+| `first-user` | The compose default. Open only while no account exists. The first person to register claims the instance; everyone after gets a 403. |
 | `closed` | Nobody can register. Where you should end up. |
 
 **`first-user` is a setup mode, not a resting state.** Use it for a fresh install — a plain

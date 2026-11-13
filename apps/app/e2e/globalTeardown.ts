@@ -4,7 +4,7 @@ import { API_BASE } from './config'
 import { REGISTRY_FILE } from './userRegistry'
 
 // Deletes every account created during the run (recorded via recordCreatedUser).
-// DELETE /me cascades all the user's data, so the DB is left exactly as it
+// DELETE /me (which asks for the password every e2e account is made with) cascades all the user's data, so the DB is left exactly as it
 // started. This is the authoritative cleanup — per-test/worker teardown is no
 // longer relied on for it — and it's resilient: retries the transient
 // SQLite-busy miss, and treats 401 (token already invalid) as "already gone".
@@ -24,7 +24,10 @@ export default async function globalTeardown(): Promise<void> {
   for (const token of tokens) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const res = await api
-        .delete(`${API_BASE}/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .delete(`${API_BASE}/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          data: { current_password: 'password123' },
+        })
         .catch(() => null)
       // ok() = deleted; 401 = token invalid → already gone. Both are terminal.
       if (!res) break

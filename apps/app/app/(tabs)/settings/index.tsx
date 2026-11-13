@@ -39,6 +39,7 @@ import {
   Field,
   IconButton,
   Muted,
+  PasswordField,
   NumberField,
   PageHeader,
   Screen, scrollBleed,
@@ -62,7 +63,7 @@ const REST_PRESETS = [60, 90, 120, 180]
 
 // Which toast is up, not its words: the title and the failure sentence are made at render, so a
 // toast on screen follows a live language switch.
-type ToastState = 'saved' | 'saveTargets' | 'changeUnit' | 'deleteAccount'
+type ToastState = 'saved' | 'saveTargets' | 'changeUnit'
 
 export default function SettingsScreen() {
   const pillInset = useSessionPillInset()
@@ -115,6 +116,7 @@ export default function SettingsScreen() {
   const [testing, setTesting] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletePassword, setDeletePassword] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -182,7 +184,7 @@ export default function SettingsScreen() {
   }
 
   const deleteAccount = useAsyncAction(async () => {
-    await client.userAPI.deleteAccount()
+    await client.userAPI.deleteAccount(deletePassword)
     // logout flips isAuthenticated; the root layout's Stack.Protected guard then makes
     // (tabs) unreachable and expo-router moves the user to sign-in. Nothing routes by hand.
     await logout()
@@ -199,18 +201,10 @@ export default function SettingsScreen() {
     if (changeUnit.failureKey) setToast('changeUnit')
   }, [changeUnit.failureKey])
 
-  useEffect(() => {
-    if (deleteAccount.failureKey) {
-      setConfirmDelete(false)
-      setToast('deleteAccount')
-    }
-  }, [deleteAccount.failureKey])
-
   const toastView: { variant: ToastVariant; title: string; description?: string } | null =
     toast === 'saved' ? { variant: 'success', title: t('settings.targets.saved') }
     : toast === 'saveTargets' ? { variant: 'error', title: t('settings.targets.saveFailed'), description: saveTargets.error }
     : toast === 'changeUnit' ? { variant: 'error', title: t('settings.targets.weightUnit.changeFailedTitle'), description: changeUnit.error }
-    : toast === 'deleteAccount' ? { variant: 'error', title: t('settings.deleteAccount.failed'), description: deleteAccount.error }
     : null
 
   return (
@@ -493,7 +487,7 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
 
-          <ExerciseCacheAdmin />
+          {user?.is_admin ? <ExerciseCacheAdmin /> : null}
 
           {/* Account actions */}
           <SettingsGroup title={t('settings.danger.actionsTitle')}>
@@ -504,7 +498,7 @@ export default function SettingsScreen() {
               description={t('settings.deleteAccount.description')}
               destructive
               divider
-              onPress={() => setConfirmDelete(true)}
+              onPress={() => { deleteAccount.reset(); setDeletePassword(''); setConfirmDelete(true) }}
             />
           </SettingsGroup>
         </View>
@@ -534,9 +528,19 @@ export default function SettingsScreen() {
         confirmLabel={t('settings.deleteAccount.confirm')}
         busyLabel={t('common.deleting')}
         busy={deleteAccount.busy}
+        confirmDisabled={!deletePassword}
+        error={deleteAccount.error}
         onConfirm={() => { void deleteAccount.run() }}
-        onCancel={() => setConfirmDelete(false)}
-      />
+        onCancel={() => { setConfirmDelete(false); setDeletePassword('') }}
+      >
+        <PasswordField
+          id="delete-account-password"
+          label={t('settings.account.password.current')}
+          value={deletePassword}
+          onChangeText={setDeletePassword}
+          textContentType="password"
+        />
+      </ConfirmSheet>
     </Screen>
   )
 }

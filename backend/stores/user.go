@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/models"
 )
 
@@ -14,11 +15,27 @@ type UserStore struct{ db *sql.DB }
 
 func NewUserStore(db *sql.DB) *UserStore { return &UserStore{db: db} }
 
+// isAdminExpr is the one definition of "is an admin": the flag, and never the demo
+// account, whose password is published. The flag alone would be enough if nothing could ever
+// set it on that row; this makes the answer not depend on that.
+const isAdminExpr = `(is_admin = 1 AND email != '` + config.DemoEmail + `' COLLATE NOCASE)`
+
 func (s *UserStore) GetMe(uid int64) (models.User, error) {
 	var u models.User
-	err := s.db.QueryRow(`SELECT id, email, created_at, updated_at FROM users WHERE id = ?`, uid).
-		Scan(&u.ID, &u.Email, &u.CreatedAt, &u.UpdatedAt)
+	err := s.db.QueryRow(`SELECT id, email, `+isAdminExpr+`, created_at, updated_at FROM users WHERE id = ?`, uid).
+		Scan(&u.ID, &u.Email, &u.IsAdmin, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
+}
+
+// IsAdmin reports whether the account may use the /admin routes. A missing account is
+// not an admin and not an error, so a deleted account's lingering request just gets 403.
+func (s *UserStore) IsAdmin(uid int64) (bool, error) {
+	var ok bool
+	err := s.db.QueryRow(`SELECT `+isAdminExpr+` FROM users WHERE id = ?`, uid).Scan(&ok)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return ok, err
 }
 
 // ErrAmbiguousEmail means an address matches several accounts that differ only in letter
@@ -35,7 +52,7 @@ var ErrEmailTaken = errors.New("email already registered")
 // are read and closed before returning: the pool has one connection.
 func (s *UserStore) matchEmail(email string) (models.User, []string, error) {
 	rows, err := s.db.Query(
-		`SELECT id, email, password_hash, token_version, created_at, updated_at
+		`SELECT id, email, password_hash, token_version, `+isAdminExpr+`, created_at, updated_at
 		 FROM users WHERE email = ? COLLATE NOCASE ORDER BY id`, email)
 	if err != nil {
 		return models.User{}, nil, err
@@ -43,7 +60,7 @@ func (s *UserStore) matchEmail(email string) (models.User, []string, error) {
 	var found []models.User
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.IsAdmin, &u.CreatedAt, &u.UpdatedAt); err != nil {
 			rows.Close()
 			return models.User{}, nil, err
 		}
@@ -89,8 +106,8 @@ func (s *UserStore) GetByEmail(email string) (models.User, error) {
 func (s *UserStore) GetByID(uid int64) (models.User, error) {
 	var u models.User
 	err := s.db.QueryRow(
-		`SELECT id, email, password_hash, token_version, created_at, updated_at FROM users WHERE id = ?`, uid,
-	).Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.CreatedAt, &u.UpdatedAt)
+		`SELECT id, email, password_hash, token_version, `+isAdminExpr+`, created_at, updated_at FROM users WHERE id = ?`, uid,
+	).Scan(&u.ID, &u.Email, &u.Password, &u.TokenVersion, &u.IsAdmin, &u.CreatedAt, &u.UpdatedAt)
 	return u, err
 }
 
@@ -102,6 +119,14 @@ func (s *UserStore) TokenVersion(uid int64) (int, error) {
 	var v int
 	err := s.db.QueryRow(`SELECT token_version FROM users WHERE id = ?`, uid).Scan(&v)
 	return v, err
+}
+
+// BumpTokenVersion ends every session the account has, access and refresh alike, by moving
+// its token generation on. Used when a spent refresh token is replayed: the server cannot
+// tell the owner from a thief, so it signs both out and lets the owner sign in again.
+func (s *UserStore) BumpTokenVersion(uid int64) error {
+	_, err := s.db.Exec(`UPDATE users SET token_version = token_version + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, uid)
+	return err
 }
 
 // ErrPasswordChanged means the stored hash moved between the handler reading it and
@@ -243,6 +268,16 @@ func createUserTx(tx *sql.Tx, email, hash string) (int64, error) {
 	}
 	uid, _ := res.LastInsertId()
 	if _, err := tx.Exec(`INSERT INTO user_settings (user_id) VALUES (?)`, uid); err != nil {
+		return 0, err
+	}
+	// The first real account on an instance becomes its admin: the migration promotes one
+	// that already exists, and this covers a fresh install (or one whose only account is the
+	// demo user). Inside the transaction, so two simultaneous first registrations cannot both
+	// see "no admin" and both promote — the pool has one connection and SQLite serialises
+	// writers.
+	if _, err := tx.Exec(`UPDATE users SET is_admin = 1
+		WHERE id = ? AND email != ? COLLATE NOCASE
+		  AND NOT EXISTS (SELECT 1 FROM users WHERE `+isAdminExpr+`)`, uid, config.DemoEmail); err != nil {
 		return 0, err
 	}
 	return uid, nil

@@ -206,7 +206,7 @@
       "label": "Delete account",
       "description": "Permanently delete all your data",
       "sheetTitle": "Delete account?",
-      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone.",
+      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone. Enter your password to confirm.",
       "confirm": "Delete account",
       "failed": "Could not delete account"
     },
@@ -334,6 +334,8 @@
         "SESSION_INVALID": "Your session isn't valid. Please sign in again.",
         "SESSION_EXPIRED": "Your session expired. Please sign in again.",
         "WRONG_TOKEN_TYPE": "That token can't be used here.",
+        "ADMIN_REQUIRED": "Only an administrator can do that.",
+        "DEMO_ACCOUNT_PROTECTED": "The demo account can't be changed or deleted.",
         "INTERNAL_ERROR": "Something went wrong on the server.",
         "DATABASE_BUSY": "The database is busy. Try again in a moment.",
         "RATE_LIMITED": "Too many requests. Wait a moment and try again.",
@@ -392,6 +394,7 @@
         "BODY_NOT_JSON": "The request body wasn't valid JSON.",
         "BODY_EMPTY": "The request body was empty.",
         "BODY_UNREADABLE": "The request couldn't be read.",
+        "BODY_TOO_LARGE": "The request is too large.",
         "INVALID_FIELDS": "Some of the details you entered aren't valid."
       },
       "fields": {

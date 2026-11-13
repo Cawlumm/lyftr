@@ -23,7 +23,7 @@ export interface AuthStore {
 // store (synchronous localStorage read at module init), initial auth state is loaded
 // asynchronously via `hydrate()`, called once at app startup.
 export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
-  return create<AuthStore>((set) => ({
+  const useStore = create<AuthStore>((set) => ({
     user: null,
     isAuthenticated: false,
     isHydrated: false,
@@ -37,6 +37,20 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
       ])
       const user = userStr ? (JSON.parse(userStr) as types.User) : null
       set({ user, isAuthenticated: !!token && !!user, isHydrated: true })
+      // The cached user predates fields the server has since added (is_admin), so a device
+      // signed in before an upgrade would keep showing the old shape until the next login.
+      // Not awaited and never fatal: offline, the cached copy is what there is.
+      if (token && user) {
+        try {
+          void Promise.resolve(client.userAPI.me()).then(async (fresh) => {
+            if (!fresh || !useStore.getState().isAuthenticated) return
+            await storage.set(STORAGE_KEYS.user, JSON.stringify(fresh))
+            useStore.setState({ user: fresh })
+          }).catch(() => {})
+        } catch {
+          // best-effort
+        }
+      }
     },
 
     login: async (email, password) => {
@@ -70,10 +84,22 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
     },
 
     logout: async () => {
+      // Read before the storage is cleared, sent after, and never awaited: signing out has to
+      // work with no network, and what the server learns is a courtesy (it stops a copied
+      // refresh token living out its 30 days), not a precondition. Any failure, including a
+      // client without the method, is swallowed for the same reason.
+      const refreshToken = await storage.get(STORAGE_KEYS.refresh)
       await storage.remove(STORAGE_KEYS.access)
       await storage.remove(STORAGE_KEYS.refresh)
       await storage.remove(STORAGE_KEYS.user)
       set({ user: null, isAuthenticated: false, error: null })
+      if (refreshToken) {
+        try {
+          void Promise.resolve(client.authAPI.logout(refreshToken)).catch(() => {})
+        } catch {
+          // best-effort
+        }
+      }
     },
 
     // No try/catch and no store.error: the screen's useAsyncAction reports the failure
@@ -88,4 +114,5 @@ export function createAuthStore(client: LyftrClient, storage: StorageAdapter) {
 
     clearError: () => set({ error: null }),
   }))
+  return useStore
 }

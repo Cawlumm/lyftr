@@ -31,10 +31,9 @@ them so nothing is built locally — you don't need the source code, just the co
 :::
 
 :::caution[Close the door behind you]
-Registration is open by default, so anyone who can reach your instance can create an account.
-That is fine on a LAN and wrong once it has a public hostname. Set `REGISTRATION=first-user`
-in `.env` **before** the first `up -d` to claim the instance with your own signup, then move
-to `REGISTRATION=closed` once you have — see
+The compose file defaults to `REGISTRATION=first-user`, so your own signup claims the instance
+and nobody else can register. Sign up promptly after the first `up -d`, then move
+to `REGISTRATION=closed` in `.env` — see
 [Locking down registration](../configuration/#locking-down-registration) for why the second
 step matters.
 :::

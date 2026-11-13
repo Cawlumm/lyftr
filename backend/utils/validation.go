@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -243,6 +244,11 @@ func bindFailure(err error) (Code, map[string]any) {
 			return code, nil
 		}
 		return code, map[string]any{"field": typeErr.Field}
+	}
+
+	var tooLarge *http.MaxBytesError
+	if errors.As(err, &tooLarge) {
+		return codeBodyTooLarge, nil
 	}
 
 	var syntaxErr *json.SyntaxError

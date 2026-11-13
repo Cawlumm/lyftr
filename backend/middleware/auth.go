@@ -71,6 +71,30 @@ func Auth(versions TokenVersions) gin.HandlerFunc {
 	}
 }
 
+// Admins answers whether an account holds the admin role.
+type Admins interface {
+	IsAdmin(uid int64) (bool, error)
+}
+
+// AdminOnly goes after Auth and answers 403 to anyone who is signed in but not an admin.
+// The role is read from the database on every call rather than carried in the token, so
+// revoking it takes effect at once.
+func AdminOnly(admins Admins) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ok, err := admins.IsAdmin(UserID(c))
+		if utils.DBError(c, err) {
+			c.Abort()
+			return
+		}
+		if !ok {
+			utils.Fail(c, utils.CodeAdminRequired, nil)
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 func UserID(c *gin.Context) int64 {
 	id, _ := c.Get(UserIDKey)
 	v, _ := id.(int64)

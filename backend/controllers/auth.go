@@ -3,6 +3,10 @@ package controllers
 import (
 	"database/sql"
 	"errors"
+	"log"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -89,7 +93,7 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	// A brand new row is at token_version 1 by schema default.
-	access, refresh, err := utils.GenerateTokenPair(userID, req.Email, 1)
+	access, refresh, err := h.mintSession(userID, req.Email, 1)
 	if err != nil {
 		utils.InternalError(c)
 		return
@@ -119,6 +123,25 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
+	// Keyed on the address as typed, folded the way sign-in folds it, and spent before the
+	// lookup so an address that does not exist is limited exactly like one that does.
+	// A successful login gives its tokens back, so only failures are counted. The demo
+	// account's password is published and every visitor shares it, so it is exempt here
+	// (the per-address limit on the route still applies).
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	pair := c.ClientIP() + "|" + email
+	if !(config.C.DemoMode && config.IsDemoEmail(email)) {
+		if ok, wait := h.loginByPair.Allow(pair); !ok {
+			middleware.Reject(c, wait)
+			return
+		}
+		if ok, wait := h.loginByEmail.Allow(email); !ok {
+			h.loginByPair.Refund(pair)
+			middleware.Reject(c, wait)
+			return
+		}
+	}
+
 	user, err := h.s.User.GetByEmail(req.Email)
 	if err == sql.ErrNoRows {
 		// Pay the bcrypt round a real account would have cost. Returning straight away
@@ -137,7 +160,10 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email, user.TokenVersion)
+	h.loginByPair.Refund(pair)
+	h.loginByEmail.Refund(email)
+
+	access, refresh, err := h.mintSession(user.ID, user.Email, user.TokenVersion)
 	if err != nil {
 		utils.InternalError(c)
 		return
@@ -145,6 +171,17 @@ func (h *Handler) Login(c *gin.Context) {
 
 	user.Password = ""
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
+}
+
+// refuseDemo answers 403 when the account is the seeded demo user on an instance that
+// seeds it. Its password is published, so letting a visitor change it, move its address or
+// delete it would let one of them lock everyone else out of the demo.
+func refuseDemo(c *gin.Context, user models.User) bool {
+	if config.C.DemoMode && config.IsDemoEmail(user.Email) {
+		utils.Fail(c, utils.CodeDemoAccountProtected, nil)
+		return true
+	}
+	return false
 }
 
 // reauthenticate loads the caller and checks their current password, writing the 401
@@ -161,6 +198,11 @@ func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, 
 		return models.User{}, false
 	}
 
+	// Before the password is checked, because the demo password is public: a correct one
+	// must not be what opens the door. Every account-changing route comes through here.
+	if refuseDemo(c, user) {
+		return models.User{}, false
+	}
 	if !utils.CheckPassword(password, user.Password) {
 		utils.Fail(c, utils.CodeWrongCurrentPassword, nil)
 		return models.User{}, false
@@ -216,7 +258,7 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(uid, user.Email, version)
+	access, refresh, err := h.mintSession(uid, user.Email, version)
 	if err != nil {
 		// The password did change — reporting a failure here would send the user off to
 		// retry with a password that no longer works. Say what happened instead.
@@ -275,12 +317,49 @@ func (h *Handler) ChangeEmail(c *gin.Context) {
 // this runs, so a minting failure says what happened rather than reporting a failure that
 // would send the user off to retry.
 func (h *Handler) respondWithSession(c *gin.Context, user models.User) {
-	access, refresh, err := utils.GenerateTokenPair(user.ID, user.Email, user.TokenVersion)
+	access, refresh, err := h.mintSession(user.ID, user.Email, user.TokenVersion)
 	if err != nil {
 		utils.Fail(c, utils.CodeEmailChangedSignIn, nil)
 		return
 	}
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
+}
+
+// mintSession mints a token pair whose refresh half is recorded server-side, which is what
+// lets it be rotated, revoked and recognised if replayed.
+func (h *Handler) mintSession(uid int64, email string, version int) (access, refresh string, err error) {
+	t, err := utils.GenerateSession(uid, email, version)
+	if err != nil {
+		return "", "", err
+	}
+	if err := h.s.Refresh.Issue(t.RefreshID, uid, time.Now(), t.RefreshExpires); err != nil {
+		return "", "", err
+	}
+	return t.Access, t.Refresh, nil
+}
+
+// Logout revokes the refresh token it is given, so a copy of it stops working at once
+// instead of living out its 30 days. It is public on purpose: the access token is often
+// expired by the time someone signs out, and the refresh token is the credential being
+// retired. It answers 200 for a token that is invalid, already revoked or never tracked, so
+// it is idempotent and tells a prober nothing. Access tokens already issued still run out
+// their own hour; there is no list to put them on.
+func (h *Handler) Logout(c *gin.Context) {
+	var req models.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BindError(c, err)
+		return
+	}
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
+		return
+	}
+	if claims, err := utils.ValidateToken(req.RefreshToken); err == nil && claims.Type == "refresh" && claims.ID != "" {
+		if utils.DBError(c, h.s.Refresh.Revoke(claims.ID, claims.UserID, time.Now())) {
+			return
+		}
+	}
+	utils.OK(c, gin.H{"logged_out": true})
 }
 
 func (h *Handler) RefreshToken(c *gin.Context) {
@@ -314,7 +393,32 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	access, refresh, err := utils.GenerateTokenPair(claims.UserID, claims.Email, current)
+	// A token without a jti predates the table and is served on token_version alone; the
+	// pair it earns below is tracked, so each device leaves the untracked shape on its
+	// first refresh. A token with one is spent exactly once.
+	if claims.ID != "" {
+		result, err := h.s.Refresh.Rotate(claims.ID, claims.UserID, time.Now(), utils.RefreshGrace)
+		if utils.DBError(c, err) {
+			return
+		}
+		switch result {
+		case stores.RotateRevoked, stores.RotateUnknown:
+			utils.Fail(c, utils.CodeSessionInvalid, nil)
+			return
+		case stores.RotateReuse:
+			// A token that was already rotated away is being presented long after the
+			// fact. Whoever holds it, the server cannot say which of two parties is the
+			// owner, so it ends every session and the owner signs in again.
+			if utils.DBError(c, h.s.User.BumpTokenVersion(claims.UserID)) {
+				return
+			}
+			log.Printf("auth: refresh token reuse for user %s; sessions revoked", logSafeString(strconv.FormatInt(claims.UserID, 10)))
+			utils.Fail(c, utils.CodeSessionExpired, nil)
+			return
+		}
+	}
+
+	access, refresh, err := h.mintSession(claims.UserID, claims.Email, current)
 	if err != nil {
 		utils.InternalError(c)
 		return

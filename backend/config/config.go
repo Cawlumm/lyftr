@@ -38,6 +38,10 @@ type Config struct {
 	// the API, in order; empty means no snapshot. See ResolveCatalogURLs.
 	OEDBCatalogURLs []string
 
+	// TrustedProxies are the CIDRs whose X-Forwarded-For is believed, from TRUSTED_PROXIES
+	// (comma separated). Empty means the built-in loopback and private ranges.
+	TrustedProxies []string
+
 	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
 	// development: the credentials are published in the README, so an instance that
 	// seeds them has a known-password account whatever Registration says.
@@ -51,6 +55,14 @@ const (
 )
 
 var registrationModes = []string{RegistrationOpen, RegistrationClosed, RegistrationFirstUser}
+
+// DemoEmail is the seeded demo account. Its password is published in the README, so it
+// lives here, below both the seed and the database layer that must keep it out of the
+// admin role.
+const DemoEmail = "demo@lyftr.local"
+
+// IsDemoEmail reports whether an address is the demo account's, however it is capitalised.
+func IsDemoEmail(email string) bool { return strings.EqualFold(email, DemoEmail) }
 
 var C *Config
 
@@ -104,14 +116,23 @@ func Load() {
 		DemoMode: getEnvBool("DEMO_MODE", false),
 	}
 
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			C.TrustedProxies = append(C.TrustedProxies, p)
+		}
+	}
+
 	urls, err := ResolveCatalogURLs(os.Getenv("OEDB_CATALOG_URLS"), C.OEDBBaseURL)
 	if err != nil {
 		log.Fatalf("OEDB_CATALOG_URLS: %v", err)
 	}
 	C.OEDBCatalogURLs = urls
 
-	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {
-		log.Fatal("JWT_SECRET must be set in production")
+	if err := CheckJWTSecret(C.Env, C.JWTSecret); err != nil {
+		log.Fatal(err)
+	}
+	if w := JWTSecretWarning(C.Env, C.JWTSecret); w != "" {
+		log.Print(w)
 	}
 
 	// Refuse to start on a typo rather than falling back to open. REGISTRATION=frst-user
@@ -157,6 +178,42 @@ func ResolveCatalogURLs(raw, baseURL string) ([]string, error) {
 		urls = append(urls, strings.TrimRight(u, "/"))
 	}
 	return urls, nil
+}
+
+// MinJWTSecretBytes is the shortest signing key accepted in production: HS256 wants at
+// least the hash's 256 bits, and anything shorter is brute-forceable offline from one
+// captured token.
+const MinJWTSecretBytes = 32
+
+// exampleJWTSecrets are every value the repository publishes for JWT_SECRET: the code's
+// fallback, backend/.env.example and the root .env.example. A signing key that anyone can
+// read in the README lets them mint a token for any account, so production refuses them.
+var exampleJWTSecrets = []string{
+	"change-me-in-production-min-32-chars!!",
+	"change-me-to-a-random-32-plus-character-string",
+}
+
+// CheckJWTSecret refuses, in production only, a signing key that is published or short.
+// Development keeps its fallback so `go run .` works without setup.
+func CheckJWTSecret(env, secret string) error {
+	if env != "production" {
+		return nil
+	}
+	if secret == "" || slices.Contains(exampleJWTSecrets, secret) {
+		return fmt.Errorf("JWT_SECRET must be set to a private random value in production (the example value is public); generate one with: openssl rand -hex 32")
+	}
+	return nil
+}
+
+// JWTSecretWarning flags, in production only, a signing key that works but is short.
+// A warning rather than a refusal: refusing would take a running instance down on the
+// upgrade that added the check, and a random secret of any reasonable length is not
+// brute-forceable; length is a proxy for "typed by a person".
+func JWTSecretWarning(env, secret string) string {
+	if env != "production" || secret == "" || slices.Contains(exampleJWTSecrets, secret) || len(secret) >= MinJWTSecretBytes {
+		return ""
+	}
+	return fmt.Sprintf("WARNING: JWT_SECRET is %d bytes; use at least %d random bytes (openssl rand -hex 32)", len(secret), MinJWTSecretBytes)
 }
 
 func ValidRegistration(mode string) bool {

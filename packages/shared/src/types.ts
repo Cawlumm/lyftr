@@ -3,6 +3,8 @@
 export interface User {
   id: number
   email: string
+  // Absent from a user persisted before the field existed; read it as "not an admin".
+  is_admin?: boolean
   created_at: string
   updated_at?: string
 }

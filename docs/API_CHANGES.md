@@ -14,6 +14,60 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## Refresh tokens are rotated and revocable; `POST /auth/logout` (additive, one behaviour change)
+
+Every refresh token now carries a `jti` the server remembers. `POST /auth/refresh` spends the token it
+is given and returns the next one, which clients already store. Tokens issued before this change have no
+`jti` and keep working until their first refresh, which swaps them for a tracked one.
+
+- Presenting a token that was already rotated within 30 seconds is served again (a retry after a lost
+  response is not theft).
+- Presenting one rotated longer ago answers `401 SESSION_EXPIRED` and ends **every** session of that
+  account (its `token_version` moves on), access tokens included; the owner signs in again.
+- `POST /auth/logout` with `{"refresh_token": "..."}` revokes that token (`200 {"logged_out": true}`; an
+  invalid or unknown token also answers 200). Access tokens already issued run out their own hour.
+  Afterwards `/auth/refresh` with that token answers `401 SESSION_INVALID`.
+
+## `/auth/login`, `/auth/register`, `/auth/refresh`, `/auth/logout` are rate limited (additive)
+
+Per client address, 10 requests at once then 10 a minute, separately for each route. `/auth/login` also
+allows 5 at once then 5 a minute per account email. Over the limit: `429 RATE_LIMITED` with a
+`Retry-After` header in seconds. The client address is the socket's, or `X-Forwarded-For` only when the
+peer is loopback or a private address (the bundled nginx); a reverse proxy on a public address in front of
+Lyftr must therefore sit on a private network with it, or every client looks like one address.
+
+## Request bodies are capped (breaking for oversized requests)
+
+Bodies over 1 MB (4 MB for `PUT /active-session` and workout/program writes) answer
+`413 BODY_TOO_LARGE`. The server now also applies read/write/idle timeouts.
+
+## `/admin/*` requires an administrator (breaking)
+
+`POST /admin/sync-exercises` and `GET /admin/seed-status` answer `403 ADMIN_REQUIRED` unless the account's
+`is_admin` is set. On upgrade the earliest-created account (never the demo account) becomes the admin; on
+a fresh install the first account registered does. `GET /me` and the login/register `user` object gain
+`is_admin`. There is no endpoint to grant the role; do it in the database
+(`UPDATE users SET is_admin = 1 WHERE email = '...'`).
+
+## The demo account cannot be changed or deleted (breaking, `DEMO_MODE=true` only)
+
+With `DEMO_MODE` on, `PUT /me/password`, `PUT /me/email` and `DELETE /me` for `demo@lyftr.local` answer
+`403 DEMO_ACCOUNT_PROTECTED`. Boot resets its password to the published one if it was changed.
+
+## The server refuses to start in production with a published `JWT_SECRET` (breaking)
+
+`ENV=production` now fails at startup if `JWT_SECRET` is empty or equals either example value. A
+secret under 32 bytes logs a warning at startup. The root `.env.example` no longer ships a value;
+generate one with `openssl rand -hex 32`.
+
+## `DELETE /me` requires `current_password` (breaking)
+
+The body must be `{"current_password": "..."}`. Without it the request is refused: `400` with no body
+(`BODY_EMPTY`), `422` for an empty value, `401 WRONG_CURRENT_PASSWORD` for a wrong one. Nothing is
+deleted until the password checks out. The demo account (when `DEMO_MODE` is on) answers
+`403 DEMO_ACCOUNT_PROTECTED` before the password is looked at. The first-party app asks for the password
+on the delete sheet.
+
 ## `GET /admin/seed-status` gains `catalog_source` and `catalog_generated_at` (additive)
 
 Two new fields on the exercise-library status: `catalog_source` is where the last clean sync read

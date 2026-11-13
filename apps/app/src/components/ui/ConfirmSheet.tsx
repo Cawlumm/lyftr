@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, type ReactNode } from 'react'
 import { View } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
@@ -22,6 +22,10 @@ export interface ConfirmSheetProps {
   /** Shown in a tinted circular badge above the title — the app-confirm idiom. */
   icon?: LucideIcon
   busy?: boolean
+  /** Disables the confirm button until the extra input in `children` is filled in. */
+  confirmDisabled?: boolean
+  /** Extra input between the message and the buttons, e.g. a password the action needs. */
+  children?: ReactNode
   /** Why the last confirm failed. Keeps the sheet up so the retry is under the finger
    *  that just tapped, instead of dismissing to a banner somewhere off-screen. */
   error?: string
@@ -35,7 +39,7 @@ export interface ConfirmSheetProps {
 // chrome (slide-up, scrim, insets, grabber) lives in the generic Sheet.
 export function ConfirmSheet({
   open, title, message, confirmLabel, busyLabel, cancelLabel,
-  destructive = false, icon: Icon, busy = false, error, onConfirm, onCancel,
+  destructive = false, icon: Icon, busy = false, confirmDisabled = false, children, error, onConfirm, onCancel,
 }: ConfirmSheetProps) {
   const { t } = useTranslation()
   const { brand, accent, isDark } = useTheme()
@@ -69,6 +73,8 @@ export function ConfirmSheet({
         <AppText nativeID={titleId} variant="heading" className="mb-1.5 text-center">{title}</AppText>
         <AppText nativeID={messageId} variant="body" color="muted" className="mb-6 text-center">{message}</AppText>
 
+        {children ? <View className="mb-5">{children}</View> : null}
+
         {error ? <Alert variant="error" size="compact" className="mb-5">{error}</Alert> : null}
 
         <View className="flex-row gap-3">
@@ -79,7 +85,7 @@ export function ConfirmSheet({
             <SheetButton
               label={busy ? (busyLabel ?? confirmLabel) : confirmLabel}
               variant={destructive ? 'destructive' : 'primary'}
-              disabled={busy}
+              disabled={busy || confirmDisabled}
               onPress={onConfirm}
             />
           </View>
