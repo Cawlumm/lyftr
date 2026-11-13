@@ -166,6 +166,8 @@ type passRecord struct {
 	generatedAt *time.Time
 }
 
+// (A nil generatedAt keeps the recorded one.)
+//
 // recordPass is the one place a finished pass is written to the status, in memory and in
 // catalog_sync. A failed pass leaves LastSyncedAt, the source and its generated_at at the
 // last clean one.
@@ -180,7 +182,12 @@ func (s *ExerciseStore) recordPass(started time.Time, err error, rec passRecord)
 		if rec.source != "" {
 			src := rec.source
 			s.status.CatalogSource = &src
-			s.status.CatalogGeneratedAt = rec.generatedAt
+			// Only a snapshot pass says when its copy was generated. An API pass leaves the
+			// last snapshot's stamp alone: the API stamps build time, which would make every
+			// good snapshot look older than what is applied.
+			if rec.generatedAt != nil {
+				s.status.CatalogGeneratedAt = rec.generatedAt
+			}
 		}
 	} else {
 		reason := syncFailureOther
@@ -309,7 +316,7 @@ func (s *ExerciseStore) syncCatalogWith(ctx context.Context, acceptShrink bool) 
 	english := 0
 	for _, l := range locales {
 		lctx, cancel := context.WithTimeout(ctx, localeSyncTimeout)
-		n, err := s.refreshFrom(lctx, l, acceptShrink, snap, &rec)
+		n, err := s.refreshFrom(lctx, l, acceptShrink, snap)
 		cancel()
 		if l == defaultLocale {
 			english = n
@@ -408,8 +415,10 @@ func (s *ExerciseStore) loadSnapshot(ctx context.Context) *snapshotPass {
 // applied, so a stalled or rolled-back publisher cannot freeze or rewind an install. A
 // manifest equal to the copy the last clean pass applied from a snapshot needs no import.
 func (s *ExerciseStore) snapshotAccept(m oedb.Manifest) error {
-	if age := time.Since(m.GeneratedAt); age > maxSnapshotAge {
-		return fmt.Errorf("generated %s ago, older than %s", age.Round(time.Minute), maxSnapshotAge)
+	// The heartbeat, not the content version: an unchanged catalog keeps an old
+	// generated_at for as long as it likes while the publisher is alive.
+	if age := time.Since(m.Published()); age > maxSnapshotAge {
+		return fmt.Errorf("published %s ago, older than %s", age.Round(time.Minute), maxSnapshotAge)
 	}
 	s.statusMu.Lock()
 	st := s.status

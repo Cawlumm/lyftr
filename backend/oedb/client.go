@@ -548,21 +548,12 @@ func (c *Client) Locales(ctx context.Context) ([]string, error) {
 // what Lyftr's exercise picker asks for — and the wrong one for anything
 // filtered, where List returns far less data.
 func (c *Client) Export(ctx context.Context) ([]Exercise, error) {
-	items, _, err := c.ExportAt(ctx)
-	return items, err
-}
-
-// ExportAt is Export plus the export's generated_at, zero when the response has none or
-// it does not parse.
-func (c *Client) ExportAt(ctx context.Context) ([]Exercise, time.Time, error) {
 	var out struct {
-		Exercises   []Exercise `json:"exercises"`
-		Total       int        `json:"total"`
-		GeneratedAt string     `json:"generated_at"`
+		Exercises []Exercise `json:"exercises"`
+		Total     int        `json:"total"`
 	}
 	if err := c.getJSON(ctx, "/api/v1/exercises/export", &out); err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
-	at, _ := time.Parse(time.RFC3339Nano, out.GeneratedAt)
-	return out.Exercises, at, nil
+	return out.Exercises, nil
 }

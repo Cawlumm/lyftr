@@ -703,13 +703,12 @@ func (s *ExerciseStore) RefreshCachedConfirmed(ctx context.Context) (int, error)
 // It reads through Revalidating, because a re-read that a cache can answer re-applies
 // what this instance already holds.
 func (s *ExerciseStore) refresh(ctx context.Context, locale string, acceptShrink bool) (int, error) {
-	return s.refreshFrom(ctx, locale, acceptShrink, nil, nil)
+	return s.refreshFrom(ctx, locale, acceptShrink, nil)
 }
 
 // refreshFrom is refresh over a source: a validated snapshot when snap is set, the API
 // otherwise. Both feed the same import, so the guards and the written rows cannot differ.
-// rec, when set, learns the export's generated_at on an English API read.
-func (s *ExerciseStore) refreshFrom(ctx context.Context, locale string, acceptShrink bool, snap *snapshotPass, rec *passRecord) (int, error) {
+func (s *ExerciseStore) refreshFrom(ctx context.Context, locale string, acceptShrink bool, snap *snapshotPass) (int, error) {
 	if s.catalog == nil {
 		return 0, ErrNoCatalog
 	}
@@ -720,15 +719,10 @@ func (s *ExerciseStore) refreshFrom(ctx context.Context, locale string, acceptSh
 		if snap != nil {
 			items = snap.items(locale)
 		} else {
-			var at time.Time
 			var err error
-			items, at, err = cat.ExportAt(ctx)
+			items, err = cat.Export(ctx)
 			if err != nil {
 				return 0, fmt.Errorf("%w: %w", ErrCatalogUnreachable, err)
-			}
-			if rec != nil && !at.IsZero() {
-				at = at.UTC()
-				rec.generatedAt = &at
 			}
 		}
 		return s.importEnglish(items, acceptShrink)

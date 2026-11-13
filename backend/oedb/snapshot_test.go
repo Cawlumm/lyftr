@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -272,13 +271,13 @@ func TestSnapshotLoad_Timeout(t *testing.T) {
 	}
 }
 
-func TestExportAt(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, `{"exercises":[],"total":0,"generated_at":"2026-01-02T03:04:05Z"}`)
-	}))
-	defer srv.Close()
-	_, at, err := New(srv.URL, "t").ExportAt(context.Background())
-	if err != nil || !at.Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
-		t.Fatalf("%v %v", at, err)
+func TestManifest_PublishedFallsBackToGeneratedAt(t *testing.T) {
+	g := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	if got := (Manifest{GeneratedAt: g}).Published(); !got.Equal(g) {
+		t.Errorf("Published = %v, want generated_at", got)
+	}
+	p := g.Add(time.Hour)
+	if got := (Manifest{GeneratedAt: g, PublishedAt: &p}).Published(); !got.Equal(p) {
+		t.Errorf("Published = %v, want published_at", got)
 	}
 }

@@ -52,7 +52,7 @@ for (const code of ['en', ...catalog.locales.filter((l) => l !== 'en')]) {
   snapshotFiles.set(file, body)
   snapshotLocales.push({ code, file, total: items.length, sha256 })
 }
-const manifest = { schema_version: 1, generated_at: new Date().toISOString(), source: PUBLIC_URL || 'http://oedb-stub:8090', locales: snapshotLocales }
+const manifest = { schema_version: 1, generated_at: new Date().toISOString(), published_at: new Date().toISOString(), source: PUBLIC_URL || 'http://oedb-stub:8090', locales: snapshotLocales }
 
 // A 1x1 transparent PNG: what the specs need from an image is that it loads.
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=', 'base64')

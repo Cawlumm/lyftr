@@ -28,6 +28,7 @@ type snapHost struct {
 	mu      sync.Mutex
 	locales map[string][]oedb.Exercise
 	gen     time.Time
+	pub     *time.Time // published_at heartbeat; nil omits the field
 	// tamper edits the manifest after it is built; files edits a locale's body after hashing.
 	tamper  func(m map[string]any)
 	files   map[string][]byte
@@ -76,6 +77,9 @@ func (h *snapHost) publish() {
 		ls = append(ls, map[string]any{"code": code, "file": name, "total": len(items), "sha256": sh})
 	}
 	m := map[string]any{"schema_version": 1, "generated_at": h.gen.Format(time.RFC3339), "source": "https://api.example", "locales": ls}
+	if h.pub != nil {
+		m["published_at"] = h.pub.Format(time.RFC3339)
+	}
 	if h.tamper != nil {
 		h.tamper(m)
 	}
@@ -259,6 +263,10 @@ func TestSnapshotPass_FailuresFallBackToTheAPI(t *testing.T) {
 			h.locales["es"] = append(h.locales["es"], served("uuid-zzz", "x", "es", nil, "es"))
 		}, "which en does not"},
 		{"stale over 48h", func(h *snapHost) { h.gen = time.Now().Add(-49 * time.Hour) }, "older than 48h"},
+		{"stale heartbeat over 48h", func(h *snapHost) {
+			p := time.Now().Add(-49 * time.Hour)
+			h.pub = &p
+		}, "published"},
 		{"bad file name", func(h *snapHost) {
 			h.tamper = func(m map[string]any) { m["locales"].([]map[string]any)[0]["file"] = "../evil.json" }
 		}, "not safe"},
@@ -477,7 +485,7 @@ func TestSnapshotPass_NonEnglishNeverInsertsOrUnhides(t *testing.T) {
 		served("uuid-999", "Nuevo", "es", []string{"Uno."}, "es"),
 		served("uuid-001", "Hola", "es", []string{"Uno."}, "es"),
 	}}}, alias: map[string]string{}}
-	if _, err := s.refreshFrom(t.Context(), "es", false, snap, nil); err != nil {
+	if _, err := s.refreshFrom(t.Context(), "es", false, snap); err != nil {
 		t.Fatal(err)
 	}
 	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercises WHERE oedb_id = 'uuid-004' AND upstream_missing_at IS NOT NULL`); got != 1 {
@@ -523,5 +531,84 @@ func TestSnapshotPass_SourceAndStampSurviveARestart(t *testing.T) {
 	st, _ := fresh.CacheStatus()
 	if st.CatalogSource == nil || *st.CatalogSource != "snapshot:"+host.url() || st.CatalogGeneratedAt == nil || !st.CatalogGeneratedAt.Equal(host.gen) {
 		t.Errorf("reloaded status = %+v", st)
+	}
+}
+
+func TestSnapshotPass_AgeFollowsTheHeartbeatNotTheContentVersion(t *testing.T) {
+	host := newSnapHost(t, 3, "en", "es")
+	host.mu.Lock()
+	host.gen = time.Now().UTC().Add(-5 * 24 * time.Hour).Truncate(time.Second)
+	p := time.Now().UTC().Truncate(time.Second)
+	host.pub = &p
+	host.publish()
+	host.mu.Unlock()
+	s, cat := snapshotStore(t, 3, []string{"en", "es"}, host)
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.snapshot()) != 0 {
+		t.Errorf("an old generated_at with a fresh heartbeat fell back: %+v", cat.snapshot())
+	}
+	st, _ := s.CacheStatus()
+	if st.CatalogGeneratedAt == nil || !st.CatalogGeneratedAt.Equal(host.gen) {
+		t.Errorf("catalog_generated_at = %v, want the content version %v", st.CatalogGeneratedAt, host.gen)
+	}
+
+	// A heartbeat-only change: same content version, newer published_at. Still no import.
+	if _, err := s.db.Exec(`UPDATE exercises SET equipment = 'edited'`); err != nil {
+		t.Fatal(err)
+	}
+	host.mu.Lock()
+	p2 := p.Add(time.Hour)
+	host.pub = &p2
+	host.publish()
+	host.mu.Unlock()
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercises WHERE equipment = 'edited'`); got != 3 {
+		t.Errorf("a heartbeat-only manifest re-imported (%d rows still edited, want 3)", got)
+	}
+}
+
+func TestSnapshotPass_AnAPIPassKeepsTheSnapshotStamp(t *testing.T) {
+	host := newSnapHost(t, 3, "en")
+	s, cat := snapshotStore(t, 3, []string{"en"}, host)
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// The snapshot goes bad for one pass: the API serves it.
+	host.mu.Lock()
+	host.tamper = func(m map[string]any) { m["schema_version"] = 2 }
+	host.publish()
+	host.mu.Unlock()
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if cat.count("/api/v1/exercises/export", "") != 1 {
+		t.Fatal("expected the API pass")
+	}
+	st, _ := s.CacheStatus()
+	if st.CatalogSource == nil || *st.CatalogSource != "api" || st.CatalogGeneratedAt == nil || !st.CatalogGeneratedAt.Equal(host.gen) {
+		t.Fatalf("status after the API pass = %v %v, want api and the last snapshot's stamp %v", st.CatalogSource, st.CatalogGeneratedAt, host.gen)
+	}
+
+	// Recovered, with the same content version: accepted, and imported (the last source was the API).
+	if _, err := s.db.Exec(`UPDATE exercises SET equipment = 'edited'`); err != nil {
+		t.Fatal(err)
+	}
+	host.mu.Lock()
+	host.tamper = nil
+	host.publish()
+	host.mu.Unlock()
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	st, _ = s.CacheStatus()
+	if st.CatalogSource == nil || *st.CatalogSource != "snapshot:"+host.url() {
+		t.Errorf("a same-version snapshot after an API pass was not used: %v", st.CatalogSource)
+	}
+	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercises WHERE equipment = 'edited'`); got != 0 {
+		t.Errorf("rows were not re-imported from the snapshot")
 	}
 }

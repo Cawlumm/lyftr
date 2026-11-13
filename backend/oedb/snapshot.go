@@ -50,10 +50,14 @@ type SnapshotLocale struct {
 // Manifest is the small, mutable index of a published snapshot. Everything it points at is
 // content-addressed and immutable.
 type Manifest struct {
-	SchemaVersion int              `json:"schema_version"`
-	GeneratedAt   time.Time        `json:"generated_at"`
-	Source        string           `json:"source"`
-	Locales       []SnapshotLocale `json:"locales"`
+	SchemaVersion int `json:"schema_version"`
+	// GeneratedAt versions the content: it changes only when the catalog does.
+	GeneratedAt time.Time `json:"generated_at"`
+	// PublishedAt is the publisher's heartbeat, bumped at least daily even when nothing
+	// changed. Optional: absent, it is GeneratedAt.
+	PublishedAt *time.Time       `json:"published_at"`
+	Source      string           `json:"source"`
+	Locales     []SnapshotLocale `json:"locales"`
 }
 
 // LoadedSnapshot is one source that validated. Exercises is nil when Unchanged.
@@ -61,6 +65,7 @@ type LoadedSnapshot struct {
 	// URL is the base the snapshot was read from; Manifest.Source is the API it was built from.
 	URL         string
 	GeneratedAt time.Time
+	PublishedAt time.Time
 	Source      string
 	Locales     []string
 	Unchanged   bool
@@ -140,7 +145,7 @@ func (s *Snapshot) loadOne(ctx context.Context, base string, accept func(Manifes
 	if err != nil {
 		return nil, err
 	}
-	out := &LoadedSnapshot{URL: base, GeneratedAt: m.GeneratedAt, Source: m.Source}
+	out := &LoadedSnapshot{URL: base, GeneratedAt: m.GeneratedAt, PublishedAt: m.Published(), Source: m.Source}
 	for _, l := range m.Locales {
 		out.Locales = append(out.Locales, l.Code)
 	}
@@ -165,6 +170,14 @@ func (s *Snapshot) loadOne(ctx context.Context, base string, accept func(Manifes
 	}
 	s.keepOnly(base, m)
 	return out, nil
+}
+
+// Published is the heartbeat time, or GeneratedAt when the manifest has none.
+func (m Manifest) Published() time.Time {
+	if m.PublishedAt != nil && !m.PublishedAt.IsZero() {
+		return *m.PublishedAt
+	}
+	return m.GeneratedAt
 }
 
 func parseManifest(raw []byte) (Manifest, error) {
