@@ -9,18 +9,24 @@ nothing to import. Your server keeps its own copy and keeps it up to date.
 ## How it stays up to date
 
 - On startup, and then every 24 hours, the server downloads the whole catalog from
-  open-exercise-db, in every language it offers. A restart within 24 hours of a successful
+  open-exercise-db, in every language it offers. It reads a published static copy first (a
+  few hundred KB, checked against a checksum, and refused if older than 48 hours or older than
+  what it already has) and asks the live API only if no copy is usable. Nothing is imported
+  twice: if the copy hasn't changed since the last sync, the sync just records that it ran. A restart within 24 hours of a successful
   sync skips the startup download and keeps the 24-hour schedule.
 - If that fails, the server tries again by itself: after 1 minute, then 5, then every 30.
 - Searching uses the catalog when it can. If it can't be reached, you get your local copy, so
   logging a workout never waits on the network.
-- The server needs outbound HTTPS to the catalog. To use a catalog you host yourself, set
-  `OEDB_BASE_URL` in your `.env`.
+- The server needs outbound HTTPS to the catalog (`cawlumm.github.io` for the copy and the
+  hosted API for search and images). To use a catalog you host yourself, set `OEDB_BASE_URL` in
+  your `.env`; the hosted copy is then not used. `OEDB_CATALOG_URLS` names other copies, or
+  `off` to always ask the API.
 
 ## Settings → Exercise Library
 
 This page shows how many exercises your server holds, when it last synced, and whether the last
-sync failed (with the time of the next try). **Refresh cached** syncs now.
+sync failed (with the time of the next try). The status response also names where the last
+sync read from (`catalog_source`: `api` or `snapshot:<url>`) and when that copy was generated. **Refresh cached** syncs now.
 
 ## Empty list on a fresh install?
 

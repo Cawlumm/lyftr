@@ -17,6 +17,7 @@ services:
       - REGISTRATION=${REGISTRATION:-open}
       - DEMO_MODE=${DEMO_MODE:-false}
       - OEDB_BASE_URL=${OEDB_BASE_URL:-}
+      - OEDB_CATALOG_URLS=${OEDB_CATALOG_URLS:-}
     expose:
       - "3000"
     healthcheck:

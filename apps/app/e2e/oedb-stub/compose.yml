@@ -23,6 +23,8 @@ services:
   backend:
     environment:
       - OEDB_BASE_URL=http://oedb-stub:8090
+      # Explicit, though a custom base already means no hosted snapshot: the stub serves its own.
+      - OEDB_CATALOG_URLS=http://oedb-stub:8090/v1
     depends_on:
       oedb-stub:
         condition: service_healthy

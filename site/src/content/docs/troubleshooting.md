@@ -79,8 +79,9 @@ the phone's camera rather than the browser's.
 The server downloads the exercise catalog in the background on first startup. If the picker says
 **The exercise library is still loading**, it hasn't been able to reach the catalog yet. It retries
 by itself; **Settings → Exercise Library → Refresh cached** tries now, and shows why it failed.
-The server needs outbound HTTPS to the catalog host (`OEDB_BASE_URL`, or the hosted instance by
-default). See [Exercise Library](../exercise-library/).
+The server needs outbound HTTPS to the catalog copy (`OEDB_CATALOG_URLS`, `cawlumm.github.io` by
+default) or, failing that, the API host (`OEDB_BASE_URL`, the hosted instance by default). The log
+says why a copy was skipped ("catalog snapshot not used"). See [Exercise Library](../exercise-library/).
 
 ```bash
 docker compose logs backend | grep -i exercises
