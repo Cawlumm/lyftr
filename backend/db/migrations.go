@@ -229,6 +229,7 @@ func alterMigrations() {
 	// copy was generated (RFC3339 UTC), so a snapshot older than what is already applied is
 	// refused and an unchanged one is not re-imported. NULL until a pass records them.
 	ensureColumn("catalog_sync", "catalog_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_source TEXT`)
+	ensureColumn("catalog_sync", "catalog_manifest_source", `ALTER TABLE catalog_sync ADD COLUMN catalog_manifest_source TEXT`)
 	ensureColumn("catalog_sync", "catalog_generated_at", `ALTER TABLE catalog_sync ADD COLUMN catalog_generated_at TEXT`)
 }
 

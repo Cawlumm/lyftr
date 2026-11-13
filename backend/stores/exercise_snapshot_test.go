@@ -263,6 +263,20 @@ func TestSnapshotPass_FailuresFallBackToTheAPI(t *testing.T) {
 			h.locales["es"] = append(h.locales["es"], served("uuid-zzz", "x", "es", nil, "es"))
 		}, "which en does not"},
 		{"stale over 48h", func(h *snapHost) { h.gen = time.Now().Add(-49 * time.Hour) }, "older than 48h"},
+		{"generated_at in the future", func(h *snapHost) { h.gen = time.Now().Add(time.Hour) }, "in the future"},
+		{"published_at in the future", func(h *snapHost) {
+			p := time.Now().Add(time.Hour)
+			h.pub = &p
+		}, "in the future"},
+		{"over 50 locales", func(h *snapHost) {
+			h.tamper = func(m map[string]any) {
+				ls := m["locales"].([]map[string]any)
+				for i := 0; i < 50; i++ {
+					ls = append(ls, map[string]any{"code": fmt.Sprintf("x%c", 'a'+i%26) + string(rune('a'+i/26)), "file": fmt.Sprintf("f%d.json", i), "total": 0, "sha256": strings.Repeat("0", 64)})
+				}
+				m["locales"] = ls
+			}
+		}, "more than 50"},
 		{"stale heartbeat over 48h", func(h *snapHost) {
 			p := time.Now().Add(-49 * time.Hour)
 			h.pub = &p
@@ -314,6 +328,8 @@ func TestSnapshotPass_OlderThanRecordedFallsBack(t *testing.T) {
 	newer := host.gen.Add(time.Hour)
 	s.statusMu.Lock()
 	s.status.CatalogGeneratedAt = &newer
+	s.status.CatalogManifestSource = new(string)
+	*s.status.CatalogManifestSource = "https://api.example"
 	s.statusMu.Unlock()
 	buf := captureLog(t)
 	if _, err := s.syncCatalog(t.Context()); err != nil {
@@ -559,7 +575,7 @@ func TestSnapshotPass_AgeFollowsTheHeartbeatNotTheContentVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	host.mu.Lock()
-	p2 := p.Add(time.Hour)
+	p2 := p.Add(time.Minute)
 	host.pub = &p2
 	host.publish()
 	host.mu.Unlock()
@@ -610,5 +626,36 @@ func TestSnapshotPass_AnAPIPassKeepsTheSnapshotStamp(t *testing.T) {
 	}
 	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercises WHERE equipment = 'edited'`); got != 0 {
 		t.Errorf("rows were not re-imported from the snapshot")
+	}
+}
+
+func TestSnapshotPass_StampOfAnotherCatalogIsNotComparedOrSkipped(t *testing.T) {
+	host := newSnapHost(t, 3, "en", "es")
+	s, cat := snapshotStore(t, 3, []string{"en", "es"}, host)
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	// The recorded stamp is newer, but from catalog A; this host's manifest says catalog B.
+	newer := host.gen.Add(time.Hour)
+	other := "https://catalog-a.example"
+	s.statusMu.Lock()
+	s.status.CatalogGeneratedAt = &newer
+	s.status.CatalogManifestSource = &other
+	s.statusMu.Unlock()
+	if _, err := s.db.Exec(`UPDATE exercises SET equipment = 'edited'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.syncCatalog(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if len(cat.snapshot()) != 0 {
+		t.Errorf("an older snapshot from another catalog fell back: %+v", cat.snapshot())
+	}
+	if got := countRows(t, s.db, `SELECT COUNT(*) FROM exercises WHERE equipment = 'edited'`); got != 0 {
+		t.Errorf("the snapshot from another catalog was not imported")
+	}
+	st, _ := s.CacheStatus()
+	if st.CatalogManifestSource == nil || *st.CatalogManifestSource != "https://api.example" || !st.CatalogGeneratedAt.Equal(host.gen) {
+		t.Errorf("stamp not replaced: %v %v", st.CatalogManifestSource, st.CatalogGeneratedAt)
 	}
 }

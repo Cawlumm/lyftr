@@ -566,4 +566,7 @@ type ExerciseCacheStatus struct {
 	// said. Both are null until a clean pass has recorded them.
 	CatalogSource      *string    `json:"catalog_source"`
 	CatalogGeneratedAt *time.Time `json:"catalog_generated_at"`
+	// CatalogManifestSource is the API base the snapshot behind CatalogGeneratedAt was
+	// built from, so a stamp is only compared with a manifest of the same catalog.
+	CatalogManifestSource *string `json:"-"`
 }

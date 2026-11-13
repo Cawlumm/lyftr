@@ -29,6 +29,10 @@ const SnapshotSchemaVersion = 1
 // MaxSnapshotBody caps one downloaded body. A var so a test can shrink it.
 var MaxSnapshotBody int64 = 32 << 20
 
+// MaxSnapshotLocales bounds the locale files one manifest may list; each costs a download
+// and an import pass.
+const MaxSnapshotLocales = 50
+
 // ErrSnapshotUnchanged is what an accept callback returns to say "this manifest is the one
 // already applied": Load then stops before fetching any data file.
 var ErrSnapshotUnchanged = errors.New("oedb: snapshot unchanged")
@@ -190,6 +194,9 @@ func parseManifest(raw []byte) (Manifest, error) {
 	}
 	if m.GeneratedAt.IsZero() {
 		return m, errors.New("manifest has no generated_at")
+	}
+	if len(m.Locales) > MaxSnapshotLocales {
+		return m, fmt.Errorf("manifest lists %d locales, more than %d", len(m.Locales), MaxSnapshotLocales)
 	}
 	seen := map[string]bool{}
 	hasEN := false

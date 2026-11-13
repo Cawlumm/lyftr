@@ -561,8 +561,10 @@ func TestRunCatalogSync_RetriesSoonAfterAFailedLanguageNotAfterTheFullInterval(t
 	cat.setFail("", "es")
 
 	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go s.RunCatalogSync(ctx, time.Hour)
+	done := make(chan struct{})
+	go func() { defer close(done); s.RunCatalogSync(ctx, time.Hour) }()
+	// The loop reads catalogRetryBackoff, which the cleanup above restores: stop it first.
+	defer func() { cancel(); <-done }()
 
 	// A one-hour interval would never repeat inside the test; only the backoff can.
 	waitFor(t, func() bool { return cat.listCount("es") >= 3 })
@@ -576,8 +578,10 @@ func TestRunCatalogSync_BacksOffToTheFullIntervalOnceAPassIsClean(t *testing.T) 
 	s, cat := syncStore(t, 2, "en", "es")
 
 	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go s.RunCatalogSync(ctx, time.Hour)
+	done := make(chan struct{})
+	go func() { defer close(done); s.RunCatalogSync(ctx, time.Hour) }()
+	// The loop reads catalogRetryBackoff, which the cleanup above restores: stop it first.
+	defer func() { cancel(); <-done }()
 
 	waitFor(t, func() bool { return cat.localeRequests() >= 1 && cat.listCount("es") >= 1 })
 	time.Sleep(100 * time.Millisecond)
@@ -1017,8 +1021,10 @@ func TestRunCatalogSync_RestartSyncsWhenTheBootPassIsDue(t *testing.T) {
 func TestRunCatalogSync_NeverSyncedSyncsAtBoot(t *testing.T) {
 	s, cat := syncStore(t, 2, "en", "es")
 	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go s.RunCatalogSync(ctx, time.Hour)
+	done := make(chan struct{})
+	go func() { defer close(done); s.RunCatalogSync(ctx, time.Hour) }()
+	// The loop reads catalogRetryBackoff, which the cleanup above restores: stop it first.
+	defer func() { cancel(); <-done }()
 	waitFor(t, func() bool { return cat.localeRequests() >= 1 })
 }
 
