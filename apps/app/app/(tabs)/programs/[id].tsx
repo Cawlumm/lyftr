@@ -87,7 +87,10 @@ export default function ProgramDetail() {
   const fetchSettings = useSettingsStore((s) => s.fetch)
   const wUnit = weightShort(settings.weight_unit)
   const restOn = settings.rest_enabled ?? true
-  const { session, startSession } = useWorkoutSession()
+  // Only the action, not the session: subscribing to the whole store re-rendered this (often
+  // hidden, still-mounted) screen on every set tick of a live workout. Whether one is running is
+  // read when Start is pressed.
+  const startSession = useWorkoutSession((s) => s.startSession)
   const { colors, brand, accent, isDark } = useTheme()
   const { lg } = useBreakpoint()
   const wide = Platform.OS === 'web' && lg
@@ -192,7 +195,7 @@ export default function ProgramDetail() {
     if (!program || !selectedDay || selectedDay.is_rest_day) return
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
-    if (session) { router.navigate(startHref); return }
+    if (useWorkoutSession.getState().session) { router.navigate(startHref); return }
     startSession(sessionNameForDay(program, selectedDay), activeSessionExercisesForDay(selectedDay), program.id, selectedDay.id)
     router.navigate(activeHref)
   }

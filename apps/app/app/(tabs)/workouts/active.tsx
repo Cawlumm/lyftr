@@ -31,6 +31,13 @@ const BLOCK_HEAD = 62
 const CONNECTOR_STEP = 42
 const TOAST_MS = 3000
 
+// The clock is its own component so its once-a-second tick re-renders this one Text, not the
+// whole workout screen (which rebuilt every superset block and header each second).
+function ElapsedClock({ startedAt, color }: { startedAt: string | undefined; color: string }) {
+  const elapsed = useElapsedSeconds(startedAt)
+  return <Text className="font-sans text-sm" style={{ color, fontVariant: ['tabular-nums'] }}>{formatElapsed(elapsed)}</Text>
+}
+
 export default function ActiveWorkout() {
   const { t } = useTranslation()
   const session = useWorkoutSession((s) => s.session)
@@ -52,7 +59,6 @@ export default function ActiveWorkout() {
   const wUnit = weightShort(settings.weight_unit)
   const { colors, accent } = useTheme()
 
-  const elapsed = useElapsedSeconds(session?.started_at)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const [keyboardUp, setKeyboardUp] = useState(false)
   useEffect(() => {
@@ -136,9 +142,9 @@ export default function ActiveWorkout() {
 
   // useStableCallback (not plain closure): this is passed to the memoized
   // ActiveExerciseCard for every exercise, so it must keep a permanently stable
-  // identity — the per-second `elapsed` tick re-renders this screen every second,
-  // and a fresh closure here (it reads `session`/`activeExIdx`) would invalidate
-  // every card's memo on every tick, not just the touched one.
+  // identity — this screen re-renders on every session change, and a fresh closure
+  // here (it reads `session`/`activeExIdx`) would invalidate every card's memo on
+  // every tap, not just the touched one.
   const handleCompleteSet = useStableCallback((exIdx: number, setIdx: number) => {
     // Tapping the check means you're done typing this set — drop the keyboard so the row
     // settles and nothing reflows later (e.g. a rest timer starting under a raised board).
@@ -240,7 +246,7 @@ export default function ActiveWorkout() {
             <View className="mt-0.5 flex-row items-center gap-3">
               <View className="flex-row items-center gap-1">
                 <Timer size={14} color={accent} />
-                <Text className="font-sans text-sm" style={{ color: accent, fontVariant: ['tabular-nums'] }}>{formatElapsed(elapsed)}</Text>
+                <ElapsedClock startedAt={session.started_at} color={accent} />
               </View>
               <AppText variant="caption" color="muted">{t('workouts.active.setsDone', { done: completedSets, count: totalSets })}</AppText>
             </View>
