@@ -5,10 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/controllers"
@@ -79,6 +81,21 @@ func dispatchSubcommand(argv []string) int {
 	return 2
 }
 
+// newServer is r.Run with the timeouts it leaves unset. Without them a client that opens a
+// socket and dribbles a header, or never reads the response, holds a goroutine and a file
+// descriptor for ever (slowloris). WriteTimeout is generous because the slowest handler is
+// the admin catalog sync's status call and a large export, not user traffic.
+func newServer(addr string, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+}
+
 func main() {
 	if code := dispatchSubcommand(os.Args); code >= 0 {
 		os.Exit(code)
@@ -138,7 +155,7 @@ func main() {
 
 	addr := ":" + config.C.Port
 	log.Printf("lyftr API listening on %s (env=%s)", addr, config.C.Env)
-	if err := r.Run(addr); err != nil {
+	if err := newServer(addr, r).ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)
 	}
 }

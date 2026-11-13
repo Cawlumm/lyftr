@@ -11,7 +11,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// trustedProxyCIDRs are the only peers whose X-Forwarded-For / X-Real-IP are believed:
+// loopback and private ranges, which is where the bundled nginx (a Docker network
+// neighbour) and a same-host reverse proxy connect from. Gin's default trusts every
+// address, so any client could send `X-Forwarded-For: 1.2.3.4` and pick the key the
+// rate limiter sees. A request from a public address is keyed by the socket's own address.
+var trustedProxyCIDRs = []string{
+	"127.0.0.0/8", "::1/128",
+	"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+	"fc00::/7",
+}
+
+// bodyLimits raises the 1 MB default where a legitimate payload can exceed it: a workout
+// or program with many exercises and sets, and the live-session snapshot.
+var bodyLimits = map[string]int64{
+	"PUT /api/v1/active-session": 4 << 20,
+	"POST /api/v1/workouts":      4 << 20,
+	"PUT /api/v1/workouts/:id":   4 << 20,
+	"POST /api/v1/programs":      4 << 20,
+	"PUT /api/v1/programs/:id":   4 << 20,
+}
+
 func Setup(r *gin.Engine, h *controllers.Handler) {
+	if err := r.SetTrustedProxies(trustedProxyCIDRs); err != nil {
+		panic("routes: trusted proxies: " + err.Error())
+	}
+	r.Use(middleware.MaxBody(middleware.DefaultMaxBody, bodyLimits))
 	r.Use(cors.New(corsConfig()))
 
 	r.GET("/health", func(c *gin.Context) {
@@ -26,12 +51,18 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 	// Public: exercise thumbnails load through <img>/<Image>, which cannot send a token.
 	api.GET("/media/exercise-thumbs/:id", h.ExerciseThumb)
 
+	// Each public auth route has its own per-address bucket: 10 requests at once, then 10 a
+	// minute. Separate, so the app's token refreshes never spend a login's budget.
+	ipLimit := func() gin.HandlerFunc {
+		return middleware.RateLimitIP(middleware.NewLimiter(10, 10, 10000))
+	}
+
 	// Auth (public)
 	auth := api.Group("/auth")
 	{
-		auth.POST("/register", h.Register)
-		auth.POST("/login", h.Login)
-		auth.POST("/refresh", h.RefreshToken)
+		auth.POST("/register", ipLimit(), h.Register)
+		auth.POST("/login", ipLimit(), h.Login)
+		auth.POST("/refresh", ipLimit(), h.RefreshToken)
 	}
 
 	// Protected routes
@@ -95,7 +126,7 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.POST("programs/:id/suggestions/resolve", h.ResolveSuggestions)
 
 		// Admin
-		protected.POST("admin/sync-exercises", h.RefreshExerciseCache)
+		protected.POST("admin/sync-exercises", middleware.NoWriteDeadline(), h.RefreshExerciseCache)
 		protected.GET("admin/seed-status", h.ExerciseCacheStatus)
 	}
 }

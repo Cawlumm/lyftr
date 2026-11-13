@@ -3,6 +3,7 @@ package controllers
 import (
 	"database/sql"
 	"errors"
+	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/config"
 	"github.com/Cawlumm/lyftr-backend/middleware"
@@ -116,6 +117,13 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+
+	// Keyed on the address as typed, folded the way sign-in folds it, and spent before the
+	// lookup so an address that does not exist is limited exactly like one that does.
+	if ok, wait := h.loginByEmail.Allow(strings.ToLower(strings.TrimSpace(req.Email))); !ok {
+		middleware.Reject(c, wait)
 		return
 	}
 

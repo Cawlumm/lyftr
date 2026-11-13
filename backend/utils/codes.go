@@ -130,5 +130,6 @@ var (
 	codeBodyNotJSON              = define("BODY_NOT_JSON", 400, "The request body wasn't valid JSON.")
 	codeBodyEmpty                = define("BODY_EMPTY", 400, "The request body was empty.")
 	codeBodyUnreadable           = define("BODY_UNREADABLE", 400, "The request couldn't be read.")
+	codeBodyTooLarge             = define("BODY_TOO_LARGE", 413, "The request is too large.")
 	codeInvalidFields            = define("INVALID_FIELDS", 400, "Some of the details you entered aren't valid.")
 )

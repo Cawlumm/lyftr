@@ -392,6 +392,7 @@
         "BODY_NOT_JSON": "The request body wasn't valid JSON.",
         "BODY_EMPTY": "The request body was empty.",
         "BODY_UNREADABLE": "The request couldn't be read.",
+        "BODY_TOO_LARGE": "The request is too large.",
         "INVALID_FIELDS": "Some of the details you entered aren't valid."
       },
       "fields": {

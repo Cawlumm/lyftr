@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+)
 
 // A bare word that is not a subcommand used to fall through to the server. `reset-passwrod
 // you@example.com` would boot the API, exit 0 on shutdown, and leave the operator
@@ -36,5 +39,15 @@ func TestResetPasswordIsRegistered(t *testing.T) {
 func TestDeleteAccountIsRegistered(t *testing.T) {
 	if _, ok := subcommands["delete-account"]; !ok {
 		t.Fatal("delete-account is not in the subcommand table")
+	}
+}
+
+func TestNewServerSetsTimeouts(t *testing.T) {
+	s := newServer(":0", http.NotFoundHandler())
+	if s.ReadHeaderTimeout <= 0 || s.ReadTimeout <= 0 || s.WriteTimeout <= 0 || s.IdleTimeout <= 0 {
+		t.Errorf("a server timeout is unset: %+v", s)
+	}
+	if s.ReadHeaderTimeout > s.ReadTimeout {
+		t.Errorf("header timeout %v exceeds the whole-request timeout %v", s.ReadHeaderTimeout, s.ReadTimeout)
 	}
 }
