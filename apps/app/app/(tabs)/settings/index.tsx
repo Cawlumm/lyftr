@@ -493,7 +493,7 @@ export default function SettingsScreen() {
             </View>
           </SettingsGroup>
 
-          <ExerciseCacheAdmin />
+          {user?.is_admin ? <ExerciseCacheAdmin /> : null}
 
           {/* Account actions */}
           <SettingsGroup title={t('settings.danger.actionsTitle')}>

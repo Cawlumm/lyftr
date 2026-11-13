@@ -126,8 +126,9 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.POST("programs/:id/suggestions/resolve", h.ResolveSuggestions)
 
 		// Admin
-		protected.POST("admin/sync-exercises", middleware.NoWriteDeadline(), h.RefreshExerciseCache)
-		protected.GET("admin/seed-status", h.ExerciseCacheStatus)
+		admin := protected.Group("admin", middleware.AdminOnly(h.Admins()))
+		admin.POST("sync-exercises", middleware.NoWriteDeadline(), h.RefreshExerciseCache)
+		admin.GET("seed-status", h.ExerciseCacheStatus)
 	}
 }
 

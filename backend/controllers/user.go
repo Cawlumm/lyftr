@@ -104,6 +104,17 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 
 func (h *Handler) DeleteAccount(c *gin.Context) {
 	uid := middleware.UserID(c)
+	user, err := h.s.User.GetByID(uid)
+	if err == sql.ErrNoRows {
+		utils.Fail(c, utils.CodeAccountNotFound, nil)
+		return
+	}
+	if utils.DBError(c, err) {
+		return
+	}
+	if refuseDemo(c, user) {
+		return
+	}
 	if utils.DBError(c, h.s.User.Delete(uid)) {
 		return
 	}

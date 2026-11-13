@@ -334,6 +334,8 @@
         "SESSION_INVALID": "Your session isn't valid. Please sign in again.",
         "SESSION_EXPIRED": "Your session expired. Please sign in again.",
         "WRONG_TOKEN_TYPE": "That token can't be used here.",
+        "ADMIN_REQUIRED": "Only an administrator can do that.",
+        "DEMO_ACCOUNT_PROTECTED": "The demo account can't be changed or deleted.",
         "INTERNAL_ERROR": "Something went wrong on the server.",
         "DATABASE_BUSY": "The database is busy. Try again in a moment.",
         "RATE_LIMITED": "Too many requests. Wait a moment and try again.",

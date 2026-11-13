@@ -52,6 +52,14 @@ const (
 
 var registrationModes = []string{RegistrationOpen, RegistrationClosed, RegistrationFirstUser}
 
+// DemoEmail is the seeded demo account. Its password is published in the README, so it
+// lives here, below both the seed and the database layer that must keep it out of the
+// admin role.
+const DemoEmail = "demo@lyftr.local"
+
+// IsDemoEmail reports whether an address is the demo account's, however it is capitalised.
+func IsDemoEmail(email string) bool { return strings.EqualFold(email, DemoEmail) }
+
 var C *Config
 
 // buildVersion is set at build time via:

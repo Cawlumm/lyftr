@@ -7,9 +7,12 @@ type User struct {
 	Email    string `json:"email" db:"email"`
 	Password string `json:"-" db:"password_hash"`
 	// TokenVersion is a server-side detail; like the hash it must never reach a client.
-	TokenVersion int       `json:"-" db:"token_version"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	TokenVersion int `json:"-" db:"token_version"`
+	// IsAdmin gates the /admin routes. Computed by the store so the demo account is never
+	// reported as one whatever its row says.
+	IsAdmin   bool      `json:"is_admin" db:"is_admin"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
 type UserSettings struct {

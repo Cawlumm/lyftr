@@ -72,6 +72,8 @@ var (
 	CodeSessionInvalid           = define("SESSION_INVALID", 401, "Your session isn't valid. Please sign in again.")
 	CodeSessionExpired           = define("SESSION_EXPIRED", 401, "Your session expired. Please sign in again.")
 	CodeWrongTokenType           = define("WRONG_TOKEN_TYPE", 401, "That token can't be used here.")
+	CodeAdminRequired            = define("ADMIN_REQUIRED", 403, "Only an administrator can do that.")
+	CodeDemoAccountProtected     = define("DEMO_ACCOUNT_PROTECTED", 403, "The demo account can't be changed or deleted.")
 	CodeInternalError            = define("INTERNAL_ERROR", 500, "Something went wrong on the server.")
 	CodeDatabaseBusy             = define("DATABASE_BUSY", 503, "The database is busy. Try again in a moment.")
 	CodeRateLimited              = define("RATE_LIMITED", 429, "Too many requests. Wait a moment and try again.")

@@ -21,4 +21,7 @@ func NewHandler(s *stores.Stores) *Handler {
 
 // TokenVersions is the handler's user store as the auth middleware needs it, so routes can
 // wire Auth without reaching into the stores.
+// Admins is the handler's user store as AdminOnly needs it.
+func (h *Handler) Admins() middleware.Admins { return h.s.User }
+
 func (h *Handler) TokenVersions() middleware.TokenVersions { return h.s.User }

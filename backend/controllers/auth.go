@@ -155,6 +155,17 @@ func (h *Handler) Login(c *gin.Context) {
 	utils.OK(c, models.AuthResponse{Token: access, RefreshToken: refresh, User: user})
 }
 
+// refuseDemo answers 403 when the account is the seeded demo user on an instance that
+// seeds it. Its password is published, so letting a visitor change it, move its address or
+// delete it would let one of them lock everyone else out of the demo.
+func refuseDemo(c *gin.Context, user models.User) bool {
+	if config.C.DemoMode && config.IsDemoEmail(user.Email) {
+		utils.Fail(c, utils.CodeDemoAccountProtected, nil)
+		return true
+	}
+	return false
+}
+
 // reauthenticate loads the caller and checks their current password, writing the 401
 // itself on failure.
 func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, bool) {
@@ -169,6 +180,11 @@ func (h *Handler) reauthenticate(c *gin.Context, password string) (models.User, 
 		return models.User{}, false
 	}
 
+	// Before the password is checked, because the demo password is public: a correct one
+	// must not be what opens the door. Every account-changing route comes through here.
+	if refuseDemo(c, user) {
+		return models.User{}, false
+	}
 	if !utils.CheckPassword(password, user.Password) {
 		utils.Fail(c, utils.CodeWrongCurrentPassword, nil)
 		return models.User{}, false
