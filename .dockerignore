@@ -34,10 +34,14 @@ apps/app/android
 apps/app/ios
 
 # Local runtime state — the DB is a Fly volume in production
-data
-*.db
-*.db-shm
-*.db-wal
+# Patterns without **/ only match at the context root, so `data` alone never covered
+# backend/data, where the dev stack keeps a copy of the production database
+# (prod-snapshot/) and the dev JWT secret. `flyctl deploy` uploads this context.
+**/data/
+**/*.db
+**/*.db-*
+**/prod-snapshot
+**/.dev-jwt
 
 # Docs and design assets: nothing in any image reads these
 docs
