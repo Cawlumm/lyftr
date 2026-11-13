@@ -63,6 +63,15 @@ func TestReplayingARotatedTokenSoonAfterIsServedNotTreatedAsTheft(t *testing.T) 
 	if a.status(access) != http.StatusOK {
 		t.Error("a retry inside the grace window should yield a working session")
 	}
+
+	// An app killed after the server committed and reopened a couple of minutes later.
+	if _, err := db.DB.Exec(`UPDATE refresh_tokens SET used_at = used_at - 120 WHERE used_at IS NOT NULL`); err != nil {
+		t.Fatal(err)
+	}
+	access, _ = a.rotate(first)
+	if a.status(access) != http.StatusOK {
+		t.Error("a retry two minutes later should still be served, not treated as theft")
+	}
 }
 
 func TestReusingARotatedTokenLongAfterRevokesTheSessions(t *testing.T) {

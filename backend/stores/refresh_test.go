@@ -11,7 +11,7 @@ func TestRefreshStoreRotate(t *testing.T) {
 	other := mustExec(t, conn, `INSERT INTO users (email, password_hash) VALUES ('o@x.com', 'x')`)
 	s := NewRefreshStore(conn)
 	now := time.Now()
-	grace := 30 * time.Second
+	grace := 10 * time.Minute
 
 	if err := s.Issue("a", uid, now, now.Add(time.Hour)); err != nil {
 		t.Fatal(err)
@@ -27,7 +27,8 @@ func TestRefreshStoreRotate(t *testing.T) {
 	expect("unknown jti", "zzz", uid, now, RotateUnknown)
 	expect("first use", "a", uid, now, RotateOK)
 	expect("repeat inside grace", "a", uid, now.Add(10*time.Second), RotateReplay)
-	expect("repeat after grace", "a", uid, now.Add(time.Minute), RotateReuse)
+	expect("repeat after a reopen", "a", uid, now.Add(5*time.Minute), RotateReplay)
+	expect("repeat after grace", "a", uid, now.Add(time.Hour), RotateReuse)
 
 	if err := s.Issue("b", uid, now, now.Add(time.Hour)); err != nil {
 		t.Fatal(err)

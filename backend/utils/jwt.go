@@ -52,8 +52,11 @@ func GenerateTokenPair(userID int64, email string, tokenVersion int) (access, re
 // RefreshGrace is how long a refresh token that has already been rotated may be presented
 // again and still be served rather than treated as theft. It covers the one honest cause of
 // a repeat, a response lost after the server committed (a dropped connection, a client
-// killed mid-write), and nothing a thief could use at leisure.
-const RefreshGrace = 30 * time.Second
+// killed mid-write), and nothing a thief could use at leisure. It is minutes, not seconds:
+// the client's request timeout is 20s, and an app killed or offline between the server's
+// commit and its own storage write only retries when it is reopened, which takes longer
+// than the few seconds that would be left. Reuse past it signs every device out.
+const RefreshGrace = 10 * time.Minute
 
 // SessionTokens is a freshly minted pair plus what the server must remember about the
 // refresh half.
