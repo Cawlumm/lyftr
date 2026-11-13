@@ -2,6 +2,8 @@ server {
     listen 80;
     server_name _;
 
+    include /etc/nginx/snippets/security-headers.conf;
+
     root /usr/share/nginx/html;
     index index.html;
 
@@ -64,6 +66,7 @@ server {
     # current bundle's hashed files, so it must be revalidated or a deploy goes unseen.
     location = /index.html {
         add_header Cache-Control "no-cache";
+        include /etc/nginx/snippets/security-headers.conf;
     }
 
     # Metro writes the bundle (_expo/static) and every bundled asset (assets/, fonts
@@ -71,10 +74,12 @@ server {
     # regex below from taking these, and a missing chunk is a 404, never index.html.
     location ^~ /_expo/static/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri =404;
     }
     location ^~ /assets/ {
         add_header Cache-Control "public, max-age=31536000, immutable";
+        include /etc/nginx/snippets/security-headers.conf;
         try_files $uri =404;
     }
 

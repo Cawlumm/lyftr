@@ -37,6 +37,7 @@ COPY apps/app/nginx.conf.template /etc/nginx/templates/default.conf.template
 # Not in templates/ or conf.d/: conf.d is included at http level, and this file holds
 # location blocks, which only the server block can include.
 COPY apps/app/nginx.legacy-redirects.conf /etc/nginx/snippets/legacy-redirects.conf
+COPY apps/app/nginx.security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 COPY --from=builder /app/apps/app/dist /usr/share/nginx/html
 

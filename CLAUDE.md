@@ -133,6 +133,7 @@ Single points of truth:
 - `apps/app/src/components/ui/icons.ts` + `Icon.tsx` — per-icon registry; no lucide barrel imports.
 - `apps/app/src/components/ui/interaction.ts` — `WEB_BUTTON`, `interactive`, `currentStep`, `touchTarget`/`touchPad`: every control's own box is at least 44x44 (react-native-web ignores `hitSlop`); `e2e/touch-targets.spec.ts` holds it.
 - `apps/app/src/components/ui/link.ts` — `linkProps`: a real `<a>` on web.
+- `apps/app/nginx.security-headers.conf` — CSP and the other response headers, included by the server block **and every location that sets its own `add_header`** (nginx drops inherited ones there); shared by `nginx.conf.template` and `fly/nginx.fly.conf`. HSTS is Fly-only (`fly/nginx.hsts.conf`). A new inline script or a new external origin needs a matching change here; check the browser console for CSP errors.
 - `apps/app/src/lib/legacyRoutes.ts` — generates `apps/app/nginx.legacy-redirects.conf`; regenerate with `UPDATE_NGINX_REDIRECTS=1 npx jest src/lib/legacyRedirects` in `apps/app/`.
 - Web quality checklist: `docs/TESTING.md`.
 
