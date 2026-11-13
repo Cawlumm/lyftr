@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect, type Href } from 'expo-router'
 import { Award, CheckCircle2, ChevronRight, Dumbbell, Library, Plus, RotateCcw, TrendingUp } from '../../../src/components/ui/icons'
@@ -12,10 +12,34 @@ import { client, useSettingsStore, useWorkoutSession } from '../../../src/lib/ly
 import { useWorkoutOutcome } from '../../../src/lib/workoutOutcome'
 import { useTheme } from '../../../src/theme/useTheme'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+import { useStableCallback } from '../../../src/hooks/useStableCallback'
 
 // Cross-tab jump (workouts → programs), same rule as programs/[id]'s handleStart:
 // router.navigate, not push, or it corrupts the native tab/back stack.
 const programHref = (id: number) => `/programs/${id}` as unknown as Href
+
+// Module-level so a render does not make a new component type (an inline one rebuilt every gap).
+const CardGap = memo(function CardGap() {
+  return <View className="h-3" />
+})
+
+// Memoised with stable callbacks: typing in the search box re-rendered every card before.
+// Fade the stale rows while a new search revalidates (they swap in place when the fresh page
+// lands); the search field above stays full-opacity and interactive.
+const WorkoutRow = memo(function WorkoutRow({ workout, unit, dim, cellStyle, onOpen, onDeleted }: {
+  workout: Workout
+  unit: string
+  dim: boolean
+  cellStyle: ComponentProps<typeof View>['style']
+  onOpen: (id: number) => void
+  onDeleted: () => void
+}) {
+  return (
+    <View style={[{ opacity: dim ? 0.5 : 1 }, cellStyle]}>
+      <WorkoutCard workout={workout} unit={unit} onPress={() => onOpen(workout.id)} onDeleted={onDeleted} />
+    </View>
+  )
+})
 
 export default function Workouts() {
   const pillInset = useSessionPillInset()
@@ -55,6 +79,15 @@ export default function Workouts() {
     items: workouts, loadMore, hasMore, loading, initialLoading, refreshing, reload,
     error: listError, retry: retryList,
   } = useServerInfiniteList<Workout>({ fetcher, deps: [debouncedSearch] })
+  const openWorkout = useStableCallback((id: number) => router.push(`/workouts/${id}`))
+  const onDeleted = useStableCallback(() => { reload() })
+  const cellStyle = grid.cellStyle
+  const renderRow = useCallback(
+    ({ item }: { item: Workout }) => (
+      <WorkoutRow workout={item} unit={unit} dim={refreshing} cellStyle={cellStyle} onOpen={openWorkout} onDeleted={onDeleted} />
+    ),
+    [unit, refreshing, cellStyle, openWorkout, onDeleted],
+  )
 
   // The stack keeps this screen mounted under the detail screen, so a delete made
   // there doesn't remount us the way the web SPA's re-navigation does — refetch on
@@ -255,7 +288,7 @@ export default function Workouts() {
         refreshControl={
           <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />
         }
-        ItemSeparatorComponent={() => <View className="h-3" />}
+        ItemSeparatorComponent={CardGap}
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
@@ -304,18 +337,7 @@ export default function Workouts() {
             </View>
           </View>
         }
-        renderItem={({ item }) => (
-          // Fade the stale rows while a new search revalidates (they swap in place when
-          // the fresh page lands); the search field above stays full-opacity/interactive.
-          <View style={[{ opacity: refreshing ? 0.5 : 1 }, grid.cellStyle]}>
-            <WorkoutCard
-              workout={item}
-              unit={unit}
-              onPress={() => router.push(`/workouts/${item.id}`)}
-              onDeleted={() => reload()}
-            />
-          </View>
-        )}
+        renderItem={renderRow}
         ListEmptyComponent={
           loading ? undefined : listError ? (
             // Reached only with a search on screen (the early return covers the rest):
