@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # Every third-party action is pinned to a commit SHA with a version comment; Dependabot
+  # bumps both together, so the pins do not go stale.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
