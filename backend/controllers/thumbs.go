@@ -47,5 +47,9 @@ func (h *Handler) ExerciseThumb(c *gin.Context) {
 // The error can carry the requested id (inside oedb's URL); the store has already held it to
 // a UUID, but a log line must not be splittable by anything that reached it from a request.
 func logSafe(err error) string {
-	return strings.ReplaceAll(strings.ReplaceAll(err.Error(), "\n", ""), "\r", "")
+	return logSafeString(err.Error())
+}
+
+func logSafeString(s string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", "")
 }

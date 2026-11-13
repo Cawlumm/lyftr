@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -411,7 +412,7 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 			if utils.DBError(c, h.s.User.BumpTokenVersion(claims.UserID)) {
 				return
 			}
-			log.Printf("auth: refresh token reuse for user %d; sessions revoked", claims.UserID)
+			log.Printf("auth: refresh token reuse for user %s; sessions revoked", logSafeString(strconv.FormatInt(claims.UserID, 10)))
 			utils.Fail(c, utils.CodeSessionExpired, nil)
 			return
 		}
