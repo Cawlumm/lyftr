@@ -38,6 +38,10 @@ type Config struct {
 	// the API, in order; empty means no snapshot. See ResolveCatalogURLs.
 	OEDBCatalogURLs []string
 
+	// TrustedProxies are the CIDRs whose X-Forwarded-For is believed, from TRUSTED_PROXIES
+	// (comma separated). Empty means the built-in loopback and private ranges.
+	TrustedProxies []string
+
 	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
 	// development: the credentials are published in the README, so an instance that
 	// seeds them has a known-password account whatever Registration says.
@@ -110,6 +114,12 @@ func Load() {
 		// It also decides the one-tap demo button on the login screen, via demo_mode on
 		// /api/v1/info: the button follows the account because it reads the same flag.
 		DemoMode: getEnvBool("DEMO_MODE", false),
+	}
+
+	for _, p := range strings.Split(os.Getenv("TRUSTED_PROXIES"), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			C.TrustedProxies = append(C.TrustedProxies, p)
+		}
 	}
 
 	urls, err := ResolveCatalogURLs(os.Getenv("OEDB_CATALOG_URLS"), C.OEDBBaseURL)

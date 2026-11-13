@@ -15,7 +15,7 @@ import (
 // loopback and private ranges, which is where the bundled nginx (a Docker network
 // neighbour) and a same-host reverse proxy connect from. Gin's default trusts every
 // address, so any client could send `X-Forwarded-For: 1.2.3.4` and pick the key the
-// rate limiter sees. A request from a public address is keyed by the socket's own address.
+// rate limiter sees. TRUSTED_PROXIES replaces the list. A request from a public address is keyed by the socket's own address.
 var trustedProxyCIDRs = []string{
 	"127.0.0.0/8", "::1/128",
 	"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
@@ -33,7 +33,11 @@ var bodyLimits = map[string]int64{
 }
 
 func Setup(r *gin.Engine, h *controllers.Handler) {
-	if err := r.SetTrustedProxies(trustedProxyCIDRs); err != nil {
+	proxies := trustedProxyCIDRs
+	if config.C != nil && len(config.C.TrustedProxies) > 0 {
+		proxies = config.C.TrustedProxies
+	}
+	if err := r.SetTrustedProxies(proxies); err != nil {
 		panic("routes: trusted proxies: " + err.Error())
 	}
 	r.Use(middleware.MaxBody(middleware.DefaultMaxBody, bodyLimits))

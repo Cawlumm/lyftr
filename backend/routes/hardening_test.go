@@ -5,8 +5,16 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/Cawlumm/lyftr-backend/config"
+	"github.com/Cawlumm/lyftr-backend/controllers"
+	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/stores"
+	"github.com/gin-gonic/gin"
 )
 
 // raw is a.do with control over the socket address and headers, which is what the
@@ -109,16 +117,16 @@ func TestLoginIsRateLimitedPerAccountAcrossAddresses(t *testing.T) {
 	a := newAPI(t)
 	a.register("victim@example.com")
 	guess := `{"email":"Victim@Example.com","password":"wrong-password"}`
-	for i := range 5 {
-		// A different public address each time, so only the account limit can stop it.
-		w := a.raw("POST", "/api/v1/auth/login", "203.0.113."+string(rune('1'+i))+":1", nil, guess)
+	for i := range 20 {
+		// A different public address each time, so only the account ceiling can stop it.
+		w := a.raw("POST", "/api/v1/auth/login", "203.0.113."+strconv.Itoa(i+1)+":1", nil, guess)
 		if w.Code != http.StatusUnauthorized {
 			t.Fatalf("guess %d = %d, want 401", i, w.Code)
 		}
 	}
 	w := a.raw("POST", "/api/v1/auth/login", "203.0.113.99:1", nil, guess)
 	if w.Code != http.StatusTooManyRequests || w.Header().Get("Retry-After") == "" {
-		t.Fatalf("6th guess = %d (Retry-After %q), want 429 with Retry-After", w.Code, w.Header().Get("Retry-After"))
+		t.Fatalf("21st guess = %d (Retry-After %q), want 429 with Retry-After", w.Code, w.Header().Get("Retry-After"))
 	}
 	// Even the right password waits: otherwise the limit would only slow the wrong guesses.
 	good := `{"email":"victim@example.com","password":"password123"}`
@@ -128,5 +136,84 @@ func TestLoginIsRateLimitedPerAccountAcrossAddresses(t *testing.T) {
 	// Other accounts are untouched.
 	if w := a.raw("POST", "/api/v1/auth/login", "203.0.113.97:1", nil, badLogin); w.Code != http.StatusUnauthorized {
 		t.Errorf("another account = %d, want 401", w.Code)
+	}
+}
+
+func TestLoginGuessesFromOneAddressStopAtFive(t *testing.T) {
+	a := newAPI(t)
+	a.register("pair@example.com")
+	guess := `{"email":"pair@example.com","password":"wrong-password"}`
+	for i := range 5 {
+		if w := a.raw("POST", "/api/v1/auth/login", "203.0.113.5:1", nil, guess); w.Code != http.StatusUnauthorized {
+			t.Fatalf("guess %d = %d, want 401", i, w.Code)
+		}
+	}
+	if w := a.raw("POST", "/api/v1/auth/login", "203.0.113.5:1", nil, guess); w.Code != http.StatusTooManyRequests {
+		t.Errorf("6th guess from one address = %d, want 429", w.Code)
+	}
+	// The owner, from their own address, is not held out by it.
+	good := `{"email":"pair@example.com","password":"password123"}`
+	if w := a.raw("POST", "/api/v1/auth/login", "203.0.113.6:1", nil, good); w.Code != http.StatusOK {
+		t.Errorf("owner from another address = %d, want 200", w.Code)
+	}
+}
+
+func TestSuccessfulLoginsDoNotSpendTheAccountLimit(t *testing.T) {
+	a := newAPI(t)
+	a.register("busy@example.com")
+	good := `{"email":"busy@example.com","password":"password123"}`
+	for i := range 60 {
+		// Rotating addresses so the route's per-address limit is out of the picture.
+		addr := "198.51.100." + strconv.Itoa(i+1) + ":1"
+		if w := a.raw("POST", "/api/v1/auth/login", addr, nil, good); w.Code != http.StatusOK {
+			t.Fatalf("login %d = %d, want 200", i, w.Code)
+		}
+	}
+}
+
+func TestDemoAccountIsNotLimitedPerAccount(t *testing.T) {
+	a := newAPI(t)
+	config.C.DemoMode = true
+	a.register(config.DemoEmail)
+	good := `{"email":"demo@lyftr.local","password":"password123"}`
+	for i := range 40 {
+		addr := "198.51.100." + strconv.Itoa(i+1) + ":1"
+		if w := a.raw("POST", "/api/v1/auth/login", addr, nil, good); w.Code != http.StatusOK {
+			t.Fatalf("demo login %d = %d, want 200", i, w.Code)
+		}
+	}
+}
+
+func TestTrustedProxiesEnvNarrowsWhoseForwardedForIsBelieved(t *testing.T) {
+	_ = newAPI(t)
+	config.C.TrustedProxies = []string{"172.18.0.3/32"}
+	r := gin.New()
+	Setup(r, controllers.NewHandler(stores.New(db.DB)))
+	lan := &api{t: t, r: r}
+
+	// A LAN client that is not the proxy sends its own chain; every request must land in
+	// the same bucket however the header is rotated.
+	for i := range 10 {
+		lan.raw("POST", "/api/v1/auth/register", "192.168.1.20:1", map[string]string{"X-Forwarded-For": "7.7.7." + strconv.Itoa(i) + ", 10.0.0.9"}, `{}`)
+	}
+	w := lan.raw("POST", "/api/v1/auth/register", "192.168.1.20:1", map[string]string{"X-Forwarded-For": "6.6.6.6, 10.0.0.9"}, `{}`)
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("spoofed X-Forwarded-For from an untrusted private peer = %d, want 429", w.Code)
+	}
+	// The configured proxy is still believed.
+	if w := lan.raw("POST", "/api/v1/auth/register", "172.18.0.3:1", map[string]string{"X-Forwarded-For": "203.0.113.77"}, `{}`); w.Code == http.StatusTooManyRequests {
+		t.Error("the configured proxy's client was throttled by another peer's bucket")
+	}
+}
+
+func TestNginxOverwritesForwardedForSoPrivateClientsCannotChainIt(t *testing.T) {
+	for _, f := range []string{"../../apps/app/nginx.conf.template", "../../fly/nginx.fly.conf"} {
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), "$proxy_add_x_forwarded_for") {
+			t.Errorf("%s appends to a client-supplied X-Forwarded-For; overwrite it", f)
+		}
 	}
 }
