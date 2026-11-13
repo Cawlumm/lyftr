@@ -148,7 +148,7 @@ cd apps/app && npx expo start --web     # :8081, point it at :3000
 docker compose up -d                    # prod, needs .env with JWT_SECRET
 ```
 
-- Go 1.26 required — Dockerfile must use `golang:1.26-alpine`.
+- Go 1.26 required — Dockerfile must use `golang:1.26.11-alpine`.
 - Build the backend via `backend/build.sh` (both Dockerfiles invoke it) — never `go build` by hand. It is the single source of the version ldflag (`-X …/config.buildVersion=${VERSION:-dev}`) that CI's `version-smoke` asserts on. Note `.`, not `./...`.
 
 ### Mobile builds — MANDATORY

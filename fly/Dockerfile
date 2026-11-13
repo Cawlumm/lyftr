@@ -24,7 +24,7 @@ RUN EXPO_NO_TELEMETRY=1 CI=1 npm run export:web -w @lyftr/mobile
 
 # ── Stage 2: Backend ─────────────────────────────────────────────────────────
 # CGO_ENABLED=0 produces a fully static binary — no libc dependency in runtime.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS backend
+FROM --platform=$BUILDPLATFORM golang:1.26.11-alpine AS backend
 ARG TARGETOS TARGETARCH
 # Version baked into the binary. The deploy workflow passes the git tag/describe.
 ARG VERSION=dev

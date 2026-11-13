@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.26'
+          go-version: '1.26.11'
           cache-dependency-path: backend/go.sum
       - run: cd backend && go mod download
       # ./... not a hand-listed subset: this job ran 3 packages of 7, so utils/,
