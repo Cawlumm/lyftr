@@ -271,6 +271,13 @@ type ChangeEmailRequest struct {
 	CurrentPassword string `json:"current_password" validate:"required"`
 }
 
+// DeleteAccountRequest re-authenticates the caller before the one action that cannot be
+// undone, for the same reason as ChangePasswordRequest: an access token alone (a stolen or
+// left-open session) must not be enough to destroy the account and everything in it.
+type DeleteAccountRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+}
+
 // MaxWorkoutSets bounds the TOTAL number of sets across every exercise in a
 // CreateWorkoutRequest (sum of len(Exercises[i].Sets), not each list's own max=500
 // below independently) — enforced by the struct-level validation registered in

@@ -92,7 +92,7 @@ func TestDemoAccountCannotBeChangedOrDeleted(t *testing.T) {
 	a.wantCode("change password", code, body, 403, "DEMO_ACCOUNT_PROTECTED")
 	code, body = a.do("PUT", "/api/v1/me/email", demo, map[string]string{"current_password": "password123", "email": "mine@example.com"})
 	a.wantCode("change email", code, body, 403, "DEMO_ACCOUNT_PROTECTED")
-	code, body = a.do("DELETE", "/api/v1/me", demo, nil)
+	code, body = a.do("DELETE", "/api/v1/me", demo, map[string]string{"current_password": "password123"})
 	a.wantCode("delete", code, body, 403, "DEMO_ACCOUNT_PROTECTED")
 
 	// Nothing changed: the same login still works and the account is still there.
@@ -112,5 +112,29 @@ func TestDemoProtectionIsOffWhenDemoModeIsOff(t *testing.T) {
 	demo, _ := a.login2("demo@lyftr.local", "password123")
 	if code, body := a.do("PUT", "/api/v1/me/password", demo, map[string]string{"current_password": "password123", "new_password": "a-new-password-9"}); code != http.StatusOK {
 		t.Errorf("change password with DEMO_MODE off = %d %v, want 200", code, body)
+	}
+}
+
+func TestDeleteAccountNeedsTheCurrentPassword(t *testing.T) {
+	a := newAPI(t)
+	access, _ := a.register("careful@example.com")
+
+	code, body := a.do("DELETE", "/api/v1/me", access, nil)
+	if code != http.StatusBadRequest || body["code"] != "BODY_EMPTY" {
+		t.Errorf("no body = %d %v, want 400 BODY_EMPTY", code, body)
+	}
+	code, body = a.do("DELETE", "/api/v1/me", access, map[string]string{"current_password": ""})
+	a.wantCode("empty password", code, body, 422, "VALIDATION_FAILED")
+	code, body = a.do("DELETE", "/api/v1/me", access, map[string]string{"current_password": "not-my-password"})
+	a.wantCode("wrong password", code, body, 401, "WRONG_CURRENT_PASSWORD")
+	if got := a.status(access); got != http.StatusOK {
+		t.Fatalf("account after refused deletes: status %d, want 200", got)
+	}
+
+	if code, body := a.do("DELETE", "/api/v1/me", access, map[string]string{"current_password": "password123"}); code != http.StatusOK {
+		t.Fatalf("delete with the right password = %d %v", code, body)
+	}
+	if got := a.status(access); got != http.StatusUnauthorized {
+		t.Errorf("account after delete: status %d, want 401", got)
 	}
 }

@@ -306,7 +306,9 @@ export function createClient(
       // /auth/login does: it answers "that password is wrong", and refreshing would
       // retry, fail again, and sign the user out over a typo.
       const url = original?.url || ''
-      const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password') || url.includes('/me/email')
+      // DELETE /me is the same kind of call: it answers 401 for a wrong password.
+      const isAccountDelete = String(original?.method).toLowerCase() === 'delete' && /\/me$/.test(url.split('?')[0])
+      const isCredentialCheck = url.includes('/auth/') || url.includes('/me/password') || url.includes('/me/email') || isAccountDelete
       if (error.response?.status === 401 && !original._retry && !isCredentialCheck) {
         original._retry = true
         const sent = original.headers?.Authorization
@@ -357,7 +359,9 @@ export function createClient(
     me:             () => api.get<{ data: types.User }>('/me').then(unwrap),
     getSettings:    () => api.get<{ data: types.UserSettings }>('/settings').then(unwrap),
     updateSettings: (data: Partial<types.UserSettings>) => api.put<{ data: types.UserSettings }>('/settings', data).then(unwrap),
-    deleteAccount:  () => api.delete('/me'),
+    // The password rides in the body (axios sends `data` on DELETE) because the server
+    // re-checks it before destroying the account, as it does for a password or email change.
+    deleteAccount:  (currentPassword: string) => api.delete('/me', { data: { current_password: currentPassword } }),
     // Persisting the returned pair is not optional, for either of these. The change bumps
     // the account's token version, which invalidates every token minted before it, this
     // device's included, so skipping this would sign the user out of the very session that

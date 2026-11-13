@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/db"
+	"github.com/Cawlumm/lyftr-backend/utils"
 )
 
 // TestDeleteAccountCascadesChildren guards that DeleteAccount relies on ON DELETE
@@ -18,7 +19,15 @@ func TestDeleteAccountCascadesChildren(t *testing.T) {
 		t.Fatalf("seed weight log: %v", err)
 	}
 
-	c, w := newContext(uid, http.MethodDelete, "/api/v1/me", nil)
+	hash, err := utils.HashPassword("password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.DB.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, hash, uid); err != nil {
+		t.Fatal(err)
+	}
+
+	c, w := newContext(uid, http.MethodDelete, "/api/v1/me", map[string]string{"current_password": "password123"})
 	th.DeleteAccount(c)
 	if w.Code != http.StatusOK {
 		t.Fatalf("DeleteAccount: expected 200, got %d (%s)", w.Code, w.Body.String())

@@ -841,6 +841,31 @@ describe('apiErrorMessage — server codes', () => {
       expect(refreshCount()).toBe(0)
       expect(wasSignedOut()).toBe(false)
     })
+
+    // A mistyped password on the delete sheet is a credential error, not an expired session:
+    // refreshing would retry, fail the same way, and sign the person out over a typo.
+    it('DELETE /me answering 401 WRONG_CURRENT_PASSWORD neither refreshes nor signs out', async () => {
+      const { client, store, wasSignedOut, refreshCount } = setup(401, { code: 'WRONG_CURRENT_PASSWORD', error: 'x' }, async () => ({}))
+      await signedIn(store)
+      await expect(client.userAPI.deleteAccount('nope')).rejects.toBeDefined()
+      expect(refreshCount()).toBe(0)
+      expect(wasSignedOut()).toBe(false)
+      expect(await store.get(STORAGE_KEYS.refresh)).toBe('live-refresh')
+    })
+
+    it('DELETE /me sends the password in the body', async () => {
+      const store = memStorage()
+      const client = createClient(store)
+      let sent: any
+      client.api.defaults.adapter = async (config: any) => {
+        sent = { method: config.method, url: config.url, data: config.data }
+        return { data: { data: { deleted: true } }, status: 200, statusText: 'OK', headers: {}, config }
+      }
+      await client.userAPI.deleteAccount('hunter2hunter2')
+      expect(sent.method).toBe('delete')
+      expect(sent.url).toBe('/me')
+      expect(JSON.parse(sent.data)).toEqual({ current_password: 'hunter2hunter2' })
+    })
   })
 })
 

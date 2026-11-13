@@ -206,7 +206,7 @@
       "label": "Delete account",
       "description": "Permanently delete all your data",
       "sheetTitle": "Delete account?",
-      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone.",
+      "sheetMessage": "This permanently deletes your account and all of your data. This can't be undone. Enter your password to confirm.",
       "confirm": "Delete account",
       "failed": "Could not delete account"
     },

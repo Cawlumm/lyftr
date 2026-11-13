@@ -208,7 +208,7 @@
       "label": "Eliminar cuenta",
       "description": "Elimina permanentemente todos tus datos",
       "sheetTitle": "¿Eliminar la cuenta?",
-      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer.",
+      "sheetMessage": "Esto elimina permanentemente tu cuenta y todos tus datos. No se puede deshacer. Escribe tu contraseña para confirmar.",
       "confirm": "Eliminar cuenta",
       "failed": "No se pudo eliminar la cuenta"
     },

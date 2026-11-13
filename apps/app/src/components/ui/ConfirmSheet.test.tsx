@@ -1,3 +1,4 @@
+import { Text } from 'react-native'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { ConfirmSheet } from './ConfirmSheet'
@@ -28,6 +29,26 @@ describe('ConfirmSheet', () => {
     expect(screen.getByText('"PPL" will be permanently deleted.')).toBeTruthy()
     expect(screen.getByText('Delete')).toBeTruthy()
     expect(screen.getByText('Cancel')).toBeTruthy()
+  })
+
+  it('renders extra input between the message and the buttons, and holds confirm until it is filled', async () => {
+    const onConfirm = jest.fn()
+    const { rerender } = await render(
+      <ConfirmSheet {...props} confirmDisabled onConfirm={onConfirm} onCancel={jest.fn()}>
+        <Text>password field</Text>
+      </ConfirmSheet>,
+    )
+    expect(screen.getByText('password field')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Delete'))
+    expect(onConfirm).not.toHaveBeenCalled()
+
+    await rerender(
+      <ConfirmSheet {...props} onConfirm={onConfirm} onCancel={jest.fn()}>
+        <Text>password field</Text>
+      </ConfirmSheet>,
+    )
+    await fireEvent.press(screen.getByText('Delete'))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
   })
 
   it('shows why the last confirm failed, without dismissing', async () => {

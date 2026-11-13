@@ -102,20 +102,24 @@ func (h *Handler) UpdateSettings(c *gin.Context) {
 	utils.OK(c, s)
 }
 
+// DeleteAccount removes the caller and everything they own, after checking their current
+// password. reauthenticate also refuses the demo account, before the password is looked at.
 func (h *Handler) DeleteAccount(c *gin.Context) {
-	uid := middleware.UserID(c)
-	user, err := h.s.User.GetByID(uid)
-	if err == sql.ErrNoRows {
-		utils.Fail(c, utils.CodeAccountNotFound, nil)
+	var req models.DeleteAccountRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.BindError(c, err)
 		return
 	}
-	if utils.DBError(c, err) {
+	if err := validate.Struct(req); err != nil {
+		utils.ValidationError(c, err)
 		return
 	}
-	if refuseDemo(c, user) {
+
+	user, ok := h.reauthenticate(c, req.CurrentPassword)
+	if !ok {
 		return
 	}
-	if utils.DBError(c, h.s.User.Delete(uid)) {
+	if utils.DBError(c, h.s.User.Delete(user.ID)) {
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})

@@ -73,7 +73,7 @@ func TestStaleTokensAnswerSessionCodes(t *testing.T) {
 func TestDeletedAccountAnswersSessionInvalid(t *testing.T) {
 	a := newAPI(t)
 	access, refresh := a.register("deleted@example.com")
-	if code, body := a.do("DELETE", "/api/v1/me", access, nil); code != 200 {
+	if code, body := a.do("DELETE", "/api/v1/me", access, map[string]string{"current_password": "password123"}); code != 200 {
 		t.Fatalf("delete = %d %v", code, body)
 	}
 	sentence := "Your session isn't valid. Please sign in again."

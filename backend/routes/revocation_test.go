@@ -114,7 +114,7 @@ func TestADeletedAccountsTokenStopsWorkingAtOnce(t *testing.T) {
 		t.Fatal("a fresh token should work")
 	}
 
-	if code, body := a.do("DELETE", "/api/v1/me", access, nil); code != http.StatusOK {
+	if code, body := a.do("DELETE", "/api/v1/me", access, map[string]string{"current_password": "password123"}); code != http.StatusOK {
 		t.Fatalf("delete = %d %v", code, body)
 	}
 

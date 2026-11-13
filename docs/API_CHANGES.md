@@ -14,6 +14,14 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## `DELETE /me` requires `current_password` (breaking)
+
+The body must be `{"current_password": "..."}`. Without it the request is refused: `400` with no body
+(`BODY_EMPTY`), `422` for an empty value, `401 WRONG_CURRENT_PASSWORD` for a wrong one. Nothing is
+deleted until the password checks out. The demo account (when `DEMO_MODE` is on) answers
+`403 DEMO_ACCOUNT_PROTECTED` before the password is looked at. The first-party app asks for the password
+on the delete sheet.
+
 ## `GET /admin/seed-status` gains `catalog_source` and `catalog_generated_at` (additive)
 
 Two new fields on the exercise-library status: `catalog_source` is where the last clean sync read
