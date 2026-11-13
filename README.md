@@ -45,7 +45,7 @@ No subscription, no cloud account, nothing to export: the database is already yo
 
 | | |
 |---|---|
-| **Workouts** | Exercise library of 800+ exercises with photos and instructions, a program builder, and set-by-set logging with a rest timer |
+| **Workouts** | Exercise library of 800+ exercises with photos and instructions, from [open-exercise-db](https://github.com/Cawlumm/open-exercise-db), a program builder, and set-by-set logging with a rest timer |
 | **Gym Mode** | One exercise at a time with large controls; a focused dialog on desktop, full screen on a phone |
 | **Progress** | Personal bests and a weight-progression chart per exercise, a muscle diagram, and a dashboard with volume trend, muscle balance and a 12-week consistency heatmap |
 | **Nutrition** | Calories and macros against your own targets, food search and barcode scanning (via Open Food Facts), macro trends |
@@ -114,6 +114,10 @@ Go · Gin · SQLite for the API. One Expo / React Native app in TypeScript with 
 to the web through react-native-web and served by nginx. Astro · Starlight for the docs. Docker
 Compose to run it.
 
+The exercise catalog comes from [open-exercise-db](https://github.com/Cawlumm/open-exercise-db),
+a sister project: an open, community-maintained exercise database with public-domain (CC0) data.
+Each Lyftr install keeps a local copy, synced daily from its static snapshot.
+
 ## Translations
 
 Lyftr ships in English and Spanish. Help translate it into your language: see
@@ -124,6 +128,10 @@ Lyftr ships in English and Spanish. Help translate it into your language: see
 Bug reports, feature requests, translations, and PRs are welcome. Open an issue before large
 changes. Start with [CONTRIBUTING.md](CONTRIBUTING.md) for setup and conventions, and
 [docs/TESTING.md](docs/TESTING.md) for how the test suite is organised.
+
+A wrong or missing exercise is fixed in
+[open-exercise-db](https://github.com/Cawlumm/open-exercise-db/issues/new/choose), so the fix
+reaches every app that uses it.
 
 ## Support
 
