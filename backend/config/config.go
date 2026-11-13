@@ -1,12 +1,14 @@
 package config
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/Cawlumm/lyftr-backend/oedb"
 	"github.com/joho/godotenv"
 )
 
@@ -32,6 +34,9 @@ type Config struct {
 	// catalog. Empty selects the hosted one; point it at a self-hosted catalog, or
 	// at a test double, by setting OEDB_BASE_URL.
 	OEDBBaseURL string
+	// OEDBCatalogURLs are the static snapshot bases the catalog pass reads before it asks
+	// the API, in order; empty means no snapshot. See ResolveCatalogURLs.
+	OEDBCatalogURLs []string
 
 	// DemoMode seeds the demo account and its 8 weeks of sample data. Off outside
 	// development: the credentials are published in the README, so an instance that
@@ -99,6 +104,12 @@ func Load() {
 		DemoMode: getEnvBool("DEMO_MODE", false),
 	}
 
+	urls, err := ResolveCatalogURLs(os.Getenv("OEDB_CATALOG_URLS"), C.OEDBBaseURL)
+	if err != nil {
+		log.Fatalf("OEDB_CATALOG_URLS: %v", err)
+	}
+	C.OEDBCatalogURLs = urls
+
 	if C.Env == "production" && C.JWTSecret == "change-me-in-production-min-32-chars!!" {
 		log.Fatal("JWT_SECRET must be set in production")
 	}
@@ -115,6 +126,37 @@ func Load() {
 			"account already occupies the users table, so registration will never open. " +
 			"Set DEMO_MODE=false to claim the first account yourself.")
 	}
+}
+
+// ResolveCatalogURLs decides where the catalog pass reads its snapshot. An explicit
+// comma-separated list wins and `off` disables. With none set, the hosted snapshots are the
+// default only while the API is the hosted one too (base URL unset or equal to
+// oedb.DefaultBaseURL, trailing slash ignored): a self-hosted or stubbed catalog must never
+// be mixed with the hosted snapshot. A malformed entry is an error, never a quiet fallback.
+func ResolveCatalogURLs(raw, baseURL string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if strings.EqualFold(raw, "off") {
+		return nil, nil
+	}
+	if raw == "" {
+		base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+		if base == "" || base == strings.TrimRight(oedb.DefaultBaseURL, "/") {
+			return slices.Clone(oedb.DefaultSnapshotURLs), nil
+		}
+		return nil, nil
+	}
+	var urls []string
+	for _, u := range strings.Split(raw, ",") {
+		u = strings.TrimSpace(u)
+		if u == "" {
+			continue
+		}
+		if !strings.HasPrefix(u, "http://") && !strings.HasPrefix(u, "https://") {
+			return nil, fmt.Errorf("%q is not an http(s) URL", u)
+		}
+		urls = append(urls, strings.TrimRight(u, "/"))
+	}
+	return urls, nil
 }
 
 func ValidRegistration(mode string) bool {
