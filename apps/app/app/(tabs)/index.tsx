@@ -104,7 +104,9 @@ export default function Dashboard() {
   // life of the process, so an app left open overnight kept yesterday's header, week
   // boundary and "today" dot while load() fetched the real today's food.
   const [now, setNow] = useState(() => new Date())
-  const session = useWorkoutSession((s) => s.session)
+  // The name only (null when no workout runs): selecting the session object re-rendered Home,
+  // which stays mounted, on every set tick of a live workout.
+  const sessionName = useWorkoutSession((s) => s.session?.name ?? null)
   const startSession = useWorkoutSession((s) => s.startSession)
   const user = useAuthStore((s) => s.user)
   const settings = useSettingsStore((s) => s.settings)
@@ -350,7 +352,7 @@ export default function Dashboard() {
           >
             <View className={`flex-row items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2.5 ${startHit.inner}`}>
               <Play size={15} color="#fff" />
-              <Text className="font-sans-bold text-sm text-white">{t(session ? 'home.header.resume' : 'home.header.start')}</Text>
+              <Text className="font-sans-bold text-sm text-white">{t(sessionName !== null ? 'home.header.resume' : 'home.header.start')}</Text>
             </View>
           </Pressable>
           {/* Avatar → Settings. Settings moved off the footer; this is its entry point.
@@ -382,7 +384,7 @@ export default function Dashboard() {
   )
 
   // ── Active-session banner ──
-  const banner = session ? (
+  const banner = sessionName !== null ? (
     <Pressable
       onPress={() => { hSelect(); router.navigate('/workouts/active') }}
       className="flex-row items-center justify-between rounded-2xl border border-warning-500/30 bg-warning-500/10 p-3.5 active:scale-[0.99]"
@@ -393,7 +395,7 @@ export default function Dashboard() {
         </View>
         <View>
           <AppText variant="bodySemibold" color="warning">{t('home.activeSession.title')}</AppText>
-          <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{t('home.activeSession.tapToResume', { name: session.name })}</Text>
+          <Text className="text-xs" style={{ color: brand.warningSoft, opacity: 0.7 }}>{t('home.activeSession.tapToResume', { name: sessionName })}</Text>
         </View>
       </View>
       <ArrowRight size={18} color={brand.warningSoft} />
@@ -408,7 +410,7 @@ export default function Dashboard() {
       (ProgramCard's Play IconButton), not a labeled pill — the header above
       already has a text "Start"/"Resume" button, and two buttons both saying
       "Start" stacked this close reads as noise, not choice. ── */
-  const upNextCard = !session && upNext ? (
+  const upNextCard = sessionName === null && upNext ? (
     <Card className="flex-row items-center gap-3">
       <Pressable
         accessibilityRole="button"
@@ -436,7 +438,7 @@ export default function Dashboard() {
         onPress={startUpNext}
       />
     </Card>
-  ) : !session && programsMissing ? (
+  ) : sessionName === null && programsMissing ? (
     // Programs failed, so there is no "up next" to work out — and with nothing
     // here the screen reads as an account with no routine, which is a claim we
     // cannot make from a request that never answered.

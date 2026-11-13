@@ -13,8 +13,10 @@ import { fmtClock, formatElapsed, useElapsedSeconds, useTranslation } from '@lyf
 // screen (list). Carries the rest-countdown chip so "rest over" clears while minimized.
 // Room a scroller leaves under its last row while the pill floats over the bottom of it, so
 // that row can still scroll clear. The one screen without the pill (active) does not ask.
+// Selects a boolean, not the session: 29 screens call this and stay mounted under a live workout,
+// and selecting the session object re-rendered all of them on every set tick.
 export function useSessionPillInset(): number {
-  return useWorkoutSession((s) => s.session) ? 64 : 0
+  return useWorkoutSession((s) => s.session !== null) ? 64 : 0
 }
 
 export function SessionPill() {

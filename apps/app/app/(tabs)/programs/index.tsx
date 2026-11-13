@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, type ComponentProps } from 'react'
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import { BookOpen, Plus } from '../../../src/components/ui/icons'
@@ -11,6 +11,27 @@ import { useServerInfiniteList } from '../../../src/hooks/useServerInfiniteList'
 import { client } from '../../../src/lib/lyftr'
 import { useTheme } from '../../../src/theme/useTheme'
 import { useSessionPillInset } from '../../../src/components/workouts/SessionPill'
+import { useStableCallback } from '../../../src/hooks/useStableCallback'
+
+// Module-level so a render does not make a new component type (an inline one rebuilt every gap).
+const CardGap = memo(function CardGap() {
+  return <View className="h-3" />
+})
+
+// Memoised with stable callbacks: typing in the search box re-rendered every card before.
+const ProgramRow = memo(function ProgramRow({ program, dim, cellStyle, onOpen, onDeleted }: {
+  program: Program
+  dim: boolean
+  cellStyle: ComponentProps<typeof View>['style']
+  onOpen: (id: number) => void
+  onDeleted: () => void
+}) {
+  return (
+    <View style={[{ opacity: dim ? 0.5 : 1 }, cellStyle]}>
+      <ProgramCard program={program} onPress={() => onOpen(program.id)} onDeleted={onDeleted} />
+    </View>
+  )
+})
 
 export default function Programs() {
   const pillInset = useSessionPillInset()
@@ -75,6 +96,14 @@ export default function Programs() {
   // First load shows a content-shaped skeleton (header + stats + search + card rows as
   // placeholders) so the layout is there before the data fills in — same pattern as
   // the Workouts list.
+  // Above the early return below: hooks run in the same order on every render.
+  const openProgram = useStableCallback((id: number) => router.push(`/programs/${id}`))
+  const onDeleted = useStableCallback(() => { reload() })
+  const cellStyle = grid.cellStyle
+  const renderRow = useCallback(
+    ({ item }: { item: Program }) => <ProgramRow program={item} dim={refreshing} cellStyle={cellStyle} onOpen={openProgram} onDeleted={onDeleted} />,
+    [refreshing, cellStyle, openProgram, onDeleted],
+  )
   if (initialLoading) return <ProgramsSkeleton />
 
   // Nothing arrived, so there is no screen to draw around the failure: tiles would read 0
@@ -135,7 +164,7 @@ export default function Programs() {
         refreshControl={
           <RefreshControl refreshing={pulling} onRefresh={onPullRefresh} tintColor={accent} colors={[accent]} />
         }
-        ItemSeparatorComponent={() => <View className="h-3" />}
+        ItemSeparatorComponent={CardGap}
         ListHeaderComponent={
           <View className="gap-5 py-4">
             <PageHeader
@@ -179,15 +208,7 @@ export default function Programs() {
             </View>
           </View>
         }
-        renderItem={({ item }) => (
-          <View style={[{ opacity: dim ? 0.5 : 1 }, grid.cellStyle]}>
-            <ProgramCard
-              program={item}
-              onPress={() => router.push(`/programs/${item.id}`)}
-              onDeleted={() => reload()}
-            />
-          </View>
-        )}
+        renderItem={renderRow}
         ListEmptyComponent={
           loading ? undefined : listError ? (
             // Reached only with a search on screen; "No programs found" would blame the

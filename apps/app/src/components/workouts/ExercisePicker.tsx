@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Modal, Platform, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import { useStableCallback } from '../../hooks/useStableCallback'
 import { ArrowLeft, Dumbbell, Search } from '../ui/icons'
 import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
@@ -19,12 +20,14 @@ interface Props {
 }
 
 
-function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => void }) {
+// Memoised with a stable onSelect: a keystroke in the search box re-rendered every row (~180)
+// and rebuilt every separator, during a live workout.
+const PickerRow = memo(function PickerRow({ exercise, onSelect }: { exercise: Exercise; onSelect: (exercise: Exercise) => void }) {
   useTranslation() // re-renders on a language switch: the labels below come from the catalog
   return (
     <Pressable
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={() => onSelect(exercise)}
       className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
     >
       <ExerciseImage url={exercise.image_url} />
@@ -48,13 +51,21 @@ function PickerRow({ exercise, onPress }: { exercise: Exercise; onPress: () => v
       </View>
     </Pressable>
   )
-}
+})
+
+// A module-level component: an inline one is a new type every render, so React rebuilt every
+// separator on each keystroke.
+const RowSeparator = memo(function RowSeparator() {
+  return <View className="ml-[56px] h-px bg-surface-border/60" />
+})
 
 // Port of web/components/ExercisePicker.tsx as a full-screen RN Modal (the web
 // portals a fixed overlay; the caller conditionally mounts us the same way, so
 // search state resets per open — a routed screen can't hand the picked Exercise
 // back to the form without a store detour, hence Modal).
 export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
+  const select = useStableCallback(onSelect)
+  const renderRow = useCallback(({ item }: { item: Exercise }) => <PickerRow exercise={item} onSelect={select} />, [select])
   const { t } = useTranslation()
   const { accent, colors } = useTheme()
   const [query, setQuery] = useState('')
@@ -156,8 +167,8 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8 }}
             // Inset hairline between rows (native list idiom): starts past the leading
             // media so the thumbnails read as a column, not boxed cells.
-            ItemSeparatorComponent={() => <View className="ml-[56px] h-px bg-surface-border/60" />}
-            renderItem={({ item }) => <PickerRow exercise={item} onPress={() => onSelect(item)} />}
+            ItemSeparatorComponent={RowSeparator}
+            renderItem={renderRow}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
 import { router, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -43,7 +43,8 @@ function BrowseSkeleton() {
 }
 
 // In the wide grid a row is a card of its own: a hairline between cells reads as nothing.
-function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: boolean }) {
+// Memoised: a keystroke in the search box re-rendered every row (~240) before.
+const BrowseRow = memo(function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: boolean }) {
   useTranslation() // re-renders on a language switch: the labels below come from the catalog
   const { colors } = useTheme()
   return (
@@ -70,7 +71,16 @@ function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: bool
       <ChevronRight size={16} color={colors.txMuted} />
     </Pressable>
   )
-}
+})
+
+// Module-level so a render does not make a new component type, which rebuilt every separator
+// on each keystroke.
+const RowSeparator = memo(function RowSeparator() {
+  return <View className="ml-[56px] h-px bg-surface-border/60" />
+})
+const GridGap = memo(function GridGap() {
+  return <View className="h-3" />
+})
 
 // Read-only catalogue, reached from the Workouts tab: look an exercise up and open its page
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
@@ -80,6 +90,11 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   const { t } = useTranslation()
   const { accent } = useTheme()
   const grid = useCardGrid({ lg: 2, xl: 3 })
+  const { wide, cellStyle } = grid
+  const renderRow = useCallback(
+    ({ item }: { item: Exercise }) => (wide ? <View style={cellStyle}><BrowseRow exercise={item} card /></View> : <BrowseRow exercise={item} />),
+    [wide, cellStyle],
+  )
   const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
   const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups()))
@@ -183,10 +198,8 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 + pillInset }}
-            ItemSeparatorComponent={() => <View className={grid.wide ? 'h-3' : 'ml-[56px] h-px bg-surface-border/60'} />}
-            renderItem={({ item }) => grid.wide
-              ? <View style={grid.cellStyle}><BrowseRow exercise={item} card /></View>
-              : <BrowseRow exercise={item} />}
+            ItemSeparatorComponent={grid.wide ? GridGap : RowSeparator}
+            renderItem={renderRow}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={

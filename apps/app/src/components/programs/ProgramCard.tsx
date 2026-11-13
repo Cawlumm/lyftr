@@ -31,7 +31,10 @@ const activeHref = '/workouts/active' as unknown as Href
 export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const { t } = useTranslation()
   const { colors, accent } = useTheme()
-  const { session, startSession } = useWorkoutSession()
+  // Only the action, not the session: subscribing to the whole store re-rendered this (often
+  // hidden, still-mounted) screen on every set tick of a live workout. Whether one is running is
+  // read when Start is pressed.
+  const startSession = useWorkoutSession((s) => s.startSession)
   const [confirming, setConfirming] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [dayPickFor, setDayPickFor] = useState<Program | null>(null)
@@ -54,7 +57,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const handleStart = () => {
     // navigate (not push): programs → workouts is a cross-tab jump; push corrupts the
     // native tab/back stack (the "can't get off the workout from a program" bug).
-    if (session) { router.navigate(startHref); return }
+    if (useWorkoutSession.getState().session) { router.navigate(startHref); return }
     if (isDayStartable(today)) {
       beginSession(today)
       return
