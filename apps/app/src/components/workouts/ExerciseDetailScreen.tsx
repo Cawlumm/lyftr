@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { ArrowLeft, Dumbbell, Trophy } from '../ui/icons'
+import { Archive, ArchiveRestore, ArrowLeft, Dumbbell, Merge, MoreVertical, Pencil, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -14,6 +14,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {
+  apiErrorMessage,
+  customExercises,
   uiMessage,
   displayWeight,
   weightShort,
@@ -22,15 +24,18 @@ import {
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
 import { touchTarget } from '../ui/interaction'
-import { AppText, Button, ErrorState, Screen, scrollBleed, SegmentedControl } from '../ui'
+import { ActionSheet, AppText, Button, ErrorState, IconButton, Screen, scrollBleed, SegmentedControl, Toast, linkProps, type SheetAction } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
-import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
+import { client, useServerInfo, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
 import { useSessionPillInset } from './SessionPill'
+import { CustomBadge } from './CustomBadge'
+import { CustomExerciseSheet } from './CustomExerciseSheet'
+import { MergeExerciseSheet } from './MergeExerciseSheet'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
 // muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
@@ -102,6 +107,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   // working effect to gain a retry button.
   const [retryKey, setRetryKey] = useState(0)
   const [chartWidth, setChartWidth] = useState(0)
+  const canManage = customExercises(useServerInfo())
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [merging, setMerging] = useState(false)
+  const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -153,6 +163,57 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   if (loading || !exercise) return <LoadingPulse />
 
+  const custom = !!exercise.is_custom
+  const showActions = custom && canManage
+  const detailPath = (id: number) => `${String(backFallback)}/exercise/${id}`
+  const toggleArchive = async () => {
+    const restoring = !!exercise.archived
+    try {
+      const updated = restoring
+        ? await client.exerciseAPI.unarchive(exercise.id)
+        : await client.exerciseAPI.archive(exercise.id)
+      setExercise(updated)
+      setToast({
+        variant: 'success',
+        title: t(restoring ? 'exercises.custom.actions.unarchived' : 'exercises.custom.actions.archived', { name: exercise.name }),
+      })
+    } catch (err) {
+      setToast({
+        variant: 'error',
+        title: apiErrorMessage(err, t(restoring ? 'exercises.custom.actions.unarchiveFailed' : 'exercises.custom.actions.archiveFailed')),
+      })
+    }
+  }
+  const menuActions: SheetAction[] = [
+    { label: t('exercises.custom.actions.edit'), icon: Pencil, onPress: () => setEditing(true) },
+    { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
+    exercise.archived
+      ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void toggleArchive() } }
+      : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void toggleArchive() } },
+  ]
+  const actionsButton = showActions ? (
+    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" onPress={() => setMenuOpen(true)} />
+  ) : null
+  const overlays = showActions ? (
+    <>
+      <ActionSheet open={menuOpen} title={t('exercises.custom.badgeLabel')} subtitle={exercise.name} actions={menuActions} onClose={() => setMenuOpen(false)} />
+      <CustomExerciseSheet
+        open={editing}
+        mode="edit"
+        exercise={exercise}
+        onSaved={(e) => { setExercise(e); setEditing(false) }}
+        onClose={() => setEditing(false)}
+      />
+      <MergeExerciseSheet
+        source={exercise}
+        open={merging}
+        onClose={() => setMerging(false)}
+        onMerged={(result) => { setMerging(false); router.replace(detailPath(result.into.id) as unknown as Href) }}
+      />
+      {toast ? <Toast variant={toast.variant} title={toast.title} onDismiss={() => setToast(null)} /> : null}
+    </>
+  ) : null
+
   const equipLabel = equipmentLabel(exercise.equipment)
   const periodOptions = HISTORY_PERIODS.map((p) => ({ value: p, label: t(`exercises.detail.period.${p}`) }))
   const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
@@ -181,6 +242,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const titleBlock = (
     <View>
       <AppText variant="title">{exercise.name}</AppText>
+      {custom ? <View className="mt-2 flex-row"><CustomBadge /></View> : null}
       <View className="mt-2 flex-row flex-wrap items-center gap-2">
         <MuscleBadge muscle={exercise.muscle_group} wide border />
         {equipLabel && exercise.equipment !== 'other' ? (
@@ -194,6 +256,21 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           </View>
         ) : null}
       </View>
+      {custom && exercise.archived ? (
+        <View className="mt-3 rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5">
+          <AppText variant="caption" color="muted">
+            {exercise.merged_into_id ? t('exercises.custom.mergedNote') : t('exercises.custom.archivedNote')}
+          </AppText>
+          {exercise.merged_into_id ? (
+            <Pressable
+              {...linkProps(detailPath(exercise.merged_into_id), () => router.replace(detailPath(exercise.merged_into_id!) as unknown as Href))}
+              className="min-h-[44px] justify-center"
+            >
+              <AppText variant="bodySemibold" style={{ color: accent }}>{t('exercises.custom.viewMerged')}</AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   )
   const musclesCard = (
@@ -258,10 +335,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   ) : null
   const instructionsCard = descLines.length > 0 ? (
     <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-      <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
+      <AppText variant="label" color="muted" className="mb-3 uppercase">
+        {custom ? t('exercises.custom.sheet.notes') : t('exercises.detail.instructions')}
+      </AppText>
       <View className="gap-2.5">
         {descLines.map((line, i) => {
-          const m = line.match(/^(\d+\.)\s*(.*)/)
+          // A custom exercise's description is the owner's own words, not numbered steps.
+          const m = custom ? null : line.match(/^(\d+\.)\s*(.*)/)
           return (
             <AppText key={i} variant="body" color="secondary">
               {m ? <AppText variant="bodySemibold" color="primary">{m[1]} </AppText> : null}
@@ -283,6 +363,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             <View className="flex-row items-start gap-3">
               <View className="pt-1">{backButton}</View>
               <View className="flex-1">{titleBlock}</View>
+              {actionsButton}
             </View>
             <View className="flex-row items-start gap-6">
               <View className="gap-5" style={{ flexGrow: 5, flexShrink: 1, flexBasis: 0 }}>
@@ -305,6 +386,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             </View>
           </View>
         </ScrollView>
+        {overlays}
       </SafeAreaView>
     )
   }
@@ -340,12 +422,18 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                 <ArrowLeft size={20} color="#ffffff" />
               </View>
             </Pressable>
+            {actionsButton ? <View className="absolute right-3 top-2">{actionsButton}</View> : null}
           </View>
         ) : null}
 
         <View className="gap-5 px-5 py-4">
           {/* Back row only when there's no hero image to host the button. */}
-          {!hasImage ? backButton : null}
+          {!hasImage ? (
+            <View className="flex-row items-center justify-between">
+              {backButton}
+              {actionsButton ? <View style={{ marginRight: -8 }}>{actionsButton}</View> : null}
+            </View>
+          ) : null}
 
           {titleBlock}
 
@@ -360,6 +448,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           {instructionsCard}
         </View>
       </ScrollView>
+      {overlays}
     </SafeAreaView>
   )
 }

@@ -19,6 +19,19 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: unknown }) => children,
 }))
 
+// The badge and the create sheet are another slice's components; the browser only needs to
+// mount them, so stand-ins keep this test about the browser.
+jest.mock('./CustomBadge', () => {
+  const { Text } = require('react-native')
+  return { CustomBadge: () => <Text>Custom</Text> }
+}, { virtual: true })
+jest.mock('./CustomExerciseSheet', () => {
+  const { Text } = require('react-native')
+  return { CustomExerciseSheet: (p: { open: boolean; initialName?: string }) => (p.open ? <Text>{`sheet:${p.initialName ?? ''}`}</Text> : null) }
+}, { virtual: true })
+const mockMy = jest.fn()
+jest.mock('../../hooks/useMyExercises', () => ({ useMyExercises: (...a: unknown[]) => mockMy(...a) }))
+
 import { client } from '../../lib/lyftr'
 import { ExerciseBrowser } from './ExerciseBrowser'
 
@@ -29,6 +42,11 @@ const bench: Exercise = {
 
 const renderBrowser = async () => await render(<ExerciseBrowser />)
 
+const noMy = { supported: false, items: [] as Exercise[], failed: false, reload: jest.fn() }
+const mineOf = (items: Exercise[]) => ({ supported: true, items, failed: false, reload: jest.fn() })
+const custom = (id: number, name: string): Exercise => ({ ...bench, id, name, is_custom: true })
+
+beforeEach(() => { mockMy.mockReturnValue(noMy) })
 afterEach(() => { jest.restoreAllMocks(); mockPush.mockReset(); mockSetParams.mockReset() })
 
 describe('ExerciseBrowser (mobile)', () => {
@@ -135,5 +153,75 @@ describe('ExerciseBrowser (mobile)', () => {
 
     expect(await screen.findByText("Couldn't load exercises")).toBeTruthy()
     expect(screen.queryByText('No exercises found')).toBeNull()
+  })
+
+  describe('custom exercises', () => {
+    it('hides the + and the Mine chip on a server without custom exercises', async () => {
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+
+      expect(screen.queryByRole('button', { name: 'Create exercise' })).toBeNull()
+      expect(screen.queryByRole('checkbox', { name: 'Mine' })).toBeNull()
+    })
+
+    it('pages through the user\'s own exercises with mine: true when Mine is on', async () => {
+      mockMy.mockReturnValue(mineOf([]))
+      const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+
+      await fireEvent.press(screen.getByRole('checkbox', { name: 'Mine' }))
+
+      await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
+      expect(screen.getByRole('checkbox', { name: 'Mine', checked: true })).toBeTruthy()
+    })
+
+    it('says there are none yet when Mine is on and empty, and that none match when filtered', async () => {
+      mockMy.mockReturnValue(mineOf([]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValueOnce([bench]).mockResolvedValue([])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await fireEvent.press(screen.getByRole('checkbox', { name: 'Mine' }))
+      expect(await screen.findByText('No custom exercises yet')).toBeTruthy()
+
+      await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'zzz')
+      expect(await screen.findByText('None of your exercises match')).toBeTruthy()
+    })
+
+    it('shows the custom group with a badge above the catalog', async () => {
+      mockMy.mockReturnValue(mineOf([custom(7, 'Soleus Slouch')]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+
+      expect(await screen.findByText('Soleus Slouch')).toBeTruthy()
+      expect(screen.getByText('Custom')).toBeTruthy()
+      expect(screen.getByText('Your exercises')).toBeTruthy()
+      expect(screen.getByText('From the catalog')).toBeTruthy()
+      expect(screen.getByText('Bench Press')).toBeTruthy()
+    })
+
+    it('caps the group at five and offers See all, which turns Mine on', async () => {
+      mockMy.mockReturnValue(mineOf(Array.from({ length: 6 }, (_, i) => custom(10 + i, `Mine ${i + 1}`))))
+      const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+
+      await screen.findByText('Mine 5')
+      expect(screen.queryByText('Mine 6')).toBeNull()
+      await fireEvent.press(screen.getByRole('button', { name: 'See all of yours' }))
+      await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
+    })
+
+    it('opens the create sheet seeded with the search text, from the + button', async () => {
+      mockMy.mockReturnValue(mineOf([]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), ' Soleus ')
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Create exercise' }))
+
+      expect(await screen.findByText('sheet:Soleus')).toBeTruthy()
+    })
   })
 })
