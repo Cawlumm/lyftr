@@ -29,10 +29,11 @@ func (h *Handler) ServerInfo(c *gin.Context) {
 		log.Printf("server info: could not determine registration state, reporting closed: %v", err)
 	}
 	utils.OK(c, gin.H{
-		"name":              "lyftr",
-		"version":           config.C.Version,
-		"registration_open": open,
-		"demo_mode":         config.C.DemoMode,
-		"custom_exercises":  true,
+		"name":                   "lyftr",
+		"version":                config.C.Version,
+		"registration_open":      open,
+		"demo_mode":              config.C.DemoMode,
+		"custom_exercises":       true,
+		"custom_exercise_photos": true,
 	})
 }

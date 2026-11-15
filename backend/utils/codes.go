@@ -104,6 +104,8 @@ var (
 	CodeInvalidTaxonomy          = define("INVALID_TAXONOMY", 422, "{{field}} isn't one of the known values.")
 	CodeCustomExerciseLimit      = define("CUSTOM_EXERCISE_LIMIT", 409, "You can have up to {{limit}} custom exercises.")
 	CodeInvalidMergeTarget       = define("INVALID_MERGE_TARGET", 400, "Choose a different exercise to merge into.")
+	CodePhotoInvalid             = define("PHOTO_INVALID", 422, "That file isn't a photo Lyftr can read. Use a JPEG, PNG or WebP.")
+	CodePhotoTooLarge            = define("PHOTO_TOO_LARGE", 413, "That photo is too large. Use one under 10 MB and 40 megapixels.")
 	CodeUnknownExercises         = define("UNKNOWN_EXERCISES", 400, "One or more of those exercises no longer exist.")
 	CodeInvalidDate              = define("INVALID_DATE", 400, "Date must be in YYYY-MM-DD format.")
 	CodeInvalidLoggedOn          = define("INVALID_LOGGED_ON", 400, "Logged on must be in YYYY-MM-DD format.")

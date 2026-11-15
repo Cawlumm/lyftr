@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/config"
@@ -47,6 +48,7 @@ func runDeleteAccount(args []string) int {
 	db.Connect()
 
 	s := stores.New(db.DB)
+	s.Photos.SetDir(filepath.Join(filepath.Dir(config.C.DBPath), "exercise-photos"))
 	u, spellings, err := s.User.GetByExactEmail(email)
 	switch {
 	case errors.Is(err, stores.ErrNoSuchUser):

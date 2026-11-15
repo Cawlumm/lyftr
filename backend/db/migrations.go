@@ -302,6 +302,9 @@ func customExercisesMigration() {
 		ON exercises(owner_user_id, name COLLATE NOCASE) WHERE owner_user_id IS NOT NULL AND archived_at IS NULL`)
 	ensureIndex("idx_exercises_custom_uuid", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_custom_uuid ON exercises(custom_uuid)`)
 	ensureIndex("idx_exercises_owner", `CREATE INDEX IF NOT EXISTS idx_exercises_owner ON exercises(owner_user_id)`)
+
+	// The custom exercise's one optional photo: a random id naming two files beside the database.
+	ensureColumn("exercises", "photo_id", `ALTER TABLE exercises ADD COLUMN photo_id TEXT`)
 }
 
 // adminMigration adds users.is_admin and, once, makes the earliest-created account the

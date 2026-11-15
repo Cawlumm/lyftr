@@ -72,6 +72,7 @@ type Exercise struct {
 	IsCustom         bool     `json:"is_custom"`
 	Archived         bool     `json:"archived"`
 	MergedIntoID     *int64   `json:"merged_into_id,omitempty"`
+	PhotoID          string   `json:"photo_id,omitempty"`
 }
 
 // CreateExerciseRequest is the body of POST and PUT /exercises: PUT replaces every field.

@@ -24,6 +24,7 @@ import (
 // sync endpoint.
 type ExerciseStore struct {
 	db      *sql.DB
+	photos  *PhotoFiles
 	catalog *oedb.Client
 	// snapshot, when set, is read before the API at the start of a catalog pass.
 	snapshot *oedb.Snapshot
@@ -135,7 +136,7 @@ func translationJoin(locale string) (string, []any) {
 func exerciseSelect(locale string) (string, []any) {
 	join, args := translationJoin(locale)
 	return `SELECT e.id, ` + localizedName + `, e.muscle_group, e.secondary_muscles, e.category, e.equipment, ` +
-		localizedDescription + `, e.image_url, e.owner_user_id IS NOT NULL, e.archived_at IS NOT NULL, e.merged_into_id FROM exercises e` + join, args
+		localizedDescription + `, e.image_url, e.owner_user_id IS NOT NULL, e.archived_at IS NOT NULL, e.merged_into_id, COALESCE(e.photo_id, '') FROM exercises e` + join, args
 }
 
 type scanner interface{ Scan(dest ...any) error }
@@ -144,7 +145,7 @@ func scanExercise(row scanner, e *models.Exercise) error {
 	var secondaryRaw string
 	var merged sql.NullInt64
 	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &e.ImageURL,
-		&e.IsCustom, &e.Archived, &merged); err != nil {
+		&e.IsCustom, &e.Archived, &merged, &e.PhotoID); err != nil {
 		return err
 	}
 	if merged.Valid {

@@ -273,7 +273,7 @@ func (s *WorkoutStore) loadExercises(workoutID int64, locale string) ([]models.W
 	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
 		`SELECT we.id, we.workout_id, we.exercise_id, we.order_index, we.notes, we.rest_seconds, we.superset_group,
-		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url, e.owner_user_id IS NOT NULL
+		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url, e.owner_user_id IS NOT NULL, COALESCE(e.photo_id, '')
 		 FROM workout_exercises we
 		 JOIN exercises e ON e.id = we.exercise_id`+join+`
 		 WHERE we.workout_id = ? ORDER BY we.order_index`,
@@ -289,7 +289,7 @@ func (s *WorkoutStore) loadExercises(workoutID int64, locale string) ([]models.W
 		if err := rows.Scan(
 			&we.ID, &we.WorkoutID, &we.ExerciseID, &we.OrderIndex, &we.Notes, &we.RestSeconds, &group,
 			&we.Exercise.Name, &we.Exercise.MuscleGroup, &we.Exercise.Category,
-			&we.Exercise.Equipment, &we.Exercise.ImageURL, &we.Exercise.IsCustom,
+			&we.Exercise.Equipment, &we.Exercise.ImageURL, &we.Exercise.IsCustom, &we.Exercise.PhotoID,
 		); err != nil {
 			rows.Close()
 			return nil, err

@@ -36,9 +36,27 @@ New, all protected:
   exercise (a session begun before the merge) is stored against the merge target instead.
 - `GET /exercises?mine=true`: only the caller's non-archived custom exercises, honouring `q`, `muscle_group`,
   `equipment`, `category`, `limit`, `page`.
+- `PUT /exercises/:id/photo`: one optional photo per custom exercise. `multipart/form-data`, field `photo`
+  (JPEG, PNG or WebP, decided by decoding, not by the part's `Content-Type`). `200` with the exercise. The route's
+  body cap is 10 MB (the default is 1 MB). The server re-encodes to JPEG (quality 85, long edge at most 1600,
+  never scaled up, transparency flattened on white), which drops EXIF and GPS, and makes a 192 px thumbnail.
+  `422 PHOTO_INVALID` (not a readable image, or no `photo` field), `413 PHOTO_TOO_LARGE` (over 10 MB, over 40
+  megapixels or a side over 12,000 px; refused from the header before decoding), `403 EXERCISE_NOT_CUSTOM`,
+  `404 EXERCISE_NOT_FOUND`. A replace changes `photo_id` and deletes the old files.
+- `DELETE /exercises/:id/photo`: removes the photo; idempotent `200` with the exercise.
+- `GET /exercises/:id/photo?size=thumb|full[&v=<photo_id>]` (default `full`): the caller's own photo as
+  `image/jpeg`, bearer auth (an `<img>` cannot send it, so clients fetch with the shared client). `404` for another
+  user's exercise, a catalog exercise or one with no photo. `Cache-Control: private, max-age=31536000, immutable`
+  when `v` equals the current `photo_id`, otherwise `private, no-cache`.
 
-`Exercise` gains `is_custom` and `archived` (always sent) and `merged_into_id` (only when merged). Exercises
-embedded in workouts and programs carry `is_custom`.
+`GET /info` also gains `"custom_exercise_photos": true`.
+
+Photos live in `exercise-photos/` beside the database (`<photo_id>.jpg` and `<photo_id>-thumb.jpg`), so backing up
+the data directory covers them. They are removed when replaced, removed, or their owner deletes the account; merging
+keeps the archived source's photo. Migration: `exercises.photo_id` (nullable, additive).
+
+`Exercise` gains `is_custom` and `archived` (always sent), `merged_into_id` (only when merged) and `photo_id` (only
+when the exercise has a photo). Exercises embedded in workouts and programs carry `is_custom` and `photo_id`.
 
 Behaviour change: without `mine`, `GET /exercises` returns catalog exercises only, so a client that does not know
 about custom exercises sees what it saw before. Another user's custom exercise answers `404 EXERCISE_NOT_FOUND`

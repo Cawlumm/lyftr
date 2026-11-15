@@ -11,7 +11,10 @@ import (
 )
 
 // UserStore owns all SQL for users and user_settings.
-type UserStore struct{ db *sql.DB }
+type UserStore struct {
+	db     *sql.DB
+	photos *PhotoFiles
+}
 
 func NewUserStore(db *sql.DB) *UserStore { return &UserStore{db: db} }
 
@@ -391,15 +394,25 @@ func (s *UserStore) ResetPassword(email, newHash string) (string, error) {
 // transaction once the cascade has cleared the rows that used them. One a surviving row
 // still references is kept: exercise_id has no ON DELETE.
 func (s *UserStore) Delete(uid int64) error {
-	return inTxDo(s.db, func(tx *sql.Tx) error {
+	var photos []string
+	err := inTxDo(s.db, func(tx *sql.Tx) error {
 		if _, err := tx.Exec(`DELETE FROM users WHERE id = ?`, uid); err != nil {
 			return err
 		}
-		_, err := tx.Exec(`DELETE FROM exercises WHERE owner_user_id = ?
+		var err error
+		// After the cascade, which is what un-references the user's own exercises.
+		if photos, err = deletableCustomPhotos(tx, uid); err != nil {
+			return err
+		}
+		_, err = tx.Exec(`DELETE FROM exercises WHERE owner_user_id = ?
 			AND id NOT IN (SELECT exercise_id FROM workout_exercises)
 			AND id NOT IN (SELECT exercise_id FROM program_exercises)`, uid)
 		return err
 	})
+	if err == nil {
+		s.photos.RemoveAll(photos)
+	}
+	return err
 }
 
 // ErrInexactEmail means an address matches an account only when letter case is ignored.
