@@ -32,7 +32,8 @@ New, all protected:
 - `GET /exercises/:id/usage`: `{workouts, program_days}`, the caller's rows using it.
 - `POST /exercises/:id/merge`, body `{into_id}`: moves the caller's workout and program rows to the target and
   archives the source. `{moved_workouts, moved_program_days, into}`. `400 INVALID_MERGE_TARGET` for itself, an
-  archived exercise or one the caller cannot see.
+  archived exercise or one the caller cannot see. A later workout or program write that still names the merged
+  exercise (a session begun before the merge) is stored against the merge target instead.
 - `GET /exercises?mine=true`: only the caller's non-archived custom exercises, honouring `q`, `muscle_group`,
   `equipment`, `category`, `limit`, `page`.
 

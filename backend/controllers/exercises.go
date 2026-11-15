@@ -317,12 +317,28 @@ func (h *Handler) MergeExercise(c *gin.Context) {
 
 // exercisesVisible answers UNKNOWN_EXERCISES and reports false when any id is another
 // user's custom exercise, so a write never reaches the foreign key with an id the caller
-// may not use.
-func (h *Handler) exercisesVisible(c *gin.Context, uid int64, ids []int64) bool {
+// may not use. Ids the caller merged away are rewritten in place to the merge target.
+func (h *Handler) exercisesVisible(c *gin.Context, uid int64, refs []*int64) bool {
+	ids := make([]int64, len(refs))
+	for i, r := range refs {
+		ids[i] = *r
+	}
 	err := h.s.Exercise.VisibleTo(uid, ids)
 	if errors.Is(err, stores.ErrExerciseNotVisible) {
 		utils.Fail(c, utils.CodeUnknownExercises, nil)
 		return false
 	}
-	return !utils.DBError(c, err)
+	if utils.DBError(c, err) {
+		return false
+	}
+	targets, err := h.s.Exercise.MergedTargets(uid, ids)
+	if utils.DBError(c, err) {
+		return false
+	}
+	for _, r := range refs {
+		if to, ok := targets[*r]; ok {
+			*r = to
+		}
+	}
+	return true
 }

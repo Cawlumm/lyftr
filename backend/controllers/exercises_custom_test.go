@@ -351,3 +351,43 @@ func TestServerInfo_AdvertisesCustomExercises(t *testing.T) {
 		t.Errorf("custom_exercises = %v, want true", got)
 	}
 }
+
+// A workout begun before a merge still names the merged source when it is saved; the write
+// lands on the target (following a chain), so the history the merge joined stays joined.
+func TestSaveAfterMerge_WritesToTheMergeTarget(t *testing.T) {
+	setupTestDB(t)
+	a := createTestUser(t)
+	ids := make([]int64, 3)
+	for i, n := range []string{"Lift A", "Lift B", "Lift C"} {
+		_, resp := createCustom(t, a, map[string]any{"name": n, "muscle_group": "chest"})
+		ids[i] = idOf(t, resp)
+	}
+	if _, err := th.s.Exercise.Merge(a, ids[0], ids[1]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := th.s.Exercise.Merge(a, ids[1], ids[2]); err != nil {
+		t.Fatal(err)
+	}
+	body := map[string]any{"name": "late save", "exercises": []map[string]any{{"exercise_id": ids[0], "sets": []map[string]any{{"set_number": 1, "reps": 5, "weight": 10}}}}}
+	c, w := newContext(a, http.MethodPost, "/api/v1/workouts", body)
+	th.CreateWorkout(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", w.Code, w.Body)
+	}
+	wid := int64(decodeResponse(t, w)["data"].(map[string]any)["id"].(float64))
+	got := decodeResponse(t, mustRecord(t, th, a, wid))["data"].(map[string]any)["exercises"].([]any)[0].(map[string]any)["exercise_id"]
+	if int64(got.(float64)) != ids[2] {
+		t.Errorf("saved exercise_id = %v, want the end of the chain %d", got, ids[2])
+	}
+
+	prog := map[string]any{"name": "p", "days": []map[string]any{{"name": "d", "exercises": []map[string]any{{"exercise_id": ids[1], "sets": []map[string]any{}}}}}}
+	c, w = newContext(a, http.MethodPost, "/api/v1/programs", prog)
+	th.CreateProgram(c)
+	if w.Code != http.StatusCreated {
+		t.Fatalf("program: %d %s", w.Code, w.Body)
+	}
+	day := decodeResponse(t, w)["data"].(map[string]any)["days"].([]any)[0].(map[string]any)
+	if pe := day["exercises"].([]any)[0].(map[string]any)["exercise_id"]; int64(pe.(float64)) != ids[2] {
+		t.Errorf("program exercise_id = %v, want %d", pe, ids[2])
+	}
+}

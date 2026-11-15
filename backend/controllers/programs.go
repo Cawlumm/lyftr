@@ -87,7 +87,7 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	if !h.exercisesVisible(c, uid, programExerciseIDs(req)) {
+	if !h.exercisesVisible(c, uid, programExerciseIDs(&req)) {
 		return
 	}
 	p, err := h.s.Program.Create(uid, req, requestLocale(c))
@@ -119,7 +119,7 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
-	if !h.exercisesVisible(c, uid, programExerciseIDs(req)) {
+	if !h.exercisesVisible(c, uid, programExerciseIDs(&req)) {
 		return
 	}
 	p, err := h.s.Program.Update(uid, pid, req, requestLocale(c))
@@ -184,11 +184,11 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 	utils.OK(c, p)
 }
 
-func programExerciseIDs(req models.CreateProgramRequest) []int64 {
-	var ids []int64
-	for _, d := range req.Days {
-		for _, ex := range d.Exercises {
-			ids = append(ids, ex.ExerciseID)
+func programExerciseIDs(req *models.CreateProgramRequest) []*int64 {
+	var ids []*int64
+	for d := range req.Days {
+		for e := range req.Days[d].Exercises {
+			ids = append(ids, &req.Days[d].Exercises[e].ExerciseID)
 		}
 	}
 	return ids

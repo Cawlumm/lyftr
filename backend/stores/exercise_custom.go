@@ -119,6 +119,42 @@ func (s *ExerciseStore) VisibleTo(userID int64, ids []int64) error {
 	return nil
 }
 
+// MergedTargets maps each of the caller's ids that was merged away to the exercise its history
+// now lives under, following chains (A into B, then B into C). A save from a workout begun
+// before the merge, or queued offline, still names the source; writing it there would split
+// the history the merge just joined.
+func (s *ExerciseStore) MergedTargets(userID int64, ids []int64) (map[int64]int64, error) {
+	out := map[int64]int64{}
+	if len(ids) == 0 {
+		return out, nil
+	}
+	raw, err := json.Marshal(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.db.Query(`WITH RECURSIVE chain(start, id, depth) AS (
+			SELECT id, merged_into_id, 1 FROM exercises
+			WHERE id IN (SELECT value FROM json_each(?)) AND owner_user_id = ? AND merged_into_id IS NOT NULL
+			UNION ALL
+			SELECT chain.start, e.merged_into_id, chain.depth + 1 FROM chain
+			JOIN exercises e ON e.id = chain.id AND e.owner_user_id = ? AND e.merged_into_id IS NOT NULL
+			WHERE chain.depth < 20)
+		SELECT start, id FROM chain c1 WHERE depth = (SELECT MAX(depth) FROM chain c2 WHERE c2.start = c1.start)`,
+		string(raw), userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var from, to int64
+		if err := rows.Scan(&from, &to); err != nil {
+			return nil, err
+		}
+		out[from] = to
+	}
+	return out, rows.Err()
+}
+
 // owned loads the row a caller wants to change: ErrExerciseNotFound if it is missing or
 // someone else's, ErrNotCustom if it belongs to the catalog.
 func owned(tx *sql.Tx, userID, id int64) (archived bool, err error) {
