@@ -4,7 +4,7 @@ import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
-import { Archive, ArchiveRestore, ArrowLeft, Dumbbell, Merge, MoreVertical, Pencil, Trophy } from '../ui/icons'
+import { Archive, ArchiveRestore, ArrowLeft, Camera, Dumbbell, ImagePlus, Merge, MoreVertical, Pencil, Trash2, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -15,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import {
   apiErrorMessage,
+  customExercisePhotos,
   customExercises,
   uiMessage,
   displayWeight,
@@ -29,6 +30,9 @@ import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useServerInfo, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
+import { cameraSupported, uploadPart, type PhotoSource } from '../../lib/exercisePhoto'
+import { useExercisePhoto } from '../../hooks/useExercisePhoto'
+import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
@@ -107,7 +111,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   // working effect to gain a retry button.
   const [retryKey, setRetryKey] = useState(0)
   const [chartWidth, setChartWidth] = useState(0)
-  const canManage = customExercises(useServerInfo())
+  const serverInfo = useServerInfo()
+  const canManage = customExercises(serverInfo)
+  const photosOn = customExercisePhotos(serverInfo)
+  const pickPhoto = usePhotoPicker()
+  const [sourceOpen, setSourceOpen] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const heroPhoto = useExercisePhoto(exercise?.id ?? 0, 'full', exercise?.photo_id)
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [merging, setMerging] = useState(false)
@@ -193,19 +203,56 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       setArchiving(false)
     }
   }
+  // Photo changes apply at once and the screen updates from the server's answer, the same as archive.
+  const changePhoto = async (source: PhotoSource) => {
+    if (photoBusy) return
+    const out = await pickPhoto(source)
+    if (!out) return
+    if ('error' in out) { setToast({ variant: 'error', title: out.error }); return }
+    setPhotoBusy(true)
+    try {
+      setExercise(await client.exerciseAPI.uploadPhoto(exercise.id, uploadPart(out.photo)))
+      setToast({ variant: 'success', title: t('exercises.custom.photo.updated') })
+    } catch (err) {
+      setToast({ variant: 'error', title: apiErrorMessage(err, t('exercises.custom.photo.uploadFailed')) })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  const removePhoto = async () => {
+    if (photoBusy) return
+    setPhotoBusy(true)
+    try {
+      setExercise(await client.exerciseAPI.deletePhoto(exercise.id))
+      setToast({ variant: 'success', title: t('exercises.custom.photo.removed') })
+    } catch (err) {
+      setToast({ variant: 'error', title: apiErrorMessage(err, t('exercises.custom.photo.removeFailed')) })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  const sourceActions: SheetAction[] = [
+    { label: t('exercises.custom.photo.choose'), icon: ImagePlus, onPress: () => { void changePhoto('library') } },
+    ...(cameraSupported ? [{ label: t('exercises.custom.photo.take'), icon: Camera, onPress: () => { void changePhoto('camera') } }] : []),
+  ]
   const menuActions: SheetAction[] = [
     { label: t('exercises.custom.actions.edit'), icon: Pencil, onPress: () => setEditing(true) },
     { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
+    ...(photosOn ? [
+      { label: t(exercise.photo_id ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.add'), icon: ImagePlus, onPress: () => setSourceOpen(true) },
+      ...(exercise.photo_id ? [{ label: t('exercises.custom.photo.remove'), icon: Trash2, onPress: () => { void removePhoto() } }] : []),
+    ] : []),
     exercise.archived
       ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void toggleArchive() } }
       : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void toggleArchive() } },
   ]
   const actionsButton = showActions ? (
-    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" disabled={archiving} onPress={() => setMenuOpen(true)} />
+    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" disabled={archiving || photoBusy} onPress={() => setMenuOpen(true)} />
   ) : null
   const overlays = showActions ? (
     <>
       <ActionSheet open={menuOpen} title={t('exercises.custom.badgeLabel')} subtitle={exercise.name} actions={menuActions} onClose={() => setMenuOpen(false)} />
+      <ActionSheet open={sourceOpen} title={t('exercises.custom.photo.sourceTitle')} subtitle={exercise.name} actions={sourceActions} onClose={() => setSourceOpen(false)} />
       <CustomExerciseSheet
         open={editing}
         mode="edit"
@@ -231,7 +278,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     weight: displayWeight(h.max_weight, wUnit),
   }))
 
-  const hasImage = !!exercise.image_url && !imgFailed
+  // A custom exercise's own picture replaces the catalog image; while it loads the hero's space is
+  // held so the page does not jump, and a failed load drops back to the no-image layout.
+  const hasOwnPhoto = !!exercise.photo_id
+  const hasImage = hasOwnPhoto ? !heroPhoto.failed : !!exercise.image_url && !imgFailed
+  const heroSource = hasOwnPhoto ? (heroPhoto.uri ? { uri: heroPhoto.uri } : undefined) : { uri: exercise.image_url }
 
   const backButton = (
     <Pressable
@@ -378,7 +429,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
               <View className="gap-5" style={{ flexGrow: 5, flexShrink: 1, flexBasis: 0 }}>
                 {hasImage ? (
                   <Image
-                    source={{ uri: exercise.image_url }}
+                    source={heroSource}
                     onError={() => setImgFailed(true)}
                     resizeMode="cover"
                     className="h-72 w-full rounded-2xl bg-surface-muted"
@@ -408,7 +459,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         {hasImage ? (
           <View>
             <Image
-              source={{ uri: exercise.image_url }}
+              source={heroSource}
               onError={() => setImgFailed(true)}
               resizeMode="cover"
               className="h-64 w-full bg-surface-muted"

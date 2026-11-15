@@ -1,4 +1,4 @@
-import { registrationOpen, demoMode, customExercises } from './useServerInfo'
+import { registrationOpen, demoMode, customExercises, customExercisePhotos } from './useServerInfo'
 
 // The one rule worth pinning: which values hide the "Create account" affordance.
 // Getting the absent case backwards would hide signup on every server older than the
@@ -60,5 +60,18 @@ describe('customExercises', () => {
   it('is off while the probe is still in flight or the server is unreachable', () => {
     expect(customExercises(null)).toBe(false)
     expect(customExercises(undefined)).toBe(false)
+  })
+})
+
+describe('customExercisePhotos', () => {
+  it('is on only on an explicit true', () => {
+    expect(customExercisePhotos({ name: 'lyftr', version: '1.0.0', custom_exercise_photos: true })).toBe(true)
+    expect(customExercisePhotos({ name: 'lyftr', version: '1.0.0', custom_exercise_photos: false })).toBe(false)
+  })
+
+  it('is off for an older server, a pending probe and an unreachable server', () => {
+    expect(customExercisePhotos({ name: 'lyftr', version: '0.1.0' })).toBe(false)
+    expect(customExercisePhotos(null)).toBe(false)
+    expect(customExercisePhotos(undefined)).toBe(false)
   })
 })

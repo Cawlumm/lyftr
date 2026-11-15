@@ -1,4 +1,5 @@
 import type { APIRequestContext } from '@playwright/test'
+import path from 'node:path'
 import { test, expect } from './fixtures'
 import { API_BASE as API } from './config'
 
@@ -30,11 +31,13 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   await expect(page.getByRole('dialog')).toHaveCount(0)
   await expect(page.getByText(name, { exact: true }).locator('visible=true').first()).toBeVisible()
 
-  // Library: Mine lists it, with the badge.
+  // Library: "Custom only" in the filter sheet lists it, with the badge, and counts as a filter.
   await page.goto('/workouts/exercises')
-  const mine = page.getByRole('checkbox', { name: 'Mine' })
-  await mine.click()
-  await expect(mine).toBeChecked()
+  await page.getByRole('button', { name: /^Filters/ }).locator('visible=true').first().click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Custom only' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click()
+  await expect(page.getByRole('button', { name: 'Filters, 1 active' }).locator('visible=true').first()).toBeVisible()
+  await expect(page).toHaveURL(/[?&]show=mine/)
   const row = page.getByRole('link', { name: new RegExp(name) })
   await expect(row).toBeVisible()
   await expect(row.getByText('Custom', { exact: true })).toBeVisible()
@@ -48,8 +51,7 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   const detail = page.url()
 
   // Archived: gone from Mine.
-  await page.goto('/workouts/exercises')
-  await page.getByRole('checkbox', { name: 'Mine' }).click()
+  await page.goto('/workouts/exercises?show=mine')
   await expect(page.getByRole('link', { name: new RegExp(name) })).toHaveCount(0)
 
   // Restore from its page brings it back.
@@ -57,8 +59,7 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   await page.getByRole('button', { name: 'Exercise actions' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Restore' }).click()
   await expect(page.getByText(/Archived\. It's hidden from search/)).toHaveCount(0)
-  await page.goto('/workouts/exercises')
-  await page.getByRole('checkbox', { name: 'Mine' }).click()
+  await page.goto('/workouts/exercises?show=mine')
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
 })
 
@@ -152,4 +153,30 @@ test('merging a custom exercise states the counts and moves its history to the t
   await expect(page.getByText(/^Merged\./)).toBeVisible()
   const link = page.getByRole('link', { name: 'View that exercise' })
   await expect(link).toHaveAttribute('href', `/workouts/exercise/${target.id}`)
+})
+
+// Photo: Add photo from the actions menu opens a file chooser (web has no camera), the hero then
+// draws the authed image as a data: URI, and Remove photo puts the plain layout back.
+test('adding and removing a custom exercise photo', async ({ page, request, workerAuth }) => {
+  const api = await seed(request, workerAuth.token)
+  const name = `Zz Photo ${tag()}`
+  const ex = await api.exercise(name)
+
+  await page.goto(`/workouts/exercise/${ex.id}`)
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
+  await expect(page.locator('img[src^="data:"]')).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Exercise actions' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Add photo' }).click()
+  const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('dialog').getByRole('button', { name: 'Choose photo' }).click()
+  await (await chooser).setFiles(path.join(__dirname, 'fixtures', 'exercise-photo.jpg'))
+
+  await expect(page.getByText('Photo updated')).toBeVisible()
+  await expect(page.locator('img[src^="data:"]').first()).toBeAttached()
+
+  await page.getByRole('button', { name: 'Exercise actions' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Remove photo' }).click()
+  await expect(page.getByText('Photo removed')).toBeVisible()
+  await expect(page.locator('img[src^="data:"]')).toHaveCount(0)
 })

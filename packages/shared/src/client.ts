@@ -28,6 +28,8 @@ export interface ServerInfo {
   // Optional: a backend older than custom exercises omits it and has no create endpoint.
   // Read it through customExercises().
   custom_exercises?: boolean
+  // Optional: read through customExercisePhotos(); only an explicit true offers photo upload.
+  custom_exercise_photos?: boolean
 }
 
 // The server's own words, in the user's language. The server sends a stable `code` beside its
@@ -432,6 +434,10 @@ export function createClient(
   // working re-seed into a reported failure.
   const SYNC_TIMEOUT = 120000
 
+  // A photo upload is a few hundred KB after the app downsizes it, but over a phone's slow
+  // upstream that outlasts the global 20s without anything being wrong.
+  const UPLOAD_TIMEOUT = 60000
+
   // A request that asks for many rows gets the bulk bound instead of the global 20s.
   // The dashboard pulls 84 workouts with their exercises and sets, and the weight page
   // pulls up to 1000 logs — both are megabyte-scale on a full account and neither is a
@@ -479,6 +485,24 @@ export function createClient(
     usage: (id: number) => api.get<{ data: types.ExerciseUsage }>(`/exercises/${id}/usage`).then(unwrap),
     // Moves the signed-in user's workout and program rows from id to intoId and archives id. Final.
     merge: (id: number, intoId: number) => api.post<{ data: types.ExerciseMergeResult }>(`/exercises/${id}/merge`, { into_id: intoId }).then(unwrap),
+    // `file` is the FormData part: a Blob on web, a { uri, name, type } descriptor on React Native.
+    // No Content-Type is set: axios hands FormData to the transport, which adds the multipart boundary.
+    uploadPhoto: (id: number, file: unknown) => {
+      const form = new FormData()
+      form.append('photo', file as Blob)
+      // The instance defaults to JSON, and axios serialises FormData to JSON under that header
+      // (the server then sees no photo part). multipart/form-data keeps it a form; the browser
+      // and RN's XHR add the boundary themselves.
+      return api.put<{ data: types.Exercise }>(`/exercises/${id}/photo`, form, {
+        timeout: UPLOAD_TIMEOUT,
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }).then(unwrap)
+    },
+    deletePhoto: (id: number) => api.delete<{ data: types.Exercise }>(`/exercises/${id}/photo`).then(unwrap),
+    // The route needs the bearer token, so an <Image uri> cannot fetch it; the caller turns the Blob
+    // into a data URI. photoId is the cache buster: it changes whenever the picture does.
+    photo: (id: number, size: 'thumb' | 'full', photoId: string) =>
+      api.get<Blob>(`/exercises/${id}/photo`, { params: { size, v: photoId }, responseType: 'blob' }).then((r) => r.data),
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
     // The server imports the whole open-exercise-db catalog in a daily background pass;

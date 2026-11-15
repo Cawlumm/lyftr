@@ -19,6 +19,7 @@ export interface ExerciseProgress {
   /** Set when it is in a superset. */
   superset?: { letter: string; position: number; total: number }
   imageUrl?: string
+  photo?: { exerciseId: number; photoId?: string }
   /** groupColorIndex of the row; only read when it is in a superset. */
   colorIndex?: number
 }
@@ -147,6 +148,7 @@ function Body({
                   <Text className="font-sans-bold text-sm" style={{ color: here ? accent : colors.txMuted, fontVariant: ['tabular-nums'], minWidth: 18 }}>{i + 1}</Text>
                   <ExerciseThumb
                     url={e.imageUrl}
+                    photo={e.photo}
                     size={36}
                     tag={e.superset ? `${e.superset.letter}${e.superset.position}` : undefined}
                     colorIndex={e.colorIndex ?? 0}

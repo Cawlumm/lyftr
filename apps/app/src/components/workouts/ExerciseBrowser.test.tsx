@@ -156,33 +156,54 @@ describe('ExerciseBrowser (mobile)', () => {
   })
 
   describe('custom exercises', () => {
-    it('hides the + and the Mine chip on a server without custom exercises', async () => {
+    // The "any custom exercise?" probe asks for one row; the group above the list asks for six.
+    const mineSplit = (any: Exercise[], group: Exercise[]) =>
+      mockMy.mockImplementation((_q: unknown, limit: number) => (limit === 1 ? mineOf(any) : mineOf(group)))
+    const openFilters = async () => fireEvent.press(screen.getByRole('button', { name: /^Filters/ }))
+
+    it('hides the + and Custom only on a server without custom exercises', async () => {
       jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
       await renderBrowser()
       await screen.findByText('Bench Press')
 
       expect(screen.queryByRole('button', { name: 'Create exercise' })).toBeNull()
-      expect(screen.queryByRole('checkbox', { name: 'Mine' })).toBeNull()
+      await openFilters()
+      expect(screen.queryByText('Custom only')).toBeNull()
     })
 
-    it('pages through the user\'s own exercises with mine: true when Mine is on', async () => {
-      mockMy.mockReturnValue(mineOf([]))
+    it('offers Custom only in the filter sheet only to someone who has a custom exercise', async () => {
+      mineSplit([], [])
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      const { unmount } = await renderBrowser()
+      await screen.findByText('Bench Press')
+      await openFilters()
+      expect(screen.queryByText('Custom only')).toBeNull()
+      await unmount()
+
+      mineSplit([custom(7, 'Soleus Slouch')], [])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await openFilters()
+      expect(screen.getByText('Custom only')).toBeTruthy()
+    })
+
+    it('Custom only pages through mine: true and counts as an active filter', async () => {
+      mineSplit([custom(7, 'Soleus Slouch')], [])
       const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
       await renderBrowser()
       await screen.findByText('Bench Press')
-
-      await fireEvent.press(screen.getByRole('checkbox', { name: 'Mine' }))
+      await openFilters()
+      await fireEvent.press(screen.getByText('Custom only'))
+      await fireEvent.press(screen.getByRole('button', { name: 'Done' }))
 
       await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
-      expect(screen.getByRole('checkbox', { name: 'Mine', checked: true })).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
     })
 
-    it('says there are none yet when Mine is on and empty, and that none match when filtered', async () => {
-      mockMy.mockReturnValue(mineOf([]))
-      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValueOnce([bench]).mockResolvedValue([])
-      await renderBrowser()
-      await screen.findByText('Bench Press')
-      await fireEvent.press(screen.getByRole('checkbox', { name: 'Mine' }))
+    it('says there are none yet under Custom only when empty, and that none match when searched', async () => {
+      mineSplit([], [])
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([])
+      await render(<ExerciseBrowser initialFilters={{ muscle: null, equipment: null, show: 'mine' }} />)
       expect(await screen.findByText('No custom exercises yet')).toBeTruthy()
 
       await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'zzz')
@@ -201,7 +222,7 @@ describe('ExerciseBrowser (mobile)', () => {
       expect(screen.getByText('Bench Press')).toBeTruthy()
     })
 
-    it('caps the group at five and offers See all, which turns Mine on', async () => {
+    it('caps the group at five and offers See all, which turns Custom only on', async () => {
       mockMy.mockReturnValue(mineOf(Array.from({ length: 6 }, (_, i) => custom(10 + i, `Mine ${i + 1}`))))
       const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
       await renderBrowser()

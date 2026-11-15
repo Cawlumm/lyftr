@@ -43,7 +43,9 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
   const totalSets = programSetCount(program)
   const dayCount = program.days?.length ?? 0
   const today = todaysDay(program)
-  const thumbnailUrl = allExercises(program)[0]?.exercise?.image_url
+  const firstEx = allExercises(program)[0]
+  const thumbnailUrl = firstEx?.exercise?.image_url
+  const thumbnailPhoto = firstEx ? { exerciseId: firstEx.exercise_id, photoId: firstEx.exercise?.photo_id } : undefined
 
   const beginSession = (day: ProgramDay) => {
     startSession(sessionNameForDay(program, day), activeSessionExercisesForDay(day), program.id, day.id)
@@ -78,7 +80,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
 
   const body = (
     <>
-      <ExerciseImage url={thumbnailUrl} fallbackIcon={BookOpen} />
+      <ExerciseImage url={thumbnailUrl} photo={thumbnailPhoto} fallbackIcon={BookOpen} />
       <View className="flex-1">
         <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
         <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">
@@ -196,7 +198,7 @@ export function ProgramCard({ program, onPress, onDeleted }: Props) {
         onClose={() => setMenuOpen(false)}
         header={
           <View className="flex-row items-center gap-3">
-            <ExerciseImage url={thumbnailUrl} size="hero" fallbackIcon={BookOpen} />
+            <ExerciseImage url={thumbnailUrl} photo={thumbnailPhoto} size="hero" fallbackIcon={BookOpen} />
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{program.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">

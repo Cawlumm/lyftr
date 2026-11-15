@@ -47,6 +47,9 @@ export interface Exercise {
   archived?: boolean
   // Set when the exercise was merged: its history now lives under this id.
   merged_into_id?: number
+  // Random id of the user's own picture; changes on replace, so it doubles as the cache key.
+  // Absent when there is none (and on servers older than custom-exercise photos).
+  photo_id?: string
 }
 
 // The body of POST /exercises and PUT /exercises/:id. muscle_group is required; the

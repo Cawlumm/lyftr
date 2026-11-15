@@ -1,13 +1,16 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
+import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, useWindowDimensions, View } from 'react-native'
 import {
-  CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, EXERCISE_SEARCH_DEBOUNCE_MS,
+  customExercisePhotos, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, EXERCISE_SEARCH_DEBOUNCE_MS,
   useAsyncAction, useTranslation, type CustomExerciseInput, type Exercise,
 } from '@lyftr/shared'
 import { ChevronDown, ChevronUp } from '../ui/icons'
 import { Alert, AppText, Button, Field, Sheet } from '../ui'
 import { interactive, TOUCH_MIN, webToggle } from '../ui/interaction'
-import { client } from '../../lib/lyftr'
+import { client, useServerInfo } from '../../lib/lyftr'
+import { cameraSupported, uploadPart, type ExercisePhoto } from '../../lib/exercisePhoto'
+import { useExercisePhoto } from '../../hooks/useExercisePhoto'
+import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import { useTheme } from '../../theme/useTheme'
 import { categoryLabel, equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 
@@ -24,6 +27,8 @@ interface Props {
 
 const DEFAULT_EQUIPMENT = 'body-only'
 const DEFAULT_CATEGORY = 'strength'
+const PICK_LIBRARY = 'library'
+const PICK_CAMERA = 'camera'
 
 function Chip({ label, selected, role, onPress }: { label: string; selected: boolean; role: 'radio' | 'checkbox'; onPress: () => void }) {
   return (
@@ -52,6 +57,62 @@ function ChipGroup({ label, children, error }: { label: string; children: ReactN
   )
 }
 
+// The photo field. The picture is staged here and only sent when the form is saved, so Cancel
+// discards it and a half-typed form never leaves a stray upload on the server.
+function PhotoField({ exercise, staged, removed, busy, error, onChoose, onTake, onRemove }: {
+  exercise?: Exercise
+  staged: ExercisePhoto | null
+  removed: boolean
+  busy: boolean
+  error: string
+  onChoose: () => void
+  onTake: () => void
+  onRemove: () => void
+}) {
+  const { t } = useTranslation()
+  const existingId = removed ? undefined : exercise?.photo_id
+  const own = useExercisePhoto(exercise?.id ?? 0, 'thumb', staged ? undefined : existingId)
+  const uri = staged?.uri ?? own.uri
+  const has = !!staged || !!existingId
+  return (
+    <View className="gap-1.5">
+      <AppText variant="label" color="muted">{t('exercises.custom.photo.label')}</AppText>
+      {has ? (
+        <View className="items-start gap-2">
+          {uri ? (
+            <Image
+              source={{ uri }}
+              accessibilityLabel={t('exercises.custom.photo.preview')}
+              resizeMode="cover"
+              className="h-32 w-48 rounded-xl bg-surface-muted"
+            />
+          ) : (
+            <View className="h-32 w-48 rounded-xl bg-surface-muted" />
+          )}
+          {staged ? <AppText variant="caption" color="muted">{t('exercises.custom.photo.pending')}</AppText> : null}
+        </View>
+      ) : (
+        <AppText variant="caption" color="muted">{t('exercises.custom.photo.hint')}</AppText>
+      )}
+      <View className="flex-row flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          disabled={busy}
+          title={t(has ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.choose')}
+          onPress={onChoose}
+        />
+        {cameraSupported ? (
+          <Button variant="secondary" disabled={busy} title={t('exercises.custom.photo.take')} onPress={onTake} />
+        ) : null}
+        {has ? (
+          <Button variant="ghost" disabled={busy} title={t('exercises.custom.photo.remove')} onPress={onRemove} />
+        ) : null}
+      </View>
+      {error ? <AppText variant="caption" color="error">{error}</AppText> : null}
+    </View>
+  )
+}
+
 // Create / edit form for a user's own exercise. Rendered as a Sheet, so from inside the picker's
 // Modal it is a nested Modal (rendered as a child of the picker's tree, which RN supports).
 export function CustomExerciseSheet({ open, mode, initialName, exercise, submitLabel, onSaved, onUseExisting, onClose }: Props) {
@@ -71,6 +132,13 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
   const [muscleError, setMuscleError] = useState(false)
   const [nearMatches, setNearMatches] = useState<Exercise[]>([])
   const [keyboard, setKeyboard] = useState(0)
+  const photosOn = customExercisePhotos(useServerInfo())
+  const pickPhoto = usePhotoPicker()
+  const [staged, setStaged] = useState<ExercisePhoto | null>(null)
+  const [photoRemoved, setPhotoRemoved] = useState(false)
+  const [pickError, setPickError] = useState('')
+  // The exercise as the server now holds it, once it was saved but its photo step failed.
+  const [saved, setSaved] = useState<Exercise | null>(null)
 
   // Reset on every open, from the props as they are then: a parent handing a fresh `exercise`
   // object each render must not wipe what is being typed.
@@ -90,6 +158,10 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
     setNameError(false)
     setMuscleError(false)
     setNearMatches([])
+    setStaged(null)
+    setPhotoRemoved(false)
+    setPickError('')
+    setSaved(null)
   }, [open])
 
   useEffect(() => {
@@ -117,12 +189,37 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
     return () => { stale = true; clearTimeout(timer) }
   }, [open, mode, canUseExisting, trimmed])
 
+  const hasPhotoChange = photosOn && (!!staged || (photoRemoved && !!exercise?.photo_id))
+
+  // The photo goes after the exercise exists. If it fails the exercise is already saved, so the sheet
+  // stays open on the error (Try again / Skip) instead of dropping the exercise the user just made.
+  const sendPhoto = useAsyncAction(async (ex: Exercise) => {
+    const done = staged
+      ? await client.exerciseAPI.uploadPhoto(ex.id, uploadPart(staged))
+      : await client.exerciseAPI.deletePhoto(ex.id)
+    onSaved(done)
+  }, t('exercises.custom.photo.uploadFailed'))
+
   const save = useAsyncAction(async (input: CustomExerciseInput) => {
-    const saved = mode === 'edit' && exercise
+    const ex = mode === 'edit' && exercise
       ? await client.exerciseAPI.update(exercise.id, input)
       : await client.exerciseAPI.create(input)
-    onSaved(saved)
+    if (!hasPhotoChange) { onSaved(ex); return }
+    setSaved(ex)
+    await sendPhoto.run(ex)
   }, t('exercises.custom.sheet.saveFailed'))
+
+  const choosePhoto = async (source: 'library' | 'camera') => {
+    setPickError('')
+    const out = await pickPhoto(source)
+    if (!out) return
+    if ('error' in out) { setPickError(out.error); return }
+    setStaged(out.photo)
+    setPhotoRemoved(false)
+  }
+  const removePhoto = () => { setStaged(null); setPhotoRemoved(true); setPickError('') }
+  // Closing from the error state must still tell the caller the exercise exists.
+  const close = () => { if (saved) onSaved(saved); else onClose() }
 
   const submit = () => {
     if (save.busy) return
@@ -152,7 +249,7 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
   const scrollMax = Math.max(160, height - keyboard - 260)
 
   return (
-    <Sheet open={open} onClose={onClose} labelledBy={titleId} width="lg">
+    <Sheet open={open} onClose={close} labelledBy={titleId} width="lg">
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View className="gap-1 px-5 pb-3">
           <AppText nativeID={titleId} variant="heading">
@@ -210,6 +307,19 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
             ))}
           </ChipGroup>
 
+          {photosOn ? (
+            <PhotoField
+              exercise={mode === 'edit' ? exercise : undefined}
+              staged={staged}
+              removed={photoRemoved}
+              busy={save.busy || sendPhoto.busy}
+              error={pickError}
+              onChoose={() => { void choosePhoto(PICK_LIBRARY) }}
+              onTake={() => { void choosePhoto(PICK_CAMERA) }}
+              onRemove={removePhoto}
+            />
+          ) : null}
+
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: showMore }}
@@ -253,8 +363,22 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
 
         </ScrollView>
         <View className="gap-3 border-t border-surface-border px-5 pt-3">
-          {save.error ? <Alert variant="error" size="compact">{save.error}</Alert> : null}
-          <Button title={label} onPress={submit} loading={save.busy} />
+          {saved ? (
+            <>
+              {sendPhoto.error ? (
+                <Alert variant="error" size="compact">{`${t('exercises.custom.photo.savedNoPhoto')} ${sendPhoto.error}`}</Alert>
+              ) : null}
+              <View className="flex-row gap-2">
+                <Button className="flex-1" title={t('exercises.custom.photo.tryAgain')} loading={sendPhoto.busy} onPress={() => { void sendPhoto.run(saved) }} />
+                <Button className="flex-1" variant="secondary" title={t('exercises.custom.photo.skip')} disabled={sendPhoto.busy} onPress={() => onSaved(saved)} />
+              </View>
+            </>
+          ) : (
+            <>
+              {save.error ? <Alert variant="error" size="compact">{save.error}</Alert> : null}
+              <Button title={label} onPress={submit} loading={save.busy} />
+            </>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Sheet>

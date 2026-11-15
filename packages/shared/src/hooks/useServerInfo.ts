@@ -69,6 +69,10 @@ export function demoMode(info: ServerInfo | null | undefined): boolean {
 
 // Whether this server can create custom exercises. Only an explicit true: an older server
 // has no create endpoint, and offering a Create row that 404s reads as the app being broken.
+export function customExercisePhotos(info: ServerInfo | null | undefined): boolean {
+  return info?.custom_exercise_photos === true
+}
+
 export function customExercises(info: ServerInfo | null | undefined): boolean {
   return info?.custom_exercises === true
 }

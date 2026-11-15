@@ -38,7 +38,7 @@ const PickerRow = memo(function PickerRow({ exercise, onSelect }: { exercise: Ex
       onPress={() => onSelect(exercise)}
       className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
     >
-      <ExerciseImage url={exercise.image_url} />
+      <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
           <AppText variant="subheading" numberOfLines={1} className="shrink">{exercise.name}</AppText>

@@ -136,10 +136,10 @@ function ExerciseFormCardBase({
           styling is reserved for the confirm step, like the list screens. */}
       <View className="mb-3 flex-row items-center gap-3">
         {inSuperset ? (
-          <ExerciseThumb url={exercise?.image_url} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColor} />
+          <ExerciseThumb url={exercise?.image_url} photo={exercise ? { exerciseId: exercise.id, photoId: exercise.photo_id } : undefined} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColor} />
         ) : (
         <View className="relative">
-          <ExerciseImage url={exercise?.image_url} />
+          <ExerciseImage url={exercise?.image_url} photo={exercise ? { exerciseId: exercise.id, photoId: exercise.photo_id } : undefined} />
           {/* Order number rides the thumbnail's corner so the image stays the anchor
               and we don't spend a second leading chip on it. */}
           <View className="absolute -left-1.5 -top-1.5 h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-surface-base bg-brand-500 px-1">
@@ -437,6 +437,7 @@ export function ExerciseFormList<T extends FormRow>({
           name: nameAt(index),
           muscle: muscleLabel(pickerExercises[e.exercise_id]?.muscle_group),
           imageUrl: pickerExercises[e.exercise_id]?.image_url,
+          photo: { exerciseId: e.exercise_id, photoId: pickerExercises[e.exercise_id]?.photo_id },
         }))
     : []
 

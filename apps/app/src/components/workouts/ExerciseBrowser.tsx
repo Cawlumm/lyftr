@@ -14,7 +14,6 @@ import {
   ActiveFilters, AppText, Button, EmptyState, ErrorState, FilterButton, FilterSheet, IconButton,
   PageHeader, SearchField, Skeleton, interactive, linkProps, scrollBleed, useCardGrid,
 } from '../ui'
-import { webToggle } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
 import { useMyExercises } from '../../hooks/useMyExercises'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
@@ -63,7 +62,7 @@ const BrowseRow = memo(function BrowseRow({ exercise, card = false }: { exercise
         ? `rounded-xl border border-surface-border bg-surface-raised motion-safe:transition-colors motion-safe:duration-[120ms] ${interactive('hover:border-brand-500/40')}`
         : interactive('hover:bg-surface-muted/60', { inset: true })}`}
     >
-      <ExerciseImage url={exercise.image_url} />
+      <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
         <View className="flex-row items-center gap-2">
           <AppText variant="subheading" numberOfLines={1} className="shrink">{exercise.name}</AppText>
@@ -102,25 +101,6 @@ function GroupHeading({ children }: { children: string }) {
   )
 }
 
-// A toggle chip beside the filters. 44px tall; the whole chip is the target.
-function MineChip({ on, label, onPress }: { on: boolean; label: string; onPress: () => void }) {
-  const { accent, colors } = useTheme()
-  return (
-    <Pressable
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      {...webToggle(on, onPress)}
-      accessibilityLabel={label}
-      onPress={onPress}
-      className={`h-11 min-w-[44px] flex-row items-center justify-center rounded-xl border px-4 active:scale-95 ${interactive('', { inset: true })} ${
-        on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
-      }`}
-    >
-      <AppText variant="bodySemibold" style={{ color: on ? accent : colors.txMuted }}>{label}</AppText>
-    </Pressable>
-  )
-}
-
 // Read-only catalogue, reached from the Workouts tab: look an exercise up and open its page
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
 // the muscle and equipment filters the API already takes, behind a filter button.
@@ -136,12 +116,14 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   )
   const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
-  const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups()))
+  const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups({ includeMine: true })))
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [mine, setMine] = useState(false)
   const [creating, setCreating] = useState(false)
-  const groups = exerciseFilterGroups()
-  const { muscle, equipment } = filters
+  // Whether the user has any custom exercise at all, whatever the search: it decides whether
+  // "Custom only" is offered in the filter sheet.
+  const anyMine = useMyExercises({}, 1)
+  const { muscle, equipment, show } = filters
+  const groups = exerciseFilterGroups({ includeMine: anyMine.supported && (anyMine.items.length > 0 || show === 'mine') })
   const count = activeFilterCount(groups, filters)
 
   useEffect(() => {
@@ -156,16 +138,16 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   // window would drop the search. Native has no URL and stays as it was.
   useEffect(() => {
     if (Platform.OS !== 'web') return
-    router.setParams({ q: query.trim() || undefined, muscle: muscle ?? undefined, equipment: equipment ?? undefined })
-  }, [query, muscle, equipment])
+    router.setParams({ q: query.trim() || undefined, muscle: muscle ?? undefined, equipment: equipment ?? undefined, show: show ?? undefined })
+  }, [query, muscle, equipment, show])
 
   const filtered = exerciseBrowseFiltered({ query: debouncedQuery, muscle, equipment })
   const browseParams = exerciseBrowseParams({ query: debouncedQuery, muscle, equipment })
   const my = useMyExercises(browseParams, MY_GROUP_FETCH)
   const supported = my.supported
-  // A server without custom exercises has no mine=true; the toggle can only be on if it is there.
-  const mineOn = supported && mine
-  const mineReload = my.reload
+  // A server without custom exercises has no mine=true; the filter can only apply if it is there.
+  const mineOn = supported && show === 'mine'
+  const mineReload = () => { my.reload(); anyMine.reload() }
 
   const fetcher = useCallback(
     (offset: number, limit: number) =>
@@ -206,11 +188,14 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
         <IconButton icon={ArrowLeft} label={t('exercises.browse.backToWorkouts')} variant="ghost" size="md" onPress={goBack} />
         <View className="flex-1">
-          <PageHeader title={t('exercises.browse.title')} subtitle={t('exercises.browse.subtitle')} />
+          <PageHeader
+            title={t('exercises.browse.title')}
+            subtitle={t('exercises.browse.subtitle')}
+            action={supported ? (
+              <IconButton icon={Plus} label={t('exercises.custom.add')} variant="solid" size="md" onPress={() => setCreating(true)} />
+            ) : undefined}
+          />
         </View>
-        {supported ? (
-          <IconButton icon={Plus} label={t('exercises.custom.add')} variant="brand" size="lg" onPress={() => setCreating(true)} />
-        ) : null}
       </View>
 
       <View className="flex-row items-center gap-2 px-4 pb-3">
@@ -219,12 +204,6 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
         </View>
         <FilterButton active={count} onPress={() => setSheetOpen(true)} />
       </View>
-
-      {supported ? (
-        <View className="flex-row px-4 pb-3">
-          <MineChip on={mineOn} label={t('exercises.custom.mine')} onPress={() => setMine((m) => !m)} />
-        </View>
-      ) : null}
 
       {count > 0 ? (
         <View className="pb-2">
@@ -287,7 +266,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
                 {myGroup.length >= MY_GROUP_FETCH ? (
                   <Pressable
                     accessibilityRole="button"
-                    onPress={() => setMine(true)}
+                    onPress={() => changeFilter('show', 'mine')}
                     className={`min-h-[44px] flex-row items-center justify-between px-3 py-2 active:bg-surface-muted/60 ${interactive('hover:bg-surface-muted/60', { inset: true })}`}
                   >
                     <AppText variant="bodySemibold" style={{ color: accent }}>{t('exercises.custom.seeAllMine')}</AppText>

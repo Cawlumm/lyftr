@@ -22,10 +22,17 @@ jest.mock('./CustomExerciseSheet', () => ({ CustomExerciseSheet: () => null }), 
 jest.mock('./MergeExerciseSheet', () => ({ MergeExerciseSheet: () => null }))
 jest.mock('./MuscleDiagram', () => ({ MuscleDiagram: () => null }))
 let mockSupported = true
+let mockPhotos = true
 jest.mock('@lyftr/shared', () => {
   const actual = jest.requireActual('@lyftr/shared')
-  return { ...actual, customExercises: () => mockSupported }
+  return { ...actual, customExercises: () => mockSupported, customExercisePhotos: () => mockPhotos }
 })
+const mockPick = jest.fn()
+jest.mock('../../lib/exercisePhoto', () => ({
+  cameraSupported: true,
+  uploadPart: (p: { uri: string }) => ({ uri: p.uri }),
+  pickExercisePhoto: (...a: unknown[]) => mockPick(...a),
+}))
 
 import { client, useWorkoutSession } from '../../lib/lyftr'
 import { ExerciseDetailScreen } from './ExerciseDetailScreen'
@@ -44,7 +51,7 @@ const load = async (ex: Exercise) => {
   await screen.findByText(ex.name)
 }
 
-beforeEach(() => { mockSupported = true })
+beforeEach(() => { mockSupported = true; mockPhotos = true; mockPick.mockReset() })
 afterEach(() => { jest.restoreAllMocks(); mockReplace.mockReset() })
 
 describe('ExerciseDetailScreen custom exercises', () => {
@@ -133,5 +140,65 @@ describe('ExerciseDetailScreen custom exercises', () => {
     expect(screen.getByText(/Merged\./)).toBeTruthy()
     await fireEvent.press(screen.getByText('View that exercise'))
     expect(mockReplace).toHaveBeenCalledWith('/workouts/exercise/9')
+  })
+})
+
+describe('ExerciseDetailScreen photo', () => {
+  const staged = { uri: 'file:///p.jpg', name: 'photo.jpg', type: 'image/jpeg' as const }
+  const openMenu = async () => fireEvent.press(screen.getByRole('button', { name: 'Exercise actions' }))
+
+  it('offers Add photo on a custom exercise without one, and no Remove', async () => {
+    await load(customRow)
+    await openMenu()
+    expect(await screen.findByText('Add photo')).toBeTruthy()
+    expect(screen.queryByText('Remove photo')).toBeNull()
+  })
+
+  it('offers no photo actions on a server without photos', async () => {
+    mockPhotos = false
+    await load(customRow)
+    await openMenu()
+    await screen.findByText('Edit')
+    expect(screen.queryByText('Add photo')).toBeNull()
+  })
+
+  it('uploads the picked photo and shows the updated exercise', async () => {
+    mockPick.mockResolvedValue({ status: 'picked', photo: staged })
+    const upload = jest.spyOn(client.exerciseAPI, 'uploadPhoto').mockResolvedValue({ ...customRow, photo_id: 'p1' })
+    const photo = jest.spyOn(client.exerciseAPI, 'photo').mockResolvedValue(new Blob(['x']))
+    await load(customRow)
+    await openMenu()
+    await fireEvent.press(await screen.findByText('Add photo'))
+    await fireEvent.press(await screen.findByText('Choose photo'))
+    await waitFor(() => expect(upload).toHaveBeenCalledWith(5, { uri: 'file:///p.jpg' }), { timeout: 2000 })
+    expect(await screen.findByText('Photo updated')).toBeTruthy()
+    await waitFor(() => expect(photo).toHaveBeenCalledWith(5, 'full', 'p1'))
+  })
+
+  it('says why when the upload fails and keeps the screen', async () => {
+    mockPick.mockResolvedValue({ status: 'picked', photo: staged })
+    jest.spyOn(client.exerciseAPI, 'uploadPhoto').mockRejectedValue(new Error('boom'))
+    await load(customRow)
+    await openMenu()
+    await fireEvent.press(await screen.findByText('Add photo'))
+    await fireEvent.press(await screen.findByText('Choose photo'))
+    expect(await screen.findByText("Can't reach the server right now.", undefined, { timeout: 2000 })).toBeTruthy()
+    expect(screen.getByText('Soleus Slouch')).toBeTruthy()
+  })
+
+  it('removes the photo from the menu', async () => {
+    jest.spyOn(client.exerciseAPI, 'photo').mockResolvedValue(new Blob(['x']))
+    const del = jest.spyOn(client.exerciseAPI, 'deletePhoto').mockResolvedValue(customRow)
+    await load({ ...customRow, photo_id: 'p1' })
+    await openMenu()
+    await fireEvent.press(await screen.findByText('Remove photo'))
+    await waitFor(() => expect(del).toHaveBeenCalledWith(5), { timeout: 2000 })
+    expect(await screen.findByText('Photo removed')).toBeTruthy()
+  })
+
+  it('never requests a photo for an exercise without photo_id', async () => {
+    const photo = jest.spyOn(client.exerciseAPI, 'photo')
+    await load(customRow)
+    expect(photo).not.toHaveBeenCalled()
   })
 })

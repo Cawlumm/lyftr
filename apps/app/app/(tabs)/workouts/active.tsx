@@ -482,7 +482,7 @@ export default function ActiveWorkout() {
             currentName={cur?.exercise.name ?? ''}
             currentIndex={sheet.index}
             candidates={rows
-              .map((r, index) => ({ index, name: r.exercise.name, muscle: muscleLabel(r.exercise.muscle_group), imageUrl: r.exercise.image_url }))
+              .map((r, index) => ({ index, name: r.exercise.name, muscle: muscleLabel(r.exercise.muscle_group), imageUrl: r.exercise.image_url, photo: { exerciseId: r.exercise_id, photoId: r.exercise.photo_id } }))
               .filter((c) => c.index !== sheet.index && !(group && c.index >= group.start && c.index <= group.end))}
             preselect={sheet.preselect}
             restLabel={settings.rest_enabled !== false && partnerRest > 0 ? restLabel(partnerRest) : undefined}

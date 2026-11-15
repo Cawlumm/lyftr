@@ -168,7 +168,7 @@ function RoundComplete({ rows, restExIdx, restSetIdx, wUnit }: { rows: ActiveSes
       </View>
       {target ? (
         <View role="group" accessibilityLabel={t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')} className="flex-row items-center gap-3 rounded-2xl px-4 py-3" style={{ backgroundColor: c.tint, borderWidth: 1.5, borderColor: c.border }}>
-          <ExerciseThumb url={rows[target.exIdx].exercise.image_url} tag={exerciseTag(rows, target.exIdx)} colorIndex={groupColorIndex(rows, restExIdx)} />
+          <ExerciseThumb url={rows[target.exIdx].exercise.image_url} photo={{ exerciseId: rows[target.exIdx].exercise_id, photoId: rows[target.exIdx].exercise.photo_id }} tag={exerciseTag(rows, target.exIdx)} colorIndex={groupColorIndex(rows, restExIdx)} />
           <View className="min-w-0 flex-1">
             <AppText variant="label" className="uppercase" style={{ color: c.ink }}>{t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')}</AppText>
             <AppText variant="bodySemibold" numberOfLines={1}>{t('gym.superset.upNextTitle', { name: rows[target.exIdx].exercise.name, number: target.setIdx + 1 })}</AppText>
@@ -427,7 +427,7 @@ export function GymModeWorkout() {
         exercises={session.exercises.map((e, i) => ({
           name: e.exercise.name, done: e.sets.filter((st) => st.completed).length, total: e.sets.length,
           superset: supersetInfo(session.exercises, i),
-          imageUrl: e.exercise.image_url, colorIndex: groupColorIndex(session.exercises, i),
+          imageUrl: e.exercise.image_url, photo: { exerciseId: e.exercise_id, photoId: e.exercise.photo_id }, colorIndex: groupColorIndex(session.exercises, i),
         }))}
         rowKeys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))}
         current={activeIdx}
@@ -458,7 +458,7 @@ export function GymModeWorkout() {
   const pairCandidates = session.exercises.flatMap((e, index) =>
     index === activeIdx || (activeGroup && index >= activeGroup.start && index <= activeGroup.end)
       ? []
-      : [{ index, name: e.exercise.name, muscle: muscleLabel(e.exercise.muscle_group), imageUrl: e.exercise.image_url }])
+      : [{ index, name: e.exercise.name, muscle: muscleLabel(e.exercise.muscle_group), imageUrl: e.exercise.image_url, photo: { exerciseId: e.exercise_id, photoId: e.exercise.photo_id } }])
 
   // The store has no "pair" action, so the result of pairWith is written whole and the positional
   // indices (screen, running rest) follow the row that was moved, as moveExercise does.

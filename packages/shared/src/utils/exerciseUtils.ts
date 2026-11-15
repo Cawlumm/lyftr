@@ -140,8 +140,8 @@ export const EXERCISE_SEARCH_DEBOUNCE_MS = 250
 // the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 // The browser's filters as a generic FilterGroup list, labelled in the active language. Built
 // per render rather than held as a constant, since the labels change with the language.
-export function exerciseFilterGroups(): FilterGroup[] {
-  return [
+export function exerciseFilterGroups(opts: { includeMine?: boolean } = {}): FilterGroup[] {
+  const groups: FilterGroup[] = [
     {
       key: 'muscle',
       label: i18n.t('exercises.browse.muscle'),
@@ -153,6 +153,15 @@ export function exerciseFilterGroups(): FilterGroup[] {
       options: EXERCISE_FILTER_EQUIPMENT.map((value) => ({ value, label: equipmentLabel(value) })),
     },
   ]
+  // Offered only to someone who has created an exercise: for everyone else it filters to nothing.
+  if (opts.includeMine) {
+    groups.push({
+      key: 'show',
+      label: i18n.t('exercises.custom.filterShow'),
+      options: [{ value: 'mine', label: i18n.t('exercises.custom.mineOption') }],
+    })
+  }
+  return groups
 }
 
 export function hasEquipmentToShow(raw: string | undefined | null): boolean {

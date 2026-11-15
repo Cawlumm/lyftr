@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { ExerciseImage } from './ExerciseImage'
 import { IMAGE_RETRY_DELAY_MS, IMAGE_RETRY_JITTER_MS } from '../../hooks/useImageRetry'
-import { useServerStore } from '../../lib/lyftr'
+import { client, useServerStore } from '../../lib/lyftr'
+import { clearExercisePhotoCache } from '../../hooks/useExercisePhoto'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
@@ -108,6 +109,24 @@ describe('ExerciseImage', () => {
       expect(images()).toHaveLength(0)
       await wait(LONGEST)
       expect(images()[0].props.source).toEqual({ uri: OEDB })
+    })
+  })
+
+  describe('a custom exercise photo', () => {
+    beforeEach(() => { clearExercisePhotoCache(); jest.useRealTimers() })
+
+    it('requests nothing without a photo id and keeps the glyph', async () => {
+      const photo = jest.spyOn(client.exerciseAPI, 'photo')
+      await render(<ExerciseImage photo={{ exerciseId: 3 }} />)
+      expect(photo).not.toHaveBeenCalled()
+      expect(images()).toHaveLength(0)
+    })
+
+    it('keeps the glyph when the photo cannot be loaded', async () => {
+      jest.spyOn(client.exerciseAPI, 'photo').mockRejectedValue(new Error('404'))
+      await render(<ExerciseImage photo={{ exerciseId: 3, photoId: 'p1' }} />)
+      await act(async () => { await Promise.resolve() })
+      expect(images()).toHaveLength(0)
     })
   })
 })

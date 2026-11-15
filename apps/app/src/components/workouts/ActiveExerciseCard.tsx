@@ -153,8 +153,8 @@ function ActiveExerciseCardBase({
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         {inSuperset
-          ? <ExerciseThumb url={ex.exercise.image_url} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColorIndex} />
-          : <ExerciseImage url={ex.exercise.image_url} />}
+          ? <ExerciseThumb url={ex.exercise.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise.photo_id }} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColorIndex} />
+          : <ExerciseImage url={ex.exercise.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise.photo_id }} />}
         <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">
