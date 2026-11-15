@@ -1473,7 +1473,6 @@
       "mine": "Mine",
       "seeAllMine": "See all of yours",
       "add": "Create exercise",
-      "created": "Created “{{name}}”. Find it later under Exercises, Mine.",
       "mineEmptyTitle": "No custom exercises yet",
       "mineEmptyBody": "Create one with the + button, or from the search when you add an exercise to a workout.",
       "mineNoMatchTitle": "None of your exercises match",
@@ -1508,11 +1507,8 @@
         "menu": "Exercise actions",
         "edit": "Edit",
         "merge": "Merge into another exercise…",
-        "mergeHint": "Moves your history and program entries",
         "archive": "Archive",
-        "archiveHint": "Hidden from search. History stays.",
         "unarchive": "Restore",
-        "unarchiveHint": "Show it in search again",
         "archived": "Archived “{{name}}”",
         "unarchived": "Restored “{{name}}”",
         "archiveFailed": "Couldn't archive the exercise",
@@ -1530,8 +1526,7 @@
         "confirm": "Merge",
         "counting": "Counting what will move…",
         "usageFailed": "Couldn't count what would move",
-        "failed": "Couldn't merge the exercises",
-        "done": "Merged into “{{name}}”"
+        "failed": "Couldn't merge the exercises"
       }
     }
   },

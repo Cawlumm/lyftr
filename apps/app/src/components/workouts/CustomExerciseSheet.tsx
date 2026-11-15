@@ -39,7 +39,7 @@ function Chip({ label, selected, role, onPress }: { label: string; selected: boo
         selected ? 'border-brand-500 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
       } ${interactive('hover:bg-surface-border')}`}
     >
-      <AppText variant="bodySemibold" color={selected ? 'primary' : 'secondary'} className="text-[13px]">{label}</AppText>
+      <AppText variant="bodySemibold" color={selected ? 'primary' : 'secondary'} className="text-[13px] capitalize">{label}</AppText>
     </Pressable>
   )
 }

@@ -96,9 +96,18 @@ describe('ExercisePicker (mobile)', () => {
       await type('s')
       expect(screen.queryByLabelText(/Create a custom exercise/)).toBeNull()
       await type('so')
-      expect(screen.getByLabelText('Create a custom exercise named so')).toBeTruthy()
+      expect(screen.getByLabelText('Create a custom exercise named So')).toBeTruthy()
       await type('  s ')
       expect(screen.queryByLabelText(/Create a custom exercise/)).toBeNull()
+    })
+
+    it('offers the search as a title-cased name, keeping words the user capitalised', async () => {
+      mineState()
+      catalog()
+      await renderPicker()
+      await screen.findByText('Bench Press')
+      await type('single leg RDL')
+      expect(screen.getByLabelText('Create a custom exercise named Single Leg RDL')).toBeTruthy()
     })
 
     it('has no create row when allowCreate is false or the server does not support it', async () => {

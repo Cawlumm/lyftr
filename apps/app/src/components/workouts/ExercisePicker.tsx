@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Modal, Platform, Pressable, TextInput, Vie
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { useStableCallback } from '../../hooks/useStableCallback'
 import { ArrowLeft, Dumbbell, Plus, Search } from '../ui/icons'
-import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
+import { exerciseCatalogEmpty, exerciseNameFromQuery, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
 import { FIELD_FOCUS_RING, interactive, NO_INPUT_OUTLINE } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
@@ -142,6 +142,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
   )
   const typed = query.trim()
   const showCreate = allowCreate && mine.supported && [...typed].length >= 2
+  const createName = exerciseNameFromQuery(typed)
   const [creating, setCreating] = useState(false)
   const openCreate = useCallback(() => setCreating(true), [])
   const closeCreate = useCallback(() => setCreating(false), [])
@@ -220,7 +221,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
             ListHeaderComponent={
               showCreate || myRows.length > 0 || mine.failed ? (
                 <View>
-                  {showCreate ? <CreateRow name={typed} onPress={openCreate} /> : null}
+                  {showCreate ? <CreateRow name={createName} onPress={openCreate} /> : null}
                   {mine.failed ? <MyExercisesRetry onRetry={mine.reload} /> : null}
                   {myRows.length > 0 ? (
                     <View>
@@ -292,7 +293,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
         <CustomExerciseSheet
           open={creating}
           mode="create"
-          initialName={typed}
+          initialName={createName}
           submitLabel="createAndAdd"
           onSaved={select}
           onUseExisting={select}

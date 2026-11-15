@@ -6,7 +6,7 @@ import { ArrowLeft, ChevronRight, Dumbbell, Plus, SearchX } from '../ui/icons'
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import {
   EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS,
-  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty,
+  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery,
   exerciseFilterGroups, hasEquipmentToShow, setFilter, useTranslation,
   type Exercise, type FilterValues,
 } from '@lyftr/shared'
@@ -237,7 +237,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
           open={creating}
           mode="create"
           submitLabel="create"
-          initialName={query.trim()}
+          initialName={exerciseNameFromQuery(query)}
           onSaved={(e) => { setCreating(false); mineReload(); void reload(); openExercise(e) }}
           onUseExisting={(e) => { setCreating(false); openExercise(e) }}
           onClose={() => setCreating(false)}

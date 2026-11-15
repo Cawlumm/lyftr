@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -249,5 +249,20 @@ describe('muscle filter chips', () => {
       expect(EXERCISE_FILTER_MUSCLES).not.toContain(dead)
     }
     expect(new Set(EXERCISE_FILTER_MUSCLES).size).toBe(EXERCISE_FILTER_MUSCLES.length)
+  })
+})
+
+describe('exerciseNameFromQuery', () => {
+  it('capitalises each word of a lowercase search', () => {
+    expect(exerciseNameFromQuery('soleus slouch')).toBe('Soleus Slouch')
+  })
+  it('leaves words that already hold a capital as the user spelled them', () => {
+    expect(exerciseNameFromQuery('single leg RDL')).toBe('Single Leg RDL')
+    expect(exerciseNameFromQuery('mcGill curl-up')).toBe('mcGill Curl-up')
+  })
+  it('trims, keeps inner spacing, and handles accents, digits and emoji', () => {
+    expect(exerciseNameFromQuery('  élan  3/4 sit-up ')).toBe('Élan  3/4 Sit-up')
+    expect(exerciseNameFromQuery('🔥 burner')).toBe('🔥 Burner')
+    expect(exerciseNameFromQuery('   ')).toBe('')
   })
 })

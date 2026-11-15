@@ -1496,7 +1496,6 @@
       "mine": "Míos",
       "seeAllMine": "Ver todos los tuyos",
       "add": "Crear ejercicio",
-      "created": "Se creó «{{name}}». Lo encontrarás en Ejercicios, Míos.",
       "mineEmptyTitle": "Aún no tienes ejercicios personalizados",
       "mineEmptyBody": "Crea uno con el botón + o desde la búsqueda al añadir un ejercicio a un entrenamiento.",
       "mineNoMatchTitle": "Ninguno de tus ejercicios coincide",
@@ -1531,11 +1530,8 @@
         "menu": "Acciones del ejercicio",
         "edit": "Editar",
         "merge": "Combinar con otro ejercicio…",
-        "mergeHint": "Mueve tu historial y las entradas de tus programas",
         "archive": "Archivar",
-        "archiveHint": "Se oculta de las búsquedas. El historial se conserva.",
         "unarchive": "Restaurar",
-        "unarchiveHint": "Volver a mostrarlo en las búsquedas",
         "archived": "Se archivó «{{name}}»",
         "unarchived": "Se restauró «{{name}}»",
         "archiveFailed": "No se pudo archivar el ejercicio",
@@ -1555,8 +1551,7 @@
         "confirm": "Combinar",
         "counting": "Contando lo que se moverá…",
         "usageFailed": "No se pudo contar lo que se moverá",
-        "failed": "No se pudieron combinar los ejercicios",
-        "done": "Combinado con «{{name}}»"
+        "failed": "No se pudieron combinar los ejercicios"
       }
     }
   },

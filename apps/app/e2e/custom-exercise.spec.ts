@@ -6,7 +6,7 @@ import { test, expect } from './fixtures'
 // The name is random and not in the oedb stub's catalog, so the picker offers Create for it
 // and nothing else matches. The account is the worker's own, so no cleanup is needed.
 test('create a custom exercise from the picker, find it under Mine, archive it', async ({ page }) => {
-  const name = `Zz Custom Lift ${Date.now().toString(36)}`
+  const name = `Zz Custom Lift ${Date.now().toString(36).toUpperCase()}`
 
   await page.goto('/workouts/new')
   await page.getByRole('button', { name: 'Add Exercise' }).locator('visible=true').first().click()

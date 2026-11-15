@@ -102,6 +102,16 @@ export const CUSTOM_EXERCISE_MUSCLES = [...EXERCISE_FILTER_MUSCLES, 'full-body']
 export const CUSTOM_EXERCISE_EQUIPMENT = EQUIPMENT_SLUGS.filter((s) => s !== 'none')
 export const CUSTOM_EXERCISE_CATEGORIES = CATEGORY_SLUGS
 
+// A search typed in lowercase becomes the name of the exercise created from it: each word gets
+// a capital first letter. A word that already holds a capital ("RDL", "McGill") is the user's
+// own spelling and is left alone. Only for pre-filling; what is typed into the name field
+// afterwards is never touched.
+export function exerciseNameFromQuery(query: string): string {
+  return query.trim().split(/(\s+)/).map((w) =>
+    /\s/.test(w) || /\p{Lu}/u.test(w) ? w : w.charAt(0).toLocaleUpperCase() + w.slice(1),
+  ).join('')
+}
+
 export interface ExerciseBrowseFilters {
   query: string
   muscle: string | null
