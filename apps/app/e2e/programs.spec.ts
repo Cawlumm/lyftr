@@ -68,7 +68,8 @@ test.describe('Programs', () => {
     const search = page.getByPlaceholder(/search exercises/i)
     await expect(search).toBeVisible()
     await search.fill('squat')
-    await page.getByText(/squat/i).first().click()
+    // The first row is "Create 'squat'"; pick the catalog exercise.
+    await page.getByRole('button', { name: /^(?!Create a custom exercise).*squat/i }).first().click()
 
     // A new set row starts empty: both inputs show the "0" placeholder.
     const reps = page.getByRole('textbox', { name: 'Set reps' }).first()
@@ -132,7 +133,7 @@ test.describe('Programs', () => {
     await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).first().click()
     await page.getByPlaceholder(/search exercises/i).fill('deadlift')
-    const row = page.getByRole('button', { name: /deadlift/i }).first()
+    const row = page.getByRole('button', { name: /^(?!Create a custom exercise).*deadlift/i }).first()
     await expect(row).toBeVisible()
     await row.click()
 

@@ -30,6 +30,9 @@ function Chip({ label, selected, role, onPress }: { label: string; selected: boo
     <Pressable
       accessibilityRole={role}
       accessibilityState={{ checked: selected }}
+      // react-native-web does not turn accessibilityState into DOM attributes, and a radio or
+      // checkbox without aria-checked is invalid (axe aria-required-attr).
+      {...(Platform.OS === 'web' ? { 'aria-checked': selected } : {})}
       onPress={onPress}
       style={{ minHeight: TOUCH_MIN }}
       className={`items-center justify-center rounded-full border px-3.5 active:opacity-70 ${

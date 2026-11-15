@@ -20,7 +20,7 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
 
   // The create sheet is a second dialog stacked on the picker.
   const sheet = page.getByRole('dialog').last()
-  await expect(sheet.getByLabel('Name')).toHaveValue(name)
+  await expect(sheet.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue(name)
   await sheet.getByRole('radio', { name: 'chest', exact: true }).click()
   await sheet.getByRole('button', { name: 'Create and add' }).click()
 

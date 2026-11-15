@@ -79,7 +79,8 @@ test.describe('Workouts', () => {
     const search = page.getByPlaceholder(/search exercises/i)
     await expect(search).toBeVisible()
     await search.fill('bench press')
-    await page.getByText(/bench press/i).first().click()
+    // The first row is "Create 'bench press'"; pick the catalog exercise.
+    await page.getByRole('button', { name: /^(?!Create a custom exercise).*bench press/i }).first().click()
 
     const reps = page.getByRole('textbox', { name: 'Set reps' }).first()
     const weight = page.getByRole('textbox', { name: 'Set weight' }).first()

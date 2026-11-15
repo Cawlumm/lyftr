@@ -108,6 +108,8 @@ function MineChip({ on, label, onPress }: { on: boolean; label: string; onPress:
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
+      // react-native-web drops accessibilityState; a checkbox needs aria-checked (axe).
+      {...(Platform.OS === 'web' ? { 'aria-checked': on } : {})}
       accessibilityLabel={label}
       onPress={onPress}
       className={`h-11 min-w-[44px] flex-row items-center justify-center rounded-xl border px-4 active:scale-95 ${interactive('', { inset: true })} ${
