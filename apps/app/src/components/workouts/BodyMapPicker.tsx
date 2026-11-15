@@ -43,24 +43,42 @@ function Figures({ value, secondary, onChange, width }: Pick<Props, 'value' | 's
     ...main.map((slug) => ({ slug: slug as Slug, intensity: 2 })),
     ...others.map((slug) => ({ slug: slug as Slug, intensity: 1 })),
   ]
+  const pick = (slug: string) => {
+    if ((INERT as readonly string[]).includes(slug)) return
+    const m = bodySlugToMuscle(slug)
+    if (m) onChange(m)
+  }
   const scale = Math.min(0.95, Math.max(0.5, (width - FIGURE_GAP) / 2 / FIGURE_W))
   // The figures are decorative for a screen reader: the List view holds the same choice as
   // labelled controls.
   const hidden = Platform.OS === 'web' ? { 'aria-hidden': true } : { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
   return (
-    <View {...hidden} className="flex-row items-start justify-center" style={{ gap: FIGURE_GAP }}>
+    <View {...hidden} {...webRegionClick(pick)} className="flex-row items-start justify-center" style={{ gap: FIGURE_GAP }}>
       {SIDES.map((side) => (
         <View key={side} className="items-center gap-1">
           <Body
             data={data} side={side} scale={scale} colors={BODY_COLORS} defaultFill={bodyFill(isDark)} border="none"
             disabledParts={INERT}
-            onBodyPartPress={(part) => { const m = bodySlugToMuscle(part.slug); if (m) onChange(m) }}
+            onBodyPartPress={(part) => { if (part.slug) pick(part.slug) }}
           />
           <AppText variant="caption" color="muted">{t(side === 'front' ? 'bodyMap.front' : 'bodyMap.back')}</AppText>
         </View>
       ))}
     </View>
   )
+}
+
+// On web the figure's regions carry no handler (patches/react-native-body-highlighter: a press
+// handler there leaks responder props onto the DOM); the click is read here from the <path id>,
+// which the library sets to the region's slug.
+function webRegionClick(pick: (slug: string) => void): object {
+  if (Platform.OS !== 'web') return {}
+  return {
+    onClick: (e: { target: unknown }) => {
+      const path = (e.target as Element | null)?.closest?.('path[id]')
+      if (path?.id) pick(path.id)
+    },
+  }
 }
 
 // Pick a muscle by tapping the body, or from a list. Both write the same value; the list is the
