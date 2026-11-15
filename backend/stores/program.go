@@ -734,7 +734,7 @@ func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.Progr
 	join, joinArgs := translationJoin(locale)
 	rows, err := s.db.Query(
 		`SELECT pe.id, pe.program_day_id, pe.exercise_id, pe.order_index, pe.notes, pe.rest_seconds, pe.superset_group,
-		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url
+		        `+localizedName+`, e.muscle_group, e.category, e.equipment, e.image_url, e.owner_user_id IS NOT NULL
 		 FROM program_exercises pe
 		 JOIN exercises e ON e.id = pe.exercise_id`+join+`
 		 WHERE pe.program_day_id = ? ORDER BY pe.order_index`,
@@ -750,7 +750,7 @@ func (s *ProgramStore) loadExercises(dayID int64, locale string) ([]models.Progr
 		if err := rows.Scan(
 			&pe.ID, &pe.ProgramDayID, &pe.ExerciseID, &pe.OrderIndex, &pe.Notes, &pe.RestSeconds, &group,
 			&pe.Exercise.Name, &pe.Exercise.MuscleGroup, &pe.Exercise.Category,
-			&pe.Exercise.Equipment, &pe.Exercise.ImageURL,
+			&pe.Exercise.Equipment, &pe.Exercise.ImageURL, &pe.Exercise.IsCustom,
 		); err != nil {
 			rows.Close()
 			return nil, err

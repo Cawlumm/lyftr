@@ -28,7 +28,7 @@ func TestCodeIDs(t *testing.T) {
 }
 
 func TestCodeTemplatesAreSentences(t *testing.T) {
-	params := map[string]any{"field": "exercises.sets.weight", "min": json.Number("8"), "max": 500, "options": "a, b", "timezone": "Mars/Base"}
+	params := map[string]any{"field": "exercises.sets.weight", "min": json.Number("8"), "max": 500, "options": "a, b", "timezone": "Mars/Base", "name": "Goblet Squat", "limit": 500}
 	for id, c := range registry {
 		if c.text == "" {
 			t.Errorf("%s has no text", id)

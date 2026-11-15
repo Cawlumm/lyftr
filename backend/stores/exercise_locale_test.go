@@ -46,7 +46,7 @@ func materialize(t *testing.T, s *ExerciseStore, locale string, items ...oedb.Ex
 
 func mustGet(t *testing.T, s *ExerciseStore, id int64, locale string) models.Exercise {
 	t.Helper()
-	e, err := s.Get(id, locale)
+	e, err := s.Get(id, locale, 0)
 	if err != nil {
 		t.Fatalf("Get(%d, %q): %v", id, locale, err)
 	}

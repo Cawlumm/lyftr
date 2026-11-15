@@ -386,10 +386,20 @@ func (s *UserStore) ResetPassword(email, newHash string) (string, error) {
 	return u.Email, nil
 }
 
-// Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on).
+// Delete removes the user; child rows go via ON DELETE CASCADE (foreign_keys=on). Their
+// custom exercises have no foreign key to users, so they are removed in the same
+// transaction once the cascade has cleared the rows that used them. One a surviving row
+// still references is kept: exercise_id has no ON DELETE.
 func (s *UserStore) Delete(uid int64) error {
-	_, err := s.db.Exec(`DELETE FROM users WHERE id = ?`, uid)
-	return err
+	return inTxDo(s.db, func(tx *sql.Tx) error {
+		if _, err := tx.Exec(`DELETE FROM users WHERE id = ?`, uid); err != nil {
+			return err
+		}
+		_, err := tx.Exec(`DELETE FROM exercises WHERE owner_user_id = ?
+			AND id NOT IN (SELECT exercise_id FROM workout_exercises)
+			AND id NOT IN (SELECT exercise_id FROM program_exercises)`, uid)
+		return err
+	})
 }
 
 // ErrInexactEmail means an address matches an account only when letter case is ignored.
@@ -416,7 +426,7 @@ func (s *UserStore) GetByExactEmail(email string) (models.User, []string, error)
 
 // AccountData is how much an account holds, for showing an operator what a delete takes.
 type AccountData struct {
-	Workouts, Sets, FoodLogs, WeightLogs, Programs, SavedFoods, ActiveSessions int
+	Workouts, Sets, FoodLogs, WeightLogs, Programs, SavedFoods, ActiveSessions, CustomExercises int
 }
 
 // CountData counts the rows Delete will cascade through for one account. It mirrors the
@@ -433,8 +443,9 @@ func (s *UserStore) CountData(uid int64) (AccountData, error) {
 		(SELECT COUNT(*) FROM weight_logs WHERE user_id = ?),
 		(SELECT COUNT(*) FROM programs WHERE user_id = ?),
 		(SELECT COUNT(*) FROM saved_foods WHERE user_id = ?),
-		(SELECT COUNT(*) FROM active_sessions WHERE user_id = ?)`,
-		uid, uid, uid, uid, uid, uid, uid).
-		Scan(&d.Workouts, &d.Sets, &d.FoodLogs, &d.WeightLogs, &d.Programs, &d.SavedFoods, &d.ActiveSessions)
+		(SELECT COUNT(*) FROM active_sessions WHERE user_id = ?),
+		(SELECT COUNT(*) FROM exercises WHERE owner_user_id = ?)`,
+		uid, uid, uid, uid, uid, uid, uid, uid).
+		Scan(&d.Workouts, &d.Sets, &d.FoodLogs, &d.WeightLogs, &d.Programs, &d.SavedFoods, &d.ActiveSessions, &d.CustomExercises)
 	return d, err
 }

@@ -33,5 +33,6 @@ func (h *Handler) ServerInfo(c *gin.Context) {
 		"version":           config.C.Version,
 		"registration_open": open,
 		"demo_mode":         config.C.DemoMode,
+		"custom_exercises":  true,
 	})
 }

@@ -87,6 +87,9 @@ func (h *Handler) CreateProgram(c *gin.Context) {
 		utils.ValidationError(c, err)
 		return
 	}
+	if !h.exercisesVisible(c, uid, programExerciseIDs(req)) {
+		return
+	}
 	p, err := h.s.Program.Create(uid, req, requestLocale(c))
 	if utils.IsForeignKeyViolation(err) {
 		utils.Fail(c, utils.CodeUnknownExercises, nil)
@@ -114,6 +117,9 @@ func (h *Handler) UpdateProgram(c *gin.Context) {
 	req.LegacySupersets = supersetsOmitted(c)
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
+		return
+	}
+	if !h.exercisesVisible(c, uid, programExerciseIDs(req)) {
 		return
 	}
 	p, err := h.s.Program.Update(uid, pid, req, requestLocale(c))
@@ -176,4 +182,14 @@ func (h *Handler) ResolveSuggestions(c *gin.Context) {
 		return
 	}
 	utils.OK(c, p)
+}
+
+func programExerciseIDs(req models.CreateProgramRequest) []int64 {
+	var ids []int64
+	for _, d := range req.Days {
+		for _, ex := range d.Exercises {
+			ids = append(ids, ex.ExerciseID)
+		}
+	}
+	return ids
 }

@@ -252,6 +252,56 @@ func alterMigrations() {
 	}
 	ensureIndex("idx_refresh_tokens_expires", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)`)
 	ensureIndex("idx_refresh_tokens_user", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)`)
+
+	customExercisesMigration()
+}
+
+// customExercisesMigration lets a user own exercises. A custom row has owner_user_id set; a
+// catalog row has it NULL. SQLite cannot ADD COLUMN with a CURRENT_TIMESTAMP default, so
+// created_at is written on insert.
+//
+// The base schema's global UNIQUE(name) would forbid a custom exercise named like a catalog
+// one (and one user's name like another's), so it is replaced by a catalog-only index. It is
+// replaced in place under the same name rather than by editing the schema constant: the
+// schema's CREATE ... IF NOT EXISTS idx_exercises_name then finds an index of that name and
+// is a no-op on every later boot, so fresh and migrated databases end identical and the
+// base schema stays append-only. Drop and create share one transaction so no insert can
+// land in between with no uniqueness at all.
+func customExercisesMigration() {
+	ensureColumn("exercises", "owner_user_id", `ALTER TABLE exercises ADD COLUMN owner_user_id INTEGER`)
+	ensureColumn("exercises", "custom_uuid", `ALTER TABLE exercises ADD COLUMN custom_uuid TEXT`)
+	ensureColumn("exercises", "archived_at", `ALTER TABLE exercises ADD COLUMN archived_at DATETIME`)
+	ensureColumn("exercises", "merged_into_id", `ALTER TABLE exercises ADD COLUMN merged_into_id INTEGER`)
+	ensureColumn("exercises", "created_at", `ALTER TABLE exercises ADD COLUMN created_at DATETIME`)
+
+	var def sql.NullString
+	err := DB.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_exercises_name'`).Scan(&def)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatalf("read idx_exercises_name: %v", err)
+	}
+	if err == sql.ErrNoRows || !strings.Contains(strings.ToUpper(def.String), " WHERE ") {
+		tx, err := DB.Begin()
+		if err != nil {
+			log.Fatalf("begin idx_exercises_name swap: %v", err)
+		}
+		if _, err := tx.Exec(`DROP INDEX IF EXISTS idx_exercises_name`); err != nil {
+			tx.Rollback()
+			log.Fatalf("drop idx_exercises_name: %v", err)
+		}
+		if _, err := tx.Exec(`CREATE UNIQUE INDEX idx_exercises_name ON exercises(name) WHERE owner_user_id IS NULL`); err != nil {
+			tx.Rollback()
+			log.Fatalf("create idx_exercises_name: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			log.Fatalf("commit idx_exercises_name swap: %v", err)
+		}
+		log.Println("migration: idx_exercises_name now covers catalog exercises only")
+	}
+
+	ensureIndex("idx_exercises_owner_name", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_owner_name
+		ON exercises(owner_user_id, name COLLATE NOCASE) WHERE owner_user_id IS NOT NULL AND archived_at IS NULL`)
+	ensureIndex("idx_exercises_custom_uuid", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_custom_uuid ON exercises(custom_uuid)`)
+	ensureIndex("idx_exercises_owner", `CREATE INDEX IF NOT EXISTS idx_exercises_owner ON exercises(owner_user_id)`)
 }
 
 // adminMigration adds users.is_admin and, once, makes the earliest-created account the

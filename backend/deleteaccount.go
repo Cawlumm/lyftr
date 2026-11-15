@@ -77,7 +77,8 @@ func runDeleteAccount(args []string) int {
 	fmt.Printf("  %-16s %d\n", "programs", d.Programs)
 	fmt.Printf("  %-16s %d\n", "saved foods", d.SavedFoods)
 	fmt.Printf("  %-16s %d\n", "active sessions", d.ActiveSessions)
-	fmt.Println("This cannot be undone. Exercises are shared and are not affected.")
+	fmt.Printf("  %-16s %d\n", "custom exercises", d.CustomExercises)
+	fmt.Println("This cannot be undone. Catalog exercises are shared and are not affected.")
 
 	if n, err := s.User.Count(); err == nil && n == 1 {
 		switch config.C.Registration {

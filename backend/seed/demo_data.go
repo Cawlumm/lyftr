@@ -129,7 +129,7 @@ func DemoData(db *sql.DB, primer CatalogPrimer) {
 func lookupExercise(db *sql.DB, patterns []string) (int64, bool) {
 	for _, p := range patterns {
 		var id int64
-		err := db.QueryRow(`SELECT id FROM exercises WHERE LOWER(name) LIKE ? LIMIT 1`, p).Scan(&id)
+		err := db.QueryRow(`SELECT id FROM exercises WHERE LOWER(name) LIKE ? AND owner_user_id IS NULL LIMIT 1`, p).Scan(&id)
 		if err == nil {
 			return id, true
 		}

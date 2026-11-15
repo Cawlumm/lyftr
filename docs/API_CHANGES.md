@@ -14,6 +14,40 @@ catches what the author knew and forgot; it cannot catch what the author never n
 If your PR changes a status code, narrows an accepted value, or renames a response field,
 add the entry in that PR.
 
+## Custom exercises (additive, one behaviour change)
+
+A user can create exercises of their own, private to them. `GET /api/v1/info` gains `"custom_exercises": true`,
+which clients read to know the endpoints below exist.
+
+New, all protected:
+
+- `POST /exercises` and `PUT /exercises/:id` (full replace), body
+  `{name, muscle_group, equipment?, category?, secondary_muscles?, description?}`. `201`/`200` with the exercise.
+  `equipment` defaults to `body-only`, `category` to `strength`. Slugs must be ones the catalog uses
+  (`422 INVALID_TAXONOMY`, `params.field`). `409 EXERCISE_NAME_TAKEN` (per user, case-insensitive, among
+  non-archived), `409 CUSTOM_EXERCISE_LIMIT` (500 non-archived, `params.limit`), `403 EXERCISE_NOT_CUSTOM`
+  for a catalog row.
+- `POST /exercises/:id/archive`, `POST /exercises/:id/unarchive`: `200` with the exercise. Archiving hides it from
+  lists and pickers; workouts and programs keep it. Nothing is ever deleted.
+- `GET /exercises/:id/usage`: `{workouts, program_days}`, the caller's rows using it.
+- `POST /exercises/:id/merge`, body `{into_id}`: moves the caller's workout and program rows to the target and
+  archives the source. `{moved_workouts, moved_program_days, into}`. `400 INVALID_MERGE_TARGET` for itself, an
+  archived exercise or one the caller cannot see.
+- `GET /exercises?mine=true`: only the caller's non-archived custom exercises, honouring `q`, `muscle_group`,
+  `equipment`, `category`, `limit`, `page`.
+
+`Exercise` gains `is_custom` and `archived` (always sent) and `merged_into_id` (only when merged). Exercises
+embedded in workouts and programs carry `is_custom`.
+
+Behaviour change: without `mine`, `GET /exercises` returns catalog exercises only, so a client that does not know
+about custom exercises sees what it saw before. Another user's custom exercise answers `404 EXERCISE_NOT_FOUND`
+on `GET /exercises/:id` (and `/prs`, `/history`), and as an `exercise_id` in a workout or program write it answers
+`400 UNKNOWN_EXERCISES`.
+
+Downgrading: the migration replaces the unique index on `exercises(name)` with one that covers catalog rows only.
+An older binary's catalog upsert (`ON CONFLICT(name)`) fails against it, so roll back with a database backup
+taken before the upgrade, not by running the old image on the migrated file.
+
 ## Refresh tokens are rotated and revocable; `POST /auth/logout` (additive, one behaviour change)
 
 Every refresh token now carries a `jti` the server remembers. `POST /auth/refresh` spends the token it

@@ -111,11 +111,17 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.PATCH("food/:id", h.UpdateFoodLog)
 		protected.DELETE("food/:id", h.DeleteFoodLog)
 
-		// Exercises (read-only for users)
+		// Exercises: the catalog is read-only; users create, edit, archive and merge their own
 		protected.GET("exercises", h.ListExercises)
 		protected.GET("exercises/:id", h.GetExercise)
 		protected.GET("exercises/:id/prs", h.GetExercisePRs)
 		protected.GET("exercises/:id/history", h.GetExerciseHistory)
+		protected.POST("exercises", h.CreateExercise)
+		protected.PUT("exercises/:id", h.UpdateExercise)
+		protected.POST("exercises/:id/archive", h.ArchiveExercise)
+		protected.POST("exercises/:id/unarchive", h.UnarchiveExercise)
+		protected.GET("exercises/:id/usage", h.ExerciseUsage)
+		protected.POST("exercises/:id/merge", h.MergeExercise)
 
 		// Active session
 		protected.GET("active-session", h.GetActiveSession)
