@@ -94,7 +94,7 @@ const GridGap = memo(function GridGap() {
 
 function GroupHeading({ children }: { children: string }) {
   return (
-    <AppText variant="label" color="muted" className="mb-1 mt-2 px-3 uppercase" accessibilityRole="header">
+    <AppText variant="label" color="muted" className="mb-1 mt-2 px-3 uppercase" headingLevel={2}>
       {children}
     </AppText>
   )

@@ -125,7 +125,7 @@ export function BodyMapPicker({ value, secondary, onChange, groups, invalid }: P
         <View className="gap-3">
           {groups.map((g) => (
             <View key={g.key} className="gap-1.5">
-              <AppText variant="label" color="muted" className="uppercase" accessibilityRole="header">{g.label}</AppText>
+              <AppText variant="label" color="muted" className="uppercase" headingLevel={3}>{g.label}</AppText>
               <IconTileGroup label={g.label} options={g.muscles} value={value} onChange={onChange} />
             </View>
           ))}

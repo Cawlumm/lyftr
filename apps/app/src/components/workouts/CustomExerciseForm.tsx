@@ -40,7 +40,7 @@ function Card({ icon: Icon, title, hint, onLayout, children }: {
           <Icon size={16} color={accent} strokeWidth={2.2} />
         </View>
         <View className="flex-1">
-          <AppText variant="subheading" accessibilityRole="header">{title}</AppText>
+          <AppText variant="subheading" headingLevel={2}>{title}</AppText>
           {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
         </View>
       </View>
