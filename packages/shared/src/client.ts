@@ -25,6 +25,9 @@ export interface ServerInfo {
   // "absent" means no demo account. Guessing wrong here shows a sign-in button that 401s,
   // whereas guessing wrong on registration only hides a link that would have worked.
   demo_mode?: boolean
+  // Optional: a backend older than custom exercises omits it and has no create endpoint.
+  // Read it through customExercises().
+  custom_exercises?: boolean
 }
 
 // The server's own words, in the user's language. The server sends a stable `code` beside its
@@ -458,11 +461,24 @@ export function createClient(
       equipment?: string
       limit?: number
       page?: number
-    }) => api.get<{ data: types.Exercise[] }>('/exercises', {
-      params: { limit: DEFAULT_EXERCISE_PAGE_SIZE, ...params },
-      ...listTimeout(params?.limit),
-    }).then(unwrap),
+      // Only the signed-in user's own exercises, from the server's own table. Without it
+      // the list is the catalog alone, so the two are fetched and shown apart.
+      mine?: boolean
+    }) => {
+      const { mine, ...rest } = params ?? {}
+      return api.get<{ data: types.Exercise[] }>('/exercises', {
+        params: { limit: DEFAULT_EXERCISE_PAGE_SIZE, ...rest, ...(mine ? { mine: 'true' } : {}) },
+        ...listTimeout(params?.limit),
+      }).then(unwrap)
+    },
     get: (id: number) => api.get<{ data: types.Exercise }>(`/exercises/${id}`).then(unwrap),
+    create: (input: types.CustomExerciseInput) => api.post<{ data: types.Exercise }>('/exercises', input).then(unwrap),
+    update: (id: number, input: types.CustomExerciseInput) => api.put<{ data: types.Exercise }>(`/exercises/${id}`, input).then(unwrap),
+    archive: (id: number) => api.post<{ data: types.Exercise }>(`/exercises/${id}/archive`).then(unwrap),
+    unarchive: (id: number) => api.post<{ data: types.Exercise }>(`/exercises/${id}/unarchive`).then(unwrap),
+    usage: (id: number) => api.get<{ data: types.ExerciseUsage }>(`/exercises/${id}/usage`).then(unwrap),
+    // Moves the signed-in user's workout and program rows from id to intoId and archives id. Final.
+    merge: (id: number, intoId: number) => api.post<{ data: types.ExerciseMergeResult }>(`/exercises/${id}/merge`, { into_id: intoId }).then(unwrap),
     getPRs: (id: number) => api.get<{ data: types.PersonalRecord }>(`/exercises/${id}/prs`).then(unwrap),
     getHistory: (id: number, limit = 20) => api.get<{ data: types.ExerciseHistoryPoint[] }>(`/exercises/${id}/history`, { params: { limit } }).then(unwrap),
     // The server imports the whole open-exercise-db catalog in a daily background pass;

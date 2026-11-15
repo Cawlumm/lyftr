@@ -24,7 +24,7 @@ const NON_COPY_PROPS = [
   'haptic', 'descriptionTone', 'descriptionId', 'animationType', 'presentation',
   'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole', 'backBehavior',
   // keyboard, scrolling, camera and live-region behaviour
-  'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior',
+  'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior', 'submitLabel',
   'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',
   'themeVariant', 'align', 'side', 'tint', 'maxWidth',
   'keyboardType', 'autoCapitalize', 'autoComplete', 'autoCorrect', 'textContentType',

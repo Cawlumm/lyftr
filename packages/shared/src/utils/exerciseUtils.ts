@@ -95,6 +95,13 @@ export const EXERCISE_FILTER_EQUIPMENT = [
   'body-only', 'barbell', 'dumbbell', 'machine', 'cable', 'kettlebells', 'bands',
 ] as const
 
+// What the custom-exercise form offers. Main muscle is the filter list plus full-body, so a
+// carry or a complex has an honest answer; equipment is every slug the labels know except
+// "none", which body-only already says. The server validates against the full slug lists.
+export const CUSTOM_EXERCISE_MUSCLES = [...EXERCISE_FILTER_MUSCLES, 'full-body'] as const
+export const CUSTOM_EXERCISE_EQUIPMENT = EQUIPMENT_SLUGS.filter((s) => s !== 'none')
+export const CUSTOM_EXERCISE_CATEGORIES = CATEGORY_SLUGS
+
 export interface ExerciseBrowseFilters {
   query: string
   muscle: string | null
