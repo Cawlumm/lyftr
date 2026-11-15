@@ -1,5 +1,5 @@
-import { surfaces } from '@lyftr/shared'
-import { MUSCLE_COLORS, muscleColor, muscleToBodySlugs } from './exerciseUtils'
+import { CUSTOM_EXERCISE_MUSCLES, surfaces } from '@lyftr/shared'
+import { MUSCLE_COLORS, bodySlugToMuscle, muscleColor, muscleToBodySlugs } from './exerciseUtils'
 
 // The lookup rule and the equipment and muscle labels are covered in
 // packages/shared/src/utils/exerciseUtils.test.ts. What's left here is what is
@@ -63,4 +63,33 @@ describe('muscle ink - AA on the chip tint, both themes', () => {
       }
     })
   }
+})
+
+describe('bodySlugToMuscle', () => {
+  it('maps a tapped region to the muscle we offer', () => {
+    expect(bodySlugToMuscle('chest')).toBe('chest')
+    expect(bodySlugToMuscle('deltoids')).toBe('shoulders')
+    expect(bodySlugToMuscle('gluteal')).toBe('glutes')
+    expect(bodySlugToMuscle('hamstring')).toBe('hamstrings')
+    expect(bodySlugToMuscle('trapezius')).toBe('traps')
+  })
+
+  it('picks the most specific muscle for a region that stands for several', () => {
+    expect(bodySlugToMuscle('upper-back')).toBe('lats')
+    expect(bodySlugToMuscle('obliques')).toBe('abdominals')
+  })
+
+  it('selects nothing for a region that is not a muscle group', () => {
+    for (const s of ['head', 'hands', 'feet', 'knees', 'ankles', 'hair', undefined]) expect(bodySlugToMuscle(s)).toBeNull()
+  })
+
+  it('only ever answers with a muscle the form offers, and each one lights its own region', () => {
+    const slugs = ['abs', 'adductors', 'biceps', 'calves', 'chest', 'deltoids', 'forearm', 'gluteal', 'hamstring', 'lower-back',
+      'neck', 'obliques', 'quadriceps', 'tibialis', 'trapezius', 'triceps', 'upper-back']
+    for (const s of slugs) {
+      const m = bodySlugToMuscle(s)
+      expect(CUSTOM_EXERCISE_MUSCLES as readonly string[]).toContain(m)
+      expect(muscleToBodySlugs(m!).length).toBeGreaterThan(0)
+    }
+  })
 })

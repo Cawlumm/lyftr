@@ -9,6 +9,7 @@ jest.mock('expo-router', () => ({
     push: (...a: unknown[]) => mockPush(...a), setParams: (...a: unknown[]) => mockSetParams(...a),
     navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true,
   },
+  useFocusEffect: () => {},
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -19,15 +20,11 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaView: ({ children }: { children: unknown }) => children,
 }))
 
-// The badge and the create sheet are another slice's components; the browser only needs to
-// mount them, so stand-ins keep this test about the browser.
+// The badge is another slice's component; the browser only needs to mount it, so a stand-in
+// keeps this test about the browser.
 jest.mock('./CustomBadge', () => {
   const { Text } = require('react-native')
   return { CustomBadge: () => <Text>Custom</Text> }
-}, { virtual: true })
-jest.mock('./CustomExerciseSheet', () => {
-  const { Text } = require('react-native')
-  return { CustomExerciseSheet: (p: { open: boolean; initialName?: string }) => (p.open ? <Text>{`sheet:${p.initialName ?? ''}`}</Text> : null) }
 }, { virtual: true })
 const mockMy = jest.fn()
 jest.mock('../../hooks/useMyExercises', () => ({ useMyExercises: (...a: unknown[]) => mockMy(...a) }))
@@ -233,7 +230,7 @@ describe('ExerciseBrowser (mobile)', () => {
       await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
     })
 
-    it('opens the create sheet seeded with the search text, from the + button', async () => {
+    it('opens the create page seeded with the search text, from the + button', async () => {
       mockMy.mockReturnValue(mineOf([]))
       jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
       await renderBrowser()
@@ -242,7 +239,7 @@ describe('ExerciseBrowser (mobile)', () => {
 
       await fireEvent.press(screen.getByRole('button', { name: 'Create exercise' }))
 
-      expect(await screen.findByText('sheet:Soleus')).toBeTruthy()
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/workouts/exercise/new', params: { name: 'Soleus' } })
     })
   })
 })

@@ -21,14 +21,16 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   // The create row's accessibility label is "Create a custom exercise named <name>".
   await picker.getByRole('button', { name: `Create a custom exercise named ${name}` }).click()
 
-  // The create sheet is a second dialog stacked on the picker.
-  const sheet = page.getByRole('dialog').last()
-  await expect(sheet.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue(name)
-  await sheet.getByRole('radio', { name: 'chest', exact: true }).click()
-  await sheet.getByRole('button', { name: 'Create and add' }).click()
+  // The picker closes and the create page opens with the name prefilled. Main muscle is picked
+  // from the list view (the body map has its own test below).
+  await expect(page.getByRole('heading', { level: 1, name: 'New exercise' })).toBeVisible()
+  await expect(page.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue(name)
+  await page.getByRole('button', { name: 'List', exact: true }).click()
+  await page.getByRole('radio', { name: 'Chest', exact: true }).click()
+  await page.getByRole('button', { name: 'Create and add' }).click()
 
   // Back on the workout form, the new exercise is in it.
-  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1, name: 'New exercise' })).toHaveCount(0)
   await expect(page.getByText(name, { exact: true }).locator('visible=true').first()).toBeVisible()
 
   // Library: "Custom only" in the filter sheet lists it, with the badge, and counts as a filter.
@@ -61,6 +63,18 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   await expect(page.getByText(/Archived\. It's hidden from search/)).toHaveCount(0)
   await page.goto('/workouts/exercises?show=mine')
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
+})
+
+// The body map: tapping a region picks its muscle, and Create from the library opens the new
+// exercise's own page.
+test('create a custom exercise by tapping the body map', async ({ page }) => {
+  const name = `Zz Body Map ${Date.now().toString(36).toUpperCase()}`
+  await page.goto(`/workouts/exercise/new?name=${encodeURIComponent(name)}`)
+  await expect(page.getByText('Nothing picked yet')).toBeVisible()
+  await page.locator('#chest').first().click()
+  await expect(page.getByText('Selected', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Create', exact: true }).click()
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 })
 
 // Seeds through the API: the flows below start from an exercise that already has history.
@@ -104,12 +118,11 @@ test('renaming a custom exercise shows the new name on a past workout', async ({
   await expect(page.getByRole('heading', { level: 1, name: oldName })).toBeVisible()
   await page.getByRole('button', { name: 'Exercise actions' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Edit' }).click()
-  const sheet = page.getByRole('dialog', { name: 'Edit exercise' })
-  const field = sheet.getByPlaceholder('e.g. Soleus Slouch')
+  await expect(page.getByRole('heading', { level: 1, name: 'Edit exercise' })).toBeVisible()
+  const field = page.getByPlaceholder('e.g. Soleus Slouch')
   await expect(field).toHaveValue(oldName)
   await field.fill(newName)
-  await sheet.getByRole('button', { name: 'Save', exact: true }).click()
-  await expect(sheet).toHaveCount(0)
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: newName })).toBeVisible()
 
   await page.goto(`/workouts/${workout.id}`)

@@ -5,7 +5,7 @@ import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../
 import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
-import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
+import { KeyboardDoneAccessory } from '../../../src/components/ui/KeyboardDoneAccessory'
 import { ProgramDaysEditor } from '../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
@@ -184,7 +184,7 @@ export default function AddProgram() {
         <Button title={t('programs.form.saveProgram')} className={wide ? 'min-w-40' : 'flex-1'} onPress={handleSubmit} loading={save.busy} />
       </View>
 
-      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+      <KeyboardDoneAccessory nativeID={KEYPAD_DONE_ID} />
     </Screen>
   )
 }

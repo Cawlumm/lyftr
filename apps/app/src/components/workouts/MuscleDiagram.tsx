@@ -5,6 +5,7 @@ import { useTranslation, type Exercise } from '@lyftr/shared'
 import { muscleToBodySlugs } from '../../utils/exerciseUtils'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from '../ui'
+import { BODY_COLORS, BODY_MAIN_COLOR, BODY_SECONDARY_COLOR, bodyFill } from './bodyFigure'
 
 // Mobile equivalent of web's react-body-highlighter `Model` (gym exercise-info "Muscles
 // Worked"). Renders front + back highlighted body maps via react-native-body-highlighter
@@ -13,7 +14,6 @@ import { AppText } from '../ui'
 // Memoized: the SVG body maps are expensive to re-render, and the parent gym overlay can
 // re-render for unrelated reasons (rest sheet toggling) — this keeps the diagram stable
 // unless the exercise (or theme) actually changes.
-const COLORS = ['#0e7490', '#22d3ee'] // [intensity1 = secondary, intensity2 = primary]
 
 export const MuscleDiagram = memo(function MuscleDiagram({ exercise }: { exercise: Exercise }) {
   const { isDark } = useTheme()
@@ -29,27 +29,27 @@ export const MuscleDiagram = memo(function MuscleDiagram({ exercise }: { exercis
   ]
   if (data.length === 0) return null
 
-  const bodyColor = isDark ? '#162240' : '#e2e8f0'
+  const bodyColor = bodyFill(isDark)
 
   return (
     <View>
       <View className="flex-row items-start justify-center gap-6">
         <View className="items-center gap-1">
-          <Body data={data} side="front" scale={0.85} colors={COLORS} defaultFill={bodyColor} border="none" />
-          <AppText variant="caption" color="muted">{t('exercises.detail.bodyFront')}</AppText>
+          <Body data={data} side="front" scale={0.85} colors={BODY_COLORS} defaultFill={bodyColor} border="none" />
+          <AppText variant="caption" color="muted">{t('bodyMap.front')}</AppText>
         </View>
         <View className="items-center gap-1">
-          <Body data={data} side="back" scale={0.85} colors={COLORS} defaultFill={bodyColor} border="none" />
-          <AppText variant="caption" color="muted">{t('exercises.detail.bodyBack')}</AppText>
+          <Body data={data} side="back" scale={0.85} colors={BODY_COLORS} defaultFill={bodyColor} border="none" />
+          <AppText variant="caption" color="muted">{t('bodyMap.back')}</AppText>
         </View>
       </View>
       <View className="mt-3 flex-row items-center justify-center gap-4">
         <View className="flex-row items-center gap-1.5">
-          <View className="h-3 w-3 rounded-full" style={{ backgroundColor: '#22d3ee' }} />
+          <View className="h-3 w-3 rounded-full" style={{ backgroundColor: BODY_MAIN_COLOR }} />
           <AppText variant="caption" color="muted">{t('exercises.detail.primary')}</AppText>
         </View>
         <View className="flex-row items-center gap-1.5">
-          <View className="h-3 w-3 rounded-full" style={{ backgroundColor: '#0e7490' }} />
+          <View className="h-3 w-3 rounded-full" style={{ backgroundColor: BODY_SECONDARY_COLOR }} />
           <AppText variant="caption" color="muted">{t('exercises.detail.secondary')}</AppText>
         </View>
       </View>

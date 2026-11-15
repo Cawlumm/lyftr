@@ -114,6 +114,24 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
 
 ---
 
+## Form pages — read before adding a screen
+
+**The rule: a new form page is a route file that wires data to a form built from the shared pieces; it does not re-implement the page around it.**
+
+### Single points of truth
+
+- **`apps/app/src/components/ui/FormPage.tsx`**: the page scaffold. It provides the back and title header, a keyboard-aware scroll (drag/tap dismisses, iOS Done bar) and a sticky primary action kept above the keyboard. It also owns the action's busy and disabled state, an inline error with retry beside that action, and an optional destructive action through `ConfirmSheet`. `useDiscardGuard(dirty)` is the unsaved-changes guard on back; call `guard.allowLeave()` before a save navigates away.
+- **Field pieces in `ui/`:**
+  - `Field`: label, error and a `footer` slot for suggestions. `FormField` is a `Field` already wired to the page's Done bar.
+  - `IconTileGroup`: single or multi select with icon tiles or chips, radio/checkbox semantics, optional `max`.
+  - `PhotoSlot`.
+  - `KeyboardDoneAccessory`: the only iOS Done bar. FormPage gives each page its own id.
+- **The muscle picker is not generic** and lives beside the exercise screens: `workouts/BodyMapPicker` (body map, with a list as the keyboard and screen-reader path).
+- **Options are data:** exercise equipment, categories and muscles are one list each, in `components/workouts/exerciseOptions.ts` (`{ value, icon, labelKey }`). Adding an option is one line there, and its test holds the lists to the server's taxonomy.
+- **Create and edit are one form:** they share one component with a `mode` prop and one pure validator (`CustomExerciseForm` + `validateCustomExercise`). The edit route only loads the record and renders the form.
+
+`settings/name.tsx` is the second page on the scaffold. Other forms predate it; move them when you touch them.
+
 ## Demo mode and registration
 
 - Demo account: `demo@lyftr.local` / `password123`, with a PPL program + 8 weeks of workouts. **Seeded only when `DEMO_MODE` is on, and it is off by default everywhere, development included** (`ENV` itself defaults to `"development"`, so keying off it seeded a published password). Opt in with `DEMO_MODE=true go run .`; Compose passes `${DEMO_MODE:-false}`, `fly.toml` sets it true.

@@ -2,9 +2,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import type { Exercise } from '@lyftr/shared'
 
 const mockReplace = jest.fn()
+const mockPush = jest.fn()
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), replace: (...a: unknown[]) => mockReplace(...a), back: jest.fn(), canGoBack: () => true },
+  router: { push: (...a: unknown[]) => mockPush(...a), replace: (...a: unknown[]) => mockReplace(...a), back: jest.fn(), canGoBack: () => true },
   useLocalSearchParams: () => ({ exerciseId: '5' }),
+  useFocusEffect: () => {},
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -18,7 +20,6 @@ jest.mock('./CustomBadge', () => {
   const { Text } = require('react-native')
   return { CustomBadge: () => <Text>Custom</Text> }
 }, { virtual: true })
-jest.mock('./CustomExerciseSheet', () => ({ CustomExerciseSheet: () => null }), { virtual: true })
 jest.mock('./MergeExerciseSheet', () => ({ MergeExerciseSheet: () => null }))
 jest.mock('./MuscleDiagram', () => ({ MuscleDiagram: () => null }))
 let mockSupported = true
@@ -152,6 +153,13 @@ describe('ExerciseDetailScreen photo', () => {
     await openMenu()
     expect(await screen.findByText('Add photo')).toBeTruthy()
     expect(screen.queryByText('Remove photo')).toBeNull()
+  })
+
+  it('opens the edit page from the menu, inside the same tab', async () => {
+    await load(customRow)
+    await openMenu()
+    await fireEvent.press(await screen.findByText('Edit'))
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/5/edit'), { timeout: 2000 })
   })
 
   it('offers no photo actions on a server without photos', async () => {

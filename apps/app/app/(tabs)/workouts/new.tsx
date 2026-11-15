@@ -16,7 +16,7 @@ import { ExerciseFormList } from '../../../src/components/workouts/ExerciseFormC
 import { DurationField } from '../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../src/components/workouts/ReorderExercisesSheet'
-import { KeyboardDoneBar } from '../../../src/components/workouts/KeyboardDoneBar'
+import { KeyboardDoneAccessory } from '../../../src/components/ui/KeyboardDoneAccessory'
 import { ProgramPicker } from '../../../src/components/workouts/ProgramPicker'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../src/lib/useBreakpoint'
@@ -410,7 +410,7 @@ export default function AddWorkout() {
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}
-      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+      <KeyboardDoneAccessory nativeID={KEYPAD_DONE_ID} />
 
       {/* Conditionally mounted, exactly like web — search state resets per open. */}
       {showPicker && (

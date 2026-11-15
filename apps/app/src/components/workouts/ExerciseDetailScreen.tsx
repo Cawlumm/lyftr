@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { format, subDays } from 'date-fns'
@@ -38,7 +38,6 @@ import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
 import { useSessionPillInset } from './SessionPill'
 import { CustomBadge } from './CustomBadge'
-import { CustomExerciseSheet } from './CustomExerciseSheet'
 import { MergeExerciseSheet } from './MergeExerciseSheet'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
@@ -119,7 +118,6 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [photoBusy, setPhotoBusy] = useState(false)
   const heroPhoto = useExercisePhoto(exercise?.id ?? 0, 'full', exercise?.photo_id)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [editing, setEditing] = useState(false)
   const [merging, setMerging] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error' } | null>(null)
@@ -152,6 +150,16 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, retryKey])
+
+  // Back from the edit page (or any page that can change this exercise) shows what it now holds.
+  // Only a custom exercise can change under us; a catalog one has nothing to revalidate.
+  const editable = useRef(false)
+  editable.current = !!exercise?.is_custom
+  const focusedOnce = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!focusedOnce.current) { focusedOnce.current = true; return }
+    if (editable.current) setRetryKey((k) => k + 1)
+  }, []))
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -236,7 +244,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     ...(cameraSupported ? [{ label: t('exercises.custom.photo.take'), icon: Camera, onPress: () => { void changePhoto('camera') } }] : []),
   ]
   const menuActions: SheetAction[] = [
-    { label: t('exercises.custom.actions.edit'), icon: Pencil, onPress: () => setEditing(true) },
+    { label: t('exercises.custom.actions.edit'), icon: Pencil, onPress: () => router.push(`${detailPath(exercise.id)}/edit` as unknown as Href) },
     { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
     ...(photosOn ? [
       { label: t(exercise.photo_id ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.add'), icon: ImagePlus, onPress: () => setSourceOpen(true) },
@@ -253,13 +261,6 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     <>
       <ActionSheet open={menuOpen} title={t('exercises.custom.badgeLabel')} subtitle={exercise.name} actions={menuActions} onClose={() => setMenuOpen(false)} />
       <ActionSheet open={sourceOpen} title={t('exercises.custom.photo.sourceTitle')} subtitle={exercise.name} actions={sourceActions} onClose={() => setSourceOpen(false)} />
-      <CustomExerciseSheet
-        open={editing}
-        mode="edit"
-        exercise={exercise}
-        onSaved={(e) => { setExercise(e); setEditing(false) }}
-        onClose={() => setEditing(false)}
-      />
       <MergeExerciseSheet
         source={exercise}
         open={merging}
@@ -396,7 +397,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const instructionsCard = descLines.length > 0 ? (
     <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
       <AppText variant="label" color="muted" className="mb-3 uppercase">
-        {custom ? t('exercises.custom.sheet.notes') : t('exercises.detail.instructions')}
+        {custom ? t('exercises.custom.form.notes') : t('exercises.detail.instructions')}
       </AppText>
       <View className="gap-2.5">
         {descLines.map((line, i) => {

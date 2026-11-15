@@ -1,4 +1,4 @@
-import { ExerciseDetailScreen } from '../../../../src/components/workouts/ExerciseDetailScreen'
+import { ExerciseDetailScreen } from '../../../../../src/components/workouts/ExerciseDetailScreen'
 
 // Programs-tab leaf for the shared exercise-detail screen (reached from program detail).
 // Its own copy (rather than linking the workouts-tab route) keeps back within the Programs

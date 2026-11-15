@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics'
 import { Scale, X } from '../ui/icons'
 import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, useTranslation } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
+  Alert, AppText, Button, DateInput, Field, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID,
   Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
@@ -133,7 +133,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
               onChange={setValue}
               placeholder="0"
               accessibilityLabel={t('home.quickWeighIn.weight')}
-              inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
           </StepperTile>
 
@@ -162,7 +162,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           />
         </View>
       </View>
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </Sheet>
   )
 }

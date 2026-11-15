@@ -15,7 +15,7 @@ import { ExerciseFormList } from '../../../../src/components/workouts/ExerciseFo
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
-import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
+import { KeyboardDoneAccessory } from '../../../../src/components/ui/KeyboardDoneAccessory'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../../src/lib/useMotion'
@@ -428,7 +428,7 @@ export default function EditWorkout() {
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}
-      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+      <KeyboardDoneAccessory nativeID={KEYPAD_DONE_ID} />
 
       {showPicker && (
         <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />

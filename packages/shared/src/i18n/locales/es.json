@@ -316,7 +316,19 @@
     "anonymousName": "usuario",
     "notes": "Notas",
     "saveChanges": "Guardar cambios",
-    "addExercise": "Agregar ejercicio"
+    "addExercise": "Agregar ejercicio",
+    "discardTitle": "¿Descartar los cambios?",
+    "discardMessage": "Lo que has cambiado aquí no se ha guardado.",
+    "discardConfirm": "Descartar",
+    "keepEditing": "Seguir editando"
+  },
+  "bodyMap": {
+    "map": "Mapa",
+    "list": "Lista",
+    "front": "Frontal",
+    "back": "Posterior",
+    "selected": "Seleccionado",
+    "nothingPicked": "Nada elegido todavía"
   },
   "errors": {
     "api": {
@@ -1464,8 +1476,6 @@
     "detail": {
       "loadFailed": "No se pudo cargar este ejercicio",
       "musclesWorked": "Músculos trabajados",
-      "bodyFront": "Frontal",
-      "bodyBack": "Posterior",
       "primary": "Principal",
       "secondary": "Secundario",
       "alsoWorks": "También trabaja",
@@ -1490,9 +1500,8 @@
       "badge": "Personal",
       "badgeLabel": "Ejercicio personalizado",
       "photo": {
-        "label": "Foto",
-        "hint": "Opcional. Solo tú la ves.",
         "add": "Añadir foto",
+        "addHint": "Opcional · te ayuda a reconocerlo en las listas",
         "replace": "Cambiar foto",
         "remove": "Quitar foto",
         "choose": "Elegir foto",
@@ -1500,8 +1509,6 @@
         "sourceTitle": "Añadir una foto",
         "preview": "Foto de este ejercicio",
         "pending": "Foto lista. Se sube al guardar.",
-        "uploading": "Subiendo foto…",
-        "removing": "Quitando foto…",
         "uploadFailed": "No se pudo subir la foto.",
         "removeFailed": "No se pudo quitar la foto.",
         "pickFailed": "No se pudo leer esa imagen. Prueba con otra.",
@@ -1529,18 +1536,18 @@
       "archivedNote": "Archivado. No aparece en las búsquedas; tu historial sigue visible aquí.",
       "mergedNote": "Combinado. Tu historial de este ejercicio ahora está en otro ejercicio.",
       "viewMerged": "Ver ese ejercicio",
-      "sheet": {
+      "form": {
         "createTitle": "Nuevo ejercicio",
         "editTitle": "Editar ejercicio",
-        "privateNote": "Solo tú puedes ver los ejercicios que creas.",
+        "privateNote": "Solo tú puedes verlo.",
         "name": "Nombre",
         "namePlaceholder": "p. ej., Elevación de sóleo",
         "nameRequired": "Ponle un nombre al ejercicio.",
+        "nameControlChars": "Los nombres no pueden contener caracteres de control.",
         "muscle": "Músculo principal",
         "muscleRequired": "Elige el músculo principal.",
         "equipment": "Equipo",
-        "more": "Añadir notas, otros músculos, categoría",
-        "less": "Ocultar detalles",
+        "more": "Más detalles",
         "category": "Categoría",
         "otherMuscles": "Otros músculos",
         "notes": "Notas",
@@ -1551,7 +1558,20 @@
         "createAndAdd": "Crear y añadir",
         "create": "Crear",
         "save": "Guardar",
-        "saveFailed": "No se pudo guardar el ejercicio"
+        "saveFailed": "No se pudo guardar el ejercicio",
+        "moreHint": "Opcional · categoría, otros músculos, notas",
+        "muscleHint": "Toca la figura o cambia a la lista",
+        "useThis": "Usar este",
+        "loadFailed": "No se pudo abrir el ejercicio",
+        "notEditable": "Solo se pueden editar tus propios ejercicios.",
+        "group": {
+          "chestShoulders": "Pecho y hombros",
+          "arms": "Brazos",
+          "back": "Espalda",
+          "core": "Core",
+          "legs": "Piernas",
+          "wholeBody": "Cuerpo entero"
+        }
       },
       "actions": {
         "menu": "Acciones del ejercicio",

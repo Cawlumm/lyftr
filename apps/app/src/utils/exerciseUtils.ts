@@ -1,4 +1,4 @@
-import { resolveMuscleSlugs } from '@lyftr/shared'
+import { categoryLabel, equipmentLabel, muscleLabel, resolveMuscleSlugs } from '@lyftr/shared'
 
 // Mobile's half of exercise presentation: the RN tint table and the
 // react-native-body-highlighter slug table. The equipment and muscle labels and the lookup
@@ -10,7 +10,7 @@ import { resolveMuscleSlugs } from '@lyftr/shared'
 // The inks are Tailwind's own *-400 (dark) and *-800 (light) values.
 // `border` carries web's muscleColorBordered() border class for the picker badges;
 // borderless badges (detail screen) simply don't apply it.
-export { categoryLabel, equipmentLabel, muscleLabel } from '@lyftr/shared'
+export { categoryLabel, equipmentLabel, muscleLabel }
 
 export interface MuscleTint {
   /** NativeWind class for the badge background (bg only — no text class). */
@@ -99,3 +99,35 @@ const MUSCLE_TO_BODY_SLUG: Record<string, string[]> = {
 }
 
 export const muscleToBodySlugs = (m: string): string[] => resolveMuscleSlugs(m, MUSCLE_TO_BODY_SLUG)
+
+// The body map's reverse lookup: a tapped region to the one muscle of ours it selects. Where a
+// region stands for several (the upper back is lats, middle back and rhomboids) the most
+// specific visible one wins, and the list view stays the precise way to say another. Regions
+// that are not a muscle group we offer (head, hands, feet, knees, ankles) select nothing.
+const BODY_SLUG_TO_MUSCLE: Record<string, string> = {
+  abs: 'abdominals',
+  obliques: 'abdominals',
+  adductors: 'adductors',
+  biceps: 'biceps',
+  calves: 'calves',
+  tibialis: 'calves',
+  chest: 'chest',
+  deltoids: 'shoulders',
+  forearm: 'forearms',
+  gluteal: 'glutes',
+  hamstring: 'hamstrings',
+  'lower-back': 'lower-back',
+  neck: 'neck',
+  quadriceps: 'quadriceps',
+  trapezius: 'traps',
+  triceps: 'triceps',
+  'upper-back': 'lats',
+}
+
+export const bodySlugToMuscle = (slug: string | undefined): string | null => (slug && BODY_SLUG_TO_MUSCLE[slug]) || null
+
+// "lower back" -> "Lower Back": the form's chips read as names, not as the lowercase slugs the
+// catalog screens show in running text.
+export const titleCase = (s: string): string => s.replace(/-/g, ' ').replace(/(^|\s)(\p{L})/gu, (_, sp: string, c: string) => sp + c.toLocaleUpperCase())
+
+export const muscleChipLabel = (m: string): string => titleCase(muscleLabel(m))

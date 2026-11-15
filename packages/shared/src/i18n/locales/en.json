@@ -310,7 +310,19 @@
     "anonymousName": "there",
     "notes": "Notes",
     "saveChanges": "Save Changes",
-    "addExercise": "Add Exercise"
+    "addExercise": "Add Exercise",
+    "discardTitle": "Discard changes?",
+    "discardMessage": "What you changed here hasn't been saved.",
+    "discardConfirm": "Discard",
+    "keepEditing": "Keep editing"
+  },
+  "bodyMap": {
+    "map": "Map",
+    "list": "List",
+    "front": "Front",
+    "back": "Back",
+    "selected": "Selected",
+    "nothingPicked": "Nothing picked yet"
   },
   "errors": {
     "api": {
@@ -1442,8 +1454,6 @@
     "detail": {
       "loadFailed": "Couldn't load this exercise",
       "musclesWorked": "Muscles Worked",
-      "bodyFront": "Front",
-      "bodyBack": "Back",
       "primary": "Primary",
       "secondary": "Secondary",
       "alsoWorks": "Also works",
@@ -1467,9 +1477,8 @@
       "badge": "Custom",
       "badgeLabel": "Custom exercise",
       "photo": {
-        "label": "Photo",
-        "hint": "Optional. Only you can see it.",
         "add": "Add photo",
+        "addHint": "Optional · helps you spot it in lists",
         "replace": "Replace photo",
         "remove": "Remove photo",
         "choose": "Choose photo",
@@ -1477,8 +1486,6 @@
         "sourceTitle": "Add a photo",
         "preview": "Photo of this exercise",
         "pending": "Photo ready. It uploads when you save.",
-        "uploading": "Uploading photo…",
-        "removing": "Removing photo…",
         "uploadFailed": "Couldn't upload the photo.",
         "removeFailed": "Couldn't remove the photo.",
         "pickFailed": "Couldn't read that picture. Try another one.",
@@ -1506,18 +1513,18 @@
       "archivedNote": "Archived. It's hidden from search; your history still shows here.",
       "mergedNote": "Merged. Your history for it now lives under another exercise.",
       "viewMerged": "View that exercise",
-      "sheet": {
+      "form": {
         "createTitle": "New exercise",
         "editTitle": "Edit exercise",
-        "privateNote": "Only you can see exercises you create.",
+        "privateNote": "Only you can see it.",
         "name": "Name",
         "namePlaceholder": "e.g. Soleus Slouch",
         "nameRequired": "Give the exercise a name.",
+        "nameControlChars": "Names can't contain control characters.",
         "muscle": "Main muscle",
         "muscleRequired": "Pick the main muscle.",
         "equipment": "Equipment",
-        "more": "Add notes, other muscles, category",
-        "less": "Hide details",
+        "more": "More details",
         "category": "Category",
         "otherMuscles": "Other muscles",
         "notes": "Notes",
@@ -1528,7 +1535,20 @@
         "createAndAdd": "Create and add",
         "create": "Create",
         "save": "Save",
-        "saveFailed": "Couldn't save the exercise"
+        "saveFailed": "Couldn't save the exercise",
+        "moreHint": "Optional · category, other muscles, notes",
+        "muscleHint": "Tap the figure, or switch to the list",
+        "useThis": "Use this",
+        "loadFailed": "Couldn't open the exercise",
+        "notEditable": "Only your own exercises can be edited.",
+        "group": {
+          "chestShoulders": "Chest & shoulders",
+          "arms": "Arms",
+          "back": "Back",
+          "core": "Core",
+          "legs": "Legs",
+          "wholeBody": "Whole body"
+        }
       },
       "actions": {
         "menu": "Exercise actions",

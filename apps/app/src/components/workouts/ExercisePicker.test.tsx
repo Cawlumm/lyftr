@@ -1,8 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { Exercise } from '@lyftr/shared'
 
+const mockPush = jest.fn()
+let mockPathname = '/workouts/new'
 jest.mock('expo-router', () => ({
-  router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
+  router: { push: (...a: unknown[]) => mockPush(...a), navigate: jest.fn(), replace: jest.fn() },
+  usePathname: () => mockPathname,
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -15,6 +18,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 import { client } from '../../lib/lyftr'
 import { useMyExercises } from '../../hooks/useMyExercises'
+import { resolveExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { ExercisePicker } from './ExercisePicker'
 
 jest.mock('../../hooks/useMyExercises', () => ({
@@ -37,6 +41,8 @@ const renderPicker = async () =>
 
 afterEach(() => {
   jest.restoreAllMocks()
+  mockPush.mockClear()
+  mockPathname = '/workouts/new'
   mockMine.mockReturnValue({ supported: false, items: [], failed: false, reload: jest.fn() })
 })
 
@@ -160,24 +166,54 @@ describe('ExercisePicker (mobile)', () => {
       expect(reload).toHaveBeenCalled()
     })
 
-    it('creating from the row selects the new exercise', async () => {
+    const pressCreate = async (onSelect: jest.Mock, onClose: jest.Mock) => {
       mineState()
       catalog()
-      const created: Exercise = { ...bench, id: 901, name: 'Soleus Slouch', muscle_group: 'calves', is_custom: true }
-      const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(created)
-      const onSelect = jest.fn()
-      await render(<ExercisePicker selectedIds={[]} onSelect={onSelect} onClose={jest.fn()} />)
+      await render(<ExercisePicker selectedIds={[]} onSelect={onSelect} onClose={onClose} />)
       await screen.findByText('Bench Press')
       await type('Soleus Slouch')
       await fireEvent.press(screen.getByLabelText('Create a custom exercise named Soleus Slouch'))
+    }
 
-      expect(await screen.findByText('New exercise')).toBeTruthy()
-      expect(screen.getAllByDisplayValue('Soleus Slouch')).toHaveLength(2)
-      await fireEvent.press(screen.getByRole('radio', { name: /^calves$/i }))
-      await fireEvent.press(screen.getByRole('button', { name: 'Create and add' }))
+    it('shows no "No exercises found" under the Create row when nothing matched', async () => {
+      mineState()
+      jest.spyOn(client.exerciseAPI, 'list').mockImplementation(((p?: { q?: string }) => Promise.resolve(p?.q ? [] : [bench])) as never)
+      await renderPicker()
+      await screen.findByText('Bench Press')
+      await type('Soleus Slouch')
+      expect(await screen.findByLabelText('Create a custom exercise named Soleus Slouch')).toBeTruthy()
+      await waitFor(() => expect(screen.queryByText('Bench Press')).toBeNull(), { timeout: 2000 })
+      expect(screen.queryByText('No exercises found')).toBeNull()
+    })
 
-      await waitFor(() => expect(onSelect).toHaveBeenCalledWith(created))
-      expect(create).toHaveBeenCalledWith(expect.objectContaining({ name: 'Soleus Slouch', muscle_group: 'calves', equipment: 'body-only' }))
+    it('Create closes the picker, then opens the create page with the name and a request', async () => {
+      const onClose = jest.fn()
+      await pressCreate(jest.fn(), onClose)
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+      expect(mockPush).toHaveBeenCalledTimes(1)
+      const { pathname, params } = mockPush.mock.calls[0][0]
+      expect(pathname).toBe('/workouts/exercise/new')
+      expect(params).toEqual({ name: 'Soleus Slouch', request: expect.any(String) })
+      expect(onClose.mock.invocationCallOrder[0]).toBeLessThan(mockPush.mock.invocationCallOrder[0])
+    })
+
+    it('resolving the request hands the created exercise to onSelect, once', async () => {
+      const onSelect = jest.fn()
+      await pressCreate(onSelect, jest.fn())
+      const created: Exercise = { ...bench, id: 901, name: 'Soleus Slouch', muscle_group: 'calves', is_custom: true }
+      const { request } = mockPush.mock.calls[0][0].params
+
+      expect(resolveExerciseCreate(request, created)).toBe(true)
+      expect(onSelect).toHaveBeenCalledWith(created)
+      expect(resolveExerciseCreate(request, created)).toBe(false)
+      expect(onSelect).toHaveBeenCalledTimes(1)
+    })
+
+    it('opens the create page in the Programs tab when the picker was opened there', async () => {
+      mockPathname = '/programs/new'
+      await pressCreate(jest.fn(), jest.fn())
+      expect(mockPush.mock.calls[0][0].pathname).toBe('/programs/exercise/new')
     })
   })
 })

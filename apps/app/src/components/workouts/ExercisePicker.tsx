@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { router, usePathname, type Href } from 'expo-router'
 import { ActivityIndicator, FlatList, Modal, Platform, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { useStableCallback } from '../../hooks/useStableCallback'
@@ -7,6 +8,7 @@ import { exerciseCatalogEmpty, exerciseNameFromQuery, hasEquipmentToShow, EXERCI
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
 import { FIELD_FOCUS_RING, interactive, NO_INPUT_OUTLINE } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
+import { requestExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useMyExercises } from '../../hooks/useMyExercises'
 import { useTheme } from '../../theme/useTheme'
@@ -14,7 +16,6 @@ import { useBreakpoint } from '../../lib/useBreakpoint'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { CustomBadge } from './CustomBadge'
-import { CustomExerciseSheet } from './CustomExerciseSheet'
 import { MyExercisesRetry } from './MyExercisesRetry'
 
 interface Props {
@@ -143,9 +144,16 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
   const typed = query.trim()
   const showCreate = allowCreate && mine.supported && [...typed].length >= 2
   const createName = exerciseNameFromQuery(typed)
-  const [creating, setCreating] = useState(false)
-  const openCreate = useCallback(() => setCreating(true), [])
-  const closeCreate = useCallback(() => setCreating(false), [])
+  // The create page lives in the tab the picker was opened from, so Back stays in that stack.
+  const base = usePathname().startsWith('/programs') ? '/programs' : '/workouts'
+  // The picker is an RN Modal and must be gone before the route changes, or the page would open
+  // underneath it. What the caller does with the created exercise is parked with the request
+  // and run by the page on save, exactly as for a pick.
+  const openCreate = useCallback(() => {
+    const request = requestExerciseCreate(select)
+    onClose()
+    router.push({ pathname: `${base}/exercise/new`, params: { name: createName, request } } as unknown as Href)
+  }, [select, onClose, base, createName])
   // From lg on web a centred panel over the dimmed app, like gym mode (GymFrame.web), rather
   // than a phone screen stretched across the desktop and over the sidebar.
   const { lg } = useBreakpoint()
@@ -247,7 +255,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
               // it reads as an empty catalogue rather than a connection that dropped.
               listError ? (
                 <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
-              ) : myRows.length > 0 ? undefined : exerciseCatalogEmpty(debouncedQuery, { items: exercises, hasMore, error: listError }) ? (
+              ) : myRows.length > 0 || showCreate ? undefined : exerciseCatalogEmpty(debouncedQuery, { items: exercises, hasMore, error: listError }) ? (
                 <EmptyState
                   compact
                   icon={Dumbbell}
@@ -287,19 +295,6 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
         )}
       </SafeAreaView>
       </SafeAreaProvider>
-      {/* Inside this Modal's tree: a Sheet is a Modal of its own, and one mounted beside the
-          picker could not be presented over it on iOS. */}
-      {allowCreate && mine.supported ? (
-        <CustomExerciseSheet
-          open={creating}
-          mode="create"
-          initialName={createName}
-          submitLabel="createAndAdd"
-          onSaved={select}
-          onUseExisting={select}
-          onClose={closeCreate}
-        />
-      ) : null}
       </View>
       </View>
     </Modal>

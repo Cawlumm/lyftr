@@ -3,7 +3,7 @@ import { Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } fr
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Link2, Plus, Sparkles, Unlink2, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
-import { AppText, Menu, NUMERIC_ACCESSORY_ID } from '../ui'
+import { AppText, Menu, KEYBOARD_DONE_ID } from '../ui'
 import { Icon } from '../ui/Icon'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
@@ -54,7 +54,7 @@ function SetCell({ value, editable, mode, placeholder, placeholderColor, accessi
         onChange(v)
       }}
       keyboardType={mode === 'numeric' ? 'number-pad' : 'decimal-pad'}
-      inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+      inputAccessoryViewID={KEYBOARD_DONE_ID}
       placeholder={placeholder}
       placeholderTextColor={placeholderColor}
       className={`${CELL} ${editable ? '' : 'opacity-40'}`}

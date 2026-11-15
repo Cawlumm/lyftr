@@ -6,7 +6,7 @@ import { ArrowLeft, Edit2, Scale, Trash2 } from '../../../src/components/ui/icon
 import { useAsyncAction, uiMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
   AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, StepperTile, deleteConfirmProps,
+  KeyboardDoneAccessory, KEYBOARD_DONE_ID, Screen, scrollBleed, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { touchPad, touchTarget } from '../../../src/components/ui/interaction'
 import { client, useSettingsStore } from '../../../src/lib/lyftr'
@@ -226,7 +226,7 @@ export default function WeightDetail() {
                     onChange={setEditWeight}
                     placeholder="0"
                     accessibilityLabel={t('weight.log.weightField')}
-                    inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                    inputAccessoryViewID={KEYBOARD_DONE_ID}
                   />
                 </StepperTile>
 
@@ -266,7 +266,7 @@ export default function WeightDetail() {
         onCancel={() => { setConfirming(false); remove.reset() }}
       />
       {/* iOS Done bar above the numeric keyboard (the edit weight NumberField links it). */}
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </Screen>
   )
 }

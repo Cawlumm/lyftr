@@ -4,7 +4,7 @@ import * as Haptics from 'expo-haptics'
 import { router } from 'expo-router'
 import { CheckCircle2, Dumbbell, Flag, Plus, Timer, Trash2, X } from '../../../src/components/ui/icons'
 import { currentRound, groupColorIndex, groupOf, isLinkedToNext, nextSupersetTarget, restLabel, roundRest, totalRounds, useAsyncAction, weightShort, type Exercise, formatElapsed, occurrenceKeys, remapIndex, useElapsedSeconds, useTranslation } from '@lyftr/shared'
-import { AppText, ConfirmSheet, NumericKeyboardAccessory, Screen, scrollBleed } from '../../../src/components/ui'
+import { AppText, ConfirmSheet, KeyboardDoneAccessory, Screen, scrollBleed } from '../../../src/components/ui'
 import { WEB_BUTTON, currentStep, interactive } from '../../../src/components/ui/interaction'
 import { RestTimerBanner } from '../../../src/components/workouts/RestTimerBanner'
 import { applyRestOnToggle } from '../../../src/lib/restOnSetToggle'
@@ -504,7 +504,7 @@ export default function ActiveWorkout() {
       />
 
       {/* iOS Done bar above the numeric keyboard (reps/weight fields reference it). */}
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </Screen>
   )
 }

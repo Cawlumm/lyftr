@@ -12,7 +12,7 @@ import {
   currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
 } from '@lyftr/shared'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
-import { AppText, ConfirmSheet, Menu, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile, type MenuItem } from '../ui'
+import { AppText, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
 import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
@@ -445,7 +445,7 @@ export function GymModeWorkout() {
         onClose={() => setSupersetOpen(false)}
       />
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </SafeAreaView>
     </GymFrame>
   )
@@ -873,12 +873,12 @@ export function GymModeWorkout() {
           <View className="w-full flex-row gap-3">
             <View className="flex-1">
               <StepperTile icon={Repeat} label={t('gym.labels.reps')} name={t('gym.labels.repsName')} step={REP_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}>
-                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.reps')} inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.reps')} inputAccessoryViewID={KEYBOARD_DONE_ID} />
               </StepperTile>
             </View>
             <View className="flex-1">
               <StepperTile icon={Dumbbell} label={t('common.weightWithUnit', { unit: wUnit })} name={t('common.weightName')} step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
-                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.weight')} inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.weight')} inputAccessoryViewID={KEYBOARD_DONE_ID} />
               </StepperTile>
             </View>
           </View>

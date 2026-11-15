@@ -1,6 +1,6 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
-import { router, type Href } from 'expo-router'
+import { router, useFocusEffect, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { ArrowLeft, ChevronRight, Dumbbell, Plus, SearchX } from '../ui/icons'
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
@@ -22,7 +22,6 @@ import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { useSessionPillInset } from './SessionPill'
 import { CustomBadge } from './CustomBadge'
-import { CustomExerciseSheet } from './CustomExerciseSheet'
 import { MyExercisesRetry } from './MyExercisesRetry'
 
 // The custom group above the catalog: this many rows at most, and past it a "See all" row.
@@ -118,7 +117,6 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
   const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups({ includeMine: true })))
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [creating, setCreating] = useState(false)
   // Whether the user has any custom exercise at all, whatever the search: it decides whether
   // "Custom only" is offered in the filter sheet.
   const anyMine = useMyExercises({}, 1)
@@ -167,6 +165,16 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
     deps: [debouncedQuery, muscle, equipment, mineOn],
   })
 
+  // Coming back from the create page (or an exercise's page, where one can be renamed or archived)
+  // the lists revalidate in place; the first focus is the load that is already under way.
+  const refresh = useRef(() => {})
+  refresh.current = () => { mineReload(); void reload() }
+  const focused = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!focused.current) { focused.current = true; return }
+    refresh.current()
+  }, []))
+
   // Eased rather than snapped, so a fresh query reads as the same list updating.
   const fade = useAnimatedStyle(
     () => ({ opacity: withTiming(refreshing ? 0.5 : 1, { duration: 150 }) }),
@@ -177,7 +185,10 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   // are they read as its results, so the failure takes their place.
   const shown = staleResults ? [] : exercises
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
-  const openExercise = (e: Exercise) => router.push(exerciseHref(e.id))
+  const openCreate = () => {
+    const name = exerciseNameFromQuery(query)
+    router.push({ pathname: '/workouts/exercise/new', params: name ? { name } : {} } as unknown as Href)
+  }
   const myGroup = mineOn ? [] : my.items
   const myShown = myGroup.length >= MY_GROUP_FETCH ? myGroup.slice(0, MY_GROUP_SHOWN) : myGroup
   const hasMyGroup = myShown.length > 0
@@ -192,7 +203,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
             title={t('exercises.browse.title')}
             subtitle={t('exercises.browse.subtitle')}
             action={supported ? (
-              <IconButton icon={Plus} label={t('exercises.custom.add')} variant="solid" size="md" onPress={() => setCreating(true)} />
+              <IconButton icon={Plus} label={t('exercises.custom.add')} variant="solid" size="md" onPress={openCreate} />
             ) : undefined}
           />
         </View>
@@ -209,18 +220,6 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
         <View className="pb-2">
           <ActiveFilters groups={groups} values={filters} onRemove={(key) => changeFilter(key, null)} />
         </View>
-      ) : null}
-
-      {supported ? (
-        <CustomExerciseSheet
-          open={creating}
-          mode="create"
-          submitLabel="create"
-          initialName={exerciseNameFromQuery(query)}
-          onSaved={(e) => { setCreating(false); mineReload(); void reload(); openExercise(e) }}
-          onUseExisting={(e) => { setCreating(false); openExercise(e) }}
-          onClose={() => setCreating(false)}
-        />
       ) : null}
 
       <FilterSheet

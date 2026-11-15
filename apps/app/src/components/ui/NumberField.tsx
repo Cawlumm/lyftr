@@ -12,7 +12,7 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   accessibilityLabel?: string
-  /** iOS: id of an InputAccessoryView (e.g. NUMERIC_ACCESSORY_ID) to show a Done bar. */
+  /** iOS: id of an InputAccessoryView (e.g. KEYBOARD_DONE_ID) to show a Done bar. */
   inputAccessoryViewID?: string
 }
 
