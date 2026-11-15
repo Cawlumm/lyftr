@@ -231,6 +231,13 @@ func (s *ExerciseStore) Unarchive(userID, id int64) (models.Exercise, error) {
 			return models.Exercise{}, err
 		}
 		if archived {
+			var n int
+			if err := tx.QueryRow(`SELECT COUNT(*) FROM exercises WHERE owner_user_id = ? AND archived_at IS NULL`, userID).Scan(&n); err != nil {
+				return models.Exercise{}, err
+			}
+			if n >= MaxCustomExercises {
+				return models.Exercise{}, ErrCustomLimit
+			}
 			if _, err := tx.Exec(`UPDATE exercises SET archived_at = NULL, merged_into_id = NULL WHERE id = ?`, id); err != nil {
 				return models.Exercise{}, nameTaken(err)
 			}
@@ -242,10 +249,16 @@ func (s *ExerciseStore) Unarchive(userID, id int64) (models.Exercise, error) {
 // Usage counts the caller's own workouts and program days that use the exercise.
 func (s *ExerciseStore) Usage(userID, id int64) (models.ExerciseUsage, error) {
 	var u models.ExerciseUsage
-	if err := s.VisibleTo(userID, []int64{id}); err != nil {
+	var visible bool
+	err := s.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM exercises WHERE id = ? AND (owner_user_id IS NULL OR owner_user_id = ?))`,
+		id, userID).Scan(&visible)
+	if err != nil {
+		return u, err
+	}
+	if !visible {
 		return u, ErrExerciseNotFound
 	}
-	err := s.db.QueryRow(`SELECT
+	err = s.db.QueryRow(`SELECT
 		(SELECT COUNT(DISTINCT we.workout_id) FROM workout_exercises we
 			JOIN workouts w ON w.id = we.workout_id WHERE we.exercise_id = ? AND w.user_id = ?),
 		(SELECT COUNT(DISTINCT pe.program_day_id) FROM program_exercises pe

@@ -139,6 +139,15 @@ func TestCreateCustom_Limit(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustCreate(t, s, a, "Fits after an archive")
+
+	// Restoring is creating again as far as the cap goes.
+	var x1 int64
+	if err := conn.QueryRow(`SELECT id FROM exercises WHERE name = 'x1'`).Scan(&x1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Unarchive(a, x1); !errors.Is(err, ErrCustomLimit) {
+		t.Fatalf("unarchive at the cap: err = %v, want ErrCustomLimit", err)
+	}
 }
 
 func TestCreateCustom_NormalizesAndValidates(t *testing.T) {
@@ -443,6 +452,10 @@ func TestUsage(t *testing.T) {
 	}
 	if _, err := s.Usage(b, e.ID); !errors.Is(err, ErrExerciseNotFound) {
 		t.Errorf("other user: %v", err)
+	}
+	// A missing id answers like another user's, so the endpoint is no oracle for which ids are custom.
+	if _, err := s.Usage(a, 999999); !errors.Is(err, ErrExerciseNotFound) {
+		t.Errorf("missing id: %v", err)
 	}
 }
 
