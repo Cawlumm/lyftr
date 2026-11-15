@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { Exercise } from '@lyftr/shared'
 
 const mockReplace = jest.fn()
@@ -27,7 +27,7 @@ jest.mock('@lyftr/shared', () => {
   return { ...actual, customExercises: () => mockSupported }
 })
 
-import { client } from '../../lib/lyftr'
+import { client, useWorkoutSession } from '../../lib/lyftr'
 import { ExerciseDetailScreen } from './ExerciseDetailScreen'
 
 const base: Exercise = {
@@ -77,6 +77,55 @@ describe('ExerciseDetailScreen custom exercises', () => {
 
     await waitFor(() => expect(archive).toHaveBeenCalledWith(5), { timeout: 2000 })
     expect(await screen.findByText(/Archived\. It's hidden from search/)).toBeTruthy()
+  })
+
+  it('disables the actions while an archive is in flight, so a second tap cannot send it again', async () => {
+    let settle: (e: Exercise) => void = () => {}
+    const archive = jest.spyOn(client.exerciseAPI, 'archive').mockImplementation(() => new Promise((r) => { settle = r }))
+    await load(customRow)
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercise actions' }))
+    await fireEvent.press(await screen.findByText('Archive'))
+    await waitFor(() => expect(archive).toHaveBeenCalledTimes(1), { timeout: 2000 })
+
+    expect(screen.getByRole('button', { name: 'Exercise actions' })).toBeDisabled()
+    await act(async () => { settle({ ...customRow, archived: true }) })
+    expect(await screen.findByText(/Archived\. It's hidden from search/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Exercise actions' })).toBeEnabled()
+  })
+
+  // The session holds a copy of each exercise from when it was added. A custom one can be
+  // renamed or archived from this page mid-workout, so reopening it must not show that copy.
+  describe('an exercise in the active session', () => {
+    const inSession = (ex: Exercise) => useWorkoutSession.setState({
+      session: { name: 'W', started_at: new Date().toISOString(), exercises: [{ exercise_id: ex.id, exercise: ex, notes: '', rest_seconds: 90, sets: [] }] },
+    } as never)
+    afterEach(() => act(() => { useWorkoutSession.setState({ session: null } as never) }))
+
+    it('reads a custom exercise from the server, not the session copy', async () => {
+      inSession({ ...customRow, name: 'Old Name' })
+      await load({ ...customRow, name: 'New Name', archived: true })
+      expect(screen.queryByText('Old Name')).toBeNull()
+      expect(screen.getByText(/Archived\. It's hidden from search/)).toBeTruthy()
+    })
+
+    it('falls back to the session copy of a custom exercise when the server cannot be reached', async () => {
+      inSession({ ...customRow, name: 'Offline Copy' })
+      jest.spyOn(client.exerciseAPI, 'get').mockRejectedValue(new Error('offline'))
+      jest.spyOn(client.exerciseAPI, 'getPRs').mockResolvedValue(null as never)
+      jest.spyOn(client.exerciseAPI, 'getHistory').mockResolvedValue([])
+      await render(<ExerciseDetailScreen backFallback="/workouts" />)
+      expect(await screen.findByText('Offline Copy')).toBeTruthy()
+    })
+
+    it('keeps using the session copy of a catalog exercise without a fetch', async () => {
+      inSession({ ...base, name: 'Catalog Copy' })
+      const get = jest.spyOn(client.exerciseAPI, 'get')
+      jest.spyOn(client.exerciseAPI, 'getPRs').mockResolvedValue(null as never)
+      jest.spyOn(client.exerciseAPI, 'getHistory').mockResolvedValue([])
+      await render(<ExerciseDetailScreen backFallback="/workouts" />)
+      expect(await screen.findByText('Catalog Copy')).toBeTruthy()
+      expect(get).not.toHaveBeenCalled()
+    })
   })
 
   it('links to the exercise it was merged into', async () => {

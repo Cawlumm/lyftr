@@ -20,6 +20,22 @@ export const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefine
 // The aria-current of the step being worked; RN's types have no aria-current.
 export const currentStep = (on: boolean) => (Platform.OS === 'web' ? { 'aria-current': on ? 'step' : undefined } : {}) as object
 
+// A Pressable with role radio or checkbox, on web. react-native-web drops accessibilityState,
+// so without aria-checked the control is invalid (axe aria-required-attr), and it presses on
+// Space only for role button, so the key that toggles a checkbox or picks a radio (WAI-ARIA
+// APG) did nothing. Native gets {} and keeps accessibilityState.
+export function webToggle(checked: boolean, onPress: () => void): object {
+  if (Platform.OS !== 'web') return {}
+  return {
+    'aria-checked': checked,
+    onKeyDown: (e: { key: string; preventDefault: () => void }) => {
+      if (e.key !== ' ' && e.key !== 'Spacebar') return
+      e.preventDefault()
+      onPress()
+    },
+  }
+}
+
 // A boxed text field: the ring is drawn on a plain wrapper that shares the box's radius (a
 // Reanimated View takes no className on web) and the input's own square UA outline is off.
 export const FIELD_FOCUS_RING = Platform.OS === 'web' ? 'focus-within:outline focus-within:outline-2 focus-within:outline-focus focus-within:outline-offset-2' : ''

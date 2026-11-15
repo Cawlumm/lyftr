@@ -89,14 +89,22 @@ describe('MergeExerciseSheet', () => {
     expect(merge).toHaveBeenCalledWith(5, 9)
   })
 
-  it('cannot confirm when the counts failed to load', async () => {
+  it('cannot confirm when the counts failed to load, and the button retries them', async () => {
     // A server answer with no wording of its own falls back to the sheet's sentence.
-    jest.spyOn(client.exerciseAPI, 'usage').mockRejectedValue({ isAxiosError: true, response: { status: 418, data: {} } })
+    const usage = jest.spyOn(client.exerciseAPI, 'usage')
+      .mockRejectedValueOnce({ isAxiosError: true, response: { status: 418, data: {} } })
+      .mockResolvedValueOnce({ workouts: 2, program_days: 1 })
     const merge = jest.spyOn(client.exerciseAPI, 'merge')
     await setup()
 
     expect(await screen.findByText("Couldn't count what would move")).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Merge' }))
+    expect(screen.queryByText('Counting what will move…')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Merge' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Try again' }))
+
+    expect(await screen.findByText(/2 workouts and 1 program day/)).toBeTruthy()
+    expect(usage).toHaveBeenCalledTimes(2)
     expect(merge).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Merge' })).toBeTruthy()
   })
 })

@@ -59,6 +59,18 @@ describe('CustomExerciseSheet', () => {
     }))
   })
 
+  it('submits from the keyboard return key in the name field', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    const onSaved = await renderCreate()
+    await fireEvent(screen.getByDisplayValue('Soleus Slouch'), 'submitEditing')
+    expect(screen.getByText('Pick the main muscle.')).toBeTruthy()
+    expect(create).not.toHaveBeenCalled()
+
+    await fireEvent.press(screen.getByRole('radio', { name: /^calves$/i }))
+    await fireEvent(screen.getByDisplayValue('Soleus Slouch'), 'submitEditing')
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(saved))
+  })
+
   it('keeps a server error inside the open sheet', async () => {
     jest.spyOn(client.exerciseAPI, 'create').mockRejectedValue({
       isAxiosError: true,

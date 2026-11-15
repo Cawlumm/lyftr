@@ -111,6 +111,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [editing, setEditing] = useState(false)
   const [merging, setMerging] = useState(false)
+  const [archiving, setArchiving] = useState(false)
   const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
@@ -118,7 +119,11 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     if (!id) { goBack(); return }
 
     const fromSession = session?.exercises.find((e) => e.exercise_id === id)?.exercise
-    const exercisePromise = fromSession ? Promise.resolve(fromSession) : client.exerciseAPI.get(id)
+    // A custom exercise can be renamed or archived from this page while it sits in the session,
+    // so the session's copy of one is only the fallback when the server cannot be reached.
+    const exercisePromise = fromSession && !fromSession.is_custom
+      ? Promise.resolve(fromSession)
+      : client.exerciseAPI.get(id).catch((err) => { if (fromSession) return fromSession; throw err })
 
     let cancelled = false
     Promise.all([
@@ -167,7 +172,9 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const showActions = custom && canManage
   const detailPath = (id: number) => `${String(backFallback)}/exercise/${id}`
   const toggleArchive = async () => {
+    if (archiving) return
     const restoring = !!exercise.archived
+    setArchiving(true)
     try {
       const updated = restoring
         ? await client.exerciseAPI.unarchive(exercise.id)
@@ -182,6 +189,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         variant: 'error',
         title: apiErrorMessage(err, t(restoring ? 'exercises.custom.actions.unarchiveFailed' : 'exercises.custom.actions.archiveFailed')),
       })
+    } finally {
+      setArchiving(false)
     }
   }
   const menuActions: SheetAction[] = [
@@ -192,7 +201,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void toggleArchive() } },
   ]
   const actionsButton = showActions ? (
-    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" onPress={() => setMenuOpen(true)} />
+    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" disabled={archiving} onPress={() => setMenuOpen(true)} />
   ) : null
   const overlays = showActions ? (
     <>

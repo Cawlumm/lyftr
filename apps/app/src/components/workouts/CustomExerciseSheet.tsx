@@ -6,7 +6,7 @@ import {
 } from '@lyftr/shared'
 import { ChevronDown, ChevronUp } from '../ui/icons'
 import { Alert, AppText, Button, Field, Sheet } from '../ui'
-import { interactive, TOUCH_MIN } from '../ui/interaction'
+import { interactive, TOUCH_MIN, webToggle } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
 import { categoryLabel, equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
@@ -30,9 +30,7 @@ function Chip({ label, selected, role, onPress }: { label: string; selected: boo
     <Pressable
       accessibilityRole={role}
       accessibilityState={{ checked: selected }}
-      // react-native-web does not turn accessibilityState into DOM attributes, and a radio or
-      // checkbox without aria-checked is invalid (axe aria-required-attr).
-      {...(Platform.OS === 'web' ? { 'aria-checked': selected } : {})}
+      {...webToggle(selected, onPress)}
       onPress={onPress}
       style={{ minHeight: TOUCH_MIN }}
       className={`items-center justify-center rounded-full border px-3.5 active:opacity-70 ${
@@ -175,6 +173,8 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
             error={nameError ? t('exercises.custom.sheet.nameRequired') : null}
             autoCapitalize="words"
             maxLength={100}
+            returnKeyType="done"
+            onSubmitEditing={submit}
           />
 
           {nearMatches.length > 0 ? (
@@ -213,6 +213,8 @@ export function CustomExerciseSheet({ open, mode, initialName, exercise, submitL
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: showMore }}
+            // react-native-web drops accessibilityState; a disclosure needs aria-expanded.
+            {...(Platform.OS === 'web' ? { 'aria-expanded': showMore } : {})}
             onPress={() => setShowMore((v) => !v)}
             style={{ minHeight: TOUCH_MIN }}
             className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${interactive('hover:opacity-80')}`}

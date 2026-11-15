@@ -23,6 +23,7 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
   const [target, setTarget] = useState<Exercise | null>(null)
   const [usage, setUsage] = useState<ExerciseUsage | null>(null)
   const [usageError, setUsageError] = useState<string | null>(null)
+  const [usageTry, setUsageTry] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -40,7 +41,7 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
       .catch((err) => { if (!cancelled) setUsageError(apiErrorMessage(err, t('exercises.custom.merge.usageFailed'))) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, target, source.id])
+  }, [open, target, source.id, usageTry])
 
   const confirm = async () => {
     if (!target || busy) return
@@ -80,7 +81,12 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
         }),
         t('exercises.custom.merge.final', { from: source.name }),
       ].join(' ')
-    : t('exercises.custom.merge.counting')
+    : usageError
+      ? t('exercises.custom.merge.final', { from: source.name })
+      : t('exercises.custom.merge.counting')
+  // Without the counts there is nothing honest to confirm, so the button retries fetching them
+  // rather than sitting disabled under a "Counting…" that will never finish.
+  const countsFailed = !usage && !!usageError
 
   return (
     <ConfirmSheet
@@ -89,11 +95,11 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
       icon={Merge}
       title={t('exercises.custom.merge.confirmTitle', { name: target.name })}
       message={message}
-      confirmLabel={t('exercises.custom.merge.confirm')}
+      confirmLabel={countsFailed ? t('common.tryAgain') : t('exercises.custom.merge.confirm')}
       busy={busy}
-      confirmDisabled={!usage}
+      confirmDisabled={!usage && !countsFailed}
       error={error ?? usageError ?? undefined}
-      onConfirm={() => { void confirm() }}
+      onConfirm={() => { if (countsFailed) setUsageTry((n) => n + 1); else void confirm() }}
       onCancel={() => setTarget(null)}
     />
   )

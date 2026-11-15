@@ -14,6 +14,7 @@ import {
   ActiveFilters, AppText, Button, EmptyState, ErrorState, FilterButton, FilterSheet, IconButton,
   PageHeader, SearchField, Skeleton, interactive, linkProps, scrollBleed, useCardGrid,
 } from '../ui'
+import { webToggle } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
 import { useMyExercises } from '../../hooks/useMyExercises'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
@@ -108,8 +109,7 @@ function MineChip({ on, label, onPress }: { on: boolean; label: string; onPress:
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked: on }}
-      // react-native-web drops accessibilityState; a checkbox needs aria-checked (axe).
-      {...(Platform.OS === 'web' ? { 'aria-checked': on } : {})}
+      {...webToggle(on, onPress)}
       accessibilityLabel={label}
       onPress={onPress}
       className={`h-11 min-w-[44px] flex-row items-center justify-center rounded-xl border px-4 active:scale-95 ${interactive('', { inset: true })} ${
