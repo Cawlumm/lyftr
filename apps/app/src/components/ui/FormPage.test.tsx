@@ -19,11 +19,11 @@ jest.mock('react-native-safe-area-context', () => ({
 
 import { FormField, FormPage, useDiscardGuard } from './FormPage'
 
-function Page(props: { dirty?: boolean; error?: string | null; onRetry?: () => void; onPress?: () => void; destructive?: object }) {
+function Page(props: { secondary?: { label: string; onPress: () => void }; dirty?: boolean; error?: string | null; onRetry?: () => void; onPress?: () => void; destructive?: object }) {
   const guard = useDiscardGuard(!!props.dirty)
   return (
     <FormPage
-      title="Edit thing" subtitle={<Text>Sub</Text>} guard={guard} error={props.error} onRetry={props.onRetry}
+      title="Edit thing" subtitle={<Text>Sub</Text>} guard={guard} secondary={props.secondary} error={props.error} onRetry={props.onRetry}
       primary={{ label: 'Save', onPress: props.onPress ?? jest.fn() }}
       destructive={props.destructive as never}
     >
@@ -67,6 +67,14 @@ describe('FormPage', () => {
     const id = screen.getByLabelText('Thing').props.inputAccessoryViewID
     expect(id).toMatch(/^form-done-/)
     expect(id).not.toBe('lyftr-keyboard-done')
+  })
+
+  it('shows a secondary action beside the primary', async () => {
+    const onPress = jest.fn()
+    await render(<Page secondary={{ label: 'Cancel', onPress }} />)
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onPress).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
   })
 
   it('Back goes back', async () => {

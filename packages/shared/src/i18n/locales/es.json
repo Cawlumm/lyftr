@@ -1494,7 +1494,8 @@
         "3m": "3M",
         "6m": "6M",
         "All": "Todo"
-      }
+      },
+      "noInstructions": "Este ejercicio aún no tiene instrucciones."
     },
     "custom": {
       "badge": "Personal",
@@ -1550,8 +1551,9 @@
         "more": "Más detalles",
         "category": "Categoría",
         "otherMuscles": "Otros músculos",
-        "notes": "Notas",
-        "notesPlaceholder": "Preparación, indicaciones, cómo lo haces",
+        "instructions": "Instrucciones",
+        "instructionsHint": "Un paso por línea",
+        "instructionsPlaceholder": "De pie, con los pies a la anchura de la cadera",
         "nearMatches": "Ya está en el catálogo",
         "nearMatchesHint": "Usa uno de estos o continúa para crear el tuyo.",
         "useMatch": "Usar {{name}}",
@@ -1559,7 +1561,7 @@
         "create": "Crear",
         "save": "Guardar",
         "saveFailed": "No se pudo guardar el ejercicio",
-        "moreHint": "Opcional · categoría, otros músculos, notas",
+        "moreHint": "Opcional · categoría, otros músculos, instrucciones",
         "muscleHint": "Toca la figura o cambia a la lista",
         "useThis": "Usar este",
         "loadFailed": "No se pudo abrir el ejercicio",
@@ -1575,7 +1577,6 @@
       },
       "actions": {
         "menu": "Acciones del ejercicio",
-        "edit": "Editar",
         "merge": "Combinar con otro ejercicio…",
         "archive": "Archivar",
         "unarchive": "Restaurar",
@@ -1599,7 +1600,8 @@
         "counting": "Contando lo que se moverá…",
         "usageFailed": "No se pudo contar lo que se moverá",
         "failed": "No se pudieron combinar los ejercicios"
-      }
+      },
+      "addInstructions": "Añadir instrucciones"
     }
   },
   "home": {

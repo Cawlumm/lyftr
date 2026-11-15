@@ -48,7 +48,7 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   await row.click()
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Archive' }).click()
+  await page.getByRole('menuitem', { name: 'Archive' }).click()
   await expect(page.getByText(/Archived\. It's hidden from search/)).toBeVisible()
   const detail = page.url()
 
@@ -59,10 +59,21 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   // Restore from its page brings it back.
   await page.goto(detail)
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Restore' }).click()
+  await page.getByRole('menuitem', { name: 'Restore' }).click()
   await expect(page.getByText(/Archived\. It's hidden from search/)).toHaveCount(0)
   await page.goto('/workouts/exercises?show=mine')
   await expect(page.getByRole('link', { name: new RegExp(name) })).toBeVisible()
+})
+
+// Cancel sits beside Create; with something typed it asks before throwing it away.
+test('Cancel on the create page asks before discarding what was typed', async ({ page }) => {
+  await page.goto('/workouts/exercise/new')
+  await page.getByPlaceholder('e.g. Soleus Slouch').fill('Zz Discard Me')
+  await page.getByRole('button', { name: 'Cancel', exact: true }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByText('Discard changes?')).toBeVisible()
+  await dialog.getByRole('button', { name: 'Keep editing' }).click()
+  await expect(page.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue('Zz Discard Me')
 })
 
 // The body map: tapping a region picks its muscle, and Create from the library opens the new
@@ -117,7 +128,7 @@ test('renaming a custom exercise shows the new name on a past workout', async ({
   await page.goto(`/workouts/exercise/${ex.id}`)
   await expect(page.getByRole('heading', { level: 1, name: oldName })).toBeVisible()
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('menuitem', { name: 'Edit' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Edit exercise' })).toBeVisible()
   const field = page.getByPlaceholder('e.g. Soleus Slouch')
   await expect(field).toHaveValue(oldName)
@@ -146,7 +157,7 @@ test('merging a custom exercise states the counts and moves its history to the t
   await page.goto(`/workouts/exercise/${source.id}`)
   await expect(page.getByRole('heading', { level: 1, name: from })).toBeVisible()
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: /^Merge into another exercise/ }).click()
+  await page.getByRole('menuitem', { name: /^Merge into another exercise/ }).click()
 
   // The target picker: no Create row, the caller's own exercises listed first.
   await page.getByPlaceholder(/Search exercises/).locator('visible=true').fill(into)
@@ -180,7 +191,7 @@ test('adding and removing a custom exercise photo', async ({ page, request, work
   await expect(page.locator('img[src^="data:"]')).toHaveCount(0)
 
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Add photo' }).click()
+  await page.getByRole('menuitem', { name: 'Add photo' }).click()
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('dialog').getByRole('button', { name: 'Choose photo' }).click()
   await (await chooser).setFiles(path.join(__dirname, 'fixtures', 'exercise-photo.jpg'))
@@ -189,7 +200,7 @@ test('adding and removing a custom exercise photo', async ({ page, request, work
   await expect(page.locator('img[src^="data:"]').first()).toBeAttached()
 
   await page.getByRole('button', { name: 'Exercise actions' }).click()
-  await page.getByRole('dialog').getByRole('button', { name: 'Remove photo' }).click()
+  await page.getByRole('menuitem', { name: 'Remove photo' }).click()
   await expect(page.getByText('Photo removed')).toBeVisible()
   await expect(page.locator('img[src^="data:"]')).toHaveCount(0)
 })

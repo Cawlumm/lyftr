@@ -7,14 +7,15 @@ import { useTheme } from '../../theme/useTheme'
 // light page, a hair over AA for 12px text.
 const INK = { light: '#6d28d9', dark: '#a78bfa' } as const
 
-export function CustomBadge({ className = '' }: { className?: string }) {
+// `wide` and `border` are MuscleBadge's: the exercise page sets the badge among its tags.
+export function CustomBadge({ className = '', wide = false, border = false }: { className?: string; wide?: boolean; border?: boolean }) {
   const { t } = useTranslation()
   const { mode } = useTheme()
   return (
     <View
       accessible
       accessibilityLabel={t('exercises.custom.badgeLabel')}
-      className={`self-start rounded bg-violet-500/15 px-1.5 py-0.5 ${className}`}
+      className={`self-start rounded bg-violet-500/15 py-0.5 ${wide ? 'px-2' : 'px-1.5'} ${border ? 'border border-violet-500/30' : ''} ${className}`}
     >
       <AppText variant="caption" style={{ color: INK[mode] }}>{t('exercises.custom.badge')}</AppText>
     </View>

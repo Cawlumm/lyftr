@@ -63,12 +63,26 @@ describe('ExerciseDetailScreen custom exercises', () => {
     expect(screen.getByText('Instructions')).toBeTruthy()
   })
 
-  it('shows the badge, the actions button and the description as Notes for a custom row', async () => {
+  it('shows the badge, the actions button and the same Instructions card for a custom row', async () => {
     await load(customRow)
     expect(screen.getByText('Custom')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Exercise actions' })).toBeTruthy()
-    expect(screen.getByText('Notes')).toBeTruthy()
-    expect(screen.queryByText('Instructions')).toBeNull()
+    expect(screen.getByText('Instructions')).toBeTruthy()
+    expect(screen.getByText('1.')).toBeTruthy()
+    expect(screen.queryByText('Notes')).toBeNull()
+  })
+
+  it('a catalog exercise without instructions says so; no link to add them', async () => {
+    await load({ ...base, description: '' })
+    expect(screen.getByText('No instructions for this exercise yet.')).toBeTruthy()
+    expect(screen.queryByText('Add instructions')).toBeNull()
+  })
+
+  it('your own exercise without instructions links to its edit page', async () => {
+    await load({ ...customRow, description: '' })
+    expect(screen.queryByText('No instructions for this exercise yet.')).toBeNull()
+    await fireEvent.press(screen.getByText('Add instructions'))
+    expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/5/edit?section=instructions')
   })
 
   it('hides the actions on a server without custom exercises', async () => {

@@ -113,6 +113,33 @@ describe('CustomExerciseForm', () => {
     expect(screen.queryByText('Nothing picked yet')).toBeNull()
   })
 
+  it('Cancel sits beside Create and leaves like Back', async () => {
+    await renderCreate()
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancel' }))
+    expect(mockRouter.back).toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy()
+  })
+
+  it('Instructions live behind More details with a one-step-per-line hint, and are sent as the description', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    await renderCreate()
+    expect(screen.queryByText('One step per line')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: /More details/ }))
+    expect(screen.getByText('One step per line')).toBeTruthy()
+    expect(screen.queryByText('Notes')).toBeNull()
+    await fireEvent.changeText(screen.getByLabelText('Instructions'), 'Stand tall\nPress up')
+    await pickFromList()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ description: 'Stand tall\nPress up' })))
+  })
+
+  it('the Add instructions link opens the edit page with More details already open', async () => {
+    mockParams = { exerciseId: '7', section: 'instructions' }
+    jest.spyOn(client.exerciseAPI, 'get').mockResolvedValue(saved)
+    await render(<CustomExerciseForm mode="edit" base="/workouts" />)
+    expect(await screen.findByText('One step per line')).toBeTruthy()
+  })
+
   it('a name with a control character is refused before anything is sent', async () => {
     const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()

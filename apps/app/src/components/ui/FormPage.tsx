@@ -50,6 +50,8 @@ interface Props {
   fallback?: Href
   guard?: DiscardGuard
   primary: { label: string; onPress: () => void; busy?: boolean; disabled?: boolean }
+  /** Beside the primary (Cancel). It leaves through the same Back, so the discard guard covers it. */
+  secondary?: { label: string; onPress: () => void }
   /** Replaces the primary button when the page needs another pair of actions after a save. */
   footer?: ReactNode
   /** What the last action said, shown above the button it came from. */
@@ -63,7 +65,7 @@ interface Props {
 // The page every full-screen form is built from: header with Back, a scroll that gives way to the
 // keyboard, and a footer pinned above it holding the one primary action and whatever it just said.
 export function FormPage({
-  title, subtitle, onBack, fallback, guard, primary, footer, error, onRetry, destructive, scrollRef, children,
+  title, subtitle, onBack, fallback, guard, primary, secondary, footer, error, onRetry, destructive, scrollRef, children,
 }: Props) {
   const { t } = useTranslation()
   const { lg } = useBreakpoint()
@@ -126,6 +128,7 @@ export function FormPage({
             ) : null}
             {footer ?? (
               <View className={wide ? 'flex-row justify-end gap-3' : 'flex-row gap-3'}>
+                {secondary ? <Button className={wide ? 'min-w-32' : 'flex-1'} variant="secondary" title={secondary.label} onPress={secondary.onPress} disabled={primary.busy} /> : null}
                 {error && onRetry ? <Button className={wide ? 'min-w-32' : 'flex-1'} variant="secondary" title={t('common.tryAgain')} onPress={onRetry} /> : null}
                 <Button
                   className={wide ? 'min-w-40' : 'flex-1'}

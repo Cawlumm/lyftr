@@ -3,8 +3,8 @@ import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native
 import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { format, subDays } from 'date-fns'
-import { Archive, ArchiveRestore, ArrowLeft, Camera, Dumbbell, ImagePlus, Merge, MoreVertical, Pencil, Trash2, Trophy } from '../ui/icons'
+import { subDays } from 'date-fns'
+import { Archive, ArchiveRestore, ArrowLeft, Camera, Dumbbell, ImagePlus, Merge, MoreVertical, Trash2, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -25,7 +25,7 @@ import {
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
 import { touchTarget } from '../ui/interaction'
-import { ActionSheet, AppText, Button, ErrorState, IconButton, Screen, scrollBleed, SegmentedControl, Toast, linkProps, type SheetAction } from '../ui'
+import { ActionSheet, AppText, Button, ErrorState, Menu, Screen, scrollBleed, SegmentedControl, Toast, editAction, linkProps, type SheetAction } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useServerInfo, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -38,6 +38,8 @@ import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
 import { useSessionPillInset } from './SessionPill'
 import { CustomBadge } from './CustomBadge'
+import { ExerciseImage } from './ExerciseImage'
+import { InstructionSteps } from './InstructionSteps'
 import { MergeExerciseSheet } from './MergeExerciseSheet'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
@@ -243,8 +245,10 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     { label: t('exercises.custom.photo.choose'), icon: ImagePlus, onPress: () => { void changePhoto('library') } },
     ...(cameraSupported ? [{ label: t('exercises.custom.photo.take'), icon: Camera, onPress: () => { void changePhoto('camera') } }] : []),
   ]
+  const editPath = `${detailPath(exercise.id)}/edit`
+  const addInstructionsPath = `${editPath}?section=instructions`
   const menuActions: SheetAction[] = [
-    { label: t('exercises.custom.actions.edit'), icon: Pencil, onPress: () => router.push(`${detailPath(exercise.id)}/edit` as unknown as Href) },
+    editAction(() => router.push(editPath as unknown as Href)),
     { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
     ...(photosOn ? [
       { label: t(exercise.photo_id ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.add'), icon: ImagePlus, onPress: () => setSourceOpen(true) },
@@ -254,12 +258,50 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void toggleArchive() } }
       : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void toggleArchive() } },
   ]
-  const actionsButton = showActions ? (
-    <IconButton icon={MoreVertical} label={t('exercises.custom.actions.menu')} variant="secondary" size="lg" disabled={archiving || photoBusy} onPress={() => setMenuOpen(true)} />
-  ) : null
+  // The ⋮ trigger: on a photo it sits on a dark scrim with a white glyph so it reads on any picture,
+  // elsewhere it is the usual bordered box. 44px either way.
+  const kebab = (hero: boolean) => (
+    <View className={`h-11 w-11 items-center justify-center rounded-xl ${hero ? 'bg-black/55' : 'border border-surface-border bg-surface-muted'}`}>
+      <MoreVertical size={20} color={hero ? '#ffffff' : colors.txMuted} />
+    </View>
+  )
+  // The web gets the anchored dropdown the cards use; a phone gets the sheet, with the exercise it acts on in its header.
+  const actionsButton = (hero = false) => {
+    if (!showActions) return null
+    const busy = archiving || photoBusy
+    return Platform.OS === 'web' ? (
+      <Menu
+        label={t('exercises.custom.actions.menu')}
+        items={menuActions.map((a) => ({ label: a.label, icon: a.icon, destructive: a.destructive, onSelect: a.onPress }))}
+        disabled={busy}
+        className="rounded-xl"
+      >
+        {kebab(hero)}
+      </Menu>
+    ) : (
+      <Pressable accessibilityRole="button" accessibilityLabel={t('exercises.custom.actions.menu')} disabled={busy} onPress={() => setMenuOpen(true)} className={`active:opacity-70 ${busy ? 'opacity-40' : ''}`}>
+        {kebab(hero)}
+      </Pressable>
+    )
+  }
   const overlays = showActions ? (
     <>
-      <ActionSheet open={menuOpen} title={t('exercises.custom.badgeLabel')} subtitle={exercise.name} actions={menuActions} onClose={() => setMenuOpen(false)} />
+      {Platform.OS !== 'web' ? (
+        <ActionSheet
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          header={
+            <View className="flex-row items-center gap-3">
+              <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} size="hero" />
+              <View className="flex-1">
+                <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
+                <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">{t('exercises.custom.badgeLabel')}</AppText>
+              </View>
+            </View>
+          }
+          actions={menuActions}
+        />
+      ) : null}
       <ActionSheet open={sourceOpen} title={t('exercises.custom.photo.sourceTitle')} subtitle={exercise.name} actions={sourceActions} onClose={() => setSourceOpen(false)} />
       <MergeExerciseSheet
         source={exercise}
@@ -273,7 +315,6 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   const equipLabel = equipmentLabel(exercise.equipment)
   const periodOptions = HISTORY_PERIODS.map((p) => ({ value: p, label: t(`exercises.detail.period.${p}`) }))
-  const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
   const chartData: ChartPoint[] = [...filteredHistory].reverse().map((h) => ({
     date: formatDate(new Date(h.date), 'numericMonthDay'),
     weight: displayWeight(h.max_weight, wUnit),
@@ -303,8 +344,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const titleBlock = (
     <View>
       <AppText variant="title">{exercise.name}</AppText>
-      {custom ? <View className="mt-2 flex-row"><CustomBadge /></View> : null}
       <View className="mt-2 flex-row flex-wrap items-center gap-2">
+        {custom ? <CustomBadge wide border /> : null}
         <MuscleBadge muscle={exercise.muscle_group} wide border />
         {equipLabel && exercise.equipment !== 'other' ? (
           <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
@@ -394,25 +435,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       </View>
     </View>
   ) : null
-  const instructionsCard = descLines.length > 0 ? (
-    <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-      <AppText variant="label" color="muted" className="mb-3 uppercase">
-        {custom ? t('exercises.custom.form.notes') : t('exercises.detail.instructions')}
-      </AppText>
-      <View className="gap-2.5">
-        {descLines.map((line, i) => {
-          // A custom exercise's description is the owner's own words, not numbered steps.
-          const m = custom ? null : line.match(/^(\d+\.)\s*(.*)/)
-          return (
-            <AppText key={i} variant="body" color="secondary">
-              {m ? <AppText variant="bodySemibold" color="primary">{m[1]} </AppText> : null}
-              {m ? m[2] : line}
-            </AppText>
-          )
-        })}
-      </View>
-    </View>
-  ) : null
+  const instructionsCard = (
+    <InstructionSteps
+      text={exercise.description}
+      addHref={showActions ? addInstructionsPath : undefined}
+      onAdd={showActions ? () => router.push(addInstructionsPath as unknown as Href) : undefined}
+    />
+  )
 
   // Wide web: the reference (photo, muscles) on the left and the lifter's own numbers and the
   // how-to on the right, under one title row, instead of a phone column stretched to the window.
@@ -424,7 +453,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             <View className="flex-row items-start gap-3">
               <View className="pt-1">{backButton}</View>
               <View className="flex-1">{titleBlock}</View>
-              {actionsButton}
+              {actionsButton()}
             </View>
             <View className="flex-row items-start gap-6">
               <View className="gap-5" style={{ flexGrow: 5, flexShrink: 1, flexBasis: 0 }}>
@@ -483,7 +512,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                 <ArrowLeft size={20} color="#ffffff" />
               </View>
             </Pressable>
-            {actionsButton ? <View className="absolute right-3 top-2">{actionsButton}</View> : null}
+            {showActions ? <View className="absolute right-3 top-2">{actionsButton(true)}</View> : null}
           </View>
         ) : null}
 
@@ -492,11 +521,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           {!hasImage ? (
             <View className="flex-row items-center justify-between">
               {backButton}
-              {actionsButton ? <View style={{ marginRight: -8 }}>{actionsButton}</View> : null}
+              {showActions ? <View style={{ marginRight: -8 }}>{actionsButton()}</View> : null}
             </View>
           ) : null}
 
           {titleBlock}
+
+          {instructionsCard}
 
           {musclesCard}
 
@@ -505,8 +536,6 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           {prCard}
 
           {historyCard}
-
-          {instructionsCard}
         </View>
       </ScrollView>
       {overlays}

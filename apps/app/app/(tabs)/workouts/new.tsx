@@ -4,9 +4,9 @@ import { router } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
+import { FieldHeader } from '../../../src/components/ui/FieldHeader'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../src/components/ui/interaction'
 
 // Both sit in a row with 8px between them and are wider than 44, so only their height is padded.
@@ -42,20 +42,6 @@ interface WorkoutFormData {
 // One accessory bar per screen — unique ID so a stacked edit screen's bar can't clash.
 const KEYPAD_DONE_ID = 'workout-new-keypad-done'
 
-// Web's icon+label field headers (Dumbbell/CalendarDays/Clock/FileText/Zap rows).
-function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
-  // Muted (not accent) field icons: with every header cyan the form reads busy and
-  // the accent loses meaning. Restrained neutral glyphs let the brand color stay
-  // reserved for real signal (the Exercises section, PR chips, primary CTA).
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2.5 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
-    </View>
-  )
-}
 
 export default function AddWorkout() {
   const { t } = useTranslation()

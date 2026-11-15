@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { KeyboardDoneAccessory } from '../../../../src/components/ui/KeyboardDoneAccessory'
@@ -12,6 +11,7 @@ import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../../src/lib/useMotion'
 import { useTheme } from '../../../../src/theme/useTheme'
 import type { DayDraft } from '../../../../src/components/programs/types'
+import { FieldHeader } from '../../../../src/components/ui/FieldHeader'
 
 interface ProgramFormData {
   name: string
@@ -21,15 +21,6 @@ interface ProgramFormData {
 
 const KEYPAD_DONE_ID = 'program-edit-keypad-done'
 
-function FieldHeader({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2.5 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-    </View>
-  )
-}
 
 export default function EditProgram() {
   const { id } = useLocalSearchParams<{ id: string }>()

@@ -40,6 +40,7 @@ export { ActiveFilters } from './ActiveFilters'
 
 // Inputs
 export { Field } from './Field'
+export { FieldHeader } from './FieldHeader'
 export { SearchField } from './SearchField'
 export { NumberField } from './NumberField'
 export { PasswordField, PasswordRule } from './PasswordField'

@@ -120,8 +120,9 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
 
 ### Single points of truth
 
-- **`apps/app/src/components/ui/FormPage.tsx`**: the page scaffold. It provides the back and title header, a keyboard-aware scroll (drag/tap dismisses, iOS Done bar) and a sticky primary action kept above the keyboard. It also owns the action's busy and disabled state, an inline error with retry beside that action, and an optional destructive action through `ConfirmSheet`. `useDiscardGuard(dirty)` is the unsaved-changes guard on back; call `guard.allowLeave()` before a save navigates away.
+- **`apps/app/src/components/ui/FormPage.tsx`**: the page scaffold. It provides the back and title header, a keyboard-aware scroll (drag/tap dismisses, iOS Done bar) and a sticky primary action kept above the keyboard. It also owns the action's busy and disabled state, an optional secondary action (Cancel goes through the same discard guard), an inline error with retry beside that action, and an optional destructive action through `ConfirmSheet`. `useDiscardGuard(dirty)` is the unsaved-changes guard on back; call `guard.allowLeave()` before a save navigates away.
 - **Field pieces in `ui/`:**
+  - `FieldHeader`: the icon + uppercase label (+ "(required)") over a field, shared by every form.
   - `Field`: label, error and a `footer` slot for suggestions. `FormField` is a `Field` already wired to the page's Done bar.
   - `IconTileGroup`: single or multi select with icon tiles or chips, radio/checkbox semantics, optional `max`.
   - `PhotoSlot`.

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
 import { KeyboardDoneAccessory } from '../../../src/components/ui/KeyboardDoneAccessory'
@@ -12,6 +11,7 @@ import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../src/lib/useMotion'
 import { useTheme } from '../../../src/theme/useTheme'
 import type { DayDraft } from '../../../src/components/programs/types'
+import { FieldHeader } from '../../../src/components/ui/FieldHeader'
 
 // Weights live in DISPLAY units in the form (reps/weight per set, same shape the shared
 // ExerciseFormCard edits); converted to lbs + mapped to target_reps/target_weight only in
@@ -24,16 +24,6 @@ interface ProgramFormData {
 
 const KEYPAD_DONE_ID = 'program-new-keypad-done'
 
-function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2.5 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
-    </View>
-  )
-}
 
 export default function AddProgram() {
   const { t } = useTranslation()

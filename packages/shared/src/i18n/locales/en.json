@@ -1471,7 +1471,8 @@
         "3m": "3m",
         "6m": "6m",
         "All": "All"
-      }
+      },
+      "noInstructions": "No instructions for this exercise yet."
     },
     "custom": {
       "badge": "Custom",
@@ -1527,8 +1528,9 @@
         "more": "More details",
         "category": "Category",
         "otherMuscles": "Other muscles",
-        "notes": "Notes",
-        "notesPlaceholder": "Setup, cues, how you do it",
+        "instructions": "Instructions",
+        "instructionsHint": "One step per line",
+        "instructionsPlaceholder": "Stand tall, feet hip-width apart",
         "nearMatches": "Already in the catalog",
         "nearMatchesHint": "Use one of these instead, or carry on to create your own.",
         "useMatch": "Use {{name}}",
@@ -1536,7 +1538,7 @@
         "create": "Create",
         "save": "Save",
         "saveFailed": "Couldn't save the exercise",
-        "moreHint": "Optional · category, other muscles, notes",
+        "moreHint": "Optional · category, other muscles, instructions",
         "muscleHint": "Tap the figure, or switch to the list",
         "useThis": "Use this",
         "loadFailed": "Couldn't open the exercise",
@@ -1552,7 +1554,6 @@
       },
       "actions": {
         "menu": "Exercise actions",
-        "edit": "Edit",
         "merge": "Merge into another exercise…",
         "archive": "Archive",
         "unarchive": "Restore",
@@ -1574,7 +1575,8 @@
         "counting": "Counting what will move…",
         "usageFailed": "Couldn't count what would move",
         "failed": "Couldn't merge the exercises"
-      }
+      },
+      "addInstructions": "Add instructions"
     }
   },
   "home": {

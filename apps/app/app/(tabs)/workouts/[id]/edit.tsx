@@ -4,9 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { FieldHeader } from '../../../../src/components/ui/FieldHeader'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
 
 // Wider than 44 and 32 tall, so only the height is padded.
@@ -45,18 +45,6 @@ const KEYPAD_DONE_ID = 'workout-edit-keypad-done'
 // date should only move the *day* — the original time-of-day is preserved so a
 // workout logged at 6pm doesn't jump to midnight just because the date was touched.
 
-function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
-  // Muted (not accent) field icons — matches new.tsx: with every header cyan the
-  // form reads busy; the accent stays reserved for the Exercises section + CTA.
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
-    </View>
-  )
-}
 
 export default function EditWorkout() {
   const { t } = useTranslation()
