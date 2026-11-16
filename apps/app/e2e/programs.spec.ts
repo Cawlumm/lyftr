@@ -59,7 +59,7 @@ test.describe('Programs', () => {
     await page.goto('/programs/new')
     await expect(page.getByText('New Program', { exact: true }).first()).toBeVisible()
 
-    await page.getByPlaceholder(/push pull legs, upper lower/i).fill(E2E_PROGRAM_NAME)
+    await page.getByPlaceholder('e.g., Push Pull Legs', { exact: true }).fill(E2E_PROGRAM_NAME)
     await page.getByPlaceholder(/description or goals/i).fill('Test description')
 
     // Programs are day-nested: add a workout day before its exercise editor appears.
