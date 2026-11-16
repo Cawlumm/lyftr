@@ -326,7 +326,8 @@
       "more": "+{{count}} más",
       "moreLabel": "Mostrar {{count}} más",
       "less": "Mostrar menos"
-    }
+    },
+    "undo": "Deshacer"
   },
   "bodyMap": {
     "map": "Mapa",
@@ -1594,6 +1595,7 @@
       },
       "merge": {
         "pickerTitle": "Combinar «{{name}}» con",
+        "pickerSubtitle": "Elige el ejercicio que se queda",
         "confirmTitle": "¿Combinar con «{{name}}»?",
         "body": "Todo lo que registraste como «{{from}}» pasa a «{{into}}»: {{workouts}} y {{programDays}}. Los récords personales se recalculan.",
         "workouts_one": "{{count}} entrenamiento",

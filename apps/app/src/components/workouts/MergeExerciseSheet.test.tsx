@@ -48,7 +48,7 @@ describe('MergeExerciseSheet', () => {
   it('opens the picker without a create row and excluding the source', async () => {
     await render(<MergeExerciseSheet source={source} open onClose={jest.fn()} onMerged={jest.fn()} />)
     expect(mockPickerProps).toHaveBeenCalledWith(expect.objectContaining({
-      allowCreate: false, selectedIds: [5], title: 'Merge “My Press” into',
+      allowCreate: false, selectedIds: [5], title: 'Merge “My Press” into', subtitle: 'Pick the exercise to keep',
     }))
   })
 

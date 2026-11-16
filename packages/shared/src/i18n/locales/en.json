@@ -320,7 +320,8 @@
       "more": "+{{count}} more",
       "moreLabel": "Show {{count}} more",
       "less": "Show less"
-    }
+    },
+    "undo": "Undo"
   },
   "bodyMap": {
     "map": "Map",
@@ -1571,6 +1572,7 @@
       },
       "merge": {
         "pickerTitle": "Merge “{{name}}” into",
+        "pickerSubtitle": "Pick the exercise to keep",
         "confirmTitle": "Merge into “{{name}}”?",
         "body": "Everything you logged as “{{from}}” moves to “{{into}}”: {{workouts}} and {{programDays}}. Personal records are recalculated.",
         "workouts_one": "{{count}} workout",

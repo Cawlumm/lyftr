@@ -122,7 +122,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [merging, setMerging] = useState(false)
   const [archiving, setArchiving] = useState(false)
-  const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error' } | null>(null)
+  const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error'; action?: { label: string; onPress: () => void } } | null>(null)
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -191,9 +191,10 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const custom = !!exercise.is_custom
   const showActions = custom && canManage
   const detailPath = (id: number) => `${String(backFallback)}/exercise/${id}`
-  const toggleArchive = async () => {
+  // Archiving is one tap and easy to reverse, so it is undone from its toast rather than confirmed.
+  const setArchived = async (archive: boolean) => {
     if (archiving) return
-    const restoring = !!exercise.archived
+    const restoring = !archive
     setArchiving(true)
     try {
       const updated = restoring
@@ -203,6 +204,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       setToast({
         variant: 'success',
         title: t(restoring ? 'exercises.custom.actions.unarchived' : 'exercises.custom.actions.archived', { name: exercise.name }),
+        action: restoring ? undefined : { label: t('common.undo'), onPress: () => { void setArchived(false) } },
       })
     } catch (err) {
       setToast({
@@ -254,8 +256,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       ...(exercise.photo_id ? [{ label: t('exercises.custom.photo.remove'), icon: Trash2, onPress: () => { void removePhoto() } }] : []),
     ] : []),
     exercise.archived
-      ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void toggleArchive() } }
-      : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void toggleArchive() } },
+      ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void setArchived(false) } }
+      : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void setArchived(true) } },
   ]
   // The ⋮ trigger: on a photo it sits on a dark scrim with a white glyph so it reads on any picture,
   // elsewhere it is the usual bordered box. 44px either way.
@@ -308,7 +310,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         onClose={() => setMerging(false)}
         onMerged={(result) => { setMerging(false); router.replace(detailPath(result.into.id) as unknown as Href) }}
       />
-      {toast ? <Toast variant={toast.variant} title={toast.title} onDismiss={() => setToast(null)} /> : null}
+      {toast ? <Toast variant={toast.variant} title={toast.title} action={toast.action} onDismiss={() => setToast(null)} /> : null}
     </>
   ) : null
 

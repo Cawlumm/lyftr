@@ -64,6 +64,7 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
       <ExercisePicker
         selectedIds={[source.id]}
         title={t('exercises.custom.merge.pickerTitle', { name: source.name })}
+        subtitle={t('exercises.custom.merge.pickerSubtitle')}
         allowCreate={false}
         onSelect={setTarget}
         onClose={onClose}

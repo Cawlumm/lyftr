@@ -101,6 +101,18 @@ describe('ExerciseDetailScreen custom exercises', () => {
     expect(await screen.findByText(/Archived\. It's hidden from search/)).toBeTruthy()
   })
 
+  it('Undo on the archive toast restores it', async () => {
+    jest.spyOn(client.exerciseAPI, 'archive').mockResolvedValue({ ...customRow, archived: true })
+    const unarchive = jest.spyOn(client.exerciseAPI, 'unarchive').mockResolvedValue({ ...customRow, archived: false })
+    await load(customRow)
+    await fireEvent.press(screen.getByRole('button', { name: 'Exercise actions' }))
+    await fireEvent.press(await screen.findByText('Archive'))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Undo' }, { timeout: 2000 }))
+    await waitFor(() => expect(unarchive).toHaveBeenCalledWith(5))
+    await waitFor(() => expect(screen.queryByText(/Archived\. It's hidden from search/)).toBeNull())
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
   it('disables the actions while an archive is in flight, so a second tap cannot send it again', async () => {
     let settle: (e: Exercise) => void = () => {}
     const archive = jest.spyOn(client.exerciseAPI, 'archive').mockImplementation(() => new Promise((r) => { settle = r }))
