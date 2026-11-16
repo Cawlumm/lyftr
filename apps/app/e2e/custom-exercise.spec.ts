@@ -82,9 +82,12 @@ test('Cancel on the create page asks before discarding what was typed', async ({
 test('create a custom exercise by tapping the body maps', async ({ page }) => {
   const name = `Zz Body Map ${Date.now().toString(36).toUpperCase()}`
   await page.goto(`/workouts/exercise/new?name=${encodeURIComponent(name)}`)
-  await expect(page.getByText('Nothing picked yet')).toHaveCount(2)
+  // Only the main muscle's map is live; the other muscles' waits, dimmed, until it is picked.
+  await expect(page.getByText('Nothing picked yet')).toHaveCount(1)
+  await expect(page.getByText('Pick the main muscle first, then tap any others it works')).toBeVisible()
   await page.locator('#chest').first().click()
   await expect(page.getByText('Main muscle: Chest')).toBeVisible()
+  await expect(page.getByText('Tap any others it works, up to 10')).toBeVisible()
 
   await page.locator('#chest').last().click()
   await expect(page.getByText('Chest is already the main muscle.')).toBeVisible()
