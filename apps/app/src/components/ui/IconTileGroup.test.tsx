@@ -38,13 +38,15 @@ describe('IconTileGroup', () => {
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Gamma' }))
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: 'Gamma', disabled: true })).toBeTruthy()
+    expect(JSON.stringify(screen.getByRole('checkbox', { name: 'Gamma', disabled: true }).props.className ?? '')).toContain('opacity-40')
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Beta' }))
     expect(onChange).toHaveBeenCalledWith(['a'])
   })
 
-  it('an option marked disabled is shown but cannot be chosen', async () => {
+  it('a locked option is shown, not dimmed, and cannot be chosen', async () => {
     const onChange = jest.fn()
-    await render(<IconTileGroup multiple label="Letters" options={[...options.slice(0, 2), { value: 'c', label: 'Gamma', disabled: true }]} value={[]} onChange={onChange} />)
+    await render(<IconTileGroup multiple label="Letters" options={[...options.slice(0, 2), { value: 'c', label: 'Gamma', locked: { swatch: '#22d3ee' } }]} value={[]} onChange={onChange} />)
+    expect(JSON.stringify(screen.getByRole('checkbox', { name: 'Gamma' }).props.className ?? '')).not.toContain('opacity-40')
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Gamma', disabled: true }))
     expect(onChange).not.toHaveBeenCalled()
   })

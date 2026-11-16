@@ -816,7 +816,7 @@
       "createFailed": "No se pudo crear el programa",
       "updateFailed": "No se pudo actualizar el programa",
       "name": "Nombre del programa",
-      "namePlaceholder": "p. ej., Empuje-Tirón-Pierna, Torso-Pierna",
+      "namePlaceholder": "p. ej., Torso-Pierna",
       "notesPlaceholder": "Descripción u objetivos del programa…",
       "days": "Días",
       "targetSets": "Series objetivo",

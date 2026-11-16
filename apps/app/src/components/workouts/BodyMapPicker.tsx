@@ -8,6 +8,7 @@ import { SegmentedControl } from '../ui/SegmentedControl'
 import { IconTileGroup } from '../ui/IconTileGroup'
 import { CollapsibleChips } from '../ui/CollapsibleChips'
 import { interactive, TOUCH_MIN } from '../ui/interaction'
+import { Swatch } from '../ui/Swatch'
 import { BODY_COLORS, BODY_MAIN_COLOR, BODY_SECONDARY_COLOR, bodyFill } from './bodyFigure'
 import { useTheme } from '../../theme/useTheme'
 import { bodySlugToMuscle, muscleChipLabel, muscleToBodySlugs } from '../../utils/exerciseUtils'
@@ -97,9 +98,6 @@ function webRegionClick(pick: (slug: string) => void): object {
   }
 }
 
-// The figure's colour beside a name, so the chips read as a key to the drawing.
-const Swatch = ({ color }: { color: string }) => <View className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
-
 // Pick by tapping the body, or from a list. Both write the same value; the list is the precise
 // one (the map cannot tell lats from middle back) and the one a screen reader gets, so it is
 // where the picker opens while one is running. Single picks the main muscle; multi toggles the
@@ -163,7 +161,7 @@ export function BodyMapPicker(props: Props) {
           multiple
           max={props.max}
           label={g.label}
-          options={g.muscles.map((o) => (o.value === main ? { ...o, label: t('bodyMap.mainOption', { muscle: o.label }), disabled: true } : o))}
+          options={g.muscles.map((o) => (o.value === main ? { ...o, label: t('bodyMap.mainOption', { muscle: o.label }), locked: { swatch: BODY_MAIN_COLOR } } : o))}
           value={props.value}
           onChange={(v) => { setNote(''); props.onChange(v) }}
         />

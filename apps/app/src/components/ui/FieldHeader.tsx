@@ -27,8 +27,8 @@ export function RequiredLegend() {
   const { t } = useTranslation()
   return (
     <View className="flex-row items-center gap-1">
-      <AppText variant="caption" color="error" aria-hidden accessibilityElementsHidden importantForAccessibility="no">*</AppText>
-      <AppText variant="caption" color="muted">{t('common.requiredLegend')}</AppText>
+      <AppText variant="bodySemibold" color="error" className="text-[13px]" aria-hidden accessibilityElementsHidden importantForAccessibility="no">*</AppText>
+      <AppText variant="bodySemibold" color="secondary" className="text-[13px]">{t('common.requiredLegend')}</AppText>
     </View>
   )
 }
@@ -38,16 +38,28 @@ export function RequiredLegend() {
 // `required`: the header says "required" (a group of choices, a list). `requiredInput`: the text
 // field below has WEB_REQUIRED, which says it on web, so there the star is all the header adds.
 // Muted rather than accent so a form of headers does not read busy; the accent stays for real signal.
-export function FieldHeader({ icon: Icon, label, required, requiredInput, hint }: { icon: LucideIcon; label: string; required?: boolean; requiredInput?: boolean; hint?: string }) {
-  const { colors } = useTheme()
+export function FieldHeader({ hint, ...title }: FieldTitleProps & { hint?: string }) {
   return (
     <View className="mb-2.5 flex-row items-center gap-2">
+      <FieldTitle {...title} />
+      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
+    </View>
+  )
+}
+
+type FieldTitleProps = { icon: LucideIcon; label: string; required?: boolean; requiredInput?: boolean }
+
+// FieldHeader's glyph + label + star alone, for a header row that also carries controls (the
+// workout form's Exercises with Reorder and Add). Place it in a `flex-row items-center gap-2` row.
+export function FieldTitle({ icon: Icon, label, required, requiredInput }: FieldTitleProps) {
+  const { colors } = useTheme()
+  return (
+    <>
       <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
       <View className="flex-row items-center gap-0.5">
         <Label>{label}</Label>
         {required || requiredInput ? <RequiredMark input={!!requiredInput} /> : null}
       </View>
-      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
-    </View>
+    </>
   )
 }

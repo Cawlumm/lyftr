@@ -41,7 +41,7 @@ export { CollapsibleChips } from './CollapsibleChips'
 
 // Inputs
 export { Field } from './Field'
-export { FieldHeader, RequiredLegend, RequiredMark } from './FieldHeader'
+export { FieldHeader, FieldTitle, RequiredLegend, RequiredMark } from './FieldHeader'
 export { SearchField } from './SearchField'
 export { NumberField } from './NumberField'
 export { PasswordField, PasswordRule } from './PasswordField'

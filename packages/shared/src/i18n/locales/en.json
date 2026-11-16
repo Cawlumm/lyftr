@@ -807,7 +807,7 @@
       "createFailed": "Failed to create program",
       "updateFailed": "Failed to update program",
       "name": "Program Name",
-      "namePlaceholder": "e.g., Push Pull Legs, Upper Lower",
+      "namePlaceholder": "e.g., Push Pull Legs",
       "notesPlaceholder": "Program description or goals…",
       "days": "Days",
       "targetSets": "Target Sets",
