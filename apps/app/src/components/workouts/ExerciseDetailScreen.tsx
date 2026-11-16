@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Image, Platform, Pressable, ScrollView, Text, View } from 'react-native'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
-import { format, subDays } from 'date-fns'
-import { ArrowLeft, Dumbbell, Trophy } from '../ui/icons'
+import { subDays } from 'date-fns'
+import { Archive, ArchiveRestore, ArrowLeft, Camera, Dumbbell, ImagePlus, Merge, MoreVertical, Trash2, Trophy } from '../ui/icons'
 import Animated, {
   Easing,
   cancelAnimation,
@@ -14,6 +14,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 import {
+  apiErrorMessage,
+  customExercisePhotos,
+  customExercises,
   uiMessage,
   displayWeight,
   weightShort,
@@ -22,15 +25,22 @@ import {
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
 import { touchTarget } from '../ui/interaction'
-import { AppText, Button, ErrorState, Screen, scrollBleed, SegmentedControl } from '../ui'
+import { ActionSheet, AppText, Button, CollapsibleChips, ErrorState, Menu, Screen, scrollBleed, SegmentedControl, Toast, editAction, linkProps, type SheetAction } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
-import { client, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
+import { client, useServerInfo, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useBreakpoint } from '../../lib/useBreakpoint'
+import { cameraSupported, uploadPart, type PhotoSource } from '../../lib/exercisePhoto'
+import { useExercisePhoto } from '../../hooks/useExercisePhoto'
+import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import { useTheme } from '../../theme/useTheme'
 import { equipmentLabel, categoryLabel } from '../../utils/exerciseUtils'
 import { MuscleBadge } from './MuscleBadge'
 import { useSessionPillInset } from './SessionPill'
+import { CustomBadge } from './CustomBadge'
+import { ExerciseImage } from './ExerciseImage'
+import { InstructionSteps } from './InstructionSteps'
+import { MergeExerciseSheet } from './MergeExerciseSheet'
 
 // 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
 // muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
@@ -102,13 +112,28 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   // working effect to gain a retry button.
   const [retryKey, setRetryKey] = useState(0)
   const [chartWidth, setChartWidth] = useState(0)
+  const serverInfo = useServerInfo()
+  const canManage = customExercises(serverInfo)
+  const photosOn = customExercisePhotos(serverInfo)
+  const pickPhoto = usePhotoPicker()
+  const [sourceOpen, setSourceOpen] = useState(false)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const heroPhoto = useExercisePhoto(exercise?.id ?? 0, 'full', exercise?.photo_id)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [merging, setMerging] = useState(false)
+  const [archiving, setArchiving] = useState(false)
+  const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error'; action?: { label: string; onPress: () => void } } | null>(null)
 
   useEffect(() => {
     const id = Number(exerciseId)
     if (!id) { goBack(); return }
 
     const fromSession = session?.exercises.find((e) => e.exercise_id === id)?.exercise
-    const exercisePromise = fromSession ? Promise.resolve(fromSession) : client.exerciseAPI.get(id)
+    // A custom exercise can be renamed or archived from this page while it sits in the session,
+    // so the session's copy of one is only the fallback when the server cannot be reached.
+    const exercisePromise = fromSession && !fromSession.is_custom
+      ? Promise.resolve(fromSession)
+      : client.exerciseAPI.get(id).catch((err) => { if (fromSession) return fromSession; throw err })
 
     let cancelled = false
     Promise.all([
@@ -127,6 +152,16 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseId, retryKey])
+
+  // Back from the edit page (or any page that can change this exercise) shows what it now holds.
+  // Only a custom exercise can change under us; a catalog one has nothing to revalidate.
+  const editable = useRef(false)
+  editable.current = !!exercise?.is_custom
+  const focusedOnce = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!focusedOnce.current) { focusedOnce.current = true; return }
+    if (editable.current) setRetryKey((k) => k + 1)
+  }, []))
 
   const filteredHistory = useMemo(() => {
     const days = HISTORY_DAYS[historyPeriod]
@@ -153,15 +188,144 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
 
   if (loading || !exercise) return <LoadingPulse />
 
+  const custom = !!exercise.is_custom
+  const showActions = custom && canManage
+  const detailPath = (id: number) => `${String(backFallback)}/exercise/${id}`
+  // Archiving is one tap and easy to reverse, so it is undone from its toast rather than confirmed.
+  const setArchived = async (archive: boolean) => {
+    if (archiving) return
+    const restoring = !archive
+    setArchiving(true)
+    try {
+      const updated = restoring
+        ? await client.exerciseAPI.unarchive(exercise.id)
+        : await client.exerciseAPI.archive(exercise.id)
+      setExercise(updated)
+      setToast({
+        variant: 'success',
+        title: t(restoring ? 'exercises.custom.actions.unarchived' : 'exercises.custom.actions.archived', { name: exercise.name }),
+        action: restoring ? undefined : { label: t('common.undo'), onPress: () => { void setArchived(false) } },
+      })
+    } catch (err) {
+      setToast({
+        variant: 'error',
+        title: apiErrorMessage(err, t(restoring ? 'exercises.custom.actions.unarchiveFailed' : 'exercises.custom.actions.archiveFailed')),
+      })
+    } finally {
+      setArchiving(false)
+    }
+  }
+  // Photo changes apply at once and the screen updates from the server's answer, the same as archive.
+  const changePhoto = async (source: PhotoSource) => {
+    if (photoBusy) return
+    const out = await pickPhoto(source)
+    if (!out) return
+    if ('error' in out) { setToast({ variant: 'error', title: out.error }); return }
+    setPhotoBusy(true)
+    try {
+      setExercise(await client.exerciseAPI.uploadPhoto(exercise.id, uploadPart(out.photo)))
+      setToast({ variant: 'success', title: t('exercises.custom.photo.updated') })
+    } catch (err) {
+      setToast({ variant: 'error', title: apiErrorMessage(err, t('exercises.custom.photo.uploadFailed')) })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  const removePhoto = async () => {
+    if (photoBusy) return
+    setPhotoBusy(true)
+    try {
+      setExercise(await client.exerciseAPI.deletePhoto(exercise.id))
+      setToast({ variant: 'success', title: t('exercises.custom.photo.removed') })
+    } catch (err) {
+      setToast({ variant: 'error', title: apiErrorMessage(err, t('exercises.custom.photo.removeFailed')) })
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+  const sourceActions: SheetAction[] = [
+    { label: t('exercises.custom.photo.choose'), icon: ImagePlus, onPress: () => { void changePhoto('library') } },
+    ...(cameraSupported ? [{ label: t('exercises.custom.photo.take'), icon: Camera, onPress: () => { void changePhoto('camera') } }] : []),
+  ]
+  const editPath = `${detailPath(exercise.id)}/edit`
+  const menuActions: SheetAction[] = [
+    editAction(() => router.push(editPath as unknown as Href)),
+    { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
+    ...(photosOn ? [
+      { label: t(exercise.photo_id ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.add'), icon: ImagePlus, onPress: () => setSourceOpen(true) },
+      ...(exercise.photo_id ? [{ label: t('exercises.custom.photo.remove'), icon: Trash2, onPress: () => { void removePhoto() } }] : []),
+    ] : []),
+    exercise.archived
+      ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void setArchived(false) } }
+      : { label: t('exercises.custom.actions.archive'), icon: Archive, onPress: () => { void setArchived(true) } },
+  ]
+  // The ⋮ trigger: on a photo it sits on a dark scrim with a white glyph so it reads on any picture,
+  // elsewhere it is the usual bordered box. 44px either way.
+  const kebab = (hero: boolean) => (
+    <View className={`h-11 w-11 items-center justify-center rounded-xl ${hero ? 'bg-black/55' : 'border border-surface-border bg-surface-muted'}`}>
+      <MoreVertical size={20} color={hero ? '#ffffff' : colors.txMuted} />
+    </View>
+  )
+  // The web gets the anchored dropdown the cards use; a phone gets the sheet, with the exercise it acts on in its header.
+  const actionsButton = (hero = false) => {
+    if (!showActions) return null
+    const busy = archiving || photoBusy
+    return Platform.OS === 'web' ? (
+      <Menu
+        label={t('exercises.custom.actions.menu')}
+        items={menuActions.map((a) => ({ label: a.label, icon: a.icon, destructive: a.destructive, onSelect: a.onPress }))}
+        disabled={busy}
+        className="rounded-xl"
+      >
+        {kebab(hero)}
+      </Menu>
+    ) : (
+      <Pressable accessibilityRole="button" accessibilityLabel={t('exercises.custom.actions.menu')} disabled={busy} onPress={() => setMenuOpen(true)} className={`active:opacity-70 ${busy ? 'opacity-40' : ''}`}>
+        {kebab(hero)}
+      </Pressable>
+    )
+  }
+  const overlays = showActions ? (
+    <>
+      {Platform.OS !== 'web' ? (
+        <ActionSheet
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          header={
+            <View className="flex-row items-center gap-3">
+              <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} size="hero" />
+              <View className="flex-1">
+                <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
+                <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">{t('exercises.custom.badgeLabel')}</AppText>
+              </View>
+            </View>
+          }
+          actions={menuActions}
+        />
+      ) : null}
+      <ActionSheet open={sourceOpen} title={t('exercises.custom.photo.sourceTitle')} subtitle={exercise.name} actions={sourceActions} onClose={() => setSourceOpen(false)} />
+      <MergeExerciseSheet
+        source={exercise}
+        open={merging}
+        onClose={() => setMerging(false)}
+        onMerged={(result) => { setMerging(false); router.replace(detailPath(result.into.id) as unknown as Href) }}
+      />
+      {toast ? <Toast variant={toast.variant} title={toast.title} action={toast.action} onDismiss={() => setToast(null)} /> : null}
+    </>
+  ) : null
+
   const equipLabel = equipmentLabel(exercise.equipment)
   const periodOptions = HISTORY_PERIODS.map((p) => ({ value: p, label: t(`exercises.detail.period.${p}`) }))
-  const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
   const chartData: ChartPoint[] = [...filteredHistory].reverse().map((h) => ({
     date: formatDate(new Date(h.date), 'numericMonthDay'),
     weight: displayWeight(h.max_weight, wUnit),
   }))
 
-  const hasImage = !!exercise.image_url && !imgFailed
+  // A custom exercise's own picture replaces the catalog image; while it loads the hero's space is
+  // held so the page does not jump, and a failed load drops back to the no-image layout.
+  const hasOwnPhoto = !!exercise.photo_id
+  const hasImage = hasOwnPhoto ? !heroPhoto.failed : !!exercise.image_url && !imgFailed
+  const heroSource = hasOwnPhoto ? (heroPhoto.uri ? { uri: heroPhoto.uri } : undefined) : { uri: exercise.image_url }
 
   const backButton = (
     <Pressable
@@ -182,7 +346,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     <View>
       <AppText variant="title">{exercise.name}</AppText>
       <View className="mt-2 flex-row flex-wrap items-center gap-2">
-        <MuscleBadge muscle={exercise.muscle_group} wide border />
+        {custom ? <CustomBadge pill /> : null}
+        <MuscleBadge muscle={exercise.muscle_group} pill />
         {equipLabel && exercise.equipment !== 'other' ? (
           <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
             <AppText variant="caption" color="secondary">{equipLabel}</AppText>
@@ -194,6 +359,21 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           </View>
         ) : null}
       </View>
+      {custom && exercise.archived ? (
+        <View className="mt-3 rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5">
+          <AppText variant="caption" color="muted">
+            {exercise.merged_into_id ? t('exercises.custom.mergedNote') : t('exercises.custom.archivedNote')}
+          </AppText>
+          {exercise.merged_into_id ? (
+            <Pressable
+              {...linkProps(detailPath(exercise.merged_into_id), () => router.replace(detailPath(exercise.merged_into_id!) as unknown as Href))}
+              className="min-h-[44px] justify-center"
+            >
+              <AppText variant="bodySemibold" style={{ color: accent }}>{t('exercises.custom.viewMerged')}</AppText>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   )
   const musclesCard = (
@@ -205,8 +385,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const secondaryBlock = exercise.secondary_muscles?.length > 0 ? (
     <View>
       <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
-      <View className="flex-row flex-wrap gap-1.5">
-        {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} wide />)}
+      <View className="flex-row flex-wrap items-center gap-1.5">
+        <CollapsibleChips compact items={exercise.secondary_muscles} renderChip={(m) => <MuscleBadge key={m} muscle={m} wide />} />
       </View>
     </View>
   ) : null
@@ -256,22 +436,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       </View>
     </View>
   ) : null
-  const instructionsCard = descLines.length > 0 ? (
-    <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-      <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
-      <View className="gap-2.5">
-        {descLines.map((line, i) => {
-          const m = line.match(/^(\d+\.)\s*(.*)/)
-          return (
-            <AppText key={i} variant="body" color="secondary">
-              {m ? <AppText variant="bodySemibold" color="primary">{m[1]} </AppText> : null}
-              {m ? m[2] : line}
-            </AppText>
-          )
-        })}
-      </View>
-    </View>
-  ) : null
+  const instructionsCard = (
+    <InstructionSteps
+      text={exercise.description}
+      addHref={showActions ? editPath : undefined}
+      onAdd={showActions ? () => router.push(editPath as unknown as Href) : undefined}
+    />
+  )
 
   // Wide web: the reference (photo, muscles) on the left and the lifter's own numbers and the
   // how-to on the right, under one title row, instead of a phone column stretched to the window.
@@ -283,12 +454,13 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             <View className="flex-row items-start gap-3">
               <View className="pt-1">{backButton}</View>
               <View className="flex-1">{titleBlock}</View>
+              {actionsButton()}
             </View>
             <View className="flex-row items-start gap-6">
               <View className="gap-5" style={{ flexGrow: 5, flexShrink: 1, flexBasis: 0 }}>
                 {hasImage ? (
                   <Image
-                    source={{ uri: exercise.image_url }}
+                    source={heroSource}
                     onError={() => setImgFailed(true)}
                     resizeMode="cover"
                     className="h-72 w-full rounded-2xl bg-surface-muted"
@@ -305,6 +477,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
             </View>
           </View>
         </ScrollView>
+        {overlays}
       </SafeAreaView>
     )
   }
@@ -317,7 +490,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         {hasImage ? (
           <View>
             <Image
-              source={{ uri: exercise.image_url }}
+              source={heroSource}
               onError={() => setImgFailed(true)}
               resizeMode="cover"
               className="h-64 w-full bg-surface-muted"
@@ -340,14 +513,22 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
                 <ArrowLeft size={20} color="#ffffff" />
               </View>
             </Pressable>
+            {showActions ? <View className="absolute right-3 top-2">{actionsButton(true)}</View> : null}
           </View>
         ) : null}
 
         <View className="gap-5 px-5 py-4">
           {/* Back row only when there's no hero image to host the button. */}
-          {!hasImage ? backButton : null}
+          {!hasImage ? (
+            <View className="flex-row items-center justify-between">
+              {backButton}
+              {showActions ? <View style={{ marginRight: -8 }}>{actionsButton()}</View> : null}
+            </View>
+          ) : null}
 
           {titleBlock}
+
+          {instructionsCard}
 
           {musclesCard}
 
@@ -356,10 +537,9 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
           {prCard}
 
           {historyCard}
-
-          {instructionsCard}
         </View>
       </ScrollView>
+      {overlays}
     </SafeAreaView>
   )
 }

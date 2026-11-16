@@ -24,8 +24,8 @@ const NON_COPY_PROPS = [
   'haptic', 'descriptionTone', 'descriptionId', 'animationType', 'presentation',
   'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole', 'backBehavior',
   // keyboard, scrolling, camera and live-region behaviour
-  'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior',
-  'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',
+  'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior', 'submitLabel',
+  'accessibilityLiveRegion', 'importantForAccessibility', 'facing', 'barcodeScannerSettings', 'display',
   'themeVariant', 'align', 'side', 'tint', 'maxWidth',
   'keyboardType', 'autoCapitalize', 'autoComplete', 'autoCorrect', 'textContentType',
   'inputMode', 'enterKeyHint', 'returnKeyType',
@@ -99,7 +99,7 @@ const noLiteralString = {
       // translation and formatting entry points
       'i18n\\.t', 'translate', 'format', 'formatDay', 'formatDate', 'languageChoiceLabel',
       // setters and updaters whose string argument names a state or a field
-      'setPhase', 'setGymState', 'setExercisesSheet', 'setTab', 'updateSet', 'onUpdateSet',
+      'setPhase', 'setGymState', 'setExercisesSheet', 'setTab', 'updateSet', 'onUpdateSet', 'changeFilter',
       'sanitizeNumericInput',
       // navigation, class names and logging are not copy
       'router\\..*', 'navigate', 'cn', 'clsx', 'console\\..*',

@@ -42,8 +42,16 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Lyftr uses the camera to scan food barcodes so you can log nutrition quickly.",
+          "cameraPermission": "Lyftr uses the camera to scan food barcodes and to take a picture for an exercise you created.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Lyftr uses your photos to add a picture to an exercise you created.",
+          "cameraPermission": "Lyftr uses the camera to scan food barcodes and to take a picture for an exercise you created.",
+          "microphonePermission": false
         }
       ],
       [

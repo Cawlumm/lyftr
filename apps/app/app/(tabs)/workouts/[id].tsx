@@ -184,7 +184,7 @@ export default function WorkoutDetail() {
           {/* Header card */}
           <View className="bg-surface-raised border border-surface-border rounded-2xl p-4">
             <View className="flex-row items-start gap-3">
-              <ExerciseImage url={exs[0]?.exercise?.image_url} size="hero" />
+              <ExerciseImage url={exs[0]?.exercise?.image_url} photo={exs[0] ? { exerciseId: exs[0].exercise_id, photoId: exs[0].exercise?.photo_id } : undefined} size="hero" />
               <View className="flex-1">
                 <AppText variant="heading" headingLevel={1}>{workout.name}</AppText>
                 <AppText variant="body" color="muted" className="mt-0.5">
@@ -263,7 +263,7 @@ export default function WorkoutDetail() {
                   className={`relative overflow-hidden active:scale-[0.99] ${slot.grouped ? '' : `bg-surface-raised border border-surface-border rounded-2xl ${interactive('hover:border-brand-500/40')}`}`}
                 >
                   <View className="flex-row items-center gap-3 p-4">
-                    {slot.grouped ? <ExerciseThumb url={ex.exercise?.image_url} tag={slot.tag} colorIndex={slot.colorIndex} /> : <ExerciseImage url={ex.exercise?.image_url} />}
+                    {slot.grouped ? <ExerciseThumb url={ex.exercise?.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise?.photo_id }} tag={slot.tag} colorIndex={slot.colorIndex} /> : <ExerciseImage url={ex.exercise?.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise?.photo_id }} />}
                     <View className="flex-1">
                       <AppText variant="subheading" numberOfLines={1}>{ex.exercise?.name}</AppText>
                       <View className="flex-row items-center gap-2 mt-0.5">

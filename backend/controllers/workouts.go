@@ -87,6 +87,9 @@ func (h *Handler) CreateWorkout(c *gin.Context) {
 	// compare by wall-clock text, not instant, mis-ordering the anchor lookup
 	// (ProgramStore.currentDayIndex). normalizeLoggedAt both defaults a zero time
 	// to now and forces UTC, same as weight logs.
+	if !h.exercisesVisible(c, uid, workoutExerciseIDs(&req)) {
+		return
+	}
 	req.StartedAt = normalizeLoggedAt(req.StartedAt)
 	// Record where the workout happened, not just when. The client sends its own
 	// offset; older clients send none, so fall back to the account zone at that
@@ -134,6 +137,9 @@ func (h *Handler) UpdateWorkout(c *gin.Context) {
 	// load-bearing for the due-day tracker. A zero StartedAt (request omitted it)
 	// stays zero: the store then preserves the stored timestamp instead of
 	// rewriting it to 0001-01-01 (WorkoutStore.Update).
+	if !h.exercisesVisible(c, uid, workoutExerciseIDs(&req)) {
+		return
+	}
 	req.StartedAt = req.StartedAt.UTC()
 	// An edit that moves the day also moves the instant, so the offset stored beside it
 	// has to be the one that instant was chosen in — otherwise readers apply the offset
@@ -175,4 +181,12 @@ func (h *Handler) DeleteWorkout(c *gin.Context) {
 		return
 	}
 	utils.OK(c, gin.H{"deleted": true})
+}
+
+func workoutExerciseIDs(req *models.CreateWorkoutRequest) []*int64 {
+	ids := make([]*int64, len(req.Exercises))
+	for i := range req.Exercises {
+		ids[i] = &req.Exercises[i].ExerciseID
+	}
+	return ids
 }

@@ -41,7 +41,7 @@ export function ActiveFilters({ groups, values, onRemove }: Props) {
             hitSlop={6}
             className="flex-row items-center gap-1 rounded-full border border-brand-500/40 bg-brand-500/15 py-1.5 pl-3 pr-2 active:opacity-60"
           >
-            <AppText variant="caption" color="brand" className="capitalize">{f.label}</AppText>
+            <AppText variant="caption" color="brand">{f.label}</AppText>
             <X size={12} color={accent} strokeWidth={2.4} />
           </Pressable>
         </Animated.View>

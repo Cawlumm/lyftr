@@ -136,6 +136,7 @@ func main() {
 	}
 	// Thumbnails live beside the database, so they share its volume and its backups.
 	s.Thumbs = stores.NewThumbStore(db.DB, filepath.Join(filepath.Dir(config.C.DBPath), "thumbs"), catalog.BaseURL())
+	s.Photos.SetDir(filepath.Join(filepath.Dir(config.C.DBPath), "exercise-photos"))
 
 	// The demo's exercises are primed first so the boot pass translates them too.
 	go func() {

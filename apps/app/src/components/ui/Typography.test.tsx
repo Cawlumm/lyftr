@@ -26,6 +26,11 @@ describe('AppText headings', () => {
     expect(screen.queryByRole('heading', { name: 'Copy' })).toBeNull()
   })
 
+  it('headingLevel 3 marks a group inside a section', async () => {
+    await render(<AppText variant="label" headingLevel={3}>Legs</AppText>)
+    expect(screen.getByRole('heading', { name: 'Legs' }).props['aria-level']).toBe(3)
+  })
+
   it('headingLevel demotes a sheet title to h2 without changing the variant', async () => {
     await render(<AppText variant="title" headingLevel={2}>Filters</AppText>)
     expect(screen.getByRole('heading', { name: 'Filters' }).props['aria-level']).toBe(2)

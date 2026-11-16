@@ -16,7 +16,7 @@ import Reanimated, { useSharedValue, useAnimatedStyle, withTiming, interpolateCo
 import { AlertCircle, AlertTriangle, Mail, Lock, Eye, EyeOff, Server, ChevronDown, LogIn, Play } from './ui/icons'
 import { useServerStore } from '../lib/lyftr'
 import { useTheme } from '../theme/useTheme'
-import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from './ui/interaction'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE, WEB_REQUIRED } from './ui/interaction'
 import {
   testServerConnection,
   normalizeServerUrl,
@@ -83,6 +83,9 @@ export function IconInput({
           placeholderTextColor={colors.txMuted}
           secureTextEntry={hide}
           accessibilityLabel={label}
+          // Sign-in and sign-up ask only for what they need: every field is required, so none
+          // shows a "*" (CLAUDE.md, Form pages), but each says so to assistive tech.
+          {...WEB_REQUIRED}
           autoCapitalize="none"
           autoCorrect={false}
           onFocus={() => { focus.value = withTiming(1, { duration: duration(DURATION.fast) }) }}

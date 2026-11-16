@@ -1,22 +1,33 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { router, usePathname, type Href } from 'expo-router'
 import { ActivityIndicator, FlatList, Modal, Platform, Pressable, TextInput, View } from 'react-native'
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
 import { useStableCallback } from '../../hooks/useStableCallback'
-import { ArrowLeft, Dumbbell, Search } from '../ui/icons'
-import { exerciseCatalogEmpty, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
+import { ArrowLeft, Dumbbell, Plus, Search } from '../ui/icons'
+import { exerciseCatalogEmpty, exerciseNameFromQuery, hasEquipmentToShow, EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS, useTranslation, type Exercise } from '@lyftr/shared'
 import { AppText, Button, EmptyState, ErrorState, IconButton } from '../ui'
-import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from '../ui/interaction'
+import { FIELD_FOCUS_RING, interactive, NO_INPUT_OUTLINE } from '../ui/interaction'
 import { client } from '../../lib/lyftr'
+import { requestExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
+import { useMyExercises } from '../../hooks/useMyExercises'
 import { useTheme } from '../../theme/useTheme'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
+import { CustomBadge } from './CustomBadge'
+import { MyExercisesRetry } from './MyExercisesRetry'
 
 interface Props {
   selectedIds: number[]
   onSelect: (exercise: Exercise) => void
   onClose: () => void
+  /** Header text; the merge flow names its own. */
+  title?: string
+  /** Says what the pick is for, in place of the loaded count (the merge picker: which one stays). */
+  subtitle?: string
+  /** Offer "Create <query>" (and the caller's own exercises). Off for the merge target picker. */
+  allowCreate?: boolean
 }
 
 
@@ -30,9 +41,12 @@ const PickerRow = memo(function PickerRow({ exercise, onSelect }: { exercise: Ex
       onPress={() => onSelect(exercise)}
       className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
     >
-      <ExerciseImage url={exercise.image_url} />
+      <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
-        <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
+        <View className="flex-row items-center gap-2">
+          <AppText variant="subheading" numberOfLines={1} className="shrink">{exercise.name}</AppText>
+          {exercise.is_custom ? <CustomBadge /> : null}
+        </View>
         <View className="mt-0.5 flex-row flex-wrap items-center gap-1.5">
           {/* Neutral muscle chip: a whole scrolling list of loud per-muscle colors
               reads busy and there's no "best"/PR signal here to reserve color for —
@@ -63,7 +77,31 @@ const RowSeparator = memo(function RowSeparator() {
 // portals a fixed overlay; the caller conditionally mounts us the same way, so
 // search state resets per open — a routed screen can't hand the picked Exercise
 // back to the form without a store detour, hence Modal).
-export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
+
+// "Create <query>": first row of the list, so it is one tap away with results on screen or none.
+const CreateRow = memo(function CreateRow({ name, onPress }: { name: string; onPress: () => void }) {
+  const { t } = useTranslation()
+  const { accent } = useTheme()
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t('exercises.custom.createRowLabel', { name })}
+      onPress={onPress}
+      style={{ minHeight: 64 }}
+      className={`mb-2 flex-row items-center gap-3 rounded-xl border-[1.5px] border-dashed border-brand-500 bg-brand-500/10 px-3 py-3 active:opacity-70 ${interactive('hover:bg-brand-500/15')}`}
+    >
+      <View className="h-10 w-10 items-center justify-center rounded-lg bg-brand-500/15">
+        <Plus size={20} color={accent} strokeWidth={2.4} />
+      </View>
+      <View className="flex-1">
+        <AppText variant="subheading" numberOfLines={2}>{t('exercises.custom.createRow', { name })}</AppText>
+        <AppText variant="caption" color="muted">{t('exercises.custom.createRowHint')}</AppText>
+      </View>
+    </Pressable>
+  )
+})
+
+export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle, allowCreate = true }: Props) {
   const select = useStableCallback(onSelect)
   const renderRow = useCallback(({ item }: { item: Exercise }) => <PickerRow exercise={item} onSelect={select} />, [select])
   const { t } = useTranslation()
@@ -97,6 +135,27 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
   })
 
   const available = exercises.filter((e) => !selectedIds.includes(e.id))
+
+  const mine = useMyExercises({ q: debouncedQuery }, 50)
+  // Your own exercises are listed even where Create is not offered: merging one duplicate of
+  // yours into another is the commonest merge there is.
+  const myRows = useMemo(
+    () => (mine.supported ? mine.items.filter((e) => !selectedIds.includes(e.id)) : []),
+    [mine.supported, mine.items, selectedIds],
+  )
+  const typed = query.trim()
+  const showCreate = allowCreate && mine.supported && [...typed].length >= 2
+  const createName = exerciseNameFromQuery(typed)
+  // The create page lives in the tab the picker was opened from, so Back stays in that stack.
+  const base = usePathname().startsWith('/programs') ? '/programs' : '/workouts'
+  // The picker is an RN Modal and must be gone before the route changes, or the page would open
+  // underneath it. What the caller does with the created exercise is parked with the request
+  // and run by the page on save, exactly as for a pick.
+  const openCreate = useCallback(() => {
+    const request = requestExerciseCreate(select)
+    onClose()
+    router.push({ pathname: `${base}/exercise/new`, params: { name: createName, request } } as unknown as Href)
+  }, [select, onClose, base, createName])
   // From lg on web a centred panel over the dimmed app, like gym mode (GymFrame.web), rather
   // than a phone screen stretched across the desktop and over the sidebar.
   const { lg } = useBreakpoint()
@@ -115,13 +174,16 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
         {/* Header */}
         <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-4 pt-3">
           <IconButton icon={ArrowLeft} label={t('exercises.picker.close')} variant="ghost" size="md" onPress={onClose} />
-          <View>
+          <View className="flex-1">
             {/* Large title (matches the sibling "Log Workout" screen title) — the
-                18px heading read undersized for a full-screen surface. */}
-            <AppText variant="title" headingLevel={2}>{t('exercises.picker.title')}</AppText>
+                18px heading read undersized for a full-screen surface. A caller's title
+                carries a name ("Merge “…” into"), so it wraps rather than running off. */}
+            <AppText variant="title" headingLevel={2} numberOfLines={2}>{title ?? t('exercises.picker.title')}</AppText>
             {/* Only true if the fetch landed — on a failure this read "0 loaded"
                 above a message saying we could not load anything. */}
-            {listError ? null : (
+            {subtitle ? (
+              <AppText variant="caption" color="muted">{subtitle}</AppText>
+            ) : listError ? null : (
               <AppText variant="caption" color="muted">
                 {t(hasMore ? 'exercises.picker.loadedMore' : 'exercises.picker.loaded', { count: available.length })}
               </AppText>
@@ -169,6 +231,28 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             // media so the thumbnails read as a column, not boxed cells.
             ItemSeparatorComponent={RowSeparator}
             renderItem={renderRow}
+            ListHeaderComponent={
+              showCreate || myRows.length > 0 || mine.failed ? (
+                <View>
+                  {showCreate ? <CreateRow name={createName} onPress={openCreate} /> : null}
+                  {mine.failed ? <MyExercisesRetry onRetry={mine.reload} /> : null}
+                  {myRows.length > 0 ? (
+                    <View>
+                      <AppText variant="label" color="muted" className="px-1 pb-1 pt-2">{t('exercises.custom.yours')}</AppText>
+                      {myRows.map((e, i) => (
+                        <View key={e.id}>
+                          {i > 0 ? <RowSeparator /> : null}
+                          <PickerRow exercise={e} onSelect={select} />
+                        </View>
+                      ))}
+                      {available.length > 0 ? (
+                        <AppText variant="label" color="muted" className="px-1 pb-1 pt-4">{t('exercises.custom.catalog')}</AppText>
+                      ) : null}
+                    </View>
+                  ) : null}
+                </View>
+              ) : undefined
+            }
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
@@ -176,7 +260,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
               // it reads as an empty catalogue rather than a connection that dropped.
               listError ? (
                 <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
-              ) : exerciseCatalogEmpty(debouncedQuery, { items: exercises, hasMore, error: listError }) ? (
+              ) : myRows.length > 0 || showCreate ? undefined : exerciseCatalogEmpty(debouncedQuery, { items: exercises, hasMore, error: listError }) ? (
                 <EmptyState
                   compact
                   icon={Dumbbell}

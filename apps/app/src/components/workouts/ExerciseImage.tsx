@@ -6,6 +6,7 @@ import type { LucideIcon } from '../ui/icons'
 import { useTheme } from '../../theme/useTheme'
 import { useImageRetry } from '../../hooks/useImageRetry'
 import { useServerStore } from '../../lib/lyftr'
+import { useExercisePhoto } from '../../hooks/useExercisePhoto'
 
 type Size = 'row' | 'hero'
 
@@ -15,6 +16,8 @@ interface Props {
   size?: Size
   /** Glyph shown when there's no image (web uses BookOpen for programs, Dumbbell for exercises). */
   fallbackIcon?: LucideIcon
+  /** A custom exercise's own picture. With a photoId it replaces `url`; without one nothing changes. */
+  photo?: { exerciseId: number; photoId?: string }
 }
 
 const BOX: Record<Size, { box: string; icon: number }> = {
@@ -28,7 +31,7 @@ const BOX: Record<Size, { box: string; icon: number }> = {
 // An oedb image is drawn from the server's 192px thumbnail (exerciseThumbUrl). If that fails
 // once - a server older than the app has no such route - it falls back to the original for
 // good, and the original gets useImageRetry's usual single retry.
-export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumbbell }: Props) {
+export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumbbell, photo }: Props) {
   // Icon color is an SVG prop (documented className exception) — accent keeps the
   // cyan legible on both themes.
   const { accent } = useTheme()
@@ -37,8 +40,21 @@ export function ExerciseImage({ url, size = 'row', fallbackIcon: Fallback = Dumb
   const [brokenThumb, setBrokenThumb] = useState<string>()
   const src = thumb && thumb !== brokenThumb ? thumb : url
   const { failed, key, onError } = useImageRetry(src)
+  // The 192px thumbnail is plenty for the 44/56px box. Until it arrives, or if it never does,
+  // the icon chip stands in.
+  const own = useExercisePhoto(photo?.exerciseId ?? 0, 'thumb', photo?.photoId)
 
   const s = BOX[size]
+  if (photo?.photoId) {
+    if (own.uri) {
+      return <Image source={{ uri: own.uri }} resizeMode="cover" className={`${s.box} rounded-xl bg-surface-muted`} />
+    }
+    return (
+      <View className={`${s.box} rounded-xl bg-brand-500/10 border border-brand-500/20 items-center justify-center`}>
+        <Fallback size={s.icon} color={accent} strokeWidth={2} />
+      </View>
+    )
+  }
   if (!src || failed) {
     return (
       <View className={`${s.box} rounded-xl bg-brand-500/10 border border-brand-500/20 items-center justify-center`}>

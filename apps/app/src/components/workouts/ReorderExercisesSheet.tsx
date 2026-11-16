@@ -7,7 +7,7 @@ import * as Haptics from 'expo-haptics'
 import { autoScrollSpeed, groupColorIndex, groupOf, moveItem, normaliseSupersets, useTranslation } from '@lyftr/shared'
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical } from '../ui/icons'
 import { AppText, IconButton, Sheet, SheetButton } from '../ui'
-import { touchTarget } from '../ui/interaction'
+import { SR_ONLY, touchTarget } from '../ui/interaction'
 import { useMotion } from '../../lib/useMotion'
 import { useTheme } from '../../theme/useTheme'
 import { useGroupColors } from './superset'
@@ -38,10 +38,6 @@ export const shiftFor = (i: number, from: number, to: number) => {
   if (to < from && i >= to && i < from) return STRIDE
   return 0
 }
-
-// Visually hidden but still read: the web half of the move announcement. react-native-web's
-// AccessibilityInfo.announceForAccessibility is an empty function.
-const SR_ONLY = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 } as const
 
 const nativeDriver = Platform.OS !== 'web'
 const haptic = (fire: () => Promise<void>) => { if (Platform.OS !== 'web') fire().catch(() => {}) }
@@ -400,6 +396,7 @@ export function ReorderList({ names, rowKeys, groups, onMove }: Pick<Props, 'nam
           })}
         </ScrollView>
       </View>
+      {/* The web half of the move announcement: react-native-web's announceForAccessibility is empty. */}
       <View accessibilityLiveRegion="polite" style={SR_ONLY}>
         <AppText variant="caption">{announcement}</AppText>
       </View>

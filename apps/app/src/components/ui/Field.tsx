@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
-import { TextInput, TextInputProps, View } from 'react-native'
-import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE } from './interaction'
+import type { ReactNode, Ref } from 'react'
+import { TextInput, TextInputProps, View, type TextInputInstance } from 'react-native'
+import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE, WEB_REQUIRED } from './interaction'
 import type { LucideIcon } from './icons'
 import Reanimated, {
   useSharedValue,
@@ -19,6 +19,11 @@ interface Props extends TextInputProps {
   leftIcon?: LucideIcon
   /** Optional trailing element inside the box (e.g. a spinner or clear button). */
   rightSlot?: ReactNode
+  /** Below the box and its error, e.g. suggestions for what was typed. */
+  footer?: ReactNode
+  ref?: Ref<TextInputInstance>
+  /** Must be filled: aria-required on web. The visible "*", where a form shows one, is FieldHeader's or StepperTile's. */
+  required?: boolean
 }
 
 // Labeled text field, mirrors the web `.input` + `.label` pattern, with a focus
@@ -33,7 +38,7 @@ interface Props extends TextInputProps {
 //
 // `multiline` is the web `textarea min-h-20 resize-none` analog: taller floor,
 // top-aligned input, same UI-thread focus glow.
-export function Field({ label, error, className = '', leftIcon: LeftIcon, rightSlot, onFocus, onBlur, multiline, ...rest }: Props) {
+export function Field({ label, error, className = '', leftIcon: LeftIcon, rightSlot, footer, onFocus, onBlur, multiline, required, ...rest }: Props) {
   const { colors, brand } = useTheme()
   const focus = useSharedValue(0)
   const boxStyle = useAnimatedStyle(() => ({
@@ -83,12 +88,14 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
             focus.value = withTiming(0, { duration: 150 })
             onBlur?.(e)
           }}
+          {...(required ? WEB_REQUIRED : {})}
           {...rest}
         />
         {rightSlot ? <View style={{ marginLeft: 8 }}>{rightSlot}</View> : null}
       </Reanimated.View>
       </View>
       {error ? <AppText variant="caption" color="error">{error}</AppText> : null}
+      {footer}
     </View>
   )
 }

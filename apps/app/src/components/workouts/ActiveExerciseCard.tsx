@@ -3,7 +3,7 @@ import { Platform, Pressable, Text, TextInput, View, type LayoutChangeEvent } fr
 import { router, type Href } from 'expo-router'
 import { CheckCircle2, ChevronLeft, ChevronRight, Flag, Link2, Plus, Sparkles, Unlink2, X } from '../ui/icons'
 import { displayToLbs, displayWeight, sanitizeNumericInput, useNumericText, useTranslation, type ActiveSessionExercise } from '@lyftr/shared'
-import { AppText, Menu, NUMERIC_ACCESSORY_ID } from '../ui'
+import { AppText, Menu, KEYBOARD_DONE_ID } from '../ui'
 import { Icon } from '../ui/Icon'
 import { WEB_BUTTON, interactive } from '../ui/interaction'
 import { linkProps } from '../ui/link'
@@ -54,7 +54,7 @@ function SetCell({ value, editable, mode, placeholder, placeholderColor, accessi
         onChange(v)
       }}
       keyboardType={mode === 'numeric' ? 'number-pad' : 'decimal-pad'}
-      inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+      inputAccessoryViewID={KEYBOARD_DONE_ID}
       placeholder={placeholder}
       placeholderTextColor={placeholderColor}
       className={`${CELL} ${editable ? '' : 'opacity-40'}`}
@@ -153,8 +153,8 @@ function ActiveExerciseCardBase({
       {/* Header */}
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
         {inSuperset
-          ? <ExerciseThumb url={ex.exercise.image_url} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColorIndex} />
-          : <ExerciseImage url={ex.exercise.image_url} />}
+          ? <ExerciseThumb url={ex.exercise.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise.photo_id }} tag={`${supersetLetter}${supersetPosition}`} colorIndex={supersetColorIndex} />
+          : <ExerciseImage url={ex.exercise.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise.photo_id }} />}
         <Pressable className={`min-w-0 flex-1 ${interactive('rounded-lg hover:opacity-80')}`} {...(Platform.OS === 'web' ? linkProps(`/workouts/exercise/${ex.exercise_id}`, () => router.push(exerciseHref(ex.exercise_id))) : { onPress: () => router.push(exerciseHref(ex.exercise_id)) })}>
           <AppText variant="bodySemibold" numberOfLines={1}>{ex.exercise.name}</AppText>
           <View className="mt-1 flex-row items-center gap-2">

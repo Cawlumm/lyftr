@@ -25,11 +25,12 @@ var trustedProxyCIDRs = []string{
 // bodyLimits raises the 1 MB default where a legitimate payload can exceed it: a workout
 // or program with many exercises and sets, and the live-session snapshot.
 var bodyLimits = map[string]int64{
-	"PUT /api/v1/active-session": 4 << 20,
-	"POST /api/v1/workouts":      4 << 20,
-	"PUT /api/v1/workouts/:id":   4 << 20,
-	"POST /api/v1/programs":      4 << 20,
-	"PUT /api/v1/programs/:id":   4 << 20,
+	"PUT /api/v1/active-session":      4 << 20,
+	"POST /api/v1/workouts":           4 << 20,
+	"PUT /api/v1/workouts/:id":        4 << 20,
+	"POST /api/v1/programs":           4 << 20,
+	"PUT /api/v1/programs/:id":        4 << 20,
+	"PUT /api/v1/exercises/:id/photo": 10 << 20,
 }
 
 func Setup(r *gin.Engine, h *controllers.Handler) {
@@ -111,11 +112,20 @@ func Setup(r *gin.Engine, h *controllers.Handler) {
 		protected.PATCH("food/:id", h.UpdateFoodLog)
 		protected.DELETE("food/:id", h.DeleteFoodLog)
 
-		// Exercises (read-only for users)
+		// Exercises: the catalog is read-only; users create, edit, archive and merge their own
 		protected.GET("exercises", h.ListExercises)
 		protected.GET("exercises/:id", h.GetExercise)
 		protected.GET("exercises/:id/prs", h.GetExercisePRs)
 		protected.GET("exercises/:id/history", h.GetExerciseHistory)
+		protected.POST("exercises", h.CreateExercise)
+		protected.PUT("exercises/:id", h.UpdateExercise)
+		protected.POST("exercises/:id/archive", h.ArchiveExercise)
+		protected.POST("exercises/:id/unarchive", h.UnarchiveExercise)
+		protected.GET("exercises/:id/usage", h.ExerciseUsage)
+		protected.POST("exercises/:id/merge", h.MergeExercise)
+		protected.PUT("exercises/:id/photo", h.UploadExercisePhoto)
+		protected.DELETE("exercises/:id/photo", h.DeleteExercisePhoto)
+		protected.GET("exercises/:id/photo", h.GetExercisePhoto)
 
 		// Active session
 		protected.GET("active-session", h.GetActiveSession)

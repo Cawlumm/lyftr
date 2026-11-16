@@ -33,7 +33,8 @@ test.describe('Icon-only controls have accessible names', () => {
 
     await page.getByRole('button', { name: /add exercise/i }).click()
     await page.getByPlaceholder(/search exercises/i).fill('bench press')
-    await page.getByText(/bench press/i).first().click()
+    // The first row is "Create 'bench press'"; pick the catalog exercise.
+    await page.getByRole('button', { name: /^(?!Create a custom exercise).*bench press/i }).first().click()
 
     // The Expo card names the exercise it removes ("Remove Bench Press with Chains"), which
     // is more specific than the Vite page's generic "Remove exercise".

@@ -953,3 +953,22 @@ describe('getLocale adds locale to the endpoints that answer in the reader langu
     expect(seen[0].params).toBeUndefined()
   })
 })
+
+// The instance's JSON default once turned the photo form into a JSON body, and the server
+// answered 422 for a missing photo part. The adapter sees the body after transformRequest.
+describe('exerciseAPI.uploadPhoto', () => {
+  it('sends the photo as a multipart form, not JSON', async () => {
+    const client = createClient(memStorage())
+    let sent: any
+    client.api.defaults.adapter = async (config: any) => {
+      sent = config
+      return { data: { data: { id: 7 } }, status: 200, statusText: 'OK', headers: {}, config }
+    }
+    await client.exerciseAPI.uploadPhoto(7, new Blob(['x'], { type: 'image/jpeg' }))
+    expect(sent.url).toBe('/exercises/7/photo')
+    expect(sent.method).toBe('put')
+    expect(sent.data).toBeInstanceOf(FormData)
+    expect((sent.data as FormData).get('photo')).toBeTruthy()
+    expect(String(sent.headers['Content-Type'])).toMatch(/^multipart\/form-data/)
+  })
+})

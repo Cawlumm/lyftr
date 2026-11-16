@@ -204,7 +204,8 @@ test('keyboard only: create a workout from the name field to Save', async ({ pag
   const search = dialog.getByPlaceholder(/Search exercises/)
   await tabTo(page, search)
   await page.keyboard.type('squat')
-  const result = dialog.getByRole('button', { name: /squat/i }).first()
+  // Skip the "Create 'squat'" row the picker puts first.
+  const result = dialog.getByRole('button', { name: /^(?!Create a custom exercise).*squat/i }).first()
   await expect(result).toBeVisible()
   await tabTo(page, result)
   await page.keyboard.press('Enter')

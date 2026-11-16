@@ -69,6 +69,36 @@ type Exercise struct {
 	Description      string   `json:"description" db:"description"`
 	ImageURL         string   `json:"image_url,omitempty" db:"image_url"`
 	VideoURL         string   `json:"video_url,omitempty" db:"video_url"`
+	IsCustom         bool     `json:"is_custom"`
+	Archived         bool     `json:"archived"`
+	MergedIntoID     *int64   `json:"merged_into_id,omitempty"`
+	PhotoID          string   `json:"photo_id,omitempty"`
+}
+
+// CreateExerciseRequest is the body of POST and PUT /exercises: PUT replaces every field.
+type CreateExerciseRequest struct {
+	Name             string   `json:"name" validate:"required,max=100"`
+	MuscleGroup      string   `json:"muscle_group" validate:"required"`
+	Equipment        string   `json:"equipment"`
+	Category         string   `json:"category"`
+	SecondaryMuscles []string `json:"secondary_muscles" validate:"max=10"`
+	Description      string   `json:"description" validate:"max=2000"`
+}
+
+// MergeExerciseRequest is the body of POST /exercises/:id/merge.
+type MergeExerciseRequest struct {
+	IntoID int64 `json:"into_id"`
+}
+
+type ExerciseUsage struct {
+	Workouts    int `json:"workouts"`
+	ProgramDays int `json:"program_days"`
+}
+
+type MergeResult struct {
+	MovedWorkouts    int      `json:"moved_workouts"`
+	MovedProgramDays int      `json:"moved_program_days"`
+	Into             Exercise `json:"into"`
 }
 
 type Workout struct {

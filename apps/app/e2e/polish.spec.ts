@@ -72,7 +72,7 @@ test.describe('Route walk, signed out', () => {
 })
 
 test.describe('Route walk, signed in', () => {
-  const ids = { exercise: 0, exercise2: 0, workout: 0, program: 0, food: 0, weight: 0 }
+  const ids = { exercise: 0, exercise2: 0, custom: 0, workout: 0, program: 0, food: 0, weight: 0 }
 
   test.beforeAll(async ({ request, workerAuth }) => {
     const headers = { Authorization: `Bearer ${workerAuth.token}` }
@@ -85,6 +85,10 @@ test.describe('Route walk, signed in', () => {
     const exercises = await data(request.get(`${API}/exercises?limit=2`, { headers }))
     ids.exercise = exercises[0].id
     ids.exercise2 = exercises[1].id
+    ids.custom = (await data(request.post(`${API}/exercises`, {
+      headers,
+      data: { name: `Polish walk custom ${Date.now()}`, muscle_group: 'calves', description: 'Heels on the edge.' },
+    }))).id
     const now = new Date()
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const sets = [{ set_number: 1, reps: 8, weight: 135 }]
@@ -118,11 +122,15 @@ test.describe('Route walk, signed in', () => {
     ['workout-edit', () => `/workouts/${ids.workout}/edit`],
     ['exercises', () => '/workouts/exercises'],
     ['exercise-detail', () => `/workouts/exercise/${ids.exercise}`],
+    ['exercise-new', () => '/workouts/exercise/new'],
+    ['exercise-custom', () => `/workouts/exercise/${ids.custom}`],
+    ['exercise-edit', () => `/workouts/exercise/${ids.custom}/edit`],
     ['programs', () => '/programs'],
     ['program-new', () => '/programs/new'],
     ['program-detail', () => `/programs/${ids.program}`],
     ['program-edit', () => `/programs/${ids.program}/edit`],
     ['program-exercise', () => `/programs/exercise/${ids.exercise}`],
+    ['program-exercise-new', () => '/programs/exercise/new'],
     ['nutrition', () => '/nutrition'],
     ['nutrition-log', () => '/nutrition/log'],
     ['nutrition-entry', () => `/nutrition/${ids.food}`],

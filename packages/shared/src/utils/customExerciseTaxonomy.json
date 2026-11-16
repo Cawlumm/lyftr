@@ -1,0 +1,15 @@
+{
+  "//": "What a custom exercise may use: the form's options and what the server accepts. Read by exerciseUtils.ts (CUSTOM_EXERCISE_*) and by backend/stores/taxonomy_test.go, which holds the Go lists to it.",
+  "muscles": [
+    "chest", "shoulders", "biceps", "triceps", "forearms", "abdominals",
+    "lats", "middle-back", "lower-back", "traps", "glutes",
+    "quadriceps", "hamstrings", "calves", "adductors", "abductors", "neck"
+  ],
+  "equipment": [
+    "body-only", "barbell", "dumbbell", "machine", "cable", "kettlebells", "bands",
+    "medicine-ball", "e-z-curl-bar", "exercise-ball", "foam-roll", "other"
+  ],
+  "categories": [
+    "strength", "stretching", "plyometrics", "strongman", "powerlifting", "cardio", "olympic-weightlifting"
+  ]
+}

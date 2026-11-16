@@ -12,7 +12,7 @@ import {
   currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
 } from '@lyftr/shared'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
-import { AppText, ConfirmSheet, Menu, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, StepperTile, type MenuItem } from '../ui'
+import { AppText, CollapsibleChips, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
 import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
@@ -168,7 +168,7 @@ function RoundComplete({ rows, restExIdx, restSetIdx, wUnit }: { rows: ActiveSes
       </View>
       {target ? (
         <View role="group" accessibilityLabel={t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')} className="flex-row items-center gap-3 rounded-2xl px-4 py-3" style={{ backgroundColor: c.tint, borderWidth: 1.5, borderColor: c.border }}>
-          <ExerciseThumb url={rows[target.exIdx].exercise.image_url} tag={exerciseTag(rows, target.exIdx)} colorIndex={groupColorIndex(rows, restExIdx)} />
+          <ExerciseThumb url={rows[target.exIdx].exercise.image_url} photo={{ exerciseId: rows[target.exIdx].exercise_id, photoId: rows[target.exIdx].exercise.photo_id }} tag={exerciseTag(rows, target.exIdx)} colorIndex={groupColorIndex(rows, restExIdx)} />
           <View className="min-w-0 flex-1">
             <AppText variant="label" className="uppercase" style={{ color: c.ink }}>{t(final ? 'gym.superset.upNextFinal' : 'gym.superset.upNext')}</AppText>
             <AppText variant="bodySemibold" numberOfLines={1}>{t('gym.superset.upNextTitle', { name: rows[target.exIdx].exercise.name, number: target.setIdx + 1 })}</AppText>
@@ -427,7 +427,7 @@ export function GymModeWorkout() {
         exercises={session.exercises.map((e, i) => ({
           name: e.exercise.name, done: e.sets.filter((st) => st.completed).length, total: e.sets.length,
           superset: supersetInfo(session.exercises, i),
-          imageUrl: e.exercise.image_url, colorIndex: groupColorIndex(session.exercises, i),
+          imageUrl: e.exercise.image_url, photo: { exerciseId: e.exercise_id, photoId: e.exercise.photo_id }, colorIndex: groupColorIndex(session.exercises, i),
         }))}
         rowKeys={occurrenceKeys(session.exercises.map((e) => e.exercise_id))}
         current={activeIdx}
@@ -445,7 +445,7 @@ export function GymModeWorkout() {
         onClose={() => setSupersetOpen(false)}
       />
       {/* iOS Done bar above the numeric keyboard (the reps/weight NumberFields link it). */}
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </SafeAreaView>
     </GymFrame>
   )
@@ -458,7 +458,7 @@ export function GymModeWorkout() {
   const pairCandidates = session.exercises.flatMap((e, index) =>
     index === activeIdx || (activeGroup && index >= activeGroup.start && index <= activeGroup.end)
       ? []
-      : [{ index, name: e.exercise.name, muscle: muscleLabel(e.exercise.muscle_group), imageUrl: e.exercise.image_url }])
+      : [{ index, name: e.exercise.name, muscle: muscleLabel(e.exercise.muscle_group), imageUrl: e.exercise.image_url, photo: { exerciseId: e.exercise_id, photoId: e.exercise.photo_id } }])
 
   // The store has no "pair" action, so the result of pairWith is written whole and the positional
   // indices (screen, running rest) follow the row that was moved, as moveExercise does.
@@ -709,8 +709,8 @@ export function GymModeWorkout() {
             {exercise.secondary_muscles?.length > 0 ? (
               <View>
                 <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} border />)}
+                <View className="flex-row flex-wrap items-center gap-1.5">
+                  <CollapsibleChips compact items={exercise.secondary_muscles} renderChip={(m) => <MuscleBadge key={m} muscle={m} border />} />
                 </View>
               </View>
             ) : null}
@@ -873,12 +873,12 @@ export function GymModeWorkout() {
           <View className="w-full flex-row gap-3">
             <View className="flex-1">
               <StepperTile icon={Repeat} label={t('gym.labels.reps')} name={t('gym.labels.repsName')} step={REP_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', clampStep(set.actual_reps || 0, d, { min: 0 }))}>
-                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.reps')} inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`reps-${activeIdx}-${clampedSetIdx}`} inputMode="numeric" value={set.actual_reps ? String(set.actual_reps) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_reps', Math.round(clampValue(v)))} placeholder={set.target_reps > 0 ? String(set.target_reps) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.reps')} inputAccessoryViewID={KEYBOARD_DONE_ID} />
               </StepperTile>
             </View>
             <View className="flex-1">
               <StepperTile icon={Dumbbell} label={t('common.weightWithUnit', { unit: wUnit })} name={t('common.weightName')} step={PLATE_STEP} disabled={set.completed} onStep={(d) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampStep(displayWeight(set.actual_weight, wUnit), d, { min: 0 }), settings.weight_unit))}>
-                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.weight')} inputAccessoryViewID={NUMERIC_ACCESSORY_ID} />
+                <NumberField key={`wt-${activeIdx}-${clampedSetIdx}`} inputMode="decimal" value={set.actual_weight ? String(displayWeight(set.actual_weight, wUnit)) : ''} onChange={(v) => updateSet(activeIdx, clampedSetIdx, 'actual_weight', displayToLbs(clampValue(v), settings.weight_unit))} placeholder={set.target_weight > 0 ? String(displayWeight(set.target_weight, wUnit)) : '0'} disabled={set.completed} accessibilityLabel={t('gym.labels.weight')} inputAccessoryViewID={KEYBOARD_DONE_ID} />
               </StepperTile>
             </View>
           </View>

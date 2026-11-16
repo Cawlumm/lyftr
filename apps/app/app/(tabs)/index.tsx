@@ -418,7 +418,7 @@ export default function Dashboard() {
         onPress={() => { hSelect(); router.navigate(`/programs/${upNext.program.id}`) }}
         className="min-w-0 flex-1 flex-row items-center gap-3 rounded-lg active:opacity-70"
       >
-        <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} fallbackIcon={BookOpen} />
+        <ExerciseImage url={upNext.day.exercises?.[0]?.exercise?.image_url} photo={upNext.day.exercises?.[0] ? { exerciseId: upNext.day.exercises[0].exercise_id, photoId: upNext.day.exercises[0].exercise?.photo_id } : undefined} fallbackIcon={BookOpen} />
         <View className="min-w-0 flex-1">
           <Label>{t('home.upNext.label', { name: upNext.program.name })}</Label>
           <Text className="mt-0.5 font-sans-semibold text-sm text-tx-primary" numberOfLines={1}>
@@ -604,7 +604,7 @@ export default function Dashboard() {
               const best = sets.length > 0 ? sets.reduce((b, s) => (s.weight > b.weight ? s : b), sets[0]) : null
               return (
                 <View key={ex.id ?? i} className="flex-row items-center gap-2.5">
-                  <ExerciseImage url={ex.exercise.image_url} size="row" />
+                  <ExerciseImage url={ex.exercise.image_url} photo={{ exerciseId: ex.exercise_id, photoId: ex.exercise.photo_id }} size="row" />
                   <View className="min-w-0 flex-1 gap-1">
                     <Text className="text-sm text-tx-secondary" numberOfLines={1}>{ex.exercise.name}</Text>
                     <MuscleBadge muscle={ex.exercise.muscle_group} selfStart />

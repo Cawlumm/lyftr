@@ -27,7 +27,9 @@ const ARROW = { paddingLeft: 12, paddingRight: 16, marginLeft: -12, marginRight:
 const MOVE_UP = { ...ARROW, paddingTop: 6, marginTop: -6 }
 const MOVE_DOWN = { ...ARROW, paddingBottom: 6, marginBottom: -6 }
 // Full width, so only the 36px height is padded out.
-const ADD_DAY = touchPad(TOUCH_MIN, 36)
+// Side by side while both labels fit on one line, stacked below that (320px, longer locales):
+// a wrapped two-line button reads as two buttons.
+const ADD_DAY = [touchPad(TOUCH_MIN, 36), { flexGrow: 1, flexBasis: 150 }]
 
 // The program's day/rest-day cycle, in order. Add/remove/reorder days here; each
 // workout day expands to the (unchanged) per-day exercise editor. The array operations
@@ -146,27 +148,27 @@ export function ProgramDaysEditor({
         )
       })}
 
-      <View className="flex-row gap-2">
+      <View className="flex-row flex-wrap gap-2">
         <Pressable
           accessibilityRole="button"
           onPress={() => addDay(false)}
           style={ADD_DAY}
-          className="flex-1 active:scale-95"
+          className="active:scale-95"
         >
           <View className="flex-row items-center justify-center gap-1.5 rounded-lg border border-brand-500/20 bg-brand-500/10 py-2.5">
             <Plus size={14} color={accent} />
-            <AppText variant="label" style={{ color: accent }}>{t('programs.form.daysEditor.addWorkoutDay')}</AppText>
+            <AppText variant="label" style={{ color: accent }} numberOfLines={1}>{t('programs.form.daysEditor.addWorkoutDay')}</AppText>
           </View>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => addDay(true)}
           style={ADD_DAY}
-          className="flex-1 active:scale-95"
+          className="active:scale-95"
         >
           <View className="flex-row items-center justify-center gap-1.5 rounded-lg border border-surface-border bg-surface-muted py-2.5">
             <Moon size={14} color={colors.txMuted} />
-            <AppText variant="label" color="secondary">{t('programs.form.daysEditor.addRestDay')}</AppText>
+            <AppText variant="label" color="secondary" numberOfLines={1}>{t('programs.form.daysEditor.addRestDay')}</AppText>
           </View>
         </Pressable>
       </View>
