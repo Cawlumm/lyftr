@@ -345,8 +345,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     <View>
       <AppText variant="title">{exercise.name}</AppText>
       <View className="mt-2 flex-row flex-wrap items-center gap-2">
-        {custom ? <CustomBadge wide border /> : null}
-        <MuscleBadge muscle={exercise.muscle_group} wide border />
+        {custom ? <CustomBadge pill /> : null}
+        <MuscleBadge muscle={exercise.muscle_group} pill />
         {equipLabel && exercise.equipment !== 'other' ? (
           <View className="rounded-full border border-surface-border bg-surface-muted px-3 py-1">
             <AppText variant="caption" color="secondary">{equipLabel}</AppText>
