@@ -94,7 +94,7 @@ test('create a custom exercise by tapping the body maps', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove Triceps' }).click()
   await expect(page.getByRole('button', { name: 'Remove Triceps' })).toHaveCount(0)
 
-  const created = page.waitForResponse((r) => r.url().endsWith('/api/v1/exercises') && r.request().method() === 'POST')
+  const created = page.waitForResponse((r) => new URL(r.url()).pathname.endsWith('/api/v1/exercises') && r.request().method() === 'POST')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
   const body = (await (await created).json()).data
   expect(body.muscle_group).toBe('chest')
