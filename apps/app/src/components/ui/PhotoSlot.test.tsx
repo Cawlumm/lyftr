@@ -8,7 +8,7 @@ jest.mock('../../lib/exercisePhoto', () => ({ cameraSupported: true }))
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }))
 
 const labels: PhotoSlotLabels = {
-  add: 'Add photo', addHint: 'Optional', replace: 'Replace', remove: 'Remove', choose: 'Choose photo',
+  add: 'Add photo', addHint: 'Optional', replace: 'Change photo', remove: 'Remove', choose: 'Choose photo',
   take: 'Take photo', sourceTitle: 'Add a photo', preview: 'Preview', pending: 'Ready',
 }
 
@@ -21,14 +21,19 @@ describe('PhotoSlot', () => {
     await waitFor(() => expect(onPick).toHaveBeenCalledWith('camera'), { timeout: 2000 })
   })
 
-  it('filled: shows the picture with Replace and Remove, and the pending note', async () => {
+  it('filled: nothing on the picture; one Change control opens choose, take and remove', async () => {
     const onRemove = jest.fn()
-    await render(<PhotoSlot filled pending uri="file:///p.jpg" labels={labels} onPick={jest.fn()} onRemove={onRemove} />)
+    const onPick = jest.fn()
+    await render(<PhotoSlot filled pending uri="file:///p.jpg" labels={labels} onPick={onPick} onRemove={onRemove} />)
     expect(screen.getByLabelText('Preview')).toBeTruthy()
     expect(screen.getByText('Ready')).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Remove' }))
-    expect(onRemove).toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Replace' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: 'Change photo' })).toHaveLength(1)
+    expect(screen.queryByText('Remove')).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Change photo' }))
+    expect(await screen.findByText('Choose photo')).toBeTruthy()
+    expect(screen.getByText('Take photo')).toBeTruthy()
+    await fireEvent.press(screen.getByText('Remove'))
+    await waitFor(() => expect(onRemove).toHaveBeenCalled(), { timeout: 2000 })
   })
 
   it('says why a pick failed', async () => {

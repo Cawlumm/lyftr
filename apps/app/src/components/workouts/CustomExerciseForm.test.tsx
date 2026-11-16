@@ -359,7 +359,7 @@ describe('CustomExerciseForm photo', () => {
     await fill()
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/workouts/exercise/7'))
     expect(upload).toHaveBeenCalledWith(7, { uri: 'file:///p.jpg' })
-    expect(screen.getByRole('button', { name: 'Replace photo' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Change photo' })).toBeTruthy()
   })
 
   it('keeps the exercise when the upload fails: error on the page, retry works', async () => {
@@ -408,7 +408,9 @@ describe('CustomExerciseForm photo', () => {
     const update = jest.spyOn(client.exerciseAPI, 'update').mockResolvedValue(withPhoto)
     const del = jest.spyOn(client.exerciseAPI, 'deletePhoto').mockResolvedValue(saved)
     await render(<CustomExerciseForm mode="edit" base="/workouts" />)
-    await fireEvent.press(await screen.findByRole('button', { name: 'Remove photo' }))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Change photo' }))
+    await fireEvent.press(await screen.findByText('Remove photo'))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Add photo' })).toBeTruthy(), { timeout: 2000 })
     await pressCreate('Save')
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
     expect(update).toHaveBeenCalledTimes(1)
