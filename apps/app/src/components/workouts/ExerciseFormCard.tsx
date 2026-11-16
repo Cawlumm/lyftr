@@ -6,6 +6,7 @@ import {
   type Exercise,
 } from '@lyftr/shared'
 import { AppText, IconButton, Label, Menu, TOUCH_MIN, touchPad } from '../ui'
+import { SR_ONLY } from '../ui/interaction'
 import { ExerciseImage } from './ExerciseImage'
 import { RestPicker } from './RestPicker'
 import { equipmentLabel, muscleLabel, sanitizeNumericInput, useNumericText, useTranslation } from '@lyftr/shared'
@@ -325,8 +326,6 @@ interface ListProps<T extends FormRow> extends CardHandlers {
   onRewrite: (fn: (rows: T[]) => T[]) => void
   inputAccessoryViewID?: string
 }
-
-const SR_ONLY = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 } as const
 
 // The editors' exercise list: standalone cards, and one SupersetBlock around each run of linked
 // members (connector between members, rest footer after the last). Linking lives in each card's

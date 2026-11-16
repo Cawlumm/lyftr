@@ -25,7 +25,7 @@ const NON_COPY_PROPS = [
   'resizeMode', 'contentFit', 'pointerEvents', 'role', 'accessibilityRole', 'backBehavior',
   // keyboard, scrolling, camera and live-region behaviour
   'keyboardShouldPersistTaps', 'keyboardDismissMode', 'submitBehavior', 'submitLabel',
-  'accessibilityLiveRegion', 'facing', 'barcodeScannerSettings', 'display',
+  'accessibilityLiveRegion', 'importantForAccessibility', 'facing', 'barcodeScannerSettings', 'display',
   'themeVariant', 'align', 'side', 'tint', 'maxWidth',
   'keyboardType', 'autoCapitalize', 'autoComplete', 'autoCorrect', 'textContentType',
   'inputMode', 'enterKeyHint', 'returnKeyType',

@@ -7,10 +7,13 @@ import { useTranslation } from '@lyftr/shared'
 import { useTheme } from '../../theme/useTheme'
 import { TOUCH_MIN, touchTarget } from './interaction'
 import { Label } from './Typography'
+import { RequiredMark } from './FieldHeader'
 
 interface Props {
   icon: LucideIcon
   label: string
+  /** The value must be entered: a "*" after the label (the field inside carries aria-required). */
+  required?: boolean
   /** Concise metric name for the step buttons' accessibility labels (e.g. "reps"). */
   name: string
   step: number
@@ -31,6 +34,7 @@ export function StepperTile({
   step,
   onStep,
   disabled = false,
+  required = false,
   children,
 }: Props) {
   const { t } = useTranslation()
@@ -67,7 +71,10 @@ export function StepperTile({
       <View className="px-3 pt-3 pb-1.5 items-center gap-1">
         <View className="flex-row items-center gap-1.5">
           <Icon size={14} color={accent} strokeWidth={2.2} />
-          <Label color="muted">{label}</Label>
+          <View className="flex-row items-center gap-0.5">
+            <Label color="muted">{label}</Label>
+            {required ? <RequiredMark input /> : null}
+          </View>
         </View>
         {children}
       </View>

@@ -66,6 +66,8 @@ export function PasswordField({ id, label, value, onChangeText, textContentType,
         value={value}
         onChangeText={onChangeText}
         secureTextEntry={!visible}
+        // A password is never optional where one is asked for.
+        required
         id={id}
         autoCapitalize="none"
         autoCorrect={false}

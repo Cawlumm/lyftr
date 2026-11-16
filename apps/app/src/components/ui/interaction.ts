@@ -13,6 +13,13 @@ export function interactive(hover: string, { disabled = false, inset = false } =
   return `cursor-pointer ${RING} ${offset} ${hover}`
 }
 
+// On screen for assistive tech only: a live region, or words a glyph stands in for.
+export const SR_ONLY = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 } as const
+
+// aria-required on a required text field (RN's types have none; react-native-web passes it on).
+// FieldHeader's "*" says it to sighted users and RequiredMark to the header's reader.
+export const WEB_REQUIRED = (Platform.OS === 'web' ? { 'aria-required': true } : {}) as object
+
 // These controls had no role, which native reads from the text alone; react-native-web needs
 // one for the DOM, so web gets it and native is unchanged.
 export const WEB_BUTTON = Platform.OS === 'web' ? ('button' as const) : undefined

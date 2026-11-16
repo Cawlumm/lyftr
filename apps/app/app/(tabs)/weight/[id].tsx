@@ -5,7 +5,7 @@ import * as Haptics from 'expo-haptics'
 import { ArrowLeft, Edit2, Scale, Trash2 } from '../../../src/components/ui/icons'
 import { useAsyncAction, uiMessage, isNotFound, dayToInstant, displayWeight, maxWeight, resolveWeightLbs, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, formatDay, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
-  AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField,
+  AppText, Button, Card, ConfirmSheet, DateInput, ErrorState, Field, Label, Loading, NumberField, RequiredLegend,
   KeyboardDoneAccessory, KEYBOARD_DONE_ID, Screen, scrollBleed, StepperTile, deleteConfirmProps,
 } from '../../../src/components/ui'
 import { touchPad, touchTarget } from '../../../src/components/ui/interaction'
@@ -209,6 +209,7 @@ export default function WeightDetail() {
             <Card>
               <AppText variant="heading" className="mb-4">{t('weight.detail.editTitle')}</AppText>
               <View className="gap-4">
+                <RequiredLegend />
                 {editError || saveEdit.error ? (
                   <Alert variant="error" size="compact">{editError || saveEdit.error}</Alert>
                 ) : null}
@@ -216,6 +217,7 @@ export default function WeightDetail() {
                 <StepperTile
                   icon={Scale}
                   label={t('common.weightWithUnit', { unit: wUnit })}
+                  required
                   name={t('common.weightName')}
                   step={BODYWEIGHT_STEP}
                   onStep={(d) => setEditWeight(String(clampStep(parseFloat(editWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
@@ -223,6 +225,7 @@ export default function WeightDetail() {
                   <NumberField
                     inputMode="decimal"
                     value={editWeight}
+                    required
                     onChange={setEditWeight}
                     placeholder="0"
                     accessibilityLabel={t('weight.log.weightField')}
@@ -233,7 +236,7 @@ export default function WeightDetail() {
                 <DateInput label={t('weight.detail.date')} value={editDate} onChange={setEditDate} maximumDate={new Date()} />
 
                 <Field
-                  label={t('weight.detail.notesOptionalPlain')}
+                  label={t('common.notes')}
                   value={editNotes}
                   onChangeText={setEditNotes}
                   placeholder={t('weight.notePlaceholder')}

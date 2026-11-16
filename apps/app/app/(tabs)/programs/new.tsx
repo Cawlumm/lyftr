@@ -11,7 +11,7 @@ import { useBreakpoint } from '../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../src/lib/useMotion'
 import { useTheme } from '../../../src/theme/useTheme'
 import type { DayDraft } from '../../../src/components/programs/types'
-import { FieldHeader } from '../../../src/components/ui/FieldHeader'
+import { FieldHeader, RequiredLegend, RequiredMark } from '../../../src/components/ui/FieldHeader'
 
 // Weights live in DISPLAY units in the form (reps/weight per set, same shape the shared
 // ExerciseFormCard edits); converted to lbs + mapped to target_reps/target_weight only in
@@ -121,6 +121,8 @@ export default function AddProgram() {
             </View>
           </View>
 
+          <RequiredLegend />
+
           {error || save.error ? (
             <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
@@ -129,10 +131,11 @@ export default function AddProgram() {
           ) : null}
 
           <View>
-            <FieldHeader icon={BookOpen} label={t('programs.form.name')} hint={t('common.required')} />
+            <FieldHeader icon={BookOpen} label={t('programs.form.name')} requiredInput />
             <Field
               // The header above is not tied to the input in the DOM, so web names it here.
               accessibilityLabel={Platform.OS === 'web' ? t('programs.form.name') : undefined}
+              required
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
               placeholder={t('programs.form.namePlaceholder')}
@@ -153,8 +156,11 @@ export default function AddProgram() {
           <View>
             <View className="mb-3 flex-row items-center gap-2">
               <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
-              <Label>{t('programs.form.days')}</Label>
-              <AppText variant="caption" color="muted">{t('programs.form.daysHintNew')}</AppText>
+              <View className="flex-row items-center gap-0.5">
+                <Label>{t('programs.form.days')}</Label>
+                <RequiredMark />
+              </View>
+              <AppText variant="caption" color="muted">{t('programs.form.daysHint')}</AppText>
             </View>
             <ProgramDaysEditor
               days={formData.days}

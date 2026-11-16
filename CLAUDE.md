@@ -122,7 +122,8 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
 
 - **`apps/app/src/components/ui/FormPage.tsx`**: the page scaffold. It provides the back and title header, a keyboard-aware scroll (drag/tap dismisses, iOS Done bar) and a sticky primary action kept above the keyboard. It also owns the action's busy and disabled state, an optional secondary action (Cancel goes through the same discard guard), an inline error with retry beside that action, and an optional destructive action through `ConfirmSheet`. `useDiscardGuard(dirty)` is the unsaved-changes guard on back; call `guard.allowLeave()` before a save navigates away.
 - **Field pieces in `ui/`:**
-  - `FieldHeader`: the icon + uppercase label (+ "(required)") over a field, shared by every form.
+  - `FieldHeader`: the icon + uppercase label over a field, shared by every form.
+- **Required fields** (`ui/FieldHeader.tsx`, `RequiredMark`/`RequiredLegend`): a field is required when the save refuses it empty; a control that always holds a value (a date, a choice with a default) is not marked. A form that mixes required and optional fields stars each required one (`FieldHeader required`/`requiredInput`, `StepperTile required`, `RequiredMark` beside a hand-built label) and shows `<RequiredLegend />` ("* Required") once at its top; optional fields get nothing, and no copy says "optional". A form where every field is required shows no star and no legend. Either way the input says it to assistive tech: `required` on `Field`/`NumberField` (aria-required; `IconInput` and `PasswordField` always), and the star itself is never read.
   - `Field`: label, error and a `footer` slot for suggestions. `FormField` is a `Field` already wired to the page's Done bar.
   - `IconTileGroup`: single or multi select with icon tiles or chips, radio/checkbox semantics, optional `max`.
   - `PhotoSlot`.

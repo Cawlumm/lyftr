@@ -6,7 +6,7 @@ import {
 } from '../../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
 import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
-import { FieldHeader } from '../../../../src/components/ui/FieldHeader'
+import { FieldHeader, RequiredLegend, RequiredMark } from '../../../../src/components/ui/FieldHeader'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
 
 // Wider than 44 and 32 tall, so only the height is padded.
@@ -286,6 +286,8 @@ export default function EditWorkout() {
             </View>
           </View>
 
+          <RequiredLegend />
+
           {error || save.error ? (
             <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
@@ -295,10 +297,11 @@ export default function EditWorkout() {
 
           <View className={wide ? 'flex-row gap-4' : 'gap-6'}>
             <View className={wide ? 'flex-1' : ''}>
-              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} />
+              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} requiredInput />
               <Field
                 // The header above is not tied to the input in the DOM, so web names it here.
                 accessibilityLabel={Platform.OS === 'web' ? t('workouts.form.name') : undefined}
+                required
                 value={formData.name}
                 onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
               />
@@ -344,7 +347,10 @@ export default function EditWorkout() {
             <View className="mb-3 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
               <View className="flex-row items-center gap-2">
                 <Zap size={14} color={accent} strokeWidth={2.2} />
-                <Label>{t('workouts.form.exercises')}</Label>
+                <View className="flex-row items-center gap-0.5">
+                  <Label>{t('workouts.form.exercises')}</Label>
+                  <RequiredMark />
+                </View>
               </View>
               <View className="ml-auto flex-row items-center gap-2">
                 {formData.exercises.length > 1 ? <ReorderButton onPress={openReorder} size="compact" /> : null}
