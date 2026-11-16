@@ -281,6 +281,18 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
         />
       </View>
 
+      <View>
+        <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} hint={t('exercises.custom.form.instructionsHint')} />
+        <FormField
+          accessibilityLabel={t('exercises.custom.form.instructions')}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t('exercises.custom.form.instructionsPlaceholder')}
+          multiline
+          maxLength={2000}
+        />
+      </View>
+
       <View onLayout={(ev) => { pos.current.muscle = ev.nativeEvent.layout.y }}>
         <FieldHeader icon={Target} label={t('exercises.custom.form.muscle')} required />
         <Card className="gap-3">
@@ -316,18 +328,6 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
           options={CATEGORY_OPTIONS.map((o) => ({ value: o.value, icon: o.icon, label: titleCase(t(o.labelKey)) }))}
           value={category}
           onChange={setCategory}
-        />
-      </View>
-
-      <View>
-        <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} hint={t('exercises.custom.form.instructionsHint')} />
-        <FormField
-          accessibilityLabel={t('exercises.custom.form.instructions')}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder={t('exercises.custom.form.instructionsPlaceholder')}
-          multiline
-          maxLength={2000}
         />
       </View>
       {announcement ? <View accessibilityLiveRegion="polite" style={SR_ONLY}><AppText>{announcement}</AppText></View> : null}
