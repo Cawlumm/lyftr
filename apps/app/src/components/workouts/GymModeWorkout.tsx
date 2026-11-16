@@ -12,7 +12,7 @@ import {
   currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
 } from '@lyftr/shared'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
-import { AppText, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
+import { AppText, CollapsibleChips, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
 import { RestPicker } from './RestPicker'
 import { ExercisePicker } from './ExercisePicker'
 import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
@@ -709,8 +709,8 @@ export function GymModeWorkout() {
             {exercise.secondary_muscles?.length > 0 ? (
               <View>
                 <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
-                <View className="flex-row flex-wrap gap-1.5">
-                  {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} border />)}
+                <View className="flex-row flex-wrap items-center gap-1.5">
+                  <CollapsibleChips compact items={exercise.secondary_muscles} renderChip={(m) => <MuscleBadge key={m} muscle={m} border />} />
                 </View>
               </View>
             ) : null}

@@ -25,7 +25,7 @@ import {
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
 import { touchTarget } from '../ui/interaction'
-import { ActionSheet, AppText, Button, ErrorState, Menu, Screen, scrollBleed, SegmentedControl, Toast, editAction, linkProps, type SheetAction } from '../ui'
+import { ActionSheet, AppText, Button, CollapsibleChips, ErrorState, Menu, Screen, scrollBleed, SegmentedControl, Toast, editAction, linkProps, type SheetAction } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
 import { client, useServerInfo, useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
@@ -383,8 +383,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const secondaryBlock = exercise.secondary_muscles?.length > 0 ? (
     <View>
       <AppText variant="label" color="muted" className="mb-2 uppercase">{t('exercises.detail.alsoWorks')}</AppText>
-      <View className="flex-row flex-wrap gap-1.5">
-        {exercise.secondary_muscles.map((m) => <MuscleBadge key={m} muscle={m} wide />)}
+      <View className="flex-row flex-wrap items-center gap-1.5">
+        <CollapsibleChips compact items={exercise.secondary_muscles} renderChip={(m) => <MuscleBadge key={m} muscle={m} wide />} />
       </View>
     </View>
   ) : null
