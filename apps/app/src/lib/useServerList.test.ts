@@ -148,3 +148,75 @@ describe('useServerList — a change of deps', () => {
     await waitFor(() => expect(result.current.hasMore).toBe(false))
   })
 })
+
+// The exercise library is the longest list in the app (~900 rows, 50 a page), and a report
+// of it stopping after the second page turned out to be the dev stack's 64-row catalogue
+// stub, not this hook. These pin that it keeps paging, so the next such report can rule
+// the client out from the test run alone.
+describe('useServerList — paging through a long list', () => {
+  const deferred = <T,>() => {
+    let resolve!: (v: T) => void
+    const promise = new Promise<T>((r) => { resolve = r })
+    return { promise, resolve }
+  }
+
+  it('fetches page after page, past the third, from the offset each one left', async () => {
+    const fetcher = jest.fn((offset: number, limit: number) => Promise.resolve(page(offset / limit, limit)))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    await waitFor(() => expect(result.current.items).toHaveLength(2))
+
+    for (let n = 2; n <= 5; n++) {
+      await act(async () => { result.current.loadMore() })
+      await waitFor(() => expect(result.current.items).toHaveLength(n * 2))
+    }
+
+    expect(fetcher.mock.calls.map(([offset]) => offset)).toEqual([0, 2, 4, 6, 8])
+    expect(result.current.items).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+    expect(result.current.hasMore).toBe(true)
+  })
+
+  // FlatList fires onEndReached again on momentum and on layout while a page is in flight. Those
+  // calls are dropped, and that is only safe because the page that lands changes the content
+  // length and earns a fresh onEndReached; the next one must then ask for the following page.
+  it('drops loadMore while a page is in flight, and the next one asks for the page after it', async () => {
+    const second = deferred<number[]>()
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(page(0, 2))
+      .mockReturnValueOnce(second.promise)
+      .mockResolvedValueOnce(page(2, 2))
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    await waitFor(() => expect(result.current.items).toEqual([0, 1]))
+
+    await act(async () => {
+      result.current.loadMore()
+      result.current.loadMore()
+      result.current.loadMore()
+    })
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(result.current.loading).toBe(true)
+
+    await act(async () => { second.resolve(page(1, 2)) })
+    await waitFor(() => expect(result.current.items).toEqual([0, 1, 2, 3]))
+    expect(result.current.loading).toBe(false)
+
+    await act(async () => { result.current.loadMore() })
+    await waitFor(() => expect(result.current.items).toEqual([0, 1, 2, 3, 4, 5]))
+    expect(fetcher.mock.calls.map(([offset]) => offset)).toEqual([0, 2, 4])
+  })
+
+  it('stops at a short page and asks for nothing more', async () => {
+    const fetcher = jest.fn()
+      .mockResolvedValueOnce(page(0, 2))
+      .mockResolvedValueOnce([2])
+    const { result } = await renderHook(() => useServerList<number>({ fetcher, pageSize: 2 }))
+    await waitFor(() => expect(result.current.items).toEqual([0, 1]))
+
+    await act(async () => { result.current.loadMore() })
+    await waitFor(() => expect(result.current.hasMore).toBe(false))
+    await act(async () => { result.current.loadMore() })
+
+    expect(fetcher).toHaveBeenCalledTimes(2)
+    expect(result.current.items).toEqual([0, 1, 2])
+    expect(result.current.error).toBeNull()
+  })
+})
