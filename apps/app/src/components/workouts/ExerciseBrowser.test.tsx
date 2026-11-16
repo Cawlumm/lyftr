@@ -128,6 +128,8 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await openFilters()
 
+    // Muscles is a long section: it shows six and folds the rest behind "Show N more".
+    await fireEvent.press(screen.getAllByRole('button', { name: /^Show \d+ more$/ })[0])
     await fireEvent.press(screen.getByText('calves'))
 
     expect(await screen.findByText('No exercises match')).toBeTruthy()

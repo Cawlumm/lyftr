@@ -4,6 +4,7 @@ import { Check } from './icons'
 import { AppText } from './Typography'
 import { interactive, TOUCH_MIN, webToggle } from './interaction'
 import { useTheme } from '../../theme/useTheme'
+import { FoldToggle, OPTION_FOLD, useFold } from './fold'
 
 export interface TileOption<T extends string> {
   value: T
@@ -28,7 +29,8 @@ type Props<T extends string> = {
 
 const TILE_MIN = 76
 
-// A choice among a few labelled options: one of them (radio) or any of them (checkbox).
+// A choice among labelled options: one of them (radio) or any of them (checkbox). A long list
+// folds by OPTION_FOLD (fold.tsx), always showing what is chosen.
 export function IconTileGroup<T extends string>(props: Props<T>) {
   const { options, label, layout = 'chip', columns = 3 } = props
   const { accent, colors } = useTheme()
@@ -39,9 +41,11 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
   }
   const role = props.multiple ? 'checkbox' : 'radio'
   const full = props.multiple && props.max !== undefined && props.value.length >= props.max
+  const fold = useFold(options, OPTION_FOLD, (o) => isOn(o.value))
+  const tileStyle = { minHeight: TILE_MIN, flexBasis: `${Math.floor(100 / columns) - 3}%`, flexGrow: 1 }
   return (
     <View accessibilityRole={props.multiple ? undefined : 'radiogroup'} accessibilityLabel={label} className="flex-row flex-wrap gap-2">
-      {options.map((o) => {
+      {fold.shown.map((o) => {
         const on = isOn(o.value)
         const off = (full && !on) || !!o.disabled
         const Icon = o.icon
@@ -58,7 +62,7 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
             <Pressable
               key={o.value}
               {...common}
-              style={{ minHeight: TILE_MIN, flexBasis: `${Math.floor(100 / columns) - 3}%`, flexGrow: 1 }}
+              style={tileStyle}
               className={`items-center justify-center gap-1.5 rounded-xl px-1 py-2 active:opacity-70 ${
                 on ? 'border-2 border-brand-500 bg-brand-500/25' : 'border border-surface-border bg-surface-muted'
               } ${off ? 'opacity-40' : ''} ${interactive('hover:bg-surface-border')}`}
@@ -87,6 +91,9 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
           </Pressable>
         )
       })}
+      {fold.folds ? (
+        <FoldToggle open={fold.open} hidden={fold.hidden} onPress={fold.toggle} variant={layout === 'tile' ? 'tile' : 'chip'} tileStyle={tileStyle} />
+      ) : null}
     </View>
   )
 }

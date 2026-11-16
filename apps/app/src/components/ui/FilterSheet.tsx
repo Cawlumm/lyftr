@@ -8,6 +8,7 @@ import { AppText } from './Typography'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
 import { Sheet } from './Sheet'
+import { FoldToggle, OPTION_FOLD, useFold } from './fold'
 
 interface Props {
   open: boolean
@@ -19,14 +20,13 @@ interface Props {
   onClose: () => void
 }
 
-// The panel behind a FilterButton: one section per group, every option visible at once
-// instead of scrolled past. Generic over `groups`, so a screen with other filters brings its
+// The panel behind a FilterButton: one section per group. A long section folds by OPTION_FOLD
+// (fold.tsx), always showing the option that is on. Generic over `groups`, so a screen with other filters brings its
 // own list and nothing here changes. Changes apply as they are made (the list updates behind
 // the scrim); Done only closes. Mirrors web ui/FilterSheet.
 export function FilterSheet({ open, groups, values, onChange, onReset, onClose }: Props) {
   const { t } = useTranslation()
   const { height } = useWindowDimensions()
-  const { accent } = useTheme()
   const count = activeFilterCount(groups, values)
   const titleId = useId()
 
@@ -64,30 +64,7 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
                 </AppText>
               ) : null}
             </View>
-            <View className="flex-row flex-wrap gap-2">
-              {group.options.map((option) => {
-                const on = values[group.key] === option.value
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {})
-                      onChange(group.key, on ? null : option.value)
-                    }}
-                    className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2.5 active:scale-95 ${
-                      on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
-                    }`}
-                  >
-                    {on ? <Check size={14} color={accent} strokeWidth={2.6} /> : null}
-                    <AppText variant="caption" color={on ? 'brand' : 'muted'} className="capitalize">
-                      {option.label}
-                    </AppText>
-                  </Pressable>
-                )
-              })}
-            </View>
+            <FilterOptions group={group} value={values[group.key]} onChange={onChange} />
           </View>
         ))}
       </ScrollView>
@@ -96,5 +73,38 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
         <Button title={t('filters.done')} onPress={onClose} />
       </View>
     </Sheet>
+  )
+}
+
+// One section's options; its own component so each section folds on its own.
+function FilterOptions({ group, value, onChange }: { group: FilterGroup; value: string | null | undefined; onChange: Props['onChange'] }) {
+  const { accent } = useTheme()
+  const fold = useFold(group.options, OPTION_FOLD, (o) => o.value === value)
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {fold.shown.map((option) => {
+        const on = value === option.value
+        return (
+          <Pressable
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {})
+              onChange(group.key, on ? null : option.value)
+            }}
+            className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2.5 active:scale-95 ${
+              on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
+            }`}
+          >
+            {on ? <Check size={14} color={accent} strokeWidth={2.6} /> : null}
+            <AppText variant="caption" color={on ? 'brand' : 'muted'} className="capitalize">
+              {option.label}
+            </AppText>
+          </Pressable>
+        )
+      })}
+      {fold.folds ? <FoldToggle open={fold.open} hidden={fold.hidden} onPress={fold.toggle} variant="small" /> : null}
+    </View>
   )
 }

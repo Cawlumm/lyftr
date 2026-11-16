@@ -127,7 +127,7 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
   - `Field`: label, error and a `footer` slot for suggestions. `FormField` is a `Field` already wired to the page's Done bar.
   - `IconTileGroup`: single or multi select with icon tiles or chips, radio/checkbox semantics, optional `max`.
   - `PhotoSlot`.
-  - `CollapsibleChips`: a long chip row shows three and "+N more" (never "+1 more"), with "Show less".
+  - Long lists fold by one rule in `ui/fold.tsx` (`useFold`, `FoldToggle`): chip rows (`CollapsibleChips`) show 3 + "+N more"; option lists over 8 (`IconTileGroup`, `FilterSheet` sections) show 6 + "+N more", and a chosen option past the cut stays in view. Never "+1 more". Don't write a second fold.
   - `KeyboardDoneAccessory`: the only iOS Done bar. FormPage gives each page its own id.
 - **The muscle picker is not generic** and lives beside the exercise screens: `workouts/BodyMapPicker` (body map, with a list as the keyboard and screen-reader path).
 - **Options are data:** exercise equipment, categories and muscles are one list each, in `components/workouts/exerciseOptions.ts` (`{ value, icon, labelKey }`). Adding an option is one line there, and its test holds the lists to the server's taxonomy.
