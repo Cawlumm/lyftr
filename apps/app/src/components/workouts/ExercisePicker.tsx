@@ -119,13 +119,6 @@ export function ExercisePicker({ selectedIds, onSelect, onClose }: Props) {
             {/* Large title (matches the sibling "Log Workout" screen title) — the
                 18px heading read undersized for a full-screen surface. */}
             <AppText variant="title" headingLevel={2}>{t('exercises.picker.title')}</AppText>
-            {/* Only true if the fetch landed — on a failure this read "0 loaded"
-                above a message saying we could not load anything. */}
-            {listError ? null : (
-              <AppText variant="caption" color="muted">
-                {t(hasMore ? 'exercises.picker.loadedMore' : 'exercises.picker.loaded', { count: available.length })}
-              </AppText>
-            )}
           </View>
         </View>
 
