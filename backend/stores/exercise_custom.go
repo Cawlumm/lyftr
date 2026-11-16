@@ -62,17 +62,17 @@ func NormalizeCustom(req models.CreateExerciseRequest) models.CreateExerciseRequ
 }
 
 func checkTaxonomy(req models.CreateExerciseRequest) error {
-	if !inList(MuscleGroups, req.MuscleGroup) {
+	if !inList(CustomMuscles, req.MuscleGroup) {
 		return &TaxonomyError{"muscle_group"}
 	}
-	if !inList(Equipment, req.Equipment) {
+	if !inList(CustomEquipment, req.Equipment) {
 		return &TaxonomyError{"equipment"}
 	}
-	if !inList(Categories, req.Category) {
+	if !inList(CustomCategories, req.Category) {
 		return &TaxonomyError{"category"}
 	}
 	for _, m := range req.SecondaryMuscles {
-		if !inList(MuscleGroups, m) {
+		if !inList(CustomMuscles, m) {
 			return &TaxonomyError{"secondary_muscles"}
 		}
 	}

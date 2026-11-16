@@ -39,7 +39,6 @@ export const MUSCLE_GROUPS = [
   { key: 'back', labelKey: 'exercises.custom.form.group.back', muscles: ['lats', 'middle-back', 'lower-back'] },
   { key: 'core', labelKey: 'exercises.custom.form.group.core', muscles: ['abdominals'] },
   { key: 'legs', labelKey: 'exercises.custom.form.group.legs', muscles: ['glutes', 'quadriceps', 'hamstrings', 'calves', 'adductors', 'abductors'] },
-  { key: 'wholeBody', labelKey: 'exercises.custom.form.group.wholeBody', muscles: ['full-body'] },
 ] as const
 
 export const MUSCLE_VALUES: readonly string[] = MUSCLE_GROUPS.flatMap((g) => g.muscles)

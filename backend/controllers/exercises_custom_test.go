@@ -61,17 +61,30 @@ func TestCreateExercise_Defaults(t *testing.T) {
 func TestCreateExercise_ValidatesTaxonomy(t *testing.T) {
 	setupTestDB(t)
 	uid := createTestUser(t)
+	check := func(field string, body map[string]any) {
+		t.Helper()
+		code, resp := createCustom(t, uid, body)
+		params, _ := resp["params"].(map[string]any)
+		if code != http.StatusUnprocessableEntity || resp["code"] != "INVALID_TAXONOMY" || params["field"] != field {
+			t.Errorf("%s %v: %d %v", field, body, code, resp)
+		}
+	}
 	for field, body := range map[string]map[string]any{
 		"muscle_group":      {"name": "n", "muscle_group": "pecs"},
 		"equipment":         {"name": "n", "muscle_group": "chest", "equipment": "rope"},
 		"category":          {"name": "n", "muscle_group": "chest", "category": "yoga"},
 		"secondary_muscles": {"name": "n", "muscle_group": "chest", "secondary_muscles": []string{"wings"}},
 	} {
-		code, resp := createCustom(t, uid, body)
-		params, _ := resp["params"].(map[string]any)
-		if code != http.StatusUnprocessableEntity || resp["code"] != "INVALID_TAXONOMY" || params["field"] != field {
-			t.Errorf("%s: %d %v", field, code, resp)
-		}
+		check(field, body)
+	}
+	// Slugs the labels know but the catalog never uses, and equipment "none", which the form
+	// leaves to body-only: the server takes exactly what the form offers.
+	for field, body := range map[string]map[string]any{
+		"muscle_group":      {"name": "n", "muscle_group": "full-body"},
+		"equipment":         {"name": "n", "muscle_group": "chest", "equipment": "none"},
+		"secondary_muscles": {"name": "n", "muscle_group": "chest", "secondary_muscles": []string{"abs"}},
+	} {
+		check(field, body)
 	}
 	for name, body := range map[string]map[string]any{
 		"no name":      {"muscle_group": "chest"},
@@ -80,7 +93,7 @@ func TestCreateExercise_ValidatesTaxonomy(t *testing.T) {
 		"control char": {"name": "a\nb", "muscle_group": "chest"},
 		"long name":    {"name": string(make([]rune, 101)) + "x", "muscle_group": "chest"},
 		"long notes":   {"name": "n", "muscle_group": "chest", "description": string(make([]byte, 2001))},
-		"many muscles": {"name": "n", "muscle_group": "chest", "secondary_muscles": []string{"abdominals", "abductors", "abs", "adductors", "back", "biceps", "calves", "core", "forearms", "glutes", "hamstrings"}},
+		"many muscles": {"name": "n", "muscle_group": "chest", "secondary_muscles": []string{"abdominals", "abductors", "adductors", "biceps", "calves", "forearms", "glutes", "hamstrings", "lats", "neck", "traps"}},
 	} {
 		if name == "long name" {
 			body["name"] = fmt.Sprintf("%0101d", 1)

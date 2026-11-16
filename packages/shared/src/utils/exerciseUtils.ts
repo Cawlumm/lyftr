@@ -15,6 +15,7 @@
 // The *lookup rule* over those tables is identical on both sides, so it lives here.
 
 import { i18n } from '../i18n'
+import customTaxonomy from './customExerciseTaxonomy.json'
 import type { ExerciseCacheStatus } from '../types'
 import { formatInstant } from './dateUtils'
 import type { FilterGroup } from './filters'
@@ -95,12 +96,12 @@ export const EXERCISE_FILTER_EQUIPMENT = [
   'body-only', 'barbell', 'dumbbell', 'machine', 'cable', 'kettlebells', 'bands',
 ] as const
 
-// What the custom-exercise form offers. Main muscle is the filter list plus full-body, so a
-// carry or a complex has an honest answer; equipment is every slug the labels know except
-// "none", which body-only already says. The server validates against the full slug lists.
-export const CUSTOM_EXERCISE_MUSCLES = [...EXERCISE_FILTER_MUSCLES, 'full-body'] as const
-export const CUSTOM_EXERCISE_EQUIPMENT = EQUIPMENT_SLUGS.filter((s) => s !== 'none')
-export const CUSTOM_EXERCISE_CATEGORIES = CATEGORY_SLUGS
+// What the custom-exercise form offers and the server accepts: the values open-exercise-db
+// uses, minus equipment "none", which body-only already says. One list for both sides:
+// backend/stores/taxonomy_test.go reads the same JSON.
+export const CUSTOM_EXERCISE_MUSCLES: readonly string[] = customTaxonomy.muscles
+export const CUSTOM_EXERCISE_EQUIPMENT: readonly string[] = customTaxonomy.equipment
+export const CUSTOM_EXERCISE_CATEGORIES: readonly string[] = customTaxonomy.categories
 
 // A search typed in lowercase becomes the name of the exercise created from it: each word gets
 // a capital first letter. A word that already holds a capital ("RDL", "McGill") is the user's

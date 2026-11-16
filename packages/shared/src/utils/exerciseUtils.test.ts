@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { catalogSyncLines, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -249,6 +249,24 @@ describe('muscle filter chips', () => {
       expect(EXERCISE_FILTER_MUSCLES).not.toContain(dead)
     }
     expect(new Set(EXERCISE_FILTER_MUSCLES).size).toBe(EXERCISE_FILTER_MUSCLES.length)
+  })
+})
+
+describe('custom exercise taxonomy', () => {
+  // The server holds itself to the same JSON (backend/stores/taxonomy_test.go).
+  it('offers the muscles the catalogue uses, which are the filter chips; no alias, no "none", no repeats', () => {
+    expect([...CUSTOM_EXERCISE_MUSCLES].sort()).toEqual([...EXERCISE_FILTER_MUSCLES].sort())
+    for (const dead of ['back', 'abs', 'core', 'legs', 'obliques', 'full-body', 'other']) expect(CUSTOM_EXERCISE_MUSCLES).not.toContain(dead)
+    expect(CUSTOM_EXERCISE_EQUIPMENT).not.toContain('none')
+    expect(CUSTOM_EXERCISE_EQUIPMENT).toHaveLength(12)
+    expect(CUSTOM_EXERCISE_CATEGORIES).toHaveLength(7)
+    for (const list of [CUSTOM_EXERCISE_MUSCLES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_CATEGORIES]) expect(new Set(list).size).toBe(list.length)
+  })
+
+  it('every value has a label in the catalog', () => {
+    for (const m of CUSTOM_EXERCISE_MUSCLES) expect(i18n.exists(`exercises.muscle.${m}`)).toBe(true)
+    for (const e of CUSTOM_EXERCISE_EQUIPMENT) expect(i18n.exists(`exercises.equipment.${e}`)).toBe(true)
+    for (const c of CUSTOM_EXERCISE_CATEGORIES) expect(i18n.exists(`exercises.category.${c}`)).toBe(true)
   })
 })
 

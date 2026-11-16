@@ -24,7 +24,12 @@ New, all protected:
 - `POST /exercises` and `PUT /exercises/:id` (full replace), body
   `{name, muscle_group, equipment?, category?, secondary_muscles?, description?}`. `201`/`200` with the exercise.
   `equipment` defaults to `body-only`, `category` to `strength`. Slugs must be ones the catalog uses
-  (`422 INVALID_TAXONOMY`, `params.field`). `409 EXERCISE_NAME_TAKEN` (per user, case-insensitive, among
+  (`422 INVALID_TAXONOMY`, `params.field`): `muscle_group` and each of `secondary_muscles` one of
+  `abdominals abductors adductors biceps calves chest forearms glutes hamstrings lats lower-back middle-back neck
+  quadriceps shoulders traps triceps`; `equipment` one of `body-only barbell dumbbell machine cable kettlebells bands
+  medicine-ball e-z-curl-bar exercise-ball foam-roll other` (not `none`: `body-only` says it); `category` one of
+  `strength stretching plyometrics strongman powerlifting cardio olympic-weightlifting`. The single list is
+  `packages/shared/src/utils/customExerciseTaxonomy.json`. `409 EXERCISE_NAME_TAKEN` (per user, case-insensitive, among
   non-archived), `409 CUSTOM_EXERCISE_LIMIT` (500 non-archived, `params.limit`), `403 EXERCISE_NOT_CUSTOM`
   for a catalog row.
 - `POST /exercises/:id/archive`, `POST /exercises/:id/unarchive`: `200` with the exercise. Archiving hides it from

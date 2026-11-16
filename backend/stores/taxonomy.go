@@ -1,19 +1,21 @@
 package stores
 
-// The slugs a custom exercise may use. They are the same lists as MUSCLE_SLUGS,
-// EQUIPMENT_SLUGS and CATEGORY_SLUGS in packages/shared/src/utils/exerciseUtils.ts, which is
-// what the app can label; TestTaxonomy_MatchesOedbStubFixture holds them to what oedb serves.
+// The slugs a custom exercise may use: exactly what the app's form offers (CUSTOM_EXERCISE_* in
+// packages/shared/src/utils/exerciseUtils.ts, read from customExerciseTaxonomy.json beside it,
+// which taxonomy_test.go holds these to). They are the values open-exercise-db itself uses, minus
+// equipment "none", which body-only already says. Rows written before these were narrowed may
+// hold other slugs; nothing reads them through these lists, so they still load and display, and
+// the edit form starts such a row from values it offers (CustomExerciseForm), so a save passes.
 var (
-	MuscleGroups = []string{
-		"abdominals", "abductors", "abs", "adductors", "back", "biceps", "calves", "chest", "core",
-		"forearms", "full-body", "glutes", "hamstrings", "lats", "legs", "lower-back", "middle-back",
-		"neck", "obliques", "other", "quadriceps", "shoulders", "traps", "triceps",
+	CustomMuscles = []string{
+		"abdominals", "abductors", "adductors", "biceps", "calves", "chest", "forearms", "glutes",
+		"hamstrings", "lats", "lower-back", "middle-back", "neck", "quadriceps", "shoulders", "traps", "triceps",
 	}
-	Equipment = []string{
+	CustomEquipment = []string{
 		"body-only", "barbell", "dumbbell", "machine", "cable", "kettlebells", "bands",
-		"medicine-ball", "e-z-curl-bar", "exercise-ball", "foam-roll", "none", "other",
+		"medicine-ball", "e-z-curl-bar", "exercise-ball", "foam-roll", "other",
 	}
-	Categories = []string{
+	CustomCategories = []string{
 		"strength", "stretching", "plyometrics", "strongman", "powerlifting", "cardio", "olympic-weightlifting",
 	}
 )
