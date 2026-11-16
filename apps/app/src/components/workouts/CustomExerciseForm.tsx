@@ -305,7 +305,9 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
       <View>
         <FieldHeader icon={Target} label={t('exercises.custom.form.otherMuscles')} />
         <Card className="gap-3">
-          <AppText variant="caption" color="muted">{t('exercises.custom.form.otherMusclesHint', { max: MAX_SECONDARY_MUSCLES })}</AppText>
+          <AppText variant="caption" color="muted">
+            {muscle || secondary.length > 0 ? t('exercises.custom.form.otherMusclesHint', { max: MAX_SECONDARY_MUSCLES }) : t('exercises.custom.form.otherMusclesLocked')}
+          </AppText>
           <BodyMapPicker mode="multi" value={secondary} main={muscle} max={MAX_SECONDARY_MUSCLES} onChange={setSecondary} groups={groups} />
         </Card>
       </View>

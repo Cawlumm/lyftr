@@ -1559,6 +1559,7 @@
         "category": "Categoría",
         "otherMuscles": "Otros músculos",
         "otherMusclesHint": "Toca los demás que trabaja, hasta {{max}}",
+        "otherMusclesLocked": "Elige primero el músculo principal y luego toca los demás que trabaja",
         "instructions": "Instrucciones",
         "instructionsHint": "Un paso por línea",
         "instructionsPlaceholder": "De pie, con los pies a la anchura de la cadera",

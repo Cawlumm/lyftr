@@ -67,6 +67,12 @@ describe('BodyMapPicker', () => {
   })
 
   describe('multi (other muscles)', () => {
+    it('stays dimmed and offers nothing to pick until there is a main muscle', async () => {
+      await render(<BodyMapPicker mode="multi" value={[]} main={null} onChange={jest.fn()} groups={groups} />)
+      expect(screen.queryByRole('checkbox')).toBeNull()
+      expect(screen.queryByText('List')).toBeNull()
+    })
+
     it('a tap toggles a muscle in and out of the others', async () => {
       const onChange = jest.fn()
       const { rerender } = await render(<BodyMapPicker mode="multi" value={[]} main="calves" onChange={onChange} groups={groups} />)

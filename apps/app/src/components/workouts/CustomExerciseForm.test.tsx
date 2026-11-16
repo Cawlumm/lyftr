@@ -107,13 +107,14 @@ describe('CustomExerciseForm', () => {
     await pressCreate()
     expect(screen.getByText('Give the exercise a name.')).toBeTruthy()
     expect(announce).toHaveBeenCalledWith('Give the exercise a name.')
-    // The main muscle's "nothing picked" gives way to its message; the other muscles keep theirs.
-    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    // The main muscle's "nothing picked" gives way to its message; the other muscles wait for it.
+    expect(screen.queryByText('Nothing picked yet')).toBeNull()
+    expect(screen.getByText('Pick the main muscle first, then tap any others it works')).toBeTruthy()
     await fireEvent.changeText(screen.getByPlaceholderText('e.g. Soleus Slouch'), 'Soleus Slouch')
     await pressCreate()
     expect(screen.getByText('Pick the main muscle.')).toBeTruthy()
     expect(announce).toHaveBeenLastCalledWith('Pick the main muscle.')
-    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    expect(screen.queryByText('Nothing picked yet')).toBeNull()
   })
 
   it('Cancel sits beside Create and leaves like Back', async () => {
@@ -159,10 +160,14 @@ describe('CustomExerciseForm', () => {
 
   it('tapping a body region picks that muscle, and the chip under the map says so', async () => {
     await renderCreate()
-    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(2)
+    // Only the main muscle's map is live; the other muscles' waits, dimmed, for it.
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    expect(screen.getByText('Pick the main muscle first, then tap any others it works')).toBeTruthy()
     await fireEvent.press(region('back-hamstring'))
     expect(screen.getByText('Hamstrings')).toBeTruthy()
+    // Now the other muscles open, with nothing picked there yet.
     expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    expect(screen.getByText('Tap any others it works, up to 10')).toBeTruthy()
     await fireEvent.press(region('front-chest'))
     expect(screen.getByText('Chest')).toBeTruthy()
   })
@@ -170,7 +175,8 @@ describe('CustomExerciseForm', () => {
   it('a region that is not a muscle selects nothing', async () => {
     await renderCreate()
     await fireEvent.press(region('front-head'))
-    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(2)
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    expect(screen.getByText('Pick the main muscle first, then tap any others it works')).toBeTruthy()
   })
 
   it('tapping the other muscles\' figure adds a removable chip; the main muscle is not one of them', async () => {

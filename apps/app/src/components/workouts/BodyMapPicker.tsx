@@ -145,6 +145,16 @@ export function BodyMapPicker(props: Props) {
   // What a refused tap said, else the standing cap message while at the cap.
   const message = note || (full ? fullNote : '')
 
+  // Others mean nothing until the main muscle is set: show the figure dimmed and inert, so two
+  // identical empty maps don't stack, and the caller's hint says what comes first.
+  if (multi && !main && props.value.length === 0) {
+    return (
+      <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} pointerEvents="none" style={{ opacity: 0.35 }}>
+        <Figures main={null} others={[]} onPick={() => {}} width={width} />
+      </View>
+    )
+  }
+
   const listGroups = groups.map((g) => (
     <View key={g.key} className="gap-1.5">
       <AppText variant="label" color="muted" className="uppercase" headingLevel={3}>{g.label}</AppText>

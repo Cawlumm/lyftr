@@ -1536,6 +1536,7 @@
         "category": "Category",
         "otherMuscles": "Other muscles",
         "otherMusclesHint": "Tap any others it works, up to {{max}}",
+        "otherMusclesLocked": "Pick the main muscle first, then tap any others it works",
         "instructions": "Instructions",
         "instructionsHint": "One step per line",
         "instructionsPlaceholder": "Stand tall, feet hip-width apart",
