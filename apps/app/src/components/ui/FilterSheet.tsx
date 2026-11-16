@@ -59,7 +59,7 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
             <View className="mb-2.5 flex-row items-baseline justify-between">
               <AppText variant="subheading">{group.label}</AppText>
               {values[group.key] != null ? (
-                <AppText variant="caption" color="brand" className="capitalize">
+                <AppText variant="caption" color="brand">
                   {group.options.find((o) => o.value === values[group.key])?.label}
                 </AppText>
               ) : null}
@@ -89,7 +89,6 @@ function FilterOptions({ group, value, onChange }: { group: FilterGroup; value: 
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
             label={option.label}
-            capitalize
             on={on}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {})

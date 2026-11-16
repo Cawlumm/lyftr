@@ -82,7 +82,7 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await openFilters()
 
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ muscle_group: 'chest', page: 1 }))
 
     await fireEvent.press(screen.getByText('Dumbbell'))
@@ -98,12 +98,12 @@ describe('ExerciseBrowser (mobile)', () => {
     await renderBrowser()
     await screen.findByText('Bench Press')
     await openFilters()
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     await fireEvent.press(screen.getByRole('button', { name: 'Barbell', selected: false }))
     await fireEvent.press(screen.getByText('Done'))
 
     expect(await screen.findByRole('button', { name: 'Filters, 2 active' })).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: chest' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: Chest' }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ equipment: 'barbell', page: 1 }))
     expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
   })
@@ -116,7 +116,7 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'curl')
     await fireEvent.press(screen.getByRole('button', { name: 'Filters' }))
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     expect(mockSetParams).not.toHaveBeenCalled()
   })
 
@@ -130,7 +130,7 @@ describe('ExerciseBrowser (mobile)', () => {
 
     // Muscles is a long section: it shows six and folds the rest behind "Show N more".
     await fireEvent.press(screen.getAllByRole('button', { name: /^Show \d+ more$/ })[0])
-    await fireEvent.press(screen.getByText('calves'))
+    await fireEvent.press(screen.getByText('Calves'))
 
     expect(await screen.findByText('No exercises match')).toBeTruthy()
     expect(screen.queryByText('The exercise library is still loading')).toBeNull()

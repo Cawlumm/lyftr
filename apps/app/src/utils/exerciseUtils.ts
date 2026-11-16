@@ -1,4 +1,4 @@
-import { categoryLabel, equipmentLabel, muscleLabel, resolveMuscleSlugs } from '@lyftr/shared'
+import { categoryLabel, equipmentLabel, muscleChipLabel, muscleLabel, resolveMuscleSlugs, titleCase } from '@lyftr/shared'
 
 // Mobile's half of exercise presentation: the RN tint table and the
 // react-native-body-highlighter slug table. The equipment and muscle labels and the lookup
@@ -10,7 +10,7 @@ import { categoryLabel, equipmentLabel, muscleLabel, resolveMuscleSlugs } from '
 // The inks are Tailwind's own *-400 (dark) and *-800 (light) values.
 // `border` carries web's muscleColorBordered() border class for the picker badges;
 // borderless badges (detail screen) simply don't apply it.
-export { categoryLabel, equipmentLabel, muscleLabel }
+export { categoryLabel, equipmentLabel, muscleChipLabel, muscleLabel, titleCase }
 
 export interface MuscleTint {
   /** NativeWind class for the badge background (bg only — no text class). */
@@ -126,8 +126,3 @@ const BODY_SLUG_TO_MUSCLE: Record<string, string> = {
 
 export const bodySlugToMuscle = (slug: string | undefined): string | null => (slug && BODY_SLUG_TO_MUSCLE[slug]) || null
 
-// "lower back" -> "Lower Back": the form's chips read as names, not as the lowercase slugs the
-// catalog screens show in running text.
-export const titleCase = (s: string): string => s.replace(/-/g, ' ').replace(/(^|\s)(\p{L})/gu, (_, sp: string, c: string) => sp + c.toLocaleUpperCase())
-
-export const muscleChipLabel = (m: string): string => titleCase(muscleLabel(m))

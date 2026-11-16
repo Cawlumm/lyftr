@@ -172,10 +172,11 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, allowCre
         {/* Header */}
         <View className="flex-row items-center gap-3 border-b border-surface-border px-4 pb-4 pt-3">
           <IconButton icon={ArrowLeft} label={t('exercises.picker.close')} variant="ghost" size="md" onPress={onClose} />
-          <View>
+          <View className="flex-1">
             {/* Large title (matches the sibling "Log Workout" screen title) — the
-                18px heading read undersized for a full-screen surface. */}
-            <AppText variant="title" headingLevel={2}>{title ?? t('exercises.picker.title')}</AppText>
+                18px heading read undersized for a full-screen surface. A caller's title
+                carries a name ("Merge “…” into"), so it wraps rather than running off. */}
+            <AppText variant="title" headingLevel={2} numberOfLines={2}>{title ?? t('exercises.picker.title')}</AppText>
             {/* Only true if the fetch landed — on a failure this read "0 loaded"
                 above a message saying we could not load anything. */}
             {listError ? null : (

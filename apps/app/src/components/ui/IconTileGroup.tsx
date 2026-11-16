@@ -102,13 +102,11 @@ type OptionChipProps = Omit<PressableProps, 'children'> & {
   icon?: LucideIcon
   /** Drawn in place of the icon (a swatch). */
   lead?: ReactNode
-  /** For labels held as lowercase slugs (the filter sheet's muscles): CSS capitalize. */
-  capitalize?: boolean
 }
 
 // One option pill: the chip look of IconTileGroup, also used where the semantics differ (the
 // filter sheet's toggle buttons), so every option chip has one size, ink and 44px target.
-export function OptionChip({ label, on, dim, locked, icon: Icon, lead, capitalize, ...pressable }: OptionChipProps) {
+export function OptionChip({ label, on, dim, locked, icon: Icon, lead, ...pressable }: OptionChipProps) {
   const { accent, colors } = useTheme()
   return (
     <Pressable
@@ -119,7 +117,7 @@ export function OptionChip({ label, on, dim, locked, icon: Icon, lead, capitaliz
       } ${locked ? 'border-dashed' : interactive('hover:bg-surface-border')} ${dim ? 'opacity-40' : ''}`}
     >
       {lead ?? (Icon ? <Icon size={14} color={on ? accent : colors.txMuted} strokeWidth={2.2} /> : on ? <Check size={14} color={accent} strokeWidth={3} /> : null)}
-      <AppText variant="bodySemibold" color={on ? 'primary' : 'secondary'} className={`text-[13px] ${capitalize ? 'capitalize' : ''}`}>{label}</AppText>
+      <AppText variant="bodySemibold" color={on ? 'primary' : 'secondary'} className="text-[13px]">{label}</AppText>
     </Pressable>
   )
 }
