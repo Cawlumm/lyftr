@@ -5,8 +5,8 @@ import {
   AlertCircle, ArrowLeft, BookOpen, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, displayToLbs, lbsToDisplay, weightShort, type Exercise, type Program, type ProgramDay, dayToInstant, todayStr, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, Field, IconButton, Label, Screen, scrollBleed } from '../../../src/components/ui'
-import { FieldHeader, RequiredLegend, RequiredMark } from '../../../src/components/ui/FieldHeader'
+import { AppText, Button, DateInput, EmptyState, Field, IconButton, Screen, scrollBleed } from '../../../src/components/ui'
+import { FieldHeader, FieldTitle, RequiredLegend } from '../../../src/components/ui/FieldHeader'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../src/components/ui/interaction'
 
 // Both sit in a row with 8px between them and are wider than 44, so only their height is padded.
@@ -312,11 +312,7 @@ export default function AddWorkout() {
                 buttons make friendlier touch targets anyway. */}
             <View className={wide ? 'mb-3 flex-row items-center justify-between' : 'mb-3'}>
               <View className={`${wide ? '' : 'mb-2.5 '}flex-row items-center gap-2`}>
-                <Zap size={14} color={accent} strokeWidth={2.2} />
-                <View className="flex-row items-center gap-0.5">
-                  <Label>{t('workouts.form.exercises')}</Label>
-                  <RequiredMark />
-                </View>
+                <FieldTitle icon={Zap} label={t('workouts.form.exercises')} required />
                 {/* Phone: the button row is full; the label row has the room. */}
                 {!wide && canReorder ? <ReorderButton onPress={openReorder} size="compact" className="ml-auto" /> : null}
               </View>

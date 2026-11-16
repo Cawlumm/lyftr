@@ -3,7 +3,7 @@ import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-nativ
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { AppText, Button, ErrorState, Field, IconButton, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
 import { KeyboardDoneAccessory } from '../../../../src/components/ui/KeyboardDoneAccessory'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
@@ -11,7 +11,7 @@ import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../../src/lib/useMotion'
 import { useTheme } from '../../../../src/theme/useTheme'
 import type { DayDraft } from '../../../../src/components/programs/types'
-import { FieldHeader, RequiredLegend, RequiredMark } from '../../../../src/components/ui/FieldHeader'
+import { FieldHeader, RequiredLegend } from '../../../../src/components/ui/FieldHeader'
 
 interface ProgramFormData {
   name: string
@@ -217,14 +217,7 @@ export default function EditProgram() {
           </View>
 
           <View>
-            <View className="mb-3 flex-row items-center gap-2">
-              <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
-              <View className="flex-row items-center gap-0.5">
-                <Label>{t('programs.form.days')}</Label>
-                <RequiredMark />
-              </View>
-              <AppText variant="caption" color="muted">{t('programs.form.daysHint')}</AppText>
-            </View>
+            <FieldHeader icon={CalendarDays} label={t('programs.form.days')} required hint={t('programs.form.daysHint')} />
             <ProgramDaysEditor
               days={formData.days}
               onChange={(days) => setFormData((prev) => ({ ...prev, days }))}

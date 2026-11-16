@@ -1,14 +1,14 @@
 import { useId } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { Check, X } from './icons'
+import { X } from './icons'
 import * as Haptics from 'expo-haptics'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
-import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
 import { Sheet } from './Sheet'
 import { FoldToggle, OPTION_FOLD, useFold } from './fold'
+import { OptionChip } from './IconTileGroup'
 
 interface Props {
   open: boolean
@@ -78,33 +78,27 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
 
 // One section's options; its own component so each section folds on its own.
 function FilterOptions({ group, value, onChange }: { group: FilterGroup; value: string | null | undefined; onChange: Props['onChange'] }) {
-  const { accent } = useTheme()
   const fold = useFold(group.options, OPTION_FOLD, (o) => o.value === value)
   return (
     <View className="flex-row flex-wrap gap-2">
       {fold.shown.map((option) => {
         const on = value === option.value
         return (
-          <Pressable
+          <OptionChip
             key={option.value}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
+            label={option.label}
+            capitalize
+            on={on}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {})
               onChange(group.key, on ? null : option.value)
             }}
-            className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2.5 active:scale-95 ${
-              on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
-            }`}
-          >
-            {on ? <Check size={14} color={accent} strokeWidth={2.6} /> : null}
-            <AppText variant="caption" color={on ? 'brand' : 'muted'} className="capitalize">
-              {option.label}
-            </AppText>
-          </Pressable>
+          />
         )
       })}
-      {fold.folds ? <FoldToggle open={fold.open} hidden={fold.hidden} onPress={fold.toggle} variant="small" /> : null}
+      {fold.folds ? <FoldToggle open={fold.open} hidden={fold.hidden} onPress={fold.toggle} variant="chip" /> : null}
     </View>
   )
 }

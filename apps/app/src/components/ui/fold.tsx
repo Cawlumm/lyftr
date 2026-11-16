@@ -32,9 +32,9 @@ interface ToggleProps {
   open: boolean
   hidden: number
   onPress: () => void
-  /** `chip`: a pill beside chips. `small`: beside the filter sheet's caption-size chips. `badge`:
+  /** `chip`: a pill beside chips. `badge`:
    *  drawn like the small muscle badges. `tile`: a grid cell. */
-  variant?: 'chip' | 'small' | 'badge' | 'tile'
+  variant?: 'chip' | 'badge' | 'tile'
   /** For `tile`: the cell's size, as the grid's tiles get it. */
   tileStyle?: object
 }
@@ -75,11 +75,9 @@ export function FoldToggle({ open, hidden, onPress, variant = 'chip', tileStyle 
     <Pressable
       {...a11y}
       style={{ minHeight: TOUCH_MIN }}
-      className={`justify-center rounded-full border border-dashed border-surface-border ${variant === 'small' ? 'px-3.5' : 'px-3'} active:opacity-70 ${interactive('hover:bg-surface-muted')}`}
+      className={`justify-center rounded-full border border-dashed border-surface-border px-3 active:opacity-70 ${interactive('hover:bg-surface-muted')}`}
     >
-      {variant === 'small'
-        ? <AppText variant="caption" color="secondary">{text}</AppText>
-        : <AppText variant="bodySemibold" color="secondary" className="text-[13px]">{text}</AppText>}
+      <AppText variant="bodySemibold" color="secondary" className="text-[13px]">{text}</AppText>
     </Pressable>
   )
 }
