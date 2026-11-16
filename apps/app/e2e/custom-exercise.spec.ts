@@ -25,7 +25,7 @@ test('create a custom exercise from the picker, find it under Mine, archive it',
   // from the list view (the body map has its own test below).
   await expect(page.getByRole('heading', { level: 1, name: 'New exercise' })).toBeVisible()
   await expect(page.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue(name)
-  await page.getByRole('button', { name: 'List', exact: true }).click()
+  await page.getByRole('button', { name: 'List', exact: true }).first().click()
   await page.getByRole('radio', { name: 'Chest', exact: true }).click()
   await page.getByRole('button', { name: 'Create and add' }).click()
 
@@ -76,15 +76,29 @@ test('Cancel on the create page asks before discarding what was typed', async ({
   await expect(page.getByPlaceholder('e.g. Soleus Slouch')).toHaveValue('Zz Discard Me')
 })
 
-// The body map: tapping a region picks its muscle, and Create from the library opens the new
-// exercise's own page.
-test('create a custom exercise by tapping the body map', async ({ page }) => {
+// The body maps: tapping a region on the first picks the main muscle; on the second (other
+// muscles) it toggles one, the main muscle is refused with a reason, and a chip removes one again.
+// Each figure is an SVG whose <path id> is the region, so the main picker's is the first match.
+test('create a custom exercise by tapping the body maps', async ({ page }) => {
   const name = `Zz Body Map ${Date.now().toString(36).toUpperCase()}`
   await page.goto(`/workouts/exercise/new?name=${encodeURIComponent(name)}`)
-  await expect(page.getByText('Nothing picked yet')).toBeVisible()
+  await expect(page.getByText('Nothing picked yet')).toHaveCount(2)
   await page.locator('#chest').first().click()
-  await expect(page.getByText('Selected', { exact: true })).toBeVisible()
+  await expect(page.getByText('Main muscle: Chest')).toBeVisible()
+
+  await page.locator('#chest').last().click()
+  await expect(page.getByText('Chest is already the main muscle.')).toBeVisible()
+  await page.locator('#biceps').last().click()
+  await page.locator('#triceps').last().click()
+  await expect(page.getByRole('button', { name: 'Remove Biceps' })).toBeVisible()
+  await page.getByRole('button', { name: 'Remove Triceps' }).click()
+  await expect(page.getByRole('button', { name: 'Remove Triceps' })).toHaveCount(0)
+
+  const created = page.waitForResponse((r) => r.url().endsWith('/api/v1/exercises') && r.request().method() === 'POST')
   await page.getByRole('button', { name: 'Create', exact: true }).click()
+  const body = (await (await created).json()).data
+  expect(body.muscle_group).toBe('chest')
+  expect(body.secondary_muscles).toEqual(['biceps'])
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible()
 })
 

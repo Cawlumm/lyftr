@@ -246,7 +246,6 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     ...(cameraSupported ? [{ label: t('exercises.custom.photo.take'), icon: Camera, onPress: () => { void changePhoto('camera') } }] : []),
   ]
   const editPath = `${detailPath(exercise.id)}/edit`
-  const addInstructionsPath = `${editPath}?section=instructions`
   const menuActions: SheetAction[] = [
     editAction(() => router.push(editPath as unknown as Href)),
     { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
@@ -438,8 +437,8 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const instructionsCard = (
     <InstructionSteps
       text={exercise.description}
-      addHref={showActions ? addInstructionsPath : undefined}
-      onAdd={showActions ? () => router.push(addInstructionsPath as unknown as Href) : undefined}
+      addHref={showActions ? editPath : undefined}
+      onAdd={showActions ? () => router.push(editPath as unknown as Href) : undefined}
     />
   )
 

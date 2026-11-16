@@ -9,6 +9,8 @@ export interface TileOption<T extends string> {
   value: T
   label: string
   icon?: LucideIcon
+  /** Shown but not choosable (the body map's main muscle among the others). */
+  disabled?: boolean
 }
 
 type Props<T extends string> = {
@@ -41,7 +43,7 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
     <View accessibilityRole={props.multiple ? undefined : 'radiogroup'} accessibilityLabel={label} className="flex-row flex-wrap gap-2">
       {options.map((o) => {
         const on = isOn(o.value)
-        const off = full && !on
+        const off = (full && !on) || !!o.disabled
         const Icon = o.icon
         const common = {
           accessibilityRole: role,
@@ -49,7 +51,7 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
           disabled: off,
           accessibilityLabel: o.label,
           onPress: () => press(o.value),
-          ...webToggle(on, () => press(o.value)),
+          ...webToggle(on, () => { if (!off) press(o.value) }),
         } as const
         if (layout === 'tile') {
           return (

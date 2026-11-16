@@ -42,6 +42,13 @@ describe('IconTileGroup', () => {
     expect(onChange).toHaveBeenCalledWith(['a'])
   })
 
+  it('an option marked disabled is shown but cannot be chosen', async () => {
+    const onChange = jest.fn()
+    await render(<IconTileGroup multiple label="Letters" options={[...options.slice(0, 2), { value: 'c', label: 'Gamma', disabled: true }]} value={[]} onChange={onChange} />)
+    await fireEvent.press(screen.getByRole('checkbox', { name: 'Gamma', disabled: true }))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   it('every option is at least 44px tall, in both layouts', async () => {
     for (const layout of ['tile', 'chip'] as const) {
       const { unmount } = await render(<IconTileGroup label="L" options={options} value={null} onChange={jest.fn()} layout={layout} />)

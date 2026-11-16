@@ -66,8 +66,10 @@ beforeEach(() => {
 afterEach(() => { jest.restoreAllMocks() })
 
 const renderCreate = async () => { await render(<CustomExerciseForm mode="create" base="/workouts" />) }
+// Two pickers on the page, main muscle first: each has its own Map/List switch.
+const listButtons = () => screen.getAllByRole('button', { name: 'List' })
 const pickFromList = async (name: RegExp = /^calves$/i) => {
-  await fireEvent.press(screen.getByRole('button', { name: 'List' }))
+  await fireEvent.press(listButtons()[0])
   await fireEvent.press(screen.getByRole('radio', { name }))
 }
 const pressCreate = (label = 'Create') => fireEvent.press(screen.getByRole('button', { name: label }))
@@ -105,12 +107,13 @@ describe('CustomExerciseForm', () => {
     await pressCreate()
     expect(screen.getByText('Give the exercise a name.')).toBeTruthy()
     expect(announce).toHaveBeenCalledWith('Give the exercise a name.')
-    expect(screen.queryByText('Nothing picked yet')).toBeNull()
+    // The main muscle's "nothing picked" gives way to its message; the other muscles keep theirs.
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
     await fireEvent.changeText(screen.getByPlaceholderText('e.g. Soleus Slouch'), 'Soleus Slouch')
     await pressCreate()
     expect(screen.getByText('Pick the main muscle.')).toBeTruthy()
     expect(announce).toHaveBeenLastCalledWith('Pick the main muscle.')
-    expect(screen.queryByText('Nothing picked yet')).toBeNull()
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
   })
 
   it('Cancel sits beside Create and leaves like Back', async () => {
@@ -120,24 +123,25 @@ describe('CustomExerciseForm', () => {
     expect(screen.getByRole('button', { name: 'Create' })).toBeTruthy()
   })
 
-  it('Instructions live behind More details with a one-step-per-line hint, and are sent as the description', async () => {
+  it('every field is on the page at once: optional ones unmarked, required ones starred and explained', async () => {
+    await renderCreate()
+    for (const label of ['Name', 'Main muscle', 'Other muscles', 'Equipment', 'Category', 'Instructions']) expect(screen.getAllByText(label).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/optional/i)).toBeNull()
+    expect(screen.queryByText(/More details/)).toBeNull()
+    expect(screen.getByText('Required')).toBeTruthy()
+    expect(screen.getAllByLabelText('required')).toHaveLength(2)
+    expect(screen.getByRole('radio', { name: 'Stretching' })).toBeTruthy()
+  })
+
+  it('Instructions have a one-step-per-line hint, and are sent as the description', async () => {
     const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()
-    expect(screen.queryByText('One step per line')).toBeNull()
-    await fireEvent.press(screen.getByRole('button', { name: /More details/ }))
     expect(screen.getByText('One step per line')).toBeTruthy()
     expect(screen.queryByText('Notes')).toBeNull()
     await fireEvent.changeText(screen.getByLabelText('Instructions'), 'Stand tall\nPress up')
     await pickFromList()
     await pressCreate()
     await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ description: 'Stand tall\nPress up' })))
-  })
-
-  it('the Add instructions link opens the edit page with More details already open', async () => {
-    mockParams = { exerciseId: '7', section: 'instructions' }
-    jest.spyOn(client.exerciseAPI, 'get').mockResolvedValue(saved)
-    await render(<CustomExerciseForm mode="edit" base="/workouts" />)
-    expect(await screen.findByText('One step per line')).toBeTruthy()
   })
 
   it('a name with a control character is refused before anything is sent', async () => {
@@ -150,28 +154,43 @@ describe('CustomExerciseForm', () => {
     expect(create).not.toHaveBeenCalled()
   })
 
+  // Both pickers draw figures; the main muscle's come first.
+  const region = (label: string, n = 0) => screen.getAllByLabelText(label, { hidden: true })[n]
+
   it('tapping a body region picks that muscle, and the chip under the map says so', async () => {
     await renderCreate()
-    expect(screen.getByText('Nothing picked yet')).toBeTruthy()
-    await fireEvent.press(screen.getAllByLabelText('back-hamstring', { hidden: true })[0])
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(2)
+    await fireEvent.press(region('back-hamstring'))
     expect(screen.getByText('Hamstrings')).toBeTruthy()
-    expect(screen.queryByText('Nothing picked yet')).toBeNull()
-    await fireEvent.press(screen.getByLabelText('front-chest', { hidden: true }))
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(1)
+    await fireEvent.press(region('front-chest'))
     expect(screen.getByText('Chest')).toBeTruthy()
   })
 
   it('a region that is not a muscle selects nothing', async () => {
     await renderCreate()
-    await fireEvent.press(screen.getByLabelText('front-head', { hidden: true }))
-    expect(screen.getByText('Nothing picked yet')).toBeTruthy()
+    await fireEvent.press(region('front-head'))
+    expect(screen.getAllByText('Nothing picked yet')).toHaveLength(2)
   })
 
-  it('List shows every muscle as a Title Case radio under its region, and picks it', async () => {
+  it('tapping the other muscles\' figure adds a removable chip; the main muscle is not one of them', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()
-    await fireEvent.press(screen.getByRole('button', { name: 'List' }))
+    await fireEvent.press(region('front-chest'))
+    await fireEvent.press(region('front-chest', 1))
+    expect(screen.getByText('Chest is already the main muscle.')).toBeTruthy()
+    await fireEvent.press(region('back-hamstring', 1))
+    expect(screen.getByRole('button', { name: 'Remove Hamstrings' })).toBeTruthy()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ muscle_group: 'chest', secondary_muscles: ['hamstrings'] })))
+  })
+
+  it('List shows every muscle the catalog uses as a Title Case radio under its region, and picks it', async () => {
+    await renderCreate()
+    await fireEvent.press(listButtons()[0])
     expect(screen.getByText('Chest & shoulders')).toBeTruthy()
     expect(screen.getByRole('radio', { name: 'Lower Back' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: 'Full Body' })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: 'Full Body' })).toBeNull()
     await fireEvent.press(screen.getByRole('radio', { name: 'Middle Back' }))
     expect(screen.getByRole('radio', { name: 'Middle Back', checked: true })).toBeTruthy()
   })
@@ -257,14 +276,13 @@ describe('CustomExerciseForm', () => {
     expect(mockRouter.back).toHaveBeenCalled()
   })
 
-  it('category and other muscles sit behind More details; the main muscle is not offered as another', async () => {
+  it('other muscles come from their own body map list; the main muscle is shown there but not choosable', async () => {
     jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()
     await pickFromList()
-    expect(screen.queryByRole('radio', { name: 'Stretching' })).toBeNull()
-    await fireEvent.press(screen.getByRole('button', { name: /More details/ }))
     await fireEvent.press(screen.getByRole('radio', { name: 'Stretching' }))
-    expect(screen.queryByRole('checkbox', { name: 'Calves' })).toBeNull()
+    await fireEvent.press(listButtons()[1])
+    expect(screen.getByRole('checkbox', { name: 'Calves (main muscle)', disabled: true })).toBeTruthy()
     await fireEvent.press(screen.getByRole('checkbox', { name: 'Hamstrings' }))
     await pressCreate()
     await waitFor(() => expect(client.exerciseAPI.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -304,6 +322,20 @@ describe('CustomExerciseForm edit', () => {
       name: 'Soleus Slouch', muscle_group: 'calves', equipment: 'dumbbell', category: 'stretching',
       secondary_muscles: ['hamstrings'], description: 'Slow',
     })
+  })
+
+  it('a row holding slugs the form no longer offers starts from what it offers, and asks for the main muscle again', async () => {
+    const update = jest.spyOn(client.exerciseAPI, 'update').mockResolvedValue(saved)
+    await renderEdit({ ...existing, muscle_group: 'full-body', equipment: 'none', category: 'yoga', secondary_muscles: ['abs', 'hamstrings'] })
+    expect(await screen.findByText('Edit exercise')).toBeTruthy()
+    await pressCreate('Save')
+    expect(screen.getByText('Pick the main muscle.')).toBeTruthy()
+    expect(update).not.toHaveBeenCalled()
+    await pickFromList()
+    await pressCreate('Save')
+    await waitFor(() => expect(update).toHaveBeenCalledWith(7, expect.objectContaining({
+      muscle_group: 'calves', equipment: 'body-only', category: 'strength', secondary_muscles: ['hamstrings'],
+    })))
   })
 
   it('refuses an exercise that is not the user\'s own', async () => {

@@ -3,12 +3,12 @@ import { AccessibilityInfo, ActivityIndicator, Platform, Pressable, View, type S
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
-  customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, uiMessage, useAsyncAction, useTranslation,
+  CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, uiMessage, useAsyncAction, useTranslation,
   type Exercise, type UiMessage,
 } from '@lyftr/shared'
-import { ChevronDown, ChevronUp, Dumbbell, FileText, Layers, Lock, Pencil, Target } from '../ui/icons'
+import { Dumbbell, FileText, Layers, Lock, Pencil, Target } from '../ui/icons'
 import {
-  AppText, Button, Card, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, Label, PhotoSlot, useDiscardGuard, type PhotoSlotLabels,
+  AppText, Button, Card, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, PhotoSlot, RequiredLegend, SR_ONLY, useDiscardGuard, type PhotoSlotLabels,
 } from '../ui'
 import { interactive, TOUCH_MIN } from '../ui/interaction'
 import { client, useServerInfo } from '../../lib/lyftr'
@@ -19,14 +19,13 @@ import { usePhotoPicker } from '../../hooks/usePhotoPicker'
 import { useTheme } from '../../theme/useTheme'
 import { muscleChipLabel, muscleLabel, titleCase } from '../../utils/exerciseUtils'
 import {
-  CATEGORY_OPTIONS, DEFAULT_CATEGORY, DEFAULT_EQUIPMENT, EQUIPMENT_OPTIONS, MUSCLE_GROUPS, MUSCLE_VALUES,
+  CATEGORY_OPTIONS, DEFAULT_CATEGORY, DEFAULT_EQUIPMENT, EQUIPMENT_OPTIONS, MUSCLE_GROUPS,
 } from './exerciseOptions'
 import { BodyMapPicker } from './BodyMapPicker'
 import { MAX_SECONDARY_MUSCLES, validateCustomExercise, type CustomExerciseErrors } from './validateCustomExercise'
 
 type Base = '/workouts' | '/programs'
 const SCROLL_MARGIN = 12
-const SR_ONLY = { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 } as const
 
 interface BodyProps {
   mode: 'create' | 'edit'
@@ -34,11 +33,9 @@ interface BodyProps {
   exercise?: Exercise
   initialName?: string
   request?: string
-  /** Opens More details at once (the "Add instructions" link on the exercise's page). */
-  openMore?: boolean
 }
 
-function FormBody({ mode, base, exercise, initialName, request, openMore }: BodyProps) {
+function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
   const { t } = useTranslation()
   const { colors } = useTheme()
   const scrollRef = useRef<ScrollViewInstance>(null)
@@ -47,12 +44,16 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
   const [announcement, setAnnouncement] = useState('')
 
   const e = mode === 'edit' ? exercise : undefined
+  // A row saved before the options were narrowed to what the catalog uses may hold a slug the
+  // server now refuses. The form starts from what it can offer: such a main muscle is asked for
+  // again, and other values fall back to the defaults or drop out.
+  const offered = (list: readonly string[], v: string | undefined) => (v && list.includes(v) ? v : undefined)
   const initial = {
     name: e ? e.name : (initialName ?? '').trim(),
-    muscle: e?.muscle_group ?? null,
-    equipment: e?.equipment || DEFAULT_EQUIPMENT,
-    category: e?.category || DEFAULT_CATEGORY,
-    secondary: e?.secondary_muscles ?? [],
+    muscle: offered(CUSTOM_EXERCISE_MUSCLES, e?.muscle_group) ?? null,
+    equipment: offered(CUSTOM_EXERCISE_EQUIPMENT, e?.equipment) ?? DEFAULT_EQUIPMENT,
+    category: offered(CUSTOM_EXERCISE_CATEGORIES, e?.category) ?? DEFAULT_CATEGORY,
+    secondary: (e?.secondary_muscles ?? []).filter((m) => CUSTOM_EXERCISE_MUSCLES.includes(m)),
     notes: e?.description ?? '',
   }
   const [name, setName] = useState(initial.name)
@@ -61,9 +62,6 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
   const [category, setCategory] = useState(initial.category)
   const [secondary, setSecondary] = useState<string[]>(initial.secondary)
   const [notes, setNotes] = useState(initial.notes)
-  const [showMore, setShowMore] = useState(
-    !!openMore || !!e && (!!e.description || initial.secondary.length > 0 || initial.category !== DEFAULT_CATEGORY),
-  )
   const [errors, setErrors] = useState<CustomExerciseErrors>({})
   const [nearMatches, setNearMatches] = useState<Exercise[]>([])
   const photosOn = customExercisePhotos(useServerInfo())
@@ -203,7 +201,6 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
 
   const pickMuscle = (m: string) => { setMuscle(m); setErrors((p) => ({ ...p, muscle: undefined })); setSecondary((p) => p.filter((x) => x !== m)) }
   const label = t(mode === 'edit' ? 'exercises.custom.form.save' : request && hasExerciseCreate(request) ? 'exercises.custom.form.createAndAdd' : 'exercises.custom.form.create')
-  const MoreIcon = showMore ? ChevronUp : ChevronDown
   const busy = save.busy || sendPhoto.busy
   const groups = MUSCLE_GROUPS.map((g) => ({ key: g.key, label: t(g.labelKey), muscles: g.muscles.map((m) => ({ value: m, label: muscleChipLabel(m) })) }))
 
@@ -229,6 +226,8 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
         </View>
       ) : undefined}
     >
+      <RequiredLegend />
+
       {photosOn ? (
         <PhotoSlot
           filled={!!staged || !!existingPhotoId}
@@ -243,10 +242,11 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
       ) : null}
 
       <View onLayout={(ev) => { pos.current.name = ev.nativeEvent.layout.y }}>
-        <FieldHeader icon={Pencil} label={t('exercises.custom.form.name')} hint={t('common.required')} />
+        <FieldHeader icon={Pencil} label={t('exercises.custom.form.name')} requiredInput />
         <FormField
           ref={nameRef}
           accessibilityLabel={t('exercises.custom.form.name')}
+          required
           value={name}
           onChangeText={(v) => { setName(v); if (v.trim()) setErrors((p) => ({ ...p, name: undefined })) }}
           placeholder={t('exercises.custom.form.namePlaceholder')}
@@ -282,11 +282,19 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
       </View>
 
       <View onLayout={(ev) => { pos.current.muscle = ev.nativeEvent.layout.y }}>
-        <FieldHeader icon={Target} label={t('exercises.custom.form.muscle')} hint={t('common.required')} />
+        <FieldHeader icon={Target} label={t('exercises.custom.form.muscle')} required />
         <Card className="gap-3">
           <AppText variant="caption" color="muted">{t('exercises.custom.form.muscleHint')}</AppText>
           <BodyMapPicker value={muscle} secondary={secondary} onChange={pickMuscle} groups={groups} invalid={!!errors.muscle} />
           {errors.muscle ? <AppText variant="caption" color="error" role={Platform.OS === 'web' ? 'alert' : undefined}>{t('exercises.custom.form.muscleRequired')}</AppText> : null}
+        </Card>
+      </View>
+
+      <View>
+        <FieldHeader icon={Target} label={t('exercises.custom.form.otherMuscles')} />
+        <Card className="gap-3">
+          <AppText variant="caption" color="muted">{t('exercises.custom.form.otherMusclesHint', { max: MAX_SECONDARY_MUSCLES })}</AppText>
+          <BodyMapPicker mode="multi" value={secondary} main={muscle} max={MAX_SECONDARY_MUSCLES} onChange={setSecondary} groups={groups} />
         </Card>
       </View>
 
@@ -302,55 +310,25 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
       </View>
 
       <View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ expanded: showMore }}
-          // react-native-web drops accessibilityState; a disclosure needs aria-expanded.
-          {...(Platform.OS === 'web' ? { 'aria-expanded': showMore } : {})}
-          onPress={() => setShowMore((v) => !v)}
-          style={{ minHeight: TOUCH_MIN }}
-          className={`flex-row items-center gap-2 active:opacity-60 ${interactive('hover:opacity-80')}`}
-        >
-          <Layers size={14} color={colors.txMuted} strokeWidth={2.2} />
-          <Label>{t('exercises.custom.form.more')}</Label>
-          <AppText variant="caption" color="muted" className="flex-1" numberOfLines={1}>{t('exercises.custom.form.moreHint')}</AppText>
-          <MoreIcon size={18} color={colors.txMuted} />
-        </Pressable>
-        {showMore ? (
-          <View className="mt-2 gap-5">
-            <View>
-              <FieldHeader icon={Dumbbell} label={t('exercises.custom.form.category')} />
-              <IconTileGroup
-                label={t('exercises.custom.form.category')}
-                options={CATEGORY_OPTIONS.map((o) => ({ value: o.value, icon: o.icon, label: titleCase(t(o.labelKey)) }))}
-                value={category}
-                onChange={setCategory}
-              />
-            </View>
-            <View>
-              <FieldHeader icon={Target} label={t('exercises.custom.form.otherMuscles')} />
-              <IconTileGroup
-                multiple
-                max={MAX_SECONDARY_MUSCLES}
-                label={t('exercises.custom.form.otherMuscles')}
-                options={MUSCLE_VALUES.filter((m) => m !== muscle).map((m) => ({ value: m, label: muscleChipLabel(m) }))}
-                value={secondary}
-                onChange={setSecondary}
-              />
-            </View>
-            <View>
-              <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} hint={t('exercises.custom.form.instructionsHint')} />
-              <FormField
-                accessibilityLabel={t('exercises.custom.form.instructions')}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder={t('exercises.custom.form.instructionsPlaceholder')}
-                multiline
-                maxLength={2000}
-              />
-            </View>
-          </View>
-        ) : null}
+        <FieldHeader icon={Layers} label={t('exercises.custom.form.category')} />
+        <IconTileGroup
+          label={t('exercises.custom.form.category')}
+          options={CATEGORY_OPTIONS.map((o) => ({ value: o.value, icon: o.icon, label: titleCase(t(o.labelKey)) }))}
+          value={category}
+          onChange={setCategory}
+        />
+      </View>
+
+      <View>
+        <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} hint={t('exercises.custom.form.instructionsHint')} />
+        <FormField
+          accessibilityLabel={t('exercises.custom.form.instructions')}
+          value={notes}
+          onChangeText={setNotes}
+          placeholder={t('exercises.custom.form.instructionsPlaceholder')}
+          multiline
+          maxLength={2000}
+        />
       </View>
       {announcement ? <View accessibilityLiveRegion="polite" style={SR_ONLY}><AppText>{announcement}</AppText></View> : null}
     </FormPage>
@@ -361,7 +339,7 @@ function FormBody({ mode, base, exercise, initialName, request, openMore }: Body
 // the tab. A create is ready at once; an edit loads its exercise first.
 export function CustomExerciseForm({ mode, base }: { mode: 'create' | 'edit'; base: Base }) {
   const { t } = useTranslation()
-  const { exerciseId, name, request, section } = useLocalSearchParams<{ exerciseId?: string; name?: string; request?: string; section?: string }>()
+  const { exerciseId, name, request } = useLocalSearchParams<{ exerciseId?: string; name?: string; request?: string }>()
   const { accent } = useTheme()
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [error, setError] = useState<UiMessage | null>(null)
@@ -401,5 +379,5 @@ export function CustomExerciseForm({ mode, base }: { mode: 'create' | 'edit'; ba
       </SafeAreaView>
     )
   }
-  return <FormBody key={exercise.id} mode="edit" base={base} exercise={exercise} openMore={section === 'instructions'} />
+  return <FormBody key={exercise.id} mode="edit" base={base} exercise={exercise} />
 }

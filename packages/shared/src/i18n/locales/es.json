@@ -300,7 +300,8 @@
     "weightName": "peso",
     "loadingMore": "Cargando más…",
     "tryDifferentSearch": "Prueba con otra búsqueda",
-    "required": "(obligatorio)",
+    "required": "obligatorio",
+    "requiredLegend": "Obligatorio",
     "saveFailed": "No se pudo guardar",
     "todayChip": "HOY",
     "card": {
@@ -328,7 +329,12 @@
     "front": "Frontal",
     "back": "Posterior",
     "selected": "Seleccionado",
-    "nothingPicked": "Nada elegido todavía"
+    "nothingPicked": "Nada elegido todavía",
+    "mainIs": "Músculo principal: {{muscle}}",
+    "isMain": "{{muscle}} ya es el músculo principal.",
+    "mainOption": "{{muscle}} (músculo principal)",
+    "full": "{{max}} elegidos, el máximo. Quita uno para añadir otro.",
+    "remove": "Quitar {{muscle}}"
   },
   "errors": {
     "api": {
@@ -701,9 +707,7 @@
       "entryLabel": "Registro de peso",
       "editing": "Editando…",
       "editTitle": "Editar registro",
-      "date": "Fecha",
-      "notesOptional": "Notas <hint>(opcional)</hint>",
-      "notesOptionalPlain": "Notas (opcional)"
+      "date": "Fecha"
     },
     "row": {
       "options": "Opciones de {{weight}} {{unit}}",
@@ -811,8 +815,7 @@
       "notesPlaceholder": "Descripción u objetivos del programa…",
       "days": "Días",
       "targetSets": "Series objetivo",
-      "daysHintNew": "(obligatorio: se repiten en este orden)",
-      "daysHintEdit": "(se repiten en este orden)",
+      "daysHint": "Se repiten en este orden",
       "saveProgram": "Guardar programa",
       "dayEditor": {
         "emptyInline": "Aún no hay ejercicios: agrega uno arriba.",
@@ -1502,7 +1505,7 @@
       "badgeLabel": "Ejercicio personalizado",
       "photo": {
         "add": "Añadir foto",
-        "addHint": "Opcional · te ayuda a reconocerlo en las listas",
+        "addHint": "Te ayuda a reconocerlo en las listas",
         "replace": "Cambiar foto",
         "remove": "Quitar foto",
         "choose": "Elegir foto",
@@ -1548,9 +1551,9 @@
         "muscle": "Músculo principal",
         "muscleRequired": "Elige el músculo principal.",
         "equipment": "Equipo",
-        "more": "Más detalles",
         "category": "Categoría",
         "otherMuscles": "Otros músculos",
+        "otherMusclesHint": "Toca los demás que trabaja, hasta {{max}}",
         "instructions": "Instrucciones",
         "instructionsHint": "Un paso por línea",
         "instructionsPlaceholder": "De pie, con los pies a la anchura de la cadera",
@@ -1561,7 +1564,6 @@
         "create": "Crear",
         "save": "Guardar",
         "saveFailed": "No se pudo guardar el ejercicio",
-        "moreHint": "Opcional · categoría, otros músculos, instrucciones",
         "muscleHint": "Toca la figura o cambia a la lista",
         "useThis": "Usar este",
         "loadFailed": "No se pudo abrir el ejercicio",
@@ -1571,8 +1573,7 @@
           "arms": "Brazos",
           "back": "Espalda",
           "core": "Core",
-          "legs": "Piernas",
-          "wholeBody": "Cuerpo entero"
+          "legs": "Piernas"
         }
       },
       "actions": {
@@ -1745,9 +1746,7 @@
       "weight": "Peso",
       "changeDateOrNote": "+ Cambiar la fecha o agregar una nota",
       "date": "Fecha",
-      "note": "Nota",
-      "optional": "(opcional)",
-      "noteOptional": "Nota (opcional)"
+      "note": "Nota"
     }
   },
   "nav": {

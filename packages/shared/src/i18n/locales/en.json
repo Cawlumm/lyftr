@@ -294,7 +294,8 @@
     "weightName": "weight",
     "loadingMore": "Loading more…",
     "tryDifferentSearch": "Try a different search",
-    "required": "(required)",
+    "required": "required",
+    "requiredLegend": "Required",
     "saveFailed": "Failed to save",
     "todayChip": "TODAY",
     "card": {
@@ -322,7 +323,12 @@
     "front": "Front",
     "back": "Back",
     "selected": "Selected",
-    "nothingPicked": "Nothing picked yet"
+    "nothingPicked": "Nothing picked yet",
+    "mainIs": "Main muscle: {{muscle}}",
+    "isMain": "{{muscle}} is already the main muscle.",
+    "mainOption": "{{muscle}} (main muscle)",
+    "full": "{{max}} picked, the most there can be. Remove one to add another.",
+    "remove": "Remove {{muscle}}"
   },
   "errors": {
     "api": {
@@ -693,9 +699,7 @@
       "entryLabel": "Weight Entry",
       "editing": "Editing…",
       "editTitle": "Edit Entry",
-      "date": "Date",
-      "notesOptional": "Notes <hint>(optional)</hint>",
-      "notesOptionalPlain": "Notes (optional)"
+      "date": "Date"
     },
     "row": {
       "options": "{{weight}} {{unit}} options",
@@ -802,8 +806,7 @@
       "notesPlaceholder": "Program description or goals…",
       "days": "Days",
       "targetSets": "Target Sets",
-      "daysHintNew": "(required — repeats in this order)",
-      "daysHintEdit": "(repeats in this order)",
+      "daysHint": "Repeats in this order",
       "saveProgram": "Save Program",
       "dayEditor": {
         "emptyInline": "No exercises yet — add one above.",
@@ -1479,7 +1482,7 @@
       "badgeLabel": "Custom exercise",
       "photo": {
         "add": "Add photo",
-        "addHint": "Optional · helps you spot it in lists",
+        "addHint": "Helps you spot it in lists",
         "replace": "Change photo",
         "remove": "Remove photo",
         "choose": "Choose photo",
@@ -1525,9 +1528,9 @@
         "muscle": "Main muscle",
         "muscleRequired": "Pick the main muscle.",
         "equipment": "Equipment",
-        "more": "More details",
         "category": "Category",
         "otherMuscles": "Other muscles",
+        "otherMusclesHint": "Tap any others it works, up to {{max}}",
         "instructions": "Instructions",
         "instructionsHint": "One step per line",
         "instructionsPlaceholder": "Stand tall, feet hip-width apart",
@@ -1538,7 +1541,6 @@
         "create": "Create",
         "save": "Save",
         "saveFailed": "Couldn't save the exercise",
-        "moreHint": "Optional · category, other muscles, instructions",
         "muscleHint": "Tap the figure, or switch to the list",
         "useThis": "Use this",
         "loadFailed": "Couldn't open the exercise",
@@ -1548,8 +1550,7 @@
           "arms": "Arms",
           "back": "Back",
           "core": "Core",
-          "legs": "Legs",
-          "wholeBody": "Whole body"
+          "legs": "Legs"
         }
       },
       "actions": {
@@ -1715,9 +1716,7 @@
       "weight": "Weight",
       "changeDateOrNote": "+ Change date or add a note",
       "date": "Date",
-      "note": "Note",
-      "optional": "(optional)",
-      "noteOptional": "Note (optional)"
+      "note": "Note"
     }
   },
   "nav": {

@@ -82,7 +82,7 @@ describe('ExerciseDetailScreen custom exercises', () => {
     await load({ ...customRow, description: '' })
     expect(screen.queryByText('No instructions for this exercise yet.')).toBeNull()
     await fireEvent.press(screen.getByText('Add instructions'))
-    expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/5/edit?section=instructions')
+    expect(mockPush).toHaveBeenCalledWith('/workouts/exercise/5/edit')
   })
 
   it('hides the actions on a server without custom exercises', async () => {

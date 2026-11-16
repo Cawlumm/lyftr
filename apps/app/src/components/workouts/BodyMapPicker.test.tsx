@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { AccessibilityInfo } from 'react-native'
 
 jest.mock('react-native-body-highlighter', () => {
   const { Pressable, View } = require('react-native')
@@ -63,5 +64,60 @@ describe('BodyMapPicker', () => {
     expect(screen.getByText('Upper body')).toBeTruthy()
     await fireEvent.press(screen.getByRole('radio', { name: 'Calves' }))
     expect(onChange).toHaveBeenCalledWith('calves')
+  })
+
+  describe('multi (other muscles)', () => {
+    it('a tap toggles a muscle in and out of the others', async () => {
+      const onChange = jest.fn()
+      const { rerender } = await render(<BodyMapPicker mode="multi" value={[]} main="calves" onChange={onChange} groups={groups} />)
+      await fireEvent.press(screen.getByLabelText('front-chest', hidden))
+      expect(onChange).toHaveBeenLastCalledWith(['chest'])
+      await rerender(<BodyMapPicker mode="multi" value={['chest']} main="calves" onChange={onChange} groups={groups} />)
+      await fireEvent.press(screen.getByLabelText('back-upper-back', hidden))
+      expect(onChange).toHaveBeenLastCalledWith(['chest', 'lats'])
+      await fireEvent.press(screen.getByLabelText('front-chest', hidden))
+      expect(onChange).toHaveBeenLastCalledWith([])
+    })
+
+    it('draws the main muscle brighter, names it, and a tap on it says why nothing changed', async () => {
+      const onChange = jest.fn()
+      const announce = jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {})
+      await render(<BodyMapPicker mode="multi" value={['lats']} main="chest" onChange={onChange} groups={groups} />)
+      const data = JSON.parse(screen.getByTestId('figure-front', hidden).props.accessibilityHint)
+      expect(data).toEqual(expect.arrayContaining([{ slug: 'chest', intensity: 2 }, { slug: 'upper-back', intensity: 1 }]))
+      expect(screen.getByText('Main muscle: Chest')).toBeTruthy()
+      await fireEvent.press(screen.getByLabelText('front-chest', hidden))
+      expect(onChange).not.toHaveBeenCalled()
+      expect(screen.getByText('Chest is already the main muscle.')).toBeTruthy()
+      expect(announce).toHaveBeenCalledWith('Chest is already the main muscle.')
+      announce.mockRestore()
+    })
+
+    it('each picked muscle is a chip that removes it', async () => {
+      const onChange = jest.fn()
+      await render(<BodyMapPicker mode="multi" value={['lats', 'calves']} main={null} onChange={onChange} groups={groups} />)
+      await fireEvent.press(screen.getByRole('button', { name: 'Remove Lats' }))
+      expect(onChange).toHaveBeenLastCalledWith(['calves'])
+    })
+
+    it('at the cap a tap adds nothing and says so; removing still works', async () => {
+      const onChange = jest.fn()
+      await render(<BodyMapPicker mode="multi" value={['lats']} max={1} onChange={onChange} groups={groups} />)
+      expect(screen.getByText('1 picked, the most there can be. Remove one to add another.')).toBeTruthy()
+      await fireEvent.press(screen.getByLabelText('front-chest', hidden))
+      expect(onChange).not.toHaveBeenCalled()
+      await fireEvent.press(screen.getByLabelText('back-upper-back', hidden))
+      expect(onChange).toHaveBeenLastCalledWith([])
+    })
+
+    it('the List is checkboxes, with the main muscle shown but not choosable', async () => {
+      const onChange = jest.fn()
+      await render(<BodyMapPicker mode="multi" value={['calves']} main="chest" onChange={onChange} groups={groups} />)
+      await fireEvent.press(screen.getByRole('button', { name: 'List' }))
+      expect(screen.getByRole('checkbox', { name: 'Chest (main muscle)', disabled: true })).toBeTruthy()
+      expect(screen.getByRole('checkbox', { name: 'Calves', checked: true })).toBeTruthy()
+      await fireEvent.press(screen.getByRole('checkbox', { name: 'Lats' }))
+      expect(onChange).toHaveBeenLastCalledWith(['calves', 'lats'])
+    })
   })
 })
