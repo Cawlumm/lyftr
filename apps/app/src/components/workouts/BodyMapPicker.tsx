@@ -6,6 +6,7 @@ import { Check, X } from '../ui/icons'
 import { AppText } from '../ui/Typography'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { IconTileGroup } from '../ui/IconTileGroup'
+import { CollapsibleChips } from '../ui/CollapsibleChips'
 import { interactive, TOUCH_MIN } from '../ui/interaction'
 import { BODY_COLORS, BODY_MAIN_COLOR, BODY_SECONDARY_COLOR, bodyFill } from './bodyFigure'
 import { useTheme } from '../../theme/useTheme'
@@ -173,20 +174,23 @@ export function BodyMapPicker(props: Props) {
       <View className="flex-row flex-wrap items-center gap-2">
         <AppText variant="caption" color="muted">{t('bodyMap.selected')}</AppText>
         {props.value.length === 0 ? <AppText variant="caption" color="muted">{t('bodyMap.nothingPicked')}</AppText> : null}
-        {props.value.map((m) => (
-          <Pressable
-            key={m}
-            accessibilityRole="button"
-            accessibilityLabel={t('bodyMap.remove', { muscle: muscleChipLabel(m) })}
-            onPress={() => toggle(m)}
-            style={{ minHeight: TOUCH_MIN }}
-            className={`flex-row items-center gap-1.5 rounded-full border border-surface-border bg-surface-muted pl-3 pr-2.5 active:opacity-70 ${interactive('hover:bg-surface-border')}`}
-          >
-            <Swatch color={BODY_SECONDARY_COLOR} />
-            <AppText variant="bodySemibold" className="text-[13px]">{muscleChipLabel(m)}</AppText>
-            <X size={14} color={colors.txMuted} strokeWidth={2.5} />
-          </Pressable>
-        ))}
+        <CollapsibleChips
+          items={props.value}
+          renderChip={(m) => (
+              <Pressable
+                key={m}
+                accessibilityRole="button"
+                accessibilityLabel={t('bodyMap.remove', { muscle: muscleChipLabel(m) })}
+                onPress={() => toggle(m)}
+                style={{ minHeight: TOUCH_MIN }}
+                className={`flex-row items-center gap-1.5 rounded-full border border-surface-border bg-surface-muted pl-3 pr-2.5 active:opacity-70 ${interactive('hover:bg-surface-border')}`}
+              >
+                <Swatch color={BODY_SECONDARY_COLOR} />
+                <AppText variant="bodySemibold" className="text-[13px]">{muscleChipLabel(m)}</AppText>
+                <X size={14} color={colors.txMuted} strokeWidth={2.5} />
+              </Pressable>
+          )}
+        />
       </View>
     </View>
   ) : props.invalid && !props.value ? null : (

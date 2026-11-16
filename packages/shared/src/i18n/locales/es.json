@@ -321,7 +321,12 @@
     "discardTitle": "¿Descartar los cambios?",
     "discardMessage": "Lo que has cambiado aquí no se ha guardado.",
     "discardConfirm": "Descartar",
-    "keepEditing": "Seguir editando"
+    "keepEditing": "Seguir editando",
+    "chips": {
+      "more": "+{{count}} más",
+      "moreLabel": "Mostrar {{count}} más",
+      "less": "Mostrar menos"
+    }
   },
   "bodyMap": {
     "map": "Mapa",

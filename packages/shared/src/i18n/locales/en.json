@@ -315,7 +315,12 @@
     "discardTitle": "Discard changes?",
     "discardMessage": "What you changed here hasn't been saved.",
     "discardConfirm": "Discard",
-    "keepEditing": "Keep editing"
+    "keepEditing": "Keep editing",
+    "chips": {
+      "more": "+{{count}} more",
+      "moreLabel": "Show {{count}} more",
+      "less": "Show less"
+    }
   },
   "bodyMap": {
     "map": "Map",

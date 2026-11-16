@@ -37,6 +37,7 @@ export { SegmentedControl } from './SegmentedControl'
 export { FilterButton } from './FilterButton'
 export { FilterSheet } from './FilterSheet'
 export { ActiveFilters } from './ActiveFilters'
+export { CollapsibleChips } from './CollapsibleChips'
 
 // Inputs
 export { Field } from './Field'
