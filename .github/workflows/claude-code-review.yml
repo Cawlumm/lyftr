@@ -103,7 +103,7 @@ jobs:
       - id: review
         continue-on-error: true
         if: env.CONFIGURED == 'true' && env.TOO_BIG != 'true'
-        uses: anthropics/claude-code-action@a874e9ecd7bb36efdad65429c6b35815f5a08f10 # v1.0.210
+        uses: anthropics/claude-code-action@e5812cd75691ca7bbfc57c0ecf4441db3a1ab7dd # v1.0.281
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Without this the action authenticates as the Claude GitHub App, which then has
