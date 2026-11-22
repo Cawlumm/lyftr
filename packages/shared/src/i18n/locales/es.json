@@ -1465,12 +1465,6 @@
         "body": "Inténtalo de nuevo en un momento."
       },
       "title": "Agregar ejercicio",
-      "loaded_one": "{{count}} cargado",
-      "loaded_other": "{{count}} cargados",
-      "loaded_many": "{{count}} cargados",
-      "loadedMore_one": "{{count}} cargado…",
-      "loadedMore_other": "{{count}} cargados…",
-      "loadedMore_many": "{{count}} cargados…",
       "search": "Buscar ejercicios…",
       "loading": "Cargando ejercicios…",
       "loadingShort": "Cargando…",

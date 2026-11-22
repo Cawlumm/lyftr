@@ -24,7 +24,7 @@ interface Props {
   onClose: () => void
   /** Header text; the merge flow names its own. */
   title?: string
-  /** Says what the pick is for, in place of the loaded count (the merge picker: which one stays). */
+  /** Says what the pick is for, under the title (the merge picker: which one stays). */
   subtitle?: string
   /** Offer "Create <query>" (and the caller's own exercises). Off for the merge target picker. */
   allowCreate?: boolean
@@ -179,15 +179,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
                 18px heading read undersized for a full-screen surface. A caller's title
                 carries a name ("Merge “…” into"), so it wraps rather than running off. */}
             <AppText variant="title" headingLevel={2} numberOfLines={2}>{title ?? t('exercises.picker.title')}</AppText>
-            {/* Only true if the fetch landed — on a failure this read "0 loaded"
-                above a message saying we could not load anything. */}
-            {subtitle ? (
-              <AppText variant="caption" color="muted">{subtitle}</AppText>
-            ) : listError ? null : (
-              <AppText variant="caption" color="muted">
-                {t(hasMore ? 'exercises.picker.loadedMore' : 'exercises.picker.loaded', { count: available.length })}
-              </AppText>
-            )}
+            {subtitle ? <AppText variant="caption" color="muted">{subtitle}</AppText> : null}
           </View>
         </View>
 

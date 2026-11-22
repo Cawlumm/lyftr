@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { Exercise } from '@lyftr/shared'
 
 const mockPush = jest.fn()
@@ -215,5 +215,27 @@ describe('ExercisePicker (mobile)', () => {
       await pressCreate(jest.fn(), jest.fn())
       expect(mockPush.mock.calls[0][0].pathname).toBe('/programs/exercise/new')
     })
+  })
+
+  // FlatList repeats onEndReached on momentum while a page is in flight: still one request a page.
+  it('asks for the next page each time the end is reached, past the third', async () => {
+    const pageOf = (n: number): Exercise[] =>
+      fullPage().map((e, i) => ({ ...e, id: n * 1000 + i, name: `Exercise ${n}-${i}` }))
+    const pending: (() => void)[] = []
+    const list = jest.spyOn(client.exerciseAPI, 'list').mockImplementation(((params?: { page?: number }) =>
+      new Promise((resolve) => pending.push(() => resolve(pageOf(params?.page ?? 1))))) as never)
+    await renderPicker()
+    await act(async () => { pending.shift()!() })
+    await screen.findByText('Exercise 1-0')
+
+    for (let n = 2; n <= 4; n++) {
+      await fireEvent(screen.getByText('Exercise 1-0'), 'endReached')
+      await fireEvent(screen.getByText('Exercise 1-0'), 'endReached')
+      expect(list).toHaveBeenCalledTimes(n)
+      expect(list).toHaveBeenLastCalledWith({ page: n })
+      await act(async () => { pending.shift()!() })
+    }
+
+    expect(list.mock.calls.map(([params]) => params?.page)).toEqual([1, 2, 3, 4])
   })
 })

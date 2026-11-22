@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { exerciseFilterGroups, parseFilters } from '@lyftr/shared'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { EXERCISE_PAGE_SIZE, exerciseFilterGroups, parseFilters } from '@lyftr/shared'
 import type { Exercise } from '@lyftr/shared'
 
 const mockPush = jest.fn()
@@ -243,5 +243,29 @@ describe('ExerciseBrowser (mobile)', () => {
 
       expect(mockPush).toHaveBeenCalledWith({ pathname: '/workouts/exercise/new', params: { name: 'Soleus' } })
     })
+  })
+
+  // A report of the library stopping after its second page was the dev stack's 64-row catalogue
+  // stub answering short, not this screen. FlatList repeats onEndReached on momentum while a page
+  // is in flight; the repeat is dropped, and the next end reached asks for the following page.
+  it('asks for the next page each time the end is reached, past the third', async () => {
+    const pageOf = (n: number): Exercise[] => Array.from({ length: EXERCISE_PAGE_SIZE },
+      (_, i) => ({ ...bench, id: n * 1000 + i, name: `Exercise ${n}-${i}` }))
+    const pending: (() => void)[] = []
+    const list = jest.spyOn(client.exerciseAPI, 'list').mockImplementation(((params?: { page?: number }) =>
+      new Promise((resolve) => pending.push(() => resolve(pageOf(params?.page ?? 1))))) as never)
+    await renderBrowser()
+    await act(async () => { pending.shift()!() })
+    await screen.findByText('Exercise 1-0')
+
+    for (let n = 2; n <= 4; n++) {
+      await fireEvent(screen.getByText('Exercise 1-0'), 'endReached')
+      await fireEvent(screen.getByText('Exercise 1-0'), 'endReached')
+      expect(list).toHaveBeenCalledTimes(n)
+      expect(list).toHaveBeenLastCalledWith({ page: n })
+      await act(async () => { pending.shift()!() })
+    }
+
+    expect(list.mock.calls.map(([params]) => params?.page)).toEqual([1, 2, 3, 4])
   })
 })

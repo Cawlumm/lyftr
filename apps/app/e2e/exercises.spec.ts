@@ -106,3 +106,31 @@ test.describe('Exercise browser URL filters', () => {
     await expect(page).toHaveURL(/q=press/)
   })
 })
+
+// Scrolling the library to its end pages through the whole catalogue. The stub catalogue CI
+// serves holds 64 exercises, so at 50 a page this reaches page 2 and its last row; the third
+// page and beyond are pinned in jest (ExerciseBrowser.test.tsx, useServerList.test.ts).
+test.describe('Exercise browser paging', () => {
+  test('scrolling to the end loads the next page and reaches the last exercise', async ({ page, request, workerAuth }) => {
+    const headers = { Authorization: `Bearer ${workerAuth.token}` }
+    const second = (await (await request.get(`${API}/exercises?limit=50&page=2`, { headers })).json()).data
+    // A short second page is what lets the footer go: this pins the stub's size, so a change to
+    // it fails here with a reason rather than on the footer below.
+    expect(second.length).toBeGreaterThan(0)
+    expect(second.length).toBeLessThan(50)
+    const last: string = second[second.length - 1].name
+
+    await page.setViewportSize({ width: 390, height: 844 })
+    const pageTwo = page.waitForRequest((r) => r.url().includes('/exercises?') && r.url().includes('page=2'))
+    await page.goto('/workouts/exercises')
+    await expect(page.locator('a[href^="/workouts/exercise/"]').first()).toBeVisible()
+
+    await expect(async () => {
+      await page.mouse.move(195, 600)
+      await page.mouse.wheel(0, 4000)
+      await expect(page.getByText(last, { exact: true })).toBeVisible({ timeout: 500 })
+    }).toPass({ timeout: 20_000 })
+    await pageTwo
+    await expect(page.getByText('Loading more…')).toHaveCount(0)
+  })
+})

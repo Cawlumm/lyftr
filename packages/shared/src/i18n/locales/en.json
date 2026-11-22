@@ -1445,10 +1445,6 @@
         "body": "Try again in a moment."
       },
       "title": "Add Exercise",
-      "loaded_one": "{{count}} loaded",
-      "loaded_other": "{{count}} loaded",
-      "loadedMore_one": "{{count}} loaded…",
-      "loadedMore_other": "{{count}} loaded…",
       "search": "Search exercises…",
       "loading": "Loading exercises…",
       "loadingShort": "Loading…",
