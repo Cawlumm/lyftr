@@ -107,6 +107,8 @@ describe('CustomExerciseForm', () => {
     await pressCreate()
     expect(screen.getByText('Give the exercise a name.')).toBeTruthy()
     expect(announce).toHaveBeenCalledWith('Give the exercise a name.')
+    // The muscle's error is below the fold, so the bar beside Create points at it as well.
+    expect(screen.getAllByText('Pick the main muscle.')).toHaveLength(2)
     // The main muscle's "nothing picked" gives way to its message; the other muscles wait for it.
     expect(screen.queryByText('Nothing picked yet')).toBeNull()
     expect(screen.getByText('Pick the main muscle first, then tap any others it works')).toBeTruthy()

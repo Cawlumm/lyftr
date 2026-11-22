@@ -199,6 +199,9 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
     } else void save.run()
   }
 
+  // The page scrolls to the first invalid field, so when the main muscle is also missing it is
+  // below the fold: the sticky bar says so, beside the button that was pressed.
+  const pointer = errors.name && errors.muscle ? t('exercises.custom.form.muscleRequired') : null
   const pickMuscle = (m: string) => { setMuscle(m); setErrors((p) => ({ ...p, muscle: undefined })); setSecondary((p) => p.filter((x) => x !== m)) }
   const label = t(mode === 'edit' ? 'exercises.custom.form.save' : request && hasExerciseCreate(request) ? 'exercises.custom.form.createAndAdd' : 'exercises.custom.form.create')
   const busy = save.busy || sendPhoto.busy
@@ -218,7 +221,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
       scrollRef={scrollRef}
       primary={{ label, onPress: submit, busy: save.busy }}
       secondary={{ label: t('common.cancel'), onPress: goBack }}
-      error={saved ? (sendPhoto.error ? `${t('exercises.custom.photo.savedNoPhoto')} ${sendPhoto.error}` : null) : save.error}
+      error={saved ? (sendPhoto.error ? `${t('exercises.custom.photo.savedNoPhoto')} ${sendPhoto.error}` : null) : save.error || pointer}
       footer={saved ? (
         <View className="flex-row gap-3">
           <Button className="flex-1" title={t('exercises.custom.photo.tryAgain')} loading={sendPhoto.busy} onPress={() => { void sendPhoto.run(saved) }} />
@@ -305,7 +308,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
       <View>
         <FieldHeader icon={Target} label={t('exercises.custom.form.otherMuscles')} />
         <Card className="gap-3">
-          <AppText variant="caption" color="muted">
+          <AppText variant="caption" color={muscle || secondary.length > 0 ? 'muted' : 'secondary'}>
             {muscle || secondary.length > 0 ? t('exercises.custom.form.otherMusclesHint', { max: MAX_SECONDARY_MUSCLES }) : t('exercises.custom.form.otherMusclesLocked')}
           </AppText>
           <BodyMapPicker mode="multi" value={secondary} main={muscle} max={MAX_SECONDARY_MUSCLES} onChange={setSecondary} groups={groups} />

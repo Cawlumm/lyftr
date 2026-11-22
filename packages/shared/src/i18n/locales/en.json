@@ -1454,7 +1454,8 @@
       "close": "Close exercise picker",
       "backToWorkout": "Back to workout",
       "loadFailed": "Couldn't load exercises",
-      "loadMoreFailed": "Couldn't load more exercises"
+      "loadMoreFailed": "Couldn't load more exercises",
+      "noMatch": "No exercises match “{{query}}”"
     },
     "detail": {
       "loadFailed": "Couldn't load this exercise",
@@ -1561,8 +1562,8 @@
         "merge": "Merge into another exercise…",
         "archive": "Archive",
         "unarchive": "Restore",
-        "archived": "Archived “{{name}}”",
-        "unarchived": "Restored “{{name}}”",
+        "archived": "Exercise archived",
+        "unarchived": "Exercise restored",
         "archiveFailed": "Couldn't archive the exercise",
         "unarchiveFailed": "Couldn't restore the exercise"
       },

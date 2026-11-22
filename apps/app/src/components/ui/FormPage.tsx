@@ -122,7 +122,7 @@ export function FormPage({
             </Pressable>
           </ScrollView>
 
-          <View className="-mx-5 gap-3 border-t border-surface-border bg-surface-base px-5 pb-2 pt-3" style={{ marginBottom: keyboardUp ? 0 : pillInset }}>
+          <View className={`gap-3 border-t border-surface-border bg-surface-base pb-2 pt-3 ${wide ? '' : '-mx-5 px-5'}`} style={{ marginBottom: keyboardUp ? 0 : pillInset }}>
             {error ? (
               <Alert variant="error" size="compact">{error}</Alert>
             ) : null}

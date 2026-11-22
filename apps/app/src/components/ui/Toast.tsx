@@ -86,7 +86,7 @@ export function Toast({
         </View>
       )}
       <View className="flex-1">
-        <AppText variant="subheading">{title}</AppText>
+        <AppText variant="subheading" numberOfLines={2}>{title}</AppText>
         {description ? (
           <AppText variant="caption" color="muted" numberOfLines={1}>
             {description}
@@ -117,7 +117,7 @@ export function Toast({
             onPress={() => { action.onPress(); onDismiss() }}
             accessibilityRole="button"
             style={{ minHeight: TOUCH_MIN }}
-            className={`justify-center rounded-lg px-3 active:opacity-60 ${interactive('hover:bg-surface-muted')}`}
+            className={`shrink-0 justify-center rounded-lg px-3 active:opacity-60 ${interactive('hover:bg-surface-muted')}`}
           >
             <AppText variant="bodySemibold" style={{ color: accent }}>{action.label}</AppText>
           </Pressable>
@@ -127,7 +127,7 @@ export function Toast({
           accessibilityRole="button"
           accessibilityLabel={t('common.dismiss')}
           hitSlop={8}
-          className="p-1.5 -m-1.5 active:opacity-60"
+          className="shrink-0 p-1.5 -m-1.5 active:opacity-60"
         >
           <X size={16} color={colors.txMuted} />
         </Pressable>

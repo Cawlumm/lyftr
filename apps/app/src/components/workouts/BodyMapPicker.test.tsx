@@ -70,7 +70,11 @@ describe('BodyMapPicker', () => {
     it('stays dimmed and offers nothing to pick until there is a main muscle', async () => {
       await render(<BodyMapPicker mode="multi" value={[]} main={null} onChange={jest.fn()} groups={groups} />)
       expect(screen.queryByRole('checkbox')).toBeNull()
-      expect(screen.queryByText('List')).toBeNull()
+      // The toggle stays, disabled, so the card does not change height when it unlocks.
+      expect(screen.getByText('List')).toBeTruthy()
+      expect(screen.getByText('Front', hidden)).toBeTruthy()
+      await fireEvent.press(screen.getByLabelText('front-chest', hidden))
+      expect(screen.queryByText('Chest')).toBeNull()
     })
 
     it('a tap toggles a muscle in and out of the others', async () => {

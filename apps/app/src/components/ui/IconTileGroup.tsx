@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Pressable, type PressableProps, View } from 'react-native'
+import { Platform, Pressable, type PressableProps, View } from 'react-native'
 import type { LucideIcon } from './icons'
 import { Check } from './icons'
 import { AppText } from './Typography'
@@ -32,6 +32,8 @@ type Props<T extends string> = {
 )
 
 const TILE_MIN = 76
+// A label is one line, shrunk (native) or ellipsised (web), never broken inside a word.
+const NO_WORD_BREAK = { maxWidth: '100%', fontSize: 12, ...(Platform.OS === 'web' ? { wordBreak: 'normal', overflowWrap: 'normal' } : null) } as object
 
 // A choice among labelled options: one of them (radio) or any of them (checkbox). A long list
 // folds by OPTION_FOLD (fold.tsx), always showing what is chosen.
@@ -69,7 +71,7 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
               key={o.value}
               {...common}
               style={tileStyle}
-              className={`items-center justify-center gap-1.5 rounded-xl px-1 py-2 active:opacity-70 ${
+              className={`items-center justify-center gap-1.5 rounded-xl px-0.5 py-2 active:opacity-70 ${
                 on ? 'border-2 border-brand-500 bg-brand-500/25' : 'border border-surface-border bg-surface-muted'
               } ${locked ? 'border-dashed' : interactive('hover:bg-surface-border')} ${off && !locked ? 'opacity-40' : ''}`}
             >
@@ -79,7 +81,7 @@ export function IconTileGroup<T extends string>(props: Props<T>) {
                 </View>
               ) : null}
               {lead ?? (Icon ? <Icon size={26} color={on ? accent : colors.txMuted} strokeWidth={on ? 2.4 : 2} /> : null)}
-              <AppText variant={on ? 'bodySemibold' : 'caption'} color={on ? 'primary' : 'secondary'} className="text-center text-[12px]" numberOfLines={2}>{o.label}</AppText>
+              <AppText variant={on ? 'bodySemibold' : 'caption'} color={on ? 'primary' : 'secondary'} className="text-center text-[12px]" style={NO_WORD_BREAK} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{o.label}</AppText>
             </Pressable>
           )
         }

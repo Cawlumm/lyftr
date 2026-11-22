@@ -24,7 +24,7 @@ import {
   type ExerciseHistoryPoint,
   type PersonalRecord, type UiMessage, formatDate, useTranslation
 } from '@lyftr/shared'
-import { touchTarget } from '../ui/interaction'
+import { interactive, TOUCH_MIN, touchTarget } from '../ui/interaction'
 import { ActionSheet, AppText, Button, CollapsibleChips, ErrorState, Menu, Screen, scrollBleed, SegmentedControl, Toast, editAction, linkProps, type SheetAction } from '../ui'
 import { MuscleDiagram } from './MuscleDiagram'
 import { ExerciseHistoryChart, type ChartPoint } from './ExerciseHistoryChart'
@@ -201,7 +201,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       setExercise(updated)
       setToast({
         variant: 'success',
-        title: t(restoring ? 'exercises.custom.actions.unarchived' : 'exercises.custom.actions.archived', { name: exercise.name }),
+        title: t(restoring ? 'exercises.custom.actions.unarchived' : 'exercises.custom.actions.archived'),
         action: restoring ? undefined : { label: t('common.undo'), onPress: () => { void setArchived(false) } },
       })
     } catch (err) {
@@ -359,9 +359,20 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
       </View>
       {custom && exercise.archived ? (
         <View className="mt-3 rounded-xl border border-surface-border bg-surface-muted px-3 py-2.5">
-          <AppText variant="caption" color="muted">
+          <AppText variant="caption" color="secondary">
             {exercise.merged_into_id ? t('exercises.custom.mergedNote') : t('exercises.custom.archivedNote')}
           </AppText>
+          {!exercise.merged_into_id ? (
+            <Pressable
+              onPress={() => { void setArchived(false) }}
+              disabled={archiving}
+              accessibilityRole="button"
+              style={{ minHeight: TOUCH_MIN }}
+              className={`self-start justify-center rounded-lg ${interactive('hover:opacity-80')}`}
+            >
+              <AppText variant="bodySemibold" style={{ color: accent }}>{t('exercises.custom.actions.unarchive')}</AppText>
+            </Pressable>
+          ) : null}
           {exercise.merged_into_id ? (
             <Pressable
               {...linkProps(detailPath(exercise.merged_into_id), () => router.replace(detailPath(exercise.merged_into_id!) as unknown as Href))}

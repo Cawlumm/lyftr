@@ -44,11 +44,9 @@ const PickerRow = memo(function PickerRow({ exercise, onSelect }: { exercise: Ex
     >
       <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
-        <View className="flex-row items-center gap-2">
-          <AppText variant="subheading" numberOfLines={1} className="shrink">{exercise.name}</AppText>
-          {exercise.is_custom ? <CustomBadge /> : null}
-        </View>
+        <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
         <View className="mt-0.5 flex-row flex-wrap items-center gap-1.5">
+          {exercise.is_custom ? <CustomBadge /> : null}
           {/* Neutral muscle chip: a whole scrolling list of loud per-muscle colors
               reads busy and there's no "best"/PR signal here to reserve color for —
               keep the taxonomy legible but let the exercise name be the hero. */}
@@ -229,6 +227,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
             ListHeaderComponent={
               showCreate || myRows.length > 0 || mine.failed ? (
                 <View>
+                  {showCreate && available.length === 0 && myRows.length === 0 && !mine.failed && !listError ? (
+                    <AppText variant="caption" color="muted" className="mb-2 px-1">{t('exercises.picker.noMatch', { query: typed })}</AppText>
+                  ) : null}
                   {showCreate ? <CreateRow name={createName} onPress={openCreate} /> : null}
                   {mine.failed ? <MyExercisesRetry onRetry={mine.reload} /> : null}
                   {myRows.length > 0 ? (

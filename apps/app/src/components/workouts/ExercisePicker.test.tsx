@@ -184,6 +184,17 @@ describe('ExercisePicker (mobile)', () => {
       expect(await screen.findByLabelText('Create a custom exercise named Soleus Slouch')).toBeTruthy()
       await waitFor(() => expect(screen.queryByText('Bench Press')).toBeNull(), { timeout: 2000 })
       expect(screen.queryByText('No exercises found')).toBeNull()
+      expect(screen.getByText('No exercises match “Soleus Slouch”')).toBeTruthy()
+    })
+
+    it('does not say nothing matched while results are listed under the Create row', async () => {
+      mineState()
+      catalog()
+      await renderPicker()
+      await screen.findByText('Bench Press')
+      await type('Bench')
+      expect(await screen.findByLabelText('Create a custom exercise named Bench')).toBeTruthy()
+      expect(screen.queryByText(/No exercises match/)).toBeNull()
     })
 
     it('Create closes the picker, then opens the create page with the name and a request', async () => {

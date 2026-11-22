@@ -1474,7 +1474,8 @@
       "close": "Cerrar selector de ejercicios",
       "backToWorkout": "Volver al entrenamiento",
       "loadFailed": "No se pudieron cargar los ejercicios",
-      "loadMoreFailed": "No se pudieron cargar más ejercicios"
+      "loadMoreFailed": "No se pudieron cargar más ejercicios",
+      "noMatch": "Ningún ejercicio coincide con «{{query}}»"
     },
     "detail": {
       "loadFailed": "No se pudo cargar este ejercicio",
@@ -1582,8 +1583,8 @@
         "merge": "Combinar con otro ejercicio…",
         "archive": "Archivar",
         "unarchive": "Restaurar",
-        "archived": "Se archivó «{{name}}»",
-        "unarchived": "Se restauró «{{name}}»",
+        "archived": "Ejercicio archivado",
+        "unarchived": "Ejercicio restaurado",
         "archiveFailed": "No se pudo archivar el ejercicio",
         "unarchiveFailed": "No se pudo restaurar el ejercicio"
       },

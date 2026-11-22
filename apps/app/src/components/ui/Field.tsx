@@ -46,10 +46,11 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
       ? brand.error
       : interpolateColor(focus.value, [0, 1], [colors.border, brand.cyan]),
   }))
+  // An error already draws the box in the error colour: a focus ring beside it would be a second outline.
   return (
     <View className={`gap-1.5 ${className}`}>
       {label ? <Label>{label}</Label> : null}
-      <View className={FIELD_FOCUS_RING} style={{ borderRadius: 8 }}>
+      <View className={error ? '' : FIELD_FOCUS_RING} style={{ borderRadius: 8 }}>
       <Reanimated.View
         style={[
           {

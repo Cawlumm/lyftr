@@ -99,6 +99,21 @@ describe('ExerciseDetailScreen custom exercises', () => {
 
     await waitFor(() => expect(archive).toHaveBeenCalledWith(5), { timeout: 2000 })
     expect(await screen.findByText(/Archived\. It's hidden from search/)).toBeTruthy()
+    expect(await screen.findByText('Exercise archived')).toBeTruthy()
+  })
+
+  it('Restore on the archived note unarchives and says so', async () => {
+    const unarchive = jest.spyOn(client.exerciseAPI, 'unarchive').mockResolvedValue({ ...customRow, archived: false })
+    await load({ ...customRow, archived: true })
+    await fireEvent.press(screen.getByRole('button', { name: 'Restore' }))
+    await waitFor(() => expect(unarchive).toHaveBeenCalledWith(5))
+    await waitFor(() => expect(screen.queryByText(/Archived\. It's hidden from search/)).toBeNull())
+    expect(await screen.findByText('Exercise restored')).toBeTruthy()
+  })
+
+  it('has no Restore on a merged exercise note', async () => {
+    await load({ ...customRow, archived: true, merged_into_id: 9 })
+    expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
   })
 
   it('Undo on the archive toast restores it', async () => {

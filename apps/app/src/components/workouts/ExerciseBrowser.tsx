@@ -64,11 +64,9 @@ const BrowseRow = memo(function BrowseRow({ exercise, card = false }: { exercise
     >
       <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
-        <View className="flex-row items-center gap-2">
-          <AppText variant="subheading" numberOfLines={1} className="shrink">{exercise.name}</AppText>
-          {exercise.is_custom ? <CustomBadge /> : null}
-        </View>
+        <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
         <View className="mt-0.5 flex-row flex-wrap items-center gap-1.5">
+          {exercise.is_custom ? <CustomBadge /> : null}
           <View className="rounded border border-surface-border bg-surface-muted px-1.5 py-0.5">
             <AppText variant="caption" color="muted" className="capitalize">
               {muscleLabel(exercise.muscle_group)}
@@ -249,7 +247,11 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
             ) : hasMyGroup ? (
               <View className="pb-2">
                 <ExerciseGroupHeading>{t('exercises.custom.yours')}</ExerciseGroupHeading>
-                {myShown.map((e, i) => (
+                {wide ? (
+                  <View style={[{ flexDirection: 'row', flexWrap: 'wrap' }, grid.columnWrapperStyle, { rowGap: 12 }]}>
+                    {myShown.map((e) => <View key={e.id} style={cellStyle}><BrowseRow exercise={e} card /></View>)}
+                  </View>
+                ) : myShown.map((e, i) => (
                   <View key={e.id}>
                     {i > 0 ? <RowSeparator /> : null}
                     <BrowseRow exercise={e} />

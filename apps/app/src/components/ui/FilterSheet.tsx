@@ -9,6 +9,7 @@ import { IconButton } from './IconButton'
 import { Sheet } from './Sheet'
 import { FoldToggle, OPTION_FOLD, useFold } from './fold'
 import { OptionChip } from './IconTileGroup'
+import { TOUCH_MIN, interactive } from './interaction'
 
 interface Props {
   open: boolean
@@ -34,7 +35,7 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
     <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={titleId} width="lg">
       <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-3 pt-1">
         <AppText nativeID={titleId} variant="title" headingLevel={2}>{t('filters.title')}</AppText>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-1">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('filters.reset')}
@@ -44,10 +45,10 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
               onReset()
             }}
             disabled={count === 0}
-            hitSlop={10}
-            className={`active:opacity-60 ${count === 0 ? 'opacity-40' : ''}`}
+            style={{ minHeight: TOUCH_MIN, minWidth: TOUCH_MIN }}
+            className={`items-center justify-center rounded-lg px-2 ${count === 0 ? '' : `active:opacity-60 ${interactive('hover:bg-surface-muted/60')}`}`}
           >
-            <AppText variant="label" color="brand">{t('filters.reset')}</AppText>
+            <AppText variant="bodySemibold" color={count === 0 ? 'muted' : 'brand'} className={count === 0 ? 'opacity-50' : ''}>{t('filters.reset')}</AppText>
           </Pressable>
           <IconButton icon={X} label={t('common.close')} variant="ghost" size="md" onPress={onClose} />
         </View>

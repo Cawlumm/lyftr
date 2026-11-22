@@ -50,8 +50,10 @@ const INERT: Slug[] = ['head', 'hair', 'hands', 'feet', 'knees', 'ankles']
 const SIDES = ['front', 'back'] as const
 const FIGURE_W = 200
 const FIGURE_GAP = 16
+const WIDE_CARD = 480
+const MAX_WIDE_SCALE = 0.6
 
-function Figures({ main, others, onPick, width }: { main: string | null; others: readonly string[]; onPick: (muscle: string) => void; width: number }) {
+function Figures({ main, others, onPick, width, dim }: { main: string | null; others: readonly string[]; onPick: (muscle: string) => void; width: number; dim?: boolean }) {
   const { t } = useTranslation()
   const { isDark } = useTheme()
   const mainSlugs = main ? muscleToBodySlugs(main) : []
@@ -65,7 +67,8 @@ function Figures({ main, others, onPick, width }: { main: string | null; others:
     const m = bodySlugToMuscle(slug)
     if (m) onPick(m)
   }
-  const scale = Math.min(0.95, Math.max(0.5, (width - FIGURE_GAP) / 2 / FIGURE_W))
+  // Capped on a wide card so the pair stays as tall as the sections around it.
+  const scale = Math.min(width > WIDE_CARD ? MAX_WIDE_SCALE : 0.95, Math.max(0.5, (width - FIGURE_GAP) / 2 / FIGURE_W))
   // The figures are decorative for a screen reader: the List view holds the same choice as
   // labelled controls.
   const hidden = Platform.OS === 'web' ? { 'aria-hidden': true } : { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
@@ -73,11 +76,13 @@ function Figures({ main, others, onPick, width }: { main: string | null; others:
     <View {...hidden} {...webRegionClick(pick)} className="flex-row items-start justify-center" style={{ gap: FIGURE_GAP }}>
       {SIDES.map((side) => (
         <View key={side} className="items-center gap-1">
-          <Body
-            data={data} side={side} scale={scale} colors={BODY_COLORS} defaultFill={bodyFill(isDark)} border="none"
-            disabledParts={INERT}
-            onBodyPartPress={(part) => { if (part.slug) pick(part.slug) }}
-          />
+          <View style={dim ? { opacity: 0.35 } : undefined}>
+            <Body
+              data={data} side={side} scale={scale} colors={BODY_COLORS} defaultFill={bodyFill(isDark)} border="none"
+              disabledParts={INERT}
+              onBodyPartPress={(part) => { if (part.slug) pick(part.slug) }}
+            />
+          </View>
           <AppText variant="caption" color="muted">{t(side === 'front' ? 'bodyMap.front' : 'bodyMap.back')}</AppText>
         </View>
       ))}
@@ -143,15 +148,10 @@ export function BodyMapPicker(props: Props) {
   // What a refused tap said, else the standing cap message while at the cap.
   const message = note || (full ? fullNote : '')
 
-  // Others mean nothing until the main muscle is set: show the figure dimmed and inert, so two
-  // identical empty maps don't stack, and the caller's hint says what comes first.
-  if (multi && !main && props.value.length === 0) {
-    return (
-      <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} pointerEvents="none" style={{ opacity: 0.35 }}>
-        <Figures main={null} others={[]} onPick={() => {}} width={width} />
-      </View>
-    )
-  }
+  // Others mean nothing until the main muscle is set: the figure is dimmed and inert (never the
+  // words, which stay at full contrast) and the Map/List toggle stays, disabled, so the card does
+  // not change height when it unlocks. The caller's hint says what comes first.
+  const locked = multi && !main && props.value.length === 0
 
   const listGroups = groups.map((g) => (
     <View key={g.key} className="gap-1.5">
@@ -171,7 +171,9 @@ export function BodyMapPicker(props: Props) {
     </View>
   ))
 
-  const selected = props.mode === 'multi' ? (
+  const selected = locked ? (
+    <View style={{ height: 40 }} />
+  ) : props.mode === 'multi' ? (
     <View className="gap-2">
       {main ? (
         <View className="flex-row items-center gap-2">
@@ -217,14 +219,16 @@ export function BodyMapPicker(props: Props) {
 
   return (
     <View className="gap-3" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      <SegmentedControl
-        options={[{ value: 'map', label: t('bodyMap.map') }, { value: 'list', label: t('bodyMap.list') }]}
-        value={view}
-        onChange={(v) => { chosen.current = true; setNote(''); setView(v) }}
-      />
-      {view === 'map' ? (
+      <View pointerEvents={locked ? 'none' : undefined} accessibilityState={{ disabled: locked }} style={locked ? { opacity: 0.5 } : undefined}>
+        <SegmentedControl
+          options={[{ value: 'map', label: t('bodyMap.map') }, { value: 'list', label: t('bodyMap.list') }]}
+          value={locked ? 'map' : view}
+          onChange={(v) => { chosen.current = true; setNote(''); setView(v) }}
+        />
+      </View>
+      {view === 'map' || locked ? (
         <>
-          <Figures main={main} others={others} onPick={onPick} width={width} />
+          <Figures main={main} others={others} onPick={locked ? () => {} : onPick} width={width} dim={locked} />
           {selected}
         </>
       ) : (
