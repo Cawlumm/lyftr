@@ -1,4 +1,4 @@
-import { MAX_SECONDARY_MUSCLES, validateCustomExercise } from './validateCustomExercise'
+import { validateCustomExercise } from './validateCustomExercise'
 
 describe('validateCustomExercise', () => {
   it('needs a name that is not only spaces, and a muscle', () => {
@@ -14,11 +14,5 @@ describe('validateCustomExercise', () => {
   it('rejects control characters in the name, as the server does', () => {
     expect(validateCustomExercise({ name: 'Soleus\u0007 Slouch', muscle: 'calves' })).toEqual({ name: 'controlChars' })
     expect(validateCustomExercise({ name: 'Soleus\tSlouch', muscle: 'calves' })).toEqual({ name: 'controlChars' })
-  })
-
-  it('allows ten other muscles and no more', () => {
-    const ten = Array.from({ length: MAX_SECONDARY_MUSCLES }, (_, i) => `m${i}`)
-    expect(validateCustomExercise({ name: 'X', muscle: 'calves', secondary: ten })).toEqual({})
-    expect(validateCustomExercise({ name: 'X', muscle: 'calves', secondary: [...ten, 'm11'] })).toEqual({ secondary: 'tooMany' })
   })
 })

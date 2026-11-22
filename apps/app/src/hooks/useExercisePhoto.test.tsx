@@ -4,7 +4,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 )
 
-import { client } from '../lib/lyftr'
+import { client, useAuthStore } from '../lib/lyftr'
 import { clearExercisePhotoCache, useExercisePhoto } from './useExercisePhoto'
 
 // React Native's jest FileReader cannot read a Blob built in node; the browser's and the device's can.
@@ -51,5 +51,31 @@ describe('useExercisePhoto', () => {
     const { result } = await renderHook(() => useExercisePhoto(3, 'thumb', 'p1'))
     await waitFor(() => expect(result.current.failed).toBe(true))
     expect(result.current.uri).toBeUndefined()
+  })
+
+  it('forgets every photo on sign-out', async () => {
+    const photo = jest.spyOn(client.exerciseAPI, 'photo').mockResolvedValue(new Blob(['abc'], { type: 'image/jpeg' }))
+    useAuthStore.setState({ isAuthenticated: true })
+    const first = await renderHook(() => useExercisePhoto(3, 'thumb', 'p1'))
+    await waitFor(() => expect(first.result.current.uri).toMatch(/^data:/))
+    useAuthStore.setState({ isAuthenticated: false })
+    const after = await renderHook(() => useExercisePhoto(3, 'thumb', 'p1'))
+    await waitFor(() => expect(after.result.current.uri).toMatch(/^data:/))
+    expect(photo).toHaveBeenCalledTimes(2)
+  })
+
+  it('holds at most 100 photos, dropping the oldest first', async () => {
+    const photo = jest.spyOn(client.exerciseAPI, 'photo').mockResolvedValue(new Blob(['abc'], { type: 'image/jpeg' }))
+    const ids = Array.from({ length: 101 }, (_, i) => i + 1)
+    // One hook per photo in a single render: a fixed count, so the hook order never changes.
+    const all = await renderHook(() => ids.map((id) => useExercisePhoto(id, 'thumb', 'p')))
+    await waitFor(() => expect(all.result.current.every((r) => r.uri)).toBe(true))
+    await all.unmount()
+    expect(photo).toHaveBeenCalledTimes(101)
+    await renderHook(() => useExercisePhoto(101, 'thumb', 'p'))
+    expect(photo).toHaveBeenCalledTimes(101)
+    const oldest = await renderHook(() => useExercisePhoto(1, 'thumb', 'p'))
+    await waitFor(() => expect(oldest.result.current.uri).toMatch(/^data:/))
+    expect(photo).toHaveBeenCalledTimes(102)
   })
 })

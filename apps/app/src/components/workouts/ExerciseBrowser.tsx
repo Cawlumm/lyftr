@@ -22,6 +22,7 @@ import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { useSessionPillInset } from './SessionPill'
 import { CustomBadge } from './CustomBadge'
+import { ExerciseGroupHeading } from './ExerciseGroupHeading'
 import { MyExercisesRetry } from './MyExercisesRetry'
 
 // The custom group above the catalog: this many rows at most, and past it a "See all" row.
@@ -91,14 +92,6 @@ const RowSeparator = memo(function RowSeparator() {
 const GridGap = memo(function GridGap() {
   return <View className="h-3" />
 })
-
-function GroupHeading({ children }: { children: string }) {
-  return (
-    <AppText variant="label" color="muted" className="mb-1 mt-2 px-3 uppercase" headingLevel={2}>
-      {children}
-    </AppText>
-  )
-}
 
 // Read-only catalogue, reached from the Workouts tab: look an exercise up and open its page
 // without starting a workout. Same server-paged list as the picker, minus the add step, plus
@@ -255,7 +248,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
               <View className="pb-2"><MyExercisesRetry onRetry={my.reload} /></View>
             ) : hasMyGroup ? (
               <View className="pb-2">
-                <GroupHeading>{t('exercises.custom.yours')}</GroupHeading>
+                <ExerciseGroupHeading>{t('exercises.custom.yours')}</ExerciseGroupHeading>
                 {myShown.map((e, i) => (
                   <View key={e.id}>
                     {i > 0 ? <RowSeparator /> : null}
@@ -272,7 +265,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
                     <ChevronRight size={16} color={accent} />
                   </Pressable>
                 ) : null}
-                <GroupHeading>{t('exercises.custom.catalog')}</GroupHeading>
+                <ExerciseGroupHeading>{t('exercises.custom.catalog')}</ExerciseGroupHeading>
               </View>
             ) : undefined}
             onEndReached={loadMore}

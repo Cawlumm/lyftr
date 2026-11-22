@@ -130,7 +130,7 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
   - Long lists fold by one rule in `ui/fold.tsx` (`useFold`, `FoldToggle`): chip rows (`CollapsibleChips`) show 3 + "+N more"; option lists over 8 (`IconTileGroup`, `FilterSheet` sections) show 6 + "+N more", and a chosen option past the cut stays in view. Never "+1 more". Don't write a second fold.
   - `KeyboardDoneAccessory`: the only iOS Done bar. FormPage gives each page its own id.
 - **The muscle picker is not generic** and lives beside the exercise screens: `workouts/BodyMapPicker` (body map, with a list as the keyboard and screen-reader path).
-- **Options are data:** exercise equipment, categories and muscles are one list each, in `components/workouts/exerciseOptions.ts` (`{ value, icon, labelKey }`). Adding an option is one line there, and its test holds the lists to the server's taxonomy.
+- **Options are data:** exercise equipment, categories and muscles are one list each, in `components/workouts/exerciseOptions.ts` (`{ value, icon, labelKey }`). Adding an option is one line there plus the same value in `packages/shared/src/utils/customExerciseTaxonomy.json` and `backend/stores/taxonomy.go` (Go cannot read the JSON); tests on both sides hold the three to each other and to the catalog.
 - **Create and edit are one form:** they share one component with a `mode` prop and one pure validator (`CustomExerciseForm` + `validateCustomExercise`). The edit route only loads the record and renders the form.
 
 `settings/name.tsx` is the second page on the scaffold. Other forms predate it; move them when you touch them.

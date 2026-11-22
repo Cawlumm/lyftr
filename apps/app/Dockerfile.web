@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/app/package.json ./apps/app/
 COPY packages/shared/package.json ./packages/shared/
-# postinstall runs patch-package over patches/*.patch (expo-localization), which the
+# postinstall runs patch-package over patches/*.patch (see patches/README.md), which the
 # export bundles, so the patch has to be there when the install finishes.
 COPY patches ./patches
 RUN npm ci -w @lyftr/mobile --include-workspace-root

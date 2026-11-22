@@ -137,8 +137,6 @@ export const EXERCISE_PAGE_SIZE = 50
 // How long typing pauses before an exercise search goes to the server.
 export const EXERCISE_SEARCH_DEBOUNCE_MS = 250
 
-// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
-// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 // "lower back" -> "Lower Back": a muscle read as a name (a chip, a filter option), not as the
 // lowercase slug the catalog screens show in running text.
 export const titleCase = (s: string): string => s.replace(/-/g, ' ').replace(/(^|\s)(\p{L})/gu, (_, sp: string, c: string) => sp + c.toLocaleUpperCase())
@@ -171,6 +169,8 @@ export function exerciseFilterGroups(opts: { includeMine?: boolean } = {}): Filt
   return groups
 }
 
+// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
+// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 export function hasEquipmentToShow(raw: string | undefined | null): boolean {
   const slug = slugOf(raw)
   return slug !== '' && slug !== 'other' && slug !== 'none'

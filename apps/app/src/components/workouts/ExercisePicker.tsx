@@ -10,12 +10,13 @@ import { FIELD_FOCUS_RING, interactive, NO_INPUT_OUTLINE } from '../ui/interacti
 import { client } from '../../lib/lyftr'
 import { requestExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
-import { useMyExercises } from '../../hooks/useMyExercises'
+import { MAX_CUSTOM_EXERCISES, useMyExercises } from '../../hooks/useMyExercises'
 import { useTheme } from '../../theme/useTheme'
 import { useBreakpoint } from '../../lib/useBreakpoint'
 import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { CustomBadge } from './CustomBadge'
+import { ExerciseGroupHeading } from './ExerciseGroupHeading'
 import { MyExercisesRetry } from './MyExercisesRetry'
 
 interface Props {
@@ -136,7 +137,9 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
 
   const available = exercises.filter((e) => !selectedIds.includes(e.id))
 
-  const mine = useMyExercises({ q: debouncedQuery }, 50)
+  // All of yours, as the server caps them (stores.MaxCustomExercises): the merge target is picked
+  // from this list, and one past a cut would be reachable only by searching for it.
+  const mine = useMyExercises({ q: debouncedQuery }, MAX_CUSTOM_EXERCISES)
   // Your own exercises are listed even where Create is not offered: merging one duplicate of
   // yours into another is the commonest merge there is.
   const myRows = useMemo(
@@ -230,7 +233,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
                   {mine.failed ? <MyExercisesRetry onRetry={mine.reload} /> : null}
                   {myRows.length > 0 ? (
                     <View>
-                      <AppText variant="label" color="muted" className="px-1 pb-1 pt-2">{t('exercises.custom.yours')}</AppText>
+                      <ExerciseGroupHeading>{t('exercises.custom.yours')}</ExerciseGroupHeading>
                       {myRows.map((e, i) => (
                         <View key={e.id}>
                           {i > 0 ? <RowSeparator /> : null}
@@ -238,7 +241,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
                         </View>
                       ))}
                       {available.length > 0 ? (
-                        <AppText variant="label" color="muted" className="px-1 pb-1 pt-4">{t('exercises.custom.catalog')}</AppText>
+                        <ExerciseGroupHeading>{t('exercises.custom.catalog')}</ExerciseGroupHeading>
                       ) : null}
                     </View>
                   ) : null}

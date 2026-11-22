@@ -42,11 +42,9 @@ import { ExerciseImage } from './ExerciseImage'
 import { InstructionSteps } from './InstructionSteps'
 import { MergeExerciseSheet } from './MergeExerciseSheet'
 
-// 1:1 port of web/src/pages/ExerciseDetail.tsx. Read-only exercise reference: identity +
-// muscles worked (front/back diagram), image, equipment/category tags, secondary muscles,
-// personal record, weight-progression history chart, and instructions. All data/query/
-// calculation logic is carried over unchanged; presentation is authored against the RN ui
-// kit.
+// An exercise's page: muscles worked (front/back diagram), image, tags, other muscles, personal
+// record, weight history and instructions. On one of your own exercises it also edits, changes
+// the photo, archives (undone from the toast) and merges into another.
 //
 // This is the SHARED screen body: it's mounted by a thin route in every tab stack that
 // links to an exercise (workouts/exercise/[id] + programs/exercise/[id]). Duplicating the

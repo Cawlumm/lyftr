@@ -187,7 +187,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
   // cursor in it when it is a text field, and have a screen reader read the message.
   const submit = () => {
     if (save.busy || saved) return
-    const found = validateCustomExercise({ name, muscle, secondary })
+    const found = validateCustomExercise({ name, muscle })
     setErrors(found)
     if (found.name) {
       scrollTo(pos.current.name)

@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { customExercises, type Exercise } from '@lyftr/shared'
 import { client, useServerInfo } from '../lib/lyftr'
 
+// One user's cap on custom exercises: backend/stores/exercise_custom.go, MaxCustomExercises.
+export const MAX_CUSTOM_EXERCISES = 500
+
 export interface MyExercisesQuery {
   q?: string
   muscle_group?: string
