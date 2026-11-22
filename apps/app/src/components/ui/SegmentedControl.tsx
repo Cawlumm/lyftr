@@ -13,6 +13,8 @@ interface Props<T extends string> {
   onChange: (v: T) => void
   size?: 'sm' | 'md'
   className?: string
+  /** Shown but not pressable (a control that waits on another choice); each segment says so. */
+  disabled?: boolean
 }
 
 // `box` is the segment's smallest size, which the tap area is padded out from (a segment is
@@ -31,18 +33,20 @@ export function SegmentedControl<T extends string>({
   onChange,
   size = 'md',
   className = '',
+  disabled = false,
 }: Props<T>) {
   const s = ITEM[size]
   const hit = touchTarget(...s.box)
   return (
-    <View className={`flex-row gap-1 bg-surface-overlay rounded-xl p-1 ${className}`}>
+    <View className={`flex-row gap-1 bg-surface-overlay rounded-xl p-1 ${className}`} style={disabled ? { opacity: 0.5 } : undefined}>
       {options.map((opt) => {
         const active = opt.value === value
         return (
           <Pressable
             key={opt.value}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            accessibilityState={{ selected: active, disabled }}
+            disabled={disabled}
             // react-native-web does not turn accessibilityState into DOM attributes, and
             // aria-selected is not valid on a button, so the chosen segment is a pressed toggle.
             {...(Platform.OS === 'web' ? { 'aria-pressed': active } : {})}

@@ -71,7 +71,9 @@ describe('BodyMapPicker', () => {
       await render(<BodyMapPicker mode="multi" value={[]} main={null} onChange={jest.fn()} groups={groups} />)
       expect(screen.queryByRole('checkbox')).toBeNull()
       // The toggle stays, disabled, so the card does not change height when it unlocks.
-      expect(screen.getByText('List')).toBeTruthy()
+      const list = screen.getByRole('button', { name: 'List', disabled: true })
+      await fireEvent.press(list)
+      expect(screen.queryByRole('checkbox')).toBeNull()
       expect(screen.getByText('Front', hidden)).toBeTruthy()
       await fireEvent.press(screen.getByLabelText('front-chest', hidden))
       expect(screen.queryByText('Chest')).toBeNull()

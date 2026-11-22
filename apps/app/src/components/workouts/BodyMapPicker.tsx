@@ -219,13 +219,12 @@ export function BodyMapPicker(props: Props) {
 
   return (
     <View className="gap-3" onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      <View pointerEvents={locked ? 'none' : undefined} accessibilityState={{ disabled: locked }} style={locked ? { opacity: 0.5 } : undefined}>
-        <SegmentedControl
-          options={[{ value: 'map', label: t('bodyMap.map') }, { value: 'list', label: t('bodyMap.list') }]}
-          value={locked ? 'map' : view}
-          onChange={(v) => { chosen.current = true; setNote(''); setView(v) }}
-        />
-      </View>
+      <SegmentedControl
+        options={[{ value: 'map', label: t('bodyMap.map') }, { value: 'list', label: t('bodyMap.list') }]}
+        value={locked ? 'map' : view}
+        onChange={(v) => { chosen.current = true; setNote(''); setView(v) }}
+        disabled={locked}
+      />
       {view === 'map' || locked ? (
         <>
           <Figures main={main} others={others} onPick={locked ? () => {} : onPick} width={width} dim={locked} />
