@@ -1,10 +1,10 @@
-import { useId, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { View } from 'react-native'
 import type { LucideIcon } from './icons'
 import { useTranslation } from '@lyftr/shared'
 import { AppText } from './Typography'
 import { SheetButton } from './SheetButton'
-import { Sheet, SHEET_ANIM_MS } from './Sheet'
+import { Sheet } from './Sheet'
 
 export interface SheetAction {
   label: string
@@ -42,9 +42,17 @@ export function ActionSheet({
 }: Props) {
   const { t } = useTranslation()
   const headingId = useId()
+  // The chosen action runs once the sheet has fully gone (Sheet's onClosed), so what it opens
+  // (a ConfirmSheet, the photo picker) is never presented over a closing modal.
+  const pending = useRef<(() => void) | null>(null)
   const run = (onPress: () => void) => {
+    pending.current = onPress
     onClose()
-    setTimeout(onPress, SHEET_ANIM_MS)
+  }
+  const closed = () => {
+    const next = pending.current
+    pending.current = null
+    next?.()
   }
 
   const button = (a: SheetAction, i: number) => (
@@ -61,7 +69,7 @@ export function ActionSheet({
   )
 
   return (
-    <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={headingId} width="sm">
+    <Sheet open={open} onClose={onClose} onClosed={closed} haptic="selection" labelledBy={headingId} width="sm">
       <View className="px-6">
         {header ? (
           <View nativeID={headingId} className="pb-4">{header}</View>

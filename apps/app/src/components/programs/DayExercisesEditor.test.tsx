@@ -15,7 +15,7 @@ jest.mock('react-native-safe-area-context', () => ({
 
 import { DayExercisesEditor } from './DayExercisesEditor'
 import type { DayExerciseDraft } from './types'
-import { SHEET_ANIM_MS } from '../ui/Sheet'
+import { SHEET_CLOSE_MAX_MS } from '../ui/Sheet'
 
 const bench: Exercise = {
   id: 1, name: 'Bench Press', muscle_group: 'chest', secondary_muscles: [],
@@ -49,7 +49,7 @@ const pickMenu = async (idx: number, item: string) => {
   jest.useFakeTimers()
   await fireEvent.press(screen.getAllByLabelText('More options')[idx])
   await fireEvent.press(await screen.findByText(item))
-  await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS + 50) })
+  await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS + 50) })
   jest.useRealTimers()
 }
 

@@ -4,7 +4,7 @@ import { i18n, restLabel, type ActiveSession } from '@lyftr/shared'
 import { useSettingsStore, useWorkoutSession } from '../../lib/lyftr'
 import { useWorkoutOutcome } from '../../lib/workoutOutcome'
 import { GymModeWorkout } from './GymModeWorkout'
-import { SHEET_ANIM_MS } from '../ui/Sheet'
+import { SHEET_CLOSE_MAX_MS } from '../ui/Sheet'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
@@ -129,7 +129,7 @@ describe('top bar', () => {
     for (const l of labels) expect(screen.getByText(l)).toBeTruthy()
     expect(screen.getByText('Workout · 2/6 sets')).toBeTruthy()
     await fireEvent.press(screen.getByText('Discard workout'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(screen.getByText('Discard workout?')).toBeTruthy()
     expect(useWorkoutSession.getState().session).not.toBeNull()
     await view.unmount()
@@ -142,7 +142,7 @@ describe('top bar', () => {
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
     await fireEvent.press(screen.getByText(item))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(screen.getByLabelText(inSheet)).toBeTruthy()
     await view.unmount()
   })
@@ -151,7 +151,7 @@ describe('top bar', () => {
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
     await fireEvent.press(screen.getByText('Workout overview'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(useWorkoutSession.getState().gymPhase).toBe('overview')
     // Sets are logged, so it continues where the workout is rather than restarting at 1.
     await fireEvent.press(screen.getByText('Continue Workout'))
@@ -172,7 +172,7 @@ describe('top bar', () => {
   it('asks before removing an exercise that has logged sets', async () => {
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByLabelText('Remove this exercise'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(useWorkoutSession.getState().session!.exercises).toHaveLength(2)
     expect(screen.getByText('Bench Press and its 1 completed set will be removed from this workout.')).toBeTruthy()
     await fireEvent.press(screen.getByText('Remove'))
@@ -231,7 +231,7 @@ describe('Finish sheet', () => {
     useWorkoutSession.getState().clearRest()
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByText('Finish Workout'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     return view
   }
 
@@ -297,7 +297,7 @@ describe('supersets', () => {
     expect(screen.getByLabelText('Straight to Row · set 1, no rest')).toBeTruthy()
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
     await fireEvent.press(screen.getByText('Remove from superset A'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(useWorkoutSession.getState().session!.exercises.map((e) => e.superset_group ?? null)).toEqual([null, null])
     await view.unmount()
   })
@@ -347,7 +347,7 @@ describe('supersets', () => {
     const view = await render(<GymModeWorkout />)
     await fireEvent.press(screen.getByRole('button', { name: 'More options' }))
     await fireEvent.press(screen.getByText('Superset with…'))
-    await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     await fireEvent.press(screen.getByRole('radio', { name: /Row/ }))
     await fireEvent.press(screen.getByText('Create superset'))
     const rows = useWorkoutSession.getState().session!.exercises

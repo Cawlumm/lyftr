@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated as RNAnimated, Modal, PanResponder, Platform, View } from 'react-native'
 import Animated, { Keyframe, SlideInDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -42,7 +42,15 @@ interface Props {
   describedBy?: string
   /** Max width when shown as a dialog on a wide web screen. */
   width?: keyof typeof DIALOG_WIDTH
+  /** Called once the sheet has fully gone. On iOS that is when the native modal has finished
+   *  dismissing: anything presented sooner (the photo picker, the camera, another sheet) is
+   *  presented on a view controller that is leaving, and is lost or crashes the app. */
+  onClosed?: () => void
 }
+
+// iOS reports the end of a modal's dismissal (onDismiss); the fallback is for one that never does.
+// Also the longest a closing sheet takes to call onClosed anywhere, which is what tests wait for.
+export const SHEET_CLOSE_MAX_MS = 800
 
 // The generic bottom-sheet shell every sheet in the app is built from (ConfirmSheet,
 // ActionSheet, …). Owns the device-correct behavior once, so nothing re-derives it:
@@ -56,7 +64,7 @@ interface Props {
 // safe bottom. Tap the scrim to dismiss; the sheet body stops propagation.
 // On a web screen from sm up the same content is a centred dialog instead (SheetFrame.web).
 export function Sheet({
-  open, onClose, children, bottomInset = 20, haptic = 'none', labelledBy, describedBy, width = 'md',
+  open, onClose, children, bottomInset = 20, haptic = 'none', labelledBy, describedBy, width = 'md', onClosed,
 }: Props) {
   const insets = useSafeAreaInsets()
   const { duration, reduced } = useMotion()
@@ -105,7 +113,30 @@ export function Sheet({
     fire.catch(() => {})
   }, [open, haptic])
 
-  if (!open) return null
+  // iOS keeps the Modal mounted with visible={false} until it reports the dismissal finished;
+  // elsewhere the sheet unmounts at once and `onClosed` follows its exit animation.
+  const ios = Platform.OS === 'ios'
+  const [closing, setClosing] = useState(false)
+  const wasOpen = useRef(open)
+  const onClosedRef = useRef(onClosed)
+  onClosedRef.current = onClosed
+  const settled = useRef(true)
+  const finish = () => {
+    if (settled.current) return
+    settled.current = true
+    setClosing(false)
+    onClosedRef.current?.()
+  }
+  useEffect(() => {
+    if (open) { wasOpen.current = true; settled.current = false; setClosing(false); return }
+    if (!wasOpen.current) return
+    wasOpen.current = false
+    if (ios) setClosing(true)
+    const timer = setTimeout(finish, ios ? SHEET_CLOSE_MAX_MS : SHEET_ANIM_MS)
+    return () => clearTimeout(timer)
+  }, [open, ios])
+
+  if (!open && !closing) return null
 
   // RN Modal on web holds back its focus trap and Escape until its fade ends, so under reduced
   // motion the fade goes too. Native keeps its fade either way.
@@ -113,7 +144,8 @@ export function Sheet({
 
   return (
     <Modal
-      visible
+      visible={open}
+      onDismiss={ios ? finish : undefined}
       transparent
       statusBarTranslucent
       animationType={animationType}
