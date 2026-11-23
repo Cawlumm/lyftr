@@ -430,7 +430,7 @@
         "INSTRUCTIONS_TOO_MANY": "An exercise can have up to {{max}} steps.",
         "INSTRUCTION_TOO_LONG": "Each step must be {{max}} characters or fewer.",
         "INSTRUCTION_CONTROL_CHARS": "A step can't contain line breaks or other control characters.",
-        "INSTRUCTIONS_TEXT_TOO_LONG": "The steps together must be {{max}} characters or fewer.",
+        "INSTRUCTIONS_TEXT_TOO_LONG": "Instructions must be {{max}} characters or fewer.",
         "INVALID_CLIENT_ID": "That request id isn't valid."
       },
       "fields": {

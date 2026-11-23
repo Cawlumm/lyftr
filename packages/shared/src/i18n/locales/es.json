@@ -436,7 +436,7 @@
         "INSTRUCTIONS_TOO_MANY": "Un ejercicio puede tener hasta {{max}} pasos.",
         "INSTRUCTION_TOO_LONG": "Cada paso debe tener {{max}} caracteres o menos.",
         "INSTRUCTION_CONTROL_CHARS": "Un paso no puede contener saltos de línea ni otros caracteres de control.",
-        "INSTRUCTIONS_TEXT_TOO_LONG": "Los pasos juntos deben tener {{max}} caracteres o menos.",
+        "INSTRUCTIONS_TEXT_TOO_LONG": "Las instrucciones deben tener {{max}} caracteres o menos.",
         "INVALID_CLIENT_ID": "El identificador de la solicitud no es válido."
       },
       "fields": {

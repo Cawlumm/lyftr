@@ -106,7 +106,7 @@ var (
 	CodeInstructionsTooMany      = define("INSTRUCTIONS_TOO_MANY", 422, "An exercise can have up to {{max}} steps.")
 	CodeInstructionTooLong       = define("INSTRUCTION_TOO_LONG", 422, "Each step must be {{max}} characters or fewer.")
 	CodeInstructionControlChars  = define("INSTRUCTION_CONTROL_CHARS", 422, "A step can't contain line breaks or other control characters.")
-	CodeInstructionsTextTooLong  = define("INSTRUCTIONS_TEXT_TOO_LONG", 422, "The steps together must be {{max}} characters or fewer.")
+	CodeInstructionsTextTooLong  = define("INSTRUCTIONS_TEXT_TOO_LONG", 422, "Instructions must be {{max}} characters or fewer.")
 	CodeInvalidClientID          = define("INVALID_CLIENT_ID", 422, "That request id isn't valid.")
 	CodeInvalidMergeTarget       = define("INVALID_MERGE_TARGET", 400, "Choose a different exercise to merge into.")
 	CodePhotoInvalid             = define("PHOTO_INVALID", 422, "That file isn't a photo Lyftr can read. Use a JPEG, PNG or WebP.")
