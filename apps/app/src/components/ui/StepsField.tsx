@@ -80,8 +80,10 @@ export function StepsField({ value, onChange, labels, max = 30, error }: Props) 
 
   return (
     <View className="gap-2">
+      {/* pr-1.5 on each row: the ×'s 44px tap area reaches 6px past its icon box; at the form's
+          edge the scroll view would clip that strip, leaving a tap there to land on nothing. */}
       {steps.map((s, i) => (
-        <View key={i} className="flex-row items-center gap-2">
+        <View key={i} className="flex-row items-center gap-2 pr-1.5">
           <AppText variant="bodySemibold" color="muted" className="w-6 text-right">{i + 1}.</AppText>
           <Field
             ref={(el) => { inputs.current[i] = el }}
