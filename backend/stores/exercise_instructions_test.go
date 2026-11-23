@@ -16,13 +16,15 @@ func TestCustomInstructions_Precedence(t *testing.T) {
 		wantSteps []string
 		wantDesc  string
 	}{
-		{"instructions only", models.CreateExerciseRequest{Instructions: steps("A", "B")}, steps("A", "B"), "1. A\n2. B"},
-		{"description only (older app)", models.CreateExerciseRequest{Description: "1. A\n2. B"}, steps("A", "B"), "1. A\n2. B"},
-		{"description only, unnumbered", models.CreateExerciseRequest{Description: "A\n\nB"}, steps("A", "B"), "1. A\n2. B"},
-		{"both: instructions win", models.CreateExerciseRequest{Description: "Old text", Instructions: steps("New")}, steps("New"), "1. New"},
+		// A custom exercise keeps its lines as typed: no numbers added, none taken away.
+		{"instructions only", models.CreateExerciseRequest{Instructions: steps("A", "B")}, steps("A", "B"), "A\nB"},
+		{"typed numbering kept", models.CreateExerciseRequest{Instructions: steps("1. A", "2. B")}, steps("1. A", "2. B"), "1. A\n2. B"},
+		{"description only (older app)", models.CreateExerciseRequest{Description: "1. A\r\n2. B"}, steps("1. A", "2. B"), "1. A\n2. B"},
+		{"description only, blank lines dropped", models.CreateExerciseRequest{Description: "A\n\n  B "}, steps("A", "B"), "A\nB"},
+		{"both: instructions win", models.CreateExerciseRequest{Description: "Old text", Instructions: steps("New")}, steps("New"), "New"},
 		{"explicit empty list clears", models.CreateExerciseRequest{Description: "Old text", Instructions: []string{}}, steps(), ""},
 		{"neither", models.CreateExerciseRequest{}, steps(), ""},
-		{"blank steps dropped", models.CreateExerciseRequest{Instructions: steps(" A ", "", "B")}, steps("A", "B"), "1. A\n2. B"},
+		{"blank steps dropped", models.CreateExerciseRequest{Instructions: steps(" A ", "", "B")}, steps("A", "B"), "A\nB"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

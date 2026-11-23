@@ -1562,6 +1562,8 @@
         "otherMusclesHint": "Toca los demás que trabaja, hasta {{max}}",
         "otherMusclesLocked": "Elige primero el músculo principal y luego toca los demás que trabaja",
         "instructions": "Instrucciones",
+        "instructionsHint": "Un paso por línea",
+        "instructionsPlaceholder": "De pie, con los pies a la anchura de la cadera",
         "nearMatches": "Ya está en el catálogo",
         "nearMatchesHint": "Usa uno de estos o continúa para crear el tuyo.",
         "useMatch": "Usar {{name}}",
@@ -1579,12 +1581,7 @@
           "back": "Espalda",
           "core": "Core",
           "legs": "Piernas"
-        },
-        "stepPlaceholderFirst": "p. ej., De pie, pies a la anchura de las caderas",
-        "stepPlaceholderNext": "Siguiente paso",
-        "addStep": "Añadir paso",
-        "stepLabel": "Paso {{number}}",
-        "removeStep": "Quitar el paso {{number}}"
+        }
       },
       "actions": {
         "menu": "Acciones del ejercicio",

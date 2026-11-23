@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { catalogSyncLines, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, exerciseSteps, instructionSteps, stepsToText, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, exerciseSteps, instructionSteps, linesToText, textLines, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -318,10 +318,15 @@ describe('exerciseSteps', () => {
   })
 })
 
-describe('stepsToText', () => {
-  it('numbers the steps one per line, and parses back to them', () => {
-    expect(stepsToText(['a', 'b'])).toBe('1. a\n2. b')
-    expect(instructionSteps(stepsToText(['a', 'b']))).toEqual(['a', 'b'])
-    expect(stepsToText([])).toBe('')
+describe('textLines / linesToText', () => {
+  it('keeps a custom exercise\'s lines as typed: trimmed, blank ones dropped, numbering left alone', () => {
+    expect(textLines('1. Stand tall\r\n\n  Press up \nSeat at 4')).toEqual(['1. Stand tall', 'Press up', 'Seat at 4'])
+    expect(textLines('')).toEqual([])
+    expect(linesToText(['1. Stand tall', 'Press up'])).toBe('1. Stand tall\nPress up')
+  })
+
+  it('falls back to the typed lines of a custom exercise when the server sends no list', () => {
+    expect(exerciseSteps({ is_custom: true, description: '1. Stand tall\nPress up' })).toEqual(['1. Stand tall', 'Press up'])
+    expect(exerciseSteps({ is_custom: false, description: '1. Stand tall\n2. Press up' })).toEqual(['Stand tall', 'Press up'])
   })
 })

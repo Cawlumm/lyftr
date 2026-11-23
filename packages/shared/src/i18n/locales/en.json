@@ -1541,6 +1541,8 @@
         "otherMusclesHint": "Tap any others it works, up to {{max}}",
         "otherMusclesLocked": "Pick the main muscle first, then tap any others it works",
         "instructions": "Instructions",
+        "instructionsHint": "One step per line",
+        "instructionsPlaceholder": "Stand tall, feet hip-width apart",
         "nearMatches": "Already in the catalog",
         "nearMatchesHint": "Use one of these instead, or carry on to create your own.",
         "useMatch": "Use {{name}}",
@@ -1558,12 +1560,7 @@
           "back": "Back",
           "core": "Core",
           "legs": "Legs"
-        },
-        "stepPlaceholderFirst": "e.g. Stand tall, feet hip-width apart",
-        "stepPlaceholderNext": "Next step",
-        "addStep": "Add step",
-        "stepLabel": "Step {{number}}",
-        "removeStep": "Remove step {{number}}"
+        }
       },
       "actions": {
         "menu": "Exercise actions",

@@ -178,7 +178,7 @@ func TestUpdateCustom(t *testing.T) {
 	s, _, a, b := customStore(t)
 	e := mustCreate(t, s, a, "Zottman Curl")
 	got, err := s.UpdateCustom(a, e.ID, models.CreateExerciseRequest{Name: "Zottman Curls", MuscleGroup: "biceps", Description: "d"})
-	if err != nil || got.Name != "Zottman Curls" || got.MuscleGroup != "biceps" || got.Description != "1. d" {
+	if err != nil || got.Name != "Zottman Curls" || got.MuscleGroup != "biceps" || got.Description != "d" {
 		t.Fatalf("got %+v, %v", got, err)
 	}
 	if _, err := s.UpdateCustom(b, e.ID, customReq("x")); !errors.Is(err, ErrExerciseNotFound) {

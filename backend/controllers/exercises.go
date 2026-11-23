@@ -233,7 +233,7 @@ func checkInstructions(c *gin.Context, steps []string) bool {
 		utils.Fail(c, utils.CodeInstructionControlChars, nil)
 	case slices.ContainsFunc(steps, func(s string) bool { return utf8.RuneCountInString(s) > models.MaxInstructionChars }):
 		utils.Fail(c, utils.CodeInstructionTooLong, map[string]any{"max": models.MaxInstructionChars})
-	case utf8.RuneCountInString(models.StepsToText(steps)) > models.MaxInstructionsText:
+	case utf8.RuneCountInString(models.LinesToText(steps)) > models.MaxInstructionsText:
 		utils.Fail(c, utils.CodeInstructionsTextTooLong, map[string]any{"max": models.MaxInstructionsText})
 	default:
 		return true

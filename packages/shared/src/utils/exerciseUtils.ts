@@ -236,14 +236,21 @@ export function instructionSteps(text: string | undefined | null): string[] {
     .filter(Boolean)
 }
 
-// The steps to show for an exercise: the server's list when it sent one (even an empty one), else
-// the description parsed, for a server older than the list.
-export function exerciseSteps(e: { instructions?: string[] | null; description?: string | null }): string[] {
-  return e.instructions ? e.instructions : instructionSteps(e.description)
+// A custom exercise's instructions as the user typed them: one entry per non-blank line, trimmed,
+// any numbering they wrote kept. Mirrors models.TextLines on the server.
+export function textLines(text: string | undefined | null): string[] {
+  return (text ?? '').split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean)
 }
 
-// The same steps as one text, "1. a\n2. b": what `description` holds beside the list, and what a
-// build that only reads `description` shows. Mirrors stores.StepsToText on the server.
-export function stepsToText(steps: readonly string[]): string {
-  return steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+// The lines back as one text, as typed: what a custom exercise's `description` holds.
+export function linesToText(lines: readonly string[]): string {
+  return lines.join('\n')
+}
+
+// The instructions to show for an exercise: the server's list when it sent one (even an empty one),
+// else the description, for a server older than the list (a custom one's lines as typed, a catalog
+// one's numbered steps parsed).
+export function exerciseSteps(e: { instructions?: string[] | null; description?: string | null; is_custom?: boolean }): string[] {
+  if (e.instructions) return e.instructions
+  return e.is_custom ? textLines(e.description) : instructionSteps(e.description)
 }

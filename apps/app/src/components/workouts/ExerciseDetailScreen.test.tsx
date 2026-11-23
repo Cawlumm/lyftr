@@ -70,8 +70,14 @@ describe('ExerciseDetailScreen custom exercises', () => {
     expect(screen.getByText('Custom')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Exercise actions' })).toBeTruthy()
     expect(screen.getByText('Instructions')).toBeTruthy()
-    expect(screen.getByText('1.')).toBeTruthy()
     expect(screen.queryByText('Notes')).toBeNull()
+  })
+
+  it('shows a custom exercise\'s lines as typed: no numbers added, its own kept', async () => {
+    await load({ ...customRow, instructions: ['Seat at 4', '1. Brace'] })
+    expect(screen.getByText('Seat at 4')).toBeTruthy()
+    expect(screen.getByText('1. Brace')).toBeTruthy()
+    expect(screen.queryByText('2.')).toBeNull()
   })
 
   it('numbers the server\'s list, not the description', async () => {

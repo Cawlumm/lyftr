@@ -52,6 +52,17 @@ func StepsToText(steps []string) string {
 }
 
 // CleanSteps trims each step and drops the empty ones. It always returns a non-nil slice.
+// TextLines splits a custom exercise's instructions as the user typed them: one entry per
+// non-blank line, trimmed, numbering left alone (only the catalog's steps are numbered for them).
+func TextLines(s string) []string {
+	return CleanSteps(strings.Split(strings.ReplaceAll(s, "\r", "\n"), "\n"))
+}
+
+// LinesToText is the inverse: the lines as typed, one per line, for description.
+func LinesToText(lines []string) string {
+	return strings.Join(lines, "\n")
+}
+
 func CleanSteps(steps []string) []string {
 	out := make([]string, 0, len(steps))
 	for _, s := range steps {

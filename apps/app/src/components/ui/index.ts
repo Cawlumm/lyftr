@@ -49,8 +49,6 @@ export { KeyboardDoneAccessory, KEYBOARD_DONE_ID } from './KeyboardDoneAccessory
 export { StepperTile } from './StepperTile'
 export { IconTileGroup } from './IconTileGroup'
 export type { TileOption } from './IconTileGroup'
-export { StepsField } from './StepsField'
-export type { StepsFieldLabels } from './StepsField'
 export { PhotoSlot } from './PhotoSlot'
 export type { PhotoSlotLabels } from './PhotoSlot'
 export { FormField, FormPage, useDiscardGuard, useFormKeyboardId } from './FormPage'

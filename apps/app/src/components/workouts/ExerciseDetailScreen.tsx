@@ -457,6 +457,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const instructionsCard = (
     <InstructionSteps
       steps={exerciseSteps(exercise)}
+      numbered={!exercise.is_custom}
       addHref={showActions ? editPath : undefined}
       onAdd={showActions ? () => router.push(editPath as unknown as Href) : undefined}
     />

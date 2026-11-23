@@ -1,5 +1,5 @@
-import { useCallback, useLayoutEffect, useRef, type ReactNode, type Ref } from 'react'
-import { Platform, TextInput, TextInputProps, View, type TextInputInstance } from 'react-native'
+import type { ReactNode, Ref } from 'react'
+import { TextInput, TextInputProps, View, type TextInputInstance } from 'react-native'
 import { FIELD_FOCUS_RING, NO_INPUT_OUTLINE, WEB_REQUIRED } from './interaction'
 import type { LucideIcon } from './icons'
 import Reanimated, {
@@ -24,9 +24,6 @@ interface Props extends TextInputProps {
   ref?: Ref<TextInputInstance>
   /** Must be filled: aria-required on web. The visible "*", where a form shows one, is FieldHeader's or StepperTile's. */
   required?: boolean
-  /** One line tall, growing a line at a time as the text wraps, for a short entry that can
-   *  run long (a step of instructions). Return still submits: pair it with submitBehavior. */
-  wrap?: boolean
 }
 
 // Labeled text field, mirrors the web `.input` + `.label` pattern, with a focus
@@ -41,26 +38,8 @@ interface Props extends TextInputProps {
 //
 // `multiline` is the web `textarea min-h-20 resize-none` analog: taller floor,
 // top-aligned input, same UI-thread focus glow.
-const WRAP_LINE = 24
-
-export function Field({ label, error, className = '', leftIcon: LeftIcon, rightSlot, footer, onFocus, onBlur, multiline, required, wrap, ref, ...rest }: Props) {
+export function Field({ label, error, className = '', leftIcon: LeftIcon, rightSlot, footer, onFocus, onBlur, multiline, required, ...rest }: Props) {
   const { colors, brand } = useTheme()
-  // A wrapping field sizes itself to its text. Native grows and shrinks on its own; a web textarea
-  // does neither, and its scrollHeight never drops below the height it was given, so it is reset
-  // and measured again whenever the text (or the placeholder it shows) changes.
-  const own = useRef<TextInputInstance | null>(null)
-  const setRef = useCallback((el: TextInputInstance | null) => {
-    own.current = el
-    if (typeof ref === 'function') ref(el)
-    else if (ref) (ref as { current: TextInputInstance | null }).current = el
-  }, [ref])
-  useLayoutEffect(() => {
-    if (!wrap || Platform.OS !== 'web') return
-    const node = own.current as unknown as HTMLTextAreaElement | null
-    if (!node?.style) return
-    node.style.height = 'auto'
-    node.style.height = `${Math.max(WRAP_LINE, node.scrollHeight)}px`
-  })
   const focus = useSharedValue(0)
   const boxStyle = useAnimatedStyle(() => ({
     borderColor: error
@@ -79,7 +58,7 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
             borderRadius: 8,
             borderWidth: 1,
             paddingHorizontal: 14,
-            paddingVertical: multiline ? 10 : wrap ? 11 : 0,
+            paddingVertical: multiline ? 10 : 0,
             backgroundColor: colors.overlay,
             flexDirection: 'row',
             alignItems: multiline ? 'flex-start' : 'center',
@@ -98,17 +77,8 @@ export function Field({ label, error, className = '', leftIcon: LeftIcon, rightS
           // the native <input>), so a frame taller than the glyph box centres the text AND
           // leaves room for descenders. Using paddingVertical instead top-aligned the text
           // (frame == line box + pad pushed from the top) — it rode too high in the box.
-          style={[
-            multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' }
-              : wrap ? { fontSize: 16, lineHeight: 22, paddingVertical: 0, textAlignVertical: 'center', minHeight: WRAP_LINE }
-              : { fontSize: 16, height: 46 },
-            NO_INPUT_OUTLINE,
-          ]}
-          multiline={multiline || wrap}
-          // rows=1 on the web (react-native-web maps numberOfLines to rows; a textarea defaults to
-          // two), so a short step measures one line. Never on native: Android would cap the lines.
-          {...(wrap && Platform.OS === 'web' ? { numberOfLines: 1 } : {})}
-          ref={setRef}
+          style={[multiline ? { fontSize: 16, minHeight: 60, textAlignVertical: 'top' } : { fontSize: 16, height: 46 }, NO_INPUT_OUTLINE]}
+          multiline={multiline}
           accessibilityLabel={label}
           placeholderTextColor={colors.txMuted}
           onFocus={(e) => {

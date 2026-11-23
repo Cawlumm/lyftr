@@ -136,21 +136,27 @@ describe('CustomExerciseForm', () => {
     expect(screen.getByRole('radio', { name: 'Stretching' })).toBeTruthy()
   })
 
-  it('Instructions are a list of steps, sent as the list and as the numbered description; empty steps are dropped', async () => {
+  it('Instructions are one text box, kept as typed: each line an entry, blank lines dropped, numbering left alone', async () => {
     const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()
-    expect(screen.queryByText('One step per line')).toBeNull()
-    expect(screen.queryByText('Notes')).toBeNull()
-    await fireEvent.changeText(screen.getByLabelText('Step 1'), 'Stand tall')
-    await fireEvent(screen.getByLabelText('Step 1'), 'submitEditing')
-    await fireEvent.changeText(screen.getByLabelText('Step 2'), 'Press up')
-    await fireEvent(screen.getByLabelText('Step 2'), 'submitEditing')
-    expect(screen.getByLabelText('Step 3')).toBeTruthy()
+    expect(screen.getByText('One step per line')).toBeTruthy()
+    // Blank lines are dropped; what is on each line is the user's, numbering included.
+    await fireEvent.changeText(screen.getByLabelText('Instructions'), '1. Stand tall\n\n  Press up  \n')
     await pickFromList()
     await pressCreate()
     await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({
-      instructions: ['Stand tall', 'Press up'], description: '1. Stand tall\n2. Press up',
+      instructions: ['1. Stand tall', 'Press up'], description: '1. Stand tall\nPress up',
     })))
+  })
+
+  it('says so under the box when there are more than 30 steps, and does not save', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    await renderCreate()
+    await fireEvent.changeText(screen.getByLabelText('Instructions'), Array.from({ length: 31 }, (_, i) => `Step ${i + 1}`).join('\n'))
+    await pickFromList()
+    await pressCreate()
+    expect(await screen.findByText('An exercise can have up to 30 steps.')).toBeTruthy()
+    expect(create).not.toHaveBeenCalled()
   })
 
   it('with no steps written, an empty list and an empty description are sent', async () => {
@@ -336,14 +342,13 @@ describe('CustomExerciseForm edit', () => {
     const update = jest.spyOn(client.exerciseAPI, 'update').mockResolvedValue(saved)
     await renderEdit()
     expect(await screen.findByText('Edit exercise')).toBeTruthy()
-    expect(screen.getByDisplayValue('Slow')).toBeTruthy()
-    expect(screen.getByDisplayValue('Hold')).toBeTruthy()
+    expect(screen.getByDisplayValue('Slow\nHold')).toBeTruthy()
     expect(screen.getByText('Calves')).toBeTruthy()
     await pressCreate('Save')
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
     expect(update).toHaveBeenCalledWith(7, {
       name: 'Soleus Slouch', muscle_group: 'calves', equipment: 'dumbbell', category: 'stretching',
-      secondary_muscles: ['hamstrings'], instructions: ['Slow', 'Hold'], description: '1. Slow\n2. Hold',
+      secondary_muscles: ['hamstrings'], instructions: ['Slow', 'Hold'], description: 'Slow\nHold',
     })
   })
 

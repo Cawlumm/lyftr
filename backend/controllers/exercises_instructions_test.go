@@ -57,7 +57,7 @@ func TestCreateExercise_InstructionsRoundTrip(t *testing.T) {
 
 	code, resp := createCustom(t, uid, map[string]any{"name": "New app", "muscle_group": "chest", "instructions": []string{"A", "B"}})
 	d, _ := resp["data"].(map[string]any)
-	if code != http.StatusCreated || d["description"] != "1. A\n2. B" {
+	if code != http.StatusCreated || d["description"] != "A\nB" {
 		t.Fatalf("%d %v", code, resp)
 	}
 	if got := d["instructions"].([]any); len(got) != 2 || got[0] != "A" {

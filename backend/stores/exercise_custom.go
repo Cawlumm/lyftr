@@ -47,12 +47,14 @@ func NormalizeCustom(req models.CreateExerciseRequest) models.CreateExerciseRequ
 	req.MuscleGroup = strings.ToLower(strings.TrimSpace(req.MuscleGroup))
 	req.Equipment = strings.ToLower(strings.TrimSpace(req.Equipment))
 	req.Category = strings.ToLower(strings.TrimSpace(req.Category))
+	// A custom exercise's instructions are kept as typed, one entry per line: numbers the user
+	// wrote stay, none are added (the catalog's steps are numbered on display instead).
 	if req.Instructions != nil {
 		req.Instructions = models.CleanSteps(req.Instructions)
 	} else {
-		req.Instructions = models.StepsFromText(req.Description)
+		req.Instructions = models.TextLines(req.Description)
 	}
-	req.Description = models.StepsToText(req.Instructions)
+	req.Description = models.LinesToText(req.Instructions)
 	if req.Equipment == "" {
 		req.Equipment = "body-only"
 	}

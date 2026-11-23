@@ -3,12 +3,12 @@ import { AccessibilityInfo, ActivityIndicator, Platform, Pressable, View, type S
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
-  CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, exerciseSteps, stepsToText, uiMessage, useAsyncAction, useTranslation,
+  CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, exerciseSteps, linesToText, textLines, uiMessage, useAsyncAction, useTranslation,
   type Exercise, type UiMessage,
 } from '@lyftr/shared'
 import { Dumbbell, FileText, Layers, Lock, Pencil, Target } from '../ui/icons'
 import {
-  AppText, Button, Card, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, PhotoSlot, RequiredLegend, SR_ONLY, StepsField, useDiscardGuard, type PhotoSlotLabels,
+  AppText, Button, Card, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, PhotoSlot, RequiredLegend, SR_ONLY, useDiscardGuard, type PhotoSlotLabels,
 } from '../ui'
 import { interactive, TOUCH_MIN } from '../ui/interaction'
 import { client, useServerInfo } from '../../lib/lyftr'
@@ -27,8 +27,6 @@ import { MAX_SECONDARY_MUSCLES, MAX_STEPS, MAX_STEP_LENGTH, MAX_STEPS_TEXT, vali
 type Base = '/workouts' | '/programs'
 const SCROLL_MARGIN = 12
 
-// What is saved of the editor: each step trimmed, the empty ones dropped.
-const keptSteps = (steps: readonly string[]) => steps.map((x) => x.trim()).filter(Boolean)
 
 interface BodyProps {
   mode: 'create' | 'edit'
@@ -57,14 +55,16 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
     equipment: offered(CUSTOM_EXERCISE_EQUIPMENT, e?.equipment) ?? DEFAULT_EQUIPMENT,
     category: offered(CUSTOM_EXERCISE_CATEGORIES, e?.category) ?? DEFAULT_CATEGORY,
     secondary: (e?.secondary_muscles ?? []).filter((m) => CUSTOM_EXERCISE_MUSCLES.includes(m)),
-    steps: e ? exerciseSteps(e) : [],
+    // The steps, one per line: what is typed is plain text, each line one step when saved.
+    notes: e ? exerciseSteps(e).join('\n') : '',
   }
   const [name, setName] = useState(initial.name)
   const [muscle, setMuscle] = useState<string | null>(initial.muscle)
   const [equipment, setEquipment] = useState(initial.equipment)
   const [category, setCategory] = useState(initial.category)
   const [secondary, setSecondary] = useState<string[]>(initial.secondary)
-  const [steps, setSteps] = useState<string[]>(initial.steps.length > 0 ? initial.steps : [''])
+  const [notes, setNotes] = useState(initial.notes)
+  const steps = textLines(notes)
   const [errors, setErrors] = useState<CustomExerciseErrors>({})
   const [nearMatches, setNearMatches] = useState<Exercise[]>([])
   const photosOn = customExercisePhotos(useServerInfo())
@@ -77,7 +77,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
 
   const dirty = !saved && (
     name !== initial.name || muscle !== initial.muscle || equipment !== initial.equipment || category !== initial.category
-    || keptSteps(steps).join('\n') !== initial.steps.join('\n') || secondary.join() !== initial.secondary.join() || !!staged || photoRemoved
+    || steps.join('\n') !== textLines(initial.notes).join('\n') || secondary.join() !== initial.secondary.join() || !!staged || photoRemoved
   )
   const guard = useDiscardGuard(dirty)
 
@@ -140,15 +140,14 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
   }, t('exercises.custom.photo.uploadFailed'))
 
   const save = useAsyncAction(async () => {
-    const kept = keptSteps(steps)
     const input = {
       name: trimmed,
       muscle_group: muscle ?? '',
       equipment,
       category,
       secondary_muscles: secondary.filter((m) => m !== muscle),
-      instructions: kept,
-      description: stepsToText(kept),
+      instructions: steps,
+      description: linesToText(steps),
     }
     const ex = mode === 'edit' && exercise
       ? await client.exerciseAPI.update(exercise.id, input)
@@ -190,9 +189,11 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
 
   // Tapping Create with something missing says what and where: scroll to the first field, put the
   // cursor in it when it is a text field, and have a screen reader read the message.
-  const stepsError = (e: NonNullable<CustomExerciseErrors['steps']>) => e === 'stepTooLong'
-    ? t('errors.api.codes.INSTRUCTION_TOO_LONG', { max: MAX_STEP_LENGTH })
-    : t('errors.api.codes.INSTRUCTIONS_TEXT_TOO_LONG', { max: MAX_STEPS_TEXT })
+  const stepsError = (e: NonNullable<CustomExerciseErrors['steps']>) => e === 'tooMany'
+    ? t('errors.api.codes.INSTRUCTIONS_TOO_MANY', { max: MAX_STEPS })
+    : e === 'stepTooLong'
+      ? t('errors.api.codes.INSTRUCTION_TOO_LONG', { max: MAX_STEP_LENGTH })
+      : t('errors.api.codes.INSTRUCTIONS_TEXT_TOO_LONG', { max: MAX_STEPS_TEXT })
   const submit = () => {
     if (save.busy || saved) return
     const found = validateCustomExercise({ name, muscle, steps })
@@ -296,19 +297,15 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
       </View>
 
       <View onLayout={(ev) => { pos.current.steps = ev.nativeEvent.layout.y }}>
-        <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} />
-        <StepsField
-          value={steps}
-          onChange={(next) => { setSteps(next); setErrors((p) => ({ ...p, steps: undefined })) }}
-          max={MAX_STEPS}
-          error={errors.steps ? stepsError(errors.steps) : undefined}
-          labels={{
-            placeholderFirst: t('exercises.custom.form.stepPlaceholderFirst'),
-            placeholderNext: t('exercises.custom.form.stepPlaceholderNext'),
-            add: t('exercises.custom.form.addStep'),
-            step: (number) => t('exercises.custom.form.stepLabel', { number }),
-            remove: (number) => t('exercises.custom.form.removeStep', { number }),
-          }}
+        <FieldHeader icon={FileText} label={t('exercises.custom.form.instructions')} hint={t('exercises.custom.form.instructionsHint')} />
+        <FormField
+          accessibilityLabel={t('exercises.custom.form.instructions')}
+          value={notes}
+          onChangeText={(v) => { setNotes(v); setErrors((p) => ({ ...p, steps: undefined })) }}
+          placeholder={t('exercises.custom.form.instructionsPlaceholder')}
+          multiline
+          maxLength={MAX_STEPS_TEXT}
+          error={errors.steps ? stepsError(errors.steps) : null}
         />
       </View>
 

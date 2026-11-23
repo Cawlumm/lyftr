@@ -14,6 +14,7 @@ import {
 import { SHEET_ANIM_MS } from '../ui/Sheet'
 import { AppText, CollapsibleChips, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
 import { RestPicker } from './RestPicker'
+import { InstructionSteps } from './InstructionSteps'
 import { ExercisePicker } from './ExercisePicker'
 import { GymExercisesSheet, type ExercisesSheetMode } from './GymExercisesSheet'
 import { ElapsedClock, ProgressSegments } from './GymProgress'
@@ -721,18 +722,7 @@ export function GymModeWorkout() {
               <MuscleDiagram exercise={exercise} />
             </View>
 
-            {descLines.length > 0 ? (
-              <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
-                <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
-                <View className="gap-2.5">
-                  {descLines.map((line, i) => (
-                    <AppText key={i} variant="body" color="secondary">
-                      <AppText variant="bodySemibold">{i + 1}. </AppText>{line}
-                    </AppText>
-                  ))}
-                </View>
-              </View>
-            ) : null}
+            {descLines.length > 0 ? <InstructionSteps steps={descLines} numbered={!exercise.is_custom} heading={false} /> : null}
           </View>
         </ScrollView>
         <View className="border-t border-surface-border px-5 pt-4" style={{ paddingBottom: restShown ? 16 : insets.bottom + 16 }}>
