@@ -221,6 +221,15 @@ describe('ExerciseBrowser (mobile)', () => {
       expect(screen.getByText('Bench Press')).toBeTruthy()
     })
 
+    it('drops the catalog heading when only yours match', async () => {
+      mockMy.mockReturnValue(mineOf([custom(7, 'Soleus Slouch')]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([])
+      await renderBrowser()
+      expect(await screen.findByText('Soleus Slouch')).toBeTruthy()
+      expect(screen.getByText('Your exercises')).toBeTruthy()
+      expect(screen.queryByText('From the catalog')).toBeNull()
+    })
+
     it('caps the group at five and offers See all, which turns Custom only on', async () => {
       mockMy.mockReturnValue(mineOf(Array.from({ length: 6 }, (_, i) => custom(10 + i, `Mine ${i + 1}`))))
       const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])

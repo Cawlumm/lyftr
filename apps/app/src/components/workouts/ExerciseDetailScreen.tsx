@@ -82,7 +82,7 @@ function LoadingPulse() {
 export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const pillInset = useSessionPillInset()
   const { t } = useTranslation()
-  const { exerciseId } = useLocalSearchParams<{ exerciseId: string }>()
+  const { exerciseId, merged } = useLocalSearchParams<{ exerciseId: string; merged?: string }>()
   const session = useWorkoutSession((s) => s.session)
   const settings = useSettingsStore((s) => s.settings)
   const fetchSettings = useSettingsStore((s) => s.fetch)
@@ -121,6 +121,12 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   const [merging, setMerging] = useState(false)
   const [archiving, setArchiving] = useState(false)
   const [toast, setToast] = useState<{ title: string; variant: 'success' | 'error'; action?: { label: string; onPress: () => void } } | null>(null)
+  // Arriving from a merge: say it worked, once (the param is cleared so a re-render or back does not repeat it).
+  useEffect(() => {
+    if (!merged) return
+    setToast({ variant: 'success', title: t('exercises.custom.merge.done', { from: merged }) })
+    router.setParams({ merged: undefined })
+  }, [merged, t])
 
   useEffect(() => {
     const id = Number(exerciseId)
@@ -187,7 +193,9 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   if (loading || !exercise) return <LoadingPulse />
 
   const custom = !!exercise.is_custom
-  const showActions = custom && canManage
+  // A merged exercise is a closed record (the merge can't be undone): it keeps its banner and link
+  // to the one that replaced it, and offers nothing to change.
+  const showActions = custom && canManage && !exercise.merged_into_id
   const detailPath = (id: number) => `${String(backFallback)}/exercise/${id}`
   // Archiving is one tap and easy to reverse, so it is undone from its toast rather than confirmed.
   const setArchived = async (archive: boolean) => {
@@ -306,7 +314,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
         source={exercise}
         open={merging}
         onClose={() => setMerging(false)}
-        onMerged={(result) => { setMerging(false); router.replace(detailPath(result.into.id) as unknown as Href) }}
+        onMerged={(result) => { setMerging(false); router.replace({ pathname: detailPath(result.into.id), params: { merged: exercise.name } } as unknown as Href) }}
       />
       {toast ? <Toast variant={toast.variant} title={toast.title} action={toast.action} onDismiss={() => setToast(null)} /> : null}
     </>

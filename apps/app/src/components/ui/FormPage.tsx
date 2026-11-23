@@ -1,7 +1,7 @@
 import { createContext, type ComponentProps, useContext, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, usePreventRemove, type Href } from 'expo-router'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAsyncAction, useTranslation } from '@lyftr/shared'
 import { ArrowLeft, Trash2 } from './icons'
 import { Alert } from './Alert'
@@ -26,13 +26,17 @@ export const useFormKeyboardId = () => useContext(KeyboardIdContext)
 // away itself calls `allowLeave()` first, or it would be stopped by its own page.
 export function useDiscardGuard(dirty: boolean) {
   const [open, setOpen] = useState(false)
+  // Once the page is on its way out the guard also comes off for the render after, as
+  // usePreventRemove expects; disabling it alone left it "still true" (a warning on every save).
+  const [leaving, setLeaving] = useState(false)
   const repeatRef = useRef<(() => void) | null>(null)
-  const disable = usePreventRemove(dirty, ({ repeat }) => { repeatRef.current = repeat; setOpen(true) })
+  const disable = usePreventRemove(dirty && !leaving, ({ repeat }) => { repeatRef.current = repeat; setOpen(true) })
+  const allowLeave = () => { setLeaving(true); disable() }
   return {
     open,
-    allowLeave: disable,
+    allowLeave,
     stay: () => setOpen(false),
-    discard: () => { setOpen(false); disable(); repeatRef.current?.() },
+    discard: () => { setOpen(false); allowLeave(); repeatRef.current?.() },
   }
 }
 // A `Field` whose iOS Done bar is the one this page mounts.
@@ -71,6 +75,7 @@ export function FormPage({
   const { lg } = useBreakpoint()
   const wide = Platform.OS === 'web' && lg
   const pillInset = useSessionPillInset()
+  const insets = useSafeAreaInsets()
   const [keyboardUp, setKeyboardUp] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const keyboardId = `form-done-${useId()}`
@@ -97,7 +102,10 @@ export function FormPage({
     <KeyboardIdContext.Provider value={keyboardId}>
     <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
       <ContentColumn role={Platform.OS === 'web' ? 'main' : undefined} maxWidth="medium">
-        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'web' ? undefined : 'padding'}>
+        {/* KeyboardAvoidingView measures itself from its parent, not the screen. On edge-to-edge Android
+            that parent starts under the status bar, so without the offset the action bar ends up a
+            status bar's height behind the keyboard (measured on Android 16). */}
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'web' ? undefined : 'padding'} keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}>
           <ScrollView
             ref={scrollRef}
             showsVerticalScrollIndicator={false}

@@ -267,7 +267,8 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
                     <ChevronRight size={16} color={accent} />
                   </Pressable>
                 ) : null}
-                <ExerciseGroupHeading>{t('exercises.custom.catalog')}</ExerciseGroupHeading>
+                {/* Only over catalog rows: a search that matches only yours would leave it heading nothing. */}
+                {shown.length > 0 ? <ExerciseGroupHeading>{t('exercises.custom.catalog')}</ExerciseGroupHeading> : null}
               </View>
             ) : undefined}
             onEndReached={loadMore}

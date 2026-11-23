@@ -1603,7 +1603,8 @@
         "confirm": "Combinar",
         "counting": "Contando lo que se moverá…",
         "usageFailed": "No se pudo contar lo que se moverá",
-        "failed": "No se pudieron combinar los ejercicios"
+        "failed": "No se pudieron combinar los ejercicios",
+        "done": "«{{from}}» se fusionó con este ejercicio"
       },
       "addInstructions": "Añadir instrucciones"
     }

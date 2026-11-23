@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
-import { ExerciseImage } from './ExerciseImage'
+import { ExerciseImage, forgetBrokenThumbs } from './ExerciseImage'
 import { IMAGE_RETRY_DELAY_MS, IMAGE_RETRY_JITTER_MS } from '../../hooks/useImageRetry'
 import { client, useServerStore } from '../../lib/lyftr'
 import { clearExercisePhotoCache } from '../../hooks/useExercisePhoto'
@@ -87,7 +87,7 @@ describe('ExerciseImage', () => {
     const ID = '48fe6ee6-f6e4-4d8b-9be5-a235eb8ca7e5'
     const OEDB = `https://oedb.example/api/v1/images/${ID}`
     const THUMB = `http://100.106.145.44:3000/api/v1/media/exercise-thumbs/${ID}`
-    beforeEach(() => { useServerStore.setState({ serverUrl: 'http://100.106.145.44:3000' }) })
+    beforeEach(() => { forgetBrokenThumbs(); useServerStore.setState({ serverUrl: 'http://100.106.145.44:3000' }) })
     afterEach(async () => { await act(async () => { useServerStore.setState({ serverUrl: '' }) }) })
 
     it("loads the server's thumbnail, not the full image", async () => {
@@ -109,6 +109,19 @@ describe('ExerciseImage', () => {
       expect(images()).toHaveLength(0)
       await wait(LONGEST)
       expect(images()[0].props.source).toEqual({ uri: OEDB })
+    })
+
+    it('remembers a dead thumbnail for every row after, so a row scrolled back in does not ask again', async () => {
+      const first = await render(<ExerciseImage url={OEDB} />)
+      await fail()
+      await first.unmount()
+      await render(<ExerciseImage url={OEDB} />)
+      expect(images()[0].props.source).toEqual({ uri: OEDB })
+    })
+
+    it('asks Android to decode at the size drawn, not the full picture', async () => {
+      await render(<ExerciseImage url={OEDB} />)
+      expect(images()[0].props.resizeMethod).toBe('resize')
     })
   })
 

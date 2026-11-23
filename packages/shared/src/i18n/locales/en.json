@@ -1580,7 +1580,8 @@
         "confirm": "Merge",
         "counting": "Counting what will move…",
         "usageFailed": "Couldn't count what would move",
-        "failed": "Couldn't merge the exercises"
+        "failed": "Couldn't merge the exercises",
+        "done": "Merged “{{from}}” into this exercise"
       },
       "addInstructions": "Add instructions"
     }

@@ -3,9 +3,11 @@ import type { Exercise } from '@lyftr/shared'
 
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
+const mockSetParams = jest.fn()
+let mockParams: { exerciseId: string; merged?: string } = { exerciseId: '5' }
 jest.mock('expo-router', () => ({
-  router: { push: (...a: unknown[]) => mockPush(...a), replace: (...a: unknown[]) => mockReplace(...a), back: jest.fn(), canGoBack: () => true },
-  useLocalSearchParams: () => ({ exerciseId: '5' }),
+  router: { push: (...a: unknown[]) => mockPush(...a), replace: (...a: unknown[]) => mockReplace(...a), back: jest.fn(), canGoBack: () => true, setParams: (...a: unknown[]) => mockSetParams(...a) },
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: () => {},
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -114,6 +116,22 @@ describe('ExerciseDetailScreen custom exercises', () => {
   it('has no Restore on a merged exercise note', async () => {
     await load({ ...customRow, archived: true, merged_into_id: 9 })
     expect(screen.queryByRole('button', { name: 'Restore' })).toBeNull()
+  })
+
+  it('offers no actions at all on a merged exercise: the merge cannot be undone', async () => {
+    await load({ ...customRow, archived: true, merged_into_id: 9 })
+    expect(screen.queryByRole('button', { name: 'Exercise actions' })).toBeNull()
+  })
+
+  it('says the merge worked on arriving at the kept exercise, once', async () => {
+    mockParams = { exerciseId: '5', merged: 'Soleus Slouch' }
+    try {
+      await load(customRow)
+      expect(await screen.findByText('Merged “Soleus Slouch” into this exercise')).toBeTruthy()
+      expect(mockSetParams).toHaveBeenCalledWith({ merged: undefined })
+    } finally {
+      mockParams = { exerciseId: '5' }
+    }
   })
 
   it('Undo on the archive toast restores it', async () => {
