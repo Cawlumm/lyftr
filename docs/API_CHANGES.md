@@ -56,6 +56,36 @@ New, all protected:
 
 `GET /info` also gains `"custom_exercise_photos": true`.
 
+Instructions (every exercise, catalog and custom):
+
+- `Exercise` gains `instructions`, a list of strings, always sent (`[]` when there are none). Catalog exercises
+  carry open-exercise-db's steps; a custom exercise carries its lines as the user typed them (trimmed, blank lines
+  dropped, numbering left alone). `description` stays and is kept in step: the numbered join for catalog rows, the
+  lines joined by `\n` for custom ones, so a client that only reads `description` is unchanged.
+- `POST /exercises` and `PUT /exercises/:id` accept `instructions`. When present (even `[]`) it wins and
+  `description` is derived from it; when absent, `instructions` is split from `description`. Limits: 30 lines
+  (`422 INSTRUCTIONS_TOO_MANY`), 300 characters each (`422 INSTRUCTION_TOO_LONG`), 2000 together
+  (`422 INSTRUCTIONS_TEXT_TOO_LONG`), no control characters (`422 INSTRUCTION_CONTROL_CHARS`; a tab is turned
+  into a space first). All carry `params.max` where there is one.
+- Migration: `exercises.instructions` and `exercise_translations.instructions` (JSON, default `[]`), filled once from
+  `description`.
+
+Creating safely:
+
+- `POST /exercises` accepts `client_id`, a lowercase UUID chosen by the client (`422 INVALID_CLIENT_ID` otherwise).
+  If the caller already has an exercise created with it, that exercise is returned with `200` and nothing is
+  created, so a retry after a lost response is safe (even at the 500 cap, or when its name would now clash).
+  Without it, every create is new, as before.
+- Names drop zero-width characters and turn tabs into spaces before trimming. `EXERCISE_NAME_TAKEN` compares
+  with Unicode case folding, so "Élan" and "élan" clash.
+
+Merging:
+
+- `GET /exercises/:id/usage?into=<id>` adds `shared_program_days`: program days that list both exercises.
+- `POST /exercises/:id/merge` adds `combined_program_days` to its result. A program day that listed both ends up with
+  one block: the first keeps its place, settings and superset and takes the other's sets after its own (numbered on);
+  a superset left with one member is unlinked. Logged workouts keep both blocks.
+
 Photos live in `exercise-photos/` beside the database (`<photo_id>.jpg` and `<photo_id>-thumb.jpg`), so backing up
 the data directory covers them. They are removed when replaced, removed, or their owner deletes the account; merging
 keeps the archived source's photo. Migration: `exercises.photo_id` (nullable, additive).
