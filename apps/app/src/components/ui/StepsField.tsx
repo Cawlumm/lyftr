@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Pressable, View, type TextInputInstance } from 'react-native'
+import { Platform, Pressable, View, type TextInputInstance } from 'react-native'
 import { instructionSteps } from '@lyftr/shared'
 import { Plus, X } from './icons'
 import { AppText } from './Typography'
@@ -35,26 +35,28 @@ interface Props {
 export function StepsField({ value, onChange, labels, max = 30, error }: Props) {
   const steps = value.length > 0 ? value : ['']
   const inputs = useRef<(TextInputInstance | null)[]>([])
-  const focusAfter = useRef<number | null>(null)
+  const focusAfter = useRef<{ index: number; delayed: boolean } | null>(null)
   const focusTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const doneId = useFormKeyboardId()
   const { accent } = useTheme()
 
   useEffect(() => {
     if (focusAfter.current === null) return
-    const i = focusAfter.current
+    const { index, delayed } = focusAfter.current
     focusAfter.current = null
-    // Shortly after, not in this commit: Android focuses an input that has only just mounted
-    // without raising the keyboard (Add step with the keyboard down: the step looked ready but
-    // nothing could be typed). A frame was not enough on the emulator; 50ms was. A re-render in
-    // between must not cancel it, so only a newer request or unmounting does.
     clearTimeout(focusTimer.current)
-    focusTimer.current = setTimeout(() => inputs.current[i]?.focus(), 50)
+    // From the keyboard (Return, Backspace, a paste) focus moves at once, or the next keys typed
+    // land in the step being left. From the Add step button it waits a moment: Android focuses an
+    // input that has only just mounted without raising a keyboard that is down (the step looked
+    // ready but nothing could be typed); a frame was not enough on the emulator, 50ms was. A
+    // re-render in between must not cancel it, so only a newer request or unmounting does.
+    if (!delayed) { inputs.current[index]?.focus(); return }
+    focusTimer.current = setTimeout(() => inputs.current[index]?.focus(), 50)
   })
   useEffect(() => () => clearTimeout(focusTimer.current), [])
 
-  const set = (next: string[], focus?: number) => {
-    focusAfter.current = focus ?? null
+  const set = (next: string[], focus?: number, delayed = false) => {
+    focusAfter.current = focus === undefined ? null : { index: focus, delayed }
     onChange(next)
   }
   const edit = (i: number, text: string) => {
@@ -67,9 +69,9 @@ export function StepsField({ value, onChange, labels, max = 30, error }: Props) 
     const next = [...steps.slice(0, i), ...lines, ...steps.slice(i + 1)].slice(0, max)
     set(next, Math.min(i + lines.length - 1, next.length - 1))
   }
-  const insertAfter = (i: number) => {
+  const insertAfter = (i: number, fromButton = false) => {
     if (steps.length >= max) return
-    set([...steps.slice(0, i + 1), '', ...steps.slice(i + 1)], i + 1)
+    set([...steps.slice(0, i + 1), '', ...steps.slice(i + 1)], i + 1, fromButton)
   }
   // Backspace on an empty step goes back to the one before; the × leaves the keyboard alone.
   const remove = (i: number, focusPrevious: boolean) => {
@@ -92,11 +94,23 @@ export function StepsField({ value, onChange, labels, max = 30, error }: Props) 
             value={s}
             onChangeText={(text) => edit(i, text)}
             placeholder={i === 0 ? labels.placeholderFirst : labels.placeholderNext}
+            // Wraps instead of scrolling sideways (a 300-character step would hide its start), and
+            // Return still means "next step": submit, not a line break. A web textarea may still put
+            // the break in; edit() splits on it all the same.
+            wrap
+            submitBehavior="submit"
             returnKeyType="next"
             inputAccessoryViewID={doneId}
             onSubmitEditing={() => insertAfter(i)}
             onKeyPress={(e) => {
               if (e.nativeEvent.key === 'Backspace' && s === '' && steps.length > 1) remove(i, true)
+              // The web textarea ignores submitBehavior and would put a line break in; Enter is
+              // the next step there too (Shift+Enter is left alone and splits as a paste would).
+              const web = e as unknown as { shiftKey?: boolean; preventDefault?: () => void }
+              if (Platform.OS === 'web' && e.nativeEvent.key === 'Enter' && !web.shiftKey) {
+                web.preventDefault?.()
+                insertAfter(i)
+              }
             }}
             {...pasteProps(s, (text) => edit(i, text))}
           />
@@ -108,7 +122,7 @@ export function StepsField({ value, onChange, labels, max = 30, error }: Props) 
         accessibilityLabel={labels.add}
         accessibilityState={{ disabled: atCap }}
         disabled={atCap}
-        onPress={() => insertAfter(steps.length - 1)}
+        onPress={() => insertAfter(steps.length - 1, true)}
         style={{ minHeight: TOUCH_MIN }}
         className={`flex-row items-center gap-1.5 self-start ${atCap ? 'opacity-40' : interactive('hover:opacity-80')}`}
       >

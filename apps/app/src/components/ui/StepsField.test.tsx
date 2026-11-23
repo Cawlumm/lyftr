@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Platform } from 'react-native'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -99,5 +100,28 @@ describe('StepsField', () => {
   it('shows the error it is given under the steps', async () => {
     await render(<StepsField value={['a']} onChange={jest.fn()} labels={labels} error="Each step must be 300 characters or fewer." />)
     expect(screen.getByText('Each step must be 300 characters or fewer.')).toBeTruthy()
+  })
+
+  it('steps wrap instead of scrolling sideways, and Return still submits', async () => {
+    await render(<Harness start={['a']} />)
+    expect(input(1).props.multiline).toBe(true)
+    expect(input(1).props.submitBehavior).toBe('submit')
+  })
+
+  it('on the web, Enter is the next step (the textarea would put a line break in)', async () => {
+    const os = Platform.OS
+    Platform.OS = 'web'
+    try {
+      await render(<Harness start={['a', 'c']} />)
+      const preventDefault = jest.fn()
+      await fireEvent(input(1), 'keyPress', { nativeEvent: { key: 'Enter' }, preventDefault })
+      expect(preventDefault).toHaveBeenCalled()
+      expect(latest()).toEqual(['a', '', 'c'])
+      seen.length = 0
+      await fireEvent(input(1), 'keyPress', { nativeEvent: { key: 'Enter' }, shiftKey: true, preventDefault: jest.fn() })
+      expect(seen).toHaveLength(0)
+    } finally {
+      Platform.OS = os
+    }
   })
 })
