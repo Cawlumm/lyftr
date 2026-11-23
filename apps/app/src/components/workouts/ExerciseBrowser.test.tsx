@@ -9,6 +9,7 @@ jest.mock('expo-router', () => ({
     push: (...a: unknown[]) => mockPush(...a), setParams: (...a: unknown[]) => mockSetParams(...a),
     navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true,
   },
+  useFocusEffect: () => {},
 }))
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -18,6 +19,15 @@ jest.mock('react-native-safe-area-context', () => ({
   SafeAreaProvider: ({ children }: { children: unknown }) => children,
   SafeAreaView: ({ children }: { children: unknown }) => children,
 }))
+
+// The badge is another slice's component; the browser only needs to mount it, so a stand-in
+// keeps this test about the browser.
+jest.mock('./CustomBadge', () => {
+  const { Text } = require('react-native')
+  return { CustomBadge: () => <Text>Custom</Text> }
+}, { virtual: true })
+const mockMy = jest.fn()
+jest.mock('../../hooks/useMyExercises', () => ({ useMyExercises: (...a: unknown[]) => mockMy(...a) }))
 
 import { client } from '../../lib/lyftr'
 import { ExerciseBrowser } from './ExerciseBrowser'
@@ -29,6 +39,11 @@ const bench: Exercise = {
 
 const renderBrowser = async () => await render(<ExerciseBrowser />)
 
+const noMy = { supported: false, items: [] as Exercise[], failed: false, reload: jest.fn() }
+const mineOf = (items: Exercise[]) => ({ supported: true, items, failed: false, reload: jest.fn() })
+const custom = (id: number, name: string): Exercise => ({ ...bench, id, name, is_custom: true })
+
+beforeEach(() => { mockMy.mockReturnValue(noMy) })
 afterEach(() => { jest.restoreAllMocks(); mockPush.mockReset(); mockSetParams.mockReset() })
 
 describe('ExerciseBrowser (mobile)', () => {
@@ -67,7 +82,7 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await openFilters()
 
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ muscle_group: 'chest', page: 1 }))
 
     await fireEvent.press(screen.getByText('Dumbbell'))
@@ -83,12 +98,12 @@ describe('ExerciseBrowser (mobile)', () => {
     await renderBrowser()
     await screen.findByText('Bench Press')
     await openFilters()
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     await fireEvent.press(screen.getByRole('button', { name: 'Barbell', selected: false }))
     await fireEvent.press(screen.getByText('Done'))
 
     expect(await screen.findByRole('button', { name: 'Filters, 2 active' })).toBeTruthy()
-    await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: chest' }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Remove filter: Chest' }))
     await waitFor(() => expect(list).toHaveBeenLastCalledWith({ equipment: 'barbell', page: 1 }))
     expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
   })
@@ -101,7 +116,7 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'curl')
     await fireEvent.press(screen.getByRole('button', { name: 'Filters' }))
-    await fireEvent.press(screen.getByRole('button', { name: 'chest', selected: false }))
+    await fireEvent.press(screen.getByRole('button', { name: 'Chest', selected: false }))
     expect(mockSetParams).not.toHaveBeenCalled()
   })
 
@@ -113,7 +128,9 @@ describe('ExerciseBrowser (mobile)', () => {
     await screen.findByText('Bench Press')
     await openFilters()
 
-    await fireEvent.press(screen.getByText('calves'))
+    // Muscles is a long section: it shows six and folds the rest behind "Show N more".
+    await fireEvent.press(screen.getAllByRole('button', { name: /^Show \d+ more$/ })[0])
+    await fireEvent.press(screen.getByText('Calves'))
 
     expect(await screen.findByText('No exercises match')).toBeTruthy()
     expect(screen.queryByText('The exercise library is still loading')).toBeNull()
@@ -135,6 +152,106 @@ describe('ExerciseBrowser (mobile)', () => {
 
     expect(await screen.findByText("Couldn't load exercises")).toBeTruthy()
     expect(screen.queryByText('No exercises found')).toBeNull()
+  })
+
+  describe('custom exercises', () => {
+    // The "any custom exercise?" probe asks for one row; the group above the list asks for six.
+    const mineSplit = (any: Exercise[], group: Exercise[]) =>
+      mockMy.mockImplementation((_q: unknown, limit: number) => (limit === 1 ? mineOf(any) : mineOf(group)))
+    const openFilters = async () => fireEvent.press(screen.getByRole('button', { name: /^Filters/ }))
+
+    it('hides the + and Custom only on a server without custom exercises', async () => {
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+
+      expect(screen.queryByRole('button', { name: 'Create exercise' })).toBeNull()
+      await openFilters()
+      expect(screen.queryByText('Custom only')).toBeNull()
+    })
+
+    it('offers Custom only in the filter sheet only to someone who has a custom exercise', async () => {
+      mineSplit([], [])
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      const { unmount } = await renderBrowser()
+      await screen.findByText('Bench Press')
+      await openFilters()
+      expect(screen.queryByText('Custom only')).toBeNull()
+      await unmount()
+
+      mineSplit([custom(7, 'Soleus Slouch')], [])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await openFilters()
+      expect(screen.getByText('Custom only')).toBeTruthy()
+    })
+
+    it('Custom only pages through mine: true and counts as an active filter', async () => {
+      mineSplit([custom(7, 'Soleus Slouch')], [])
+      const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await openFilters()
+      await fireEvent.press(screen.getByText('Custom only'))
+      await fireEvent.press(screen.getByRole('button', { name: 'Done' }))
+
+      await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
+      expect(screen.getByRole('button', { name: 'Filters, 1 active' })).toBeTruthy()
+    })
+
+    it('says there are none yet under Custom only when empty, and that none match when searched', async () => {
+      mineSplit([], [])
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([])
+      await render(<ExerciseBrowser initialFilters={{ muscle: null, equipment: null, show: 'mine' }} />)
+      expect(await screen.findByText('No custom exercises yet')).toBeTruthy()
+
+      await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), 'zzz')
+      expect(await screen.findByText('None of your exercises match')).toBeTruthy()
+    })
+
+    it('shows the custom group with a badge above the catalog', async () => {
+      mockMy.mockReturnValue(mineOf([custom(7, 'Soleus Slouch')]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+
+      expect(await screen.findByText('Soleus Slouch')).toBeTruthy()
+      expect(screen.getByText('Custom')).toBeTruthy()
+      expect(screen.getByText('Your exercises')).toBeTruthy()
+      expect(screen.getByText('From the catalog')).toBeTruthy()
+      expect(screen.getByText('Bench Press')).toBeTruthy()
+    })
+
+    it('drops the catalog heading when only yours match', async () => {
+      mockMy.mockReturnValue(mineOf([custom(7, 'Soleus Slouch')]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([])
+      await renderBrowser()
+      expect(await screen.findByText('Soleus Slouch')).toBeTruthy()
+      expect(screen.getByText('Your exercises')).toBeTruthy()
+      expect(screen.queryByText('From the catalog')).toBeNull()
+    })
+
+    it('caps the group at five and offers See all, which turns Custom only on', async () => {
+      mockMy.mockReturnValue(mineOf(Array.from({ length: 6 }, (_, i) => custom(10 + i, `Mine ${i + 1}`))))
+      const list = jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+
+      await screen.findByText('Mine 5')
+      expect(screen.queryByText('Mine 6')).toBeNull()
+      await fireEvent.press(screen.getByRole('button', { name: 'See all of yours' }))
+      await waitFor(() => expect(list).toHaveBeenLastCalledWith({ mine: true, page: 1 }))
+    })
+
+    it('opens the create page seeded with the search text, from the + button', async () => {
+      mockMy.mockReturnValue(mineOf([]))
+      jest.spyOn(client.exerciseAPI, 'list').mockResolvedValue([bench])
+      await renderBrowser()
+      await screen.findByText('Bench Press')
+      await fireEvent.changeText(screen.getByPlaceholderText('Search exercises…'), ' Soleus ')
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Create exercise' }))
+
+      expect(mockPush).toHaveBeenCalledWith({ pathname: '/workouts/exercise/new', params: { name: 'Soleus' } })
+    })
   })
 
   // A report of the library stopping after its second page was the dev stack's 64-row catalogue

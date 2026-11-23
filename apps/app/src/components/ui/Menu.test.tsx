@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import mockAsyncStorage from '@react-native-async-storage/async-storage/jest/async-storage-mock'
 import { Menu } from './Menu'
-import { SHEET_ANIM_MS } from './Sheet'
+import { SHEET_CLOSE_MAX_MS } from './Sheet'
 
 jest.mock('expo-router', () => ({
   router: { push: jest.fn(), navigate: jest.fn(), replace: jest.fn() },
@@ -25,7 +25,7 @@ describe('Menu (native)', () => {
 
     await fireEvent.press(screen.getByText('Edit'))
     expect(edit).not.toHaveBeenCalled()
-    await act(() => { jest.advanceTimersByTime(SHEET_ANIM_MS) })
+    await act(() => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS) })
     expect(edit).toHaveBeenCalledTimes(1)
     jest.useRealTimers()
   })

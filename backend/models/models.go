@@ -67,8 +67,49 @@ type Exercise struct {
 	Category         string   `json:"category" db:"category"`   // "strength", "cardio", "flexibility"
 	Equipment        string   `json:"equipment" db:"equipment"`
 	Description      string   `json:"description" db:"description"`
+	Instructions     []string `json:"instructions" db:"-"` // never null; decoded from the JSON column
 	ImageURL         string   `json:"image_url,omitempty" db:"image_url"`
 	VideoURL         string   `json:"video_url,omitempty" db:"video_url"`
+	IsCustom         bool     `json:"is_custom"`
+	Archived         bool     `json:"archived"`
+	MergedIntoID     *int64   `json:"merged_into_id,omitempty"`
+	PhotoID          string   `json:"photo_id,omitempty"`
+}
+
+// CreateExerciseRequest is the body of POST and PUT /exercises: PUT replaces every field.
+type CreateExerciseRequest struct {
+	Name             string   `json:"name" validate:"required,max=100"`
+	MuscleGroup      string   `json:"muscle_group" validate:"required"`
+	Equipment        string   `json:"equipment"`
+	Category         string   `json:"category"`
+	SecondaryMuscles []string `json:"secondary_muscles" validate:"max=10"`
+	Description      string   `json:"description" validate:"max=2000"`
+	// Instructions wins over Description when non-nil, even empty (an explicit clear).
+	// Nil means an older app that sends only Description.
+	Instructions []string `json:"instructions"`
+	// ClientID makes a create idempotent (POST only, ignored by PUT): a canonical lowercase UUID the
+	// client picked, so a retry after a lost response finds the row it already made.
+	ClientID string `json:"client_id,omitempty"`
+}
+
+// MergeExerciseRequest is the body of POST /exercises/:id/merge.
+type MergeExerciseRequest struct {
+	IntoID int64 `json:"into_id"`
+}
+
+type ExerciseUsage struct {
+	Workouts    int `json:"workouts"`
+	ProgramDays int `json:"program_days"`
+	// With ?into=: program days that list both, which a merge combines into one block.
+	SharedProgramDays int `json:"shared_program_days"`
+}
+
+type MergeResult struct {
+	MovedWorkouts    int `json:"moved_workouts"`
+	MovedProgramDays int `json:"moved_program_days"`
+	// Program days that listed both exercises and now list the kept one once, sets combined.
+	CombinedProgramDays int      `json:"combined_program_days"`
+	Into                Exercise `json:"into"`
 }
 
 type Workout struct {

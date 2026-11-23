@@ -1,13 +1,15 @@
 import { useId } from 'react'
 import { Pressable, ScrollView, View, useWindowDimensions } from 'react-native'
-import { Check, X } from './icons'
+import { X } from './icons'
 import * as Haptics from 'expo-haptics'
 import { type FilterGroup, type FilterValues, activeFilterCount, useTranslation } from '@lyftr/shared'
-import { useTheme } from '../../theme/useTheme'
 import { AppText } from './Typography'
 import { Button } from './Button'
 import { IconButton } from './IconButton'
 import { Sheet } from './Sheet'
+import { FoldToggle, OPTION_FOLD, useFold } from './fold'
+import { OptionChip } from './IconTileGroup'
+import { TOUCH_MIN, interactive } from './interaction'
 
 interface Props {
   open: boolean
@@ -19,14 +21,13 @@ interface Props {
   onClose: () => void
 }
 
-// The panel behind a FilterButton: one section per group, every option visible at once
-// instead of scrolled past. Generic over `groups`, so a screen with other filters brings its
+// The panel behind a FilterButton: one section per group. A long section folds by OPTION_FOLD
+// (fold.tsx), always showing the option that is on. Generic over `groups`, so a screen with other filters brings its
 // own list and nothing here changes. Changes apply as they are made (the list updates behind
 // the scrim); Done only closes. Mirrors web ui/FilterSheet.
 export function FilterSheet({ open, groups, values, onChange, onReset, onClose }: Props) {
   const { t } = useTranslation()
   const { height } = useWindowDimensions()
-  const { accent } = useTheme()
   const count = activeFilterCount(groups, values)
   const titleId = useId()
 
@@ -34,7 +35,7 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
     <Sheet open={open} onClose={onClose} haptic="selection" labelledBy={titleId} width="lg">
       <View className="flex-row items-center justify-between border-b border-surface-border px-5 pb-3 pt-1">
         <AppText nativeID={titleId} variant="title" headingLevel={2}>{t('filters.title')}</AppText>
-        <View className="flex-row items-center gap-3">
+        <View className="flex-row items-center gap-1">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t('filters.reset')}
@@ -44,10 +45,10 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
               onReset()
             }}
             disabled={count === 0}
-            hitSlop={10}
-            className={`active:opacity-60 ${count === 0 ? 'opacity-40' : ''}`}
+            style={{ minHeight: TOUCH_MIN, minWidth: TOUCH_MIN }}
+            className={`items-center justify-center rounded-lg px-2 ${count === 0 ? '' : `active:opacity-60 ${interactive('hover:bg-surface-muted/60')}`}`}
           >
-            <AppText variant="label" color="brand">{t('filters.reset')}</AppText>
+            <AppText variant="bodySemibold" color={count === 0 ? 'muted' : 'brand'} className={count === 0 ? 'opacity-50' : ''}>{t('filters.reset')}</AppText>
           </Pressable>
           <IconButton icon={X} label={t('common.close')} variant="ghost" size="md" onPress={onClose} />
         </View>
@@ -59,35 +60,12 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
             <View className="mb-2.5 flex-row items-baseline justify-between">
               <AppText variant="subheading">{group.label}</AppText>
               {values[group.key] != null ? (
-                <AppText variant="caption" color="brand" className="capitalize">
+                <AppText variant="caption" color="brand">
                   {group.options.find((o) => o.value === values[group.key])?.label}
                 </AppText>
               ) : null}
             </View>
-            <View className="flex-row flex-wrap gap-2">
-              {group.options.map((option) => {
-                const on = values[group.key] === option.value
-                return (
-                  <Pressable
-                    key={option.value}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}
-                    onPress={() => {
-                      Haptics.selectionAsync().catch(() => {})
-                      onChange(group.key, on ? null : option.value)
-                    }}
-                    className={`flex-row items-center gap-1.5 rounded-full border px-3.5 py-2.5 active:scale-95 ${
-                      on ? 'border-brand-500/40 bg-brand-500/15' : 'border-surface-border bg-surface-muted'
-                    }`}
-                  >
-                    {on ? <Check size={14} color={accent} strokeWidth={2.6} /> : null}
-                    <AppText variant="caption" color={on ? 'brand' : 'muted'} className="capitalize">
-                      {option.label}
-                    </AppText>
-                  </Pressable>
-                )
-              })}
-            </View>
+            <FilterOptions group={group} value={values[group.key]} onChange={onChange} />
           </View>
         ))}
       </ScrollView>
@@ -96,5 +74,31 @@ export function FilterSheet({ open, groups, values, onChange, onReset, onClose }
         <Button title={t('filters.done')} onPress={onClose} />
       </View>
     </Sheet>
+  )
+}
+
+// One section's options; its own component so each section folds on its own.
+function FilterOptions({ group, value, onChange }: { group: FilterGroup; value: string | null | undefined; onChange: Props['onChange'] }) {
+  const fold = useFold(group.options, OPTION_FOLD, (o) => o.value === value)
+  return (
+    <View className="flex-row flex-wrap gap-2">
+      {fold.shown.map((option) => {
+        const on = value === option.value
+        return (
+          <OptionChip
+            key={option.value}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            label={option.label}
+            on={on}
+            onPress={() => {
+              Haptics.selectionAsync().catch(() => {})
+              onChange(group.key, on ? null : option.value)
+            }}
+          />
+        )
+      })}
+      {fold.folds ? <FoldToggle open={fold.open} hidden={fold.hidden} onPress={fold.toggle} variant="chip" /> : null}
+    </View>
   )
 }

@@ -1,5 +1,6 @@
 import { useReducer } from 'react'
 import { Platform, TextInput } from 'react-native'
+import { WEB_REQUIRED } from './interaction'
 import { useTheme } from '../../theme/useTheme'
 import { sanitizeNumericInput, useNumericText } from '@lyftr/shared'
 
@@ -12,8 +13,10 @@ interface Props {
   placeholder?: string
   disabled?: boolean
   accessibilityLabel?: string
-  /** iOS: id of an InputAccessoryView (e.g. NUMERIC_ACCESSORY_ID) to show a Done bar. */
+  /** iOS: id of an InputAccessoryView (e.g. KEYBOARD_DONE_ID) to show a Done bar. */
   inputAccessoryViewID?: string
+  /** Must be filled: aria-required on web. */
+  required?: boolean
 }
 
 // Mirrors web ui/NumberField: borderless big-number field for the inside of a
@@ -27,6 +30,7 @@ export function NumberField({
   disabled = false,
   accessibilityLabel,
   inputAccessoryViewID,
+  required = false,
 }: Props) {
   const { colors } = useTheme()
   const [text, setText] = useNumericText(value)
@@ -44,6 +48,7 @@ export function NumberField({
       selectTextOnFocus
       accessibilityLabel={accessibilityLabel}
       inputAccessoryViewID={inputAccessoryViewID}
+      {...(required ? WEB_REQUIRED : {})}
       onChangeText={(raw) => {
         const v = sanitizeNumericInput(raw, inputMode)
         if (onChange(v) === false) {

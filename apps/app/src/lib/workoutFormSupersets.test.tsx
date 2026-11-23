@@ -4,7 +4,7 @@ import { i18n } from '@lyftr/shared'
 import { client } from './lyftr'
 import EditWorkout from '../../app/(tabs)/workouts/[id]/edit'
 import AddWorkout from '../../app/(tabs)/workouts/new'
-import { SHEET_ANIM_MS } from '../components/ui/Sheet'
+import { SHEET_CLOSE_MAX_MS } from '../components/ui/Sheet'
 
 // A linked pair has to survive load -> save: the server's Update deletes and re-inserts the
 // exercise rows, so a mapper that drops superset_group silently unlinks them.
@@ -43,7 +43,7 @@ const pickMenu = async (idx: number, item: string) => {
   jest.useFakeTimers()
   await fireEvent.press(screen.getAllByLabelText('More options')[idx])
   await fireEvent.press(await screen.findByText(item))
-  await act(async () => { jest.advanceTimersByTime(SHEET_ANIM_MS + 50) })
+  await act(async () => { jest.advanceTimersByTime(SHEET_CLOSE_MAX_MS + 50) })
   jest.useRealTimers()
 }
 

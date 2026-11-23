@@ -2,12 +2,14 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
+	"github.com/Cawlumm/lyftr-backend/models"
 
 	// The backfill resolves stored zones, and the production image (alpine) ships no
 	// /usr/share/zoneinfo. controllers blank-imports this too; both are needed, since
@@ -252,6 +254,141 @@ func alterMigrations() {
 	}
 	ensureIndex("idx_refresh_tokens_expires", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires ON refresh_tokens(expires_at)`)
 	ensureIndex("idx_refresh_tokens_user", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)`)
+
+	customExercisesMigration()
+	instructionsMigration()
+}
+
+// customExercisesMigration lets a user own exercises. A custom row has owner_user_id set; a
+// catalog row has it NULL. SQLite cannot ADD COLUMN with a CURRENT_TIMESTAMP default, so
+// created_at is written on insert.
+//
+// The base schema's global UNIQUE(name) would forbid a custom exercise named like a catalog
+// one (and one user's name like another's), so it is replaced by a catalog-only index. It is
+// replaced in place under the same name rather than by editing the schema constant: the
+// schema's CREATE ... IF NOT EXISTS idx_exercises_name then finds an index of that name and
+// is a no-op on every later boot, so fresh and migrated databases end identical and the
+// base schema stays append-only. Drop and create share one transaction so no insert can
+// land in between with no uniqueness at all.
+func customExercisesMigration() {
+	ensureColumn("exercises", "owner_user_id", `ALTER TABLE exercises ADD COLUMN owner_user_id INTEGER`)
+	ensureColumn("exercises", "custom_uuid", `ALTER TABLE exercises ADD COLUMN custom_uuid TEXT`)
+	ensureColumn("exercises", "archived_at", `ALTER TABLE exercises ADD COLUMN archived_at DATETIME`)
+	ensureColumn("exercises", "merged_into_id", `ALTER TABLE exercises ADD COLUMN merged_into_id INTEGER`)
+	ensureColumn("exercises", "created_at", `ALTER TABLE exercises ADD COLUMN created_at DATETIME`)
+
+	var def sql.NullString
+	err := DB.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_exercises_name'`).Scan(&def)
+	if err != nil && err != sql.ErrNoRows {
+		log.Fatalf("read idx_exercises_name: %v", err)
+	}
+	if err == sql.ErrNoRows || !strings.Contains(strings.ToUpper(def.String), " WHERE ") {
+		tx, err := DB.Begin()
+		if err != nil {
+			log.Fatalf("begin idx_exercises_name swap: %v", err)
+		}
+		if _, err := tx.Exec(`DROP INDEX IF EXISTS idx_exercises_name`); err != nil {
+			tx.Rollback()
+			log.Fatalf("drop idx_exercises_name: %v", err)
+		}
+		if _, err := tx.Exec(`CREATE UNIQUE INDEX idx_exercises_name ON exercises(name) WHERE owner_user_id IS NULL`); err != nil {
+			tx.Rollback()
+			log.Fatalf("create idx_exercises_name: %v", err)
+		}
+		if err := tx.Commit(); err != nil {
+			log.Fatalf("commit idx_exercises_name swap: %v", err)
+		}
+		log.Println("migration: idx_exercises_name now covers catalog exercises only")
+	}
+
+	ensureIndex("idx_exercises_owner_name", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_owner_name
+		ON exercises(owner_user_id, name COLLATE NOCASE) WHERE owner_user_id IS NOT NULL AND archived_at IS NULL`)
+	ensureIndex("idx_exercises_custom_uuid", `CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_custom_uuid ON exercises(custom_uuid)`)
+	ensureIndex("idx_exercises_owner", `CREATE INDEX IF NOT EXISTS idx_exercises_owner ON exercises(owner_user_id)`)
+
+	// The custom exercise's one optional photo: a random id naming two files beside the database.
+	ensureColumn("exercises", "photo_id", `ALTER TABLE exercises ADD COLUMN photo_id TEXT`)
+}
+
+// instructionsMigration gives every exercise its instructions as a JSON list of steps
+// (exercises.instructions, and exercise_translations.instructions for the other
+// languages). description stays, always holding the numbered join of the list, for app
+// builds that predate the list and read only description.
+//
+// The backfill parses each existing description once; the flag keeps a later boot from
+// re-deriving a list someone has since emptied on purpose. Only rows still at '[]' with a
+// description are touched, so a row that already has steps is never rewritten.
+func instructionsMigration() {
+	ensureColumn("exercises", "instructions", `ALTER TABLE exercises ADD COLUMN instructions TEXT NOT NULL DEFAULT '[]'`)
+	ensureColumn("exercise_translations", "instructions", `ALTER TABLE exercise_translations ADD COLUMN instructions TEXT NOT NULL DEFAULT '[]'`)
+
+	const flag = "instructions_from_description"
+	done, err := hasMigrationFlag(flag)
+	if err != nil {
+		log.Printf("instructionsMigration: check flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
+	for _, table := range []string{"exercises", "exercise_translations"} {
+		if err := backfillInstructions(table); err != nil {
+			// Leave the flag unset so the next boot retries.
+			log.Printf("instructionsMigration: backfill %s: %v (retrying next boot)", table, err)
+			return
+		}
+	}
+	setMigrationFlag(flag)
+}
+
+func backfillInstructions(table string) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	rows, err := tx.Query(`SELECT id, description FROM ` + table + ` WHERE instructions = '[]' AND description <> ''`)
+	if err != nil {
+		return err
+	}
+	type fix struct {
+		id    int64
+		steps string
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var desc string
+		if err := rows.Scan(&id, &desc); err != nil {
+			rows.Close()
+			return err
+		}
+		steps := models.StepsFromText(desc)
+		if len(steps) == 0 {
+			continue
+		}
+		raw, err := json.Marshal(steps)
+		if err != nil {
+			rows.Close()
+			return err
+		}
+		fixes = append(fixes, fix{id, string(raw)})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, f := range fixes {
+		if _, err := tx.Exec(`UPDATE `+table+` SET instructions = ? WHERE id = ?`, f.steps, f.id); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	log.Printf("migration: backfilled instructions on %d %s rows", len(fixes), table)
+	return nil
 }
 
 // adminMigration adds users.is_admin and, once, makes the earliest-created account the

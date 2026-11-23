@@ -38,6 +38,9 @@ server {
         proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
+        # The backend caps each route itself (10 MB for an exercise photo); nginx's 1 MB default
+        # would answer a large photo with its own HTML 413 before the backend could say why.
+        client_max_body_size 11m;
     }
 
     # W3C Change Password URL. Password managers (Safari Keychain, Chrome Password

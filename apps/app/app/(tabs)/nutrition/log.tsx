@@ -11,7 +11,7 @@ import {
 } from '@lyftr/shared'
 import {
   Alert, AppText, Button, Card, DateInput, ErrorState, IconButton, interactive, Label, NumberField, Toast,
-  NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID, Screen, scrollBleed, SearchField, SegmentedControl, touchTarget,
+  KeyboardDoneAccessory, KEYBOARD_DONE_ID, Screen, scrollBleed, SearchField, SegmentedControl, touchTarget,
 } from '../../../src/components/ui'
 
 const BACK_HIT = touchTarget(40, 40)
@@ -556,8 +556,9 @@ export default function LogFood() {
                         inputMode="decimal"
                         value={amount.text}
                         onChange={amount.setText}
+                        required
                         accessibilityLabel={basis ? t('food.log.amountIn', { unit: basis.unit }) : t('food.log.servings')}
-                        inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+                        inputAccessoryViewID={KEYBOARD_DONE_ID}
                       />
                     </View>
                     {basis ? <AppText variant="caption" color="muted" className="ml-1">{basis.unit}</AppText> : null}
@@ -622,7 +623,7 @@ export default function LogFood() {
               disabled={save.busy || servings <= 0 || overLimit}
             />
           </View>
-          <NumericKeyboardAccessory />
+          <KeyboardDoneAccessory />
         </>
       ) : null}
 

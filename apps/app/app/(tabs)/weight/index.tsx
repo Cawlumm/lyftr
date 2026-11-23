@@ -8,8 +8,8 @@ import {
 } from '../../../src/components/ui/icons'
 import { uiMessage, useAsyncAction, dayToInstant, daysAgoStr, displayToLbs, displayWeight, maxWeight, todayStr, weightError, weightShort, type WeightLog, type WeightStats, entryDay, dayToLocalDate, BODYWEIGHT_STEP, clampStep, formatDay, formatDate, useTranslation, type UiMessage } from '@lyftr/shared'
 import { Alert,
-  AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, NumericKeyboardAccessory,
-  NUMERIC_ACCESSORY_ID, PageHeader, Screen, scrollBleed, SegmentedControl, Skeleton, StatFailure, StepperTile,
+  AppText, BarbellBroken, Button, Card, DateInput, ErrorState, Field, Label, NumberField, KeyboardDoneAccessory, RequiredLegend,
+  KEYBOARD_DONE_ID, PageHeader, Screen, scrollBleed, SegmentedControl, Skeleton, StatFailure, StepperTile,
 } from '../../../src/components/ui'
 import { ExerciseHistoryChart, type ChartPoint } from '../../../src/components/workouts/ExerciseHistoryChart'
 import { WeightEntryRow } from '../../../src/components/weight/WeightEntryRow'
@@ -360,9 +360,11 @@ export default function Weight() {
       </View>
 
       <View className="gap-3">
+        <RequiredLegend />
         <StepperTile
           icon={Scale}
           label={t('common.weightWithUnit', { unit: wUnit })}
+          required
           name={t('common.weightName')}
           step={BODYWEIGHT_STEP}
           onStep={(d) => setNewWeight(String(clampStep(parseFloat(newWeight) || 0, d, { min: 0, max: maxWeight(unit) })))}
@@ -371,9 +373,10 @@ export default function Weight() {
             inputMode="decimal"
             value={newWeight}
             onChange={setNewWeight}
+            required
             placeholder="0"
             accessibilityLabel={t('weight.log.weightField')}
-            inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+            inputAccessoryViewID={KEYBOARD_DONE_ID}
           />
         </StepperTile>
 
@@ -663,7 +666,7 @@ export default function Weight() {
         ListFooterComponent={footer}
       />
       {/* iOS Done bar above the numeric keyboard (the weight NumberField links it). */}
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </Screen>
   )
 }

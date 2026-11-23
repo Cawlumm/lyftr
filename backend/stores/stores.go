@@ -19,17 +19,25 @@ type Stores struct {
 	Program       *ProgramStore
 	// Thumbs is wired by main (it needs the data directory and oedb origin); nil in tests that do not use it.
 	Thumbs *ThumbStore
+	// Photos holds custom-exercise photo files; main sets its directory (SetDir), tests use a temp one.
+	Photos *PhotoFiles
 	db     *sql.DB // for operations that must span two stores in one transaction
 }
 
 func New(db *sql.DB) *Stores {
+	photos := &PhotoFiles{}
+	ex := NewExerciseStore(db)
+	ex.photos = photos
+	us := NewUserStore(db)
+	us.photos = photos
 	return &Stores{
+		Photos:        photos,
 		ActiveSession: NewActiveSessionStore(db),
 		Weight:        NewWeightStore(db),
 		Food:          NewFoodStore(db),
-		User:          NewUserStore(db),
+		User:          us,
 		Refresh:       NewRefreshStore(db),
-		Exercise:      NewExerciseStore(db),
+		Exercise:      ex,
 		Workout:       NewWorkoutStore(db),
 		Program:       NewProgramStore(db),
 		db:            db,

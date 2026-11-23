@@ -96,8 +96,10 @@ export interface AppTextProps extends TextProps {
   className?: string
   children?: ReactNode
   // Overrides the outline level without changing the look: a sheet's title keeps the
-  // `title` size but is an h2, so the screen underneath keeps its one h1.
-  headingLevel?: 1 | 2
+  // `title` size but is an h2, so the screen underneath keeps its one h1. Section titles are 2,
+  // groups inside a section 3. Never accessibilityRole="header": react-native-web gives it no
+  // level, which reads as a second h1.
+  headingLevel?: 1 | 2 | 3
 }
 
 export function AppText({

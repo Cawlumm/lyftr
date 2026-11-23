@@ -18,6 +18,7 @@ export interface SupersetCandidate {
   /** Primary muscle, already localised. Omit when unknown. */
   muscle?: string
   imageUrl?: string
+  photo?: { exerciseId: number; photoId?: string }
 }
 
 export interface SupersetSheetProps {
@@ -112,7 +113,7 @@ export function SupersetSheet({
                       className={`min-h-[64px] flex-row items-center gap-3 rounded-2xl px-3 py-2 ${interactive('hover:bg-surface-muted')}`}
                       style={{ borderWidth: on ? 2 : 1, borderColor: on ? accent : colors.border, backgroundColor: on ? c.tint : undefined }}
                     >
-                      <ExerciseThumb url={cand.imageUrl} size={48} colorIndex={0} />
+                      <ExerciseThumb url={cand.imageUrl} photo={cand.photo} size={48} colorIndex={0} />
                       <View className="min-w-0 flex-1 gap-0.5">
                         <AppText variant="subheading" className="text-[15px]" numberOfLines={2}>{cand.name}</AppText>
                         {sub ? <AppText variant="caption" color="secondary" numberOfLines={1}>{sub}</AppText> : null}

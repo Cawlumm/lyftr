@@ -107,6 +107,7 @@ export default function ChangeEmailScreen() {
             <Field
               id="new-email"
               label={t('settings.account.email.new')}
+              required
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"

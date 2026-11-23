@@ -38,8 +38,49 @@ export interface Exercise {
   category: string
   equipment: string
   description: string
+  // The steps, one per entry. Absent from a server older than the list: see exerciseSteps.
+  instructions?: string[]
   image_url?: string
   video_url?: string
+  // Created by the signed-in user and visible to them alone. Absent from servers older
+  // than custom exercises, which is the same as false.
+  is_custom?: boolean
+  // Hidden from search; history that references it still reads.
+  archived?: boolean
+  // Set when the exercise was merged: its history now lives under this id.
+  merged_into_id?: number
+  // Random id of the user's own picture; changes on replace, so it doubles as the cache key.
+  // Absent when there is none (and on servers older than custom-exercise photos).
+  photo_id?: string
+}
+
+// The body of POST /exercises and PUT /exercises/:id. muscle_group is required; the
+// server fills equipment (body-only) and category (strength) when they are omitted.
+export interface CustomExerciseInput {
+  name: string
+  muscle_group: string
+  equipment?: string
+  category?: string
+  secondary_muscles?: string[]
+  description?: string
+  instructions?: string[]
+  // Create only: one per form, so a retried POST returns the row it already made.
+  client_id?: string
+}
+
+// How many of the signed-in user's rows reference an exercise, so a merge can say what moves.
+export interface ExerciseUsage {
+  workouts: number
+  program_days: number
+  /** Asked with a merge target: program days that list both (a merge combines them). Absent
+   *  from a server older than that. */
+  shared_program_days?: number
+}
+
+export interface ExerciseMergeResult {
+  moved_workouts: number
+  moved_program_days: number
+  into: Exercise
 }
 
 export interface Set {

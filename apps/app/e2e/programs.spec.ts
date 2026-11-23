@@ -59,7 +59,7 @@ test.describe('Programs', () => {
     await page.goto('/programs/new')
     await expect(page.getByText('New Program', { exact: true }).first()).toBeVisible()
 
-    await page.getByPlaceholder(/push pull legs, upper lower/i).fill(E2E_PROGRAM_NAME)
+    await page.getByPlaceholder('e.g., Push Pull Legs', { exact: true }).fill(E2E_PROGRAM_NAME)
     await page.getByPlaceholder(/description or goals/i).fill('Test description')
 
     // Programs are day-nested: add a workout day before its exercise editor appears.
@@ -68,7 +68,8 @@ test.describe('Programs', () => {
     const search = page.getByPlaceholder(/search exercises/i)
     await expect(search).toBeVisible()
     await search.fill('squat')
-    await page.getByText(/squat/i).first().click()
+    // The first row is "Create 'squat'"; pick the catalog exercise.
+    await page.getByRole('button', { name: /^(?!Create a custom exercise).*squat/i }).first().click()
 
     // A new set row starts empty: both inputs show the "0" placeholder.
     const reps = page.getByRole('textbox', { name: 'Set reps' }).first()
@@ -132,7 +133,7 @@ test.describe('Programs', () => {
     await page.getByRole('button', { name: /add workout day/i }).click()
     await page.getByRole('button', { name: /add exercise/i }).first().click()
     await page.getByPlaceholder(/search exercises/i).fill('deadlift')
-    const row = page.getByRole('button', { name: /deadlift/i }).first()
+    const row = page.getByRole('button', { name: /^(?!Create a custom exercise).*deadlift/i }).first()
     await expect(row).toBeVisible()
     await row.click()
 

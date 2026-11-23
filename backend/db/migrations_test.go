@@ -1142,3 +1142,111 @@ func TestAdminMigration_NoRealAccountMeansNoAdmin(t *testing.T) {
 		t.Error("the demo account was promoted")
 	}
 }
+
+func exerciseIndexSQL(t *testing.T) map[string]string {
+	t.Helper()
+	rows, err := DB.Query(`SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'exercises' AND sql IS NOT NULL`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	out := map[string]string{}
+	for rows.Next() {
+		var name, def string
+		if err := rows.Scan(&name, &def); err != nil {
+			t.Fatal(err)
+		}
+		out[name] = strings.Join(strings.Fields(def), " ")
+	}
+	return out
+}
+
+// An install that already holds catalog rows and workouts keeps them, and afterwards a
+// custom exercise may share a catalog name.
+func TestCustomExercisesMigration_ReplacesNameIndex_ExistingDB(t *testing.T) {
+	setupMigrationTestDB(t)
+	if got := exerciseIndexSQL(t)["idx_exercises_name"]; strings.Contains(got, "WHERE") {
+		t.Fatalf("precondition: base index already partial: %s", got)
+	}
+	res, _ := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('u@example.com', 'x')`)
+	uid, _ := res.LastInsertId()
+	if _, err := DB.Exec(`INSERT INTO exercises (name, muscle_group) VALUES ('Bench Press', 'chest'), ('Squat', 'quadriceps')`); err != nil {
+		t.Fatal(err)
+	}
+	res, _ = DB.Exec(`INSERT INTO workouts (user_id, name) VALUES (?, 'w')`, uid)
+	wid, _ := res.LastInsertId()
+	if _, err := DB.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id) VALUES (?, 1)`, wid); err != nil {
+		t.Fatal(err)
+	}
+
+	alterMigrations()
+
+	if got := exerciseIndexSQL(t)["idx_exercises_name"]; !strings.Contains(got, "WHERE owner_user_id IS NULL") {
+		t.Errorf("idx_exercises_name = %q, want a catalog-only partial index", got)
+	}
+	var n, linked int
+	DB.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&n)
+	DB.QueryRow(`SELECT COUNT(*) FROM workout_exercises WHERE exercise_id = 1`).Scan(&linked)
+	if n != 2 || linked != 1 {
+		t.Errorf("rows = %d, linked = %d; the migration changed existing data", n, linked)
+	}
+	var owner sql.NullInt64
+	DB.QueryRow(`SELECT owner_user_id FROM exercises WHERE id = 1`).Scan(&owner)
+	if owner.Valid {
+		t.Errorf("catalog row owner = %d, want NULL", owner.Int64)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (name, owner_user_id) VALUES ('Bench Press', ?)`, uid); err != nil {
+		t.Errorf("custom row named like a catalog row: %v", err)
+	}
+	if _, err := DB.Exec(`INSERT INTO exercises (name) VALUES ('Bench Press')`); err == nil {
+		t.Error("a second catalog row with the same name was accepted")
+	}
+}
+
+func TestCustomExercisesMigration_FreshDB(t *testing.T) {
+	setupMigrationTestDB(t)
+	alterMigrations()
+	fresh := exerciseIndexSQL(t)
+
+	setupMigrationTestDB(t)
+	DB.Exec(`INSERT INTO exercises (name) VALUES ('Bench Press')`)
+	alterMigrations()
+	existing := exerciseIndexSQL(t)
+
+	for _, name := range []string{"idx_exercises_name", "idx_exercises_owner_name", "idx_exercises_custom_uuid", "idx_exercises_owner"} {
+		if fresh[name] == "" {
+			t.Errorf("fresh DB lacks %s", name)
+		}
+		if fresh[name] != existing[name] {
+			t.Errorf("%s differs:\n fresh    %s\n existing %s", name, fresh[name], existing[name])
+		}
+	}
+}
+
+// Boot runs migrate() then alterMigrations() every time; the schema's own
+// CREATE UNIQUE INDEX IF NOT EXISTS idx_exercises_name must not bring the global index back
+// and then fail on a custom row named like a catalog row.
+func TestBoot_WithCustomNameEqualToCatalogName(t *testing.T) {
+	setupMigrationTestDB(t)
+	alterMigrations()
+	res, _ := DB.Exec(`INSERT INTO users (email, password_hash) VALUES ('u@example.com', 'x')`)
+	uid, _ := res.LastInsertId()
+	DB.Exec(`INSERT INTO exercises (name) VALUES ('Bench Press')`)
+	if _, err := DB.Exec(`INSERT INTO exercises (name, owner_user_id, custom_uuid) VALUES ('Bench Press', ?, 'u-1')`, uid); err != nil {
+		t.Fatal(err)
+	}
+	for boot := 1; boot <= 2; boot++ {
+		if err := migrate(); err != nil {
+			t.Fatalf("boot %d: migrate: %v", boot, err)
+		}
+		alterMigrations()
+	}
+	if got := exerciseIndexSQL(t)["idx_exercises_name"]; !strings.Contains(got, "WHERE owner_user_id IS NULL") {
+		t.Errorf("idx_exercises_name = %q after reboot", got)
+	}
+	var n int
+	DB.QueryRow(`SELECT COUNT(*) FROM exercises WHERE name = 'Bench Press'`).Scan(&n)
+	if n != 2 {
+		t.Errorf("rows = %d, want 2", n)
+	}
+}

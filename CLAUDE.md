@@ -114,6 +114,27 @@ Silence is not a verdict: signing out on it ends a live workout whenever someone
 
 ---
 
+## Form pages — read before adding a screen
+
+**The rule: a new form page is a route file that wires data to a form built from the shared pieces; it does not re-implement the page around it.**
+
+### Single points of truth
+
+- **`apps/app/src/components/ui/FormPage.tsx`**: the page scaffold. It provides the back and title header, a keyboard-aware scroll (drag/tap dismisses, iOS Done bar) and a sticky primary action kept above the keyboard. It also owns the action's busy and disabled state, an optional secondary action (Cancel goes through the same discard guard), an inline error with retry beside that action, and an optional destructive action through `ConfirmSheet`. `useDiscardGuard(dirty)` is the unsaved-changes guard on back; call `guard.allowLeave()` before a save navigates away.
+- **Field pieces in `ui/`:**
+  - `FieldHeader`: the icon + uppercase label over a field, shared by every form.
+- **Required fields** (`ui/FieldHeader.tsx`, `RequiredMark`/`RequiredLegend`): a field is required when the save refuses it empty; a control that always holds a value (a date, a choice with a default) is not marked. A form that mixes required and optional fields stars each required one (`FieldHeader required`/`requiredInput`, `StepperTile required`, `RequiredMark` beside a hand-built label) and shows `<RequiredLegend />` ("* Required") once at its top; optional fields get nothing, and no copy says "optional". A form where every field is required shows no star and no legend. Either way the input says it to assistive tech: `required` on `Field`/`NumberField` (aria-required; `IconInput` and `PasswordField` always), and the star itself is never read.
+  - `Field`: label, error and a `footer` slot for suggestions. `FormField` is a `Field` already wired to the page's Done bar.
+  - `IconTileGroup`: single or multi select with icon tiles or chips, radio/checkbox semantics, optional `max`.
+  - `PhotoSlot`.
+  - Long lists fold by one rule in `ui/fold.tsx` (`useFold`, `FoldToggle`): chip rows (`CollapsibleChips`) show 3 + "+N more"; option lists over 8 (`IconTileGroup`, `FilterSheet` sections) show 6 + "+N more", and a chosen option past the cut stays in view. Never "+1 more". Don't write a second fold.
+  - `KeyboardDoneAccessory`: the only iOS Done bar. FormPage gives each page its own id.
+- **The muscle picker is not generic** and lives beside the exercise screens: `workouts/BodyMapPicker` (body map, with a list as the keyboard and screen-reader path).
+- **Options are data:** exercise equipment, categories and muscles are one list each, in `components/workouts/exerciseOptions.ts` (`{ value, icon, labelKey }`). Adding an option is one line there plus the same value in `packages/shared/src/utils/customExerciseTaxonomy.json` and `backend/stores/taxonomy.go` (Go cannot read the JSON); tests on both sides hold the three to each other and to the catalog.
+- **Create and edit are one form:** they share one component with a `mode` prop and one pure validator (`CustomExerciseForm` + `validateCustomExercise`). The edit route only loads the record and renders the form.
+
+`settings/name.tsx` is the second page on the scaffold. Other forms predate it; move them when you touch them.
+
 ## Demo mode and registration
 
 - Demo account: `demo@lyftr.local` / `password123`, with a PPL program + 8 weeks of workouts. **Seeded only when `DEMO_MODE` is on, and it is off by default everywhere, development included** (`ENV` itself defaults to `"development"`, so keying off it seeded a published password). Opt in with `DEMO_MODE=true go run .`; Compose passes `${DEMO_MODE:-false}`, `fly.toml` sets it true.

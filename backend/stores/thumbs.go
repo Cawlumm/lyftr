@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	_ "golang.org/x/image/webp"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -181,30 +182,159 @@ func (s *ThumbStore) make(ctx context.Context, id, path string) error {
 // Thumbnail scales an encoded image so its shorter side is ThumbEdge (never up) and returns
 // it as JPEG. Transparency is flattened onto white, which is what a JPEG cannot hold.
 func Thumbnail(src []byte) ([]byte, error) {
+	return renderJPEG(src, maxSourcePixels, 0, thumbQuality, func(w, h int) (int, int) {
+		short := min(w, h)
+		if short > ThumbEdge {
+			return w * ThumbEdge / short, h * ThumbEdge / short
+		}
+		return w, h
+	})
+}
+
+// errImageTooBig: the header claims more pixels (or a longer side) than the caller allows.
+var errImageTooBig = errors.New("image is too large to decode")
+
+// renderJPEG is the one decode-cap-scale-flatten-encode pipeline: thumbnails and uploaded
+// photos both go through it. The header is read first (DecodeConfig), so a decompression bomb
+// is refused before any pixel is allocated. Re-encoding from pixels is also what drops EXIF
+// and every other metadata segment. maxSide of 0 means no per-side cap.
+func renderJPEG(src []byte, maxPixels int64, maxSide, quality int, size func(w, h int) (int, int)) ([]byte, error) {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(src))
 	if err != nil {
 		return nil, err
 	}
-	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > maxSourcePixels {
-		return nil, fmt.Errorf("image is %dx%d", cfg.Width, cfg.Height)
+	if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width)*int64(cfg.Height) > maxPixels ||
+		(maxSide > 0 && (cfg.Width > maxSide || cfg.Height > maxSide)) {
+		return nil, fmt.Errorf("%w: %dx%d", errImageTooBig, cfg.Width, cfg.Height)
 	}
 	img, _, err := image.Decode(bytes.NewReader(src))
 	if err != nil {
 		return nil, err
 	}
 	b := img.Bounds()
-	w, h := b.Dx(), b.Dy()
-	short := min(w, h)
-	if short > ThumbEdge {
-		w, h = w*ThumbEdge/short, h*ThumbEdge/short
+	// Re-encoding drops EXIF, orientation included, so a phone photo stored sideways by the
+	// camera is turned upright here. Size is chosen on the upright dimensions; the scaled
+	// (small) image is the one rotated.
+	orient := exifOrientation(src)
+	swap := orient >= 5 && orient <= 8
+	sw, sh := b.Dx(), b.Dy()
+	if swap {
+		sw, sh = sh, sw
+	}
+	w, h := size(sw, sh)
+	if swap {
+		w, h = h, w
 	}
 	dst := image.NewRGBA(image.Rect(0, 0, max(w, 1), max(h, 1)))
 	xdraw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.Point{}, xdraw.Src)
 	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, b, xdraw.Over, nil)
+	out := orientRGBA(dst, orient)
 
 	var buf bytes.Buffer
-	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: thumbQuality}); err != nil {
+	if err := jpeg.Encode(&buf, out, &jpeg.Options{Quality: quality}); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// exifOrientation reads the EXIF Orientation tag (1-8) of a JPEG, or 1 when there is none or
+// it cannot be read. Only the APP1 segment and IFD0 are walked; nothing else is trusted.
+func exifOrientation(src []byte) int {
+	if len(src) < 4 || src[0] != 0xFF || src[1] != 0xD8 {
+		return 1
+	}
+	for i := 2; i+4 <= len(src); {
+		if src[i] != 0xFF {
+			return 1
+		}
+		marker := src[i+1]
+		if marker == 0xDA || marker == 0xD9 { // start of scan / end of image: no more metadata
+			return 1
+		}
+		n := int(src[i+2])<<8 | int(src[i+3])
+		if n < 2 || i+2+n > len(src) {
+			return 1
+		}
+		seg := src[i+4 : i+2+n]
+		if marker == 0xE1 && len(seg) > 14 && string(seg[:6]) == "Exif\x00\x00" {
+			return tiffOrientation(seg[6:])
+		}
+		i += 2 + n
+	}
+	return 1
+}
+
+func tiffOrientation(t []byte) int {
+	if len(t) < 8 {
+		return 1
+	}
+	var u16 func([]byte) int
+	var u32 func([]byte) int
+	switch string(t[:2]) {
+	case "II":
+		u16 = func(b []byte) int { return int(b[0]) | int(b[1])<<8 }
+		u32 = func(b []byte) int { return int(b[0]) | int(b[1])<<8 | int(b[2])<<16 | int(b[3])<<24 }
+	case "MM":
+		u16 = func(b []byte) int { return int(b[0])<<8 | int(b[1]) }
+		u32 = func(b []byte) int { return int(b[0])<<24 | int(b[1])<<16 | int(b[2])<<8 | int(b[3]) }
+	default:
+		return 1
+	}
+	off := u32(t[4:8])
+	if off < 8 || off+2 > len(t) {
+		return 1
+	}
+	count := u16(t[off : off+2])
+	for k := 0; k < count; k++ {
+		e := off + 2 + 12*k
+		if e+12 > len(t) {
+			return 1
+		}
+		if u16(t[e:e+2]) == 0x0112 {
+			if v := u16(t[e+8 : e+10]); v >= 1 && v <= 8 {
+				return v
+			}
+			return 1
+		}
+	}
+	return 1
+}
+
+// orientRGBA returns src turned upright for an EXIF orientation (2-8 flip and/or rotate;
+// 1 and anything else is returned as is).
+func orientRGBA(src *image.RGBA, orient int) *image.RGBA {
+	if orient < 2 || orient > 8 {
+		return src
+	}
+	w, h := src.Bounds().Dx(), src.Bounds().Dy()
+	dw, dh := w, h
+	if orient >= 5 {
+		dw, dh = h, w
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, dw, dh))
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			var dx, dy int
+			switch orient {
+			case 2:
+				dx, dy = w-1-x, y
+			case 3:
+				dx, dy = w-1-x, h-1-y
+			case 4:
+				dx, dy = x, h-1-y
+			case 5:
+				dx, dy = y, x
+			case 6:
+				dx, dy = h-1-y, x
+			case 7:
+				dx, dy = h-1-y, w-1-x
+			case 8:
+				dx, dy = y, w-1-x
+			}
+			si := y*src.Stride + x*4
+			di := dy*dst.Stride + dx*4
+			copy(dst.Pix[di:di+4], src.Pix[si:si+4])
+		}
+	}
+	return dst
 }

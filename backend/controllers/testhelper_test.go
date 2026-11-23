@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
 	"github.com/Cawlumm/lyftr-backend/config"
@@ -49,7 +50,9 @@ func setupTestDB(t *testing.T) {
 	if err = applySchema(); err != nil {
 		t.Fatalf("apply schema: %v", err)
 	}
-	th = NewHandler(stores.New(db.DB))
+	st := stores.New(db.DB)
+	st.Photos.SetDir(filepath.Join(t.TempDir(), "exercise-photos"))
+	th = NewHandler(st)
 	t.Cleanup(func() { db.DB.Close() })
 }
 

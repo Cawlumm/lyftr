@@ -15,6 +15,7 @@
 // The *lookup rule* over those tables is identical on both sides, so it lives here.
 
 import { i18n } from '../i18n'
+import customTaxonomy from './customExerciseTaxonomy.json'
 import type { ExerciseCacheStatus } from '../types'
 import { formatInstant } from './dateUtils'
 import type { FilterGroup } from './filters'
@@ -95,6 +96,23 @@ export const EXERCISE_FILTER_EQUIPMENT = [
   'body-only', 'barbell', 'dumbbell', 'machine', 'cable', 'kettlebells', 'bands',
 ] as const
 
+// What the custom-exercise form offers and the server accepts: the values open-exercise-db
+// uses, minus equipment "none", which body-only already says. One list for both sides:
+// backend/stores/taxonomy_test.go reads the same JSON.
+export const CUSTOM_EXERCISE_MUSCLES: readonly string[] = customTaxonomy.muscles
+export const CUSTOM_EXERCISE_EQUIPMENT: readonly string[] = customTaxonomy.equipment
+export const CUSTOM_EXERCISE_CATEGORIES: readonly string[] = customTaxonomy.categories
+
+// A search typed in lowercase becomes the name of the exercise created from it: each word gets
+// a capital first letter. A word that already holds a capital ("RDL", "McGill") is the user's
+// own spelling and is left alone. Only for pre-filling; what is typed into the name field
+// afterwards is never touched.
+export function exerciseNameFromQuery(query: string): string {
+  return query.trim().split(/(\s+)/).map((w) =>
+    /\s/.test(w) || /\p{Lu}/u.test(w) ? w : w.charAt(0).toLocaleUpperCase() + w.slice(1),
+  ).join('')
+}
+
 export interface ExerciseBrowseFilters {
   query: string
   muscle: string | null
@@ -119,16 +137,20 @@ export const EXERCISE_PAGE_SIZE = 50
 // How long typing pauses before an exercise search goes to the server.
 export const EXERCISE_SEARCH_DEBOUNCE_MS = 250
 
-// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
-// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
+// "lower back" -> "Lower Back": a muscle read as a name (a chip, a filter option), not as the
+// lowercase slug the catalog screens show in running text.
+export const titleCase = (s: string): string => s.replace(/-/g, ' ').replace(/(^|\s)(\p{L})/gu, (_, sp: string, c: string) => sp + c.toLocaleUpperCase())
+
+export const muscleChipLabel = (m: string): string => titleCase(muscleLabel(m))
+
 // The browser's filters as a generic FilterGroup list, labelled in the active language. Built
 // per render rather than held as a constant, since the labels change with the language.
-export function exerciseFilterGroups(): FilterGroup[] {
-  return [
+export function exerciseFilterGroups(opts: { includeMine?: boolean } = {}): FilterGroup[] {
+  const groups: FilterGroup[] = [
     {
       key: 'muscle',
       label: i18n.t('exercises.browse.muscle'),
-      options: EXERCISE_FILTER_MUSCLES.map((value) => ({ value, label: muscleLabel(value) })),
+      options: EXERCISE_FILTER_MUSCLES.map((value) => ({ value, label: muscleChipLabel(value) })),
     },
     {
       key: 'equipment',
@@ -136,8 +158,19 @@ export function exerciseFilterGroups(): FilterGroup[] {
       options: EXERCISE_FILTER_EQUIPMENT.map((value) => ({ value, label: equipmentLabel(value) })),
     },
   ]
+  // Offered only to someone who has created an exercise: for everyone else it filters to nothing.
+  if (opts.includeMine) {
+    groups.push({
+      key: 'show',
+      label: i18n.t('exercises.custom.filterShow'),
+      options: [{ value: 'mine', label: i18n.t('exercises.custom.mineOption') }],
+    })
+  }
+  return groups
 }
 
+// Whether an exercise's equipment is worth printing next to its name. `other` and `none` are
+// the catalogue's way of saying nothing, and a row that reads "Chest · None" is noise.
 export function hasEquipmentToShow(raw: string | undefined | null): boolean {
   const slug = slugOf(raw)
   return slug !== '' && slug !== 'other' && slug !== 'none'
@@ -191,4 +224,33 @@ export function resolveMuscleSlugs(m: string, table: Record<string, string[]>): 
     if (key.includes(k) || k.includes(key)) return v
   }
   return []
+}
+
+// Each non-empty line is one step. A leading "1." or "1)" is dropped: the catalog writes its steps
+// that way, a person typing their own may or may not, and the list numbers them all the same.
+// Mirrors stores.StepsFromText on the server.
+export function instructionSteps(text: string | undefined | null): string[] {
+  return (text ?? '')
+    .split('\n')
+    .map((line) => line.trim().replace(/^\d+[.)](\s+|$)/, '').trim())
+    .filter(Boolean)
+}
+
+// A custom exercise's instructions as the user typed them: one entry per non-blank line, trimmed,
+// any numbering they wrote kept. Mirrors models.TextLines on the server.
+export function textLines(text: string | undefined | null): string[] {
+  return (text ?? '').split(/\r\n|\r|\n/).map((line) => line.trim()).filter(Boolean)
+}
+
+// The lines back as one text, as typed: what a custom exercise's `description` holds.
+export function linesToText(lines: readonly string[]): string {
+  return lines.join('\n')
+}
+
+// The instructions to show for an exercise: the server's list when it sent one (even an empty one),
+// else the description, for a server older than the list (a custom one's lines as typed, a catalog
+// one's numbered steps parsed).
+export function exerciseSteps(e: { instructions?: string[] | null; description?: string | null; is_custom?: boolean }): string[] {
+  if (e.instructions) return e.instructions
+  return e.is_custom ? textLines(e.description) : instructionSteps(e.description)
 }

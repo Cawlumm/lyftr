@@ -27,6 +27,8 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
 
   const durationMin = Math.round(workout.duration / 60)
+  const first = workout.exercises?.[0]
+  const firstPhoto = first ? { exerciseId: first.exercise_id, photoId: first.exercise?.photo_id } : undefined
   // The meta line has ~3 items competing for one row next to the trash/chevron
   // gutter — compact big volumes ("18.7k") so nothing truncates or wraps.
   const compact = (n: number) =>
@@ -56,7 +58,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
 
   const body = (
     <>
-      <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} />
+      <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} photo={firstPhoto} />
       <View className="flex-1">
         <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
         {/* Two balanced meta lines instead of one overloaded row: date + duration,
@@ -160,7 +162,7 @@ export function WorkoutCard({ workout, unit, onPress, onDeleted }: Props) {
         // so the sheet isn't a bare pair of buttons.
         header={
           <View className="flex-row items-center gap-3">
-            <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} size="hero" />
+            <ExerciseImage url={workout.exercises?.[0]?.exercise?.image_url} photo={firstPhoto} size="hero" />
             <View className="flex-1">
               <AppText variant="subheading" numberOfLines={1}>{workout.name}</AppText>
               <AppText variant="caption" color="muted" numberOfLines={1} className="mt-0.5">

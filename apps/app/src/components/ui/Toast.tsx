@@ -8,6 +8,7 @@ import { useTheme } from '../../theme/useTheme'
 import { useMotion } from '../../lib/useMotion'
 import { DURATION } from '../../theme/motion'
 import { AppText } from './Typography'
+import { interactive, TOUCH_MIN } from './interaction'
 
 export type ToastVariant = 'default' | 'success' | 'brand' | 'warning' | 'error'
 
@@ -19,7 +20,10 @@ interface Props {
   /** When set, the body is tappable (a chevron affordance is shown). */
   onPress?: () => void
   onDismiss: () => void
-  /** Auto-dismiss delay; pass 0 to keep it until dismissed. Default 4s. */
+  /** One text action beside the close button (e.g. Undo). Pressing it also dismisses the toast. */
+  action?: { label: string; onPress: () => void }
+  /** Auto-dismiss delay; pass 0 to keep it until dismissed. Default 4s, 10s with an action so
+   *  there is time to reach it. */
   autoDismissMs?: number
   /** Extra classes on the absolute wrapper (e.g. to raise the dock point). */
   className?: string
@@ -46,7 +50,8 @@ export function Toast({
   variant = 'default',
   onPress,
   onDismiss,
-  autoDismissMs = 4000,
+  action,
+  autoDismissMs = action ? 10000 : 4000,
   className = '',
 }: Props) {
   const { t } = useTranslation()
@@ -81,7 +86,7 @@ export function Toast({
         </View>
       )}
       <View className="flex-1">
-        <AppText variant="subheading">{title}</AppText>
+        <AppText variant="subheading" numberOfLines={2}>{title}</AppText>
         {description ? (
           <AppText variant="caption" color="muted" numberOfLines={1}>
             {description}
@@ -107,12 +112,22 @@ export function Toast({
         ) : (
           <View className="flex-row items-center gap-3 flex-1">{body}</View>
         )}
+        {action ? (
+          <Pressable
+            onPress={() => { action.onPress(); onDismiss() }}
+            accessibilityRole="button"
+            style={{ minHeight: TOUCH_MIN }}
+            className={`shrink-0 justify-center rounded-lg px-3 active:opacity-60 ${interactive('hover:bg-surface-muted')}`}
+          >
+            <AppText variant="bodySemibold" style={{ color: accent }}>{action.label}</AppText>
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onDismiss}
           accessibilityRole="button"
           accessibilityLabel={t('common.dismiss')}
           hitSlop={8}
-          className="p-1.5 -m-1.5 active:opacity-60"
+          className="shrink-0 p-1.5 -m-1.5 active:opacity-60"
         >
           <X size={16} color={colors.txMuted} />
         </Pressable>

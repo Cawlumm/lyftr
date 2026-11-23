@@ -1,0 +1,185 @@
+import { createContext, type ComponentProps, useContext, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
+import { router, usePreventRemove, type Href } from 'expo-router'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useAsyncAction, useTranslation } from '@lyftr/shared'
+import { ArrowLeft, Trash2 } from './icons'
+import { Alert } from './Alert'
+import { Field } from './Field'
+import { AppText } from './Typography'
+import { Button } from './Button'
+import { ConfirmSheet } from './ConfirmSheet'
+import { ContentColumn } from './ContentColumn'
+import { IconButton } from './IconButton'
+import { KEYBOARD_DONE_ID, KeyboardDoneAccessory } from './KeyboardDoneAccessory'
+import { useBreakpoint } from '../../lib/useBreakpoint'
+import { useSessionPillInset } from '../workouts/SessionPill'
+
+const KeyboardIdContext = createContext(KEYBOARD_DONE_ID)
+
+// The id of the Done bar this page mounts, for its inputs' `inputAccessoryViewID`. Each page has
+// its own, so a page left mounted under this one cannot answer for its fields.
+export const useFormKeyboardId = () => useContext(KeyboardIdContext)
+
+// The unsaved-changes guard. While `dirty`, anything that would leave the screen (the back arrow,
+// the system back, a browser Back) stops at a "Discard changes?" sheet. A save that navigates
+// away itself calls `allowLeave()` first, or it would be stopped by its own page.
+export function useDiscardGuard(dirty: boolean) {
+  const [open, setOpen] = useState(false)
+  // Once the page is on its way out the guard also comes off for the render after, as
+  // usePreventRemove expects; disabling it alone left it "still true" (a warning on every save).
+  const [leaving, setLeaving] = useState(false)
+  const repeatRef = useRef<(() => void) | null>(null)
+  const disable = usePreventRemove(dirty && !leaving, ({ repeat }) => { repeatRef.current = repeat; setOpen(true) })
+  const allowLeave = () => { setLeaving(true); disable() }
+  return {
+    open,
+    allowLeave,
+    stay: () => setOpen(false),
+    discard: () => { setOpen(false); allowLeave(); repeatRef.current?.() },
+  }
+}
+// A `Field` whose iOS Done bar is the one this page mounts.
+export function FormField(props: ComponentProps<typeof Field>) {
+  return <Field inputAccessoryViewID={useFormKeyboardId()} {...props} />
+}
+
+export type DiscardGuard = ReturnType<typeof useDiscardGuard>
+
+interface Props {
+  title: string
+  subtitle?: ReactNode
+  /** Where Back goes; defaults to history back, or `fallback` when there is none. */
+  onBack?: () => void
+  fallback?: Href
+  guard?: DiscardGuard
+  primary: { label: string; onPress: () => void; busy?: boolean; disabled?: boolean }
+  /** Beside the primary (Cancel). It leaves through the same Back, so the discard guard covers it. */
+  secondary?: { label: string; onPress: () => void }
+  /** Replaces the primary button when the page needs another pair of actions after a save. */
+  footer?: ReactNode
+  /** What the last action said, shown above the button it came from. */
+  error?: string | null
+  onRetry?: () => void
+  destructive?: { label: string; confirmTitle: string; confirmMessage: string; confirmLabel: string; onConfirm: () => Promise<void> | void; failedMessage: string }
+  scrollRef?: RefObject<ScrollViewInstance | null>
+  children: ReactNode
+}
+
+// The page every full-screen form is built from: header with Back, a scroll that gives way to the
+// keyboard, and a footer pinned above it holding the one primary action and whatever it just said.
+export function FormPage({
+  title, subtitle, onBack, fallback, guard, primary, secondary, footer, error, onRetry, destructive, scrollRef, children,
+}: Props) {
+  const { t } = useTranslation()
+  const { lg } = useBreakpoint()
+  const wide = Platform.OS === 'web' && lg
+  const pillInset = useSessionPillInset()
+  const insets = useSafeAreaInsets()
+  const [keyboardUp, setKeyboardUp] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const keyboardId = `form-done-${useId()}`
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardUp(true))
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardUp(false))
+    return () => { show.remove(); hide.remove() }
+  }, [])
+
+  const back = () => {
+    if (onBack) onBack()
+    else if (router.canGoBack()) router.back()
+    else if (fallback) router.replace(fallback)
+  }
+
+  const remove = useAsyncAction(async () => {
+    await destructive?.onConfirm()
+    setConfirmOpen(false)
+  }, destructive?.failedMessage ?? '')
+
+  return (
+    <KeyboardIdContext.Provider value={keyboardId}>
+    <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
+      <ContentColumn role={Platform.OS === 'web' ? 'main' : undefined} maxWidth="medium">
+        {/* KeyboardAvoidingView measures itself from its parent, not the screen. On edge-to-edge Android
+            that parent starts under the status bar, so without the offset the action bar ends up a
+            status bar's height behind the keyboard (measured on Android 16). */}
+        <KeyboardAvoidingView className="flex-1" behavior={Platform.OS === 'web' ? undefined : 'padding'} keyboardVerticalOffset={Platform.OS === 'android' ? insets.top : 0}>
+          <ScrollView
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            contentContainerStyle={{ paddingBottom: 16 }}
+          >
+            {/* A tap on space that is not a control puts the keyboard away without a wrapper here:
+                keyboardShouldPersistTaps="handled" makes the ScrollView itself dismiss it for a tap no
+                child handled. A Pressable around the content became one TalkBack focus target. */}
+            <View className="gap-4 py-4">
+              <View className="flex-row items-center gap-3">
+                <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={back} />
+                <View className="flex-1">
+                  <AppText variant="title" headingLevel={1}>{title}</AppText>
+                  {subtitle}
+                </View>
+              </View>
+              {children}
+              {destructive ? (
+                <Button variant="danger" title={destructive.label} onPress={() => setConfirmOpen(true)} />
+              ) : null}
+            </View>
+          </ScrollView>
+
+          <View className={`gap-3 border-t border-surface-border bg-surface-base pb-2 pt-3 ${wide ? '' : '-mx-5 px-5'}`} style={{ marginBottom: keyboardUp ? 0 : pillInset }}>
+            {error ? (
+              <Alert variant="error" size="compact">{error}</Alert>
+            ) : null}
+            {footer ?? (
+              <View className={wide ? 'flex-row justify-end gap-3' : 'flex-row gap-3'}>
+                {secondary ? <Button className={wide ? 'min-w-32' : 'flex-1'} variant="secondary" title={secondary.label} onPress={secondary.onPress} disabled={primary.busy} /> : null}
+                {error && onRetry ? <Button className={wide ? 'min-w-32' : 'flex-1'} variant="secondary" title={t('common.tryAgain')} onPress={onRetry} /> : null}
+                <Button
+                  className={wide ? 'min-w-40' : 'flex-1'}
+                  title={primary.label}
+                  onPress={primary.onPress}
+                  loading={primary.busy}
+                  disabled={primary.disabled}
+                />
+              </View>
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </ContentColumn>
+
+      {destructive ? (
+        <ConfirmSheet
+          open={confirmOpen}
+          icon={Trash2}
+          destructive
+          title={destructive.confirmTitle}
+          message={destructive.confirmMessage}
+          confirmLabel={destructive.confirmLabel}
+          busy={remove.busy}
+          error={remove.error ?? undefined}
+          onConfirm={() => { void remove.run() }}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      ) : null}
+      {guard ? (
+        <ConfirmSheet
+          open={guard.open}
+          destructive
+          title={t('common.discardTitle')}
+          message={t('common.discardMessage')}
+          confirmLabel={t('common.discardConfirm')}
+          cancelLabel={t('common.keepEditing')}
+          onConfirm={guard.discard}
+          onCancel={guard.stay}
+        />
+      ) : null}
+      <KeyboardDoneAccessory nativeID={keyboardId} />
+    </SafeAreaView>
+    </KeyboardIdContext.Provider>
+  )
+}

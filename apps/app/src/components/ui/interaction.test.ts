@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs'
 import { join } from 'path'
-import { interactive } from './interaction'
+import { Platform } from 'react-native'
+import { interactive, webToggle } from './interaction'
 
 const css = readFileSync(join(__dirname, '../../../global.css'), 'utf8')
 
@@ -40,5 +41,32 @@ describe.each([':root', '.dark:root'])('focus ring in %s', (selector) => {
 describe('interactive', () => {
   it('adds nothing on native, which keeps its own press feedback', () => {
     expect(interactive('hover:bg-surface-muted')).toBe('')
+  })
+})
+
+describe('webToggle', () => {
+  const setOS = (os: string) => Object.defineProperty(Platform, 'OS', { configurable: true, get: () => os })
+  const original = Platform.OS
+  afterEach(() => setOS(original))
+
+  it('adds nothing on native, which reads accessibilityState', () => {
+    setOS('ios')
+    expect(webToggle(true, jest.fn())).toEqual({})
+  })
+
+  // react-native-web presses on Space only for role button, so a radio or checkbox chip
+  // ignored the key that toggles it.
+  it('on web sets aria-checked and presses on Space, not on other keys', () => {
+    setOS('web')
+    const onPress = jest.fn()
+    const props = webToggle(false, onPress) as { 'aria-checked': boolean; onKeyDown: (e: { key: string; preventDefault: () => void }) => void }
+    expect(props['aria-checked']).toBe(false)
+
+    const preventDefault = jest.fn()
+    props.onKeyDown({ key: 'Enter', preventDefault })
+    expect(onPress).not.toHaveBeenCalled()
+    props.onKeyDown({ key: ' ', preventDefault })
+    expect(onPress).toHaveBeenCalledTimes(1)
+    expect(preventDefault).toHaveBeenCalledTimes(1)
   })
 })

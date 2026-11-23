@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { AlertCircle, ArrowLeft, BookOpen, CalendarDays, FileText } from '../../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, displayToLbs, hasWorkoutExercises, lbsToDisplay, weightShort, uiMessage, useTranslation, type Exercise, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
-import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
+import { AppText, Button, ErrorState, Field, IconButton, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { KeyboardDoneAccessory } from '../../../../src/components/ui/KeyboardDoneAccessory'
 import { ProgramDaysEditor } from '../../../../src/components/programs/ProgramDaysEditor'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../../src/lib/useMotion'
 import { useTheme } from '../../../../src/theme/useTheme'
 import type { DayDraft } from '../../../../src/components/programs/types'
+import { FieldHeader, RequiredLegend } from '../../../../src/components/ui/FieldHeader'
 
 interface ProgramFormData {
   name: string
@@ -21,15 +21,6 @@ interface ProgramFormData {
 
 const KEYPAD_DONE_ID = 'program-edit-keypad-done'
 
-function FieldHeader({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2.5 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-    </View>
-  )
-}
 
 export default function EditProgram() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -194,6 +185,8 @@ export default function EditProgram() {
             </View>
           </View>
 
+          <RequiredLegend />
+
           {error || save.error ? (
             <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
@@ -202,10 +195,11 @@ export default function EditProgram() {
           ) : null}
 
           <View>
-            <FieldHeader icon={BookOpen} label={t('programs.form.name')} />
+            <FieldHeader icon={BookOpen} label={t('programs.form.name')} requiredInput />
             <Field
               // The header above is not tied to the input in the DOM, so web names it here.
               accessibilityLabel={Platform.OS === 'web' ? t('programs.form.name') : undefined}
+              required
               value={formData.name}
               onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
             />
@@ -223,11 +217,7 @@ export default function EditProgram() {
           </View>
 
           <View>
-            <View className="mb-3 flex-row items-center gap-2">
-              <CalendarDays size={14} color={brand.cyan} strokeWidth={2.2} />
-              <Label>{t('programs.form.days')}</Label>
-              <AppText variant="caption" color="muted">{t('programs.form.daysHintEdit')}</AppText>
-            </View>
+            <FieldHeader icon={CalendarDays} label={t('programs.form.days')} required hint={t('programs.form.daysHint')} />
             <ProgramDaysEditor
               days={formData.days}
               onChange={(days) => setFormData((prev) => ({ ...prev, days }))}
@@ -246,7 +236,7 @@ export default function EditProgram() {
         <Button title={t('common.saveChanges')} className={wide ? 'min-w-40' : 'flex-1'} onPress={handleSubmit} loading={save.busy} />
       </View>
 
-      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+      <KeyboardDoneAccessory nativeID={KEYPAD_DONE_ID} />
     </Screen>
   )
 }

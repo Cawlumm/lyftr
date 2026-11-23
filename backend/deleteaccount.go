@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/Cawlumm/lyftr-backend/config"
@@ -47,6 +48,7 @@ func runDeleteAccount(args []string) int {
 	db.Connect()
 
 	s := stores.New(db.DB)
+	s.Photos.SetDir(filepath.Join(filepath.Dir(config.C.DBPath), "exercise-photos"))
 	u, spellings, err := s.User.GetByExactEmail(email)
 	switch {
 	case errors.Is(err, stores.ErrNoSuchUser):
@@ -77,7 +79,8 @@ func runDeleteAccount(args []string) int {
 	fmt.Printf("  %-16s %d\n", "programs", d.Programs)
 	fmt.Printf("  %-16s %d\n", "saved foods", d.SavedFoods)
 	fmt.Printf("  %-16s %d\n", "active sessions", d.ActiveSessions)
-	fmt.Println("This cannot be undone. Exercises are shared and are not affected.")
+	fmt.Printf("  %-16s %d\n", "custom exercises", d.CustomExercises)
+	fmt.Println("This cannot be undone. Catalog exercises are shared and are not affected.")
 
 	if n, err := s.User.Count(); err == nil && n == 1 {
 		switch config.C.Registration {

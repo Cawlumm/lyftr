@@ -24,6 +24,7 @@ import (
 // sync endpoint.
 type ExerciseStore struct {
 	db      *sql.DB
+	photos  *PhotoFiles
 	catalog *oedb.Client
 	// snapshot, when set, is read before the API at the start of a catalog pass.
 	snapshot *oedb.Snapshot
@@ -54,6 +55,10 @@ type ExerciseFilter struct {
 	// Page is 1-based; zero and one both mean the first page. Paging is what lets
 	// the pickers stop downloading the catalog to filter it in the browser.
 	Page int
+	// UserID is the caller. Mine narrows the list to their own non-archived custom
+	// exercises; without it a list is the catalog alone.
+	UserID int64
+	Mine   bool
 }
 
 // offset converts the 1-based page into a SQL offset.
@@ -109,10 +114,12 @@ func BaseLanguage(locale string) string {
 // Which text an exercise shows is decided here and nowhere else: the reader's
 // locale, then its base language, then the English base row, field by field. Every
 // read that returns exercise text joins through translationJoin and selects
-// localizedName / localizedDescription.
+// localizedName / localizedDescription / localizedInstructions.
 const (
 	localizedName        = `COALESCE(NULLIF(tr.name, ''), e.name)`
 	localizedDescription = `COALESCE(NULLIF(tr.description, ''), e.description)`
+	// The translated list wins only when the translation has steps; '[]' is its "not served".
+	localizedInstructions = `COALESCE(NULLIF(tr.instructions, '[]'), e.instructions)`
 )
 
 // translationJoin returns a LEFT JOIN, aliased tr, onto the single best translation
@@ -131,19 +138,28 @@ func translationJoin(locale string) (string, []any) {
 func exerciseSelect(locale string) (string, []any) {
 	join, args := translationJoin(locale)
 	return `SELECT e.id, ` + localizedName + `, e.muscle_group, e.secondary_muscles, e.category, e.equipment, ` +
-		localizedDescription + `, e.image_url FROM exercises e` + join, args
+		localizedDescription + `, ` + localizedInstructions + `, e.image_url, e.owner_user_id IS NOT NULL, e.archived_at IS NOT NULL, e.merged_into_id, COALESCE(e.photo_id, '') FROM exercises e` + join, args
 }
 
 type scanner interface{ Scan(dest ...any) error }
 
 func scanExercise(row scanner, e *models.Exercise) error {
-	var secondaryRaw string
-	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &e.ImageURL); err != nil {
+	var secondaryRaw, instructionsRaw string
+	var merged sql.NullInt64
+	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &instructionsRaw, &e.ImageURL,
+		&e.IsCustom, &e.Archived, &merged, &e.PhotoID); err != nil {
 		return err
+	}
+	if merged.Valid {
+		e.MergedIntoID = &merged.Int64
 	}
 	json.Unmarshal([]byte(secondaryRaw), &e.SecondaryMuscles)
 	if e.SecondaryMuscles == nil {
 		e.SecondaryMuscles = []string{}
+	}
+	json.Unmarshal([]byte(instructionsRaw), &e.Instructions)
+	if e.Instructions == nil {
+		e.Instructions = []string{}
 	}
 	return nil
 }
@@ -152,6 +168,12 @@ func (s *ExerciseStore) List(f ExerciseFilter) ([]models.Exercise, error) {
 	locale := NormalizeLocale(f.Locale)
 	sel, args := exerciseSelect(locale)
 	q := sel + ` WHERE e.upstream_missing_at IS NULL`
+	if f.Mine {
+		q += " AND e.owner_user_id = ? AND e.archived_at IS NULL"
+		args = append(args, f.UserID)
+	} else {
+		q += " AND e.owner_user_id IS NULL"
+	}
 	if f.Query != "" {
 		like := "%" + f.Query + "%"
 		q += " AND (e.name LIKE ? OR EXISTS (SELECT 1 FROM exercise_translations t WHERE t.exercise_id = e.id AND t.locale IN (?, ?) AND t.name LIKE ?))"
@@ -188,11 +210,12 @@ func (s *ExerciseStore) List(f ExerciseFilter) ([]models.Exercise, error) {
 	return exercises, rows.Err()
 }
 
-// Get returns one exercise, or sql.ErrNoRows if not found.
-func (s *ExerciseStore) Get(id int64, locale string) (models.Exercise, error) {
+// Get returns one exercise, or sql.ErrNoRows if not found or if it is another user's
+// custom exercise.
+func (s *ExerciseStore) Get(id int64, locale string, userID int64) (models.Exercise, error) {
 	var e models.Exercise
 	sel, args := exerciseSelect(locale)
-	if err := scanExercise(s.db.QueryRow(sel+` WHERE e.id = ?`, append(args, id)...), &e); err != nil {
+	if err := scanExercise(s.db.QueryRow(sel+` WHERE e.id = ? AND (e.owner_user_id IS NULL OR e.owner_user_id = ?)`, append(args, id, userID)...), &e); err != nil {
 		return models.Exercise{}, err
 	}
 	return e, nil
@@ -200,7 +223,7 @@ func (s *ExerciseStore) Get(id int64, locale string) (models.Exercise, error) {
 
 func (s *ExerciseStore) Count() (int, error) {
 	var n int
-	err := s.db.QueryRow(`SELECT COUNT(*) FROM exercises`).Scan(&n)
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM exercises WHERE owner_user_id IS NULL`).Scan(&n)
 	return n, err
 }
 
@@ -249,7 +272,8 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	byOedbID, err := tx.Prepare(`
 		UPDATE exercises SET
 		  name = COALESCE(?, name), muscle_group = ?, secondary_muscles = ?, category = ?,
-		  equipment = ?, description = COALESCE(?, description), image_url = ?, slug = ?,
+		  equipment = ?, description = COALESCE(?, description), instructions = COALESCE(?, instructions),
+		  image_url = ?, slug = ?,
 		  upstream_missing_at = NULL
 		WHERE oedb_id = ?`)
 	if err != nil {
@@ -258,14 +282,15 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	defer byOedbID.Close()
 
 	byName, err := tx.Prepare(`
-		INSERT INTO exercises (name, muscle_group, secondary_muscles, category, equipment, description, image_url, oedb_id, slug)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT(name) DO UPDATE SET
+		INSERT INTO exercises (name, muscle_group, secondary_muscles, category, equipment, description, instructions, image_url, oedb_id, slug)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(name) WHERE owner_user_id IS NULL DO UPDATE SET
 		  muscle_group      = excluded.muscle_group,
 		  secondary_muscles = excluded.secondary_muscles,
 		  category          = excluded.category,
 		  equipment         = excluded.equipment,
 		  description       = COALESCE(?, description),
+		  instructions      = COALESCE(?, instructions),
 		  image_url         = excluded.image_url,
 		  oedb_id           = excluded.oedb_id,
 		  slug              = excluded.slug,
@@ -292,17 +317,22 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 		descEN := servedInEnglish(it.Translation.InstructionsLocale)
 		// nil leaves the base column alone: a field served in another language is
 		// not the English text this column holds.
-		var nameEnglish, descEnglish any
+		stepsJSON, err := json.Marshal(it.Steps())
+		if err != nil {
+			return nil, err
+		}
+		var nameEnglish, descEnglish, stepsEnglish any
 		if nameEN {
 			nameEnglish = name
 		}
 		if descEN {
 			descEnglish = desc
+			stepsEnglish = string(stepsJSON)
 		}
 
 		args := []any{
 			nameEnglish, it.MuscleGroup, string(secondaryJSON), it.Category,
-			it.Equipment, descEnglish, it.ImageURL(imageBase), it.Slug, it.ID,
+			it.Equipment, descEnglish, stepsEnglish, it.ImageURL(imageBase), it.Slug, it.ID,
 		}
 		res, err := byOedbID.Exec(args...)
 		if utils.IsUniqueViolation(err) {
@@ -330,14 +360,14 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 				log.Printf("exercises: skipping upstream %s: no English base row for its %q translation", it.ID, locale)
 				continue
 			}
-			baseDesc := ""
+			baseDesc, baseSteps := "", "[]"
 			if descEN {
-				baseDesc = desc
+				baseDesc, baseSteps = desc, string(stepsJSON)
 			}
 			nameRes, err := byName.Exec(
 				name, it.MuscleGroup, string(secondaryJSON), it.Category,
-				it.Equipment, baseDesc, it.ImageURL(imageBase), it.ID, it.Slug,
-				descEnglish,
+				it.Equipment, baseDesc, baseSteps, it.ImageURL(imageBase), it.ID, it.Slug,
+				descEnglish, stepsEnglish,
 			)
 			if err != nil {
 				return nil, err
@@ -378,7 +408,7 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 
 // nameHolder reports which local row holds name, for the log line when an upstream exercise cannot take it.
 func nameHolder(tx *sql.Tx, name string) (id int64, oedbID string, err error) {
-	err = tx.QueryRow(`SELECT id, COALESCE(oedb_id, '') FROM exercises WHERE name = ?`, name).Scan(&id, &oedbID)
+	err = tx.QueryRow(`SELECT id, COALESCE(oedb_id, '') FROM exercises WHERE name = ? AND owner_user_id IS NULL`, name).Scan(&id, &oedbID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, "", nil
 	}
@@ -409,7 +439,7 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 		return nil
 	}
 
-	served, name, desc, origin := NormalizeLocale(it.Translation.NameLocale), "", "", "human"
+	served, name, desc, steps, origin := NormalizeLocale(it.Translation.NameLocale), "", "", "[]", "human"
 	if nameEN {
 		served = NormalizeLocale(it.Translation.InstructionsLocale)
 	} else {
@@ -420,16 +450,22 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 	}
 	if !descEN {
 		desc = it.Description()
+		raw, err := json.Marshal(it.Steps())
+		if err != nil {
+			return err
+		}
+		steps = string(raw)
 		if it.Translation.InstructionsMachineOrigin {
 			origin = "machine"
 		}
 	}
 	_, err := tx.Exec(
-		`INSERT INTO exercise_translations (exercise_id, locale, name, description, origin)
-		 VALUES (?, ?, ?, ?, ?)
+		`INSERT INTO exercise_translations (exercise_id, locale, name, description, instructions, origin)
+		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(exercise_id, locale) DO UPDATE SET
-		   name = excluded.name, description = excluded.description, origin = excluded.origin`,
-		exerciseID, served, name, desc, origin,
+		   name = excluded.name, description = excluded.description,
+		   instructions = excluded.instructions, origin = excluded.origin`,
+		exerciseID, served, name, desc, steps, origin,
 	)
 	return err
 }
@@ -493,6 +529,9 @@ func (s *ExerciseStore) searchFailed(ctx context.Context, err error) {
 // exercise this instance has shown before — which, for an established install,
 // is most of the ones its users search for.
 func (s *ExerciseStore) Search(ctx context.Context, f ExerciseFilter) ([]models.Exercise, error) {
+	if f.Mine {
+		return s.List(f)
+	}
 	if s.catalog == nil {
 		return s.List(f)
 	}

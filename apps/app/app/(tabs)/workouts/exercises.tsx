@@ -8,12 +8,12 @@ import { ExerciseBrowser } from '../../../src/components/workouts/ExerciseBrowse
 // The old /exercises?q=&muscle=&equipment= links arrive here through a redirect, so the query
 // seeds the filters. In-app navigation passes none, which parses to the empty filters.
 export default function WorkoutsExercises() {
-  const params = useLocalSearchParams<{ q?: string; muscle?: string; equipment?: string }>()
+  const params = useLocalSearchParams<{ q?: string; muscle?: string; equipment?: string; show?: string }>()
   const first = (v?: string | string[]) => (Array.isArray(v) ? v[0] : v)
   return (
     <ExerciseBrowser
       initialQuery={first(params.q)?.trim() ?? ''}
-      initialFilters={parseFilters(exerciseFilterGroups(), (key) => first(params[key as keyof typeof params]) ?? null)}
+      initialFilters={parseFilters(exerciseFilterGroups({ includeMine: true }), (key) => first(params[key as keyof typeof params]) ?? null)}
     />
   )
 }

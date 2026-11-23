@@ -4,9 +4,9 @@ import { router, useLocalSearchParams } from 'expo-router'
 import {
   AlertCircle, ArrowLeft, CalendarDays, Clock, Dumbbell, FileText, Plus, Zap,
 } from '../../../../src/components/ui/icons'
-import type { LucideIcon } from '../../../../src/components/ui/icons'
 import { useAsyncAction, moveItem, normaliseSupersets, occurrenceKeys, dayToInstant, displayToLbs, lbsToDisplay, weightShort, type Exercise, workoutDay, uiMessage, useTranslation, type UiMessage } from '@lyftr/shared'
-import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Label, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { AppText, Button, DateInput, EmptyState, ErrorState, Field, IconButton, Loading, Screen, scrollBleed } from '../../../../src/components/ui'
+import { FieldHeader, FieldTitle, RequiredLegend } from '../../../../src/components/ui/FieldHeader'
 import { TOUCH_MIN, interactive, touchTarget } from '../../../../src/components/ui/interaction'
 
 // Wider than 44 and 32 tall, so only the height is padded.
@@ -15,7 +15,7 @@ import { ExerciseFormList } from '../../../../src/components/workouts/ExerciseFo
 import { DurationField } from '../../../../src/components/workouts/DurationField'
 import { ExercisePicker } from '../../../../src/components/workouts/ExercisePicker'
 import { ReorderButton, ReorderExercisesSheet } from '../../../../src/components/workouts/ReorderExercisesSheet'
-import { KeyboardDoneBar } from '../../../../src/components/workouts/KeyboardDoneBar'
+import { KeyboardDoneAccessory } from '../../../../src/components/ui/KeyboardDoneAccessory'
 import { client, useSettingsStore } from '../../../../src/lib/lyftr'
 import { useBreakpoint } from '../../../../src/lib/useBreakpoint'
 import { useMotion } from '../../../../src/lib/useMotion'
@@ -45,18 +45,6 @@ const KEYPAD_DONE_ID = 'workout-edit-keypad-done'
 // date should only move the *day* — the original time-of-day is preserved so a
 // workout logged at 6pm doesn't jump to midnight just because the date was touched.
 
-function FieldHeader({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint?: string }) {
-  // Muted (not accent) field icons — matches new.tsx: with every header cyan the
-  // form reads busy; the accent stays reserved for the Exercises section + CTA.
-  const { colors } = useTheme()
-  return (
-    <View className="mb-2 flex-row items-center gap-2">
-      <Icon size={14} color={colors.txMuted} strokeWidth={2.2} />
-      <Label>{label}</Label>
-      {hint ? <AppText variant="caption" color="muted">{hint}</AppText> : null}
-    </View>
-  )
-}
 
 export default function EditWorkout() {
   const { t } = useTranslation()
@@ -298,6 +286,8 @@ export default function EditWorkout() {
             </View>
           </View>
 
+          <RequiredLegend />
+
           {error || save.error ? (
             <View role={Platform.OS === 'web' ? 'alert' : undefined} className="flex-row items-center gap-2 rounded-xl border border-error-500/20 bg-error-500/10 p-4">
               <AlertCircle size={16} color={isDark ? brand.errorSoft : brand.error} />
@@ -307,10 +297,11 @@ export default function EditWorkout() {
 
           <View className={wide ? 'flex-row gap-4' : 'gap-6'}>
             <View className={wide ? 'flex-1' : ''}>
-              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} />
+              <FieldHeader icon={Dumbbell} label={t('workouts.form.name')} requiredInput />
               <Field
                 // The header above is not tied to the input in the DOM, so web names it here.
                 accessibilityLabel={Platform.OS === 'web' ? t('workouts.form.name') : undefined}
+                required
                 value={formData.name}
                 onChangeText={(text) => setFormData((prev) => ({ ...prev, name: text }))}
               />
@@ -355,8 +346,7 @@ export default function EditWorkout() {
                 the buttons drop to their own row, still on the right. */}
             <View className="mb-3 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2.5">
               <View className="flex-row items-center gap-2">
-                <Zap size={14} color={accent} strokeWidth={2.2} />
-                <Label>{t('workouts.form.exercises')}</Label>
+                <FieldTitle icon={Zap} label={t('workouts.form.exercises')} required />
               </View>
               <View className="ml-auto flex-row items-center gap-2">
                 {formData.exercises.length > 1 ? <ReorderButton onPress={openReorder} size="compact" /> : null}
@@ -428,7 +418,7 @@ export default function EditWorkout() {
       </View>
 
       {/* iOS-only Done bar docked above the numeric keypads (they have no return key). */}
-      <KeyboardDoneBar nativeID={KEYPAD_DONE_ID} />
+      <KeyboardDoneAccessory nativeID={KEYPAD_DONE_ID} />
 
       {showPicker && (
         <ExercisePicker selectedIds={selectedIds} onSelect={addExercise} onClose={() => setShowPicker(false)} />

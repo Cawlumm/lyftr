@@ -12,7 +12,7 @@
     "react": "19.3.0",
     "react-test-renderer": "19.3.0"
   },
-  "//postinstall": "patch-package applies patches/*.patch to node_modules after every install, including the one EAS and CI run before a build. The one patch there today is expo-localization: see patches/README.md for what it fixes and when to delete it.",
+  "//postinstall": "patch-package applies patches/*.patch to node_modules after every install, including the one EAS and CI run before a build. patches/README.md lists each patch, what it fixes and when to delete it.",
   "scripts": {
     "postinstall": "patch-package",
     "shared:type-check": "npm run type-check -w @lyftr/shared",

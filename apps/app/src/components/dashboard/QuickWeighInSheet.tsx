@@ -4,8 +4,8 @@ import * as Haptics from 'expo-haptics'
 import { Scale, X } from '../ui/icons'
 import { useAsyncAction, dayToInstant, displayToLbs, maxWeight, todayStr, weightError, weightShort, type WeightLog, entryDay, BODYWEIGHT_STEP, clampStep, useTranslation } from '@lyftr/shared'
 import {
-  Alert, AppText, Button, DateInput, Field, NumberField, NumericKeyboardAccessory, NUMERIC_ACCESSORY_ID,
-  Sheet, StepperTile,
+  Alert, AppText, Button, DateInput, Field, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID,
+  RequiredLegend, Sheet, StepperTile,
 } from '../ui'
 import { client, useSettingsStore } from '../../lib/lyftr'
 import { useTheme } from '../../theme/useTheme'
@@ -100,6 +100,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
         </View>
 
         <View className="gap-4">
+          <RequiredLegend />
           {(error || save.error) ? (
             <Alert variant="error" size="compact">{error || save.error}</Alert>
           ) : null}
@@ -123,6 +124,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           <StepperTile
             icon={Scale}
             label={t('common.weightWithUnit', { unit: wUnit })}
+            required
             name={t('common.weightName')}
             step={BODYWEIGHT_STEP}
             onStep={(d) => setValue(String(clampStep(parseFloat(value) || 0, d, { min: 0, max: maxWeight(unit) })))}
@@ -131,9 +133,10 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
               inputMode="decimal"
               value={value}
               onChange={setValue}
+              required
               placeholder="0"
               accessibilityLabel={t('home.quickWeighIn.weight')}
-              inputAccessoryViewID={NUMERIC_ACCESSORY_ID}
+              inputAccessoryViewID={KEYBOARD_DONE_ID}
             />
           </StepperTile>
 
@@ -145,7 +148,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
             <View className="gap-3">
               <DateInput label={t('home.quickWeighIn.date')} value={date} onChange={setDate} maximumDate={new Date()} />
               <Field
-                label={t('home.quickWeighIn.noteOptional')}
+                label={t('home.quickWeighIn.note')}
                 value={notes}
                 onChangeText={setNotes}
                 placeholder={t('weight.notePlaceholder')}
@@ -162,7 +165,7 @@ export function QuickWeighInSheet({ open, lastValue, lastLog, onClose, onSuccess
           />
         </View>
       </View>
-      <NumericKeyboardAccessory />
+      <KeyboardDoneAccessory />
     </Sheet>
   )
 }

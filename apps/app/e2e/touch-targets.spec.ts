@@ -174,6 +174,7 @@ test.describe('Touch targets are at least 44x44 @mobile', () => {
   test('programs', async ({ page }) => { await check(page, '/programs') })
   test('program detail', async ({ page }) => { await check(page, `/programs/${programId}`) })
   test('program edit', async ({ page }) => { await check(page, `/programs/${programId}/edit`) })
+  test('exercise new', async ({ page }) => { await check(page, '/workouts/exercise/new') })
   test('nutrition', async ({ page }) => { await check(page, '/nutrition') })
   test('weight', async ({ page }) => { await check(page, '/weight') })
   test('settings', async ({ page }) => { await check(page, '/settings') })

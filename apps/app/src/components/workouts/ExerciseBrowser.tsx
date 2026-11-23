@@ -1,12 +1,12 @@
-import { memo, useCallback, useEffect, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { ActivityIndicator, FlatList, Platform, Pressable, View } from 'react-native'
-import { router, type Href } from 'expo-router'
+import { router, useFocusEffect, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { ArrowLeft, ChevronRight, Dumbbell, SearchX } from '../ui/icons'
+import { ArrowLeft, ChevronRight, Dumbbell, Plus, SearchX } from '../ui/icons'
 import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated'
 import {
   EXERCISE_PAGE_SIZE, EXERCISE_SEARCH_DEBOUNCE_MS,
-  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty,
+  activeFilterCount, emptyFilters, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery,
   exerciseFilterGroups, hasEquipmentToShow, setFilter, useTranslation,
   type Exercise, type FilterValues,
 } from '@lyftr/shared'
@@ -15,11 +15,19 @@ import {
   PageHeader, SearchField, Skeleton, interactive, linkProps, scrollBleed, useCardGrid,
 } from '../ui'
 import { client } from '../../lib/lyftr'
+import { useMyExercises } from '../../hooks/useMyExercises'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
-import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
+import { equipmentLabel, muscleChipLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { useSessionPillInset } from './SessionPill'
+import { CustomBadge } from './CustomBadge'
+import { ExerciseGroupHeading } from './ExerciseGroupHeading'
+import { MyExercisesRetry } from './MyExercisesRetry'
+
+// The custom group above the catalog: this many rows at most, and past it a "See all" row.
+const MY_GROUP_FETCH = 6
+const MY_GROUP_SHOWN = 5
 
 const exercisePath = (id: number) => `/workouts/exercise/${id}`
 const exerciseHref = (id: number) => exercisePath(id) as unknown as Href
@@ -45,19 +53,22 @@ function BrowseSkeleton() {
 // In the wide grid a row is a card of its own: a hairline between cells reads as nothing.
 // Memoised: a keystroke in the search box re-rendered every row (~240) before.
 const BrowseRow = memo(function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: boolean }) {
-  useTranslation() // re-renders on a language switch: the labels below come from the catalog
+  const { t } = useTranslation()
+  const label = [exercise.name, exercise.is_custom ? t('exercises.custom.badge') : null, muscleChipLabel(exercise.muscle_group), hasEquipmentToShow(exercise.equipment) ? equipmentLabel(exercise.equipment) : null].filter(Boolean).join(', ')
   const { colors } = useTheme()
   return (
     <Pressable
+      accessibilityLabel={label}
       {...linkProps(exercisePath(exercise.id), () => router.push(exerciseHref(exercise.id)))}
       className={`flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60 ${card
         ? `rounded-xl border border-surface-border bg-surface-raised motion-safe:transition-colors motion-safe:duration-[120ms] ${interactive('hover:border-brand-500/40')}`
         : interactive('hover:bg-surface-muted/60', { inset: true })}`}
     >
-      <ExerciseImage url={exercise.image_url} />
+      <ExerciseImage url={exercise.image_url} photo={{ exerciseId: exercise.id, photoId: exercise.photo_id }} />
       <View className="flex-1">
         <AppText variant="subheading" numberOfLines={1}>{exercise.name}</AppText>
         <View className="mt-0.5 flex-row flex-wrap items-center gap-1.5">
+          {exercise.is_custom ? <CustomBadge /> : null}
           <View className="rounded border border-surface-border bg-surface-muted px-1.5 py-0.5">
             <AppText variant="caption" color="muted" className="capitalize">
               {muscleLabel(exercise.muscle_group)}
@@ -97,10 +108,13 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   )
   const [query, setQuery] = useState(initialQuery)
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery)
-  const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups()))
+  const [filters, setFilters] = useState<FilterValues>(() => initialFilters ?? emptyFilters(exerciseFilterGroups({ includeMine: true })))
   const [sheetOpen, setSheetOpen] = useState(false)
-  const groups = exerciseFilterGroups()
-  const { muscle, equipment } = filters
+  // Whether the user has any custom exercise at all, whatever the search: it decides whether
+  // "Custom only" is offered in the filter sheet.
+  const anyMine = useMyExercises({}, 1)
+  const { muscle, equipment, show } = filters
+  const groups = exerciseFilterGroups({ includeMine: anyMine.supported && (anyMine.items.length > 0 || show === 'mine') })
   const count = activeFilterCount(groups, filters)
 
   useEffect(() => {
@@ -115,17 +129,24 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   // window would drop the search. Native has no URL and stays as it was.
   useEffect(() => {
     if (Platform.OS !== 'web') return
-    router.setParams({ q: query.trim() || undefined, muscle: muscle ?? undefined, equipment: equipment ?? undefined })
-  }, [query, muscle, equipment])
+    router.setParams({ q: query.trim() || undefined, muscle: muscle ?? undefined, equipment: equipment ?? undefined, show: show ?? undefined })
+  }, [query, muscle, equipment, show])
 
   const filtered = exerciseBrowseFiltered({ query: debouncedQuery, muscle, equipment })
+  const browseParams = exerciseBrowseParams({ query: debouncedQuery, muscle, equipment })
+  const my = useMyExercises(browseParams, MY_GROUP_FETCH)
+  const supported = my.supported
+  // A server without custom exercises has no mine=true; the filter can only apply if it is there.
+  const mineOn = supported && show === 'mine'
+  const mineReload = () => { my.reload(); anyMine.reload() }
 
   const fetcher = useCallback(
     (offset: number, limit: number) =>
       client.exerciseAPI
-        .list({ ...exerciseBrowseParams({ query: debouncedQuery, muscle, equipment }), page: offset / limit + 1 })
+        .list({ ...browseParams, ...(mineOn ? { mine: true } : {}), page: offset / limit + 1 })
         .then((data) => data ?? []),
-    [debouncedQuery, muscle, equipment]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [debouncedQuery, muscle, equipment, mineOn]
   )
 
   const {
@@ -134,8 +155,18 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   } = useServerInfiniteList<Exercise>({
     fetcher,
     pageSize: EXERCISE_PAGE_SIZE,
-    deps: [debouncedQuery, muscle, equipment],
+    deps: [debouncedQuery, muscle, equipment, mineOn],
   })
+
+  // Coming back from the create page (or an exercise's page, where one can be renamed or archived)
+  // the lists revalidate in place; the first focus is the load that is already under way.
+  const refresh = useRef(() => {})
+  refresh.current = () => { mineReload(); void reload() }
+  const focused = useRef(false)
+  useFocusEffect(useCallback(() => {
+    if (!focused.current) { focused.current = true; return }
+    refresh.current()
+  }, []))
 
   // Eased rather than snapped, so a fresh query reads as the same list updating.
   const fade = useAnimatedStyle(
@@ -147,6 +178,13 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
   // are they read as its results, so the failure takes their place.
   const shown = staleResults ? [] : exercises
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/workouts'))
+  const openCreate = () => {
+    const name = exerciseNameFromQuery(query)
+    router.push({ pathname: '/workouts/exercise/new', params: name ? { name } : {} } as unknown as Href)
+  }
+  const myGroup = mineOn ? [] : my.items
+  const myShown = myGroup.length >= MY_GROUP_FETCH ? myGroup.slice(0, MY_GROUP_SHOWN) : myGroup
+  const hasMyGroup = myShown.length > 0
   const changeFilter = (key: string, value: string | null) => setFilters((f) => setFilter(f, key, value))
 
   const content = (
@@ -154,13 +192,19 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
       <View className="flex-row items-center gap-3 px-4 pb-3 pt-3">
         <IconButton icon={ArrowLeft} label={t('exercises.browse.backToWorkouts')} variant="ghost" size="md" onPress={goBack} />
         <View className="flex-1">
-          <PageHeader title={t('exercises.browse.title')} subtitle={t('exercises.browse.subtitle')} />
+          <PageHeader
+            title={t('exercises.browse.title')}
+            subtitle={t('exercises.browse.subtitle')}
+            action={supported ? (
+              <IconButton icon={Plus} label={t('exercises.custom.add')} variant="solid" size="md" onPress={openCreate} />
+            ) : undefined}
+          />
         </View>
       </View>
 
       <View className="flex-row items-center gap-2 px-4 pb-3">
         <View className="flex-1">
-          <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} accessibilityLabel={t('exercises.picker.search')} />
         </View>
         <FilterButton active={count} onPress={() => setSheetOpen(true)} />
       </View>
@@ -200,6 +244,35 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
             contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 8 + pillInset }}
             ItemSeparatorComponent={grid.wide ? GridGap : RowSeparator}
             renderItem={renderRow}
+            ListHeaderComponent={!mineOn && my.failed ? (
+              <View className="pb-2"><MyExercisesRetry onRetry={my.reload} /></View>
+            ) : hasMyGroup ? (
+              <View className="pb-2">
+                <ExerciseGroupHeading>{t('exercises.custom.yours')}</ExerciseGroupHeading>
+                {wide ? (
+                  <View style={[{ flexDirection: 'row', flexWrap: 'wrap' }, grid.columnWrapperStyle, { rowGap: 12 }]}>
+                    {myShown.map((e) => <View key={e.id} style={cellStyle}><BrowseRow exercise={e} card /></View>)}
+                  </View>
+                ) : myShown.map((e, i) => (
+                  <View key={e.id}>
+                    {i > 0 ? <RowSeparator /> : null}
+                    <BrowseRow exercise={e} />
+                  </View>
+                ))}
+                {myGroup.length >= MY_GROUP_FETCH ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => changeFilter('show', 'mine')}
+                    className={`min-h-[44px] flex-row items-center justify-between px-3 py-2 active:bg-surface-muted/60 ${interactive('hover:bg-surface-muted/60', { inset: true })}`}
+                  >
+                    <AppText variant="bodySemibold" style={{ color: accent }}>{t('exercises.custom.seeAllMine')}</AppText>
+                    <ChevronRight size={16} color={accent} />
+                  </Pressable>
+                ) : null}
+                {/* Only over catalog rows: a search that matches only yours would leave it heading nothing. */}
+                {shown.length > 0 ? <ExerciseGroupHeading>{t('exercises.custom.catalog')}</ExerciseGroupHeading> : null}
+              </View>
+            ) : undefined}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
             ListEmptyComponent={
@@ -207,6 +280,16 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
               // read as an empty catalogue rather than a connection that dropped.
               listError ? (
                 <ErrorState title={t('exercises.picker.loadFailed')} message={listError} onRetry={retryList} />
+              ) : hasMyGroup ? <View /> : mineOn ? (
+                <EmptyState
+                  compact
+                  icon={SearchX}
+                  title={filtered ? t('exercises.custom.mineNoMatchTitle') : t('exercises.custom.mineEmptyTitle')}
+                  subtitle={filtered ? undefined : t('exercises.custom.mineEmptyBody')}
+                  action={count > 0
+                    ? <Button variant="secondary" title={t('filters.reset')} onPress={resetFilters} />
+                    : undefined}
+                />
               ) : exerciseCatalogEmpty(filtered, { items: exercises, hasMore, error: listError }) ? (
                 <EmptyState
                   compact

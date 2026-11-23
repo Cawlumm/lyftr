@@ -54,6 +54,17 @@ describe('FilterSheet (mobile)', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('marks Reset disabled for assistive tech when nothing is on, enabled when something is', async () => {
+    const { rerender } = await render(
+      <FilterSheet open groups={groups} values={none} onChange={jest.fn()} onReset={jest.fn()} onClose={jest.fn()} />
+    )
+    expect(screen.getByRole('button', { name: 'Reset' }).props.accessibilityState).toMatchObject({ disabled: true })
+    await rerender(
+      <FilterSheet open groups={groups} values={{ meal: 'lunch', source: null }} onChange={jest.fn()} onReset={jest.fn()} onClose={jest.fn()} />
+    )
+    expect(screen.getByRole('button', { name: 'Reset' }).props.accessibilityState).toMatchObject({ disabled: false })
+  })
+
   it('does not reset when nothing is on, and resets and closes when something is', async () => {
     const onReset = jest.fn()
     const onClose = jest.fn()
