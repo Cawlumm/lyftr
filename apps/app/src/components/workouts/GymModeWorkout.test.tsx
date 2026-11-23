@@ -369,3 +369,28 @@ describe('supersets', () => {
     await view.unmount()
   })
 })
+
+describe('exercise info instructions', () => {
+  const showInfo = (exercise: Partial<ActiveSession['exercises'][0]['exercise']>) => {
+    const s = session()
+    s.exercises[0].exercise = { ...s.exercises[0].exercise, ...exercise }
+    useWorkoutSession.getState().clearRest()
+    useWorkoutSession.setState({ session: s, gymPhase: 'exercise-info', gymExIdx: 0, gymSetIdx: 0 })
+  }
+
+  it('numbers the server\'s list rather than the description', async () => {
+    showInfo({ description: '1. Old', instructions: ['Unrack', 'Lower to chest'] })
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByText(/Lower to chest/)).toBeTruthy()
+    expect(screen.getByText('2.')).toBeTruthy()
+    expect(screen.queryByText(/Old/)).toBeNull()
+    await view.unmount()
+  })
+
+  it('reads the description when the server sent no list', async () => {
+    showInfo({ description: '1. Unrack\n2. Drive up' })
+    const view = await render(<GymModeWorkout />)
+    expect(screen.getByText(/Drive up/)).toBeTruthy()
+    await view.unmount()
+  })
+})

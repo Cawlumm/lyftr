@@ -426,7 +426,11 @@
         "BODY_EMPTY": "The request body was empty.",
         "BODY_UNREADABLE": "The request couldn't be read.",
         "BODY_TOO_LARGE": "The request is too large.",
-        "INVALID_FIELDS": "Some of the details you entered aren't valid."
+        "INVALID_FIELDS": "Some of the details you entered aren't valid.",
+        "INSTRUCTIONS_TOO_MANY": "An exercise can have up to {{max}} steps.",
+        "INSTRUCTION_TOO_LONG": "Each step must be {{max}} characters or fewer.",
+        "INSTRUCTION_CONTROL_CHARS": "A step can't contain line breaks or other control characters.",
+        "INSTRUCTIONS_TEXT_TOO_LONG": "The steps together must be {{max}} characters or fewer."
       },
       "fields": {
         "accept": "Accept",
@@ -490,7 +494,8 @@
         "timezone": "Timezone",
         "tz_offset_minutes": "Tz offset minutes",
         "weight": "Weight",
-        "weight_unit": "Weight unit"
+        "weight_unit": "Weight unit",
+        "instructions": "Instructions"
       }
     },
     "network": {
@@ -1536,8 +1541,6 @@
         "otherMusclesHint": "Tap any others it works, up to {{max}}",
         "otherMusclesLocked": "Pick the main muscle first, then tap any others it works",
         "instructions": "Instructions",
-        "instructionsHint": "One step per line",
-        "instructionsPlaceholder": "Stand tall, feet hip-width apart",
         "nearMatches": "Already in the catalog",
         "nearMatchesHint": "Use one of these instead, or carry on to create your own.",
         "useMatch": "Use {{name}}",
@@ -1555,7 +1558,12 @@
           "back": "Back",
           "core": "Core",
           "legs": "Legs"
-        }
+        },
+        "stepPlaceholderFirst": "e.g. Stand tall, feet hip-width apart",
+        "stepPlaceholderNext": "Next step",
+        "addStep": "Add step",
+        "stepLabel": "Step {{number}}",
+        "removeStep": "Remove step {{number}}"
       },
       "actions": {
         "menu": "Exercise actions",

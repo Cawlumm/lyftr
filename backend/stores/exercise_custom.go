@@ -33,6 +33,13 @@ type TaxonomyError struct{ Field string }
 
 func (e *TaxonomyError) Error() string { return e.Field + " is not a known value" }
 
+// StepsFromText and StepsToText are the one parse and join of an instruction list and the
+// numbered description kept beside it (see models/steps.go).
+var (
+	StepsFromText = models.StepsFromText
+	StepsToText   = models.StepsToText
+)
+
 // NormalizeCustom trims and lowercases what a person typed, applies the defaults, and drops
 // the primary muscle and duplicates from the secondary list. It is idempotent.
 func NormalizeCustom(req models.CreateExerciseRequest) models.CreateExerciseRequest {
@@ -40,7 +47,12 @@ func NormalizeCustom(req models.CreateExerciseRequest) models.CreateExerciseRequ
 	req.MuscleGroup = strings.ToLower(strings.TrimSpace(req.MuscleGroup))
 	req.Equipment = strings.ToLower(strings.TrimSpace(req.Equipment))
 	req.Category = strings.ToLower(strings.TrimSpace(req.Category))
-	req.Description = strings.TrimSpace(req.Description)
+	if req.Instructions != nil {
+		req.Instructions = models.CleanSteps(req.Instructions)
+	} else {
+		req.Instructions = models.StepsFromText(req.Description)
+	}
+	req.Description = models.StepsToText(req.Instructions)
 	if req.Equipment == "" {
 		req.Equipment = "body-only"
 	}
@@ -196,6 +208,10 @@ func (s *ExerciseStore) CreateCustom(userID int64, req models.CreateExerciseRequ
 	if err != nil {
 		return models.Exercise{}, err
 	}
+	steps, err := json.Marshal(req.Instructions)
+	if err != nil {
+		return models.Exercise{}, err
+	}
 	return inTx(s.db, func(tx *sql.Tx) (models.Exercise, error) {
 		var n int
 		if err := tx.QueryRow(`SELECT COUNT(*) FROM exercises WHERE owner_user_id = ? AND archived_at IS NULL`, userID).Scan(&n); err != nil {
@@ -205,9 +221,9 @@ func (s *ExerciseStore) CreateCustom(userID int64, req models.CreateExerciseRequ
 			return models.Exercise{}, ErrCustomLimit
 		}
 		res, err := tx.Exec(`INSERT INTO exercises
-			(name, muscle_group, secondary_muscles, category, equipment, description, owner_user_id, custom_uuid, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-			req.Name, req.MuscleGroup, string(secondary), req.Category, req.Equipment, req.Description, userID, uuid)
+			(name, muscle_group, secondary_muscles, category, equipment, description, instructions, owner_user_id, custom_uuid, created_at)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+			req.Name, req.MuscleGroup, string(secondary), req.Category, req.Equipment, req.Description, string(steps), userID, uuid)
 		if err != nil {
 			return models.Exercise{}, nameTaken(err)
 		}
@@ -228,13 +244,17 @@ func (s *ExerciseStore) UpdateCustom(userID, id int64, req models.CreateExercise
 	if err != nil {
 		return models.Exercise{}, err
 	}
+	steps, err := json.Marshal(req.Instructions)
+	if err != nil {
+		return models.Exercise{}, err
+	}
 	return inTx(s.db, func(tx *sql.Tx) (models.Exercise, error) {
 		if _, err := owned(tx, userID, id); err != nil {
 			return models.Exercise{}, err
 		}
 		if _, err := tx.Exec(`UPDATE exercises SET name = ?, muscle_group = ?, secondary_muscles = ?,
-			category = ?, equipment = ?, description = ? WHERE id = ?`,
-			req.Name, req.MuscleGroup, string(secondary), req.Category, req.Equipment, req.Description, id); err != nil {
+			category = ?, equipment = ?, description = ?, instructions = ? WHERE id = ?`,
+			req.Name, req.MuscleGroup, string(secondary), req.Category, req.Equipment, req.Description, string(steps), id); err != nil {
 			return models.Exercise{}, nameTaken(err)
 		}
 		return s.getTx(tx, id)

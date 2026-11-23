@@ -28,6 +28,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Cawlumm/lyftr-backend/models"
 )
 
 // DefaultBaseURL is the hosted instance. Override with OEDB_BASE_URL to point a
@@ -184,15 +186,11 @@ func (e Exercise) Name() string { return e.Translation.Name }
 // as preformatted text. Joining with blank lines instead would make the same
 // exercise look different depending on whether its row predates the migration.
 func (e Exercise) Description() string {
-	var b strings.Builder
-	for i, step := range e.Translation.Instructions {
-		if i > 0 {
-			b.WriteByte('\n')
-		}
-		fmt.Fprintf(&b, "%d. %s", i+1, step)
-	}
-	return b.String()
+	return models.StepsToText(e.Steps())
 }
+
+// Steps is the instruction list as stored: trimmed, empty steps dropped, never nil.
+func (e Exercise) Steps() []string { return models.CleanSteps(e.Translation.Instructions) }
 
 // ImageURL returns an absolute URL for the first image, or "" when there is
 // none. oedb serves image URLs relative to its own origin, so they are unusable

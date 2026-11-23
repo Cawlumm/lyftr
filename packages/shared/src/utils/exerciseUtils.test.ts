@@ -1,5 +1,5 @@
 import { i18n } from '../i18n'
-import { catalogSyncLines, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
+import { catalogSyncLines, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, categoryLabel, equipmentLabel, exerciseBrowseFiltered, exerciseBrowseParams, exerciseCatalogEmpty, exerciseNameFromQuery, exerciseSteps, instructionSteps, stepsToText, EXERCISE_FILTER_EQUIPMENT, EXERCISE_FILTER_MUSCLES, hasEquipmentToShow, muscleLabel, resolveMuscleSlugs } from './exerciseUtils'
 
 // A stand-in for the per-platform tables — the rule under test is the lookup, not any
 // particular library's slug vocabulary.
@@ -282,5 +282,46 @@ describe('exerciseNameFromQuery', () => {
     expect(exerciseNameFromQuery('  élan  3/4 sit-up ')).toBe('Élan  3/4 Sit-up')
     expect(exerciseNameFromQuery('🔥 burner')).toBe('🔥 Burner')
     expect(exerciseNameFromQuery('   ')).toBe('')
+  })
+})
+
+describe('instructionSteps', () => {
+  it('one step per non-empty line, trimmed, blank lines dropped', () => {
+    expect(instructionSteps('  Stand tall \n\n   \nPress up\n')).toEqual(['Stand tall', 'Press up'])
+  })
+
+  it('drops a leading "N." or "N)" so numbering is uniform, and only there', () => {
+    expect(instructionSteps('1. Stand tall\n2) Press up\n10.   Lower\nDo 3. reps')).toEqual(['Stand tall', 'Press up', 'Lower', 'Do 3. reps'])
+    // A step that starts with a number keeps it: only "1. " / "2) " is a step number.
+    expect(instructionSteps('1.5 reps hold\n2.B')).toEqual(['1.5 reps hold', '2.B'])
+  })
+
+  it('nothing for empty or missing text', () => {
+    expect(instructionSteps('')).toEqual([])
+    expect(instructionSteps(undefined)).toEqual([])
+    expect(instructionSteps(' \n ')).toEqual([])
+  })
+})
+
+describe('exerciseSteps', () => {
+  it('uses the list when the server sent one', () => {
+    expect(exerciseSteps({ instructions: ['a', 'b'], description: '1. x' })).toEqual(['a', 'b'])
+  })
+
+  it('an empty list is an answer, not a missing field', () => {
+    expect(exerciseSteps({ instructions: [], description: '1. x' })).toEqual([])
+  })
+
+  it('falls back to parsing the description from a server that sends no list', () => {
+    expect(exerciseSteps({ description: '1. Stand\n2. Press' })).toEqual(['Stand', 'Press'])
+    expect(exerciseSteps({})).toEqual([])
+  })
+})
+
+describe('stepsToText', () => {
+  it('numbers the steps one per line, and parses back to them', () => {
+    expect(stepsToText(['a', 'b'])).toBe('1. a\n2. b')
+    expect(instructionSteps(stepsToText(['a', 'b']))).toEqual(['a', 'b'])
+    expect(stepsToText([])).toBe('')
   })
 })

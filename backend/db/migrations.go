@@ -2,12 +2,14 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/Cawlumm/lyftr-backend/config"
+	"github.com/Cawlumm/lyftr-backend/models"
 
 	// The backfill resolves stored zones, and the production image (alpine) ships no
 	// /usr/share/zoneinfo. controllers blank-imports this too; both are needed, since
@@ -254,6 +256,7 @@ func alterMigrations() {
 	ensureIndex("idx_refresh_tokens_user", `CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id)`)
 
 	customExercisesMigration()
+	instructionsMigration()
 }
 
 // customExercisesMigration lets a user own exercises. A custom row has owner_user_id set; a
@@ -305,6 +308,87 @@ func customExercisesMigration() {
 
 	// The custom exercise's one optional photo: a random id naming two files beside the database.
 	ensureColumn("exercises", "photo_id", `ALTER TABLE exercises ADD COLUMN photo_id TEXT`)
+}
+
+// instructionsMigration gives every exercise its instructions as a JSON list of steps
+// (exercises.instructions, and exercise_translations.instructions for the other
+// languages). description stays, always holding the numbered join of the list, for app
+// builds that predate the list and read only description.
+//
+// The backfill parses each existing description once; the flag keeps a later boot from
+// re-deriving a list someone has since emptied on purpose. Only rows still at '[]' with a
+// description are touched, so a row that already has steps is never rewritten.
+func instructionsMigration() {
+	ensureColumn("exercises", "instructions", `ALTER TABLE exercises ADD COLUMN instructions TEXT NOT NULL DEFAULT '[]'`)
+	ensureColumn("exercise_translations", "instructions", `ALTER TABLE exercise_translations ADD COLUMN instructions TEXT NOT NULL DEFAULT '[]'`)
+
+	const flag = "instructions_from_description"
+	done, err := hasMigrationFlag(flag)
+	if err != nil {
+		log.Printf("instructionsMigration: check flag: %v (skipping this boot)", err)
+		return
+	}
+	if done {
+		return
+	}
+	for _, table := range []string{"exercises", "exercise_translations"} {
+		if err := backfillInstructions(table); err != nil {
+			// Leave the flag unset so the next boot retries.
+			log.Printf("instructionsMigration: backfill %s: %v (retrying next boot)", table, err)
+			return
+		}
+	}
+	setMigrationFlag(flag)
+}
+
+func backfillInstructions(table string) error {
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	rows, err := tx.Query(`SELECT id, description FROM ` + table + ` WHERE instructions = '[]' AND description <> ''`)
+	if err != nil {
+		return err
+	}
+	type fix struct {
+		id    int64
+		steps string
+	}
+	var fixes []fix
+	for rows.Next() {
+		var id int64
+		var desc string
+		if err := rows.Scan(&id, &desc); err != nil {
+			rows.Close()
+			return err
+		}
+		steps := models.StepsFromText(desc)
+		if len(steps) == 0 {
+			continue
+		}
+		raw, err := json.Marshal(steps)
+		if err != nil {
+			rows.Close()
+			return err
+		}
+		fixes = append(fixes, fix{id, string(raw)})
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return err
+	}
+	rows.Close()
+	for _, f := range fixes {
+		if _, err := tx.Exec(`UPDATE `+table+` SET instructions = ? WHERE id = ?`, f.steps, f.id); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	log.Printf("migration: backfilled instructions on %d %s rows", len(fixes), table)
+	return nil
 }
 
 // adminMigration adds users.is_admin and, once, makes the earliest-created account the

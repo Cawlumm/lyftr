@@ -225,3 +225,25 @@ export function resolveMuscleSlugs(m: string, table: Record<string, string[]>): 
   }
   return []
 }
+
+// Each non-empty line is one step. A leading "1." or "1)" is dropped: the catalog writes its steps
+// that way, a person typing their own may or may not, and the list numbers them all the same.
+// Mirrors stores.StepsFromText on the server.
+export function instructionSteps(text: string | undefined | null): string[] {
+  return (text ?? '')
+    .split('\n')
+    .map((line) => line.trim().replace(/^\d+[.)](\s+|$)/, '').trim())
+    .filter(Boolean)
+}
+
+// The steps to show for an exercise: the server's list when it sent one (even an empty one), else
+// the description parsed, for a server older than the list.
+export function exerciseSteps(e: { instructions?: string[] | null; description?: string | null }): string[] {
+  return e.instructions ? e.instructions : instructionSteps(e.description)
+}
+
+// The same steps as one text, "1. a\n2. b": what `description` holds beside the list, and what a
+// build that only reads `description` shows. Mirrors stores.StepsToText on the server.
+export function stepsToText(steps: readonly string[]): string {
+  return steps.map((s, i) => `${i + 1}. ${s}`).join('\n')
+}

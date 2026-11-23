@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/Cawlumm/lyftr-backend/middleware"
 	"github.com/Cawlumm/lyftr-backend/models"
@@ -207,6 +209,9 @@ func bindCustomExercise(c *gin.Context) (models.CreateExerciseRequest, bool) {
 		return req, false
 	}
 	req = stores.NormalizeCustom(req)
+	if !checkInstructions(c, req.Instructions) {
+		return req, false
+	}
 	if err := validate.Struct(req); err != nil {
 		utils.ValidationError(c, err)
 		return req, false
@@ -216,6 +221,24 @@ func bindCustomExercise(c *gin.Context) (models.CreateExerciseRequest, bool) {
 		return req, false
 	}
 	return req, true
+}
+
+// checkInstructions applies the step limits to an already-normalized list, reporting
+// whether it passed. Normalization has dropped empty steps, so the counts are of real ones.
+func checkInstructions(c *gin.Context, steps []string) bool {
+	switch {
+	case len(steps) > models.MaxInstructionSteps:
+		utils.Fail(c, utils.CodeInstructionsTooMany, map[string]any{"max": models.MaxInstructionSteps})
+	case slices.ContainsFunc(steps, func(s string) bool { return strings.ContainsFunc(s, unicode.IsControl) }):
+		utils.Fail(c, utils.CodeInstructionControlChars, nil)
+	case slices.ContainsFunc(steps, func(s string) bool { return utf8.RuneCountInString(s) > models.MaxInstructionChars }):
+		utils.Fail(c, utils.CodeInstructionTooLong, map[string]any{"max": models.MaxInstructionChars})
+	case utf8.RuneCountInString(models.StepsToText(steps)) > models.MaxInstructionsText:
+		utils.Fail(c, utils.CodeInstructionsTextTooLong, map[string]any{"max": models.MaxInstructionsText})
+	default:
+		return true
+	}
+	return false
 }
 
 func exerciseIDParam(c *gin.Context) (int64, bool) {

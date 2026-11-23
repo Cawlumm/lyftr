@@ -432,7 +432,11 @@
         "BODY_EMPTY": "El cuerpo de la solicitud estaba vacío.",
         "BODY_UNREADABLE": "No se pudo leer la solicitud.",
         "BODY_TOO_LARGE": "La solicitud es demasiado grande.",
-        "INVALID_FIELDS": "Algunos de los datos que ingresaste no son válidos."
+        "INVALID_FIELDS": "Algunos de los datos que ingresaste no son válidos.",
+        "INSTRUCTIONS_TOO_MANY": "Un ejercicio puede tener hasta {{max}} pasos.",
+        "INSTRUCTION_TOO_LONG": "Cada paso debe tener {{max}} caracteres o menos.",
+        "INSTRUCTION_CONTROL_CHARS": "Un paso no puede contener saltos de línea ni otros caracteres de control.",
+        "INSTRUCTIONS_TEXT_TOO_LONG": "Los pasos juntos deben tener {{max}} caracteres o menos."
       },
       "fields": {
         "accept": "Aceptadas",
@@ -496,7 +500,8 @@
         "timezone": "Zona horaria",
         "tz_offset_minutes": "Diferencia horaria",
         "weight": "Peso",
-        "weight_unit": "Unidad de peso"
+        "weight_unit": "Unidad de peso",
+        "instructions": "Instrucciones"
       }
     },
     "network": {
@@ -1557,8 +1562,6 @@
         "otherMusclesHint": "Toca los demás que trabaja, hasta {{max}}",
         "otherMusclesLocked": "Elige primero el músculo principal y luego toca los demás que trabaja",
         "instructions": "Instrucciones",
-        "instructionsHint": "Un paso por línea",
-        "instructionsPlaceholder": "De pie, con los pies a la anchura de la cadera",
         "nearMatches": "Ya está en el catálogo",
         "nearMatchesHint": "Usa uno de estos o continúa para crear el tuyo.",
         "useMatch": "Usar {{name}}",
@@ -1576,7 +1579,12 @@
           "back": "Espalda",
           "core": "Core",
           "legs": "Piernas"
-        }
+        },
+        "stepPlaceholderFirst": "p. ej., De pie, pies a la anchura de las caderas",
+        "stepPlaceholderNext": "Siguiente paso",
+        "addStep": "Añadir paso",
+        "stepLabel": "Paso {{number}}",
+        "removeStep": "Quitar el paso {{number}}"
       },
       "actions": {
         "menu": "Acciones del ejercicio",

@@ -136,15 +136,29 @@ describe('CustomExerciseForm', () => {
     expect(screen.getByRole('radio', { name: 'Stretching' })).toBeTruthy()
   })
 
-  it('Instructions have a one-step-per-line hint, and are sent as the description', async () => {
+  it('Instructions are a list of steps, sent as the list and as the numbered description; empty steps are dropped', async () => {
     const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
     await renderCreate()
-    expect(screen.getByText('One step per line')).toBeTruthy()
+    expect(screen.queryByText('One step per line')).toBeNull()
     expect(screen.queryByText('Notes')).toBeNull()
-    await fireEvent.changeText(screen.getByLabelText('Instructions'), 'Stand tall\nPress up')
+    await fireEvent.changeText(screen.getByLabelText('Step 1'), 'Stand tall')
+    await fireEvent(screen.getByLabelText('Step 1'), 'submitEditing')
+    await fireEvent.changeText(screen.getByLabelText('Step 2'), 'Press up')
+    await fireEvent(screen.getByLabelText('Step 2'), 'submitEditing')
+    expect(screen.getByLabelText('Step 3')).toBeTruthy()
     await pickFromList()
     await pressCreate()
-    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ description: 'Stand tall\nPress up' })))
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      instructions: ['Stand tall', 'Press up'], description: '1. Stand tall\n2. Press up',
+    })))
+  })
+
+  it('with no steps written, an empty list and an empty description are sent', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    await renderCreate()
+    await pickFromList()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({ instructions: [], description: '' })))
   })
 
   it('a name with a control character is refused before anything is sent', async () => {
@@ -311,7 +325,7 @@ describe('CustomExerciseForm', () => {
 })
 
 describe('CustomExerciseForm edit', () => {
-  const existing: Exercise = { ...saved, equipment: 'dumbbell', category: 'stretching', secondary_muscles: ['hamstrings'], description: 'Slow' }
+  const existing: Exercise = { ...saved, equipment: 'dumbbell', category: 'stretching', secondary_muscles: ['hamstrings'], description: 'Slow', instructions: ['Slow', 'Hold'] }
   const renderEdit = async (ex: Exercise = existing) => {
     mockParams = { exerciseId: '7' }
     jest.spyOn(client.exerciseAPI, 'get').mockResolvedValue(ex)
@@ -323,12 +337,13 @@ describe('CustomExerciseForm edit', () => {
     await renderEdit()
     expect(await screen.findByText('Edit exercise')).toBeTruthy()
     expect(screen.getByDisplayValue('Slow')).toBeTruthy()
+    expect(screen.getByDisplayValue('Hold')).toBeTruthy()
     expect(screen.getByText('Calves')).toBeTruthy()
     await pressCreate('Save')
     await waitFor(() => expect(mockRouter.back).toHaveBeenCalled())
     expect(update).toHaveBeenCalledWith(7, {
       name: 'Soleus Slouch', muscle_group: 'calves', equipment: 'dumbbell', category: 'stretching',
-      secondary_muscles: ['hamstrings'], description: 'Slow',
+      secondary_muscles: ['hamstrings'], instructions: ['Slow', 'Hold'], description: '1. Slow\n2. Hold',
     })
   })
 

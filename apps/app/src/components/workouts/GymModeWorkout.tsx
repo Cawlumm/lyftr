@@ -9,7 +9,7 @@ import {
 } from '../ui/icons'
 import {
   useAsyncAction, displayToLbs, type ActiveSessionExercise, displayWeight, exerciseFractions, occurrenceKeys, weightShort, useTranslation, type Exercise,
-  currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
+  exerciseSteps, currentRound, groupColorIndex, pairWith, remapIndex, restLabel, roundRecap, roundRest, totalRounds,
 } from '@lyftr/shared'
 import { SHEET_ANIM_MS } from '../ui/Sheet'
 import { AppText, CollapsibleChips, ConfirmSheet, Menu, NumberField, KeyboardDoneAccessory, KEYBOARD_DONE_ID, StepperTile, type MenuItem } from '../ui'
@@ -646,7 +646,7 @@ export function GymModeWorkout() {
   if (phase === 'exercise-info') {
     const exercise = ex.exercise
     const equipLabel = equipmentLabel(exercise.equipment)
-    const descLines = exercise.description ? exercise.description.split('\n').filter((l) => l.trim()) : []
+    const descLines = exerciseSteps(exercise)
     const repsVals = ex.sets.map((s) => s.target_reps).filter((r) => r > 0)
     const wtVals = ex.sets.map((s) => displayWeight(s.target_weight, wUnit)).filter((w) => w > 0)
     const infoDetails = [
@@ -725,14 +725,11 @@ export function GymModeWorkout() {
               <View className="rounded-2xl border border-surface-border bg-surface-raised p-4">
                 <AppText variant="label" color="muted" className="mb-3 uppercase">{t('exercises.detail.instructions')}</AppText>
                 <View className="gap-2.5">
-                  {descLines.map((line, i) => {
-                    const m = line.match(/^(\d+\.)\s*(.*)/)
-                    return (
-                      <AppText key={i} variant="body" color="secondary">
-                        {m ? <AppText variant="bodySemibold">{m[1]} </AppText> : null}{m ? m[2] : line}
-                      </AppText>
-                    )
-                  })}
+                  {descLines.map((line, i) => (
+                    <AppText key={i} variant="body" color="secondary">
+                      <AppText variant="bodySemibold">{i + 1}. </AppText>{line}
+                    </AppText>
+                  ))}
                 </View>
               </View>
             ) : null}

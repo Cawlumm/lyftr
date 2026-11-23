@@ -114,10 +114,12 @@ func BaseLanguage(locale string) string {
 // Which text an exercise shows is decided here and nowhere else: the reader's
 // locale, then its base language, then the English base row, field by field. Every
 // read that returns exercise text joins through translationJoin and selects
-// localizedName / localizedDescription.
+// localizedName / localizedDescription / localizedInstructions.
 const (
 	localizedName        = `COALESCE(NULLIF(tr.name, ''), e.name)`
 	localizedDescription = `COALESCE(NULLIF(tr.description, ''), e.description)`
+	// The translated list wins only when the translation has steps; '[]' is its "not served".
+	localizedInstructions = `COALESCE(NULLIF(tr.instructions, '[]'), e.instructions)`
 )
 
 // translationJoin returns a LEFT JOIN, aliased tr, onto the single best translation
@@ -136,15 +138,15 @@ func translationJoin(locale string) (string, []any) {
 func exerciseSelect(locale string) (string, []any) {
 	join, args := translationJoin(locale)
 	return `SELECT e.id, ` + localizedName + `, e.muscle_group, e.secondary_muscles, e.category, e.equipment, ` +
-		localizedDescription + `, e.image_url, e.owner_user_id IS NOT NULL, e.archived_at IS NOT NULL, e.merged_into_id, COALESCE(e.photo_id, '') FROM exercises e` + join, args
+		localizedDescription + `, ` + localizedInstructions + `, e.image_url, e.owner_user_id IS NOT NULL, e.archived_at IS NOT NULL, e.merged_into_id, COALESCE(e.photo_id, '') FROM exercises e` + join, args
 }
 
 type scanner interface{ Scan(dest ...any) error }
 
 func scanExercise(row scanner, e *models.Exercise) error {
-	var secondaryRaw string
+	var secondaryRaw, instructionsRaw string
 	var merged sql.NullInt64
-	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &e.ImageURL,
+	if err := row.Scan(&e.ID, &e.Name, &e.MuscleGroup, &secondaryRaw, &e.Category, &e.Equipment, &e.Description, &instructionsRaw, &e.ImageURL,
 		&e.IsCustom, &e.Archived, &merged, &e.PhotoID); err != nil {
 		return err
 	}
@@ -154,6 +156,10 @@ func scanExercise(row scanner, e *models.Exercise) error {
 	json.Unmarshal([]byte(secondaryRaw), &e.SecondaryMuscles)
 	if e.SecondaryMuscles == nil {
 		e.SecondaryMuscles = []string{}
+	}
+	json.Unmarshal([]byte(instructionsRaw), &e.Instructions)
+	if e.Instructions == nil {
+		e.Instructions = []string{}
 	}
 	return nil
 }
@@ -266,7 +272,8 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	byOedbID, err := tx.Prepare(`
 		UPDATE exercises SET
 		  name = COALESCE(?, name), muscle_group = ?, secondary_muscles = ?, category = ?,
-		  equipment = ?, description = COALESCE(?, description), image_url = ?, slug = ?,
+		  equipment = ?, description = COALESCE(?, description), instructions = COALESCE(?, instructions),
+		  image_url = ?, slug = ?,
 		  upstream_missing_at = NULL
 		WHERE oedb_id = ?`)
 	if err != nil {
@@ -275,14 +282,15 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 	defer byOedbID.Close()
 
 	byName, err := tx.Prepare(`
-		INSERT INTO exercises (name, muscle_group, secondary_muscles, category, equipment, description, image_url, oedb_id, slug)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO exercises (name, muscle_group, secondary_muscles, category, equipment, description, instructions, image_url, oedb_id, slug)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(name) WHERE owner_user_id IS NULL DO UPDATE SET
 		  muscle_group      = excluded.muscle_group,
 		  secondary_muscles = excluded.secondary_muscles,
 		  category          = excluded.category,
 		  equipment         = excluded.equipment,
 		  description       = COALESCE(?, description),
+		  instructions      = COALESCE(?, instructions),
 		  image_url         = excluded.image_url,
 		  oedb_id           = excluded.oedb_id,
 		  slug              = excluded.slug,
@@ -309,17 +317,22 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 		descEN := servedInEnglish(it.Translation.InstructionsLocale)
 		// nil leaves the base column alone: a field served in another language is
 		// not the English text this column holds.
-		var nameEnglish, descEnglish any
+		stepsJSON, err := json.Marshal(it.Steps())
+		if err != nil {
+			return nil, err
+		}
+		var nameEnglish, descEnglish, stepsEnglish any
 		if nameEN {
 			nameEnglish = name
 		}
 		if descEN {
 			descEnglish = desc
+			stepsEnglish = string(stepsJSON)
 		}
 
 		args := []any{
 			nameEnglish, it.MuscleGroup, string(secondaryJSON), it.Category,
-			it.Equipment, descEnglish, it.ImageURL(imageBase), it.Slug, it.ID,
+			it.Equipment, descEnglish, stepsEnglish, it.ImageURL(imageBase), it.Slug, it.ID,
 		}
 		res, err := byOedbID.Exec(args...)
 		if utils.IsUniqueViolation(err) {
@@ -347,14 +360,14 @@ func (s *ExerciseStore) Materialize(items []oedb.Exercise, imageBase, locale str
 				log.Printf("exercises: skipping upstream %s: no English base row for its %q translation", it.ID, locale)
 				continue
 			}
-			baseDesc := ""
+			baseDesc, baseSteps := "", "[]"
 			if descEN {
-				baseDesc = desc
+				baseDesc, baseSteps = desc, string(stepsJSON)
 			}
 			nameRes, err := byName.Exec(
 				name, it.MuscleGroup, string(secondaryJSON), it.Category,
-				it.Equipment, baseDesc, it.ImageURL(imageBase), it.ID, it.Slug,
-				descEnglish,
+				it.Equipment, baseDesc, baseSteps, it.ImageURL(imageBase), it.ID, it.Slug,
+				descEnglish, stepsEnglish,
 			)
 			if err != nil {
 				return nil, err
@@ -426,7 +439,7 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 		return nil
 	}
 
-	served, name, desc, origin := NormalizeLocale(it.Translation.NameLocale), "", "", "human"
+	served, name, desc, steps, origin := NormalizeLocale(it.Translation.NameLocale), "", "", "[]", "human"
 	if nameEN {
 		served = NormalizeLocale(it.Translation.InstructionsLocale)
 	} else {
@@ -437,16 +450,22 @@ func replaceTranslation(tx *sql.Tx, it oedb.Exercise, locale string, nameEN, des
 	}
 	if !descEN {
 		desc = it.Description()
+		raw, err := json.Marshal(it.Steps())
+		if err != nil {
+			return err
+		}
+		steps = string(raw)
 		if it.Translation.InstructionsMachineOrigin {
 			origin = "machine"
 		}
 	}
 	_, err := tx.Exec(
-		`INSERT INTO exercise_translations (exercise_id, locale, name, description, origin)
-		 VALUES (?, ?, ?, ?, ?)
+		`INSERT INTO exercise_translations (exercise_id, locale, name, description, instructions, origin)
+		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(exercise_id, locale) DO UPDATE SET
-		   name = excluded.name, description = excluded.description, origin = excluded.origin`,
-		exerciseID, served, name, desc, origin,
+		   name = excluded.name, description = excluded.description,
+		   instructions = excluded.instructions, origin = excluded.origin`,
+		exerciseID, served, name, desc, steps, origin,
 	)
 	return err
 }

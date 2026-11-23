@@ -38,6 +38,8 @@ export interface Exercise {
   category: string
   equipment: string
   description: string
+  // The steps, one per entry. Absent from a server older than the list: see exerciseSteps.
+  instructions?: string[]
   image_url?: string
   video_url?: string
   // Created by the signed-in user and visible to them alone. Absent from servers older
@@ -61,6 +63,7 @@ export interface CustomExerciseInput {
   category?: string
   secondary_muscles?: string[]
   description?: string
+  instructions?: string[]
 }
 
 // How many of the signed-in user's rows reference an exercise, so a merge can say what moves.

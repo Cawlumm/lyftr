@@ -18,6 +18,7 @@ import {
   customExercisePhotos,
   customExercises,
   uiMessage,
+  exerciseSteps,
   displayWeight,
   weightShort,
   type Exercise,
@@ -455,7 +456,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
   ) : null
   const instructionsCard = (
     <InstructionSteps
-      text={exercise.description}
+      steps={exerciseSteps(exercise)}
       addHref={showActions ? editPath : undefined}
       onAdd={showActions ? () => router.push(editPath as unknown as Href) : undefined}
     />

@@ -74,6 +74,13 @@ describe('ExerciseDetailScreen custom exercises', () => {
     expect(screen.queryByText('Notes')).toBeNull()
   })
 
+  it('numbers the server\'s list, not the description', async () => {
+    await load({ ...base, description: '1. Old text', instructions: ['First step', 'Second step'] })
+    expect(screen.getByText(/First step/)).toBeTruthy()
+    expect(screen.getByText('2.')).toBeTruthy()
+    expect(screen.queryByText(/Old text/)).toBeNull()
+  })
+
   it('a catalog exercise without instructions says so; no link to add them', async () => {
     await load({ ...base, description: '' })
     expect(screen.getByText('No instructions for this exercise yet.')).toBeTruthy()

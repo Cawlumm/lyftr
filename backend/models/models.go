@@ -67,6 +67,7 @@ type Exercise struct {
 	Category         string   `json:"category" db:"category"`   // "strength", "cardio", "flexibility"
 	Equipment        string   `json:"equipment" db:"equipment"`
 	Description      string   `json:"description" db:"description"`
+	Instructions     []string `json:"instructions" db:"-"` // never null; decoded from the JSON column
 	ImageURL         string   `json:"image_url,omitempty" db:"image_url"`
 	VideoURL         string   `json:"video_url,omitempty" db:"video_url"`
 	IsCustom         bool     `json:"is_custom"`
@@ -83,6 +84,9 @@ type CreateExerciseRequest struct {
 	Category         string   `json:"category"`
 	SecondaryMuscles []string `json:"secondary_muscles" validate:"max=10"`
 	Description      string   `json:"description" validate:"max=2000"`
+	// Instructions wins over Description when non-nil, even empty (an explicit clear).
+	// Nil means an older app that sends only Description.
+	Instructions []string `json:"instructions"`
 }
 
 // MergeExerciseRequest is the body of POST /exercises/:id/merge.
