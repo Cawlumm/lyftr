@@ -61,6 +61,21 @@ describe('MergeExerciseSheet', () => {
     expect(screen.getByText(/This can't be undone/)).toBeTruthy()
   })
 
+  it('says when program days list both and will be combined, asking with the target', async () => {
+    const usage = jest.spyOn(client.exerciseAPI, 'usage').mockResolvedValue({ workouts: 3, program_days: 2, shared_program_days: 1 })
+    await setup()
+
+    expect(await screen.findByText(/One program day lists both: it will list “Bench Press” once, with the sets of both\./)).toBeTruthy()
+    expect(usage).toHaveBeenCalledWith(5, expect.any(Number))
+  })
+
+  it('says nothing about combining when no day lists both', async () => {
+    jest.spyOn(client.exerciseAPI, 'usage').mockResolvedValue({ workouts: 3, program_days: 1, shared_program_days: 0 })
+    await setup()
+    await screen.findByText(/3 workouts and 1 program day/)
+    expect(screen.queryByText(/lists both/)).toBeNull()
+  })
+
   it('keeps the sheet open with the error when the merge fails', async () => {
     jest.spyOn(client.exerciseAPI, 'usage').mockResolvedValue({ workouts: 1, program_days: 0 })
     jest.spyOn(client.exerciseAPI, 'merge').mockRejectedValue(new Error('boom'))

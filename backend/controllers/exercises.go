@@ -314,7 +314,8 @@ func (h *Handler) ExerciseUsage(c *gin.Context) {
 	if !ok {
 		return
 	}
-	u, err := h.s.Exercise.Usage(middleware.UserID(c), id)
+	into, _ := strconv.ParseInt(c.Query("into"), 10, 64)
+	u, err := h.s.Exercise.Usage(middleware.UserID(c), id, into)
 	if customExerciseFailure(c, err, "") {
 		return
 	}

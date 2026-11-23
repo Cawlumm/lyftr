@@ -97,12 +97,16 @@ type MergeExerciseRequest struct {
 type ExerciseUsage struct {
 	Workouts    int `json:"workouts"`
 	ProgramDays int `json:"program_days"`
+	// With ?into=: program days that list both, which a merge combines into one block.
+	SharedProgramDays int `json:"shared_program_days"`
 }
 
 type MergeResult struct {
-	MovedWorkouts    int      `json:"moved_workouts"`
-	MovedProgramDays int      `json:"moved_program_days"`
-	Into             Exercise `json:"into"`
+	MovedWorkouts    int `json:"moved_workouts"`
+	MovedProgramDays int `json:"moved_program_days"`
+	// Program days that listed both exercises and now list the kept one once, sets combined.
+	CombinedProgramDays int      `json:"combined_program_days"`
+	Into                Exercise `json:"into"`
 }
 
 type Workout struct {

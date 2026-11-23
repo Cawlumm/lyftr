@@ -70,6 +70,9 @@ export interface CustomExerciseInput {
 export interface ExerciseUsage {
   workouts: number
   program_days: number
+  /** Asked with a merge target: program days that list both (a merge combines them). Absent
+   *  from a server older than that. */
+  shared_program_days?: number
 }
 
 export interface ExerciseMergeResult {

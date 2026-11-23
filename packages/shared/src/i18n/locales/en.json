@@ -1589,7 +1589,9 @@
         "counting": "Counting what will move…",
         "usageFailed": "Couldn't count what would move",
         "failed": "Couldn't merge the exercises",
-        "done": "Merged “{{from}}” into this exercise"
+        "done": "Merged “{{from}}” into this exercise",
+        "combined_one": "One program day lists both: it will list “{{into}}” once, with the sets of both.",
+        "combined_other": "{{count}} program days list both: each will list “{{into}}” once, with the sets of both."
       },
       "addInstructions": "Add instructions"
     }

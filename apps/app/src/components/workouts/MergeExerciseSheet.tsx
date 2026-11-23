@@ -36,7 +36,7 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
     setUsageError(null)
     if (!open || !target) return
     let cancelled = false
-    client.exerciseAPI.usage(source.id)
+    client.exerciseAPI.usage(source.id, target.id)
       .then((u) => { if (!cancelled) setUsage(u) })
       .catch((err) => { if (!cancelled) setUsageError(apiErrorMessage(err, t('exercises.custom.merge.usageFailed'))) })
     return () => { cancelled = true }
@@ -80,6 +80,7 @@ export function MergeExerciseSheet({ source, open, onClose, onMerged }: Props) {
           workouts: t('exercises.custom.merge.workouts', { count: usage.workouts }),
           programDays: t('exercises.custom.merge.programDays', { count: usage.program_days }),
         }),
+        ...(usage.shared_program_days ? [t('exercises.custom.merge.combined', { count: usage.shared_program_days, into: target.name })] : []),
         t('exercises.custom.merge.final', { from: source.name }),
       ].join(' ')
     : usageError

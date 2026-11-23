@@ -446,15 +446,15 @@ func TestUsage(t *testing.T) {
 	e := mustCreate(t, s, a, "Mine")
 	useExercise(t, conn, a, e.ID)
 	useInProgram(t, conn, a, e.ID)
-	u, err := s.Usage(a, e.ID)
+	u, err := s.Usage(a, e.ID, 0)
 	if err != nil || u.Workouts != 1 || u.ProgramDays != 1 {
 		t.Fatalf("usage = %+v, %v", u, err)
 	}
-	if _, err := s.Usage(b, e.ID); !errors.Is(err, ErrExerciseNotFound) {
+	if _, err := s.Usage(b, e.ID, 0); !errors.Is(err, ErrExerciseNotFound) {
 		t.Errorf("other user: %v", err)
 	}
 	// A missing id answers like another user's, so the endpoint is no oracle for which ids are custom.
-	if _, err := s.Usage(a, 999999); !errors.Is(err, ErrExerciseNotFound) {
+	if _, err := s.Usage(a, 999999, 0); !errors.Is(err, ErrExerciseNotFound) {
 		t.Errorf("missing id: %v", err)
 	}
 }
@@ -522,5 +522,130 @@ func TestUserDelete_RemovesUnreferencedCustomExercises(t *testing.T) {
 		if n := countRows(t, conn, `SELECT COUNT(*) FROM exercises WHERE id = ?`, id); n != 1 {
 			t.Errorf("exercise %d was deleted", id)
 		}
+	}
+}
+
+// dayWith builds one program day for uid holding the given blocks in order; each block is
+// (exercise id, set count, superset group or 0, notes). It returns the day id and block ids.
+func dayWith(t *testing.T, conn *sql.DB, uid int64, blocks ...[4]any) (int64, []int64) {
+	t.Helper()
+	res, err := conn.Exec(`INSERT INTO programs (user_id, name) VALUES (?, 'p')`, uid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pid, _ := res.LastInsertId()
+	res, err = conn.Exec(`INSERT INTO program_days (program_id, name, order_index) VALUES (?, 'd', 0)`, pid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	did, _ := res.LastInsertId()
+	var ids []int64
+	for i, b := range blocks {
+		var group any
+		if g := b[2].(int); g != 0 {
+			group = g
+		}
+		res, err := conn.Exec(`INSERT INTO program_exercises (program_id, program_day_id, exercise_id, order_index, superset_group, notes)
+			VALUES (?, ?, ?, ?, ?, ?)`, pid, did, b[0], i, group, b[3])
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, _ := res.LastInsertId()
+		ids = append(ids, id)
+		for n := 1; n <= b[1].(int); n++ {
+			if _, err := conn.Exec(`INSERT INTO program_sets (program_exercise_id, set_number, target_reps, target_weight) VALUES (?, ?, ?, ?)`,
+				id, n, 10*(i+1)+n, 0); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return did, ids
+}
+
+func TestMerge_CombinesADayThatListsBoth(t *testing.T) {
+	s, conn, a, _ := customStore(t)
+	from := mustCreate(t, s, a, "Old Press")
+	into := mustCreate(t, s, a, "Press")
+	other := mustCreate(t, s, a, "Row")
+	// Press (2 sets, no notes) · Row · Old Press (3 sets, "slow", in a superset with Row).
+	day, ids := dayWith(t, conn, a,
+		[4]any{into.ID, 2, 0, ""}, [4]any{other.ID, 1, 7, ""}, [4]any{from.ID, 3, 7, "slow"})
+	// A day with only the old one: renamed, nothing to combine.
+	plain, _ := dayWith(t, conn, a, [4]any{from.ID, 2, 0, ""})
+
+	res, err := s.Merge(a, from.ID, into.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.MovedProgramDays != 2 || res.CombinedProgramDays != 1 {
+		t.Errorf("result = %+v, want 2 moved and 1 combined", res)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM program_exercises WHERE program_day_id = ? AND exercise_id = ?`, day, into.ID); n != 1 {
+		t.Fatalf("Press listed %d times on the day, want once", n)
+	}
+	var reps []int
+	rows, _ := conn.Query(`SELECT target_reps FROM program_sets WHERE program_exercise_id = ? ORDER BY set_number`, ids[0])
+	for rows.Next() {
+		var r int
+		rows.Scan(&r)
+		reps = append(reps, r)
+	}
+	rows.Close()
+	// The kept block's own sets first, then the merged one's, numbered on from them.
+	if want := []int{11, 12, 31, 32, 33}; !reflect.DeepEqual(reps, want) {
+		t.Errorf("sets by number = %v, want %v", reps, want)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM program_sets WHERE program_exercise_id = ? AND set_number BETWEEN 1 AND 5`, ids[0]); n != 5 {
+		t.Errorf("set numbers not 1..5")
+	}
+	var notes string
+	conn.QueryRow(`SELECT notes FROM program_exercises WHERE id = ?`, ids[0]).Scan(&notes)
+	if notes != "slow" {
+		t.Errorf("notes = %q: an empty note takes the merged block's", notes)
+	}
+	// Row is left alone in a superset of one: that is no superset.
+	var group sql.NullInt64
+	var order int
+	conn.QueryRow(`SELECT superset_group, order_index FROM program_exercises WHERE id = ?`, ids[1]).Scan(&group, &order)
+	if group.Valid {
+		t.Errorf("Row still in superset %d with no partner", group.Int64)
+	}
+	if order != 1 {
+		t.Errorf("Row order_index = %d, want 1 (no gap)", order)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM program_exercises WHERE program_day_id = ? AND exercise_id = ?`, plain, into.ID); n != 1 {
+		t.Errorf("plain day: Press listed %d times", n)
+	}
+}
+
+func TestMerge_LeavesTwoBlocksInALoggedWorkout(t *testing.T) {
+	s, conn, a, _ := customStore(t)
+	from := mustCreate(t, s, a, "Old Press")
+	into := mustCreate(t, s, a, "Press")
+	w := useExercise(t, conn, a, into.ID)
+	conn.Exec(`INSERT INTO workout_exercises (workout_id, exercise_id) VALUES (?, ?)`, w, from.ID)
+	if _, err := s.Merge(a, from.ID, into.ID); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, conn, `SELECT COUNT(*) FROM workout_exercises WHERE workout_id = ? AND exercise_id = ?`, w, into.ID); n != 2 {
+		t.Errorf("logged workout has %d Press blocks, want 2 (a record of what was done)", n)
+	}
+}
+
+func TestUsage_CountsDaysThatListBothForATarget(t *testing.T) {
+	s, conn, a, _ := customStore(t)
+	from := mustCreate(t, s, a, "Old Press")
+	into := mustCreate(t, s, a, "Press")
+	dayWith(t, conn, a, [4]any{into.ID, 1, 0, ""}, [4]any{from.ID, 1, 0, ""})
+	dayWith(t, conn, a, [4]any{from.ID, 1, 0, ""})
+	u, err := s.Usage(a, from.ID, into.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.ProgramDays != 2 || u.SharedProgramDays != 1 {
+		t.Errorf("usage = %+v, want 2 days and 1 shared", u)
+	}
+	if u, _ := s.Usage(a, from.ID, 0); u.SharedProgramDays != 0 {
+		t.Errorf("without a target: %+v", u)
 	}
 }

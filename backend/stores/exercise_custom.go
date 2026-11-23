@@ -302,8 +302,9 @@ func (s *ExerciseStore) Unarchive(userID, id int64) (models.Exercise, error) {
 	})
 }
 
-// Usage counts the caller's own workouts and program days that use the exercise.
-func (s *ExerciseStore) Usage(userID, id int64) (models.ExerciseUsage, error) {
+// Usage counts the caller's own workouts and program days that use the exercise, and with a
+// merge target (into > 0) the program days that list both.
+func (s *ExerciseStore) Usage(userID, id, into int64) (models.ExerciseUsage, error) {
 	var u models.ExerciseUsage
 	var visible bool
 	err := s.db.QueryRow(`SELECT EXISTS (SELECT 1 FROM exercises WHERE id = ? AND (owner_user_id IS NULL OR owner_user_id = ?))`,
@@ -320,6 +321,13 @@ func (s *ExerciseStore) Usage(userID, id int64) (models.ExerciseUsage, error) {
 		(SELECT COUNT(DISTINCT pe.program_day_id) FROM program_exercises pe
 			JOIN programs p ON p.id = pe.program_id WHERE pe.exercise_id = ? AND p.user_id = ?)`,
 		id, userID, id, userID).Scan(&u.Workouts, &u.ProgramDays)
+	if err != nil || into <= 0 {
+		return u, err
+	}
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM (
+		SELECT pe.program_day_id FROM program_exercises pe JOIN programs p ON p.id = pe.program_id
+		WHERE p.user_id = ? AND pe.exercise_id IN (?, ?)
+		GROUP BY pe.program_day_id HAVING COUNT(DISTINCT pe.exercise_id) = 2)`, userID, id, into).Scan(&u.SharedProgramDays)
 	return u, err
 }
 
@@ -359,10 +367,92 @@ func (s *ExerciseStore) Merge(userID, fromID, intoID int64) (models.MergeResult,
 			WHERE exercise_id = ? AND program_id IN (SELECT id FROM programs WHERE user_id = ?)`, intoID, fromID, userID); err != nil {
 			return out, err
 		}
+		if out.CombinedProgramDays, err = combineDuplicateBlocks(tx, userID, intoID); err != nil {
+			return out, err
+		}
 		if _, err := tx.Exec(`UPDATE exercises SET archived_at = CURRENT_TIMESTAMP, merged_into_id = ? WHERE id = ?`, intoID, fromID); err != nil {
 			return out, err
 		}
 		out.Into, err = s.getTx(tx, intoID)
 		return out, err
 	})
+}
+
+// combineDuplicateBlocks folds a program day that, after a merge, lists the exercise more than
+// once into a single block: the first one (by order) keeps its place, settings and superset, and
+// takes the others' sets after its own; the others go. Without it every workout started from that
+// day would open with the same exercise twice. Logged workouts are left alone on purpose: two
+// blocks there are an honest record of what was done, and history already counts per session.
+// It returns how many days were combined.
+func combineDuplicateBlocks(tx *sql.Tx, userID, exerciseID int64) (int, error) {
+	rows, err := tx.Query(`SELECT pe.program_day_id, pe.id, pe.notes FROM program_exercises pe
+		JOIN programs p ON p.id = pe.program_id
+		WHERE pe.exercise_id = ? AND p.user_id = ? AND pe.program_day_id IN (
+			SELECT program_day_id FROM program_exercises WHERE exercise_id = ?
+			GROUP BY program_day_id HAVING COUNT(*) > 1)
+		ORDER BY pe.program_day_id, pe.order_index, pe.id`, exerciseID, userID, exerciseID)
+	if err != nil {
+		return 0, err
+	}
+	type block struct {
+		day, id int64
+		notes   string
+	}
+	var blocks []block
+	for rows.Next() {
+		var b block
+		if err := rows.Scan(&b.day, &b.id, &b.notes); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		blocks = append(blocks, b)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	days := 0
+	for i := 0; i < len(blocks); {
+		keep := blocks[i]
+		j := i + 1
+		for ; j < len(blocks) && blocks[j].day == keep.day; j++ {
+			drop := blocks[j]
+			// Read the offset first: a subquery in the UPDATE would see the rows it has already moved.
+			var last int
+			if err := tx.QueryRow(`SELECT COALESCE(MAX(set_number), 0) FROM program_sets WHERE program_exercise_id = ?`, keep.id).Scan(&last); err != nil {
+				return 0, err
+			}
+			if _, err := tx.Exec(`UPDATE program_sets SET program_exercise_id = ?, set_number = set_number + ?
+				WHERE program_exercise_id = ?`, keep.id, last, drop.id); err != nil {
+				return 0, err
+			}
+			if keep.notes == "" && drop.notes != "" {
+				keep.notes = drop.notes
+				if _, err := tx.Exec(`UPDATE program_exercises SET notes = ? WHERE id = ?`, keep.notes, keep.id); err != nil {
+					return 0, err
+				}
+			}
+			if _, err := tx.Exec(`DELETE FROM program_exercises WHERE id = ?`, drop.id); err != nil {
+				return 0, err
+			}
+		}
+		// A superset the dropped block belonged to may now have one member left: that is no superset.
+		if _, err := tx.Exec(`UPDATE program_exercises SET superset_group = NULL
+			WHERE program_day_id = ? AND superset_group IS NOT NULL AND superset_group IN (
+				SELECT superset_group FROM program_exercises WHERE program_day_id = ? AND superset_group IS NOT NULL
+				GROUP BY superset_group HAVING COUNT(*) = 1)`, keep.day, keep.day); err != nil {
+			return 0, err
+		}
+		// Close the gap the dropped blocks left in the day's order.
+		if _, err := tx.Exec(`UPDATE program_exercises SET order_index = (
+				SELECT COUNT(*) FROM program_exercises o WHERE o.program_day_id = program_exercises.program_day_id
+				AND (o.order_index < program_exercises.order_index OR (o.order_index = program_exercises.order_index AND o.id < program_exercises.id)))
+			WHERE program_day_id = ?`, keep.day); err != nil {
+			return 0, err
+		}
+		days++
+		i = j
+	}
+	return days, nil
 }

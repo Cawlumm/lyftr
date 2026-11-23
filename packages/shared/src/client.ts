@@ -482,7 +482,8 @@ export function createClient(
     update: (id: number, input: types.CustomExerciseInput) => api.put<{ data: types.Exercise }>(`/exercises/${id}`, input).then(unwrap),
     archive: (id: number) => api.post<{ data: types.Exercise }>(`/exercises/${id}/archive`).then(unwrap),
     unarchive: (id: number) => api.post<{ data: types.Exercise }>(`/exercises/${id}/unarchive`).then(unwrap),
-    usage: (id: number) => api.get<{ data: types.ExerciseUsage }>(`/exercises/${id}/usage`).then(unwrap),
+    usage: (id: number, into?: number) =>
+      api.get<{ data: types.ExerciseUsage }>(`/exercises/${id}/usage`, into ? { params: { into } } : undefined).then(unwrap),
     // Moves the signed-in user's workout and program rows from id to intoId and archives id. Final.
     merge: (id: number, intoId: number) => api.post<{ data: types.ExerciseMergeResult }>(`/exercises/${id}/merge`, { into_id: intoId }).then(unwrap),
     // `file` is the FormData part: a Blob on web, a { uri, name, type } descriptor on React Native.

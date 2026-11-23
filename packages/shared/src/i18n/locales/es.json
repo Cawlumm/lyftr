@@ -1612,7 +1612,10 @@
         "counting": "Contando lo que se moverá…",
         "usageFailed": "No se pudo contar lo que se moverá",
         "failed": "No se pudieron combinar los ejercicios",
-        "done": "«{{from}}» se fusionó con este ejercicio"
+        "done": "«{{from}}» se fusionó con este ejercicio",
+        "combined_one": "Un día del programa incluye los dos: quedará «{{into}}» una sola vez, con las series de ambos.",
+        "combined_other": "{{count}} días del programa incluyen los dos: en cada uno quedará «{{into}}» una sola vez, con las series de ambos.",
+        "combined_many": "{{count}} días del programa incluyen los dos: en cada uno quedará «{{into}}» una sola vez, con las series de ambos."
       },
       "addInstructions": "Añadir instrucciones"
     }
