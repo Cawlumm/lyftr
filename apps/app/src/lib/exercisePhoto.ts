@@ -1,4 +1,5 @@
 import { Platform } from 'react-native'
+import { loadImageManipulator, loadImagePicker } from './photoModules'
 
 export type PhotoSource = 'library' | 'camera'
 
@@ -29,9 +30,8 @@ export function uploadPart(photo: ExercisePhoto): unknown {
   return photo.blob ?? { uri: photo.uri, name: photo.name, type: photo.type }
 }
 
-// Both native modules are imported on demand, so the web bundle's entry chunk does not carry them.
 export async function pickExercisePhoto(source: PhotoSource): Promise<PhotoPick> {
-  const ImagePicker = await import('expo-image-picker')
+  const ImagePicker = await loadImagePicker()
   if (Platform.OS !== 'web') {
     const perm = source === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
@@ -39,27 +39,28 @@ export async function pickExercisePhoto(source: PhotoSource): Promise<PhotoPick>
     if (!perm.granted) return { status: 'denied', source }
   }
 
-  const options = { mediaTypes: ['images' as const], quality: PHOTO_QUALITY, allowsEditing: false }
+  // quality 1 lets the picker hand over the original file untouched. Below 1, iOS decodes the
+  // whole photo, redraws it upright and re-encodes it at full size before we ever see it: a 48 MP
+  // shot is several ~200 MB bitmaps at once, enough for iOS to kill the app now and then.
+  const options = { mediaTypes: ['images' as const], quality: 1, allowsEditing: false }
   const result = source === 'camera'
     ? await ImagePicker.launchCameraAsync(options)
     : await ImagePicker.launchImageLibraryAsync(options)
   const asset = result.canceled ? undefined : result.assets?.[0]
   if (!asset) return { status: 'cancelled' }
 
-  const { manipulateAsync, SaveFormat } = await import('expo-image-manipulator')
-  const save = { compress: PHOTO_QUALITY, format: SaveFormat.JPEG }
-  let { width, height } = asset
-  let uri = asset.uri
-  // The system may not report a size (0): a no-op pass reads it, and re-encodes to JPEG either way.
-  if (!width || !height) {
-    const probed = await manipulateAsync(uri, [], save)
-    ;({ uri, width, height } = probed)
+  // Decoded straight to the upload size (CGImageSource / BitmapFactory thumbnails): the full-size
+  // bitmap is never in memory, and EXIF orientation is applied on the way.
+  const { ImageManipulator, SaveFormat } = await loadImageManipulator()
+  const context = ImageManipulator.manipulate(asset.uri, { maxWidth: PHOTO_LONG_EDGE, maxHeight: PHOTO_LONG_EDGE })
+  const image = await context.renderAsync()
+  let out: { uri: string }
+  try {
+    out = await image.saveAsync({ compress: PHOTO_QUALITY, format: SaveFormat.JPEG })
+  } finally {
+    image.release()
+    context.release()
   }
-  const long = Math.max(width, height)
-  const actions = long > PHOTO_LONG_EDGE
-    ? [{ resize: width >= height ? { width: PHOTO_LONG_EDGE } : { height: PHOTO_LONG_EDGE } }]
-    : []
-  const out = await manipulateAsync(uri, actions, save)
 
   const photo: ExercisePhoto = { uri: out.uri, name: 'photo.jpg', type: 'image/jpeg' }
   if (Platform.OS === 'web') {
