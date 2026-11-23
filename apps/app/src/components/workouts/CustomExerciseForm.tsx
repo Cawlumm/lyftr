@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, ActivityIndicator, Platform, Pressable, View, type ScrollViewInstance, type TextInputInstance } from 'react-native'
+import { AccessibilityInfo, ActivityIndicator, Linking, Platform, Pressable, View, type ScrollViewInstance, type TextInputInstance } from 'react-native'
 import { router, useLocalSearchParams, type Href } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
-  CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, exerciseSteps, linesToText, textLines, uiMessage, useAsyncAction, useTranslation,
+  customExercises, CUSTOM_EXERCISE_CATEGORIES, CUSTOM_EXERCISE_EQUIPMENT, CUSTOM_EXERCISE_MUSCLES, customExercisePhotos, EXERCISE_SEARCH_DEBOUNCE_MS, exerciseSteps, linesToText, textLines, uiMessage, useAsyncAction, useTranslation,
   type Exercise, type UiMessage,
 } from '@lyftr/shared'
 import { Dumbbell, FileText, Layers, Lock, Pencil, Target } from '../ui/icons'
 import {
-  AppText, Button, Card, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, PhotoSlot, RequiredLegend, SR_ONLY, useDiscardGuard, type PhotoSlotLabels,
+  AppText, Button, Card, EmptyState, ErrorState, FieldHeader, FormField, FormPage, IconTileGroup, PhotoSlot, RequiredLegend, SR_ONLY, useDiscardGuard, type PhotoSlotLabels,
 } from '../ui'
 import { interactive, TOUCH_MIN } from '../ui/interaction'
 import { client, useServerInfo } from '../../lib/lyftr'
+import { uuidV4 } from '../../lib/uuid'
 import { uploadPart, type ExercisePhoto, type PhotoSource } from '../../lib/exercisePhoto'
 import { cancelExerciseCreate, hasExerciseCreate, resolveExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { useExercisePhoto } from '../../hooks/useExercisePhoto'
@@ -22,7 +23,7 @@ import {
   CATEGORY_OPTIONS, DEFAULT_CATEGORY, DEFAULT_EQUIPMENT, EQUIPMENT_OPTIONS, MUSCLE_GROUPS,
 } from './exerciseOptions'
 import { BodyMapPicker } from './BodyMapPicker'
-import { MAX_SECONDARY_MUSCLES, MAX_STEPS, MAX_STEP_LENGTH, MAX_STEPS_TEXT, validateCustomExercise, type CustomExerciseErrors } from './validateCustomExercise'
+import { MAX_SECONDARY_MUSCLES, MAX_STEPS, MAX_STEP_LENGTH, MAX_STEPS_TEXT, cleanName, cleanStep, validateCustomExercise, type CustomExerciseErrors } from './validateCustomExercise'
 
 type Base = '/workouts' | '/programs'
 const SCROLL_MARGIN = 12
@@ -72,6 +73,10 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
   const [staged, setStaged] = useState<ExercisePhoto | null>(null)
   const [photoRemoved, setPhotoRemoved] = useState(false)
   const [pickError, setPickError] = useState('')
+  const [pickDenied, setPickDenied] = useState(false)
+  // One id per form, sent with every create from it: a retry after a lost response is the same request.
+  const clientId = useRef<string | null>(null)
+  if (clientId.current === null) clientId.current = uuidV4()
   // The exercise as the server now holds it, once it was saved but its photo step failed.
   const [saved, setSaved] = useState<Exercise | null>(null)
 
@@ -140,18 +145,19 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
   }, t('exercises.custom.photo.uploadFailed'))
 
   const save = useAsyncAction(async () => {
+    const sent = steps.map(cleanStep).filter(Boolean)
     const input = {
-      name: trimmed,
+      name: cleanName(name),
       muscle_group: muscle ?? '',
       equipment,
       category,
       secondary_muscles: secondary.filter((m) => m !== muscle),
-      instructions: steps,
-      description: linesToText(steps),
+      instructions: sent,
+      description: linesToText(sent),
     }
     const ex = mode === 'edit' && exercise
       ? await client.exerciseAPI.update(exercise.id, input)
-      : await client.exerciseAPI.create(input)
+      : await client.exerciseAPI.create({ ...input, client_id: clientId.current ?? undefined })
     if (!hasPhotoChange) { finish(ex); return }
     setSaved(ex)
     await sendPhoto.run(ex)
@@ -159,15 +165,19 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
 
   const choosePhoto = async (source: PhotoSource) => {
     setPickError('')
+    setPickDenied(false)
     const out = await pickPhoto(source)
     if (!out) return
-    if ('error' in out) { setPickError(out.error); return }
+    if ('error' in out) { setPickError(out.error); setPickDenied(!!out.denied); return }
     setStaged(out.photo)
     setPhotoRemoved(false)
   }
-  const removePhoto = () => { setStaged(null); setPhotoRemoved(true); setPickError('') }
+  const removePhoto = () => { setStaged(null); setPhotoRemoved(true); setPickError(''); setPickDenied(false) }
   const existingPhotoId = photoRemoved ? undefined : exercise?.photo_id
   const own = useExercisePhoto(exercise?.id ?? 0, 'full', staged ? undefined : existingPhotoId)
+  const settingsAction = pickDenied && Platform.OS !== 'web'
+    ? { label: t('exercises.custom.photo.openSettings'), onPress: () => { void Linking.openSettings() } }
+    : undefined
   const photoLabels: PhotoSlotLabels = {
     add: t('exercises.custom.photo.add'), addHint: t('exercises.custom.photo.addHint'),
     replace: t('exercises.custom.photo.replace'), remove: t('exercises.custom.photo.remove'),
@@ -241,6 +251,13 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
         </View>
       ) : undefined}
     >
+      {/* Once the exercise is saved the fields no longer matter: what is left is the photo's retry. */}
+      <View
+        className="gap-4"
+        pointerEvents={saved ? 'none' : 'auto'}
+        accessibilityState={saved ? { disabled: true } : undefined}
+        style={saved ? { opacity: 0.6 } : undefined}
+      >
       <RequiredLegend />
 
       {photosOn ? (
@@ -250,6 +267,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
           pending={!!staged}
           busy={busy}
           error={pickError}
+          errorAction={settingsAction}
           labels={photoLabels}
           onPick={(source: PhotoSource) => { void choosePhoto(source) }}
           onRemove={removePhoto}
@@ -268,6 +286,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
           error={errors.name ? t(errors.name === 'controlChars' ? 'exercises.custom.form.nameControlChars' : 'exercises.custom.form.nameRequired') : null}
           autoCapitalize="words"
           maxLength={100}
+          editable={!saved}
           returnKeyType="done"
           // Enter saves on the web; on a phone Done just puts the keyboard away.
           onSubmitEditing={() => { if (Platform.OS === 'web') submit() }}
@@ -304,7 +323,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
           onChangeText={(v) => { setNotes(v); setErrors((p) => ({ ...p, steps: undefined })) }}
           placeholder={t('exercises.custom.form.instructionsPlaceholder')}
           multiline
-          maxLength={MAX_STEPS_TEXT}
+          editable={!saved}
           error={errors.steps ? stepsError(errors.steps) : null}
         />
       </View>
@@ -348,6 +367,7 @@ function FormBody({ mode, base, exercise, initialName, request }: BodyProps) {
           onChange={setCategory}
         />
       </View>
+      </View>
       {announcement ? <View accessibilityLiveRegion="polite" style={SR_ONLY}><AppText>{announcement}</AppText></View> : null}
     </FormPage>
   )
@@ -362,6 +382,8 @@ export function CustomExerciseForm({ mode, base }: { mode: 'create' | 'edit'; ba
   const [exercise, setExercise] = useState<Exercise | null>(null)
   const [error, setError] = useState<UiMessage | null>(null)
   const [retryKey, setRetryKey] = useState(0)
+  // Only a server that answered and lacks the feature is unsupported; no answer yet just shows the form.
+  const info = useServerInfo()
   const goBack = () => (router.canGoBack() ? router.back() : router.replace(base as unknown as Href))
 
   useEffect(() => {
@@ -375,6 +397,13 @@ export function CustomExerciseForm({ mode, base }: { mode: 'create' | 'edit'; ba
     return () => { cancelled = true }
   }, [mode, exerciseId, retryKey])
 
+  if (mode === 'create' && info && !customExercises(info)) {
+    return (
+      <SafeAreaView className="flex-1 bg-surface-base" edges={['top']}>
+        <EmptyState icon={Lock} title={t('exercises.custom.unsupportedTitle')} subtitle={t('exercises.custom.unsupportedBody')} action={<Button title={t('common.goBack')} variant="secondary" onPress={goBack} />} />
+      </SafeAreaView>
+    )
+  }
   if (mode === 'create') return <FormBody mode="create" base={base} initialName={name} request={request} />
 
   if (error || (exercise && !exercise.is_custom)) {

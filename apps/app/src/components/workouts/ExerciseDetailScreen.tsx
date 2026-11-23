@@ -260,7 +260,7 @@ export function ExerciseDetailScreen({ backFallback }: { backFallback: Href }) {
     { label: t('exercises.custom.actions.merge'), icon: Merge, onPress: () => setMerging(true) },
     ...(photosOn ? [
       { label: t(exercise.photo_id ? 'exercises.custom.photo.replace' : 'exercises.custom.photo.add'), icon: ImagePlus, onPress: () => setSourceOpen(true) },
-      ...(exercise.photo_id ? [{ label: t('exercises.custom.photo.remove'), icon: Trash2, onPress: () => { void removePhoto() } }] : []),
+      ...(exercise.photo_id ? [{ label: t('exercises.custom.photo.remove'), icon: Trash2, destructive: true, onPress: () => { void removePhoto() } }] : []),
     ] : []),
     exercise.archived
       ? { label: t('exercises.custom.actions.unarchive'), icon: ArchiveRestore, onPress: () => { void setArchived(false) } }

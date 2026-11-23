@@ -397,7 +397,7 @@
         "PHOTO_INVALID": "Ese archivo no es una foto que Lyftr pueda leer. Usa un JPEG, PNG o WebP.",
         "PHOTO_TOO_LARGE": "Esa foto es demasiado grande. Usa una de menos de 10 MB y 40 megapíxeles.",
         "INVALID_TAXONOMY": "{{field}} no es uno de los valores conocidos.",
-        "CUSTOM_EXERCISE_LIMIT": "Puedes tener hasta {{limit}} ejercicios personalizados.",
+        "CUSTOM_EXERCISE_LIMIT": "Puedes tener hasta {{limit}} ejercicios personalizados. Archiva uno para hacer sitio.",
         "INVALID_MERGE_TARGET": "Elige un ejercicio distinto para combinar.",
         "INVALID_DATE": "La fecha debe tener el formato AAAA-MM-DD.",
         "INVALID_LOGGED_ON": "La fecha del registro debe tener el formato AAAA-MM-DD.",
@@ -436,7 +436,8 @@
         "INSTRUCTIONS_TOO_MANY": "Un ejercicio puede tener hasta {{max}} pasos.",
         "INSTRUCTION_TOO_LONG": "Cada paso debe tener {{max}} caracteres o menos.",
         "INSTRUCTION_CONTROL_CHARS": "Un paso no puede contener saltos de línea ni otros caracteres de control.",
-        "INSTRUCTIONS_TEXT_TOO_LONG": "Los pasos juntos deben tener {{max}} caracteres o menos."
+        "INSTRUCTIONS_TEXT_TOO_LONG": "Los pasos juntos deben tener {{max}} caracteres o menos.",
+        "INVALID_CLIENT_ID": "El identificador de la solicitud no es válido."
       },
       "fields": {
         "accept": "Aceptadas",
@@ -501,7 +502,8 @@
         "tz_offset_minutes": "Diferencia horaria",
         "weight": "Peso",
         "weight_unit": "Unidad de peso",
-        "instructions": "Instrucciones"
+        "instructions": "Instrucciones",
+        "client_id": "Identificador del cliente"
       }
     },
     "network": {
@@ -1504,7 +1506,9 @@
         "6m": "6M",
         "All": "Todo"
       },
-      "noInstructions": "Este ejercicio aún no tiene instrucciones."
+      "noInstructions": "Este ejercicio aún no tiene instrucciones.",
+      "musclesWorkedLabel": "Trabaja {{primary}}; también {{secondary}}",
+      "musclesWorkedLabelOne": "Trabaja {{primary}}"
     },
     "custom": {
       "badge": "Personal",
@@ -1528,7 +1532,8 @@
         "tryAgain": "Reintentar",
         "skip": "Omitir por ahora",
         "updated": "Foto actualizada",
-        "removed": "Foto quitada"
+        "removed": "Foto quitada",
+        "openSettings": "Abrir ajustes"
       },
       "createRow": "Crear «{{name}}»",
       "createRowHint": "Un ejercicio personalizado que solo tú puedes ver",
@@ -1609,12 +1614,14 @@
         "counting": "Contando lo que se moverá…",
         "usageFailed": "No se pudo contar lo que se moverá",
         "failed": "No se pudieron combinar los ejercicios",
-        "done": "«{{from}}» se fusionó con este ejercicio",
+        "done": "«{{from}}» se combinó con este ejercicio",
         "combined_one": "Un día del programa incluye los dos: quedará «{{into}}» una sola vez, con las series de ambos.",
         "combined_other": "{{count}} días del programa incluyen los dos: en cada uno quedará «{{into}}» una sola vez, con las series de ambos.",
         "combined_many": "{{count}} días del programa incluyen los dos: en cada uno quedará «{{into}}» una sola vez, con las series de ambos."
       },
-      "addInstructions": "Añadir instrucciones"
+      "addInstructions": "Añadir instrucciones",
+      "unsupportedTitle": "Este servidor no puede guardar tus propios ejercicios",
+      "unsupportedBody": "Actualiza tu servidor de Lyftr para crear ejercicios personalizados."
     }
   },
   "home": {

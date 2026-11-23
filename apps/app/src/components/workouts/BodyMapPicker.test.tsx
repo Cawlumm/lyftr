@@ -59,7 +59,9 @@ describe('BodyMapPicker', () => {
   it('the figures are hidden from a screen reader, and the List holds every muscle by region', async () => {
     const onChange = jest.fn()
     await render(<BodyMapPicker value={null} onChange={onChange} groups={groups} />)
-    expect(screen.getByTestId('figure-front', hidden).parent?.parent?.props.importantForAccessibility ?? 'no-hide-descendants').toBe('no-hide-descendants')
+    const wrapper = screen.getByTestId('figure-front', hidden).parent?.parent?.parent
+    expect(wrapper?.props.importantForAccessibility).toBe('no-hide-descendants')
+    expect(wrapper?.props.accessibilityElementsHidden).toBe(true)
     await fireEvent.press(screen.getByRole('button', { name: 'List' }))
     expect(screen.getByText('Upper body')).toBeTruthy()
     await fireEvent.press(screen.getByRole('radio', { name: 'Calves' }))

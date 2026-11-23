@@ -64,6 +64,8 @@ export interface CustomExerciseInput {
   secondary_muscles?: string[]
   description?: string
   instructions?: string[]
+  // Create only: one per form, so a retried POST returns the row it already made.
+  client_id?: string
 }
 
 // How many of the signed-in user's rows reference an exercise, so a merge can say what moves.

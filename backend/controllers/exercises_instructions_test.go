@@ -28,7 +28,7 @@ func TestCreateExercise_InstructionLimits(t *testing.T) {
 	}{
 		{"31 steps", many, "INSTRUCTIONS_TOO_MANY"},
 		{"301 char step", []string{strings.Repeat("x", 301)}, "INSTRUCTION_TOO_LONG"},
-		{"control char", []string{"a\tb"}, "INSTRUCTION_CONTROL_CHARS"},
+		{"control char", []string{"a\x07b"}, "INSTRUCTION_CONTROL_CHARS"},
 		{"newline in a step", []string{"a\nb"}, "INSTRUCTION_CONTROL_CHARS"},
 		{"joined over 2000", long, "INSTRUCTIONS_TEXT_TOO_LONG"},
 		{"30 steps ok", thirty, ""},

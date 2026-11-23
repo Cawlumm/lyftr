@@ -66,7 +66,7 @@ func LinesToText(lines []string) string {
 func CleanSteps(steps []string) []string {
 	out := make([]string, 0, len(steps))
 	for _, s := range steps {
-		if s = strings.TrimSpace(s); s != "" {
+		if s = strings.TrimSpace(strings.ReplaceAll(s, "\t", " ")); s != "" {
 			out = append(out, s)
 		}
 	}

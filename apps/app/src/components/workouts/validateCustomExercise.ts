@@ -26,11 +26,18 @@ export interface CustomExerciseErrors {
 // The form and its tests share this.
 const chars = (s: string) => [...s].length
 
+// Tabs read as spaces, and the invisible joiners and byte-order mark that a paste carries are not
+// part of a name. Applied before the checks and to what is sent, so both see the same text.
+const INVISIBLE = /[\u200B\u200C\u200D\u2060\uFEFF]/g
+export const cleanName = (s: string) => s.replace(/\t/g, ' ').replace(INVISIBLE, '').trim()
+export const cleanStep = (s: string) => s.replace(/\t/g, ' ').trim()
+
 export function validateCustomExercise({ name, muscle, steps = [] }: CustomExerciseValues): CustomExerciseErrors {
   const errors: CustomExerciseErrors = {}
-  if (!name.trim()) errors.name = 'required'
-  else if (/\p{Cc}/u.test(name)) errors.name = 'controlChars'
-  const kept = steps.map((x) => x.trim()).filter(Boolean)
+  const clean = cleanName(name)
+  if (!clean) errors.name = 'required'
+  else if (/\p{Cc}/u.test(clean)) errors.name = 'controlChars'
+  const kept = steps.map(cleanStep).filter(Boolean)
   if (kept.length > MAX_STEPS) errors.steps = 'tooMany'
   else if (kept.some((x) => chars(x) > MAX_STEP_LENGTH)) errors.steps = 'stepTooLong'
   else if (chars(linesToText(kept)) > MAX_STEPS_TEXT) errors.steps = 'textTooLong'

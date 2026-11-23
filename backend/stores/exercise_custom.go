@@ -43,7 +43,13 @@ var (
 // NormalizeCustom trims and lowercases what a person typed, applies the defaults, and drops
 // the primary muscle and duplicates from the secondary list. It is idempotent.
 func NormalizeCustom(req models.CreateExerciseRequest) models.CreateExerciseRequest {
-	req.Name = strings.TrimSpace(req.Name)
+	req.Name = strings.TrimSpace(strings.ReplaceAll(strings.Map(func(r rune) rune {
+		switch r {
+		case '\u200b', '\u200c', '\u200d', '\u2060', '\ufeff':
+			return -1
+		}
+		return r
+	}, req.Name), "\t", " "))
 	req.MuscleGroup = strings.ToLower(strings.TrimSpace(req.MuscleGroup))
 	req.Equipment = strings.ToLower(strings.TrimSpace(req.Equipment))
 	req.Category = strings.ToLower(strings.TrimSpace(req.Category))
@@ -197,30 +203,83 @@ func nameTaken(err error) error {
 	return err
 }
 
+// nameClash reports ErrNameTaken when another of the user's active custom exercises has the
+// name under Unicode case folding; the unique index's NOCASE only folds ASCII.
+func nameClash(tx *sql.Tx, userID, exceptID int64, name string) error {
+	rows, err := tx.Query(`SELECT name FROM exercises WHERE owner_user_id = ? AND archived_at IS NULL AND id != ?`, userID, exceptID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var other string
+		if err := rows.Scan(&other); err != nil {
+			return err
+		}
+		if strings.EqualFold(other, name) {
+			return ErrNameTaken
+		}
+	}
+	return rows.Err()
+}
+
 func (s *ExerciseStore) CreateCustom(userID int64, req models.CreateExerciseRequest) (models.Exercise, error) {
+	e, _, err := s.CreateCustomOnce(userID, req)
+	return e, err
+}
+
+// CreateCustomOnce is CreateCustom made idempotent by req.ClientID: when the caller already owns
+// a row with that custom_uuid it is returned (created=false) and nothing is written, whatever the
+// name or cap say now. Another user's row with the id is not revealed; a fresh uuid is used.
+func (s *ExerciseStore) CreateCustomOnce(userID int64, req models.CreateExerciseRequest) (models.Exercise, bool, error) {
 	req = NormalizeCustom(req)
 	if err := checkTaxonomy(req); err != nil {
-		return models.Exercise{}, err
-	}
-	uuid, err := newUUID()
-	if err != nil {
-		return models.Exercise{}, err
+		return models.Exercise{}, false, err
 	}
 	secondary, err := json.Marshal(req.SecondaryMuscles)
 	if err != nil {
-		return models.Exercise{}, err
+		return models.Exercise{}, false, err
 	}
 	steps, err := json.Marshal(req.Instructions)
 	if err != nil {
-		return models.Exercise{}, err
+		return models.Exercise{}, false, err
 	}
-	return inTx(s.db, func(tx *sql.Tx) (models.Exercise, error) {
+	created := true
+	e, err := inTx(s.db, func(tx *sql.Tx) (models.Exercise, error) {
+		uuid := req.ClientID
+		if uuid != "" {
+			var existing int64
+			err := tx.QueryRow(`SELECT id FROM exercises WHERE custom_uuid = ? AND owner_user_id = ?`, uuid, userID).Scan(&existing)
+			if err == nil {
+				created = false
+				return s.getTx(tx, existing)
+			}
+			if !errors.Is(err, sql.ErrNoRows) {
+				return models.Exercise{}, err
+			}
+			var taken bool
+			if err := tx.QueryRow(`SELECT EXISTS (SELECT 1 FROM exercises WHERE custom_uuid = ?)`, uuid).Scan(&taken); err != nil {
+				return models.Exercise{}, err
+			}
+			if taken {
+				uuid = ""
+			}
+		}
+		if uuid == "" {
+			var err error
+			if uuid, err = newUUID(); err != nil {
+				return models.Exercise{}, err
+			}
+		}
 		var n int
 		if err := tx.QueryRow(`SELECT COUNT(*) FROM exercises WHERE owner_user_id = ? AND archived_at IS NULL`, userID).Scan(&n); err != nil {
 			return models.Exercise{}, err
 		}
 		if n >= MaxCustomExercises {
 			return models.Exercise{}, ErrCustomLimit
+		}
+		if err := nameClash(tx, userID, 0, req.Name); err != nil {
+			return models.Exercise{}, err
 		}
 		res, err := tx.Exec(`INSERT INTO exercises
 			(name, muscle_group, secondary_muscles, category, equipment, description, instructions, owner_user_id, custom_uuid, created_at)
@@ -235,6 +294,7 @@ func (s *ExerciseStore) CreateCustom(userID int64, req models.CreateExerciseRequ
 		}
 		return s.getTx(tx, id)
 	})
+	return e, created && err == nil, err
 }
 
 func (s *ExerciseStore) UpdateCustom(userID, id int64, req models.CreateExerciseRequest) (models.Exercise, error) {
@@ -252,6 +312,9 @@ func (s *ExerciseStore) UpdateCustom(userID, id int64, req models.CreateExercise
 	}
 	return inTx(s.db, func(tx *sql.Tx) (models.Exercise, error) {
 		if _, err := owned(tx, userID, id); err != nil {
+			return models.Exercise{}, err
+		}
+		if err := nameClash(tx, userID, id, req.Name); err != nil {
 			return models.Exercise{}, err
 		}
 		if _, err := tx.Exec(`UPDATE exercises SET name = ?, muscle_group = ?, secondary_muscles = ?,
@@ -295,6 +358,13 @@ func (s *ExerciseStore) Unarchive(userID, id int64) (models.Exercise, error) {
 			}
 			if n >= MaxCustomExercises {
 				return models.Exercise{}, ErrCustomLimit
+			}
+			var name string
+			if err := tx.QueryRow(`SELECT name FROM exercises WHERE id = ?`, id).Scan(&name); err != nil {
+				return models.Exercise{}, err
+			}
+			if err := nameClash(tx, userID, id, name); err != nil {
+				return models.Exercise{}, err
 			}
 			if _, err := tx.Exec(`UPDATE exercises SET archived_at = NULL, merged_into_id = NULL WHERE id = ?`, id); err != nil {
 				return models.Exercise{}, nameTaken(err)

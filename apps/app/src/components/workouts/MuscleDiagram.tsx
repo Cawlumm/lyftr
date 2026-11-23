@@ -1,8 +1,8 @@
 import { memo, useState } from 'react'
-import { View } from 'react-native'
+import { Platform, View } from 'react-native'
 import Body, { type Slug } from 'react-native-body-highlighter'
 import { useTranslation, type Exercise } from '@lyftr/shared'
-import { muscleToBodySlugs } from '../../utils/exerciseUtils'
+import { muscleChipLabel, muscleToBodySlugs } from '../../utils/exerciseUtils'
 import { useTheme } from '../../theme/useTheme'
 import { AppText } from '../ui'
 import { BODY_COLORS, BODY_MAIN_COLOR, BODY_SECONDARY_COLOR, bodyFill } from './bodyFigure'
@@ -39,10 +39,15 @@ export const MuscleDiagram = memo(function MuscleDiagram({ exercise }: { exercis
 
   const scale = width > 0 ? Math.min(MAX_SCALE, (width - FIGURE_GAP) / 2 / FIGURE_WIDTH) : MAX_SCALE
   const bodyColor = bodyFill(isDark)
+  const secondaryNames = (exercise.secondary_muscles || []).filter((m) => m !== exercise.muscle_group).map(muscleChipLabel)
+  const summary = secondaryNames.length > 0
+    ? t('exercises.detail.musclesWorkedLabel', { primary: muscleChipLabel(exercise.muscle_group), secondary: secondaryNames.join(', ') })
+    : t('exercises.detail.musclesWorkedLabelOne', { primary: muscleChipLabel(exercise.muscle_group) })
+  const hidden = Platform.OS === 'web' ? { 'aria-hidden': true } : { accessibilityElementsHidden: true, importantForAccessibility: 'no-hide-descendants' as const }
 
   return (
-    <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
-      <View className="flex-row items-start justify-center" style={{ gap: FIGURE_GAP }}>
+    <View accessible accessibilityLabel={summary} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View {...hidden} className="flex-row items-start justify-center" style={{ gap: FIGURE_GAP }}>
         <View className="items-center gap-1">
           <Body data={data} side="front" scale={scale} colors={BODY_COLORS} defaultFill={bodyColor} border="none" />
           <AppText variant="caption" color="muted">{t('bodyMap.front')}</AppText>

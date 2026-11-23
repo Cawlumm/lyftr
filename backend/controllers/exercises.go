@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -250,13 +251,23 @@ func exerciseIDParam(c *gin.Context) (int64, bool) {
 	return id, true
 }
 
+var clientIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
 func (h *Handler) CreateExercise(c *gin.Context) {
 	req, ok := bindCustomExercise(c)
 	if !ok {
 		return
 	}
-	e, err := h.s.Exercise.CreateCustom(middleware.UserID(c), req)
+	if req.ClientID != "" && !clientIDPattern.MatchString(req.ClientID) {
+		utils.Fail(c, utils.CodeInvalidClientID, nil)
+		return
+	}
+	e, created, err := h.s.Exercise.CreateCustomOnce(middleware.UserID(c), req)
 	if customExerciseFailure(c, err, req.Name) {
+		return
+	}
+	if !created {
+		utils.OK(c, e)
 		return
 	}
 	utils.Created(c, e)

@@ -391,7 +391,7 @@
         "PHOTO_INVALID": "That file isn't a photo Lyftr can read. Use a JPEG, PNG or WebP.",
         "PHOTO_TOO_LARGE": "That photo is too large. Use one under 10 MB and 40 megapixels.",
         "INVALID_TAXONOMY": "{{field}} isn't one of the known values.",
-        "CUSTOM_EXERCISE_LIMIT": "You can have up to {{limit}} custom exercises.",
+        "CUSTOM_EXERCISE_LIMIT": "You can have up to {{limit}} custom exercises. Archive one to make room.",
         "INVALID_MERGE_TARGET": "Choose a different exercise to merge into.",
         "INVALID_DATE": "Date must be in YYYY-MM-DD format.",
         "INVALID_LOGGED_ON": "Logged on must be in YYYY-MM-DD format.",
@@ -430,7 +430,8 @@
         "INSTRUCTIONS_TOO_MANY": "An exercise can have up to {{max}} steps.",
         "INSTRUCTION_TOO_LONG": "Each step must be {{max}} characters or fewer.",
         "INSTRUCTION_CONTROL_CHARS": "A step can't contain line breaks or other control characters.",
-        "INSTRUCTIONS_TEXT_TOO_LONG": "The steps together must be {{max}} characters or fewer."
+        "INSTRUCTIONS_TEXT_TOO_LONG": "The steps together must be {{max}} characters or fewer.",
+        "INVALID_CLIENT_ID": "That request id isn't valid."
       },
       "fields": {
         "accept": "Accept",
@@ -495,7 +496,8 @@
         "tz_offset_minutes": "Tz offset minutes",
         "weight": "Weight",
         "weight_unit": "Weight unit",
-        "instructions": "Instructions"
+        "instructions": "Instructions",
+        "client_id": "Client id"
       }
     },
     "network": {
@@ -1483,7 +1485,9 @@
         "6m": "6m",
         "All": "All"
       },
-      "noInstructions": "No instructions for this exercise yet."
+      "noInstructions": "No instructions for this exercise yet.",
+      "musclesWorkedLabel": "Works {{primary}}; also {{secondary}}",
+      "musclesWorkedLabelOne": "Works {{primary}}"
     },
     "custom": {
       "badge": "Custom",
@@ -1507,7 +1511,8 @@
         "tryAgain": "Try again",
         "skip": "Skip for now",
         "updated": "Photo updated",
-        "removed": "Photo removed"
+        "removed": "Photo removed",
+        "openSettings": "Open settings"
       },
       "createRow": "Create “{{name}}”",
       "createRowHint": "A custom exercise only you can see",
@@ -1590,7 +1595,9 @@
         "combined_one": "One program day lists both: it will list “{{into}}” once, with the sets of both.",
         "combined_other": "{{count}} program days list both: each will list “{{into}}” once, with the sets of both."
       },
-      "addInstructions": "Add instructions"
+      "addInstructions": "Add instructions",
+      "unsupportedTitle": "This server can't save your own exercises",
+      "unsupportedBody": "Update your Lyftr server to create custom exercises."
     }
   },
   "home": {

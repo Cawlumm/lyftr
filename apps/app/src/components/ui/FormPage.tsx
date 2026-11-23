@@ -1,5 +1,5 @@
 import { createContext, type ComponentProps, useContext, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react'
-import { Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type ScrollViewInstance } from 'react-native'
+import { Keyboard, KeyboardAvoidingView, Platform, ScrollView, View, type ScrollViewInstance } from 'react-native'
 import { router, usePreventRemove, type Href } from 'expo-router'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useAsyncAction, useTranslation } from '@lyftr/shared'
@@ -113,9 +113,10 @@ export function FormPage({
             keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
             contentContainerStyle={{ paddingBottom: 16 }}
           >
-            {/* A tap on space that is not a control puts the keyboard away (native; the web has no
-                soft keyboard to dismiss). Taps on controls still reach them. */}
-            <Pressable accessible={false} onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss} className="gap-4 py-4">
+            {/* A tap on space that is not a control puts the keyboard away without a wrapper here:
+                keyboardShouldPersistTaps="handled" makes the ScrollView itself dismiss it for a tap no
+                child handled. A Pressable around the content became one TalkBack focus target. */}
+            <View className="gap-4 py-4">
               <View className="flex-row items-center gap-3">
                 <IconButton icon={ArrowLeft} label={t('common.goBack')} variant="ghost" size="md" onPress={back} />
                 <View className="flex-1">
@@ -127,7 +128,7 @@ export function FormPage({
               {destructive ? (
                 <Button variant="danger" title={destructive.label} onPress={() => setConfirmOpen(true)} />
               ) : null}
-            </Pressable>
+            </View>
           </ScrollView>
 
           <View className={`gap-3 border-t border-surface-border bg-surface-base pb-2 pt-3 ${wide ? '' : '-mx-5 px-5'}`} style={{ marginBottom: keyboardUp ? 0 : pillInset }}>

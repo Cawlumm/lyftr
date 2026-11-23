@@ -45,6 +45,17 @@ describe('FormPage', () => {
     expect(onPress).toHaveBeenCalled()
   })
 
+  it('does not wrap the content in a pressable or accessible element', async () => {
+    await render(<Page />)
+    let node = screen.getByText('body').parent
+    while (node && node.type !== 'RCTScrollView' && String(node.type) !== 'ScrollView') {
+      expect(node.props.onPress).toBeUndefined()
+      expect(node.props.onClick).toBeUndefined()
+      expect(node.props.accessible).not.toBe(true)
+      node = node.parent
+    }
+  })
+
   it('says what went wrong next to the action', async () => {
     await render(<Page error="Couldn't save" />)
     expect(screen.getByText("Couldn't save")).toBeTruthy()

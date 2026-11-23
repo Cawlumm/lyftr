@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { AccessibilityInfo, Platform } from 'react-native'
+import { AccessibilityInfo, Linking, Platform } from 'react-native'
 import type { Exercise } from '@lyftr/shared'
 
 const mockRouter = { push: jest.fn(), back: jest.fn(), replace: jest.fn(), canGoBack: jest.fn(() => true) }
@@ -47,6 +47,11 @@ jest.mock('../../lib/exercisePhoto', () => ({
   pickExercisePhoto: (...a: unknown[]) => mockPick(...a),
 }))
 
+let mockInfo: unknown = null
+jest.mock('../../lib/lyftr', () => {
+  const actual = jest.requireActual('../../lib/lyftr')
+  return { ...actual, useServerInfo: () => mockInfo }
+})
 import { client } from '../../lib/lyftr'
 import { hasExerciseCreate, requestExerciseCreate } from '../../lib/exerciseCreateRequests'
 import { CustomExerciseForm } from './CustomExerciseForm'
@@ -58,6 +63,7 @@ const saved: Exercise = {
 
 beforeEach(() => {
   mockPhotos = false
+  mockInfo = null
   mockPick.mockReset()
   mockParams = { name: '  Soleus Slouch ' }
   Object.values(mockRouter).forEach((f) => f.mockClear())
@@ -330,6 +336,63 @@ describe('CustomExerciseForm', () => {
   })
 })
 
+describe('CustomExerciseForm edge cases', () => {
+  it('two creates from one form send the same client_id; a new form gets another', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create')
+      .mockRejectedValueOnce(new Error('lost'))
+      .mockResolvedValue(saved)
+    const { unmount } = await render(<CustomExerciseForm mode="create" base="/workouts" />)
+    await pickFromList()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1))
+    await waitFor(async () => { await pressCreate(); expect(create).toHaveBeenCalledTimes(2) })
+    const [a, b] = create.mock.calls.map((c) => (c[0] as { client_id?: string }).client_id)
+    expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(b).toBe(a)
+    await unmount()
+    await renderCreate()
+    await pickFromList()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(3))
+    expect((create.mock.calls[2][0] as { client_id?: string }).client_id).not.toBe(a)
+  })
+
+  it('does not truncate pasted instructions, and says under the box when they are too long', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    await renderCreate()
+    const box = screen.getByLabelText('Instructions')
+    expect(box.props.maxLength).toBeUndefined()
+    const pasted = Array.from({ length: 30 }, () => 'x'.repeat(78)).join('\n')
+    await fireEvent.changeText(box, pasted)
+    expect(screen.getByLabelText('Instructions').props.value).toBe(pasted)
+    await pickFromList()
+    await pressCreate()
+    expect(await screen.findByText(/must be 2000 characters or fewer/)).toBeTruthy()
+    expect(create).not.toHaveBeenCalled()
+  })
+
+  it('sends a name and steps with tabs as spaces and invisible characters removed', async () => {
+    const create = jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    await renderCreate()
+    await fireEvent.changeText(screen.getByDisplayValue('Soleus Slouch'), 'So\u200Bleus\tSlouch\uFEFF')
+    await fireEvent.changeText(screen.getByLabelText('Instructions'), 'Stand\ttall\n\t\nPress')
+    await pickFromList()
+    await pressCreate()
+    await waitFor(() => expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'Soleus Slouch', instructions: ['Stand tall', 'Press'], description: 'Stand tall\nPress',
+    })))
+  })
+
+  it('on a server without custom exercises says so instead of showing the form', async () => {
+    mockInfo = { name: 'lyftr', version: '0.1.0' }
+    await renderCreate()
+    expect(screen.getByText("This server can't save your own exercises")).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Create' })).toBeNull()
+    await fireEvent.press(screen.getByRole('button', { name: 'Go back' }))
+    expect(mockRouter.back).toHaveBeenCalled()
+  })
+})
+
 describe('CustomExerciseForm edit', () => {
   const existing: Exercise = { ...saved, equipment: 'dumbbell', category: 'stretching', secondary_muscles: ['hamstrings'], description: 'Slow', instructions: ['Slow', 'Hold'] }
   const renderEdit = async (ex: Exercise = existing) => {
@@ -437,6 +500,36 @@ describe('CustomExerciseForm photo', () => {
     await waitFor(() => expect(mockRouter.replace).toHaveBeenCalledWith('/workouts/exercise/7'))
     expect(create).toHaveBeenCalledTimes(1)
     expect(upload).toHaveBeenCalledTimes(2)
+  })
+
+  it('after the photo fails the fields are inert, leaving only Try again and Skip', async () => {
+    mockPhotos = true
+    mockPick.mockResolvedValue({ status: 'picked', photo: staged })
+    jest.spyOn(client.exerciseAPI, 'create').mockResolvedValue(saved)
+    jest.spyOn(client.exerciseAPI, 'uploadPhoto').mockRejectedValue(new Error('boom'))
+    await renderCreate()
+    await fill()
+    await screen.findByText(/The exercise was saved/)
+    expect(screen.getByLabelText('Instructions').props.editable).toBe(false)
+    expect(screen.getByDisplayValue('Soleus Slouch').props.editable).toBe(false)
+    const wrapper = screen.getByLabelText('Instructions').parent!.parent!
+    let node: typeof wrapper | null = wrapper
+    let inert = false
+    while (node) { if (node.props.pointerEvents === 'none' && node.props.accessibilityState?.disabled) inert = true; node = node.parent }
+    expect(inert).toBe(true)
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Skip for now' })).toBeTruthy()
+  })
+
+  it('a refused permission offers Open settings, which opens them', async () => {
+    mockPhotos = true
+    mockPick.mockResolvedValue({ status: 'denied', source: 'camera' })
+    const open = jest.spyOn(Linking, 'openSettings').mockResolvedValue()
+    await renderCreate()
+    await fireEvent.press(screen.getByRole('button', { name: 'Add photo' }))
+    await fireEvent.press(await screen.findByText('Take photo'))
+    await fireEvent.press(await screen.findByRole('button', { name: 'Open settings' }))
+    expect(open).toHaveBeenCalled()
   })
 
   it('Skip carries on with the saved exercise, without a photo', async () => {

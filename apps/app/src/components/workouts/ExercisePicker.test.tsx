@@ -145,6 +145,8 @@ describe('ExercisePicker (mobile)', () => {
       expect(await screen.findByText('Your exercises')).toBeTruthy()
       expect(screen.getByText('Soleus Slouch')).toBeTruthy()
       expect(screen.getByLabelText('Custom exercise')).toBeTruthy()
+      expect(screen.getByRole('button', { name: 'Soleus Slouch, Custom, Chest, Barbell' })).toBeTruthy()
+      expect(screen.getByLabelText('Search exercises…')).toBeTruthy()
       expect(screen.getByText('From the catalog')).toBeTruthy()
     })
 

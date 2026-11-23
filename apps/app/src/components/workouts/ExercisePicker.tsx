@@ -13,7 +13,7 @@ import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { MAX_CUSTOM_EXERCISES, useMyExercises } from '../../hooks/useMyExercises'
 import { useTheme } from '../../theme/useTheme'
 import { useBreakpoint } from '../../lib/useBreakpoint'
-import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
+import { equipmentLabel, muscleChipLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { CustomBadge } from './CustomBadge'
 import { ExerciseGroupHeading } from './ExerciseGroupHeading'
@@ -35,10 +35,12 @@ interface Props {
 // Memoised with a stable onSelect: a keystroke in the search box re-rendered every row (~180)
 // and rebuilt every separator, during a live workout.
 const PickerRow = memo(function PickerRow({ exercise, onSelect }: { exercise: Exercise; onSelect: (exercise: Exercise) => void }) {
-  useTranslation() // re-renders on a language switch: the labels below come from the catalog
+  const { t } = useTranslation()
+  const label = [exercise.name, exercise.is_custom ? t('exercises.custom.badge') : null, muscleChipLabel(exercise.muscle_group), hasEquipmentToShow(exercise.equipment) ? equipmentLabel(exercise.equipment) : null].filter(Boolean).join(', ')
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={() => onSelect(exercise)}
       className="flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60"
     >
@@ -196,6 +198,7 @@ export function ExercisePicker({ selectedIds, onSelect, onClose, title, subtitle
             <TextInput
               className="flex-1 font-sans text-base text-tx-primary"
               style={NO_INPUT_OUTLINE}
+              accessibilityLabel={t('exercises.picker.search')}
               value={query}
               onChangeText={setQuery}
               placeholder={t('exercises.picker.search')}

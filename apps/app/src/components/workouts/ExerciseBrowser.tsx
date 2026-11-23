@@ -18,7 +18,7 @@ import { client } from '../../lib/lyftr'
 import { useMyExercises } from '../../hooks/useMyExercises'
 import { useServerInfiniteList } from '../../hooks/useServerInfiniteList'
 import { useTheme } from '../../theme/useTheme'
-import { equipmentLabel, muscleLabel } from '../../utils/exerciseUtils'
+import { equipmentLabel, muscleChipLabel, muscleLabel } from '../../utils/exerciseUtils'
 import { ExerciseImage } from './ExerciseImage'
 import { useSessionPillInset } from './SessionPill'
 import { CustomBadge } from './CustomBadge'
@@ -53,10 +53,12 @@ function BrowseSkeleton() {
 // In the wide grid a row is a card of its own: a hairline between cells reads as nothing.
 // Memoised: a keystroke in the search box re-rendered every row (~240) before.
 const BrowseRow = memo(function BrowseRow({ exercise, card = false }: { exercise: Exercise; card?: boolean }) {
-  useTranslation() // re-renders on a language switch: the labels below come from the catalog
+  const { t } = useTranslation()
+  const label = [exercise.name, exercise.is_custom ? t('exercises.custom.badge') : null, muscleChipLabel(exercise.muscle_group), hasEquipmentToShow(exercise.equipment) ? equipmentLabel(exercise.equipment) : null].filter(Boolean).join(', ')
   const { colors } = useTheme()
   return (
     <Pressable
+      accessibilityLabel={label}
       {...linkProps(exercisePath(exercise.id), () => router.push(exerciseHref(exercise.id)))}
       className={`flex-row items-center gap-3 px-3 py-3 active:bg-surface-muted/60 ${card
         ? `rounded-xl border border-surface-border bg-surface-raised motion-safe:transition-colors motion-safe:duration-[120ms] ${interactive('hover:border-brand-500/40')}`
@@ -202,7 +204,7 @@ export function ExerciseBrowser({ initialQuery = '', initialFilters }: { initial
 
       <View className="flex-row items-center gap-2 px-4 pb-3">
         <View className="flex-1">
-          <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} />
+          <SearchField value={query} onChangeText={setQuery} placeholder={t('exercises.picker.search')} accessibilityLabel={t('exercises.picker.search')} />
         </View>
         <FilterButton active={count} onPress={() => setSheetOpen(true)} />
       </View>

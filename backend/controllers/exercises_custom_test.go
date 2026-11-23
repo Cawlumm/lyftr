@@ -404,3 +404,88 @@ func TestSaveAfterMerge_WritesToTheMergeTarget(t *testing.T) {
 		t.Errorf("program exercise_id = %v, want %d", pe, ids[2])
 	}
 }
+
+func TestCreateExercise_ClientIDIdempotent(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	other := secondUser(t)
+	cid := "0b8f0c1e-6d0a-4a39-9d57-2f1c3b5a7e90"
+	body := map[string]any{"name": "Sled Push", "muscle_group": "chest", "client_id": cid}
+
+	code, first := createCustom(t, uid, body)
+	if code != http.StatusCreated {
+		t.Fatalf("first: %d %v", code, first)
+	}
+	code, again := createCustom(t, uid, map[string]any{"name": "Renamed", "muscle_group": "chest", "client_id": cid})
+	if code != http.StatusOK || idOf(t, again) != idOf(t, first) {
+		t.Fatalf("retry: %d %v", code, again)
+	}
+	var n int
+	db.DB.QueryRow(`SELECT COUNT(*) FROM exercises WHERE owner_user_id = ?`, uid).Scan(&n)
+	if n != 1 {
+		t.Errorf("rows = %d, want 1", n)
+	}
+
+	code, theirs := createCustom(t, other, body)
+	if code != http.StatusCreated || idOf(t, theirs) == idOf(t, first) {
+		t.Errorf("other user: %d %v", code, theirs)
+	}
+	var u string
+	db.DB.QueryRow(`SELECT custom_uuid FROM exercises WHERE id = ?`, idOf(t, theirs)).Scan(&u)
+	if u == cid || u == "" {
+		t.Errorf("other user's custom_uuid = %q", u)
+	}
+
+	for _, bad := range []string{"nope", "0B8F0C1E-6D0A-4A39-9D57-2F1C3B5A7E90", cid + "0"} {
+		code, resp := createCustom(t, uid, map[string]any{"name": "Z", "muscle_group": "chest", "client_id": bad})
+		if code != http.StatusUnprocessableEntity || resp["code"] != "INVALID_CLIENT_ID" {
+			t.Errorf("%q: %d %v", bad, code, resp)
+		}
+	}
+}
+
+func TestCreateExercise_ClientIDRetryAtCap(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	cid := "11111111-2222-4333-8444-555555555555"
+	code, first := createCustom(t, uid, map[string]any{"name": "Mine", "muscle_group": "chest", "client_id": cid})
+	if code != http.StatusCreated {
+		t.Fatal(code, first)
+	}
+	if _, err := db.DB.Exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 499)
+		INSERT INTO exercises (name, owner_user_id) SELECT 'x' || i, ? FROM n`, uid); err != nil {
+		t.Fatal(err)
+	}
+	code, again := createCustom(t, uid, map[string]any{"name": "Mine", "muscle_group": "chest", "client_id": cid})
+	if code != http.StatusOK || idOf(t, again) != idOf(t, first) {
+		t.Errorf("retry at cap: %d %v", code, again)
+	}
+	code, resp := createCustom(t, uid, map[string]any{"name": "New", "muscle_group": "chest"})
+	if code != http.StatusConflict || resp["code"] != "CUSTOM_EXERCISE_LIMIT" {
+		t.Errorf("new at cap: %d %v", code, resp)
+	}
+}
+
+func TestCreateExercise_ZeroWidthTabsAndUnicodeCase(t *testing.T) {
+	setupTestDB(t)
+	uid := createTestUser(t)
+	code, resp := createCustom(t, uid, map[string]any{"name": "\u200b\ufeff", "muscle_group": "chest"})
+	if code != http.StatusUnprocessableEntity {
+		t.Errorf("zero-width name: %d %v", code, resp)
+	}
+	code, resp = createCustom(t, uid, map[string]any{
+		"name": "Bench\tPress‍", "muscle_group": "chest", "instructions": []string{"Lie\tdown"},
+	})
+	if code != http.StatusCreated {
+		t.Fatalf("%d %v", code, resp)
+	}
+	d := resp["data"].(map[string]any)
+	if d["name"] != "Bench Press" || d["instructions"].([]any)[0] != "Lie down" {
+		t.Errorf("data = %v", d)
+	}
+	createCustom(t, uid, map[string]any{"name": "Élan", "muscle_group": "chest"})
+	code, resp = createCustom(t, uid, map[string]any{"name": "élan", "muscle_group": "chest"})
+	if code != http.StatusConflict || resp["code"] != "EXERCISE_NAME_TAKEN" {
+		t.Errorf("unicode dup: %d %v", code, resp)
+	}
+}

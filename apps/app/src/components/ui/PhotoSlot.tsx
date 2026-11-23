@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Image, Pressable, View } from 'react-native'
+import { Image, Platform, Pressable, View } from 'react-native'
 import { Camera, ImagePlus, Pencil, Trash2 } from './icons'
 import { ActionSheet, type SheetAction } from './ActionSheet'
 import { AppText } from './Typography'
@@ -29,6 +29,8 @@ interface Props {
   pending?: boolean
   busy?: boolean
   error?: string
+  /** A button under the error, for an error the user can fix elsewhere (a refused permission). */
+  errorAction?: { label: string; onPress: () => void }
   labels: PhotoSlotLabels
   onPick: (source: PhotoSource) => void
   onRemove: () => void
@@ -37,7 +39,7 @@ interface Props {
 // An optional picture: a dashed "add" slot that becomes the picture. Nothing sits on the photo:
 // tapping it, or the Change link under it, opens one sheet with choose, take and remove. Where
 // there is no camera (the web) Add goes straight to the file picker.
-export function PhotoSlot({ uri, filled, pending, busy, error, labels, onPick, onRemove }: Props) {
+export function PhotoSlot({ uri, filled, pending, busy, error, errorAction, labels, onPick, onRemove }: Props) {
   const { accent } = useTheme()
   const [sourceOpen, setSourceOpen] = useState(false)
   const choose = () => { if (cameraSupported) setSourceOpen(true); else onPick('library') }
@@ -88,7 +90,20 @@ export function PhotoSlot({ uri, filled, pending, busy, error, labels, onPick, o
           <AppText variant="caption" color="muted" className="text-center">{labels.addHint}</AppText>
         </Pressable>
       )}
-      {error ? <AppText variant="caption" color="error">{error}</AppText> : null}
+      {error ? (
+        <View accessibilityLiveRegion="polite" role={Platform.OS === 'web' ? 'alert' : undefined}>
+          <AppText variant="caption" color="error">{error}</AppText>
+        </View>
+      ) : null}
+      {error && errorAction ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={errorAction.onPress}
+          className={`min-h-[44px] items-start justify-center self-start rounded-full ${interactive('hover:bg-surface-muted')}`}
+        >
+          <AppText variant="bodySemibold" className="text-[14px]" style={{ color: accent }}>{errorAction.label}</AppText>
+        </Pressable>
+      ) : null}
       <ActionSheet open={sourceOpen} title={filled ? labels.replace : labels.sourceTitle} actions={sources} onClose={() => setSourceOpen(false)} />
     </View>
   )

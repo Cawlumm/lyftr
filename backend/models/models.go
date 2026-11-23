@@ -87,6 +87,9 @@ type CreateExerciseRequest struct {
 	// Instructions wins over Description when non-nil, even empty (an explicit clear).
 	// Nil means an older app that sends only Description.
 	Instructions []string `json:"instructions"`
+	// ClientID makes a create idempotent (POST only, ignored by PUT): a canonical lowercase UUID the
+	// client picked, so a retry after a lost response finds the row it already made.
+	ClientID string `json:"client_id,omitempty"`
 }
 
 // MergeExerciseRequest is the body of POST /exercises/:id/merge.

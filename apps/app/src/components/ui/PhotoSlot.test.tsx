@@ -40,4 +40,17 @@ describe('PhotoSlot', () => {
     await render(<PhotoSlot filled={false} error="Nope" labels={labels} onPick={jest.fn()} onRemove={jest.fn()} />)
     expect(screen.getByText('Nope')).toBeTruthy()
   })
+
+  it('announces the error politely and offers the action under it', async () => {
+    const onPress = jest.fn()
+    await render(<PhotoSlot filled={false} error="No camera" errorAction={{ label: 'Open settings', onPress }} labels={labels} onPick={jest.fn()} onRemove={jest.fn()} />)
+    expect(screen.getByText('No camera').parent!.props.accessibilityLiveRegion).toBe('polite')
+    await fireEvent.press(screen.getByRole('button', { name: 'Open settings' }))
+    expect(onPress).toHaveBeenCalled()
+  })
+
+  it('has no action without an error', async () => {
+    await render(<PhotoSlot filled={false} errorAction={{ label: 'Open settings', onPress: jest.fn() }} labels={labels} onPick={jest.fn()} onRemove={jest.fn()} />)
+    expect(screen.queryByText('Open settings')).toBeNull()
+  })
 })
